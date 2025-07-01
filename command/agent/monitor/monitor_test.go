@@ -13,7 +13,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -119,12 +118,12 @@ func TestMonitor_External(t *testing.T) {
 	monitor := New(512, logger, &log.LoggerOptions{})
 	cases := []struct {
 		name     string
-		opts     cstructs.MonitorExternalRequest
+		opts     MonitorExternalOpts
 		expected string
 	}{
 		{
 			name: "happy_path_logpath_golden",
-			opts: cstructs.MonitorExternalRequest{
+			opts: MonitorExternalOpts{
 				LogSince:     "72",
 				OnDisk:       true,
 				NomadLogPath: goldenFilePath,
@@ -133,7 +132,7 @@ func TestMonitor_External(t *testing.T) {
 		},
 		{
 			name: "happy_path_logpath_inline",
-			opts: cstructs.MonitorExternalRequest{
+			opts: MonitorExternalOpts{
 				LogSince:     "72",
 				OnDisk:       true,
 				NomadLogPath: inlineFilePath,
@@ -144,13 +143,13 @@ func TestMonitor_External(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			opts := cstructs.MonitorExternalRequest{
+			opts := MonitorExternalOpts{
 				LogSince:     tc.opts.LogSince,
 				ServiceName:  tc.opts.ServiceName,
 				Follow:       tc.opts.Follow,
 				NomadLogPath: tc.opts.NomadLogPath,
 			}
-			logCh := monitor.MonitorExternal(&opts)
+			logCh := monitor.MonitorExternal(opts)
 
 			dir := t.TempDir()
 

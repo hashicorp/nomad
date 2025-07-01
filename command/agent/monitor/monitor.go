@@ -5,17 +5,18 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -32,7 +33,7 @@ type Monitor interface {
 	Stop()
 
 	// MonitorExternal returns a channel of monitor/exernal messages
-	MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan []byte
+	MonitorExternal(opts MonitorExternalOpts) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -190,9 +191,29 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+type MonitorExternalOpts struct {
+	// LogsSince sets the lookback time for monitorExternal logs in hours
+	LogSince string
+
+	// OnDisk indicates that nomad should export logs written to the configured nomad log path
+	OnDisk bool
+
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with OnDisk
+	ServiceName string
+
+	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
+	// is true
+	NomadLogPath string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt
+	Follow bool
+}
+
 // MonitorExternal reads a file or executes a CLI command and streams a single
 // log bundle over the monitor's channel
-func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan []byte {
+func (d *monitor) MonitorExternal(opts MonitorExternalOpts) <-chan []byte {
 	var (
 		multiReader io.Reader
 		cmd         *exec.Cmd
@@ -201,8 +222,7 @@ func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan 
 	)
 
 	if runtime.GOOS != "linux" &&
-		opts.ServiceName != "" &&
-		!testing.Testing() {
+		opts.ServiceName != "" {
 		d.logger.Error("systemd unit log monitoring only available on linux")
 		return nil
 	}
@@ -248,7 +268,7 @@ func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan 
 	}()
 	return streamCh
 }
-func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, io.Reader, error) {
+func (d *monitor) cliReader(opts MonitorExternalOpts) (*exec.Cmd, io.Reader, error) {
 	const defaultDuration = "72"
 	var cmdString string
 
@@ -260,7 +280,7 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 	}
 	// Vet servicename again
 	safeServiceName := ""
-	if err := opts.ScanServiceName(); err != nil {
+	if err := ScanServiceName(opts.ServiceName); err != nil {
 		return nil, nil, err
 	}
 	safeServiceName = opts.ServiceName
@@ -273,15 +293,6 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 	shell := "/bin/sh"
 	if other := os.Getenv("SHELL"); other != "" {
 		shell = other
-	}
-
-	if testing.Testing() {
-		//	// test helper to circumvent journalctl
-		if opts.Follow {
-			cmdString = "less" + opts.NomadLogPath
-		} else {
-			cmdString = "cat " + opts.NomadLogPath
-		}
 	}
 
 	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
@@ -307,4 +318,36 @@ func (d *monitor) fileReader(logfile string) (io.Reader, error) {
 	}
 
 	return file, nil
+}
+
+func ScanServiceName(input string) error {
+	input = strings.TrimSpace(input)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" and "@"
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New("service name must conform to systemd conventions")
+		//	`valid systemd unit prefixes may only contain
+		//alphanumerics and the following special	characters:
+		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
+	}
+	return nil
+}
+
+func ScanField(input string, fieldname string) error {
+	input = strings.TrimSpace(input)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" and "@"
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
+		//	`valid systemd unit prefixes may only contain
+		//alphanumerics and the following special	characters:
+		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
+	}
+	return nil
 }

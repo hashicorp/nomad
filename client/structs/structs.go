@@ -8,15 +8,14 @@ package structs
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/hoststats"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -94,39 +93,10 @@ type MonitorExternalRequest struct {
 	// an outside interrupt
 	Follow bool
 
+	// This is an empty interface only used for testing
+	MockMonitor *monitor.ExternalMonitor
+
 	structs.QueryOptions
-}
-
-func (m *MonitorExternalRequest) ScanServiceName() error {
-	input := strings.TrimSpace(m.ServiceName)
-	// exclude all special characters except:
-	// ":", "-", "_", ".", "\" and "@"
-	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
-
-	unsafe := re.MatchString(input)
-	if unsafe {
-		return errors.New("service name must conform to systemd conventions")
-		//	`valid systemd unit prefixes may only contain
-		//alphanumerics and the following special	characters:
-		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
-	}
-	return nil
-}
-
-func (m *MonitorExternalRequest) ScanField(input string, fieldname string) error {
-	input = strings.TrimSpace(input)
-	// exclude all special characters except:
-	// ":", "-", "_", ".", "\" and "@"
-	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>?]`)
-
-	unsafe := re.MatchString(input)
-	if unsafe {
-		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
-		//	`valid systemd unit prefixes may only contain
-		//alphanumerics and the following special	characters:
-		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
-	}
-	return nil
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir

@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -343,7 +344,10 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 	nodeID := req.URL.Query().Get("node_id")
 
 	nomadLogPath := s.agent.GetConfig().LogFile
-
+	var mockMonitor monitor.ExternalMonitor
+	if mocked := req.URL.Query().Get("mocked"); mocked != "" {
+		mockMonitor = monitor.Mock()
+	}
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExternalRequest{
 		NodeID:       nodeID,
@@ -353,6 +357,7 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		OnDisk:       onDisk,
 		NomadLogPath: nomadLogPath,
 		Follow:       follow,
+		MockMonitor:  &mockMonitor,
 	}
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
@@ -362,11 +367,11 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
 	}
 
-	if err := args.ScanServiceName(); err != nil {
+	if err := monitor.ScanServiceName(args.ServiceName); err != nil {
 		return nil, CodedError(422, err.Error())
 	}
 
-	if err := args.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
+	if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
 		return nil, CodedError(422, err.Error())
 	}
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
@@ -398,7 +403,6 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 	}
 
 	if handlerErr != nil {
-		s.logger.Info("this is the error", "error", handlerErr.Error())
 		return nil, CodedError(500, handlerErr.Error())
 	}
 	httpPipe, handlerPipe := net.Pipe()
