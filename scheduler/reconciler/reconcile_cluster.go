@@ -202,22 +202,37 @@ type delayedRescheduleInfo struct {
 	rescheduleTime time.Time
 }
 
-func (r *ReconcileResults) GoString() string {
-	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d) (disconnect %d) (reconnect %d)",
-		len(r.Place), len(r.DestructiveUpdate), len(r.InplaceUpdate), len(r.Stop), len(r.DisconnectUpdates), len(r.ReconnectUpdates))
-
+func (r *ReconcileResults) Fields() []any {
+	fields := []any{
+		"total_place", len(r.Place),
+		"total_destructive", len(r.DestructiveUpdate),
+		"total_inplace", len(r.InplaceUpdate),
+		"total_stop", len(r.Stop),
+		"total_disconnect", len(r.DisconnectUpdates),
+		"total_reconnect", len(r.ReconnectUpdates),
+	}
 	if r.Deployment != nil {
-		base += fmt.Sprintf("\nCreated Deployment: %q", r.Deployment.ID)
+		fields = append(fields, "deployment_created", r.Deployment.ID)
 	}
 	for _, u := range r.DeploymentUpdates {
-		base += fmt.Sprintf("\nDeployment Update for ID %q: Status %q; Description %q",
-			u.DeploymentID, u.Status, u.StatusDescription)
+		fields = append(fields,
+			"deployment_updated", u.DeploymentID,
+			"deployment_update", fmt.Sprintf("%s (%s)", u.Status, u.StatusDescription))
 	}
 	for tg, u := range r.DesiredTGUpdates {
-		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
+		fields = append(fields,
+			tg+"_ignore", u.Ignore,
+			tg+"_place", u.Place,
+			tg+"_destructive", u.DestructiveUpdate,
+			tg+"_inplace", u.InPlaceUpdate,
+			tg+"_stop", u.Stop,
+			tg+"_migrate", u.Migrate,
+			tg+"_canary", u.Canary,
+			tg+"_preempt", u.Preemptions,
+		)
 	}
 
-	return base
+	return fields
 }
 
 // ClusterState holds frequently used information about the state of the

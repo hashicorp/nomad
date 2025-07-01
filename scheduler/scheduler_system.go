@@ -260,7 +260,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
-	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", r))
+	if s.logger.IsDebug() {
+		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
+	}
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
