@@ -345,6 +345,29 @@ func TestDrainingJobWatcher_HandleTaskGroup(t *testing.T) {
 			expectDone:     false,
 		},
 		{
+			name:           "migrating-allocs-not-healty-max-parallel-1",
+			expectDrained:  0,
+			expectMigrated: 0,
+			expectDone:     false,
+			addAllocFn: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i == 1 {
+					a.DesiredTransition.Migrate = pointer.Of(true)
+				}
+			},
+		},
+		{
+			name:           "migrating-allocs-not-healty-max-parallel-5",
+			expectDrained:  1,
+			expectMigrated: 0,
+			expectDone:     false,
+			maxParallel:    5,
+			addAllocFn: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i > 0 && i%2 == 0 {
+					a.DesiredTransition.Migrate = pointer.Of(true)
+				}
+			},
+		},
+		{
 			// allocs on a non-draining node, should not be drained
 			name:           "allocs-on-non-draining-node-should-not-drain",
 			expectDrained:  0,
