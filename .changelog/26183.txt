@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the `acl token self` command only performed lookups for tokens set as environment variables and not by the `-token` flag.
+```
