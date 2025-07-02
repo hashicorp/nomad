@@ -377,9 +377,10 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 			continue
 		}
 
-		// If the service alloc is running and has its deployment status set, it
-		// is considered healthy from a migration standpoint.
-		if !batch && !alloc.TerminalStatus() && alloc.DeploymentStatus.HasHealth() {
+		// If the service alloc is running, has its deployment status set, and
+		// is not already marked for migration it is considered healthy from a
+		// migration standpoint.
+		if !batch && !alloc.TerminalStatus() && alloc.DeploymentStatus.HasHealth() && !alloc.DesiredTransition.ShouldMigrate() {
 			healthy++
 		}
 
@@ -415,6 +416,7 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 	thresholdCount := tg.Count - tg.Migrate.MaxParallel
 	numToDrain := healthy - thresholdCount
 	numToDrain = min(len(drainable), numToDrain)
+
 	if numToDrain <= 0 {
 		return nil
 	}
