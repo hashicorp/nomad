@@ -783,7 +783,16 @@
       },
       {
         "title": "monitor",
-        "path": "commands/monitor"
+        "routes": [
+          {
+            "title": "monitor",
+            "path": "commands/monitor/monitor"
+          },
+          {
+            "title": "export",
+            "path": "commands/monitor/monitor-export"
+          }
+        ]
       },
       {
         "title": "namespace",
