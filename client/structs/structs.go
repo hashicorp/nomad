@@ -75,25 +75,25 @@ type MonitorExportRequest struct {
 	// ServerID is the server we want to track the logs of
 	ServerID string
 
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with OnDisk
+	ServiceName string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt. Cannot be used with OnDisk
+	Follow bool
+
 	// LogsSince sets the lookback time for monitorExport logs in hours
 	LogSince string
 
 	// OnDisk indicates that nomad should export logs written to the configured nomad log path
 	OnDisk bool
 
-	// ServiceName is the systemd service for which we want to retrieve logs
-	// Cannot be used with OnDisk
-	ServiceName string
-
 	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
 	// is true
 	NomadLogPath string
 
-	// Follow indicates that the monitor should continue to deliver logs until
-	// an outside interrupt
-	Follow bool
-
-	// This is an empty interface only used for testing
+	// MockMonitor is only used for testing
 	MockMonitor *monitor.ExportMonitor
 
 	structs.QueryOptions
@@ -427,7 +427,6 @@ func NewStreamReader(ch <-chan []byte) *StreamReader {
 }
 
 func (r *StreamReader) Read(p []byte) (n int, err error) {
-	//if len(r.buf) == 0 {
 	select {
 	case data, ok := <-r.ch:
 		if !ok && len(data) == 0 {
@@ -438,7 +437,6 @@ func (r *StreamReader) Read(p []byte) (n int, err error) {
 	default:
 		return 0, nil
 	}
-	//}
 
 	n = copy(p, r.buf)
 	r.buf = r.buf[n:]
@@ -465,9 +463,6 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 			return syscall.EPIPE
 		}
 
-		// Windows version of ECONNRESET
-		//XXX(schmichael) I could find no existing error or constant to
-		//                compare this against.
 		if strings.Contains(errMsg, "forcibly closed") {
 			return syscall.EPIPE
 		}
@@ -483,10 +478,10 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 	}
 	streamBuffer := make([]byte, bufSize)
 
-	//// Create a variable to allow setting the last event
+	// Create a variable to allow setting the last event
 	var lastEvent string
 
-	//// Only watch file when there is a need for it
+	// Only watch file when there is a need for it
 	cancelReceived := cancelAfterFirstEof
 
 OUTER:

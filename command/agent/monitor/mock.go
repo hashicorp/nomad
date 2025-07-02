@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// ExportMonitor implements the Monitor interface
+// ExportMonitor implements the Monitor interface for testing
 type ExportMonitor struct {
 	// logCh is a buffered chan where we send logs when streaming
 	LogCh chan []byte
@@ -24,7 +24,8 @@ type ExportMonitor struct {
 	// that were dropped from the logCh buffer.
 	// only access under lock
 	droppedCount int
-	bufSize      int
+
+	bufSize int
 	// droppedDuration is the amount of time we should
 	// wait to check for dropped messages. Defaults
 	// to 3 seconds
@@ -44,7 +45,7 @@ func Mock() ExportMonitor {
 	return sw
 }
 
-// Stop deregisters the sink and stops the monitoring process
+// Stop stops the monitoring process
 func (d ExportMonitor) Stop() {
 	close(d.DoneCh)
 }
@@ -82,7 +83,6 @@ func (d ExportMonitor) Write(p []byte) (n int, err error) {
 // MonitorExport reads a file or executes a CLI command and streams a single
 // log bundle over the monitor's channel
 func (d ExportMonitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
-
 	var (
 		multiReader io.Reader
 		cmd         *exec.Cmd

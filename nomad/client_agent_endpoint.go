@@ -392,7 +392,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	initialOffset := int64(0)
 	var eofCancelCh chan error
-	streamReader := cstructs.NewStreamReader(logCh) //should I recreate this struct in nomad/structs.go?
+	streamReader := cstructs.NewStreamReader(logCh)
 	// receive logs and build frames
 	go func() {
 		defer framer.Destroy()

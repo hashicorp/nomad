@@ -1074,15 +1074,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			token:        root,
 		},
 		{
-			name:         "token_error_golden_file_ACL",
-			onDisk:       true,
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
-			token:        &structs.ACLToken{},
-			expectErr:    true,
-		},
-		{
-			name:         "token_error_golden_cli_ACL",
+			name:         "token_error",
 			serviceName:  "nomad",
 			nomadLogPath: inlineFilePath,
 			expected:     string(goldenFileContents),
@@ -1090,7 +1082,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			expectErr:    true,
 		},
 		{
-			name:         "invalid_service_name_golden_cli_ACL",
+			name:         "invalid_service_name",
 			serviceName:  "nomad$",
 			nomadLogPath: inlineFilePath,
 			expected:     string(goldenFileContents),
