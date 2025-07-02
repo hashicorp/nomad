@@ -172,3 +172,7 @@ func (m *ErrDB) DeleteDynamicHostVolume(_ string) error {
 func (m *ErrDB) Close() error {
 	return fmt.Errorf("Error!")
 }
+
+func (m *ErrDB) PutClientIdentity(_ string) error { return ErrDBError }
+
+func (m *ErrDB) GetClientIdentity() (string, error) { return "", ErrDBError }

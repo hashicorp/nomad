@@ -157,6 +157,10 @@ func (n NoopDB) DeleteDynamicHostVolume(_ string) error {
 	return nil
 }
 
+func (n NoopDB) PutClientIdentity(_ string) error { return nil }
+
+func (n NoopDB) GetClientIdentity() (string, error) { return "", nil }
+
 func (n NoopDB) Close() error {
 	return nil
 }
