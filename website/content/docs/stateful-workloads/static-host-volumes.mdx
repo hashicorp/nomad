@@ -9,7 +9,7 @@ description: >-
 # Use static host volumes
 
 Static host volumes can manage storage for stateful workloads running inside your
-Nomad cluster. This guide walks you through deploying a MySQL workload using
+Nomad cluster. This tutorial walks you through deploying a MySQL workload using
 a static host volume for persistent storage. Unlike [dynamic host volumes][dhv_tutorial], static
 host volumes are defined in the Nomad client configuration and their lifecycle is
 managed outside of Nomad.
@@ -32,13 +32,13 @@ where they are present.
 To perform the tasks described in this guide, you need to have a Nomad
 environment with Consul installed. Consul is used for service discovery and is not necessary for
 static host volumes. You can use this [Terraform environment][nomad-tf] to provision a
-sandbox environment. This guide will assume a cluster with one server node and three
+sandbox environment. This tutorial will assume a cluster with one server node and three
 client nodes.
 
 <Note>
 
-This guide is for demo purposes and only assumes a single server
-node. Consult the [reference architecture][reference-arch] for
+ This tutorial is for demo purposes and only assumes a single server
+node. Please consult the [reference architecture][reference-arch] for
 production configuration.
 
 </Note>
@@ -197,7 +197,7 @@ job "mysql-server" {
 
 - The `read_only` argument is supplied on all of the volume-related stanzas in
   to help highlight all of the places you would need to change to make a
-  read-only volume mount. Review the [`host_volume`], [`volume`], and
+  read-only volume mount. Please see the [`host_volume`], [`volume`], and
   [`volume_mount`] specifications for more details.
 
 - For lower-memory instances, you might need to reduce the requested memory in
@@ -243,7 +243,7 @@ The password for this demo database is `password`.
 
 <Note>
 
-This guide is for demo purposes and does not follow best
+ This tutorial is for demo purposes and does not follow best
 practices for securing database passwords. See [Keeping Passwords
 Secure][password-security] for more information.
 
@@ -341,7 +341,7 @@ $ nomad run mysql.nomad.hcl
 ==> Evaluation "61b4f648" finished with status "complete"
 ```
 
-Once you re-connect to MySQL, the information you
+Once you re-connect to MySQL, you should be able to see that the information you
 added prior to destroying the database is still present:
 
 ```sql
@@ -377,13 +377,13 @@ In this guide, you configured a static host volume on a Nomad client using a cli
 directory. You created a job that mounted this volume to a Docker MySQL container
 and wrote data that persisted beyond the job's lifecycle.
 
-[`host_volume`]: /nomad/docs/configuration/client#host_volume
+[`host_volume`]: /nomad/docs/configuration/client#host_volume-stanza
 [`volume_mount`]: /nomad/docs/job-specification/volume_mount
 [`volume`]: /nomad/docs/job-specification/volume
 [create_job]: #create-the-job-file
 [install_mysql]: #install-the-mysql-client
 [nomad-tf]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
 [password-security]: https://dev.mysql.com/doc/refman/8.0/en/password-security.html
-[reference-arch]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul#high-availability
+[reference-arch]: /nomad/docs/deploy/production/reference-architecture#high-availability
 [dhv_tutorial]: /nomad/docs/stateful-workloads/dynamic-host-volumes
 
