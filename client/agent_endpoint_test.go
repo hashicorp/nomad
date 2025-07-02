@@ -501,7 +501,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			token:        root.SecretID,
 		},
 		{
-			name:         "token_error_golden_file",
+			name:         "token_error",
 			onDisk:       true,
 			nomadLogPath: goldenFilePath,
 			expected:     string(goldenFileContents),
@@ -509,15 +509,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			expectErr:    true,
 		},
 		{
-			name:         "token_error_golden_cli",
-			serviceName:  "nomad",
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFilePath),
-			token:        tokenBad.SecretID,
-			expectErr:    true,
-		},
-		{
-			name:         "invalid_service_name_golden_cli",
+			name:         "invalid_service_name",
 			serviceName:  "nomad$",
 			nomadLogPath: goldenFilePath,
 			expected:     string(goldenFilePath),

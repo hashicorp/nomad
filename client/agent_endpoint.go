@@ -234,7 +234,6 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	return nil
 }
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
-	//defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
 	// Decode arguments

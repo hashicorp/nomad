@@ -54,7 +54,21 @@ Monitor Specific Options:
 
   -server-id <server-id>
     Sets the specific server to monitor
-  `
+
+  -service-name <service-name>
+    Sets the systemd unit name to query journalctl
+
+  -log-since <int>
+    Sets the log period for journald logs. Defaults to 72 and ignored if on-disk
+
+  -follow <bool>
+	If set, the export command will continue streaming until interrupted. Ignored
+	if on-disk
+
+  -on-disk <bool>
+    If set, the export command will retrieve the nomad log file defined in the
+	target agent's config.
+	`
 	return strings.TrimSpace(helpText)
 }
 

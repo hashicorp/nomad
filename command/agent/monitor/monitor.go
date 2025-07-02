@@ -32,7 +32,7 @@ type Monitor interface {
 	// and closes the log channels
 	Stop()
 
-	// MonitorExport returns a channel of monitor/exernal messages
+	// MonitorExport returns a channel of monitor export messages
 	MonitorExport(opts MonitorExportOpts) <-chan []byte
 }
 
@@ -329,9 +329,6 @@ func ScanServiceName(input string) error {
 	unsafe := re.MatchString(input)
 	if unsafe {
 		return errors.New("service name must conform to systemd conventions")
-		//	`valid systemd unit prefixes may only contain
-		//alphanumerics and the following special	characters:
-		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
 	}
 	return nil
 }
@@ -339,15 +336,12 @@ func ScanServiceName(input string) error {
 func ScanField(input string, fieldname string) error {
 	input = strings.TrimSpace(input)
 	// exclude all special characters except:
-	// ":", "-", "_", ".", "\" and "@"
+	// ":", "-", "_", ".", "\" , "@", and "\" (only difference from above)
 	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>?]`)
 
 	unsafe := re.MatchString(input)
 	if unsafe {
 		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
-		//	`valid systemd unit prefixes may only contain
-		//alphanumerics and the following special	characters:
-		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
 	}
 	return nil
 }
