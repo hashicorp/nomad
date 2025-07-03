@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1022,4 +1024,161 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 
 	err := s.RPC("Agent.Host", &req, &resp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+func TestMonitor_MonitorExport(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+	const (
+		expectedText   = "log log log log log"
+		goldenFilePath = "./testdata/monitor-export.golden"
+	)
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	testFile, err := os.CreateTemp("", "nomadtests")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	defer os.Remove(inlineFilePath)
+	testutil.WaitForLeader(t, s.RPC)
+
+	//mon := monitor.Mock()
+	cases := []struct {
+		name         string
+		expected     string
+		nomadLogPath string
+		serviceName  string
+		token        *structs.ACLToken
+		onDisk       bool
+		expectErr    bool
+	}{
+		{
+			name:         "happy_path_golden_file",
+			onDisk:       true,
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        root,
+		},
+		{
+			name:         "happy_path_golden_cli",
+			serviceName:  "nomad",
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        root,
+		},
+		{
+			name:         "token_error",
+			serviceName:  "nomad",
+			nomadLogPath: inlineFilePath,
+			expected:     string(goldenFileContents),
+			token:        &structs.ACLToken{},
+			expectErr:    true,
+		},
+		{
+			name:         "invalid_service_name",
+			serviceName:  "nomad$",
+			nomadLogPath: inlineFilePath,
+			expected:     string(goldenFileContents),
+			token:        &structs.ACLToken{},
+			expectErr:    true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			monitor := monitor.NewExportMonitor(monitor.MonitorExportOpts{
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
+				OnDisk:       tc.onDisk,
+			})
+			// No node ID to monitor the remote server
+			req := cstructs.MonitorExportRequest{
+				LogSince:     "72",
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
+				MockMonitor:  monitor,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token.SecretID,
+				},
+			}
+			handler, err := s.StreamingRpcHandler("Agent.MonitorExport")
+			require.Nil(err)
+
+			// create pipe
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			errCh := make(chan error)
+			streamMsg := make(chan *cstructs.StreamErrWrapper)
+
+			go handler(p2)
+
+			// Start decoder
+			go func() {
+				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+				for {
+					var msg cstructs.StreamErrWrapper
+					err := decoder.Decode(&msg)
+
+					streamMsg <- &msg
+					if err != nil {
+						errCh <- err
+					}
+				}
+			}()
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			require.Nil(encoder.Encode(req))
+			timeout := time.After(3 * time.Second)
+			copyLength := 0
+
+			var builder strings.Builder
+
+		OUTER:
+			for {
+				select {
+				case <-timeout:
+					must.Unreachable(t)
+					continue
+				case err := <-errCh:
+					if err != nil && err != io.EOF {
+						if tc.expectErr {
+							continue
+						}
+						must.NoError(t, err)
+					}
+				case message := <-streamMsg:
+					var frame sframer.StreamFrame
+					err = json.Unmarshal(message.Payload, &frame)
+					if err != nil && err != io.EOF {
+						if !strings.Contains(err.Error(), "unexpected end") {
+							must.NoError(t, err)
+						}
+					}
+
+					builder.Write(frame.Data)
+
+					// track builder len & break if buffer doesn't increase
+					currentLength := builder.Len()
+					if currentLength == copyLength {
+						must.Nil(t, p2.Close())
+						break OUTER
+					}
+					copyLength = currentLength
+				}
+			}
+			if !tc.expectErr {
+				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
+			}
+		})
+	}
 }

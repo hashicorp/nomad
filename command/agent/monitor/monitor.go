@@ -4,7 +4,14 @@
 package monitor
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +30,9 @@ type Monitor interface {
 	// Stop de-registers the sink from the InterceptLogger
 	// and closes the log channels
 	Stop()
+
+	//// MonitorExport returns a channel of monitor export messages
+	//MonitorExport(opts MonitorExportOpts) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -178,4 +188,139 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+//// MonitorExport reads a file or executes a CLI command and streams a single
+//// log bundle over the monitor's channel
+//func (d *monitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
+//	var (
+//		multiReader io.Reader
+//		cmd         *exec.Cmd
+//		prepErr     error
+//		useCli      bool
+//	)
+
+//	if runtime.GOOS != "linux" &&
+//		opts.ServiceName != "" {
+//		d.logger.Error("systemd unit log monitoring only available on linux")
+//		return nil
+//	}
+
+//	if opts.OnDisk {
+//		multiReader, prepErr = d.fileReader(opts.NomadLogPath)
+//		if prepErr != nil {
+//			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+//			return nil
+//		}
+//	} else {
+//		useCli = true
+//		cmd, multiReader, prepErr = d.cliReader(opts)
+//		if prepErr != nil {
+//			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+//			return nil
+//		}
+//		cmd.Start()
+//	}
+
+//	// Read, copy, and send to channel until we hit EOF or error
+//	streamCh := make(chan []byte)
+//	go func() {
+//		if useCli {
+//			defer cmd.Wait()
+//		}
+//		defer close(streamCh)
+//		logChunk := make([]byte, 32)
+
+//		for {
+//			n, readErr := multiReader.Read(logChunk)
+//			if readErr != nil && readErr != io.EOF {
+//				d.logger.Error("unable to read logs into channel", readErr.Error())
+//				return
+//			}
+
+//			streamCh <- logChunk[:n]
+
+//				if readErr == io.EOF && !opts.Follow {
+//					break
+//				}
+//			}
+//		}()
+//		return streamCh
+//	}
+func (d *monitor) cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
+	const defaultDuration = "72"
+	var cmdString string
+
+	cmdDuration := opts.LogSince
+
+	// Set logSince to default if unset by caller
+	if opts.LogSince == "0" {
+		cmdDuration = defaultDuration
+	}
+	// Vet servicename again
+	safeServiceName := ""
+	if err := ScanServiceName(opts.ServiceName); err != nil {
+		return nil, nil, err
+	}
+	safeServiceName = opts.ServiceName
+
+	// build command with vetted inputs
+	cmdString = fmt.Sprintf("journalctl -xu %s --no-pager --since '%s hours ago'", safeServiceName, cmdDuration)
+	if opts.Follow {
+		cmdString = cmdString + " -f"
+	}
+	shell := "/bin/sh"
+	if other := os.Getenv("SHELL"); other != "" {
+		shell = other
+	}
+
+	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
+
+	// set up reader
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	multiReader := io.MultiReader(stdOut, stdErr)
+
+	return cmd, multiReader, nil
+}
+
+func (d *monitor) fileReader(logfile string) (io.Reader, error) {
+	file, err := os.Open(logfile)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func ScanServiceName(input string) error {
+	input = strings.TrimSpace(input)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" and "@"
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New("service name must conform to systemd conventions")
+	}
+	return nil
+}
+
+func ScanField(input string, fieldname string) error {
+	input = strings.TrimSpace(input)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" , "@", and "\" (only difference from above)
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
+	}
+	return nil
 }

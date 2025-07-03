@@ -6,10 +6,16 @@ package structs
 //go:generate codecgen -c github.com/hashicorp/go-msgpack/v2/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
 
 import (
+	"context"
 	"errors"
+	"io"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/hoststats"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -58,6 +64,37 @@ type MonitorRequest struct {
 
 	// PlainText disables base64 encoding.
 	PlainText bool
+
+	structs.QueryOptions
+}
+
+type MonitorExportRequest struct {
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with OnDisk
+	ServiceName string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt. Cannot be used with OnDisk
+	Follow bool
+
+	// LogsSince sets the lookback time for monitorExport logs in hours
+	LogSince string
+
+	// OnDisk indicates that nomad should export logs written to the configured nomad log path
+	OnDisk bool
+
+	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
+	// is true
+	NomadLogPath string
+
+	// MockMonitor is only used for testing
+	MockMonitor *monitor.ExportMonitor
 
 	structs.QueryOptions
 }
@@ -377,4 +414,129 @@ var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
 // NodeRegistration stores data about the client's registration with the server
 type NodeRegistration struct {
 	HasRegistered bool
+}
+
+type StreamReader struct {
+	ch  <-chan []byte
+	buf []byte
+}
+
+func NewStreamReader(ch <-chan []byte) *StreamReader {
+	return &StreamReader{ch: ch}
+
+}
+
+func (r *StreamReader) Read(p []byte) (n int, err error) {
+	select {
+	case data, ok := <-r.ch:
+		if !ok && len(data) == 0 {
+			return 0, io.EOF
+		}
+		r.buf = data
+
+	default:
+		return 0, nil
+	}
+
+	n = copy(p, r.buf)
+	r.buf = r.buf[n:]
+	return n, nil
+}
+
+func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path string, limit int64,
+	framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
+
+	parseFramerErr := func(err error) error {
+		if err == nil {
+			return nil
+		}
+
+		errMsg := err.Error()
+
+		if strings.Contains(errMsg, io.ErrClosedPipe.Error()) {
+			// The pipe check is for tests
+			return syscall.EPIPE
+		}
+
+		// The connection was closed by our peer
+		if strings.Contains(errMsg, syscall.EPIPE.Error()) || strings.Contains(errMsg, syscall.ECONNRESET.Error()) {
+			return syscall.EPIPE
+		}
+
+		if strings.Contains(errMsg, "forcibly closed") {
+			return syscall.EPIPE
+		}
+
+		return err
+	}
+	// streamFrameSize is the maximum number of bytes to send in a single frame
+	streamFrameSize := int64(1024)
+
+	bufSize := streamFrameSize
+	if limit > 0 && limit < streamFrameSize {
+		bufSize = limit
+	}
+	streamBuffer := make([]byte, bufSize)
+
+	// Create a variable to allow setting the last event
+	var lastEvent string
+
+	// Only watch file when there is a need for it
+	cancelReceived := cancelAfterFirstEof
+
+OUTER:
+	for {
+
+		// Read up to the max frame size
+		n, readErr := r.Read(streamBuffer)
+
+		// Update the offset
+		offset += int64(n)
+
+		// Return non-EOF errors
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+
+		// Send the frame
+		if n != 0 || lastEvent != "" {
+			if err := framer.Send(path, lastEvent, streamBuffer[:n], offset); err != nil {
+				return parseFramerErr(err)
+			}
+		}
+
+		// Clear the last event
+		if lastEvent != "" {
+			lastEvent = ""
+		}
+
+		// Just keep reading since we aren't at the end of the file so we can
+		// avoid setting up a file event watcher.
+		if readErr == nil {
+			continue
+		}
+
+		// At this point we can stop without waiting for more changes,
+		// because we have EOF and either we're not following at all,
+		// or we received an event from the eofCancelCh channel
+		// and last read was executed
+		if cancelReceived {
+			return nil
+		}
+
+		for {
+			select {
+			case <-framer.ExitCh():
+				return nil
+			case <-ctx.Done():
+				return nil
+			case _, ok := <-eofCancelCh:
+				if !ok {
+					return nil
+				}
+				cancelReceived = true
+				continue OUTER
+			}
+		}
+	}
 }
