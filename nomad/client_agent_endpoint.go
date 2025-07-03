@@ -356,11 +356,16 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	// NodeID was empty, ServerID was equal to this server,  monitor this server
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	mon := monitor.New(512, a.srv.logger, &log.LoggerOptions{})
-	if args.MockMonitor != nil {
-		mon = args.MockMonitor
+	opts := monitor.MonitorExportOpts{
+		Logger:       a.srv.logger,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
 	}
+	monitor := monitor.NewExportMonitor(opts)
+
 	frames := make(chan *sframer.StreamFrame, 32)
 	errCh := make(chan error)
 	var buf bytes.Buffer
@@ -379,16 +384,9 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-	opts := monitor.MonitorExportOpts{
-		LogSince:     args.LogSince,
-		ServiceName:  args.ServiceName,
-		NomadLogPath: args.NomadLogPath,
-		OnDisk:       args.OnDisk,
-		Follow:       args.Follow,
-	}
 
-	logCh := mon.MonitorExport(opts)
-	defer mon.Stop()
+	logCh := monitor.Start()
+	defer monitor.Stop()
 
 	initialOffset := int64(0)
 	var eofCancelCh chan error

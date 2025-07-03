@@ -115,7 +115,6 @@ func TestMonitor_Export(t *testing.T) {
 		Level: log.Error,
 	})
 
-	monitor := New(512, logger, &log.LoggerOptions{})
 	cases := []struct {
 		name     string
 		opts     MonitorExportOpts
@@ -144,12 +143,14 @@ func TestMonitor_Export(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			opts := MonitorExportOpts{
+				Logger:       logger,
 				LogSince:     tc.opts.LogSince,
 				ServiceName:  tc.opts.ServiceName,
 				Follow:       tc.opts.Follow,
 				NomadLogPath: tc.opts.NomadLogPath,
 			}
-			logCh := monitor.MonitorExport(opts)
+			monitor := NewExportMonitor(opts)
+			logCh := monitor.Start()
 
 			dir := t.TempDir()
 

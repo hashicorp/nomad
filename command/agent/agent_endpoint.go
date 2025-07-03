@@ -344,10 +344,10 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	nodeID := req.URL.Query().Get("node_id")
 
 	nomadLogPath := s.agent.GetConfig().LogFile
-	var mockMonitor monitor.ExportMonitor
-	if mocked := req.URL.Query().Get("mocked"); mocked != "" {
-		mockMonitor = monitor.Mock()
-	}
+	//var mockMonitor monitor.ExportMonitor
+	//if mocked := req.URL.Query().Get("mocked"); mocked != "" {
+	//	mockMonitor = monitor.Mock()
+	//}
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExportRequest{
 		NodeID:       nodeID,
@@ -357,7 +357,6 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		OnDisk:       onDisk,
 		NomadLogPath: nomadLogPath,
 		Follow:       follow,
-		MockMonitor:  &mockMonitor,
 	}
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
