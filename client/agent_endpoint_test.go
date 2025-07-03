@@ -454,11 +454,18 @@ func TestAgentHost_ACL(t *testing.T) {
 func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
-	const goldenFilePath = "../command/agent/testdata/monitor-export.golden"
 
-	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	dir := t.TempDir()
+
+	f, err := os.CreateTemp(dir, "log")
 	must.NoError(t, err)
-
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	testFilePath := f.Name()
+	testFileContents, err := os.ReadFile(testFilePath)
+	must.NoError(t, err)
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
 	defer cleanupS()
@@ -469,8 +476,6 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-
-	mon := monitor.Mock()
 
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 	defer cleanupC()
@@ -489,42 +494,49 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		{
 			name:         "happy_path_golden_file",
 			onDisk:       true,
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: testFilePath,
+			expected:     string(testFileContents),
 			token:        root.SecretID,
 		},
 		{
 			name:         "happy_path_golden_cli",
 			serviceName:  "nomad",
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: testFilePath,
+			expected:     string(testFileContents),
 			token:        root.SecretID,
 		},
 		{
 			name:         "token_error",
 			onDisk:       true,
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: testFilePath,
+			expected:     string(testFileContents),
 			token:        tokenBad.SecretID,
 			expectErr:    true,
 		},
 		{
 			name:         "invalid_service_name",
 			serviceName:  "nomad$",
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFilePath),
+			nomadLogPath: testFilePath,
+			expected:     string(testFilePath),
 			token:        root.SecretID,
 			expectErr:    true,
 		},
 	}
 	for _, tc := range cases {
+		monitor := monitor.NewExportMonitor(
+			monitor.MonitorExportOpts{
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
+				OnDisk:       tc.onDisk,
+			},
+		)
 		t.Run(tc.name, func(t *testing.T) {
 			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
 				NodeID:       "doesn't_really_matter",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
-				MockMonitor:  &mon,
+				MockMonitor:  monitor,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token,

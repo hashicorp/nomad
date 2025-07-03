@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -32,8 +31,8 @@ type Monitor interface {
 	// and closes the log channels
 	Stop()
 
-	// MonitorExport returns a channel of monitor export messages
-	MonitorExport(opts MonitorExportOpts) <-chan []byte
+	//// MonitorExport returns a channel of monitor export messages
+	//MonitorExport(opts MonitorExportOpts) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -191,83 +190,63 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type MonitorExportOpts struct {
-	// LogsSince sets the lookback time for monitorExport logs in hours
-	LogSince string
+//// MonitorExport reads a file or executes a CLI command and streams a single
+//// log bundle over the monitor's channel
+//func (d *monitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
+//	var (
+//		multiReader io.Reader
+//		cmd         *exec.Cmd
+//		prepErr     error
+//		useCli      bool
+//	)
 
-	// OnDisk indicates that nomad should export logs written to the configured nomad log path
-	OnDisk bool
+//	if runtime.GOOS != "linux" &&
+//		opts.ServiceName != "" {
+//		d.logger.Error("systemd unit log monitoring only available on linux")
+//		return nil
+//	}
 
-	// ServiceName is the systemd service for which we want to retrieve logs
-	// Cannot be used with OnDisk
-	ServiceName string
+//	if opts.OnDisk {
+//		multiReader, prepErr = d.fileReader(opts.NomadLogPath)
+//		if prepErr != nil {
+//			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+//			return nil
+//		}
+//	} else {
+//		useCli = true
+//		cmd, multiReader, prepErr = d.cliReader(opts)
+//		if prepErr != nil {
+//			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+//			return nil
+//		}
+//		cmd.Start()
+//	}
 
-	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
-	// is true
-	NomadLogPath string
+//	// Read, copy, and send to channel until we hit EOF or error
+//	streamCh := make(chan []byte)
+//	go func() {
+//		if useCli {
+//			defer cmd.Wait()
+//		}
+//		defer close(streamCh)
+//		logChunk := make([]byte, 32)
 
-	// Follow indicates that the monitor should continue to deliver logs until
-	// an outside interrupt
-	Follow bool
-}
+//		for {
+//			n, readErr := multiReader.Read(logChunk)
+//			if readErr != nil && readErr != io.EOF {
+//				d.logger.Error("unable to read logs into channel", readErr.Error())
+//				return
+//			}
 
-// MonitorExport reads a file or executes a CLI command and streams a single
-// log bundle over the monitor's channel
-func (d *monitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
-	var (
-		multiReader io.Reader
-		cmd         *exec.Cmd
-		prepErr     error
-		useCli      bool
-	)
+//			streamCh <- logChunk[:n]
 
-	if runtime.GOOS != "linux" &&
-		opts.ServiceName != "" {
-		d.logger.Error("systemd unit log monitoring only available on linux")
-		return nil
-	}
-
-	if opts.OnDisk {
-		multiReader, prepErr = d.fileReader(opts.NomadLogPath)
-		if prepErr != nil {
-			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
-			return nil
-		}
-	} else {
-		useCli = true
-		cmd, multiReader, prepErr = d.cliReader(opts)
-		if prepErr != nil {
-			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
-			return nil
-		}
-		cmd.Start()
-	}
-
-	// Read, copy, and send to channel until we hit EOF or error
-	streamCh := make(chan []byte)
-	go func() {
-		if useCli {
-			defer cmd.Wait()
-		}
-		defer close(streamCh)
-		logChunk := make([]byte, 32)
-
-		for {
-			n, readErr := multiReader.Read(logChunk)
-			if readErr != nil && readErr != io.EOF {
-				d.logger.Error("unable to read logs into channel", readErr.Error())
-				return
-			}
-
-			streamCh <- logChunk[:n]
-
-			if readErr == io.EOF && !opts.Follow {
-				break
-			}
-		}
-	}()
-	return streamCh
-}
+//				if readErr == io.EOF && !opts.Follow {
+//					break
+//				}
+//			}
+//		}()
+//		return streamCh
+//	}
 func (d *monitor) cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 	const defaultDuration = "72"
 	var cmdString string

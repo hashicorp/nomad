@@ -1049,7 +1049,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	defer os.Remove(inlineFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
-	mon := monitor.Mock()
+	//mon := monitor.Mock()
 	cases := []struct {
 		name         string
 		expected     string
@@ -1092,13 +1092,17 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-
+			monitor := monitor.NewExportMonitor(monitor.MonitorExportOpts{
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
+				OnDisk:       tc.onDisk,
+			})
 			// No node ID to monitor the remote server
 			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
-				MockMonitor:  &mon,
+				MockMonitor:  monitor,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token.SecretID,
@@ -1170,13 +1174,11 @@ func TestMonitor_MonitorExport(t *testing.T) {
 						break OUTER
 					}
 					copyLength = currentLength
-
 				}
 			}
 			if !tc.expectErr {
 				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
 			}
-
 		})
 	}
 }

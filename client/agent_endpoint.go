@@ -258,11 +258,16 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	mon := monitor.New(512, a.c.logger, &log.LoggerOptions{})
-	if args.MockMonitor != nil {
-		mon = args.MockMonitor
+	opts := monitor.MonitorExportOpts{
+		Logger:       a.c.logger,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
 	}
+	monitor := monitor.NewExportMonitor(opts)
+
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
 	var buf bytes.Buffer
@@ -282,15 +287,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	opts := monitor.MonitorExportOpts{
-		LogSince:     args.LogSince,
-		ServiceName:  args.ServiceName,
-		NomadLogPath: args.NomadLogPath,
-		OnDisk:       args.OnDisk,
-		Follow:       args.Follow,
-	}
-
-	logCh := mon.MonitorExport(opts)
+	logCh := monitor.Start()
 
 	initialOffset := int64(0)
 	var (
