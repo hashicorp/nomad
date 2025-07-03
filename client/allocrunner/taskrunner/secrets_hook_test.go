@@ -19,9 +19,11 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
 
@@ -214,4 +216,85 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		expected := map[string]string{}
 		must.Eq(t, expected, secretHook.taskSecrets)
 	})
+}
+
+func TestSecretsHook_Prestart_Vault(t *testing.T) {
+	ci.Parallel(t)
+
+	secretsResp := `
+{
+  "Data": {
+    "data": {
+      "secret": "secret"
+    },
+    "metadata": {
+      "created_time": "2023-10-18T15:58:29.65137Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  }
+}`
+
+	// Start test server to simulate Vault cluster responses.
+	// reqCh := make(chan any)
+	defaultVaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, secretsResp)
+	}))
+	t.Cleanup(defaultVaultServer.Close)
+
+	// Setup client with Vault config.
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
+			Enabled: pointer.Of(true),
+			Addr:    defaultVaultServer.URL,
+		},
+	}
+
+	taskDir := t.TempDir()
+	alloc := mock.MinAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	conf := &secretsHookConfig{
+
+		// alloc:        alloc,
+		logger:       testlog.HCLogger(t),
+		lifecycle:    trtesting.NewMockTaskHooks(),
+		events:       &trtesting.MockEmitter{},
+		clientConfig: clientConfig,
+		envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+	}
+	secretHook := newSecretsHook(conf, []*structs.Secret{
+		{
+			Name:     "test_secret",
+			Provider: "vault",
+			Path:     "/test/path",
+			Config: map[string]any{
+				"engine": "kv_v2",
+			},
+		},
+	})
+
+	// Start template hook with a timeout context to ensure it exists.
+	req := &interfaces.TaskPrestartRequest{
+		Alloc:   alloc,
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{Dir: taskDir, SecretsDir: taskDir},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	t.Cleanup(cancel)
+
+	err := secretHook.Prestart(ctx, req, nil)
+	must.NoError(t, err)
+
+	exp := map[string]string{
+		"secret.test_secret.secret": "secret",
+	}
+
+	must.Eq(t, exp, secretHook.taskSecrets)
 }
