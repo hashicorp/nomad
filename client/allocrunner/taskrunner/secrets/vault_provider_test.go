@@ -28,9 +28,9 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 
 		// expected template should have correct path, index, and name
 		expectedTmpl := `
-		{{ with secret "/test/path"  }}
+		{{ with secret "/test/path" }}
 		{{ range $k, $v := .Data }}
-		secret.foo.{{ $k }}={{ $v | toJSON }}
+		secret.foo.{{ $k }}={{ $v }}
 		{{ end }}
 		{{ end }}`
 		// validate template string contains expected data
@@ -55,9 +55,9 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 
 		// expected template should have correct path, index, and name
 		expectedTmpl := `
-		{{ with secret "/test/path"  }}
+		{{ with secret "/test/path" }}
 		{{ range $k, $v := .Data.data }}
-		secret.foo.{{ $k }}={{ $v | toJSON }}
+		secret.foo.{{ $k }}={{ $v }}
 		{{ end }}
 		{{ end }}`
 		// validate template string contains expected data
