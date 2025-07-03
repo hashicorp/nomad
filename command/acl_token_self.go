@@ -65,15 +65,26 @@ func (c *ACLTokenSelfCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check what kind of token we have available
-	envToken := os.Getenv("NOMAD_TOKEN")
-	if envToken == "" {
-		c.Ui.Error("No token present in the environment")
+	// To get the authentication token, we must perform the same steps as the
+	// command meta and API client perform. This is because the token may be set
+	// as an environment variable or as a CLI flag.
+	//
+	// The environment variable is grabbed first. If this is not set, the
+	// resulting string is empty.
+	authToken := os.Getenv("NOMAD_TOKEN")
+
+	// If the CLI flag is set, it will override the environment variable.
+	if c.token != "" {
+		authToken = c.token
+	}
+
+	if authToken == "" {
+		c.Ui.Error("No token present in the environment or set via the CLI flag")
 		return 1
 	}
 
 	// Does this look like a Nomad ACL token?
-	if helper.IsUUID(envToken) {
+	if helper.IsUUID(authToken) {
 		token, _, err := client.ACLTokens().Self(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error fetching self token: %s", err))
