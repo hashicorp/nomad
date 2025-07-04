@@ -141,11 +141,11 @@ var (
 
 	hostVolBucket = []byte("host_volumes_to_create")
 
-	// clientIdentityBucket and clientIdentityBucketStateKey are used to persist
+	// nodeIdentityBucket and nodeIdentityBucketStateKey are used to persist
 	// the client identity and its state. Each client will only have a single
 	// identity, so we use a single key value for the storage.
-	clientIdentityBucket         = []byte("client_identity")
-	clientIdentityBucketStateKey = []byte("client_identity_state")
+	nodeIdentityBucket         = []byte("node_identity")
+	nodeIdentityBucketStateKey = []byte("node_identity_state")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -1101,27 +1101,27 @@ type clientIdentity struct {
 	SignedIdentity string
 }
 
-func (s *BoltStateDB) PutClientIdentity(identity string) error {
+func (s *BoltStateDB) PutNodeIdentity(identity string) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(clientIdentityBucket)
+		b, err := tx.CreateBucketIfNotExists(nodeIdentityBucket)
 		if err != nil {
 			return err
 		}
 
 		identityWrapper := clientIdentity{SignedIdentity: identity}
 
-		return b.Put(clientIdentityBucketStateKey, &identityWrapper)
+		return b.Put(nodeIdentityBucketStateKey, &identityWrapper)
 	})
 }
 
-func (s *BoltStateDB) GetClientIdentity() (string, error) {
+func (s *BoltStateDB) GetNodeIdentity() (string, error) {
 	var identityWrapper clientIdentity
 	err := s.db.View(func(tx *boltdd.Tx) error {
-		b := tx.Bucket(clientIdentityBucket)
+		b := tx.Bucket(nodeIdentityBucket)
 		if b == nil {
 			return nil
 		}
-		return b.Get(clientIdentityBucketStateKey, &identityWrapper)
+		return b.Get(nodeIdentityBucketStateKey, &identityWrapper)
 	})
 
 	if boltdd.IsErrNotFound(err) {

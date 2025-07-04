@@ -141,13 +141,13 @@ type StateDB interface {
 	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
 
-	// PutClientIdentity stores the signed identity JWT for the client.
-	PutClientIdentity(identity string) error
+	// PutNodeIdentity stores the signed identity JWT for the client.
+	PutNodeIdentity(identity string) error
 
-	// GetClientIdentity retrieves the signed identity JWT for the client. If
-	// the client has not generated an identity, this will return an empty
-	// string and no error.
-	GetClientIdentity() (string, error)
+	// GetNodeIdentity retrieves the signed identity JWT for the client. If the
+	// client has not generated an identity, this will return an empty string
+	// and no error.
+	GetNodeIdentity() (string, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

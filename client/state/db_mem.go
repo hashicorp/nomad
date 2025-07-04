@@ -384,12 +384,12 @@ func (m *MemDB) DeleteDynamicHostVolume(s string) error {
 	return nil
 }
 
-func (m *MemDB) PutClientIdentity(identity string) error {
+func (m *MemDB) PutNodeIdentity(identity string) error {
 	m.clientIdentity.Store(identity)
 	return nil
 }
 
-func (m *MemDB) GetClientIdentity() (string, error) {
+func (m *MemDB) GetNodeIdentity() (string, error) {
 	if obj := m.clientIdentity.Load(); obj == nil {
 		return "", nil
 	} else {
