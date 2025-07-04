@@ -1221,7 +1221,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 // reconcileReconnecting receives the set of allocations that are reconnecting
 // and all other allocations for the same group and determines which ones to
-// reconnect which ones or stop.
+// reconnect, which ones to stop, and the stop results for the latter.
 //
 //   - Every reconnecting allocation MUST be present in one, and only one, of
 //     the returned set.

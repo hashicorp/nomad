@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"pgregory.net/rapid"
 )
 
@@ -396,4 +397,95 @@ func (idg *idGenerator) nextID() string {
 		buf[6:8],
 		buf[8:10],
 		buf[10:16])
+}
+
+func TestAllocReconciler_ReconnectingProps(t *testing.T) {
+
+	rapid.Check(t, func(t *rapid.T) {
+		now := time.Now()
+
+		idg := &idGenerator{}
+		job := genJob(structs.JobTypeBatch, idg).Draw(t, "job")
+		tg := job.TaskGroups[0]
+		tg.Disconnect.Reconcile = rapid.SampledFrom([]string{
+			"", structs.ReconcileOptionBestScore, structs.ReconcileOptionLongestRunning,
+			structs.ReconcileOptionKeepOriginal, structs.ReconcileOptionKeepReplacement},
+		).Draw(t, "strategy")
+
+		tg.Tasks = []*structs.Task{{Name: "task"}}
+
+		reconnecting, all := allocSet{}, allocSet{}
+		reconnectingAllocs := rapid.SliceOfN(
+			genExistingAlloc(idg, job, idg.nextID(), now), 1, 10).Draw(t, "allocs")
+		for _, alloc := range reconnectingAllocs {
+			numRestarts := rapid.IntRange(0, 2).Draw(t, "")
+			startTime := now.Add(-time.Minute * time.Duration(rapid.IntRange(2, 5).Draw(t, "")))
+			lastRestart := startTime.Add(time.Minute)
+			alloc.TaskStates = map[string]*structs.TaskState{"task": {
+				Restarts:    uint64(numRestarts),
+				LastRestart: lastRestart,
+				StartedAt:   startTime,
+			}}
+			reconnecting[alloc.ID] = alloc
+		}
+
+		allAllocs := rapid.SliceOfN(
+			genExistingAlloc(idg, job, idg.nextID(), now), 0, 10).Draw(t, "allocs")
+		for i, alloc := range allAllocs {
+			numRestarts := rapid.IntRange(0, 2).Draw(t, "")
+			startTime := now.Add(-time.Minute * time.Duration(rapid.IntRange(2, 5).Draw(t, "")))
+			lastRestart := startTime.Add(time.Minute)
+			alloc.TaskStates = map[string]*structs.TaskState{"task": {
+				Restarts:    uint64(numRestarts),
+				LastRestart: lastRestart,
+				StartedAt:   startTime,
+			}}
+
+			// wire up the next/previous relationship for a subset
+			if i%2 == 0 && len(reconnecting) > i {
+				alloc.PreviousAllocation = reconnectingAllocs[i].ID
+				reconnecting[alloc.PreviousAllocation].NextAllocation = alloc.ID
+			}
+			all[alloc.ID] = alloc
+		}
+
+		logger := testlog.HCLogger(t)
+		ar := NewAllocReconciler(logger,
+			allocUpdateFnInplace, // not relevant to function
+			ReconcilerState{Job: job},
+			ClusterState{Now: now},
+		)
+
+		keep, stop, stopResults := ar.reconcileReconnecting(reconnecting, all, tg)
+
+		for reconnectedID := range reconnecting {
+			_, isKeep := keep[reconnectedID]
+			_, isStop := stop[reconnectedID]
+			if isKeep && isStop {
+				t.Fatal("reconnecting alloc should not be both kept and stopped")
+			}
+			if !(isKeep || isStop) {
+				t.Fatal("reconnecting alloc must be either kept or stopped")
+			}
+		}
+
+		for keepID := range keep {
+			if _, ok := reconnecting[keepID]; !ok {
+				t.Fatal("only reconnecting allocations are allowed to be present in the returned reconnect set.")
+			}
+		}
+		for stopID := range stop {
+			if alloc, ok := reconnecting[stopID]; ok {
+				nextID := alloc.NextAllocation
+				_, nextIsKeep := keep[nextID]
+				_, nextIsStop := stop[nextID]
+				if nextIsKeep || nextIsStop {
+					t.Fatal("replacements should not be in either set")
+				}
+			}
+		}
+		must.Eq(t, len(stop), len(stopResults),
+			must.Sprint("every stop should have a stop result"))
+
+	})
 }
