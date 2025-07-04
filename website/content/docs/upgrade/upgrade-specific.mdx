@@ -12,6 +12,17 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.10.2
+
+#### Clients respect `telemetry.publish_allocation_metrics`
+
+Nomad 1.10.2 fixed a bug where allocation metrics were collected and published
+even if the
+[`telemetry.publish_allocation_metrics`](/nomad/docs/configuration/telemetry#publish_allocation_metrics)
+configuration field was unset or set to `false`. If you are monitoring
+allocation metrics, you will need to ensure your Nomad clients set this field to
+`true`.
+
 ## Nomad 1.10.1
 
 #### Remove Raft peer by address removed
