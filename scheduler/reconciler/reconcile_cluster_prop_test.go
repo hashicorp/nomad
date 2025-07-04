@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"pgregory.net/rapid"
 )
 
@@ -85,28 +86,121 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	}))
 }
 
+func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		idg := &idGenerator{}
+		job := genJob(
+			rapid.SampledFrom([]string{structs.JobTypeService, structs.JobTypeBatch}).Draw(t, "job_type"),
+			idg,
+		).Draw(t, "job")
+
+		clusterState := genClusterState(idg, time.Now()).Draw(t, "cluster_state")
+		jobState := genReconcilerState(idg, job, clusterState).Draw(t, "reconciler_state")
+
+		logger := testlog.HCLogger(t)
+		ar := NewAllocReconciler(logger, allocUpdateFnInplace, jobState, clusterState)
+
+		m := newAllocMatrix(job, jobState.ExistingAllocs)
+		all := m[job.TaskGroups[0].Name] // <-- allocset of all allocs for tg
+		all, _ = filterOldTerminalAllocs(jobState, all)
+
+		desiredChanges := rapid.Custom(func(t *rapid.T) *structs.DesiredUpdates {
+			return &structs.DesiredUpdates{
+				Ignore:            rapid.Uint64Range(0, 1000).Draw(t, "ignore"),
+				Place:             rapid.Uint64Range(0, 1000).Draw(t, "place"),
+				Migrate:           rapid.Uint64Range(0, 1000).Draw(t, "migrate"),
+				Stop:              rapid.Uint64Range(0, 1000).Draw(t, "stop"),
+				InPlaceUpdate:     rapid.Uint64Range(0, 1000).Draw(t, "in_place_update"),
+				DestructiveUpdate: rapid.Uint64Range(0, 1000).Draw(t, "destructive_update"),
+				Canary:            rapid.Uint64Range(0, 1000).Draw(t, "canary"),
+				Preemptions:       rapid.Uint64Range(0, 1000).Draw(t, "preemptions"),
+			}
+		}).Draw(t, "desired_changes")
+
+		ar.cancelUnneededCanaries(all, desiredChanges)
+
+		expectedStopped := 0
+		if jobState.DeploymentOld != nil {
+			for _, dstate := range jobState.DeploymentOld.TaskGroups {
+				if !dstate.Promoted {
+					expectedStopped += len(dstate.PlacedCanaries)
+				}
+			}
+		}
+		if jobState.DeploymentCurrent != nil && jobState.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
+			for _, dstate := range jobState.DeploymentCurrent.TaskGroups {
+				if !dstate.Promoted {
+					expectedStopped += len(dstate.PlacedCanaries)
+				}
+			}
+		}
+
+		must.GreaterEq(t, expectedStopped, int(desiredChanges.Stop))
+
+		if jobState.DeploymentCurrent != nil {
+			expectedCanaries := 0
+			for _, dstate := range jobState.DeploymentCurrent.TaskGroups {
+				expectedCanaries += len(dstate.PlacedCanaries)
+			}
+
+			if len(clusterState.TaintedNodes) == 0 {
+				must.Eq(t, expectedCanaries, int(desiredChanges.Canary))
+			}
+
+		}
+
+	})
+}
+
 func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*AllocReconciler] {
 	return rapid.Custom(func(t *rapid.T) *AllocReconciler {
 		now := time.Now() // note: you can only use offsets from this
 
+		clusterState := genClusterState(idg, now).Draw(t, "cluster_state")
+		job := genJob(jobType, idg).Draw(t, "job")
+
+		reconcilerState := genReconcilerState(idg, job, clusterState).Draw(t, "reconciler_state")
+		updateFn := rapid.SampledFrom([]AllocUpdateType{
+			allocUpdateFnDestructive,
+			allocUpdateFnIgnore,
+			allocUpdateFnInplace,
+		}).Draw(t, "update_function")
+
+		logger := testlog.HCLogger(t)
+		ar := NewAllocReconciler(logger,
+			updateFn,
+			reconcilerState,
+			clusterState,
+		)
+
+		return ar
+	})
+}
+
+func genClusterState(idg *idGenerator, now time.Time) *rapid.Generator[ClusterState] {
+	return rapid.Custom(func(t *rapid.T) ClusterState {
 		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
 		taintedNodes := helper.SliceToMap[map[string]*structs.Node](
 			nodes, func(n *structs.Node) string { return n.ID })
 
-		clusterState := ClusterState{
+		return ClusterState{
 			TaintedNodes:                taintedNodes,
 			SupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected_clients"),
 			Now:                         now,
 		}
-		job := genJob(jobType, idg).Draw(t, "job")
+	})
+}
+
+func genReconcilerState(idg *idGenerator, job *structs.Job, clusterState ClusterState) *rapid.Generator[ReconcilerState] {
+	return rapid.Custom(func(t *rapid.T) ReconcilerState {
 		oldJob := job.Copy()
 		oldJob.Version--
 		oldJob.CreateIndex = 100
 
 		currentAllocs := rapid.SliceOfN(
-			genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
+			genExistingAllocMaybeTainted(idg, job, clusterState.TaintedNodes, clusterState.Now), 0, 15).Draw(t, "allocs")
 		oldAllocs := rapid.SliceOfN(
-			genExistingAllocMaybeTainted(idg, oldJob, taintedNodes, now), 0, 15).Draw(t, "old_allocs")
+			genExistingAllocMaybeTainted(idg, oldJob, clusterState.TaintedNodes, clusterState.Now), 0, 15).Draw(t, "old_allocs")
 
 		// tie together a subset of allocations so we can exercise reconnection
 		previousAllocID := ""
@@ -124,7 +218,7 @@ func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*Allo
 		oldDeploy := genDeployment(idg, oldJob, oldAllocs).Draw(t, "old_deploy")
 		currentDeploy := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
 
-		reconcilerState := ReconcilerState{
+		return ReconcilerState{
 			Job:               job,
 			JobID:             job.ID,
 			JobIsBatch:        job.Type == structs.JobTypeBatch,
@@ -135,21 +229,6 @@ func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*Allo
 			ExistingAllocs:    allocs,
 			EvalID:            idg.nextID(),
 		}
-
-		updateFn := rapid.SampledFrom([]AllocUpdateType{
-			allocUpdateFnDestructive,
-			allocUpdateFnIgnore,
-			allocUpdateFnInplace,
-		}).Draw(t, "update_function")
-
-		logger := testlog.HCLogger(t)
-		ar := NewAllocReconciler(logger,
-			updateFn,
-			reconcilerState,
-			clusterState,
-		)
-
-		return ar
 	})
 }
 
