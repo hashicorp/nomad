@@ -1,0 +1,550 @@
+---
+layout: docs
+page_title: Use Nomad actions in jobs
+description: |-
+  Create a Nomad Action in a job to read from a Redis database. Discover
+  how to use Actions for repeatable workflows and indefinitely running
+  workflows.
+---
+
+# Use Nomad actions in jobs
+
+In this tutorial you will create and run Nomad Actions in a job. Actions are commands that a job author writes, and take the same form as [task config][task-config].
+
+```hcl
+action "hello-world" {
+  command = "echo"
+  args    = ["Hello, world!"]
+}
+```
+
+These actions live at Task level within a jobspec and run without variables or interactive input after execution. Like other executable commands, they may self-terminate or run until manually terminated by the running user. Nomad provides the [CLI command][cli-job-actions], [API][api-run-action], and Web UI to interact with Actions within the context of a Job or Task.
+
+## Challenge
+
+In this tutorial, you will modify a Nomad job that runs a Redis instance and create repeatable Nomad Actions to:
+
+- simplify common workflows to add and remove entries from the database
+- monitor and report on attributes of those entries, as well as latency of the Redis instance
+- modify core behaviour of the database
+
+## Prerequisites
+
+- [Nomad v1.7.0 or greater][install-nomad]
+- Nomad dev agent or [Nomad cluster][setup-cluster]
+- [Docker](https://docs.docker.com/engine/install/) installed and available as a task driver
+
+## Build the starting job file
+
+Create a text file called `redis-actions.nomad.hcl` with the following content:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+job "redis-actions" {
+
+  group "cache" {
+    network {
+      port "db" {}
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image   = "redis:7"
+        ports   = ["db"]
+        command = "/bin/sh"
+        args    = ["-c", "redis-server --port ${NOMAD_PORT_db} & /local/db_log.sh"]
+      }
+
+      template {
+        data        = <<EOF
+          #!/bin/sh
+          while true; do
+            echo "$(date): Current DB Size: $(redis-cli -p ${NOMAD_PORT_db} DBSIZE)"
+            sleep 3
+          done
+EOF
+        destination = "local/db_log.sh"
+        perms       = "0755"
+      }
+
+      resources {
+        cpu    = 128
+        memory = 128
+      }
+
+      service {
+        name     = "redis-service"
+        port     = "db"
+        provider = "nomad"
+
+        check {
+          name     = "alive"
+          type     = "tcp"
+          port     = "db"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+This job creates a single Redis instance, with a port called "db" that Nomad dynamically assigns and a Nomad service health check in place. The task's [config][jobspec-task-config-block] and [template][jobspec-task-template-block] blocks start the redis server and report on current database size every 3 seconds.
+
+## Write your first Action
+
+If you were a user with management or `alloc-exec` privileges, you could add data to your Redis instance by ssh-ing into the running instance. However, this has several drawbacks:
+- You might have to ssh into the instance several times to add data at different points, requiring you to remember how to do it. Or worse: another operator less familiar with the process may have to do so.
+- There is no auditable record of manual additions. If you need to repeat or scale the workflow, you would have to do so manually.
+- Your Nomad task may have access to Redis using managed secrets or environment variables, but you as a user may not. Passing credentials manually, either to access Redis or ssh into your Nomad instance, opens up a repeated access hole in the security of your workflow.
+
+Instead of `ssh`ing into the box and executing the `redis-cli SET` command over and over again, you will commit it as an action to the jobspec's task. Add the following to the `service` block of the task:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Adds a specific key-value pair ('hello'/'world') to the Redis database
+action "add-key" {
+  command = "/bin/sh"
+  args    = ["-c", "redis-cli -p ${NOMAD_PORT_db} SET hello world; echo 'Key \"hello\" added with value \"world\"'"]
+}
+```
+</CodeBlockConfig>
+
+This action uses the `redis-cli` command to set a key-value pair and then outputs a confirmation message.
+
+Now, submit your job:
+
+```shell-session
+$ nomad job run redis-actions.nomad.hcl
+```
+
+The job will update with a new action available. Use the Nomad CLI to execute it, supplying the job, group, task, and action name:
+
+```shell-session
+$ nomad action \
+  -job=redis-actions \
+  -group=cache \
+  -task=redis \
+add-key
+```
+
+You should see the output described in our action to indicate the key was added:
+
+```shell-session
+OK
+Key "hello" added with value "world"
+```
+
+You've just executed a command defined in the jobspec of your running Nomad job.
+
+## Simulate a repeatable workflow
+
+An action that applies a constant state can be useful (an action that manually clears a cache, or that puts a site into maintenance mode, for example). However, for this example, simulate an action that someone might want to take many times. Instead of a constant key/value, modify the action to randomly generate strings. You can think of this action as a proxy for a real-world scenario where a persistent artifact is saved upon user sign-up, or another public-facing action.
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Adds a random key/value to the Redis database
+action "add-random-key" {
+  command = "/bin/sh"
+  args    = ["-c", "key=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p ${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
+}
+```
+</CodeBlockConfig>
+
+This will add a random key/value to the database and report back. We can add a second action that differs only in that it prepends "temp_" to the key, to help illustrate further functionality:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Adds a random key/value with a "temp_" prefix to the Redis database
+action "add-random-temporary-key" {
+  command = "/bin/sh"
+  args    = ["-c", "key=temp_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p ${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
+}
+```
+</CodeBlockConfig>
+
+Like our `add-random-key` action, this new action might be thought of as a simulation of an application generating persistent artifacts. In the case of these temp keys, a real-world scenario might be keys to indicate user sign-up email verification. Soon, we will create a further Action that treats these random keys differently depending on their prefix.
+
+These two actions will populate the database with random data of two different sorts. Now, create an action to view the keys we've added by appending the following code block:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Lists all keys currently stored in the Redis database.
+action "list-keys" {
+  command = "/bin/sh"
+  args    = ["-c", "redis-cli -p ${NOMAD_PORT_db} KEYS '*'"]
+}
+```
+</CodeBlockConfig>
+
+Now, update your job:
+
+```shell-session
+$ nomad job run redis-actions.nomad.hcl
+```
+
+If you have the [Nomad Web UI][web-ui] running, accessing your Job page should show an Actions drop-down:
+
+[![Nomad Job page with Actions dropdown open][actions-dropdown]][actions-dropdown]
+
+Selecting one of those actions will open a fly-out, complete with output from your selected action:
+
+[![Nomad Job page with Actions flyout open][actions-flyout]][actions-flyout]
+
+Next, append a new action block that creates a "safety valve" action to clear the temporary keys from our database. This uses our earlier `add-random-key` and `add-random-temporary-key` actions by differentiating between the artifacts they generated.
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Deletes all keys with a 'temp_' prefix
+action "flush-temp-keys" {
+  command = "/bin/sh"
+  args    = ["-c", <<EOF
+    keys_to_delete=$(redis-cli -p ${NOMAD_PORT_db} --scan --pattern 'temp_*')
+    if [ -n "$keys_to_delete" ]; then
+      # Count the number of keys to delete
+      deleted_count=$(echo "$keys_to_delete" | wc -l)
+      # Execute the delete command
+      echo "$keys_to_delete" | xargs redis-cli -p ${NOMAD_PORT_db} DEL
+    else
+      deleted_count=0
+    fi
+    remaining_keys=$(redis-cli -p ${NOMAD_PORT_db} DBSIZE)
+    echo "$deleted_count temporary keys removed; $remaining_keys keys remaining in database"
+EOF
+  ]
+}
+```
+</CodeBlockConfig>
+
+In a real-world scenario, for example, an action like this might filter and clear automatically-added entries, and report back on remaining keys or time taken to delete them.
+
+You can run this job from the command line in two ways:
+
+1: When your task is running on a single allocation, or you want to perform the action on a random allocation running your task:
+
+```shell-session
+$ nomad action \
+  -group=cache \
+  -task=redis \
+  -job=redis-actions \
+flush-temp-keys
+```
+
+2: When you want to perform the action on a specific, known allocation, first get its allocation ID:
+
+```shell-session
+$ nomad job status redis-actions
+```
+
+Nomad CLI should show information about the jobspec, including the following:
+
+```
+ID            = redis-actions
+...
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created   Modified
+d841c716  03a56d12  cache       0        run      running  5m4s ago  4m48s ago
+```
+
+Copy the ID from the Allocation displayed and run the following to perform the `flush-temp-keys` action upon it:
+
+```shell-session
+$ nomad action \
+  -alloc=d841c716 \
+  -job=redis-actions \
+flush-temp-keys
+```
+
+If the action being run is not allocation dependent, use the first method. If your job hosted multiple instances of Redis and you need to clear the cache of a specific one, use the second method. In the real world, the method you chose will depend on your goal.
+
+## Actions can impact the running task
+
+Some actions might not affect the current state of the application. For example, processing logs, reporting and sending server statistics, revoking tokens, etc. But, in this example, the action does impact the active state of the task. The Redis task has been writing its `DBSIZE` to `db_log.sh` and logging it every few seconds. Inspect the running job and get its allocation ID. Then, run the following:
+
+```shell-session
+nomad alloc logs <alloc-id>
+```
+
+Nomad outputs the logs for the allocation ID of the job:
+
+```shell-session
+Tue Nov 28 01:23:46 UTC 2023: Current DB Size: 1
+Tue Nov 28 01:23:49 UTC 2023: Current DB Size: 1
+Tue Nov 28 01:23:52 UTC 2023: Current DB Size: 2
+Tue Nov 28 01:23:55 UTC 2023: Current DB Size: 3
+Tue Nov 28 01:23:58 UTC 2023: Current DB Size: 3
+Tue Nov 28 01:24:01 UTC 2023: Current DB Size: 4
+Tue Nov 28 01:24:04 UTC 2023: Current DB Size: 5
+Tue Nov 28 01:24:07 UTC 2023: Current DB Size: 8
+```
+
+Now add another action to impact a more low-level configuration option for our application. Redis lets us turn its persistence to disk on and off. Write an Action to check this and then flip it. Append the following action block:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Toggles saving to disk (RDB persistence). When enabled, allocation logs will indicate a save every 60 seconds.
+action "toggle-save-to-disk" {
+  command = "/bin/sh"
+  args    = ["-c", <<EOF
+    current_config=$(redis-cli -p ${NOMAD_PORT_db} CONFIG GET save | awk 'NR==2');
+    if [ -z "$current_config" ]; then
+      # Enable saving to disk (example: save after 60 seconds if at least 1 key changed)
+      redis-cli -p ${NOMAD_PORT_db} CONFIG SET save "60 1";
+      echo "Saving to disk enabled: 60 seconds interval if at least 1 key changed";
+    else
+      # Disable saving to disk
+      redis-cli -p ${NOMAD_PORT_db} CONFIG SET save "";
+      echo "Saving to disk disabled";
+    fi;
+EOF
+  ]
+}
+```
+</CodeBlockConfig>
+
+Enabling RDB snapshotting with the above will modify the output in your application logs, too.
+
+```shell-session
+$ nomad action \
+  -group=cache \
+  -task=redis \
+  -job=redis-actions \
+toggle-save-to-disk
+```
+
+Nomad returns a confirmation that the action run and that saving to disk is enabled.
+
+```shell-session
+OK
+Saving to disk enabled: 60 seconds interval if at least 1 key changed
+```
+
+Access your server logs and find the lines that show Redis saving the snapshot:
+
+```shell-session
+Tue Nov 28 01:31:14 UTC 2023: Current DB Size: 12
+28 Nov 01:31:17.800 * 2 changes in 60 seconds. Saving...
+28 Nov 01:31:17.800 * Background saving started by pid 36652
+28 Nov 01:31:17.810 * DB saved on disk
+28 Nov 01:31:17.810 * RDB: 0 MB of memory used by copy-on-write
+28 Nov 01:31:17.902 * Background saving terminated with success
+Tue Nov 28 01:31:17 UTC 2023: Current DB Size: 12
+```
+
+Nomad Actions can impact the state and behaviour of the very task on which they're running. Keeping this in mind can help developers and platform teams separate business and operational logic in their applications.
+
+## Indefinite and self-terminating actions
+
+All of the actions so far have been self-terminating: they execute a command that completes and signals its completion. However, Actions will wait for completion of the desired task, and the Nomad API and Web UI use websockets to facilitate this.
+
+Add an action that runs until you manually stop it with a signal interruption, like `ctrl + c` to observe the latency of the Redis instance:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+# Performs a latency check of the Redis server.
+# This action is a non-terminating action, meaning it will run indefinitely until it is stopped.
+# Pass a signal interruption (Ctrl-C) to stop the action.
+action "health-check" {
+  command = "/bin/sh"
+  args    = ["-c", "redis-cli -p ${NOMAD_PORT_db} --latency"]
+}
+```
+</CodeBlockConfig>
+
+Submit the job and run the action with the following:
+
+```shell-session
+$ nomad action \
+  -group=cache \
+  -task=redis \
+  -job=redis-actions \
+  -t=true \
+health-check
+```
+
+The output should indicate the minimum, maximum, and average latency in ms for our Redis instance. Interrupting the signal or closing the websocket will end the action's execution.
+
+[![Non-terminating Nomad Action run via the UI][actions-health-check]][actions-health-check]
+
+## Wrap-up
+
+Find the complete Redis job with actions (with a few extras thrown in) below:
+
+<CodeBlockConfig filename="redis-actions.nomad.hcl">
+
+```hcl
+job "redis-actions" {
+
+  group "cache" {
+    network {
+      port "db" {}
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image   = "redis:7"
+        ports   = ["db"]
+        command = "/bin/sh"
+        args    = ["-c", "redis-server --port ${NOMAD_PORT_db} & /local/db_log.sh"]
+      }
+
+      template {
+        data        = <<EOF
+#!/bin/sh
+while true; do
+  echo "$(date): Current DB Size: $(redis-cli -p ${NOMAD_PORT_db} DBSIZE)"
+  sleep 3
+done
+EOF
+        destination = "local/db_log.sh"
+        perms       = "0755"
+      }
+
+      resources {
+        cpu    = 128
+        memory = 128
+      }
+
+      service {
+        name     = "redis-service"
+        port     = "db"
+        provider = "nomad"
+
+        check {
+          name     = "alive"
+          type     = "tcp"
+          port     = "db"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+
+      # Adds a random key/value to the Redis database
+      action "add-random-key" {
+        command = "/bin/sh"
+        args    = ["-c", "key=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p ${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
+      }
+
+      # Adds a random key/value with a "temp_" prefix to the Redis database
+      action "add-random-temporary-key" {
+        command = "/bin/sh"
+        args    = ["-c", "key=temp_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p ${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
+      }
+
+      # Lists all keys currently stored in the Redis database.
+      action "list-keys" {
+        command = "/bin/sh"
+        args    = ["-c", "redis-cli -p ${NOMAD_PORT_db} KEYS '*'"]
+      }
+
+      # Performs a latency check of the Redis server.
+      # This action is a non-terminating action, meaning it will run indefinitely until it is stopped.
+      # Pass a signal interruption (Ctrl-C) to stop the action.
+      action "health-check" {
+        command = "/bin/sh"
+        args    = ["-c", "redis-cli -p ${NOMAD_PORT_db} --latency"]
+      }
+
+      # Deletes all keys with a 'temp_' prefix
+      action "flush-temp-keys" {
+        command = "/bin/sh"
+        args    = ["-c", <<EOF
+keys_to_delete=$(redis-cli -p ${NOMAD_PORT_db} --scan --pattern 'temp_*')
+if [ -n "$keys_to_delete" ]; then
+  # Count the number of keys to delete
+  deleted_count=$(echo "$keys_to_delete" | wc -l)
+  # Execute the delete command
+  echo "$keys_to_delete" | xargs redis-cli -p ${NOMAD_PORT_db} DEL
+else
+  deleted_count=0
+fi
+remaining_keys=$(redis-cli -p ${NOMAD_PORT_db} DBSIZE)
+echo "$deleted_count temporary keys removed; $remaining_keys keys remaining in database"
+EOF
+        ]
+      }
+
+      # Toggles saving to disk (RDB persistence). When enabled, allocation logs will indicate a save every 60 seconds.
+      action "toggle-save-to-disk" {
+        command = "/bin/sh"
+        args    = ["-c", <<EOF
+current_config=$(redis-cli -p ${NOMAD_PORT_db} CONFIG GET save | awk 'NR==2');
+if [ -z "$current_config" ]; then
+  # Enable saving to disk (example: save after 60 seconds if at least 1 key changed)
+  redis-cli -p ${NOMAD_PORT_db} CONFIG SET save "60 1";
+  echo "Saving to disk enabled: 60 seconds interval if at least 1 key changed";
+else
+  # Disable saving to disk
+  redis-cli -p ${NOMAD_PORT_db} CONFIG SET save "";
+  echo "Saving to disk disabled";
+fi;
+EOF
+        ]
+      }
+    }
+  }
+}
+```
+</CodeBlockConfig>
+
+Experiment with duplicating and modifying these actions to explore the potential of an actions-based workflow in Nomad.
+
+To further explore how Actions can be used in your workflows, consider the following:
+
+- The examples above are mostly self-contained in that they run in isolation on a single allocation within a job with only one task group and task. Try creating a job with multiple groups and tasks whose actions can talk to one another by way of service discovery.
+- Try using the [GET job actions endpoint][api-list-job-actions] to see a list of actions available to a job and its groups and tasks
+- Try writing an action that takes advantage of Nomad's environment variables: for example, the following actions are illustrative of how an operator might add shortcuts to their Nomad jobs to get a sense of system state:
+
+```hcl
+action "get-alloc-info" {
+  command = "/bin/sh"
+  args    = ["-c",
+    <<EOT
+    nomad alloc status ${NOMAD_ALLOC_ID}
+    EOT
+  ]
+}
+action "get-event-stream" {
+  command = "/usr/bin/curl"
+  args    = ["-s", "localhost:4646/v1/event/stream", " | ", "jq"]
+}
+```
+
+## Clean up
+
+To stop your Nomad actions job, use the Nomad CLI:
+
+```shell-session
+$ nomad job stop redis-actions
+```
+
+The jobspec you wrote will remain on your filesystem, but the resources used by running the job will free up and Nomad will automatically garbage collect the stopped job after awhile.
+
+
+[api-run-action]: /nomad/api-docs/jobs#run-action
+[api-list-job-actions]: /nomad/api-docs/jobs#list-job-actions
+[cli-job-actions]: /nomad/commands/job/action
+[task-config]: /nomad/docs/job-declare/configure-tasks#define-application-arguments
+[web-ui]: /nomad/tutorials/web-ui
+[actions-dropdown]: /img/nomad/actions/actions-dropdown.png
+[actions-flyout]: /img/nomad/actions/actions-flyout.png
+[actions-health-check]: /img/nomad/actions/actions-health-check.png
+[jobspec-task-template-block]: /nomad/docs/job-specification/template
+[jobspec-task-config-block]: /nomad/docs/job-specification/task#config
+[install-nomad]: /nomad/install
+[setup-cluster]: /nomad/tutorials/get-started/gs-start-a-cluster

@@ -48,7 +48,7 @@ job "docs" {
   task to have access to dispatch payloads.
 
 - `driver` - Specifies the task driver that should be used to run the
-  task. See the [driver documentation](/nomad/docs/drivers) for what
+  task. See the [driver documentation](/nomad/docs/job-declare/task-driver) for what
   is available. Examples include `docker`, `qemu`, `java` and `exec`.
 
 - `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
@@ -139,7 +139,7 @@ The following examples only show the `task` blocks. Remember that the
 
 This example defines a task that starts a Docker container as a service. Docker
 is just one of many drivers supported by Nomad. Read more about drivers in the
-[Nomad drivers documentation](/nomad/docs/drivers).
+[Nomad drivers documentation](/nomad/docs/job-declare/task-driver).
 
 ```hcl
 task "server" {
@@ -225,16 +225,16 @@ task "server" {
 [service]: /nomad/docs/job-specification/service 'Nomad service Job Specification'
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
 [volumemount]: /nomad/docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
-[exec]: /nomad/docs/drivers/exec 'Nomad exec Driver'
-[raw_exec]: /nomad/docs/drivers/raw_exec 'Nomad raw_exec Driver'
-[java]: /nomad/docs/drivers/java 'Nomad Java Driver'
-[docker]: /nomad/docs/drivers/docker 'Nomad Docker Driver'
+[exec]: /nomad/docs/job-declare/task-driver/exec 'Nomad exec Driver'
+[raw_exec]: /nomad/docs/job-declare/task-driver/raw_exec 'Nomad raw_exec Driver'
+[java]: /nomad/docs/job-declare/task-driver/java 'Nomad Java Driver'
+[docker]: /nomad/docs/job-declare/task-driver/docker 'Nomad Docker Driver'
 [rkt]: /nomad/plugins/drivers/community/rkt 'Nomad rkt Driver'
-[service_discovery]: /nomad/docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[service_discovery]: /nomad/docs/networking/service-discovery 'Nomad Service Discovery'
 [template]: /nomad/docs/job-specification/template 'Nomad template Job Specification'
 [user_drivers]: /nomad/docs/configuration/client#user-checked_drivers
 [user_denylist]: /nomad/docs/configuration/client#user-denylist
 [max_kill]: /nomad/docs/configuration/client#max_kill_timeout
 [kill_signal]: /nomad/docs/job-specification/task#kill_signal
 [Workload Identity]: /nomad/docs/concepts/workload-identity 'Nomad Workload Identity'
-[service]: /nomad/docs/install/windows-service
+[service]: /nomad/docs/deploy/production/windows-service

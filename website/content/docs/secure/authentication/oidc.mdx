@@ -1,0 +1,239 @@
+---
+layout: docs
+page_title: OpenID Connect (OIDC) Authentication Method
+description: >-
+  Use the OIDC auth method type to authenticate to Nomad through a web browser with an OpenID Connect provider. Learn how to configure the authentication method parameters using this reference page and example configuration.
+---
+
+# OpenID Connect (OIDC) Authentication Method
+
+Use the `oidc` method to authenticate to Nomad with
+[OIDC](https://en.wikipedia.org/wiki/OpenID_Connect). This method allows
+authentication via a configured OIDC provider using the user's web browser.
+Initiate this method from the Nomad UI or the command line.
+
+## Prerequisites
+
+- General knowledge of [OIDC concepts](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
+- [Nomad Access Control List fundamentals][ACL Overview].
+
+Refer to [auth-method create] for the parameters required to create an OIDC auth-method.
+
+## JWT Verification
+
+Nomad uses OIDC discovery to verify JWT signatures against public
+keys from the issuer. Nomad first fetches keys from the OIDC
+Discovery URL during authentication and then applies OIDC
+validation criteria such as `iss` and `aud`.
+
+## OIDC Authentication
+
+Nomad includes two built-in OIDC login flows: the Nomad UI, and the CLI using
+[`nomad login`](/nomad/commands/login).
+
+### Redirect URIs
+
+Properly setting redirect URIs is an important part of OIDC auth method
+configuration. You must configure these in both Nomad and the OIDC
+provider, and these configurations must align.
+
+Specify the redirect URIs for an auth method with the
+`AllowedRedirectURIs` parameter in the auth method config. The Nomad UI
+and CLI use different redirect URIs, so you need to configure one or both,
+depending on your installation.
+
+**Note:** Redirect URI is used interchangeably with callback address.
+
+Logging in via the UI requires the redirect URI
+`http://{host:port}/ui/settings/tokens`.
+
+Logging in via the CLI requires the redirect
+URI `http://{host:port}/oidc/callback`.
+
+### OIDC Login
+
+#### Nomad UI
+
+1. Select one of the provider links in the Nomad homepage or navigate directly to `/ui/settings/tokens`.
+1. Click one of the buttons for your OIDC auth method of choice.
+1. Complete the authentication with the configured provider.
+
+#### CLI
+
+Execute the `nomad login -method=oidc` command to log in.
+If the `-oidc-callback-addr` flag is not specified, it will default to `localhost:4649`.
+
+```shell-session
+$ nomad login -method=oidc -oidc-callback-addr=<host:port>
+
+Complete the login via your OIDC provider. Launching browser to:
+
+    https://myco.auth0.com/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A4649%2Foidc%2Fcallback&client_id=r3qXc2bix9eF...
+```
+
+Your browser opens to the generated URL to complete the provider's login.
+Enter the URL manually if the browser does not automatically open.
+
+### Client assertions
+
+Also known as "[private key JWT][]", client assertions offer a more secure
+authentication mechanism compared to client secrets.
+
+Instead of sending a simple secret, Nomad builds a JWT and signs it with
+an RSA private key (or HMAC) that the OIDC provider can verify with an
+associated public key (or the same HMAC). In this way, Nomad "asserts"
+that it is a valid OIDC client without sending any secret information over
+the network.
+
+Here are some partial [auth method configuration][] examples. They focus only
+on the client assertion feature; they are not complete, functional examples.
+
+#### Nomad keyring
+
+In this example for Keycloak, Nomad signs the JWT with its own internal private
+key. It sets the JWT's "kid" header as the key ID, as presented by Nomad's
+[jwks.json][] endpoint.
+
+This is arguably the most secure option, because only Nomad has the private key.
+
+```json
+{
+  "OIDCDiscoveryURL": "https://your-keycloak-instance.com/realms/nomad",
+  "OIDCClientID": "{your-client-id}",
+  "BoundAudiences": ["{your-client-id}"],
+  "OIDCClientAssertion": {
+    "Audience": ["https://your-keycloak-instance.com/realms/nomad"],
+    "KeySource": "nomad"
+  }
+}
+```
+
+Notice the distinction between the two "audience" fields:
+* `BoundAudiences` is often the application client ID (Nomad being the client),
+  which Nomad verifies against what the OIDC provider sends to Nomad. Nomad
+  uses this to make sure that requests are for Nomad, and not some other client.
+  This applies to all OIDC configuration, not only client assertions.
+* `OIDCClientAssertion.Audience` is the OIDC provider, because that is the
+  target audience of the client assertion JWT. The provider uses this to make
+  sure that requests are for it and not some other provider. This is often the
+  same as the `OIDCDiscoveryURL`, so defaults to that. This applies to all
+  client assertion configuration.
+
+This option requires that the OIDC provider have network access to Nomad's JWKS,
+either directly or via proxy, but otherwise requires no extra management of key
+material beyond Nomad's built-in [keyring][key-management].
+
+#### User provided key
+
+This Microsoft Entra ID (formerly Azure Active Directory) example uses an RSA
+private key generated separately from Nomad to sign the JWT.
+- The `PemKey` value is the private RSA key contents in PEM format.
+- The `PemCert` value is the contents of an X509 certificate from the key or a
+  CA. Nomad uses this certificate to derive an [x5t#S256][] thumbprint header.
+
+```json
+{
+  "OIDCDiscoveryURL": "https://login.microsoftonline.com/{tenant}/v2.0",
+  "OIDCClientID": "{app-client-id}",
+  "BoundAudiences": ["{app-client-id}"],
+  "OIDCClientAssertion": {
+    "KeySource": "private_key",
+    "KeyAlgorithm": "RS256",
+    "PrivateKey": {
+      "PemKey": "-----BEGIN RSA PRIVATE KEY-----\nMIIE...the-rest-of-the-key...uJ8fR\n-----END RSA PRIVATE KEY-----",
+      "PemCert": "-----BEGIN CERTIFICATE-----\nMIID...the-rest-of-the-cert...GUCk=\n-----END CERTIFICATE-----"
+    }
+  }
+}
+```
+
+Note that if you implement this approach, you must upload the certificate to
+the Entra ID app, so that when you try to log in, Entra ID can use the
+"x5t#S256" header to look up the public key that it has stored.
+
+You may also configure the key and/or certificate as filenames on disk on Nomad
+servers with the `PemKeyFile` and `PemCertFile` options, respectively. This
+approach lets you rotate your key/cert without needing to update the auth
+method, but the files must be present on the disk of any server that may become
+Nomad leader.
+
+Or, depending on your OIDC provider's requirements, you may provide the `KeyID`
+directly, instead of providing a certificate.
+
+This approach lets you bring your own RSA key for the following scenarios:
+- Your OIDC provider does not support JWKS
+- Your network topology does not allow connectivity between the provider and
+Nomad JWKS, even via proxy
+- You want a signing key that is specifically and only for this purpose.
+
+#### Client secret HMAC
+
+This example uses the `OIDCClientSecret` as an HMAC key to sign the JWT.
+This configuration is marginally more secure than a bare client secret, as the
+JWT is time-bound, and signed by the secret rather than sending the secret
+itself over the network. As with a normal client secret, both Nomad and the
+OIDC provider need to have the same secret.
+
+```json
+{
+  "OIDCDiscoveryURL": "https://your-oidc-provider.com/oidc-discovery-url",
+  "OIDCClientID": "your-client-id",
+  "OIDCClientSecret": "long-secret-id-has-to-be-at-least-32-bytes",
+  "OIDCClientAssertion": {
+    "KeySource": "client_secret"
+  }
+}
+```
+
+## OIDC Configuration Troubleshooting
+
+The amount of configuration required for OIDC is relatively small, but it can
+be tricky to debug why things aren't working. The following are tips for setting up OIDC:
+
+- Monitor the log output for the Nomad servers for important
+information about OIDC validation failures.
+
+- Ensure correct redirect URIs in Nomad and on the provider. URIs
+need to match exactly. Check http/https, 127.0.0.1/localhost,
+port numbers, and whether trailing slashes are present.
+
+- The `BoundAudiences` option is typically
+  not required. OIDC providers use the `client_id` as the audience and
+  OIDC validation expects this.
+
+- Check your provider for scopes that are required to receive all of
+  the information you need. You often need to request the scopes
+  `profile` and `groups`, which you may set with
+  `OIDCScopes=["profile", "groups"]` in the auth method configuration.
+
+- If you're seeing claim-related errors in logs, review the provider's docs
+  very carefully to see how they're naming and structuring their claims.
+  Depending on the provider, you may be able to construct a simple `curl`
+  [implicit grant](https://developer.okta.com/blog/2018/05/24/what-is-the-oauth2-implicit-grant-type)
+  request to obtain a JWT that you can inspect. This example decodes the
+  JWT located in the `access_token` field of a JSON response.
+
+      jq --raw-output '.access_token / "." | .[1] | @base64d' jwt.json
+
+- With debug level logging, use the [VerboseLogging] option in the auth
+  method configuration to log the received OIDC token. This can be helpful
+  when debugging provider setup and verifying that the received claims are
+  what you expect. Since claims data is logged verbatim and may contain
+  sensitive information, do not use this option in production.
+
+- For client assertions, if `VerboseLogging` is enabled, then the Nomad leader
+  server logs a JWT when the auth method is created, and when someone makes
+  a login attempt. These JWTs are not 100% identical to what gets sent to the
+  OIDC provider due to being time-bound, but you can check the JWT headers
+  and claims to compare with your OIDC provider's requirements.
+
+@include 'jwt_claim_mapping_details.mdx'
+
+[ACL Overview]: /nomad/docs/secure/acl
+[auth-method create]: /nomad/commands/acl/auth-method/create
+[private key jwt]: https://oauth.net/private-key-jwt/
+[auth method configuration]: /nomad/api-docs/acl/auth-methods
+[key-management]: /nomad/docs/manage/key-management
+[x5t#S256]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8
+[jwks.json]: /nomad/api-docs/operator/keyring#list-active-public-keys
+[VerboseLogging]: /nomad/api-docs/acl/auth-methods#verboselogging

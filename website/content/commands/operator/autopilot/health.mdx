@@ -1,0 +1,46 @@
+---
+layout: docs
+page_title: 'nomad operator autopilot health command reference'
+description: |
+  The `nomad operator autopilot health` command displays the current Autopilot internal health.
+---
+
+# `nomad operator autopilot health` command reference
+
+The Autopilot operator command is used to view the current Autopilot state.
+Refer to the [Autopilot Guide][autopilot-guide] for more information about
+Autopilot.
+
+## Usage
+
+```plaintext
+nomad operator autopilot health [options]
+```
+
+If ACLs are enabled, this command requires a token with the `operator:read`
+capability.
+
+## Options
+
+- `-json`: Output the Autopilot health in unformatted JSON.
+
+The output will return like below, read about the output of the command in the [API docs][api-docs].
+
+```shell-session
+$ nomad operator autopilot health
+Healthy: true
+FailureTolerance: 0
+Leader: e349749b-3303-3ddf-959c-b5885a0e1f6e
+Voters:
+        e349749b-3303-3ddf-959c-b5885a0e1f6e
+Servers:
+ID                                    Name      Address         SerfStatus  Version   Leader  Voter  Healthy  LastContact  LastTerm  LastIndex  StableSince
+e349749b-3303-3ddf-959c-b5885a0e1f6e  node1     127.0.0.1:4647  alive       1.7.5     true    true   true     0s           2         14         2024-02-20 16:40:55 +0000 UTC
+```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
+
+[autopilot-guide]: /nomad/docs/manage/autopilot
+[api-docs]: /nomad/api-docs/operator/autopilot#read-autopilot-configuration

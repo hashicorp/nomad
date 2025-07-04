@@ -23,7 +23,7 @@
 | `NOMAD_NAMESPACE`        | Namespace in which the allocation is running                                                                                                                                                                                                                                             |
 | `NOMAD_REGION`           | Region in which the allocation is running                                                                                                                                                                                                                                                |
 | `NOMAD_UNIX_ADDR`        | Use this value as your `NOMAD_ADDR` to use `nomad` CLI with the [task API][]'s unix socket. The value is equivalent to `"unix://${NOMAD_SECRETS_DIR}/api.sock"`
-| `NOMAD_META_<key>`       | The metadata value given by `key` on the task's metadata. Any character in a key other than `[A-Za-z0-9_.]` will be converted to `_`. <br/> **Note:** this is different from [`${meta.<key>}`](/nomad/docs/runtime/interpolation#node-variables-) which are keys in the node's metadata. |
+| `NOMAD_META_<key>`       | The metadata value given by `key` on the task's metadata. Any character in a key other than `[A-Za-z0-9_.]` will be converted to `_`. <br/> **Note:** this is different from [`${meta.<key>}`](/nomad/docs/reference/runtime-variable-interpolation#node-variables-) which are keys in the node's metadata. |
 | `CONSUL_HTTP_TOKEN`      | The tasks' Consul token. See [Consul Integration][consul] documentation for more details.                                                                                                                                                                                                |
 | `CONSUL_TOKEN`           | The tasks' Consul token. See [Consul Integration][consul] documentation for more details. This variable is deprecated and exists only for backwards compatibility.                                                                                                                       |
 | `VAULT_TOKEN`            | The task's Vault token. See the [Vault Integration][vault] documentation for more details                                                                                                                                                                                                |
@@ -71,7 +71,7 @@ names such as `NOMAD_ADDR_<task>_<label>`
 
 [task API]: /nomad/api-docs/task-api
 [upstream]: /nomad/docs/job-specification/upstreams
-[taskdirs]: /nomad/docs/runtime/environment#task-directories
+[taskdirs]: /nomad/docs/reference/runtime-environment-settings#task-directories
 [network-block]: /nomad/docs/job-specification/network
-[vault]: /nomad/docs/integrations/vault-integration
-[consul]: /nomad/docs/integrations/consul-integration
+[vault]: /nomad/docs/secure/vault
+[consul]: /nomad/docs/networking/consul

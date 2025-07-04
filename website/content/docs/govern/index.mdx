@@ -1,0 +1,113 @@
+---
+layout: docs
+page_title: Governance and policy on Nomad
+description: |-
+  This section provides best practices and guidance for operating Nomad securely in a multi-team setting through features such as resource quotas, node pools, and Sentinel policies.
+---
+
+# Governance and policy on Nomad
+
+Nomad Enterprise is aimed at teams and organizations and addresses the organizational complexity of multi-team and multi-cluster deployments with collaboration and governance features.
+
+This section provides best practices and guidance for operating Nomad
+securely in a multi-team setting through features such as resource quotas, node
+pools, and Sentinel policies.
+
+## Resource quotas
+
+<EnterpriseAlert inline />
+
+When many teams or users
+are sharing Nomad clusters, there is the concern that a single user could use
+more than their fair share of resources. Resource quotas provide a mechanism for
+cluster administrators to restrict the resources within a namespace.
+
+Quota specifications are first class objects in Nomad. A quota specification
+has a unique name, an optional human readable description, and a set of quota
+limits. The quota limits define the allowed resource usage within a region.
+
+Quota objects are shareable among namespaces. This allows an operator to define
+higher level quota specifications, such as a `prod-api` quota, and multiple
+namespaces can apply the `prod-api` quota specification.
+
+## Sentinel
+
+<EnterpriseAlert inline />
+
+[![Sentinel Overview][img_sentinel_overview]][img_sentinel_overview]
+
+- **Sentinel Policies** - Policies are able to introspect on request arguments
+  and use complex logic to determine if the request meets policy requirements.
+  For example, a Sentinel policy may restrict Nomad jobs to only using the
+  "docker" driver or prevent jobs from being modified outside of business
+  hours.
+
+- **Policy Scope** - Sentinel policies declare a "scope", which determines when
+  the policies apply. Currently the only supported scope is "submit-job", which
+  applies to any new jobs being submitted, or existing jobs being updated.
+
+- **Enforcement Level** - Sentinel policies support multiple enforcement levels.
+  The `advisory` level emits a warning when the policy fails, while
+  `soft-mandatory` and `hard-mandatory` will prevent the operation. A
+  `soft-mandatory` policy can be overridden if the user has necessary
+  permissions.
+
+### Sentinel policies
+
+Each Sentinel policy has a unique name, an optional description, applicable
+scope, enforcement level, and a Sentinel rule definition. If multiple policies
+are installed for the same scope, all of them are enforced and must pass.
+
+Sentinel policies _cannot_ be used unless the ACL system is enabled.
+
+### Policy scope
+
+Sentinel policies specify an applicable scope, which limits when the policy is
+enforced. This allows policies to govern various aspects of the system.
+
+The following table summarizes the scopes that are available for Sentinel
+policies:
+
+| Scope      | Description                                           |
+| ---------- | ----------------------------------------------------- |
+| submit-job | Applies to any jobs (new or updated) being registered |
+
+### Enforcement level
+
+Sentinel policies specify an enforcement level which changes how a policy is
+enforced. This allows for more flexibility in policy enforcement.
+
+The following table summarizes the enforcement levels that are available:
+
+| Enforcement Level | Description                                                            |
+| ----------------- | ---------------------------------------------------------------------- |
+| advisory          | Issues a warning when a policy fails                                   |
+| soft-mandatory    | Prevents operation when a policy fails, issues a warning if overridden |
+| hard-mandatory    | Prevents operation when a policy fails                                 |
+
+The [`sentinel-override` capability] is required to override a `soft-mandatory`
+policy. This allows a restricted set of users to have override capability when
+necessary.
+
+### Multi-region configuration
+
+Nomad supports multi-datacenter and multi-region configurations. A single region
+is able to service multiple datacenters, and all servers in a region replicate
+their state between each other. In a multi-region configuration, there is a set
+of servers per region. Each region operates independently and is loosely coupled
+to allow jobs to be scheduled in any region and requests to flow transparently
+to the correct region.
+
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a
+single source of truth for ACL policies, global ACL tokens, and Sentinel
+policies. The authoritative region is configured in the [`server` stanza] of
+agents, and all regions must share a single authoritative source. Any Sentinel
+policies are created in the authoritative region first. All other regions
+replicate Sentinel policies, ACL policies, and global ACL tokens to act as local
+mirrors. This allows policies to be administered centrally, and for enforcement
+to be local to each region for low latency.
+
+
+[img_sentinel_overview]: /img/govern/sentinel.jpg
+[`sentinel-override` capability]: /nomad/tutorials/access-control#sentinel-override
+[`server` stanza]: /nomad/docs/configuration/server

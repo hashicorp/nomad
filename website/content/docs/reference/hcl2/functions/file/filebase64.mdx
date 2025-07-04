@@ -1,0 +1,37 @@
+---
+layout: docs
+page_title: filebase64 - Functions - Configuration Language
+description: |-
+  The filebase64 function reads the contents of the file at the given path and
+  returns them as a base64-encoded string.
+---
+
+# `filebase64` Function
+
+`filebase64` reads the contents of a file at the given path and returns them as
+a base64-encoded string.
+
+```hcl
+filebase64(path)
+```
+
+The result is a Base64 representation of the raw bytes in the given file.
+
+Nomad uses the "standard" Base64 alphabet as defined in
+[RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
+
+## Examples
+
+```
+> filebase64("${path.module}/hello.txt")
+SGVsbG8gV29ybGQ=
+```
+
+## Related Functions
+
+* [`file`](/nomad/docs/reference/hcl2/functions/file/file) also reads the contents of a given file,
+  but interprets the data as UTF-8 text and returns the result directly
+  as a string, without any further encoding.
+* [`base64decode`](/nomad/docs/reference/hcl2/functions/encoding/base64decode) can decode a
+  Base64 string representing bytes in UTF-8, but in practice `base64decode(filebase64(...))`
+  is equivalent to the shorter expression `file(...)`.

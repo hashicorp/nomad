@@ -1,0 +1,43 @@
+---
+layout: docs
+page_title: Gossip Protocol
+description: |-
+  Learn how Nomad's gossip protocol uses the Serf library to provide server membership management, which includes cross-region requests, failure detection, and automatic clustering using a consensus protocol.
+---
+
+# Gossip Protocol
+
+This page provides conceptual information about Nomad's gossip protocol, which
+provides server membership management, cross-region requests, failure detection,
+and automatic clustering using a consensus protocol.
+
+Nomad uses the [Serf library][serf] to provide a [gossip
+protocol](https://en.wikipedia.org/wiki/Gossip_protocol) to manage membership.
+The gossip protocol used by Serf is based on ["SWIM: Scalable Weakly-consistent
+Infection-style Process Group Membership Protocol"][swim], with a few minor
+adaptations. There are more details about [Serf's protocol here][gossip].
+
+~> **Advanced Topic!** This page covers technical details of
+the internals of Nomad. You do not need to know these details to effectively
+operate and use Nomad. These details are documented here for those who wish
+to learn about them without having to go spelunking through the source code.
+
+## Gossip in Nomad
+
+Nomad makes use of a single global WAN gossip pool that all servers participate
+in. Membership information provided by the gossip pool allows servers to perform
+cross region requests. The integrated failure detection allows Nomad to
+gracefully handle an entire region losing connectivity, or just a single server
+in a remote region. Nomad also uses the gossip protocol to detect servers in the
+same region to perform automatic clustering via the [consensus
+protocol](/nomad/docs/architecture/cluster/consensus).
+
+To provide all these features, Nomad uses [Serf][serf] as an embedded
+library. From a user perspective, this is not important, since Nomad masks the
+abstraction. However, developers may find it useful to understand how Nomad
+leverages the Serf library.
+
+
+[serf]: https://github.com/hashicorp/serf
+[gossip]: https://github.com/hashicorp/serf/blob/master/docs/internals/gossip.html.markdown
+[swim]: https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf

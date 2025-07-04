@@ -1,0 +1,44 @@
+Nomad provides integration with [Consul Namespaces][consul_namespaces] for
+service registrations specified in `service` blocks and Consul KV reads in
+`template` blocks.
+
+By default, Nomad will not specify a Consul namespace on service registrations
+or KV store reads, which Consul then implicitly resolves to the `"default"`
+namespace.  This default namespace behavior can be modified by setting the
+[`namespace`][consul_agent_namespace] field in the Nomad agent Consul
+configuration block.
+
+For more control over Consul namespaces, Nomad Enterprise supports configuring
+the Consul [namespace][consul_jobspec_namespace] at the group or task level in
+the Nomad job spec as well as the [`-consul-namespace`][consul_run_namespace]
+command line argument for `job run`.
+
+The Consul namespace used for a set of group or task service registrations
+within a group, as well as `template` KV store access is determined from the
+following hierarchy from highest to lowest precedence:
+
+* group and task configuration: Consul
+  [namespace field][consul_jobspec_namespace] defined in the job at the task or
+  group level.
+
+* job run command option: Consul namespace defined in the
+  [`-consul-namespace`][consul_run_namespace] command line option on job
+  submission.
+
+* job run command environment various: Consul namespace defined as the
+  [`CONSUL_NAMESPACE`][consul_env_namespace] environment variable on job
+  submission.
+
+* agent configuration: Consul namespace defined in the
+  [`namespace`][consul_agent_namespace] Nomad agent Consul configuration
+  parameter.
+
+* Consul default: If no Consul namespace options are configured, Consul will
+  automatically make use of the `"default"` namespace.
+
+
+[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
+[consul_jobspec_namespace]: /nomad/docs/job-specification/consul#namespace
+[consul_namespaces]: /consul/docs/enterprise/namespaces
+[consul_run_namespace]: /nomad/commands/job/run#consul-namespace
+[consul_env_namespace]: /consul/commands#consul_namespace

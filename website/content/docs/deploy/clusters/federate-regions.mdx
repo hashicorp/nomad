@@ -1,0 +1,148 @@
+---
+layout: docs
+page_title: Federate multi-region clusters
+description: |-
+  Set up multi-region federation to allow job submissions and API
+  interactions from any server in any region.
+---
+
+# Federate multi-region clusters
+
+Nomad operates at a regional level and provides first-class support for
+federation. Federation enables users to submit jobs or interact with the HTTP
+API targeting any region, from any server, even if that server resides in a
+different region.
+
+Federating multiple Nomad clusters requires network connectivity between the
+clusters. Servers in each cluster must be able to communicate over [RPC and
+Serf][ports-used]. Federated clusters are expected to communicate over WANs, so
+they do not need the same low latency as servers within a region.
+
+Once Nomad servers are able to connect over the network, you can issue the
+[nomad server join][server-join] command from any server in one region to a
+server in a remote region to federate the clusters.
+
+[![Multi-Region][multi-region-pic]][multi-region-pic]
+
+## Prerequisites
+
+To perform the tasks described in this guide, you need to have two Nomad
+environments with ports 4646, 4647, and 4648 exposed. You can use this
+[Terraform environment][nomad-tf] to provision the sandbox environments. This
+guide assumes two clusters with one server node and two client nodes in each
+cluster. While the Terraform code already opens port 4646, you will also need to
+expose ports 4647 and 4648 on the server you wish to run [nomad server
+join][server-join] against (consult the [Nomad Port Requirements][ports-used]
+documentation for more information).
+
+<Note>
+
+ This tutorial is for demo purposes and only assumes a single server
+node in each cluster. Consult the [reference architecture][reference-arch] for
+production configuration.
+
+</Note>
+
+## Verify current regions
+
+Currently, each of your clusters is in the default `global`
+[region][region-config]. You can verify this by running [nomad server
+members][nomad-server-members] on any node in each of your clusters:
+
+```shell-session
+$ nomad server members
+Name                    Address       Port  Status  Leader  Protocol  Build   Datacenter  Region
+ip-172-31-29-34.global  172.31.29.34  4648  alive   true    2         0.10.1  dc1         global
+```
+
+## Change the regions
+
+Respectively change the region of your individual clusters into `west` and
+`east` by adding the [region][region-config] parameter into the agent
+configuration on the servers and clients (if you are using the provided sandbox
+environment, this configuration is located at `/etc/nomad.d/nomad.hcl`).
+
+Below is a snippet of the configuration file showing the required change on a
+node for one of the clusters (remember to change this value to `east` on the
+servers and clients in your other cluster):
+
+```hcl
+data_dir = "/opt/nomad/data"
+bind_addr = "0.0.0.0"
+region = "west"
+# ...
+```
+
+Once you have made the necessary changes for each cluster, restart the nomad
+service on each node:
+
+```shell-session
+$ sudo systemctl restart nomad
+```
+
+Re-run the `nomad server members` command on any node in the cluster to verify
+that your server is configured to be the in the correct region. The output below
+is from running the command in the `west` region (make sure to run this command
+in your other cluster to make sure it is in the `east` region):
+
+```shell-session
+$ nomad server members
+Name                  Address       Port  Status  Leader  Protocol  Build   Datacenter  Region
+ip-172-31-29-34.west  172.31.29.34  4648  alive   true    2         0.10.1  dc1         west
+```
+
+## Federate the regions
+
+Run the [`nomad server join`][server-join] command from a server in one cluster
+and supply it the IP address of the server in your other cluster while
+specifying port 4648.
+
+Below is an example of running the `nomad server join` command from the server
+in the `west` region while targeting the server in the `east` region:
+
+```shell-session
+$ nomad server join 172.31.26.138:4648
+Joined 1 servers successfully
+```
+
+## Verify the clusters have been federated
+
+After you have federated your clusters, the output from the `nomad server members` command will show the servers from both regions:
+
+```shell-session
+$ nomad server members
+Name                     Address        Port  Status  Leader  Protocol  Build   Datacenter  Region
+ip-172-31-26-138.east    172.31.26.138  4648  alive   true    2         0.10.1  dc1         east
+ip-172-31-29-34.west     172.31.29.34   4648  alive   true    2         0.10.1  dc1         west
+```
+
+## Check job status in remote cluster
+
+From the Nomad cluster in the `west` region, try to run the [`nomad status`][nomad-status] command to check the status of jobs in the `east` region:
+
+```shell-session
+$ nomad status -region="east"
+No running jobs
+```
+
+If your regions were not federated properly, you will receive the following
+output:
+
+```shell-session
+$ nomad status -region="east"
+Error querying jobs: Unexpected response code: 500 (No path to region)
+```
+
+## Learn more about federation
+
+- [Deployment Topology across Multiple Regions][multi-region]
+
+[multi-region]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul#deployment-topology-across-multiple-regions
+[multi-region-pic]: /img/clusters/nomad-multi-region.png
+[nomad-server-members]: /nomad/commands/server/members
+[nomad-status]: /nomad/commands/status
+[nomad-tf]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
+[ports-used]: /nomad/docs/deploy/production/requirements#ports-used
+[reference-arch]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul
+[region-config]: /nomad/docs/configuration#region
+[server-join]: /nomad/commands/server/join

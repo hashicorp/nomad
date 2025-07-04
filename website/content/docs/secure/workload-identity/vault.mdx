@@ -1,0 +1,1343 @@
+---
+layout: docs
+page_title: Use workload identities with Vault
+description: |-
+  Configure Vault to accept Nomad workload identities, run a Nomad job to read
+  secrets from Vault, configure dynamic secrets in Vault, and run a job with a
+  custom Vault ACL role.
+---
+
+# Use workload identities with Vault
+
+Nomad integrates with Vault to retrieve [static][vault_static] and
+[dynamic][vault_dyn] secrets for workloads.
+
+Production deployments of Nomad and Vault must always run with the Access
+Control List (ACL) system enabled since it protects against unauthorized
+access to the cluster. When ACLs are enabled, both Nomad and Vault must be
+properly configured in order for their integrations to work.
+
+Nomad can generate [workload identities][nomad_wid] for tasks, which are
+represented as [JSON Web Tokens (JWT)][jwt] signed by Nomad. These identities
+can be used as proof to third parties that a workload was actually created and
+is managed by Nomad. If the third party is configured to trust Nomad, it can
+automatically grant specific access and permissions to Nomad workloads.
+
+In this guide, you will:
+
+- Start a Nomad and Vault agent with ACL enabled.
+- Generate ACL tokens to access Nomad and Vault.
+- Configure Vault to accept workload identities from Nomad.
+- Configure Nomad to automatically generate and sign workload identities for
+  tasks that need access to Vault.
+- Deploy sample Nomad jobs that interact with Vault.
+
+## Prerequisites
+
+This guide requires you to have basic familiarity with Nomad and Vault. If
+you are new to these tools, complete the [Nomad Get Started][nomad_gs]
+and [Vault Get Started][vault_gs] tutorials before following this one.
+
+You will need the following tools installed:
+
+- [Nomad 1.7 or later installed locally][nomad_install]
+- [Vault 1.12 or later installed locally][vault_install]
+- [Docker installed and running locally][docker_install]
+
+## Start the Vault agent
+
+Start a Vault dev server.
+
+```shell-session
+$ vault server -dev
+==> Vault server configuration:
+
+Administrative Namespace:
+             Api Address: http://127.0.0.1:8200
+                     Cgo: disabled
+         Cluster Address: https://127.0.0.1:8201
+   Environment Variables: CLICOLOR, COLORTERM, COMMAND_MODE, EDITOR, GODEBUG, GOPATH, HOME, LANG, LC_ALL, LOGNAME, LSCOLORS, LaunchInstanceID, OLDPWD, PATH, PWD, SECURITYSESSIONID, SHELL, SHLVL, SSH_AUTH_SOCK, TERM, TERM_PROGRAM, TERM_PROGRAM_VERSION, TMPDIR, USER, WINDOWID, XPC_FLAGS, XPC_SERVICE_NAME, _, __CFBundleIdentifier, __CF_USER_TEXT_ENCODING
+              Go Version: go1.21.3
+              Listener 1: tcp (addr: "127.0.0.1:8200", cluster address: "127.0.0.1:8201", max_request_duration: "1m30s", max_request_size: "33554432", tls: "disabled")
+               Log Level:
+                   Mlock: supported: false, enabled: false
+           Recovery Mode: false
+                 Storage: inmem
+                 Version: Vault v1.15.2, built 2023-11-06T11:33:28Z
+             Version Sha: cf1b5cafa047bc8e4a3f93444fcb4011593b92cb
+
+==> Vault server started! Log data will stream in below:
+
+2023-11-20T20:08:27.583-0500 [INFO]  proxy environment: http_proxy="" https_proxy="" no_proxy=""
+2023-11-20T20:08:27.583-0500 [INFO]  incrementing seal generation: generation=1
+...
+WARNING! dev mode is enabled! In this mode, Vault runs entirely in-memory
+and starts unsealed with a single unseal key. The root token is already
+authenticated to the CLI, so you can immediately begin using Vault.
+
+You may need to set the following environment variables:
+
+    $ export VAULT_ADDR='http://127.0.0.1:8200'
+
+...
+```
+
+<Note title="Dev Agents">
+
+This guide uses development agents for Vault and [Nomad][nomad_dev] as a
+quick way to get started. Dev agents have ephemeral state and should not be
+used in production environments. They also run in the foreground of your
+terminal so do not close the terminal window or you will need to rerun the
+agent configuration steps again.
+
+</Note>
+
+Copy the value for `Root Token`.
+
+Open another terminal window in the same directory and set the root token as
+the environment variable `VAULT_TOKEN`. This terminal will act as the main
+terminal session where you will run commands.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+```shell-session
+$ export VAULT_TOKEN=...
+```
+
+</Tab>
+<Tab heading="macOS" group="mac">
+
+```shell-session
+$ export VAULT_TOKEN=...
+```
+
+</Tab>
+<Tab heading="Windows" group="win">
+
+```shell-session
+$ $Env:VAULT_TOKEN = "..."
+```
+
+</Tab>
+</Tabs>
+
+Set the environment variable `VAULT_ADDR`.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+```shell-session
+$ export VAULT_ADDR='http://127.0.0.1:8200'
+```
+
+</Tab>
+<Tab heading="macOS" group="mac">
+
+```shell-session
+$ export VAULT_ADDR='http://127.0.0.1:8200'
+```
+
+</Tab>
+<Tab heading="Windows" group="win">
+
+```shell-session
+$ $Env:VAULT_ADDR = "http://127.0.0.1:8200"
+```
+
+</Tab>
+</Tabs>
+
+## Start the Nomad agent
+
+Create a file named `nomad.hcl`. Add the following contents to it and save the
+file.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+<CodeBlockConfig filename="nomad.hcl">
+
+```hcl
+acl {
+  enabled = true
+}
+
+vault {
+  enabled = true
+  address = "http://127.0.0.1:8200"
+
+  default_identity {
+    aud = ["vault.io"]
+    ttl = "1h"
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="macOS" group="mac">
+<CodeBlockConfig filename="nomad.hcl">
+
+```hcl
+acl {
+  enabled = true
+}
+
+vault {
+  enabled = true
+  address = "http://127.0.0.1:8200"
+
+  default_identity {
+    aud = ["vault.io"]
+    ttl = "1h"
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Windows" group="win">
+<CodeBlockConfig filename="nomad.hcl">
+
+```hcl
+acl {
+  enabled = true
+}
+
+vault {
+  enabled = true
+  address = "http://127.0.0.1:8200"
+
+  default_identity {
+    aud = ["vault.io"]
+    ttl = "1h"
+  }
+}
+
+plugin "docker" {
+  config {
+    allow_caps = [
+      "CHOWN", "DAC_OVERRIDE", "FSETID", "FOWNER", "MKNOD",
+      "SETGID", "SETUID", "SETFCAP", "SETPCAP", "NET_BIND_SERVICE",
+      "SYS_CHROOT", "KILL", "AUDIT_WRITE", "NET_RAW",
+    ]
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+The [`vault`][nomad_config_vault] block in this configuration file provides
+the information necessary for Nomad to connect to Vault.
+
+It also defines a default workload identity, `default_identity`, that is
+automatically added to jobs that need access to Vault. Without this identity,
+you would need to define an `identity` block in your jobs for every task that
+needs access to Vault.
+
+Open another terminal window in the same directory and start the Nomad dev
+agent.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+```shell-session
+$ sudo nomad agent -dev -config 'nomad.hcl'
+==> Loaded configuration from nomad.hcl
+==> Starting Nomad agent...
+==> Nomad agent configuration:
+
+       Advertise Addrs: HTTP: 127.0.0.1:4646; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+            Bind Addrs: HTTP: [127.0.0.1:4646]; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+                Client: true
+             Log Level: DEBUG
+               Node Id: af9bef00-2e83-b704-2d6c-c62bc005431f
+                Region: global (DC: dc1)
+                Server: true
+               Version: 1.7.0
+
+==> Nomad agent started! Log data will stream in below:
+...
+```
+
+</Tab>
+<Tab heading="macOS" group="mac">
+
+```shell-session
+$ nomad agent -dev -config 'nomad.hcl' -network-interface '{{GetDefaultInterfaces | attr "name"}}'
+==> Loaded configuration from nomad.hcl
+==> Starting Nomad agent...
+==> Nomad agent configuration:
+
+       Advertise Addrs: HTTP: 127.0.0.1:4646; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+            Bind Addrs: HTTP: [127.0.0.1:4646]; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+                Client: true
+             Log Level: DEBUG
+               Node Id: af9bef00-2e83-b704-2d6c-c62bc005431f
+                Region: global (DC: dc1)
+                Server: true
+               Version: 1.7.0
+
+==> Nomad agent started! Log data will stream in below:
+...
+```
+
+</Tab>
+<Tab heading="Windows" group="win">
+
+```shell-session
+$ nomad agent -dev -config 'nomad.hcl' -network-interface '{{GetDefaultInterfaces | attr \"name\"}}'
+==> Loaded configuration from nomad.hcl
+==> Starting Nomad agent...
+==> Nomad agent configuration:
+
+       Advertise Addrs: HTTP: 127.0.0.1:4646; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+            Bind Addrs: HTTP: [127.0.0.1:4646]; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+                Client: true
+             Log Level: DEBUG
+               Node Id: af9bef00-2e83-b704-2d6c-c62bc005431f
+                Region: global (DC: dc1)
+                Server: true
+               Version: 1.7.0
+
+==> Nomad agent started! Log data will stream in below:
+...
+```
+
+</Tab>
+</Tabs>
+
+Return to your main terminal window and bootstrap the Nomad ACL system.
+
+```shell-session
+$ nomad acl bootstrap
+Accessor ID  = d1de8625-8556-0932-a25c-3aa71bfc0134
+Secret ID    = 7f10099a-936c-3f3a-8783-f0980493e54b
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Create Time  = 2023-11-16 01:09:26.565422 +0000 UTC
+Expiry Time  = <none>
+Create Index = 23
+Modify Index = 23
+Policies     = n/a
+Roles        = n/a
+```
+
+Copy the value of `Secret ID` and set it as the environment variable
+`NOMAD_TOKEN`.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+```shell-session
+$ export NOMAD_TOKEN=...
+```
+
+</Tab>
+<Tab heading="macOS" group="mac">
+
+```shell-session
+$ export NOMAD_TOKEN=...
+```
+
+</Tab>
+<Tab heading="Windows" group="win">
+
+```shell-session
+$ $Env:NOMAD_TOKEN = "..."
+```
+
+</Tab>
+</Tabs>
+
+<Note title="Using Bootstrap Tokens">
+
+The initial ACL bootstrap tokens from Vault and Nomad have full access to the
+cluster and should not be used for regular day-to-day operations in a
+production environment. They are used in this guide as an illustration.
+We recommend creating [ACL policies][nomad_acl_policies] and
+[tokens][nomad_acl_tokens] with only a level of access necessary to perform the
+required operations.
+
+</Note>
+
+## Configure Vault to accept Nomad workload identities
+
+### Create a Vault ACL auth method
+
+Enable a `jwt` [auth method][vault_auth_method] in Vault under the path
+`jwt-nomad`.
+
+```shell-session
+$ vault auth enable -path 'jwt-nomad' 'jwt'
+Success! Enabled jwt auth method at: jwt-nomad/
+```
+
+The JWT auth method creates an endpoint that Nomad clients use to exchange
+Nomad workload identity JWTs for Vault ACL tokens.
+
+Create a file named `vault-auth-method-jwt-nomad.json`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-auth-method-jwt-nomad.json">
+
+```json
+{
+  "jwks_url": "http://127.0.0.1:4646/.well-known/jwks.json",
+  "jwt_supported_algs": ["RS256", "EdDSA"],
+  "default_role": "nomad-workloads"
+}
+```
+
+</CodeBlockConfig>
+
+This configuration file contains important information.
+
+* `jwks_url` is the URL that Vault uses to contact Nomad and retrieve the data
+  necessary to validate Nomad workload identities. In a production environment,
+  this should resolve to multiple Nomad agents via a reverse proxy, load
+  balancer, or DNS entry to prevent a single point of failure.
+* `default_role` is the Vault ACL role applied by default to tokens generated
+  by this auth method. You will create the `nomad-workloads` role in the next
+  section.
+
+Apply the configuration file `vault-auth-method-jwt-nomad.json` to the
+`jwt-nomad` auth method.
+
+```shell-session
+$ vault write auth/jwt-nomad/config '@vault-auth-method-jwt-nomad.json'
+Success! Data written to: auth/jwt-nomad/config
+```
+
+### Create a Vault ACL role
+
+Create a file named `vault-role-nomad-workloads.json`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-role-nomad-workloads.json">
+
+```json
+{
+  "role_type": "jwt",
+  "bound_audiences": ["vault.io"],
+  "user_claim": "/nomad_job_id",
+  "user_claim_json_pointer": true,
+  "claim_mappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task"
+  },
+  "token_type": "service",
+  "token_policies": ["nomad-workloads"],
+  "token_period": "30m",
+  "token_explicit_max_ttl": 0
+}
+```
+
+</CodeBlockConfig>
+
+It defines properties for the Vault ACL tokens that are used for Nomad tasks.
+
+* `bound_audiences` configures Vault to only accept JWTs that have an audience
+  value of `vault.io`. It must match the `aud` value present in the Nomad agent
+  configuration and jobs.
+* `claim_mappings` are values from the Nomad workload identity. You will
+  reference them when creating the Vault ACL policy for this role.
+* `token_period` determines how long the token is valid for before it expires.
+  Nomad automatically renews tokens before they expire.
+* `token_explicit_max_ttl` is the maximum amount of time the token is valid. It
+  must be set to `0` so Nomad can renew them for as long as the workload runs.
+* `token_policies` are the ACL policies applied to the tokens. They specify the
+  permissions that tokens with this role have. You will create the policy
+  `nomad-workloads` policy in the next section.
+
+Create a Vault ACL role named `nomad-workloads` using the
+`vault-role-nomad-workloads.json` file.
+
+```shell-session
+$ vault write auth/jwt-nomad/role/nomad-workloads '@vault-role-nomad-workloads.json'
+Success! Data written to: auth/jwt-nomad/role/nomad-workloads
+```
+
+This role is applied by default to Vault ACL tokens generated from the auth
+method `jwt-nomad`.
+
+### Create a Vault ACL policy
+
+List all of the auth methods registered in Vault.
+
+```shell-session
+$ vault auth list
+Path          Type     Accessor               Description                Version
+----          ----     --------               -----------                -------
+jwt-nomad/    jwt      auth_jwt_d34481ad      n/a                        n/a
+token/        token    auth_token_510d42ca    token based credentials    n/a
+```
+
+Copy the `Accessor` value for the auth method in the `jwt-nomad/` path.
+
+Create a file named `vault-policy-nomad-workloads.hcl`. Add the following
+contents to it, replace all the instances of the `AUTH_METHOD_ACCESSOR`
+placeholder with the `Accessor` value from the output, and save the file. There
+are five occurrences to update.
+
+<CodeBlockConfig filename="vault-policy-nomad-workloads.hcl">
+
+```hcl
+path "kv/data/{{identity.entity.aliases.AUTH_METHOD_ACCESSOR.metadata.nomad_namespace}}/{{identity.entity.aliases.AUTH_METHOD_ACCESSOR.metadata.nomad_job_id}}/*" {
+  capabilities = ["read"]
+}
+
+path "kv/data/{{identity.entity.aliases.AUTH_METHOD_ACCESSOR.metadata.nomad_namespace}}/{{identity.entity.aliases.AUTH_METHOD_ACCESSOR.metadata.nomad_job_id}}" {
+  capabilities = ["read"]
+}
+
+path "kv/metadata/{{identity.entity.aliases.AUTH_METHOD_ACCESSOR.metadata.nomad_namespace}}/*" {
+  capabilities = ["list"]
+}
+
+path "kv/metadata/*" {
+  capabilities = ["list"]
+}
+```
+
+</CodeBlockConfig>
+
+This file is a [templated Vault ACL policy][vault_tpl_policy] that
+automatically grants Nomad workloads access to secrets based on the
+properties mapped in the `claim_mappings` of the Vault ACL role.
+
+More specifically, this policy grants access to secrets in the path
+`kv/data/<job namespace>/<job name>/*` where `<job namespace>` and `<job name>`
+are dynamically set for each workload.
+
+Create a Vault ACL policy named `nomad-workloads` using the file
+`vault-policy-nomad-workloads.hcl`.
+
+```shell-session
+$ vault policy write 'nomad-workloads' 'vault-policy-nomad-workloads.hcl'
+Success! Uploaded policy: nomad-workloads
+```
+
+## Run a Nomad job to read secrets from Vault
+
+Start a MongoDB database with a root password that is read from Vault using the
+Nomad workload identity for the task.
+
+Enable the `kv` secret engine.
+
+```shell-session
+$ vault secrets enable -version '2' 'kv'
+Success! Enabled the kv secrets engine at: kv/
+```
+
+Write a secret in Vault for the database root password in the path
+`default/mongo/config`.
+
+```shell-session
+$ vault kv put -mount 'kv' 'default/mongo/config' 'root_password=secret-password'
+======== Secret Path ========
+kv/data/default/mongo/config
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2023-11-21T02:52:42.061092Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            1
+```
+
+Create a file named `mongo.nomad.hcl`. Add the following contents to it and
+save the file.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+<CodeBlockConfig filename="mongo.nomad.hcl">
+
+```hcl
+job "mongo" {
+  namespace = "default"
+
+  group "db" {
+    network {
+      port "db" {
+        static = 27017
+      }
+    }
+
+    service {
+      provider = "nomad"
+      name     = "mongo"
+      port     = "db"
+    }
+
+    task "mongo" {
+      driver = "docker"
+
+      config {
+        image = "mongo:7"
+        ports = ["db"]
+      }
+
+      vault {}
+
+      template {
+        data        = <<EOF
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD={{with secret "kv/data/default/mongo/config"}}{{.Data.data.root_password}}{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="macOS" group="mac">
+<CodeBlockConfig filename="mongo.nomad.hcl">
+
+```hcl
+job "mongo" {
+  namespace = "default"
+
+  group "db" {
+    network {
+      port "db" {
+        static = 27017
+      }
+    }
+
+    service {
+      provider = "nomad"
+      name     = "mongo"
+      port     = "db"
+    }
+
+    task "mongo" {
+      driver = "docker"
+
+      config {
+        image = "mongo:7"
+        ports = ["db"]
+      }
+
+      vault {}
+
+      template {
+        data        = <<EOF
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD={{with secret "kv/data/default/mongo/config"}}{{.Data.data.root_password}}{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Windows" group="win">
+<CodeBlockConfig filename="mongo.nomad.hcl">
+
+```hcl
+job "mongo" {
+  namespace = "default"
+
+  group "db" {
+    network {
+      port "db" {
+        static = 27017
+      }
+    }
+
+    service {
+      provider = "nomad"
+      name     = "mongo"
+      port     = "db"
+    }
+
+    task "mongo" {
+      driver = "docker"
+
+      config {
+        image = "mongo:7"
+        ports = ["db"]
+
+        mount {
+          type   = "bind"
+          target = "C:\\mongosh"
+          source = "local/mongosh/mongosh-2.1.0-win32-x64/"
+        }
+      }
+
+      vault {}
+
+      template {
+        data        = <<EOF
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD={{with secret "kv/data/default/mongo/config"}}{{.Data.data.root_password}}{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+
+      artifact {
+        source      = "https://downloads.mongodb.com/compass/mongosh-2.1.0-win32-x64.zip"
+        destination = "local/mongosh"
+      }
+
+      resources {
+        memory = 1000
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+* The `vault` block indicates that the task needs access to Vault and that
+  Nomad should use the task workload identity to get a Vault ACL token.
+* The `template` block reads the root password secret from Vault under the
+  path `kv/data/default/mongo/config`.
+* The job runs in the Nomad `default` namespace and the job name is `mongo`.
+  The `nomad-workloads` Vault role grants access to secrets in the path
+  `kv/data/default/mongo/*`, which is where the root password exists.
+* The job does not specify any identity for Vault, so Nomad uses the
+  `default_identity` from the agent configuration.
+
+Run the job with the `mongo.nomad.hcl` file and wait for the deployment to
+complete.
+
+```shell-session
+$ nomad job run 'mongo.nomad.hcl'
+==> 2023-11-20T22:09:16-05:00: Monitoring evaluation "34e72e7a"
+    2023-11-20T22:09:16-05:00: Evaluation triggered by job "mongo"
+    2023-11-20T22:09:17-05:00: Evaluation within deployment: "919f658b"
+    2023-11-20T22:09:17-05:00: Allocation "49fc68d8" created: node "b8db12d2", group "db"
+    2023-11-20T22:09:17-05:00: Evaluation status changed: "pending" -> "complete"
+==> 2023-11-20T22:09:17-05:00: Evaluation "34e72e7a" finished with status "complete"
+==> 2023-11-20T22:09:17-05:00: Monitoring deployment "919f658b"
+  ✓ Deployment "919f658b" successful
+
+    2023-11-20T22:09:28-05:00
+    ID          = 919f658b
+    Job ID      = mongo
+    Job Version = 0
+    Status      = successful
+    Description = Deployment completed successfully
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    db          1        1       1        0          2023-11-20T22:19:26-05:00
+```
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+Verify that you are able to execute a query against the database using the
+`root` user credentials.
+
+```shell-session
+$ nomad alloc exec "$(nomad job allocs -t '{{with (index . 0)}}{{.ID}}{{end}}' 'mongo')" mongosh --username 'root' --password 'secret-password' --eval 'db.runCommand({connectionStatus : 1})' --quiet
+{
+  authInfo: {
+    authenticatedUsers: [ { user: 'root', db: 'admin' } ],
+    authenticatedUserRoles: [ { role: 'root', db: 'admin' } ]
+  },
+  ok: 1
+}
+```
+
+</Tab>
+<Tab heading="macOS" group="mac">
+
+Verify that you are able to execute a query against the database using the
+`root` user credentials.
+
+```shell-session
+$ nomad alloc exec "$(nomad job allocs -t '{{with (index . 0)}}{{.ID}}{{end}}' 'mongo')" mongosh --username 'root' --password 'secret-password' --eval 'db.runCommand({connectionStatus : 1})' --quiet
+{
+  authInfo: {
+    authenticatedUsers: [ { user: 'root', db: 'admin' } ],
+    authenticatedUserRoles: [ { role: 'root', db: 'admin' } ]
+  },
+  ok: 1
+}
+```
+
+</Tab>
+<Tab heading="Windows" group="win">
+
+Create the `root` user, reading the credentials from the environment variables
+set in the job from the Vault secret.
+
+```shell-session
+$ nomad alloc exec "$(nomad job allocs -t '{{with (index . 0)}}{{.ID}}{{end}}' 'mongo')" powershell -command  'C:\mongosh\bin\mongosh.exe mongodb://localhost:27017/admin --quiet --eval ""db.createUser({user: ''$Env:MONGO_INITDB_ROOT_USERNAME'', pwd: ''$Env:MONGO_INITDB_ROOT_PASSWORD'', roles: [{role: ''root'', db: ''admin''}]})""'
+{ ok: 1 }
+```
+
+Verify that you are able to execute a query against the database using the
+`root` user credentials.
+
+```shell-session
+$ nomad alloc exec "$(nomad job allocs -t '{{with (index . 0)}}{{.ID}}{{end}}' 'mongo')" C:\mongosh\bin\mongosh.exe 'mongodb://localhost:27017' --username 'root' --password 'secret-password' --eval 'db.runCommand({connectionStatus : 1})' --quiet
+{
+  authInfo: {
+    authenticatedUsers: [ { user: 'root', db: 'admin' } ],
+    authenticatedUserRoles: [ { role: 'root', db: 'admin' } ]
+  },
+  ok: 1
+}
+```
+
+</Tab>
+</Tabs>
+
+
+Retrieve the job definition from Nomad and filter the output to only display
+its task.
+
+```shell-session
+$ nomad job inspect -t '{{sprig_toPrettyJson (index (index .TaskGroups 0).Tasks 0)}}' 'mongo'
+{
+  "Name": "mongo",
+  "Driver": "docker",
+  "User": "",
+  "Lifecycle": null,
+  "Config": {
+    "image": "mongo:7",
+    "ports": [
+      "db"
+    ]
+  },
+...
+```
+
+The `Identities` list contains the workload identity that Nomad injects
+following the specification in the `default_identity` block from the Nomad
+server configuration file.
+
+<CodeBlockConfig highlight="13-26" hideClipboard>
+
+```json
+{
+  "Name": "mongo",
+  "Driver": "docker",
+  "User": "",
+  "Lifecycle": null,
+  "Config": {
+    "image": "mongo:7",
+    "ports": [
+      "db"
+    ]
+  },
+...
+  "Identities": [
+    {
+      "Name": "vault_default",
+      "Audience": [
+        "vault.io"
+      ],
+      "ChangeMode": "",
+      "ChangeSignal": "",
+      "Env": false,
+      "File": false,
+      "ServiceName": "",
+      "TTL": 3600000000000
+    }
+  ],
+  "Actions": null
+}
+```
+
+</CodeBlockConfig>
+
+By configuring Vault to accept workload identities from Nomad, the Nomad task
+was able to automatically receive a Vault ACL token scoped to the level of
+access defined by the auth method default role. With this method, Nomad agents
+no longer require long-lived, highly permissive Vault tokens.
+
+## Configure Vault dynamic secrets for MongoDB
+
+The MongoDB database reads a secret from Vault using the permissions in the
+default Vault ACL role.
+
+In some situations, it may be necessary to customize the permissions granted to
+a task to be different from this default. This is done by creating additional
+Vault ACL roles for Nomad jobs.
+
+Configure Vault with a [dynamic secret][vault_dyn] for a non-root MongoDB user
+that the default Vault ACL policy does not grant access to then run a Nomad job
+using a custom Vault ACL role to be able to access the dynamic secret.
+
+Enable the Vault database secrets engine.
+
+```shell-session
+$ vault secrets enable database
+Success! Enabled the database secrets engine at: database/
+```
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+Create a file named `vault-dynamic-secret-mongo.json`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-dynamic-secret-mongo.json">
+
+```json
+{
+    "plugin_name": "mongodb-database-plugin",
+    "allowed_roles": "mongo",
+    "connection_url": "mongodb://{{username}}:{{password}}@127.0.0.1:27017/admin",
+    "username": "root",
+    "password": "secret-password"
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="macOS" group="mac">
+
+Retrieve the IP address for MongoDB from Nomad.
+
+```shell-session
+$ nomad service info mongo
+Job ID  Address              Tags  Node ID   Alloc ID
+mongo   192.168.0.171:27017  []    b8db12d2  49fc68d8
+```
+
+Create a file named `vault-dynamic-secret-mongo.json`. Add the following
+contents to it, replace the placeholder `MONGO_IP` text with the IP address
+from the Nomad `service info` command, and save the file.
+
+<CodeBlockConfig filename="vault-dynamic-secret-mongo.json">
+
+```json
+{
+    "plugin_name": "mongodb-database-plugin",
+    "allowed_roles": "mongo",
+    "connection_url": "mongodb://{{username}}:{{password}}@MONGO_IP:27017/admin",
+    "username": "root",
+    "password": "secret-password"
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Windows" group="win">
+
+Retrieve the IP address for MongoDB from Nomad.
+
+```shell-session
+$ nomad service info mongo
+Job ID  Address              Tags  Node ID   Alloc ID
+mongo   192.168.0.171:27017  []    b8db12d2  49fc68d8
+```
+
+Create a file named `vault-dynamic-secret-mongo.json`. Add the following
+contents to it, replace the placeholder `MONGO_IP` text with the IP address
+from the Nomad `service info` command, and save the file.
+
+<CodeBlockConfig filename="vault-dynamic-secret-mongo.json">
+
+```json
+{
+    "plugin_name": "mongodb-database-plugin",
+    "allowed_roles": "mongo",
+    "connection_url": "mongodb://{{username}}:{{password}}@MONGO_IP:27017/admin",
+    "username": "root",
+    "password": "secret-password"
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+Write the `vault-dynamic-secret-mongo.json` configuration for the MongoDB
+dynamic secret to connect to the database.
+
+```shell-session
+$ vault write 'database/config/mongo' '@vault-dynamic-secret-mongo.json'
+Success! Data written to: database/config/mongo
+```
+
+Create a file named `vault-database-role-mongo.json`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-database-role-mongo.json">
+
+```json
+{
+    "db_name": "mongo",
+    "creation_statements": "{ \"db\": \"admin\", \"roles\": [{ \"role\": \"readWrite\" }, {\"role\": \"read\", \"db\": \"foo\"}] }",
+    "default_ttl": "1h",
+    "max_ttl": "24h"
+}
+```
+
+</CodeBlockConfig>
+
+Create a Vault database role using the `vault-database-role-mongo.json` file.
+
+```shell-session
+$ vault write 'database/roles/mongo' '@vault-database-role-mongo.json'
+Success! Data written to: database/roles/mongo
+```
+
+### Create a Vault ACL role to access the dynamic secret
+
+Create a file named `vault-role-mongo-dynamic-secret.json`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-role-mongo-dynamic-secret.json">
+
+```json
+{
+  "role_type": "jwt",
+  "bound_audiences": ["vault.io"],
+  "bound_claims": {
+     "nomad_namespace": "default",
+     "nomad_job_id": "mongo-query"
+  },
+  "user_claim": "/nomad_job_id",
+  "user_claim_json_pointer": true,
+  "claim_mappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task"
+  },
+  "token_type": "service",
+  "token_policies": ["mongo-dynamic-secret"],
+  "token_period": "30m",
+  "token_explicit_max_ttl": 0
+}
+```
+
+</CodeBlockConfig>
+
+This role is similar to the one from earlier in the guide but this one uses
+a different policy, called `mongo-dynamic-secret`, which you will create in the
+next section.
+
+It also defines a set of `bound_claims` to restrict which workload identities
+from Nomad are able to use this role. In this example, the role only allows the
+job `mongo-query` in the Nomad namespace `default` to use it.
+
+Create the `mongo-dynamic-secret` ACL role using the
+`vault-role-mongo-dynamic-secret.json` file.
+
+```shell-session
+$ vault write 'auth/jwt-nomad/role/mongo-dynamic-secret' '@vault-role-mongo-dynamic-secret.json'
+Success! Data written to: auth/jwt-nomad/role/mongo-dynamic-secret
+```
+
+Create a file named `vault-policy-mongo-dynamic-secret.hcl`. Add the following
+contents to it and save the file.
+
+<CodeBlockConfig filename="vault-policy-mongo-dynamic-secret.hcl">
+
+```hcl
+path "database/creds/mongo" {
+  capabilities = ["read"]
+}
+```
+
+</CodeBlockConfig>
+
+This ACL policy only grants access to the specific path `database/creds/mongo`,
+which is not included in the default role used by the `jwt-nomad` auth method.
+
+Create the `mongo-dynamic-secret` ACL policy using the
+`vault-policy-mongo-dynamic-secret.hcl` file.
+
+```shell-session
+$ vault policy write 'mongo-dynamic-secret' 'vault-policy-mongo-dynamic-secret.hcl'
+Success! Uploaded policy: mongo-dynamic-secret
+```
+
+## Run a Nomad job with a custom Vault ACL role
+
+Create a file named `mongo-query.nomad.hcl`. Add the following contents to it
+and save the file.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+<CodeBlockConfig filename="mongo-query.nomad.hcl">
+
+```hcl
+job "mongo-query" {
+  namespace = "default"
+  type      = "batch"
+
+  group "mongo-query" {
+    task "mongo-query" {
+      driver = "docker"
+
+      config {
+        image   = "mongo:7"
+        command = "mongosh"
+        args = [
+          "--username", "${MONGO_USERNAME}",
+          "--password", "${MONGO_PASSWORD}",
+          "--eval", "db.runCommand({connectionStatus : 1})",
+          "--quiet",
+          "${MONGO_URL}",
+        ]
+      }
+
+      vault {
+        role = "mongo-dynamic-secret"
+      }
+
+      template {
+        data        = <<EOF
+{{with secret "database/creds/mongo"}}
+MONGO_USERNAME={{.Data.username}}
+MONGO_PASSWORD={{.Data.password}}
+{{end}}
+{{range nomadService 1 (env "NOMAD_ALLOC_ID") "mongo"}}
+MONGO_URL=mongodb://{{.Address}}:{{.Port}}
+{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="macOS" group="mac">
+<CodeBlockConfig filename="mongo-query.nomad.hcl">
+
+```hcl
+job "mongo-query" {
+  namespace = "default"
+  type      = "batch"
+
+  group "mongo-query" {
+    task "mongo-query" {
+      driver = "docker"
+
+      config {
+        image   = "mongo:7"
+        command = "mongosh"
+        args = [
+          "--username", "${MONGO_USERNAME}",
+          "--password", "${MONGO_PASSWORD}",
+          "--eval", "db.runCommand({connectionStatus : 1})",
+          "--quiet",
+          "${MONGO_URL}",
+        ]
+      }
+
+      vault {
+        role = "mongo-dynamic-secret"
+      }
+
+      template {
+        data        = <<EOF
+{{with secret "database/creds/mongo"}}
+MONGO_USERNAME={{.Data.username}}
+MONGO_PASSWORD={{.Data.password}}
+{{end}}
+{{range nomadService 1 (env "NOMAD_ALLOC_ID") "mongo"}}
+MONGO_URL=mongodb://{{.Address}}:{{.Port}}
+{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Windows" group="win">
+<CodeBlockConfig filename="mongo-query.nomad.hcl">
+
+```hcl
+job "mongo-query" {
+  namespace = "default"
+  type      = "batch"
+
+  group "mongo-query" {
+    task "mongo-query" {
+      driver = "docker"
+
+      config {
+        image   = "mongo:7"
+        command = "C:\\mongosh\\bin\\mongosh.exe"
+        args = [
+          "--username", "${MONGO_USERNAME}",
+          "--password", "${MONGO_PASSWORD}",
+          "--eval", "db.runCommand({connectionStatus : 1})",
+          "--quiet",
+          "${MONGO_URL}",
+        ]
+
+        mount {
+          type   = "bind"
+          target = "C:\\mongosh"
+          source = "local/mongosh/mongosh-2.1.0-win32-x64/"
+        }
+      }
+
+      vault {
+        role = "mongo-dynamic-secret"
+      }
+
+      template {
+        data        = <<EOF
+{{with secret "database/creds/mongo"}}
+MONGO_USERNAME={{.Data.username}}
+MONGO_PASSWORD={{.Data.password}}
+{{end}}
+{{range nomadService 1 (env "NOMAD_ALLOC_ID") "mongo"}}
+MONGO_URL=mongodb://{{.Address}}:{{.Port}}
+{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+
+      artifact {
+        source      = "https://downloads.mongodb.com/compass/mongosh-2.1.0-win32-x64.zip"
+        destination = "local/mongosh"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+Note that the `vault` block specifies the `mongo-dynamic-secret` role. The task
+can only access the dynamic credentials for MongoDB.
+
+The `template` block reads these credentials and exposes them as environment
+variables to the task so it can use them.
+
+Run the Nomad job from the file `mongo-query.nomad.hcl`.
+
+```shell-session
+$ nomad job run 'mongo-query.nomad.hcl'
+==> 2023-11-20T23:11:35-05:00: Monitoring evaluation "5fa56c67"
+    2023-11-20T23:11:35-05:00: Evaluation triggered by job "mongo-query"
+    2023-11-20T23:11:36-05:00: Allocation "909f0184" created: node "b8db12d2", group "mongo-query"
+    2023-11-20T23:11:36-05:00: Evaluation status changed: "pending" -> "complete"
+==> 2023-11-20T23:11:36-05:00: Evaluation "5fa56c67" finished with status "complete"
+```
+
+Retrieve the allocation information and wait until the status is `complete`.
+You may need to run the command a few times before the status changes to
+`complete`.
+
+```shell-session
+$ nomad job allocs 'mongo-query'
+ID        Node ID   Task Group   Version  Desired  Status    Created  Modified
+909f0184  b8db12d2  mongo-query  0        run      complete  25s ago  24s ago
+```
+
+Retrieve the query result to confirm the job was able to connect to the MongoDB
+database.
+
+```shell-session
+$ nomad alloc logs $(nomad job allocs -t '{{with (index . 0)}}{{.ID}}{{end}}' mongo-query)
+{
+  authInfo: {
+    authenticatedUsers: [
+      {
+        user: 'v-jwt-nomad-mongo-mongo-QbF7HWHjwOi6PJWmNo1x-1700544973',
+        db: 'admin'
+      }
+    ],
+    authenticatedUserRoles: [ { role: 'readWrite', db: 'admin' }, { role: 'read', db: 'foo' } ]
+  },
+  ok: 1
+}
+```
+
+Note that the authenticated user is now a dynamic user credential.
+
+Templated Vault ACL policies provide great flexibility when defining access
+rules, but a single policy, or a specific group of policies, may not be enough
+to cover all use cases.
+
+Creating additional Vault ACL roles for specific Nomad jobs can help better
+manage access control to Vault secrets.
+
+## Next steps
+
+In this guide, you configured Nomad and Vault to communicate with ACL
+enabled. You also configured Nomad to automatically add workload identities for
+tasks that need access to Vault.
+
+You then deployed Nomad jobs to read static and dynamic secrets from Vault
+using different Vault ACL roles and policies. Both jobs used their workload
+identities to receive a Vault ACL token properly scoped to the work they
+needed to do.
+
+This process required several steps, with certain values having to match each
+other in order for everything to work properly.
+
+There are two resources available to help you automate these steps.
+
+* The Nomad CLI command `nomad setup vault` can be useful for a quick setup
+  with default values for a development or test cluster.
+* The [`hashicorp-modules/nomad-setup/vault`][tf_module] Terraform module
+  provides a basis for applying these steps with a infrastructure-as-code
+  approach, which is more suitable for a production environment. The
+  [`hashicorp-guides/nomad-workload-identity-terraform-demo`][tf_demo]
+  repository demonstrates how this module can be used.
+
+You may continue exploring additional integrations between Nomad and Vault or
+learn how to similarly [integrate Nomad and Consul][nomad_consul_acl] with ACL
+enabled.
+
+- [Nomad and Vault Integration][nomad_integrations_vault]
+- [Nomad Workload Identity][nomad_wid]
+- [Nomad Agent `vault` Configuration][nomad_config_vault]
+- [Vault ACL policies tutorial][vault_tutorial_policies]
+
+[docker_install]: https://www.docker.com/get-started/
+[jwt]: https://jwt.io/
+[nomad_acl_policies]: /nomad/docs/secure/acl/policies
+[nomad_acl_tokens]: /nomad/docs/secure/acl/tokens
+[nomad_config_vault]: /nomad/docs/configuration/vault
+[nomad_consul_acl]: /nomad/tutorials/integrate-consul/consul-acl
+[nomad_dev]: /nomad/commands/agent#dev
+[nomad_gs]: /nomad/tutorials/get-started
+[nomad_install]: /nomad/install
+[nomad_integrations_vault]: /nomad/docs/secure/vault
+[nomad_wid]: /nomad/docs/concepts/workload-identity
+[tf_demo]: https://github.com/hashicorp-guides/nomad-workload-identity-terraform-demo
+[tf_module]: https://registry.terraform.io/modules/hashicorp-modules/nomad-setup/vault
+[vault_auth_method]: /vault/docs/auth
+[vault_dyn]: /vault/docs/use-cases#dynamic-secrets
+[vault_gs]: /vault/tutorials/get-started
+[vault_install]: /vault/install
+[vault_static]: /vault/docs/use-cases#static-secrets
+[vault_tpl_policy]: /vault/docs/concepts/policies#templated-policies
+[vault_tutorial_policies]: /vault/tutorials/policies

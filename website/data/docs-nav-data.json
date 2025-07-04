@@ -1,57 +1,587 @@
 [
   {
-    "title": "Install Nomad",
+    "heading": "Get started"
+  },
+  {
+    "title": "What is Nomad?",
+    "path": "what-is-nomad"
+  },
+  {
+    "title": "Quickstart",
+    "path": "quickstart"
+  },
+  {
+    "title": "Use cases",
+    "path": "use-cases"
+  },
+  {
+    "title": "Architecture",
     "routes": [
       {
         "title": "Overview",
-        "path": "install"
+        "path": "architecture"
       },
       {
-        "title": "Quickstart",
-        "path": "install/quickstart"
-      },
-      {
-        "title": "Production",
+        "title": "Cluster",
         "routes": [
           {
-            "title": "Overview",
-            "path": "install/production"
+            "title": "Cluster Consensus",
+            "path": "architecture/cluster/consensus"
           },
           {
-            "title": "Requirements",
-            "path": "install/production/requirements"
+            "title": "Multi-cluster federation",
+            "path": "architecture/cluster/federation"
           },
           {
-            "title": "Reference Architecture",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul"
-          },
-          {
-            "title": "Deployment Guide",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
+            "title": "Node pools",
+            "path": "architecture/cluster/node-pools"
           }
         ]
       },
       {
-        "title": "Windows Service",
-        "path": "install/windows-service"
+        "title": "CPU",
+        "path": "architecture/cpu"
+      },
+      {
+        "title": "Security",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "architecture/security"
+          },
+          {
+            "title": "Cluster Gossip",
+            "path": "architecture/security/gossip"
+          }
+        ]
+      },
+      {
+        "title": "Storage",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "architecture/storage"
+          },
+          {
+            "title": "CSI",
+            "path": "architecture/storage/csi"
+          },
+          {
+            "title": "Host volumes",
+            "path": "architecture/storage/host-volumes"
+          },
+          {
+            "title": "Stateful workload considerations",
+            "path": "architecture/storage/stateful-workloads"
+          }
+        ]
       }
     ]
   },
   {
-    "title": "Upgrading",
+    "title": "Concepts",
+    "routes": [
+      {
+        "title": "Allocation filesystem",
+        "path": "concepts/filesystem"
+      },
+
+      {
+        "title": "Job",
+        "path": "concepts/job"
+      },
+      {
+        "title": "Nomad variables",
+        "path": "concepts/variables"
+      },
+      {
+        "title": "Plugins",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/plugins"
+          },
+          {
+            "title": "Base",
+            "path": "concepts/plugins/base"
+          },
+          {
+            "title": "Task drivers",
+            "path": "concepts/plugins/task-drivers"
+          },
+          {
+            "title": "Devices",
+            "path": "concepts/plugins/devices"
+          },
+
+          {
+            "title": "Networking",
+            "path": "concepts/plugins/cni"
+          }
+        ]
+      },
+      {
+        "title": "Scheduling",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/scheduling"
+          },
+          {
+            "title": "How scheduling works",
+            "path": "concepts/scheduling/how-scheduling-works"
+          },
+          {
+            "title": "Placement",
+            "path": "concepts/scheduling/placement"
+          },
+          {
+            "title": "Preemption",
+            "path": "concepts/scheduling/preemption"
+          },
+          {
+            "title": "Job schedulers",
+            "path": "concepts/scheduling/schedulers"
+          }
+        ]
+      },
+      {
+        "title": "Stateful deployments",
+        "path": "concepts/stateful-deployments"
+      },
+      {
+        "title": "Workload identity",
+        "path": "concepts/workload-identity"
+      }
+    ]
+  },
+  {
+    "divider": "true"
+  },
+  {
+    "heading": "Nomad operations"
+  },
+
+  {
+    "title": "Deploy and run Nomad",
+    "routes": [
+      {
+        "title": "Install Nomad",
+        "path": "deploy"
+      },
+      {
+        "title": "Production deployment",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "deploy/production"
+          },
+          {
+            "title": "Requirements",
+            "path": "deploy/production/requirements"
+          },
+          {
+            "title": "Reference architecture",
+            "path": "deploy/production/reference-architecture"
+          },
+          {
+            "title": "Deployment guide",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul"
+          },
+          {
+            "title": "Windows service",
+            "path": "deploy/production/windows-service"
+          }
+        ]
+      },
+      {
+        "title": "Operate a Nomad agent",
+        "path": "deploy/nomad-agent"
+      },
+      {
+        "title": "Build Nomad clusters",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "deploy/clusters"
+          },
+          {
+            "title": "Connect nodes into a cluster",
+            "path": "deploy/clusters/connect-nodes"
+          },
+          {
+            "title": "Multi-region federation considerations",
+            "path": "deploy/clusters/federation-considerations"
+          },
+          {
+            "title": "Federation failure scenarios",
+            "path": "deploy/clusters/federation-failure-scenarios"
+          },
+          {
+            "title": "Federate multi-region clusters",
+            "path": "deploy/clusters/federate-regions"
+          },
+          {
+            "title": "Load balancing",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/load-balancing"
+          },
+          {
+            "title": "Configure a web UI reverse proxy",
+            "path": "deploy/clusters/reverse-proxy-ui"
+          }
+        ]
+      },
+      {
+        "title": "Configure task drivers",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "deploy/task-driver"
+          },
+          {
+            "title": "Docker",
+            "path": "deploy/task-driver/docker"
+          },
+          {
+            "title": "Isolated Fork/Exec",
+            "path": "deploy/task-driver/exec"
+          },
+          {
+            "title": "Java",
+            "path": "deploy/task-driver/java"
+          },
+          {
+            "title": "QEMU",
+            "path": "deploy/task-driver/qemu"
+          },
+          {
+            "title": "Raw Fork/Exec",
+            "path": "deploy/task-driver/raw_exec"
+          },
+          {
+            "title": "Task driver plugins",
+            "routes": [
+              {
+                "title": "Exec2",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
+              },
+              {
+                "title": "Podman",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
+              },
+              {
+                "title": "Virt <sup>Beta</sup>",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
+              },
+              {
+                "title": "Community",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Govern Nomad's use",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "govern"
+      },
+      {
+        "title": "Namespaces",
+        "path": "govern/namespaces"
+      },
+      {
+        "title": "Node pools",
+        "path": "govern/use-node-pools"
+      },
+      {
+        "title": "Resource quotas",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/resource-quotas"
+      },
+      {
+        "title": "Sentinel policies",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/sentinel"
+      }
+    ]
+  },
+  {
+    "title": "Manage Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "manage"
+      },
+      {
+        "title": "Autopilot",
+        "path": "manage/autopilot"
+      },
+      {
+        "title": "Format CLI output",
+        "path": "manage/format-cli-output"
+      },
+      {
+        "title": "Garbage collection",
+        "path": "manage/garbage-collection"
+      },
+      {
+        "title": "Key management",
+        "path": "manage/key-management"
+      },
+      {
+        "title": "Migrate workloads",
+        "path": "manage/migrate-workloads"
+      },
+      {
+        "title": "Nomad variables",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/variables/variables-create"
+      },
+      {
+        "title": "Recovery",
+        "path": "manage/outage-recovery"
+      }
+    ]
+  },
+  {
+    "title": "Monitor Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "monitor"
+      },
+      {
+        "title": "Event stream",
+        "path": "monitor/event-stream"
+      },
+      {
+        "title": "Inspect job workloads",
+        "path": "monitor/inspect-workloads"
+      },
+      {
+        "title": "Inspect clusters",
+        "path": "monitor/inspect-cluster"
+      },
+      {
+        "title": "Cluster topology",
+        "path": "monitor/cluster-topology"
+      },
+      {
+        "title": "Use Prometheus",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-metrics"
+      },
+      {
+        "title": "Monitor job service metrics",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-service-mesh-metrics"
+      }
+    ]
+  },
+  {
+    "title": "Network Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "networking"
+      },
+      {
+        "title": "Bridge networking with CNI",
+        "path": "networking/cni"
+      },
+      {
+        "title": "Service discovery",
+        "path": "networking/service-discovery"
+      },
+      {
+        "title": "Consul",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "networking/consul"
+          },
+          {
+            "title": "Service mesh",
+            "path": "networking/consul/service-mesh"
+          }
+        ]
+      },
+      {
+        "title": "IPv6 support",
+        "path": "networking/ipv6"
+      }
+    ]
+  },
+  {
+    "title": "Scale Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "scale"
+      },
+      {
+        "title": "Nomad Autoscaler",
+        "href": "https://developer.hashicorp.com/nomad/tools/autoscaling"
+      },
+      {
+        "title": "Benchmark and load test",
+        "path": "scale/benchmarking"
+      }
+    ]
+  },
+  {
+    "title": "Secure Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "secure"
+      },
+      {
+        "title": "Access control list",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/acl"
+          },
+          {
+            "title": "Bootstrap the ACL system",
+            "path": "secure/acl/bootstrap"
+          },
+          {
+            "title": "Integrate Consul ACL",
+            "path": "secure/acl/consul"
+          },
+          {
+            "title": "Policies",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "secure/acl/policies"
+              },
+              {
+                "title": "Create policies",
+                "path": "secure/acl/policies/create-policy"
+              }
+            ]
+          },
+          {
+            "title": "Tokens",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "secure/acl/tokens"
+              },
+              {
+                "title": "Generate tokens with Vault",
+                "path": "secure/acl/tokens/vault"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Authentication",
+        "routes": [
+          {
+            "title": "Configure JWT",
+            "path": "secure/authentication/jwt"
+          },
+          {
+            "title": "Configure OIDC",
+            "path": "secure/authentication/oidc"
+          },
+          {
+            "title": "SSO with Auth0",
+            "path": "secure/authentication/sso-auth0"
+          },
+          {
+            "title": "SSO with Vault",
+            "path": "secure/authentication/sso-vault"
+          },
+          {
+            "title": "SSO with PKCE and private key JWT ",
+            "path": "secure/authentication/sso-pkce-jwt"
+          }
+        ]
+      },
+      {
+        "title": "Traffic encryption",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/traffic"
+          },
+          {
+            "title": "Enable gossip encryption",
+            "path": "secure/traffic/gossip-encryption"
+          },
+          {
+            "title": "Enable TLS",
+            "path": "secure/traffic/tls"
+          }
+        ]
+      },
+      {
+        "title": "Vault",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/vault"
+          },
+          {
+            "title": "ACL",
+            "path": "secure/vault/acl"
+          }
+        ]
+      },
+      {
+        "title": "Workload identity",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/workload-identity"
+          },
+          {
+            "title": "Federate AWS Access",
+            "path": "secure/workload-identity/aws-oidc-provider"
+          },
+          {
+            "title": "Federate GCP access",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/fed-workload-identity/integration-gcp"
+          },
+          {
+            "title": "Use workload identities with Vault",
+            "path": "secure/workload-identity/vault"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Upgrade Nomad",
     "routes": [
       {
         "title": "Overview",
         "path": "upgrade"
       },
       {
-        "title": "Specific Version Details",
+        "title": "Specific version details",
         "path": "upgrade/upgrade-specific"
       }
     ]
   },
   {
-    "title": "Release Notes",
+    "title": "Release notes",
     "routes": [
       {
         "title": "Overview",
@@ -81,196 +611,304 @@
     ]
   },
   {
-    "title": "Integrations",
+    "title": "Agent configuration reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
+  },
+  {
+    "divider": "true"
+  },
+  {
+    "heading": "Jobs"
+  },
+  {
+    "title": "Declare jobs",
     "routes": [
       {
         "title": "Overview",
-        "path": "integrations"
+        "path": "job-declare"
       },
       {
-        "title": "Consul",
+        "title": "Create a job specification",
+        "path": "job-declare/create-job"
+      },
+      {
+        "title": "Configure tasks",
+        "path": "job-declare/configure-tasks"
+      },
+      {
+        "title": "Create a parameterized job",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/job-specifications/job-spec-parameterized"
+      },
+      {
+        "title": "Use task drivers",
         "routes": [
           {
             "title": "Overview",
-            "path": "integrations/consul"
+            "path": "job-declare/task-driver"
           },
           {
-            "title": "ACL",
-            "path": "integrations/consul/acl"
+            "title": "Docker",
+            "path": "job-declare/task-driver/docker"
           },
           {
-            "title": "Service Mesh",
-            "path": "integrations/consul/service-mesh"
-          }
-        ]
-      },
-      {
-        "title": "Vault",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "integrations/vault"
+            "title": "Isolated Fork/Exec",
+            "path": "job-declare/task-driver/exec"
           },
           {
-            "title": "ACL",
-            "path": "integrations/vault/acl"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "divider": true
-  },
-  {
-    "title": "Concepts",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "concepts"
-      },
-      {
-        "title": "ACL",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "concepts/acl"
+            "title": "Java",
+            "path": "job-declare/task-driver/java"
           },
           {
-            "title": "Auth Methods",
+            "title": "QEMU",
+            "path": "job-declare/task-driver/qemu"
+          },
+          {
+            "title": "Raw Fork/Exec",
+            "path": "job-declare/task-driver/raw_exec"
+          },
+          {
+            "title": "Task driver plugins",
             "routes": [
               {
-                "title": "JWT",
-                "path": "concepts/acl/auth-methods/jwt"
+                "title": "Exec2",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
-                "title": "OIDC",
-                "path": "concepts/acl/auth-methods/oidc"
+                "title": "Podman",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
+              },
+              {
+                "title": "Virt <sup>Beta</sup>",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
+              },
+              {
+                "title": "Community",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
         ]
       },
       {
-        "title": "Architecture",
+        "title": "Use device plugins",
+        "href": "https://developer.hashicorp.com/nomad/plugins/devices"
+      },
+      {
+        "title": "Use Consul service mesh",
+        "path": "job-declare/consul-service-mesh"
+      },
+      {
+        "title": "Use Vault",
+        "path": "job-declare/vault"
+      },
+      {
+        "title": "Configure deployment strategies",
         "routes": [
           {
             "title": "Overview",
-            "path": "concepts/architecture"
+            "path": "job-declare/strategy"
           },
           {
-            "title": "Federation",
-            "path": "concepts/architecture/federation"
+            "title": "Configure blue/green and canary",
+            "path": "job-declare/strategy/blue-green-canary"
+          },
+          {
+            "title": "Configure rolling",
+            "path": "job-declare/strategy/rolling"
           }
         ]
       },
       {
-        "title": "CPU",
-        "path": "concepts/cpu"
+        "title": "Configure multi-region deployments",
+        "path": "job-declare/multiregion"
       },
       {
-        "title": "Plugins",
+        "title": "Configure task dependencies",
+        "path": "job-declare/task-dependencies"
+      },
+      {
+        "title": "Use Nomad actions",
+        "path": "job-declare/nomad-actions"
+      },
+      {
+        "title": "Use Nomad variables",
+        "path": "job-declare/nomad-variables"
+      },
+      {
+        "title": "Configure exit signals",
+        "path": "job-declare/exit-signals"
+      },
+      {
+        "title": "Handle failure",
         "routes": [
           {
             "title": "Overview",
-            "path": "concepts/plugins"
+            "path": "job-declare/failure"
           },
           {
-            "title": "Base",
-            "path": "concepts/plugins/base"
+            "title": "Local restarts",
+            "path": "job-declare/failure/restart"
           },
           {
-            "title": "Task Drivers",
-            "path": "concepts/plugins/task-drivers"
+            "title": "Health check restarts",
+            "path": "job-declare/failure/check-restart"
           },
           {
-            "title": "Devices",
-            "path": "concepts/plugins/devices"
-          },
-          {
-            "title": "Storage",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "concepts/plugins/storage"
-              },
-              {
-                "title": "CSI",
-                "path": "concepts/plugins/storage/csi"
-              },
-              {
-                "title": "Host Volumes",
-                "path": "concepts/plugins/storage/host-volumes"
-              }
-            ]
-          },
-          {
-            "title": "Networking",
-            "path": "concepts/plugins/cni"
+            "title": "Reschedule",
+            "path": "job-declare/failure/reschedule"
           }
         ]
-      },
-      {
-        "title": "Scheduling",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "concepts/scheduling"
-          },
-          {
-            "title": "Concepts",
-            "path": "concepts/scheduling/scheduling"
-          },
-          {
-            "title": "Placement",
-            "path": "concepts/scheduling/placement"
-          },
-          {
-            "title": "Preemption",
-            "path": "concepts/scheduling/preemption"
-          }
-        ]
-      },
-      {
-        "title": "Consensus Protocol",
-        "path": "concepts/consensus"
-      },
-      {
-        "title": "Filesystem",
-        "path": "concepts/filesystem"
-      },
-      {
-        "title": "Gossip Protocol",
-        "path": "concepts/gossip"
-      },
-      {
-        "title": "Node Pools",
-        "path": "concepts/node-pools"
-      },
-      {
-        "title": "Security Model",
-        "path": "concepts/security"
-      },
-      {
-        "title": "Job",
-        "path": "concepts/job"
-      },
-      {
-        "title": "Stateful Deployments",
-        "path": "concepts/stateful-deployments"
-      },
-      {
-        "title": "Workload Identity",
-        "path": "concepts/workload-identity"
-      },
-      {
-        "title": "Variables",
-        "path": "concepts/variables"
       }
     ]
   },
   {
-    "title": "Configuration",
+    "title": "Run jobs",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "job-run"
+      },
+      {
+        "title": "Inspect running jobs",
+        "path": "job-run/inspect"
+      },
+      {
+        "title": "Access logs for troubleshooting",
+        "path": "job-run/logs"
+      },
+      {
+        "title": "Collect resource utilization metrics",
+        "path": "job-run/utilization-metrics"
+      },
+      {
+        "title": "Create job versions",
+        "path": "job-run/versions"
+      }
+    ]
+  },
+  {
+    "title": "Stateful workloads",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "stateful-workloads"
+      },
+      {
+        "title": "Use CSI volumes",
+        "path": "stateful-workloads/csi-volumes"
+      },
+      {
+        "title": "Use dynamic host volumes",
+        "path": "stateful-workloads/dynamic-host-volumes"
+      },
+      {
+        "title": "Use static host volumes",
+        "path": "stateful-workloads/static-host-volumes"
+      }
+    ]
+  },
+  {
+    "title": "Workload networking",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "job-networking"
+      },
+      {
+        "title": "Service discovery",
+        "path": "job-networking/service-discovery"
+      },
+      {
+        "title": "Use a CNI network",
+        "path": "job-networking/cni"
+      }
+    ]
+  },
+  {
+    "title": "Advanced scheduling for efficiency",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "job-scheduling"
+      },
+      {
+        "title": "Fault tolerance with spread",
+        "path": "job-scheduling/spread"
+      },
+      {
+        "title": "Job placement with affinities",
+        "path": "job-scheduling/affinity"
+      },
+      {
+        "title": "Job priority with preemption",
+        "path": "job-scheduling/preemption"
+      },
+      {
+        "title": "Memory oversubscription",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/memory-oversubscription"
+      }
+    ]
+  },
+  {
+    "title": "Job templates with Nomad Pack",
+    "href": "/tools/nomad-pack/create-packs#write-the-templates"
+  },
+  {
+    "title": "Job specification reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+  },
+  {
+    "divider": "true"
+  },
+  {
+    "heading": "Enterprise solutions"
+  },
+  {
+    "title": "Nomad Enterprise",
+    "routes": [
+      {
+        "title": "Features",
+        "path": "enterprise"
+      },
+      {
+        "title": "License",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "enterprise/license"
+          },
+          {
+            "title": "Automated license utilization reporting",
+            "path": "enterprise/license/utilization-reporting"
+          },
+          {
+            "title": "FAQ",
+            "path": "enterprise/license/faq"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Nomad ecosystem",
+    "path": "ecosystem"
+  },
+  {
+    "title": "Nomad partnerships",
+    "path": "partnerships"
+  },
+  {
+    "divider": "true"
+  },
+  {
+    "heading": "Reference docs"
+  },
+  {
+    "title": "Glossary",
+    "path": "glossary"
+  },
+  {
+    "title": "Agent configuration",
     "routes": [
       {
         "title": "Overview",
@@ -368,1462 +1006,11 @@
     ]
   },
   {
-    "title": "Commands (CLI)",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "commands"
-      },
-      {
-        "title": "acl",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/acl"
-          },
-          {
-            "title": "bootstrap",
-            "path": "commands/acl/bootstrap"
-          },
-          {
-            "title": "auth-method",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/auth-method/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/auth-method/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/auth-method/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/auth-method/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/auth-method/update"
-              }
-            ]
-          },
-          {
-            "title": "binding-rule",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/binding-rule/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/binding-rule/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/binding-rule/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/binding-rule/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/binding-rule/update"
-              }
-            ]
-          },
-          {
-            "title": "policy",
-            "routes": [
-              {
-                "title": "apply",
-                "path": "commands/acl/policy/apply"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/policy/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/policy/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/policy/list"
-              },
-              {
-                "title": "self",
-                "path": "commands/acl/policy/self"
-              }
-            ]
-          },
-          {
-            "title": "role",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/role/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/role/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/role/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/role/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/role/update"
-              }
-            ]
-          },
-          {
-            "title": "token",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/token/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/token/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/token/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/token/list"
-              },
-              {
-                "title": "self",
-                "path": "commands/acl/token/self"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/token/update"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "title": "agent",
-        "path": "commands/agent"
-      },
-      {
-        "title": "agent-info",
-        "path": "commands/agent-info"
-      },
-      {
-        "title": "alloc",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/alloc"
-          },
-          {
-            "title": "checks",
-            "path": "commands/alloc/checks"
-          },
-          {
-            "title": "exec",
-            "path": "commands/alloc/exec"
-          },
-          {
-            "title": "fs",
-            "path": "commands/alloc/fs"
-          },
-          {
-            "title": "logs",
-            "path": "commands/alloc/logs"
-          },
-          {
-            "title": "pause",
-            "badge": {
-              "text": "ENT",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "path": "commands/alloc/pause"
-          },
-          {
-            "title": "restart",
-            "path": "commands/alloc/restart"
-          },
-          {
-            "title": "signal",
-            "path": "commands/alloc/signal"
-          },
-          {
-            "title": "status",
-            "path": "commands/alloc/status"
-          },
-          {
-            "title": "stop",
-            "path": "commands/alloc/stop"
-          }
-        ]
-      },
-      {
-        "title": "config",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/config"
-          },
-          {
-            "title": "validate",
-            "path": "commands/config/validate"
-          }
-        ]
-      },
-      {
-        "title": "deployment",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/deployment"
-          },
-          {
-            "title": "fail",
-            "path": "commands/deployment/fail"
-          },
-          {
-            "title": "list",
-            "path": "commands/deployment/list"
-          },
-          {
-            "title": "pause",
-            "path": "commands/deployment/pause"
-          },
-          {
-            "title": "promote",
-            "path": "commands/deployment/promote"
-          },
-          {
-            "title": "resume",
-            "path": "commands/deployment/resume"
-          },
-          {
-            "title": "status",
-            "path": "commands/deployment/status"
-          },
-          {
-            "title": "unblock",
-            "path": "commands/deployment/unblock"
-          }
-        ]
-      },
-      {
-        "title": "eval",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/eval"
-          },
-          {
-            "title": "delete",
-            "path": "commands/eval/delete"
-          },
-          {
-            "title": "list",
-            "path": "commands/eval/list"
-          },
-          {
-            "title": "status",
-            "path": "commands/eval/status"
-          }
-        ]
-      },
-      {
-        "title": "fmt",
-        "path": "commands/fmt"
-      },
-      {
-        "title": "job",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/job"
-          },
-          {
-            "title": "action",
-            "path": "commands/job/action"
-          },
-          {
-            "title": "allocs",
-            "path": "commands/job/allocs"
-          },
-          {
-            "title": "deployments",
-            "path": "commands/job/deployments"
-          },
-          {
-            "title": "dispatch",
-            "path": "commands/job/dispatch"
-          },
-          {
-            "title": "eval",
-            "path": "commands/job/eval"
-          },
-          {
-            "title": "history",
-            "path": "commands/job/history"
-          },
-          {
-            "title": "init",
-            "path": "commands/job/init"
-          },
-          {
-            "title": "inspect",
-            "path": "commands/job/inspect"
-          },
-          {
-            "title": "plan",
-            "path": "commands/job/plan"
-          },
-          {
-            "title": "periodic force",
-            "path": "commands/job/periodic-force"
-          },
-          {
-            "title": "promote",
-            "path": "commands/job/promote"
-          },
-          {
-            "title": "restart",
-            "path": "commands/job/restart"
-          },
-          {
-            "title": "revert",
-            "path": "commands/job/revert"
-          },
-          {
-            "title": "run",
-            "path": "commands/job/run"
-          },
-          {
-            "title": "scale",
-            "path": "commands/job/scale"
-          },
-          {
-            "title": "scaling-events",
-            "path": "commands/job/scaling-events"
-          },
-          {
-            "title": "start",
-            "path": "commands/job/start"
-          },
-          {
-            "title": "status",
-            "path": "commands/job/status"
-          },
-          {
-            "title": "stop",
-            "path": "commands/job/stop"
-          },
-          {
-            "title": "tag",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "commands/job/tag"
-              },
-              {
-                "title": "apply",
-                "path": "commands/job/tag/apply"
-              },
-              {
-                "title": "unset",
-                "path": "commands/job/tag/unset"
-              }
-            ]
-          },
-          {
-            "title": "validate",
-            "path": "commands/job/validate"
-          }
-        ]
-      },
-      {
-        "title": "license",
-        "badge": {
-          "text": "ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/license"
-          },
-          {
-            "title": "get",
-            "path": "commands/license/get"
-          },
-          {
-            "title": "inspect",
-            "path": "commands/license/inspect"
-          }
-        ]
-      },
-      {
-        "title": "login",
-        "path": "commands/login"
-      },
-      {
-        "title": "monitor",
-        "path": "commands/monitor"
-      },
-      {
-        "title": "namespace",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/namespace"
-          },
-          {
-            "title": "apply",
-            "path": "commands/namespace/apply"
-          },
-          {
-            "title": "delete",
-            "path": "commands/namespace/delete"
-          },
-          {
-            "title": "inspect",
-            "path": "commands/namespace/inspect"
-          },
-          {
-            "title": "list",
-            "path": "commands/namespace/list"
-          },
-          {
-            "title": "status",
-            "path": "commands/namespace/status"
-          }
-        ]
-      },
-      {
-        "title": "node",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/node"
-          },
-          {
-            "title": "config",
-            "path": "commands/node/config"
-          },
-          {
-            "title": "drain",
-            "path": "commands/node/drain"
-          },
-          {
-            "title": "eligibility",
-            "path": "commands/node/eligibility"
-          },
-          {
-            "title": "meta",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "commands/node/meta"
-              },
-              {
-                "title": "apply",
-                "path": "commands/node/meta/apply"
-              },
-              {
-                "title": "read",
-                "path": "commands/node/meta/read"
-              }
-            ]
-          },
-          {
-            "title": "status",
-            "path": "commands/node/status"
-          }
-        ]
-      },
-      {
-        "title": "node pool",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/node-pool"
-          },
-          {
-            "title": "apply",
-            "path": "commands/node-pool/apply"
-          },
-          {
-            "title": "delete",
-            "path": "commands/node-pool/delete"
-          },
-          {
-            "title": "info",
-            "path": "commands/node-pool/info"
-          },
-          {
-            "title": "init",
-            "path": "commands/node-pool/init"
-          },
-          {
-            "title": "jobs",
-            "path": "commands/node-pool/jobs"
-          },
-          {
-            "title": "list",
-            "path": "commands/node-pool/list"
-          },
-          {
-            "title": "nodes",
-            "path": "commands/node-pool/nodes"
-          }
-        ]
-      },
-      {
-        "title": "operator",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/operator"
-          },
-          {
-            "title": "api",
-            "path": "commands/operator/api"
-          },
-          {
-            "title": "autopilot",
-            "routes": [
-              {
-                "title": "get-config",
-                "path": "commands/operator/autopilot/get-config"
-              },
-              {
-                "title": "set-config",
-                "path": "commands/operator/autopilot/set-config"
-              },
-              {
-                "title": "health",
-                "path": "commands/operator/autopilot/health"
-              }
-            ]
-          },
-          {
-            "title": "client-state",
-            "path": "commands/operator/client-state"
-          },
-          {
-            "title": "debug",
-            "path": "commands/operator/debug"
-          },
-          {
-            "title": "gossip",
-            "routes": [
-              {
-                "title": "keyring generate",
-                "path": "commands/operator/gossip/keyring-generate"
-              },
-              {
-                "title": "keyring install",
-                "path": "commands/operator/gossip/keyring-install"
-              },
-              {
-                "title": "keyring list",
-                "path": "commands/operator/gossip/keyring-list"
-              },
-              {
-                "title": "keyring remove",
-                "path": "commands/operator/gossip/keyring-remove"
-              },
-              {
-                "title": "keyring use",
-                "path": "commands/operator/gossip/keyring-use"
-              }
-            ]
-          },
-          {
-            "title": "metrics",
-            "path": "commands/operator/metrics"
-          },
-          {
-            "title": "raft",
-            "routes": [
-              {
-                "title": "info",
-                "path": "commands/operator/raft/info"
-              },
-              {
-                "title": "list-peers",
-                "path": "commands/operator/raft/list-peers"
-              },
-              {
-                "title": "logs",
-                "path": "commands/operator/raft/logs"
-              },
-              {
-                "title": "remove-peer",
-                "path": "commands/operator/raft/remove-peer"
-              },
-              {
-                "title": "state",
-                "path": "commands/operator/raft/state"
-              },
-              {
-                "title": "transfer-leadership",
-                "path": "commands/operator/raft/transfer-leadership"
-              }
-            ]
-          },
-          {
-            "title": "root",
-            "routes": [
-              {
-                "title": "keyring list",
-                "path": "commands/operator/root/keyring-list"
-              },
-              {
-                "title": "keyring remove",
-                "path": "commands/operator/root/keyring-remove"
-              },
-              {
-                "title": "keyring rotate",
-                "path": "commands/operator/root/keyring-rotate"
-              }
-            ]
-          },
-          {
-            "title": "scheduler",
-            "routes": [
-              {
-                "title": "get-config",
-                "path": "commands/operator/scheduler/get-config"
-              },
-              {
-                "title": "set-config",
-                "path": "commands/operator/scheduler/set-config"
-              }
-            ]
-          },
-          {
-            "title": "snapshot",
-            "routes": [
-              {
-                "title": "agent",
-                "badge": {
-                  "text": "ENT",
-                  "type": "outlined",
-                  "color": "neutral"
-                },
-                "path": "commands/operator/snapshot/agent"
-              },
-              {
-                "title": "inspect",
-                "path": "commands/operator/snapshot/inspect"
-              },
-              {
-                "title": "redact",
-                "path": "commands/operator/snapshot/redact"
-              },
-              {
-                "title": "restore",
-                "path": "commands/operator/snapshot/restore"
-              },
-              {
-                "title": "save",
-                "path": "commands/operator/snapshot/save"
-              },
-              {
-                "title": "state",
-                "path": "commands/operator/snapshot/state"
-              }
-            ]
-          },
-          {
-            "title": "utilization",
-            "path": "commands/operator/utilization"
-          }
-        ]
-      },
-      {
-        "title": "plugin",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/plugin"
-          },
-          {
-            "title": "status",
-            "path": "commands/plugin/status"
-          }
-        ]
-      },
-      {
-        "title": "quota",
-        "badge": {
-          "text": "ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/quota"
-          },
-          {
-            "title": "apply",
-            "path": "commands/quota/apply"
-          },
-          {
-            "title": "delete",
-            "path": "commands/quota/delete"
-          },
-          {
-            "title": "init",
-            "path": "commands/quota/init"
-          },
-          {
-            "title": "inspect",
-            "path": "commands/quota/inspect"
-          },
-          {
-            "title": "list",
-            "path": "commands/quota/list"
-          },
-          {
-            "title": "status",
-            "path": "commands/quota/status"
-          }
-        ]
-      },
-      {
-        "title": "recommendation",
-        "badge": {
-          "text": "ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/recommendation"
-          },
-          {
-            "title": "apply",
-            "path": "commands/recommendation/apply"
-          },
-          {
-            "title": "dismiss",
-            "path": "commands/recommendation/dismiss"
-          },
-          {
-            "title": "info",
-            "path": "commands/recommendation/info"
-          },
-          {
-            "title": "list",
-            "path": "commands/recommendation/list"
-          }
-        ]
-      },
-      {
-        "title": "setup",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/setup"
-          },
-          {
-            "title": "consul",
-            "path": "commands/setup/consul"
-          },
-          {
-            "title": "vault",
-            "path": "commands/setup/vault"
-          }
-        ]
-      },
-      {
-        "title": "scaling",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/scaling"
-          },
-          {
-            "title": "policy info",
-            "path": "commands/scaling/policy-info"
-          },
-          {
-            "title": "policy list",
-            "path": "commands/scaling/policy-list"
-          }
-        ]
-      },
-      {
-        "title": "sentinel",
-        "badge": {
-          "text": "ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/sentinel"
-          },
-          {
-            "title": "apply",
-            "path": "commands/sentinel/apply"
-          },
-          {
-            "title": "delete",
-            "path": "commands/sentinel/delete"
-          },
-          {
-            "title": "list",
-            "path": "commands/sentinel/list"
-          },
-          {
-            "title": "read",
-            "path": "commands/sentinel/read"
-          }
-        ]
-      },
-      {
-        "title": "server",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/server"
-          },
-          {
-            "title": "force-leave",
-            "path": "commands/server/force-leave"
-          },
-          {
-            "title": "join",
-            "path": "commands/server/join"
-          },
-          {
-            "title": "members",
-            "path": "commands/server/members"
-          }
-        ]
-      },
-      {
-        "title": "service",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/service"
-          },
-          {
-            "title": "service delete",
-            "path": "commands/service/delete"
-          },
-          {
-            "title": "service info",
-            "path": "commands/service/info"
-          },
-          {
-            "title": "service list",
-            "path": "commands/service/list"
-          }
-        ]
-      },
-      {
-        "title": "status",
-        "path": "commands/status"
-      },
-      {
-        "title": "system",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/system"
-          },
-          {
-            "title": "gc",
-            "path": "commands/system/gc"
-          },
-          {
-            "title": "reconcile summaries",
-            "path": "commands/system/reconcile-summaries"
-          }
-        ]
-      },
-      {
-        "title": "tls",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/tls"
-          },
-          {
-            "title": "ca create",
-            "path": "commands/tls/ca-create"
-          },
-          {
-            "title": "ca info",
-            "path": "commands/tls/ca-info"
-          },
-          {
-            "title": "cert create",
-            "path": "commands/tls/cert-create"
-          },
-          {
-            "title": "cert info",
-            "path": "commands/tls/cert-info"
-          }
-        ]
-      },
-      {
-        "title": "ui",
-        "path": "commands/ui"
-      },
-      {
-        "title": "var",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/var"
-          },
-          {
-            "title": "get",
-            "path": "commands/var/get"
-          },
-          {
-            "title": "init",
-            "path": "commands/var/init"
-          },
-          {
-            "title": "list",
-            "path": "commands/var/list"
-          },
-          {
-            "title": "put",
-            "path": "commands/var/put"
-          },
-          {
-            "title": "lock",
-            "path": "commands/var/lock"
-          },
-          {
-            "title": "purge",
-            "path": "commands/var/purge"
-          }
-        ]
-      },
-      {
-        "title": "version",
-        "path": "commands/version"
-      },
-      {
-        "title": "volume",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/volume"
-          },
-          {
-            "title": "claim delete",
-            "path": "commands/volume/claim-delete"
-          },
-          {
-            "title": "claim list",
-            "path": "commands/volume/claim-list"
-          },
-          {
-            "title": "create",
-            "path": "commands/volume/create"
-          },
-          {
-            "title": "delete",
-            "path": "commands/volume/delete"
-          },
-          {
-            "title": "deregister",
-            "path": "commands/volume/deregister"
-          },
-          {
-            "title": "detach",
-            "path": "commands/volume/detach"
-          },
-          {
-            "title": "init",
-            "path": "commands/volume/init"
-          },
-          {
-            "title": "register",
-            "path": "commands/volume/register"
-          },
-          {
-            "title": "snapshot create",
-            "path": "commands/volume/snapshot-create"
-          },
-          {
-            "title": "snapshot delete",
-            "path": "commands/volume/snapshot-delete"
-          },
-          {
-            "title": "snapshot list",
-            "path": "commands/volume/snapshot-list"
-          },
-          {
-            "title": "status",
-            "path": "commands/volume/status"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "title": "Glossary",
-    "path": "glossary"
-  },
-  {
-    "divider": true
-  },
-  {
-    "title": "Job Specification",
+    "title": "Job specification",
     "routes": [
       {
         "title": "Overview",
         "path": "job-specification"
-      },
-      {
-        "title": "HCL guide",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "job-specification/hcl2"
-          },
-          {
-            "title": "Expressions",
-            "path": "job-specification/hcl2/expressions"
-          },
-          {
-            "title": "Functions",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "job-specification/hcl2/functions"
-              },
-              {
-                "title": "Collection Functions",
-                "routes": [
-                  {
-                    "title": "chunklist",
-                    "path": "job-specification/hcl2/functions/collection/chunklist"
-                  },
-                  {
-                    "title": "coalesce",
-                    "path": "job-specification/hcl2/functions/collection/coalesce"
-                  },
-                  {
-                    "title": "coalescelist",
-                    "path": "job-specification/hcl2/functions/collection/coalescelist"
-                  },
-                  {
-                    "title": "compact",
-                    "path": "job-specification/hcl2/functions/collection/compact"
-                  },
-                  {
-                    "title": "concat",
-                    "path": "job-specification/hcl2/functions/collection/concat"
-                  },
-                  {
-                    "title": "contains",
-                    "path": "job-specification/hcl2/functions/collection/contains"
-                  },
-                  {
-                    "title": "distinct",
-                    "path": "job-specification/hcl2/functions/collection/distinct"
-                  },
-                  {
-                    "title": "element",
-                    "path": "job-specification/hcl2/functions/collection/element"
-                  },
-                  {
-                    "title": "flatten",
-                    "path": "job-specification/hcl2/functions/collection/flatten"
-                  },
-                  {
-                    "title": "index",
-                    "path": "job-specification/hcl2/functions/collection/index-fn"
-                  },
-                  {
-                    "title": "keys",
-                    "path": "job-specification/hcl2/functions/collection/keys"
-                  },
-                  {
-                    "title": "length",
-                    "path": "job-specification/hcl2/functions/collection/length"
-                  },
-                  {
-                    "title": "lookup",
-                    "path": "job-specification/hcl2/functions/collection/lookup"
-                  },
-                  {
-                    "title": "merge",
-                    "path": "job-specification/hcl2/functions/collection/merge"
-                  },
-                  {
-                    "title": "range",
-                    "path": "job-specification/hcl2/functions/collection/range"
-                  },
-                  {
-                    "title": "reverse",
-                    "path": "job-specification/hcl2/functions/collection/reverse"
-                  },
-                  {
-                    "title": "setintersection",
-                    "path": "job-specification/hcl2/functions/collection/setintersection"
-                  },
-                  {
-                    "title": "setproduct",
-                    "path": "job-specification/hcl2/functions/collection/setproduct"
-                  },
-                  {
-                    "title": "setunion",
-                    "path": "job-specification/hcl2/functions/collection/setunion"
-                  },
-                  {
-                    "title": "slice",
-                    "path": "job-specification/hcl2/functions/collection/slice"
-                  },
-                  {
-                    "title": "sort",
-                    "path": "job-specification/hcl2/functions/collection/sort"
-                  },
-                  {
-                    "title": "values",
-                    "path": "job-specification/hcl2/functions/collection/values"
-                  },
-                  {
-                    "title": "zipmap",
-                    "path": "job-specification/hcl2/functions/collection/zipmap"
-                  }
-                ]
-              },
-              {
-                "title": "Type Conversion Functions",
-                "routes": [
-                  {
-                    "title": "can",
-                    "path": "job-specification/hcl2/functions/conversion/can"
-                  },
-                  {
-                    "title": "convert",
-                    "path": "job-specification/hcl2/functions/conversion/convert"
-                  },
-                  {
-                    "title": "try",
-                    "path": "job-specification/hcl2/functions/conversion/try"
-                  }
-                ]
-              },
-              {
-                "title": "Hash and Crypto Functions",
-                "routes": [
-                  {
-                    "title": "bcrypt",
-                    "path": "job-specification/hcl2/functions/crypto/bcrypt"
-                  },
-                  {
-                    "title": "md5",
-                    "path": "job-specification/hcl2/functions/crypto/md5"
-                  },
-                  {
-                    "title": "rsadecrypt",
-                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt",
-                    "badge": {
-                      "text": "Deprecated",
-                      "type": "outlined",
-                      "color": "neutral"
-                    }
-                  },
-                  {
-                    "title": "sha1",
-                    "path": "job-specification/hcl2/functions/crypto/sha1"
-                  },
-                  {
-                    "title": "sha256",
-                    "path": "job-specification/hcl2/functions/crypto/sha256"
-                  },
-                  {
-                    "title": "sha512",
-                    "path": "job-specification/hcl2/functions/crypto/sha512"
-                  }
-                ]
-              },
-              {
-                "title": "Date and Time Functions",
-                "routes": [
-                  {
-                    "title": "formatdate",
-                    "path": "job-specification/hcl2/functions/datetime/formatdate"
-                  },
-                  {
-                    "title": "timeadd",
-                    "path": "job-specification/hcl2/functions/datetime/timeadd"
-                  }
-                ]
-              },
-              {
-                "title": "Encoding Functions",
-                "routes": [
-                  {
-                    "title": "base64decode",
-                    "path": "job-specification/hcl2/functions/encoding/base64decode"
-                  },
-                  {
-                    "title": "base64encode",
-                    "path": "job-specification/hcl2/functions/encoding/base64encode"
-                  },
-                  {
-                    "title": "csvdecode",
-                    "path": "job-specification/hcl2/functions/encoding/csvdecode"
-                  },
-                  {
-                    "title": "jsondecode",
-                    "path": "job-specification/hcl2/functions/encoding/jsondecode"
-                  },
-                  {
-                    "title": "jsonencode",
-                    "path": "job-specification/hcl2/functions/encoding/jsonencode"
-                  },
-                  {
-                    "title": "urlencode",
-                    "path": "job-specification/hcl2/functions/encoding/urlencode"
-                  },
-                  {
-                    "title": "yamldecode",
-                    "path": "job-specification/hcl2/functions/encoding/yamldecode"
-                  },
-                  {
-                    "title": "yamlencode",
-                    "path": "job-specification/hcl2/functions/encoding/yamlencode"
-                  }
-                ]
-              },
-              {
-                "title": "Filesystem Functions",
-                "routes": [
-                  {
-                    "title": "abspath",
-                    "path": "job-specification/hcl2/functions/file/abspath"
-                  },
-                  {
-                    "title": "basename",
-                    "path": "job-specification/hcl2/functions/file/basename"
-                  },
-                  {
-                    "title": "dirname",
-                    "path": "job-specification/hcl2/functions/file/dirname"
-                  },
-                  {
-                    "title": "file",
-                    "path": "job-specification/hcl2/functions/file/file"
-                  },
-                  {
-                    "title": "filebase64",
-                    "path": "job-specification/hcl2/functions/file/filebase64"
-                  },
-                  {
-                    "title": "fileexists",
-                    "path": "job-specification/hcl2/functions/file/fileexists"
-                  },
-                  {
-                    "title": "fileset",
-                    "path": "job-specification/hcl2/functions/file/fileset"
-                  },
-                  {
-                    "title": "pathexpand",
-                    "path": "job-specification/hcl2/functions/file/pathexpand"
-                  }
-                ]
-              },
-              {
-                "title": "IP Network Functions",
-                "routes": [
-                  {
-                    "title": "cidrhost",
-                    "path": "job-specification/hcl2/functions/ipnet/cidrhost"
-                  },
-                  {
-                    "title": "cidrnetmask",
-                    "path": "job-specification/hcl2/functions/ipnet/cidrnetmask"
-                  },
-                  {
-                    "title": "cidrsubnet",
-                    "path": "job-specification/hcl2/functions/ipnet/cidrsubnet"
-                  },
-                  {
-                    "title": "cidrsubnets",
-                    "path": "job-specification/hcl2/functions/ipnet/cidrsubnets"
-                  }
-                ]
-              },
-              {
-                "title": "Numeric Functions",
-                "routes": [
-                  {
-                    "title": "abs",
-                    "path": "job-specification/hcl2/functions/numeric/abs"
-                  },
-                  {
-                    "title": "ceil",
-                    "path": "job-specification/hcl2/functions/numeric/ceil"
-                  },
-                  {
-                    "title": "floor",
-                    "path": "job-specification/hcl2/functions/numeric/floor"
-                  },
-                  {
-                    "title": "log",
-                    "path": "job-specification/hcl2/functions/numeric/log"
-                  },
-                  {
-                    "title": "max",
-                    "path": "job-specification/hcl2/functions/numeric/max"
-                  },
-                  {
-                    "title": "min",
-                    "path": "job-specification/hcl2/functions/numeric/min"
-                  },
-                  {
-                    "title": "parseint",
-                    "path": "job-specification/hcl2/functions/numeric/parseint"
-                  },
-                  {
-                    "title": "pow",
-                    "path": "job-specification/hcl2/functions/numeric/pow"
-                  },
-                  {
-                    "title": "signum",
-                    "path": "job-specification/hcl2/functions/numeric/signum"
-                  }
-                ]
-              },
-              {
-                "title": "String Functions",
-                "routes": [
-                  {
-                    "title": "chomp",
-                    "path": "job-specification/hcl2/functions/string/chomp"
-                  },
-                  {
-                    "title": "format",
-                    "path": "job-specification/hcl2/functions/string/format"
-                  },
-                  {
-                    "title": "formatlist",
-                    "path": "job-specification/hcl2/functions/string/formatlist"
-                  },
-                  {
-                    "title": "indent",
-                    "path": "job-specification/hcl2/functions/string/indent"
-                  },
-                  {
-                    "title": "join",
-                    "path": "job-specification/hcl2/functions/string/join"
-                  },
-                  {
-                    "title": "lower",
-                    "path": "job-specification/hcl2/functions/string/lower"
-                  },
-                  {
-                    "title": "regex_replace",
-                    "path": "job-specification/hcl2/functions/string/regex_replace"
-                  },
-                  {
-                    "title": "replace",
-                    "path": "job-specification/hcl2/functions/string/replace"
-                  },
-                  {
-                    "title": "split",
-                    "path": "job-specification/hcl2/functions/string/split"
-                  },
-                  {
-                    "title": "strlen",
-                    "path": "job-specification/hcl2/functions/string/strlen"
-                  },
-                  {
-                    "title": "strrev",
-                    "path": "job-specification/hcl2/functions/string/strrev"
-                  },
-                  {
-                    "title": "substr",
-                    "path": "job-specification/hcl2/functions/string/substr"
-                  },
-                  {
-                    "title": "title",
-                    "path": "job-specification/hcl2/functions/string/title"
-                  },
-                  {
-                    "title": "trim",
-                    "path": "job-specification/hcl2/functions/string/trim"
-                  },
-                  {
-                    "title": "trimprefix",
-                    "path": "job-specification/hcl2/functions/string/trimprefix"
-                  },
-                  {
-                    "title": "trimspace",
-                    "path": "job-specification/hcl2/functions/string/trimspace"
-                  },
-                  {
-                    "title": "trimsuffix",
-                    "path": "job-specification/hcl2/functions/string/trimsuffix"
-                  },
-                  {
-                    "title": "upper",
-                    "path": "job-specification/hcl2/functions/string/upper"
-                  }
-                ]
-              },
-              {
-                "title": "UUID Functions",
-                "routes": [
-                  {
-                    "title": "uuidv4",
-                    "path": "job-specification/hcl2/functions/uuid/uuidv4"
-                  },
-                  {
-                    "title": "uuidv5",
-                    "path": "job-specification/hcl2/functions/uuid/uuidv5"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "title": "Locals",
-            "path": "job-specification/hcl2/locals"
-          },
-          {
-            "title": "Syntax",
-            "path": "job-specification/hcl2/syntax"
-          },
-          {
-            "title": "Variables",
-            "path": "job-specification/hcl2/variables"
-          }
-        ]
       },
       {
         "title": "action",
@@ -2020,14 +1207,14 @@
     ]
   },
   {
-    "title": "Other Specifications",
+    "title": "Nomad object specifications",
     "routes": [
       {
         "title": "Overview",
         "path": "other-specifications"
       },
       {
-        "title": "ACL Policy",
+        "title": "ACL policy",
         "path": "other-specifications/acl-policy"
       },
       {
@@ -2035,15 +1222,15 @@
         "path": "other-specifications/namespace"
       },
       {
-        "title": "Node Pool",
+        "title": "Node pool",
         "path": "other-specifications/node-pool"
       },
       {
-        "title": "Resource Quota",
+        "title": "Resource quota",
         "path": "other-specifications/quota"
       },
       {
-        "title": "Variables",
+        "title": "Nomad variables",
         "path": "other-specifications/variables"
       },
       {
@@ -2058,7 +1245,7 @@
             "path": "other-specifications/volume/csi"
           },
           {
-            "title": "Dynamic Host Volumes",
+            "title": "Dynamic host volumes",
             "path": "other-specifications/volume/host"
           },
           {
@@ -2078,442 +1265,448 @@
     ]
   },
   {
-    "title": "Task Drivers",
+    "title": "Reference",
     "routes": [
       {
-        "title": "Overview",
-        "path": "drivers"
+        "title": "Metrics",
+        "path": "reference/metrics"
       },
       {
-        "title": "Docker",
-        "path": "drivers/docker"
+        "title": "Runtime environment settings",
+        "path": "reference/runtime-environment-settings"
       },
       {
-        "title": "Isolated Fork/Exec",
-        "path": "drivers/exec"
+        "title": "Runtime variable interpolation",
+        "path": "reference/runtime-variable-interpolation"
       },
       {
-        "title": "Java",
-        "path": "drivers/java"
+        "title": "Sentinel policy",
+        "path": "reference/sentinel-policy"
       },
       {
-        "title": "QEMU",
-        "path": "drivers/qemu"
+        "title": "Go template syntax",
+        "path": "reference/go-template-syntax"
       },
       {
-        "title": "Raw Fork/Exec",
-        "path": "drivers/raw_exec"
-      },
-      {
-        "title": "Plugins",
-        "routes": [
-          {
-            "title": "Exec2",
-            "href": "/plugins/drivers/exec2"
-          },
-          {
-            "title": "Podman",
-            "href": "/plugins/drivers/podman"
-          },
-          {
-            "title": "Virt <sup>Beta</sup>",
-            "href": "/plugins/drivers/virt"
-          },
-          {
-            "title": "Community",
-            "href": "/plugins/drivers/community"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "title": "Device Plugins",
-    "href": "/plugins/devices"
-  },
-  {
-    "title": "Schedulers",
-    "path": "schedulers"
-  },
-  {
-    "title": "Runtime",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "runtime"
-      },
-      {
-        "title": "Runtime Environment",
-        "path": "runtime/environment"
-      },
-      {
-        "title": "Variable Interpolation",
-        "path": "runtime/interpolation"
-      }
-    ]
-  },
-  {
-    "title": "Networking",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "networking"
-      },
-      {
-        "title": "Service Discovery",
-        "path": "networking/service-discovery"
-      },
-      {
-        "title": "Service Mesh",
-        "path": "networking/service-mesh"
-      },
-      {
-        "title": "CNI",
-        "path": "networking/cni"
-      }
-    ]
-  },
-  {
-    "title": "Autoscaling",
-    "routes": [
-      {
-        "title": "Overview",
-        "href": "/tools/autoscaling"
-      },
-      {
-        "title": "Agent",
+        "title": "HCL2",
         "routes": [
           {
             "title": "Overview",
-            "href": "/tools/autoscaling/agent"
+            "path": "reference/hcl2"
           },
           {
-            "title": "apm",
-            "href": "/tools/autoscaling/agent/apm"
+            "title": "Expressions",
+            "path": "reference/hcl2/expressions"
           },
           {
-            "title": "dynamic_application_sizing",
-            "href": "/tools/autoscaling/agent/dynamic_application_sizing"
-          },
-          {
-            "title": "http",
-            "href": "/tools/autoscaling/agent/http"
-          },
-          {
-            "title": "nomad",
-            "href": "/tools/autoscaling/agent/nomad"
-          },
-          {
-            "title": "policy",
-            "href": "/tools/autoscaling/agent/policy"
-          },
-          {
-            "title": "policy_eval",
-            "href": "/tools/autoscaling/agent/policy_eval"
-          },
-          {
-            "title": "strategy",
-            "href": "/tools/autoscaling/agent/strategy"
-          },
-          {
-            "title": "target",
-            "href": "/tools/autoscaling/agent/target"
-          },
-          {
-            "title": "telemetry",
-            "href": "/tools/autoscaling/agent/telemetry"
-          }
-        ]
-      },
-      {
-        "title": "API",
-        "href": "/tools/autoscaling/api"
-      },
-      {
-        "title": "CLI",
-        "href": "/tools/autoscaling/cli"
-      },
-      {
-        "title": "Policy",
-        "href": "/tools/autoscaling/policy"
-      },
-      {
-        "title": "Telemetry",
-        "href": "/tools/autoscaling/telemetry"
-      },
-      {
-        "title": "Plugins",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/tools/autoscaling/plugins"
-          },
-          {
-            "title": "APM",
+            "title": "Functions",
             "routes": [
               {
                 "title": "Overview",
-                "href": "/tools/autoscaling/plugins/apm"
+                "path": "reference/hcl2/functions"
               },
               {
-                "title": "Datadog",
-                "href": "/tools/autoscaling/plugins/apm/datadog"
+                "title": "Collection Functions",
+                "routes": [
+                  {
+                    "title": "chunklist",
+                    "path": "reference/hcl2/functions/collection/chunklist"
+                  },
+                  {
+                    "title": "coalesce",
+                    "path": "reference/hcl2/functions/collection/coalesce"
+                  },
+                  {
+                    "title": "coalescelist",
+                    "path": "reference/hcl2/functions/collection/coalescelist"
+                  },
+                  {
+                    "title": "compact",
+                    "path": "reference/hcl2/functions/collection/compact"
+                  },
+                  {
+                    "title": "concat",
+                    "path": "reference/hcl2/functions/collection/concat"
+                  },
+                  {
+                    "title": "contains",
+                    "path": "reference/hcl2/functions/collection/contains"
+                  },
+                  {
+                    "title": "distinct",
+                    "path": "reference/hcl2/functions/collection/distinct"
+                  },
+                  {
+                    "title": "element",
+                    "path": "reference/hcl2/functions/collection/element"
+                  },
+                  {
+                    "title": "flatten",
+                    "path": "reference/hcl2/functions/collection/flatten"
+                  },
+                  {
+                    "title": "index",
+                    "path": "reference/hcl2/functions/collection/index-fn"
+                  },
+                  {
+                    "title": "keys",
+                    "path": "reference/hcl2/functions/collection/keys"
+                  },
+                  {
+                    "title": "length",
+                    "path": "reference/hcl2/functions/collection/length"
+                  },
+                  {
+                    "title": "lookup",
+                    "path": "reference/hcl2/functions/collection/lookup"
+                  },
+                  {
+                    "title": "merge",
+                    "path": "reference/hcl2/functions/collection/merge"
+                  },
+                  {
+                    "title": "range",
+                    "path": "reference/hcl2/functions/collection/range"
+                  },
+                  {
+                    "title": "reverse",
+                    "path": "reference/hcl2/functions/collection/reverse"
+                  },
+                  {
+                    "title": "setintersection",
+                    "path": "reference/hcl2/functions/collection/setintersection"
+                  },
+                  {
+                    "title": "setproduct",
+                    "path": "reference/hcl2/functions/collection/setproduct"
+                  },
+                  {
+                    "title": "setunion",
+                    "path": "reference/hcl2/functions/collection/setunion"
+                  },
+                  {
+                    "title": "slice",
+                    "path": "reference/hcl2/functions/collection/slice"
+                  },
+                  {
+                    "title": "sort",
+                    "path": "reference/hcl2/functions/collection/sort"
+                  },
+                  {
+                    "title": "values",
+                    "path": "reference/hcl2/functions/collection/values"
+                  },
+                  {
+                    "title": "zipmap",
+                    "path": "reference/hcl2/functions/collection/zipmap"
+                  }
+                ]
               },
               {
-                "title": "Nomad API",
-                "href": "/tools/autoscaling/plugins/apm/nomad"
+                "title": "Type Conversion Functions",
+                "routes": [
+                  {
+                    "title": "can",
+                    "path": "reference/hcl2/functions/conversion/can"
+                  },
+                  {
+                    "title": "convert",
+                    "path": "reference/hcl2/functions/conversion/convert"
+                  },
+                  {
+                    "title": "try",
+                    "path": "reference/hcl2/functions/conversion/try"
+                  }
+                ]
               },
               {
-                "title": "Prometheus",
-                "href": "/tools/autoscaling/plugins/apm/prometheus"
+                "title": "Hash and Crypto Functions",
+                "routes": [
+                  {
+                    "title": "bcrypt",
+                    "path": "reference/hcl2/functions/crypto/bcrypt"
+                  },
+                  {
+                    "title": "md5",
+                    "path": "reference/hcl2/functions/crypto/md5"
+                  },
+                  {
+                    "title": "rsadecrypt",
+                    "path": "reference/hcl2/functions/crypto/rsadecrypt",
+                    "badge": {
+                      "text": "Deprecated",
+                      "type": "outlined",
+                      "color": "neutral"
+                    }
+                  },
+                  {
+                    "title": "sha1",
+                    "path": "reference/hcl2/functions/crypto/sha1"
+                  },
+                  {
+                    "title": "sha256",
+                    "path": "reference/hcl2/functions/crypto/sha256"
+                  },
+                  {
+                    "title": "sha512",
+                    "path": "reference/hcl2/functions/crypto/sha512"
+                  }
+                ]
+              },
+              {
+                "title": "Date and Time Functions",
+                "routes": [
+                  {
+                    "title": "formatdate",
+                    "path": "reference/hcl2/functions/datetime/formatdate"
+                  },
+                  {
+                    "title": "timeadd",
+                    "path": "reference/hcl2/functions/datetime/timeadd"
+                  }
+                ]
+              },
+              {
+                "title": "Encoding Functions",
+                "routes": [
+                  {
+                    "title": "base64decode",
+                    "path": "reference/hcl2/functions/encoding/base64decode"
+                  },
+                  {
+                    "title": "base64encode",
+                    "path": "reference/hcl2/functions/encoding/base64encode"
+                  },
+                  {
+                    "title": "csvdecode",
+                    "path": "reference/hcl2/functions/encoding/csvdecode"
+                  },
+                  {
+                    "title": "jsondecode",
+                    "path": "reference/hcl2/functions/encoding/jsondecode"
+                  },
+                  {
+                    "title": "jsonencode",
+                    "path": "reference/hcl2/functions/encoding/jsonencode"
+                  },
+                  {
+                    "title": "urlencode",
+                    "path": "reference/hcl2/functions/encoding/urlencode"
+                  },
+                  {
+                    "title": "yamldecode",
+                    "path": "reference/hcl2/functions/encoding/yamldecode"
+                  },
+                  {
+                    "title": "yamlencode",
+                    "path": "reference/hcl2/functions/encoding/yamlencode"
+                  }
+                ]
+              },
+              {
+                "title": "Filesystem Functions",
+                "routes": [
+                  {
+                    "title": "abspath",
+                    "path": "reference/hcl2/functions/file/abspath"
+                  },
+                  {
+                    "title": "basename",
+                    "path": "reference/hcl2/functions/file/basename"
+                  },
+                  {
+                    "title": "dirname",
+                    "path": "reference/hcl2/functions/file/dirname"
+                  },
+                  {
+                    "title": "file",
+                    "path": "reference/hcl2/functions/file/file"
+                  },
+                  {
+                    "title": "filebase64",
+                    "path": "reference/hcl2/functions/file/filebase64"
+                  },
+                  {
+                    "title": "fileexists",
+                    "path": "reference/hcl2/functions/file/fileexists"
+                  },
+                  {
+                    "title": "fileset",
+                    "path": "reference/hcl2/functions/file/fileset"
+                  },
+                  {
+                    "title": "pathexpand",
+                    "path": "reference/hcl2/functions/file/pathexpand"
+                  }
+                ]
+              },
+              {
+                "title": "IP Network Functions",
+                "routes": [
+                  {
+                    "title": "cidrhost",
+                    "path": "reference/hcl2/functions/ipnet/cidrhost"
+                  },
+                  {
+                    "title": "cidrnetmask",
+                    "path": "reference/hcl2/functions/ipnet/cidrnetmask"
+                  },
+                  {
+                    "title": "cidrsubnet",
+                    "path": "reference/hcl2/functions/ipnet/cidrsubnet"
+                  },
+                  {
+                    "title": "cidrsubnets",
+                    "path": "reference/hcl2/functions/ipnet/cidrsubnets"
+                  }
+                ]
+              },
+              {
+                "title": "Numeric Functions",
+                "routes": [
+                  {
+                    "title": "abs",
+                    "path": "reference/hcl2/functions/numeric/abs"
+                  },
+                  {
+                    "title": "ceil",
+                    "path": "reference/hcl2/functions/numeric/ceil"
+                  },
+                  {
+                    "title": "floor",
+                    "path": "reference/hcl2/functions/numeric/floor"
+                  },
+                  {
+                    "title": "log",
+                    "path": "reference/hcl2/functions/numeric/log"
+                  },
+                  {
+                    "title": "max",
+                    "path": "reference/hcl2/functions/numeric/max"
+                  },
+                  {
+                    "title": "min",
+                    "path": "reference/hcl2/functions/numeric/min"
+                  },
+                  {
+                    "title": "parseint",
+                    "path": "reference/hcl2/functions/numeric/parseint"
+                  },
+                  {
+                    "title": "pow",
+                    "path": "reference/hcl2/functions/numeric/pow"
+                  },
+                  {
+                    "title": "signum",
+                    "path": "reference/hcl2/functions/numeric/signum"
+                  }
+                ]
+              },
+              {
+                "title": "String Functions",
+                "routes": [
+                  {
+                    "title": "chomp",
+                    "path": "reference/hcl2/functions/string/chomp"
+                  },
+                  {
+                    "title": "format",
+                    "path": "reference/hcl2/functions/string/format"
+                  },
+                  {
+                    "title": "formatlist",
+                    "path": "reference/hcl2/functions/string/formatlist"
+                  },
+                  {
+                    "title": "indent",
+                    "path": "reference/hcl2/functions/string/indent"
+                  },
+                  {
+                    "title": "join",
+                    "path": "reference/hcl2/functions/string/join"
+                  },
+                  {
+                    "title": "lower",
+                    "path": "reference/hcl2/functions/string/lower"
+                  },
+                  {
+                    "title": "regex_replace",
+                    "path": "reference/hcl2/functions/string/regex_replace"
+                  },
+                  {
+                    "title": "replace",
+                    "path": "reference/hcl2/functions/string/replace"
+                  },
+                  {
+                    "title": "split",
+                    "path": "reference/hcl2/functions/string/split"
+                  },
+                  {
+                    "title": "strlen",
+                    "path": "reference/hcl2/functions/string/strlen"
+                  },
+                  {
+                    "title": "strrev",
+                    "path": "reference/hcl2/functions/string/strrev"
+                  },
+                  {
+                    "title": "substr",
+                    "path": "reference/hcl2/functions/string/substr"
+                  },
+                  {
+                    "title": "title",
+                    "path": "reference/hcl2/functions/string/title"
+                  },
+                  {
+                    "title": "trim",
+                    "path": "reference/hcl2/functions/string/trim"
+                  },
+                  {
+                    "title": "trimprefix",
+                    "path": "reference/hcl2/functions/string/trimprefix"
+                  },
+                  {
+                    "title": "trimspace",
+                    "path": "reference/hcl2/functions/string/trimspace"
+                  },
+                  {
+                    "title": "trimsuffix",
+                    "path": "reference/hcl2/functions/string/trimsuffix"
+                  },
+                  {
+                    "title": "upper",
+                    "path": "reference/hcl2/functions/string/upper"
+                  }
+                ]
+              },
+              {
+                "title": "UUID Functions",
+                "routes": [
+                  {
+                    "title": "uuidv4",
+                    "path": "reference/hcl2/functions/uuid/uuidv4"
+                  },
+                  {
+                    "title": "uuidv5",
+                    "path": "reference/hcl2/functions/uuid/uuidv5"
+                  }
+                ]
               }
             ]
           },
           {
-            "title": "Strategy",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/plugins/strategy"
-              },
-              {
-                "title": "Dynamic Application Sizing Average",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-avg"
-              },
-              {
-                "title": "Dynamic Application Sizing Max",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-max"
-              },
-              {
-                "title": "Dynamic Application Sizing Percentile",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-percentile"
-              },
-              {
-                "title": "Fixed Value",
-                "href": "/tools/autoscaling/plugins/strategy/fixed-value"
-              },
-              {
-                "title": "Pass-Through",
-                "href": "/tools/autoscaling/plugins/strategy/pass-through"
-              },
-              {
-                "title": "Target Value",
-                "href": "/tools/autoscaling/plugins/strategy/target-value"
-              },
-              {
-                "title": "Threshold",
-                "href": "/tools/autoscaling/plugins/strategy/threshold"
-              }
-            ]
+            "title": "Locals",
+            "path": "reference/hcl2/locals"
           },
           {
-            "title": "Target",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/plugins/target"
-              },
-              {
-                "title": "Amazon Web Services Autoscaling Group",
-                "href": "/tools/autoscaling/plugins/target/aws-asg"
-              },
-              {
-                "title": "Azure Virtual Machine Scale Set",
-                "href": "/tools/autoscaling/plugins/target/azure-vmss"
-              },
-              {
-                "title": "Dynamic Application Sizing",
-                "href": "/tools/autoscaling/plugins/target/app-sizing-nomad"
-              },
-              {
-                "title": "Google Cloud Engine Managed Instance Group",
-                "href": "/tools/autoscaling/plugins/target/gce-mig"
-              },
-              {
-                "title": "Nomad Task Group",
-                "href": "/tools/autoscaling/plugins/target/nomad"
-              }
-            ]
+            "title": "Syntax",
+            "path": "reference/hcl2/syntax"
           },
           {
-            "title": "Community",
-            "href": "/tools/autoscaling/plugins/external"
+            "title": "Variables",
+            "path": "reference/hcl2/variables"
           }
         ]
-      },
-      {
-        "title": "Internals",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/tools/autoscaling/internals"
-          },
-          {
-            "title": "Checks",
-            "href": "/tools/autoscaling/internals/checks"
-          },
-          {
-            "title": "Node Selector Strategy",
-            "href": "/tools/autoscaling/internals/node-selector-strategy"
-          },
-          {
-            "title": "Plugins",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/internals/plugins"
-              },
-              {
-                "title": "Base",
-                "href": "/tools/autoscaling/internals/plugins/base"
-              },
-              {
-                "title": "APM",
-                "href": "/tools/autoscaling/internals/plugins/apm"
-              },
-              {
-                "title": "Strategy",
-                "href": "/tools/autoscaling/internals/plugins/strategy"
-              },
-              {
-                "title": "Target",
-                "href": "/tools/autoscaling/internals/plugins/target"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "title": "Operations",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "operations"
-      },
-      {
-        "title": "Nomad Agents",
-        "path": "operations/nomad-agent"
-      },
-      {
-        "title": "Monitor Nomad",
-        "path": "operations/monitoring-nomad"
-      },
-      {
-        "title": "Metrics Reference",
-        "path": "operations/metrics-reference"
-      },
-      {
-        "title": "Cluster Management",
-        "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
-      },
-      {
-        "title": "Transport Security",
-        "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
-      },
-      {
-        "title": "Access Control",
-        "href": "https://learn.hashicorp.com/collections/nomad/access-control"
-      },
-      {
-        "title": "Key Management",
-        "path": "operations/key-management"
-      },
-      {
-        "title": "Federation",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "operations/federation"
-          },
-          {
-            "title": "Failure",
-            "path": "operations/federation/failure"
-          }
-        ]
-      },
-      {
-        "title": "Considerations for Stateful Workloads",
-        "path": "operations/stateful-workloads"
-      },
-      {
-        "title": "Benchmarking Nomad",
-        "path": "operations/benchmarking"
-      },
-      {
-        "title": "Federate AWS Access with Workload Identity",
-        "path": "operations/aws-oidc-provider"
-      },
-      {
-        "title": "IPv6 Support",
-        "path": "operations/ipv6-support"
-      },
-      {
-        "title": "Garbage Collection",
-        "path": "operations/garbage-collection"
-      }
-    ]
-  },
-  {
-    "divider": true
-  },
-  {
-    "title": "Nomad vs. Kubernetes",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "nomad-vs-kubernetes"
-      },
-      {
-        "title": "Alternative to Kubernetes",
-        "path": "nomad-vs-kubernetes/alternative"
-      },
-      {
-        "title": "Supplement to Kubernetes",
-        "path": "nomad-vs-kubernetes/supplement"
-      }
-    ]
-  },
-  {
-    "title": "Nomad Ecosystem",
-    "path": "ecosystem"
-  },
-  {
-    "title": "Nomad Partnerships",
-    "path": "partnerships"
-  },
-  {
-    "title": "Who Uses Nomad",
-    "path": "who-uses-nomad"
-  },
-  {
-    "title": "Nomad Enterprise",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "enterprise"
-      },
-      {
-        "title": "License",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "enterprise/license"
-          },
-          {
-            "title": "Automated license utilization reporting",
-            "path": "enterprise/license/utilization-reporting"
-          },
-          {
-            "title": "FAQ",
-            "path": "enterprise/license/faq"
-          }
-        ]
-      },
-      {
-        "title": "Sentinel",
-        "path": "enterprise/sentinel"
       }
     ]
   },

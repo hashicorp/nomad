@@ -1,0 +1,502 @@
+---
+layout: docs
+page_title: Use preemption for job priority
+description: >-
+  Deploy a low priority job and a high priority job. Then use preemption
+  to run the higher priority job even when other jobs are running.
+---
+
+# Use preemption for job priority
+
+Preemption allows Nomad to evict running allocations to place allocations of a
+higher priority. Allocations of a job that are blocked temporarily go into
+"pending" status until the cluster has additional capacity to run them. This is
+useful when operators need to run relatively higher priority tasks sooner even
+under resource contention across the cluster.
+
+Nomad v0.9.0 added Preemption for [system][system-job] jobs. Nomad v0.9.3
+[Enterprise][enterprise] added preemption for [service][service-job] and
+[batch][batch-job] jobs. Nomad v0.12.0 made preemption an open source feature
+for all three job types.
+
+Preemption is enabled by default for system jobs. It can be enabled for service
+and batch jobs by sending a [payload][payload-preemption-config] with the
+appropriate options specified to the [scheduler configuration][update-scheduler]
+API endpoint.
+
+### Prerequisites
+
+To perform the tasks described in this guide, you need to have a Nomad
+environment with Consul installed. You can use this [repository] to provision a
+sandbox environment; however, you need to use Nomad v0.12.0 or higher or Nomad
+Enterprise v0.9.3 or higher.
+
+You need a cluster with one server node and three client nodes. To simulate
+resource contention, the nodes in this environment each have 1 GB RAM (For AWS,
+you can choose the [t2.micro][t2-micro] instance type).
+
+<Tip>
+
+ This tutorial is for demo purposes and is only using a
+single server node. Three or five server nodes are recommended for a
+production cluster.
+
+</Tip>
+
+## Create a job with low priority
+
+Start by creating a job with relatively lower priority into your Nomad cluster.
+One of the allocations from this job will be preempted in a subsequent
+deployment when there is a resource contention in the cluster. Copy the
+following job into a file and name it `webserver.nomad.hcl`.
+
+```hcl
+job "webserver" {
+  datacenters = ["dc1"]
+  type        = "service"
+  priority    = 40
+
+  group "webserver" {
+    count = 3
+    network {
+      port "http" {
+        to = 80
+      }
+    }
+
+    service {
+      name = "apache-webserver"
+      port = "http"
+
+      check {
+        name     = "alive"
+        type     = "http"
+        path     = "/"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "apache" {
+      driver = "docker"
+
+      config {
+        image = "httpd:latest"
+        ports = ["http"]
+      }
+
+      resources {
+        memory = 600
+      }
+    }
+  }
+}
+```
+
+Note that the [count][count] is 3 and that each allocation is specifying 600 MB
+of [memory][memory]. Remember that each node only has 1 GB of RAM.
+
+## Run the low priority job
+
+Use the [`nomad job run` command][] to start the `webserver.nomad.hcl` job.
+
+```shell-session
+$ nomad job run webserver.nomad.hcl
+==> Monitoring evaluation "35159f00"
+    Evaluation triggered by job "webserver"
+    Evaluation within deployment: "278b2e10"
+    Allocation "0850e103" created: node "cf8487e2", group "webserver"
+    Allocation "551a7283" created: node "ad10ba3b", group "webserver"
+    Allocation "8a3d7e1e" created: node "18997de9", group "webserver"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "35159f00" finished with status "complete"
+```
+
+Check the status of the `webserver` job using the [`nomad job status` command][]
+at this point and verify that an allocation has been placed on each client node
+in the cluster.
+
+```shell-session
+$ nomad job status webserver
+ID            = webserver
+Name          = webserver
+Submit Date   = 2021-02-11T19:18:29-05:00
+Type          = service
+Priority      = 40
+...
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+0850e103  cf8487e2  webserver   0        run      running  8s ago   2s ago
+551a7283  ad10ba3b  webserver   0        run      running  8s ago   2s ago
+8a3d7e1e  18997de9  webserver   0        run      running  8s ago   1s ago
+```
+
+## Create a job with high priority
+
+Create another job with a [priority] greater than the "webserver" job. Copy the
+following into a file named `redis.nomad.hcl`.
+
+```hcl
+job "redis" {
+  datacenters = ["dc1"]
+  type        = "service"
+  priority    = 80
+
+  group "cache1" {
+    count = 1
+
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    service {
+      name = "redis-cache"
+      port = "db"
+
+      check {
+        name     = "alive"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:latest"
+        ports = ["db"]
+      }
+
+      resources {
+        memory = 700
+      }
+    }
+  }
+}
+```
+
+Note that this job has a priority of 80 (greater than the priority of the
+`webserver` job from earlier) and requires 700 MB of memory. This allocation
+will create a resource contention in the cluster since each node only has 1 GB
+of memory with a 600 MB allocation already placed on it.
+
+## Observe a run before and after enabling preemption
+
+### Try to run `redis.nomad.hcl`
+
+Remember that preemption for service and batch jobs is [not enabled by
+default][preemption-config]. This means that the `redis` job will be queued due
+to resource contention in the cluster. You can verify the resource contention
+before actually registering your job by running the [`nomad job plan` command][].
+
+```shell-session
+$ nomad job plan redis.nomad.hcl
++ Job: "redis"
++ Task Group: "cache1" (1 create)
+  + Task: "redis" (forces create)
+
+Scheduler dry-run:
+- WARNING: Failed to place all allocations.
+  Task Group "cache1" (failed to place 1 allocation):
+    * Resources exhausted on 3 nodes
+    * Dimension "memory" exhausted on 3 nodes
+...
+```
+
+Run the `redis.nomad.hcl` job with the [`nomad job run` command][]. Observe that the
+allocation was queued.
+
+```shell-session
+$ nomad job run redis.nomad.hcl
+==> Monitoring evaluation "3c6593b4"
+    Evaluation triggered by job "redis"
+    Evaluation within deployment: "ae55a4aa"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "3c6593b4" finished with status "complete" but failed to place all allocations:
+    Task Group "cache1" (failed to place 1 allocation):
+      * Resources exhausted on 3 nodes
+      * Dimension "memory" exhausted on 3 nodes
+    Evaluation "249fd21b" waiting for additional capacity to place remainder
+```
+
+You can also verify the allocation has been queued by now by fetching the status
+of the job using the [`nomad job status` command][].
+
+```shell-session
+$ nomad job status redis
+ID            = redis
+Name          = redis
+Submit Date   = 2021-02-11T19:22:55-05:00
+Type          = service
+Priority      = 80
+...
+Placement Failure
+Task Group "cache1":
+  * Resources exhausted on 3 nodes
+  * Dimension "memory" exhausted on 3 nodes
+...
+Allocations
+No allocations placed
+```
+
+Stop the `redis` job for now. In the next steps, you will enable service job
+preemption and re-deploy. Use the [`nomad job stop` command][] with the `-purge`
+flag set.
+
+```shell-session
+$ nomad job stop -purge redis
+==> Monitoring evaluation "a9c9945d"
+    Evaluation triggered by job "redis"
+    Evaluation within deployment: "ae55a4aa"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "a9c9945d" finished with status "complete"
+```
+
+### Enable service job preemption
+
+Get the current [scheduler configuration][scheduler-configuration] using the
+Nomad API. Setting an environment variable with your cluster address makes the
+`curl` commands more reusable. Substitute in the proper address for your Nomad
+cluster.
+
+```shell-session
+$ export NOMAD_ADDR=http://127.0.0.1:4646
+```
+
+If you are enabling preemption in an ACL-enabled Nomad cluster, you will also
+need to [authenticate to the API][api-auth] with a Nomad token via the
+`X-Nomad-Token` header. In this case, you can use an environment variable to add
+the header option and your token value to the command. If you don't use tokens,
+skip this step. The `curl` commands will run correctly when the variable is
+unset.
+
+```shell-session
+$ export NOMAD_AUTH='--header "X-Nomad-Token: «replace with your token»"'
+```
+
+ACLs, consult the
+
+Now, fetch the configuration with the following `curl` command.
+
+```shell-session
+$ curl --silent ${NOMAD_AUTH} \
+  ${NOMAD_ADDR}/v1/operator/scheduler/configuration?pretty
+```
+
+```json
+{
+  "SchedulerConfig": {
+    "SchedulerAlgorithm": "binpack",
+    "PreemptionConfig": {
+      "SystemSchedulerEnabled": true,
+      "BatchSchedulerEnabled": false,
+      "ServiceSchedulerEnabled": false
+    },
+    "CreateIndex": 5,
+    "ModifyIndex": 5
+  },
+  "Index": 5,
+  "LastContact": 0,
+  "KnownLeader": true
+}
+```
+
+Note that [BatchSchedulerEnabled][batch-enabled] and
+[ServiceSchedulerEnabled][service-enabled] are both set to `false` by default.
+Since you are preempting service jobs in this guide, you need to set
+`ServiceSchedulerEnabled` to `true`. Do this by directly interacting
+with the [API][update-scheduler].
+
+Create the following JSON payload and place it in a file named `scheduler.json`:
+
+```json
+{
+  "PreemptionConfig": {
+    "SystemSchedulerEnabled": true,
+    "BatchSchedulerEnabled": false,
+    "ServiceSchedulerEnabled": true
+  }
+}
+```
+
+Note that [ServiceSchedulerEnabled][service-enabled] has been set to `true`.
+
+Run the following command to update the scheduler configuration:
+
+```shell-session
+$ curl --silent ${NOMAD_AUTH} \
+  --request POST --data @scheduler.json \
+  ${NOMAD_ADDR}/v1/operator/scheduler/configuration
+```
+
+You should now be able to inspect the scheduler configuration again and verify
+that preemption has been enabled for service jobs (output below is abbreviated):
+
+```shell-session
+$ curl --silent ${NOMAD_AUTH} \
+  ${NOMAD_ADDR}/v1/operator/scheduler/configuration?pretty
+```
+
+```plaintext
+...
+        "PreemptionConfig": {
+            "SystemSchedulerEnabled": true,
+            "BatchSchedulerEnabled": false,
+            "ServiceSchedulerEnabled": true
+        },
+...
+```
+
+### Try running the redis job again
+
+Now that you have enabled preemption on service jobs, deploying your `redis` job
+should evict one of the lower priority `webserver` allocations and place it into
+a queue. You can run `nomad plan` to output a preview of what will happen:
+
+```shell-session
+$ nomad job plan redis.nomad.hcl
++ Job: "redis"
++ Task Group: "cache1" (1 create)
+  + Task: "redis" (forces create)
+
+Scheduler dry-run:
+- All tasks successfully allocated.
+
+Preemptions:
+
+Alloc ID                              Job ID     Task Group
+8a3d7e1e-40ee-f731-5135-247d8b7c2901  webserver  webserver
+...
+```
+
+The preceding plan output shows that one of the `webserver` allocations will be
+evicted in order to place the requested `redis` instance.
+
+Now use the [`nomad job run` command][] to run the `redis.nomad.hcl` job file.
+
+```shell-session
+$ nomad job run redis.nomad.hcl
+==> Monitoring evaluation "fef3654f"
+    Evaluation triggered by job "redis"
+    Evaluation within deployment: "37b37a63"
+    Allocation "6ecc4bbe" created: node "cf8487e2", group "cache1"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "fef3654f" finished with status "complete"
+```
+
+Run the [`nomad job status` command][] on the `webserver` job to verify one of
+the allocations has been evicted.
+
+```shell-session
+$ nomad job status webserver
+ID            = webserver
+Name          = webserver
+Submit Date   = 2021-02-11T19:18:29-05:00
+Type          = service
+Priority      = 40
+...
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+webserver   1       0         2        0       1         0
+
+Placement Failure
+Task Group "webserver":
+  * Resources exhausted on 3 nodes
+  * Dimension "memory" exhausted on 3 nodes
+...
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status    Created     Modified
+0850e103  cf8487e2  webserver   0        evict    complete  21m17s ago  18s ago
+551a7283  ad10ba3b  webserver   0        run      running   21m17s ago  20m55s ago
+8a3d7e1e  18997de9  webserver   0        run      running   21m17s ago  20m57s ago
+```
+
+### Stop the job
+
+Use the [`nomad job stop` command][] on the `redis` job. This will provide the
+capacity necessary to unblock the third `webserver` allocation.
+
+```shell-session
+$ nomad job stop redis
+==> Monitoring evaluation "df368cb1"
+    Evaluation triggered by job "redis"
+    Evaluation within deployment: "37b37a63"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "df368cb1" finished with status "complete"
+```
+
+Run the [`nomad job status` command][] on the `webserver` job. The output should
+now indicate that a new third allocation was created to replace the one that was
+preempted.
+
+```shell-session
+$ nomad job status webserver
+ID            = webserver
+Name          = webserver
+Submit Date   = 2021-02-11T19:18:29-05:00
+Type          = service
+Priority      = 40
+Datacenters   = dc1
+Namespace     = default
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+webserver   0       0         3        0       1         0
+
+Latest Deployment
+ID          = 278b2e10
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+webserver   3        3       3        0          2021-02-12T00:28:51Z
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status    Created     Modified
+4e212aec  cf8487e2  webserver   0        run      running   21s ago     3s ago
+0850e103  cf8487e2  webserver   0        evict    complete  22m48s ago  1m49s ago
+551a7283  ad10ba3b  webserver   0        run      running   22m48s ago  22m26s ago
+8a3d7e1e  18997de9  webserver   0        run      running   22m48s ago  22m28s ago
+```
+
+## Next steps
+
+The process you learned in this tutorial can also be applied to
+[batch][batch-enabled] jobs as well. Read more about preemption in the
+[Nomad documentation][preemption].
+
+### Reference material
+
+- [Preemption][preemption]
+
+[batch-enabled]: /nomad/api-docs/operator/scheduler#batchschedulerenabled-1
+[batch-job]: /nomad/docs/concepts/scheduling/schedulers#batch
+[count]: /nomad/docs/job-specification/group#count
+[enterprise]: /nomad/docs/enterprise
+[memory]: /nomad/docs/job-specification/resources#memory
+[payload-preemption-config]: //nomad/api-docs/operator/scheduler#preemptionconfig-1
+[preemption-config]: /nomad/api-docs/operator/scheduler#preemptionconfig-1
+[preemption]: /nomad/docs/concepts/scheduling/preemption
+[priority]: /nomad/docs/job-specification/job#priority
+[repository]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
+[scheduler-configuration]: /nomad/api-docs/operator/scheduler#read-scheduler-configuration
+[service-enabled]: /nomad/api-docs/operator/scheduler#serviceschedulerenabled-1
+[service-job]: /nomad/docs/concepts/scheduling/schedulers#service
+[step-1]: #create-a-job-with-low-priority
+[system-job]: /nomad/docs/concepts/scheduling/schedulers#system
+[t2-micro]: https://aws.amazon.com/ec2/instance-types/
+[update-scheduler]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration
+[`nomad job plan` command]: /nomad/commands/job/plan
+[`nomad job run` command]: /nomad/commands/job/run
+[`nomad job status` command]: /nomad/commands/job/status
+[`nomad job stop` command]: /nomad/commands/job/stop
+[api-auth]: /nomad/api-docs/#authentication

@@ -1,0 +1,66 @@
+---
+layout: docs
+page_title: Stateful workloads
+description: >-
+  Discover how to create and configure workloads requiring persistent
+  storage with Nomad's CSI integration, Docker volumes support, and
+  host volumes support.
+---
+
+# Stateful workloads
+
+Nomad allows users to mount persistent data from local or remote storage volumes
+into task environments in several ways:
+
+- Container Storage Interface (CSI) plugins
+- Nomad dynamic host volumes
+- Nomad static host volumes
+- Task driver specific volumes, such as Docker volume drivers
+
+Nomad's [Container Storage Interface (CSI)][csi-spec] integration can manage
+external storage volumes for stateful workloads running inside your cluster. CSI
+providers are third-party plugins that run as Nomad jobs and can orchestrate the creation and
+mounting of volumes created by your cloud or storage provider. [AWS Elastic Block Storage],
+[Azure disk], [GCE Persistent Disk], and [Alicloud Disk] are a few of the available
+block-device plugins available as CSI plugins. You can find a more comprehensive list
+in the [CSI Developer Documentation][csi-drivers]
+
+Nomad is aware of CSI-managed volumes during the
+scheduling process, enabling it to schedule your workloads based on the
+availability of volumes on a specific client.
+
+Nomad's host volumes come in two types - dynamic and static. Dynamic host volumes are, similar
+to CSI volumes, managed by Nomad with the help of [plugins][dhv_plugins]. The plugin creates the volumes
+and mounts them on the client, and Nomad makes the volumes available to the task group. Plugins follow a
+[specification][dhv_spec] that allows anyone to write a plugin for their storage needs.
+
+Static Host volumes allow you to mount any existing directory on the Nomad client into an allocation.
+These directories can be directories on a client, but can also be mounted networked or clustered
+filesystems like NFS, SeaweedFS or GlusterFS. Static host volumes are defined in the [client configuration][config_static_host_vol]
+file and are available to all tasks running on that client.
+
+The Docker task driver's support for [volumes][docker-volumes] enables Nomad to
+integrate with software-defined storage (SDS) solutions that have native support for Docker. Keep in mind that
+Nomad does not actually manage storage pools or replication as these tasks are
+delegated to the SDS providers. Please assess all factors and risks when
+utilizing such providers to run stateful workloads (such as your production
+database).
+
+For more information on the various options for stateful storage in Nomad, refer to the [Considerations for Stateful Workloads
+Workloads guide][considerations_stateful_workloads].
+
+In these guides, you will deploy a stateful application to a Nomad cluster and
+demonstrate that the data is persisted beyond the life of the allocation.
+
+
+[docker-volumes]: /nomad/docs/job-declare/task-driver/docker#volumes
+[csi-spec]: https://github.com/container-storage-interface/spec
+[csi-drivers]: https://kubernetes-csi.github.io/docs/drivers.html
+[aws elastic block storage]: https://github.com/kubernetes-sigs/aws-ebs-csi-driver
+[azure disk]: https://github.com/kubernetes-sigs/azuredisk-csi-driver
+[gce persistent disk]: https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver
+[alicloud disk]: https://github.com/AliyunContainerService/csi-plugin
+[dhv_spec]: /nomad/docs/other-specifications/volume/host
+[dhv_plugins]: /nomad/docs/architecture/storage/host-volumes
+[config_static_host_vol]: /nomad/docs/configuration/client#host_volume-block
+[considerations_stateful_workloads]: /nomad/docs/architecture/storage/stateful-workloads

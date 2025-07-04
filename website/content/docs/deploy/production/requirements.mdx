@@ -1,0 +1,224 @@
+---
+layout: docs
+page_title: Nomad installation requirements
+description: |-
+  Learn about the hardware and networking resources that Nomad requires. Review RAM, CPU, network topology and ports, user permissions, and Linux capabilities.
+---
+
+# Nomad installation requirements
+
+This page contains an overview of the hardware and networking resources that
+Nomad requires. Review RAM, CPU, network topology and ports, user
+permissions, and Linux capabilities.
+
+## Resources
+
+**Nomad servers** may need to be run on large machine instances. We suggest
+having between 4-8+ cores, 16-32 GB+ of memory, 40-80 GB+ of **fast** disk and
+significant network bandwidth. The core count and network recommendations are to
+ensure high throughput as Nomad heavily relies on network communication and as
+the Servers are managing all the nodes in the region and performing scheduling.
+The memory and disk requirements are due to the fact that Nomad stores all state
+in memory and will store two snapshots of this data onto disk, which causes high IO in busy clusters with lots of writes. Thus disk should
+be at least 2 times the memory available to the server when deploying a high
+load cluster. When running on AWS prefer NVME or Provisioned IOPS SSD storage for data dir.
+
+These recommendations are guidelines and operators should always monitor the
+resource usage of Nomad to determine if the machines are under or over-sized.
+
+**Nomad clients** support reserving resources on the node that should not be
+used by Nomad. This should be used to target a specific resource utilization per
+node and to reserve resources for applications running outside of Nomad's
+supervision such as Consul and the operating system itself.
+
+Please see the [reservation configuration](/nomad/docs/configuration/client#reserved) for
+more detail.
+
+## Network topology
+
+**Nomad servers** are expected to have sub 10 millisecond network latencies
+between each other to ensure liveness and high throughput scheduling. Nomad
+servers can be spread across multiple datacenters if they have low latency
+connections between them to achieve high availability.
+
+For example, on AWS every region comprises of multiple zones which have very low
+latency links between them, so every zone can be modeled as a Nomad datacenter
+and every Zone can have a single Nomad server which could be connected to form a
+quorum and a region.
+
+Nomad servers uses Raft for state replication and Raft being highly consistent
+needs a quorum of servers to function, therefore we recommend running an odd
+number of Nomad servers in a region. Usually running 3-5 servers in a region is
+recommended. The cluster can withstand a failure of one server in a cluster of
+three servers and two failures in a cluster of five servers. Adding more servers
+to the quorum adds more time to replicate state and hence throughput decreases
+so we don't recommend having more than seven servers in a region.
+
+**Nomad clients** do not have the same latency requirements as servers since they
+are not participating in Raft. Thus clients can have 100+ millisecond latency to
+their servers. This allows having a set of Nomad servers that service clients
+that can be spread geographically over a continent or even the world in the case
+of having a single "global" region and many datacenter.
+
+Nomad clients make connections to servers on the RPC port and then maintain a
+persistent TCP connection. The server and client use this TCP connection for
+two-way communication. As a result, clients that are geographically distributed
+from the servers do not need to have publicly routable IP addresses in order
+to communicate with the servers (although the workloads running on the clients
+may need public IPs). All connections between Nomad servers and between clients
+and servers must be secured with [mTLS][].
+
+Nomad clients are typically not required to be reachable from each other unless
+your workloads need to communicate with each other. The optional [ephemeral disk
+migration][] field is one exception, and requires that clients can reach each
+other on their HTTP ports.
+
+## Ports used
+
+Nomad requires 3 different ports to work properly on servers and 2 on clients,
+some on TCP, UDP, or both protocols. Below we document the requirements for each
+port. If you use a firewall of any type, you must ensure that it is configured to
+allow the following traffic.
+
+- HTTP API (Default 4646). This is used by clients and servers to serve the HTTP
+  API. TCP only.
+
+- RPC (Default 4647). This is used for internal RPC communication between client
+  agents and servers, and for inter-server traffic. TCP only.
+
+- Serf WAN (Default 4648). This is used by servers to gossip both over the LAN and
+  WAN to other servers. It isn't required that Nomad clients can reach this address.
+  TCP and UDP.
+
+When tasks ask for dynamic ports, they are allocated out of the port range
+between 20,000 and 32,000. This is well under the ephemeral port range suggested
+by the [IANA](https://en.wikipedia.org/wiki/Ephemeral_port). If your operating
+system's default ephemeral port range overlaps with Nomad's dynamic port range,
+you should tune the OS to avoid this overlap.
+
+On Linux this can be checked and set as follows:
+
+```shell-session
+$ cat /proc/sys/net/ipv4/ip_local_port_range
+32768   60999
+$ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
+```
+
+## Bridge networking and `iptables`
+
+@include 'install/bridge-iptables.mdx'
+
+## Cgroup controllers
+
+@include 'install/cgroup-controllers.mdx'
+
+## Hardening Nomad
+
+As noted in the [Security Model][] guide, Nomad is not **secure-by-default**.
+
+### User permissions
+
+Nomad servers and Nomad clients have different requirements for permissions.
+
+Nomad servers should be run with the lowest possible permissions. They need
+access to their own data directory and the ability to bind to their ports. You
+should create a `nomad` user with the minimal set of required privileges. If you
+are installing Nomad from the official Linux packages, the systemd unit file
+runs Nomad as `root`. For your server nodes you should change this to a
+minimally privileged `nomad` user. See the [production deployment guide][] for
+details.
+
+Nomad clients must be run as `root` due to the OS isolation mechanisms that
+require root privileges (see also [Linux Capabilities][] below). The Nomad
+client's data directory should be owned by `root` with filesystem permissions
+set to `0700`.
+
+### Linux capabilities
+
+On Linux, Nomad clients require privileged capabilities for isolating
+tasks. Nomad clients require `CAP_SYS_ADMIN` for creating the tmpfs used for
+secrets, bind-mounting task directories, mounting volumes, and running some task
+driver plugins. Nomad clients require `CAP_NET_ADMIN` for a variety of tasks to
+set up networking. You should run Nomad clients as `root`, but running as `root`
+does not grant these required capabilities if Nomad is running in a user
+namespace. Running Nomad clients inside a user namespace is unsupported. See the
+[`capabilities(7)`][] man page for details on Linux capabilities.
+
+In order to run a task, Nomad clients perform privileged operations normally
+reserved to the `root` user:
+
+* Mounting tmpfs file systems for the task `/secrets` directory.
+* Creating the network bridge for `bridge` networking.
+* Allowing inbound and outbound network traffic to the workload (typically via
+  `iptables`).
+* Starting tasks as a specific `user`.
+* Setting the owner of `template` outputs.
+
+On Linux this set of requirements expands to:
+
+* Configuring resource isolation via cgroups.
+* Configuring namespace isolation: `mount`, `user`, `pid`, `ipc`, and `network`
+  namespaces.
+
+Nomad task drivers that support bind-mounting volumes also need to run as `root`
+to do so. This includes the built-in `exec` and `java` task drivers. The
+built-in task drivers run in the same process as the Nomad client, so this
+requires that the Nomad client agent is also running as `root`.
+
+### Rootless Nomad clients
+
+Although it's possible to run a Nomad client agent as a non-root user or as
+`root` in a user namespace, to perform the privileged operations described above
+you also need to grant the client agent `CAP_SYS_ADMIN` and `CAP_NET_ADMIN`
+capabilities. Note that these capabilities are nearly functionally equivalent to
+running as `root` and that a process running with `CAP_SYS_ADMIN` can almost
+always escalate itself to "true" (unnamespaced) `root`.
+
+Some task drivers delegate many of their privileged operations to an external
+process such as `dockerd` or `podman`. If you don't need `bridge` networking and
+are using these task drivers or custom task drivers, you may be able to run
+Nomad client agents as a non-root user with the following additional
+configuration:
+
+* Delegated cgroups: to safely set cgroups as an unprivileged user requires
+  cgroups v2.
+* User namespaces: on some distros this may require setting sysctls like
+  `kernel.unprivileged_userns_clone=1`
+* The task driver engine (ex. `dockerd`, `podman`, `containerd`, etc) must be
+  configured for rootless operation. This requires cgroups v2, user namespaces,
+  and typically either a patched kernel or kernel module (ex. `overlay.ko`)
+  allowing unprivileged [overlay filesystem][] or a FUSE overlay filesystem.
+
+This is not a supported or well-tested configuration. See [GH-13669][] for a
+further discussion and to provide feedback on your experiences trying to run
+rootless Nomad clients.
+
+## Running Nomad in Docker
+
+Running systems as Docker containers has become a common practice. While it's
+possible to run Nomad servers inside containers, Nomad clients require
+extensive access to the underlying host machine, as described in
+[Rootless Nomad Clients][]. Docker containers introduce a non-trivial
+abstraction layer that makes it hard to properly configure clients and task
+drivers therefore **running Nomad clients in Docker containers is not
+officially supported**.
+
+The [`hashicorp/nomad`][nomad_docker_hub] Docker image is intended to be used
+in automated pipelines for [CLI operations][docs_cli], such as
+[`nomad job plan`][], [`nomad fmt`][], and others.
+
+~> **Note:** The Nomad Docker image is not tested when running as an agent.
+
+[Security Model]: /nomad/docs/architecture/security
+[production deployment guide]: /nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul#configure-systemd
+[linux capabilities]: #linux-capabilities
+[`capabilities(7)`]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+[overlay filesystem]: https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
+[GH-13669]: https://github.com/hashicorp/nomad/issues/13669
+[Rootless Nomad Clients]: #rootless-nomad-clients
+[nomad_docker_hub]: https://hub.docker.com/r/hashicorp/nomad
+[docs_cli]: /nomad/docs/commands
+[`nomad job plan`]: /nomad/commands/job/plan
+[`nomad fmt`]: /nomad/commands/fmt
+[mTLS]: /nomad/docs/secure/traffic/tls
+[ephemeral disk migration]: /nomad/docs/job-specification/ephemeral_disk#migrate

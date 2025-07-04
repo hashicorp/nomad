@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: Declare a Nomad job
+description: |-
+  This section provides guidance for declaring Nomad job with a job specification.
+---
+
+# Declare a Nomad job
+
+Developers deploy and manage their applications in Nomad via jobs. This section provides guidance for declaring a Nomad job with a job specification.
+
+In Nomad, a job is a user-specified state for a workload. The user expresses the job that should be running, but not where it should run. Nomad allocates resources and ensures that the actual state matches the user's desired state. A job consists of one or more tasks that you can organize into task groups.
+
+Declare the desired state of your job in a [job specification][job-spec], or jobspec, that describes the tasks and resources necessary for the job to run. You can also include job constraints to control which clients Nomad runs the job on.
+
+When you submit your job specification, Nomad automatically allocates resources
+to run it. Nomad also makes sure that the actual job state matches your desired
+state.
+
+## Deploy a new Nomad job
+
+The general flow for operating a job in Nomad is:
+
+1. Author the job file according to the [job specification][job-spec].
+1. Plan and review the changes with a Nomad server.
+1. Submit the job file to a Nomad server.
+1. (Optional) Review job status and logs.
+
+## Update a running job
+
+When updating a job, there are a number of built-in update strategies which may
+be defined in the job file. The general flow for updating an existing job in
+Nomad is:
+
+1. Modify the existing job file with the desired changes.
+1. Plan and review the changes with a Nomad server.
+1. Submit the job file to a Nomad server.
+1. (Optional) Review job status and logs.
+
+Because the job file defines the update strategy (blue-green, rolling updates,
+etc.), the workflow remains the same regardless of whether this is an initial
+deployment or a long-running job.
+
+## Resources
+
+- Refer to the [Job concept page](/nomad/docs/concepts/job) for more information
+  on Nomad jobs.
+- [Nomad job specification][job-spec]
+
+[job-spec]: /nomad/docs/job-specification

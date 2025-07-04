@@ -1,0 +1,45 @@
+---
+layout: docs
+page_title: 'nomad server join command reference'
+description: >
+  The `nomad server join` command joins the local server to one or more Nomad
+  servers.
+---
+
+# `nomad server join` command reference
+
+The `server join` command joins the local server to one or more Nomad servers.
+Joining is only required for server nodes, and only needs to succeed against
+one or more of the provided addresses. Once joined, the gossip layer will
+handle discovery of the other server nodes in the cluster.
+
+## Usage
+
+```plaintext
+nomad server join [options] <addr> [<addr>...]
+```
+
+One or more server addresses are required. If multiple server addresses are
+specified, then an attempt will be made to join each one. If one or more nodes
+are joined successfully, the exit code will be 0. Otherwise, the exit code will
+be 1.
+
+Joining servers in different regions will [federate][] the regions. This assumes
+that ACLs have been bootstrapped in the authoritative region. See [Configure for
+multiple regions][] in the ACLs tutorial.
+
+## Examples
+
+Join the local server to a remote server:
+
+```shell-session
+$ nomad server join 10.0.0.8:4648
+Joined 1 servers successfully
+```
+
+[federate]: //nomad/docs/deploy/clusters/federate-regions
+[Configure for multiple regions]: /nomad/docs/secure/acl/bootstrap#configure-for-multiple-regions
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

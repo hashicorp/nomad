@@ -1,0 +1,33 @@
+---
+layout: docs
+page_title: Traffic encryption overview
+description: |-
+  Discover the methods of transport encryption used by Nomad and how
+  they are used to encrypt all network traffic to and from a Nomad
+  agent.
+---
+
+# Traffic encryption overview
+
+The Nomad agent supports encrypting all of its network traffic. There are
+two separate encryption systems, one for gossip traffic, and one for HTTP and
+RPC.
+
+Once you complete this collection you will have configured transport encryption for
+all of Nomad's protocols. RPC and HTTP communication is secured with mTLS.
+Nomad servers also communicate with a gossip protocol, Serf, which is encrypted
+using symmetric encryption and preshared keys.
+
+To review Nomad uses two different encryption schemes for its traffic.
+
+- HTTP - Used to communicate between CLI and Nomad agents. Secured by mTLS.
+- RPC - Used to communicate between Nomad agents. Secured by mTLS.
+- Serf - Used to communicate between Nomad servers. Frequently referred to as
+  "gossip". Secured by a shared key.
+
+Use the [Enable TLS Encryption for Nomad][] guide to configure Nomad for mTLS
+and the [Enable Gossip Encryption for Nomad][] to configure gossip encryption
+using a pre-shared key.
+
+[enable tls encryption for nomad]: /nomad/docs/secure/traffic/tls
+[enable gossip encryption for nomad]: /nomad/docs/secure/traffic/gossip-encryption

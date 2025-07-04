@@ -1,0 +1,128 @@
+---
+layout: docs
+page_title: Access job logs for troubleshooting
+description: |-
+  Access logs of applications running in Nomad with the Nomad CLI or API.
+---
+
+# Access job logs for troubleshooting
+
+Viewing application logs is critical for debugging issues, examining performance
+problems, or even verifying the application started correctly. To make this
+as simple as possible, Nomad provides:
+
+- Job specification for [log rotation](/nomad/docs/job-specification/logs)
+- CLI command for [log viewing](/nomad/commands/alloc/logs)
+- API for programmatic [log access](/nomad/api-docs/client#stream-logs)
+
+This section will use the job named "docs", but
+these operations and command largely apply to all jobs in Nomad.
+
+As a reminder, here is the output of the run command from the previous example:
+
+```shell-session
+$ nomad job run docs.nomad.hcl
+==> Monitoring evaluation "42d788a3"
+    Evaluation triggered by job "docs"
+    Allocation "04d9627d" created: node "a1f934c9", group "example"
+    Allocation "e7b8d4f5" created: node "012ea79b", group "example"
+    Allocation "5cbf23a1" modified: node "1e1aa1e0", group "example"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "42d788a3" finished with status "complete"
+```
+
+The provided allocation ID (which is also available via the `nomad status`
+command) is required to access the application's logs. To access the logs of our
+application, issue the following command:
+
+```shell-session
+$ nomad alloc logs 04d9627d
+```
+
+The output will look something like this:
+
+```plaintext
+<timestamp> 10.1.1.196:5678 10.1.1.196:33407 "GET / HTTP/1.1" 200 12 "curl/7.35.0" 21.809µs
+<timestamp> 10.1.1.196:5678 10.1.1.196:33408 "GET / HTTP/1.1" 200 12 "curl/7.35.0" 20.241µs
+<timestamp> 10.1.1.196:5678 10.1.1.196:33409 "GET / HTTP/1.1" 200 12 "curl/7.35.0" 13.629µs
+```
+
+By default, this will return the logs of the task. If more than one task is
+defined in the job file, the name of the task is a required argument:
+
+```shell-session
+$ nomad alloc logs 04d9627d server
+```
+
+The logs command supports both displaying the logs as well as following logs,
+blocking for more output, similar to `tail -f`. To follow the logs, use the
+appropriately named `-f` flag:
+
+```shell-session
+$ nomad alloc logs -f 04d9627d
+```
+
+This will stream logs to your console.
+
+If you are only interested in the "tail" of the log, use the `-tail` and `-n`
+flags:
+
+```shell-session
+$ nomad alloc logs -tail -n 25 04d9627d
+```
+
+This will show the last 25 lines. If you omit the `-n` flag, `-tail` will
+default to 10 lines.
+
+By default, only the logs on stdout are displayed. To show the log output from
+stderr, use the `-stderr` flag:
+
+```shell-session
+$ nomad alloc logs -stderr 04d9627d
+```
+
+## Consider the "log shipper" pattern
+
+While the logs command works well for quickly accessing application logs, it
+generally does not scale to large systems or systems that produce a lot of log
+output, especially for the long-term storage of logs. Nomad's retention of log
+files is best effort, so chatty applications should use a better log retention
+strategy.
+
+Since applications log to the `alloc/` directory, all tasks within the same task
+group have access to each others logs. Thus it is possible to have a task group
+as follows:
+
+```hcl
+group "my-group" {
+  task "server" {
+    # ...
+
+    # Setting the server task as the leader of the task group allows Nomad to
+    # signal the log shipper task to gracefully shutdown when the server exits.
+    leader = true
+  }
+
+  task "log-shipper" {
+    # ...
+  }
+}
+```
+
+In the above example, the `server` task is the application that should be run
+and will be producing the logs. The `log-shipper` reads those logs from the
+`alloc/logs/` directory and sends them to a longer-term storage solution such as
+Amazon S3 or an internal log aggregation system.
+
+When using the log shipper pattern, especially for batch jobs, the main task
+should be marked as the [leader task]. By marking the main task as a leader,
+when the task completes all other tasks within the group will be gracefully
+shutdown. This allows the log shipper to finish sending any logs and then
+exiting itself. The log shipper should set a high enough [`kill_timeout`] such
+that it can ship any remaining logs before exiting.
+
+[log rotation]: /nomad/docs/job-specification/logs
+[log viewing]: /nomad/commands/alloc/logs
+[log access]: /nomad/api-docs/client#stream-logs
+[leader task]: /nomad/docs/job-specification/task#leader
+[`kill_timeout`]: /nomad/docs/job-specification/task#kill_timeout

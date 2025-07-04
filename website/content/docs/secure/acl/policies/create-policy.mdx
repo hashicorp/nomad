@@ -1,0 +1,444 @@
+---
+layout: docs
+page_title: Create ACL policies
+description: |-
+  Create and deploy Nomad ACL policies for application developers and production operators to implement the principle of least privilege.
+---
+
+# Create ACL policies
+
+In this guide, you will create Nomad ACL policies to provide controlled
+access for two different personas to your Nomad Cluster. You will use the sample
+job created with the `nomad init -short` command as a sample job.
+
+To complete this guide, you will need the following:
+
+- A Nomad cluster with the ACL system bootstrapped.
+
+- A management token. You can use the bootstrap token, however, for production
+  systems you should use an user-specific token.
+
+## Meet the personas
+
+In this guide, you will create policies to manage cluster access for two
+different user personas. These are contrived to suit the scenario, and
+you should design your ACL policies around your organization's specific needs.
+
+As a best practice, access should be limited as much as possible given the needs
+of the user's roles.
+
+<Tip title="Challenge">
+
+ Consider extending this scenario to include namespaces.
+
+</Tip>
+
+### Application Developer
+
+The application developer needs to be able to deploy an application into the
+Nomad cluster and control its lifecycle. They should not be able to perform any
+other node operations.
+
+Application developers are allowed to fetch logs from their running containers,
+but should not be allowed to run commands inside of them or access the filesystem for running workloads.
+
+### Production Operations
+
+The production operations team needs to be able to perform cluster
+maintenance and view the workload, including attached resources like
+volumes, in the running cluster. However, because the application
+developers are the owners of the running workload, the production
+operators should not be allowed to run or stop jobs in the cluster.
+
+## Write the policy rules
+
+### Application Developer policy
+
+Considering the requirements listed above, what rules should you add to your
+policy? Nomad will deny all requests that are not explicitly permitted, so focus
+on the policies and capabilities you would like to permit. However, be mindful
+of the coarse-grained permissions in `namespace` rules--they might grant more
+permissions than you need for your use case.
+
+> The application developer needs to be able to deploy an application into the Nomad cluster and control its lifecycle. They should not be able to perform any other node operations.
+
+> Application developers are allowed to fetch logs from their running containers, but should not be allowed to run commands inside of them or access the filesystem for running workloads.
+
+Recall that [`namespace` rules] govern the job application deployment behaviors
+and introspection capabilities for a Nomad cluster.
+
+First define the policy in terms of required capabilities. What capabilities
+from the available options will this policy need to provide to Application
+Developers?
+
+| Capability                                                                                                                                            | Desired |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **deny** - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.                                | N/A     |
+| **list-jobs** - Allows listing the jobs and seeing coarse grain status.                                                                               | ✅      |
+| **read-job** - Allows inspecting a job and seeing fine grain status.                                                                                  | ✅      |
+| **submit-job** - Allows jobs to be submitted or modified.                                                                                             | ✅      |
+| **dispatch-job** - Allows jobs to be dispatched                                                                                                       | ✅      |
+| **read-logs** - Allows the logs associated with a job to be viewed.                                                                                   | ✅      |
+| **read-fs** - Allows the filesystem of allocations associated to be viewed.                                                                           | 🚫      |
+| **alloc-exec** - Allows an operator to connect and run commands in running allocations.                                                               | 🚫      |
+| **alloc-node-exec** - Allows an operator to connect and run commands in allocations running without filesystem isolation, for example, raw_exec jobs. | 🚫      |
+| **alloc-lifecycle** - Allows an operator to stop individual allocations manually.                                                                     | 🚫      |
+| **csi-register-plugin** - Allows jobs to be submitted that register themselves as CSI plugins.                                                        | 🚫      |
+| **csi-write-volume** - Allows CSI volumes to be registered or deregistered.                                                                           | 🚫      |
+| **csi-read-volume** - Allows inspecting a CSI volume and seeing fine grain status.                                                                    | 🚫      |
+| **csi-list-volume** - Allows listing CSI volumes and seeing coarse grain status.                                                                      | 🚫      |
+| **csi-mount-volume** - Allows jobs to be submitted that claim a CSI volume.                                                                           | 🚫      |
+| **list-scaling-policies** - Allows listing scaling policies.                                                                                          | 🚫      |
+| **read-scaling-policy** - Allows inspecting a scaling policy.                                                                                         | 🚫      |
+| **read-job-scaling** - Allows inspecting the current scaling of a job.                                                                                | 🚫      |
+| **scale-job** - Allows scaling a job up or down.                                                                                                      | 🚫      |
+| **sentinel-override** - Allows soft mandatory policies to be overridden.                                                                              | 🚫      |
+
+Remember that the coarse-grained `policy` value of a namespace rule is a list of
+capabilities.
+
+
+| policy value | capabilities                                                                                                                                                                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deny`       | deny                                                                                                                                                                                                                                                            |
+| `read`       | list-jobs<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                     |
+| `write`      | list-jobs<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
+| `scale`      | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+| `list`       | (grants listing plugin metadata only)                                                                                                                                                                                                                           |
+
+
+
+Express this in policy form. Create an file named `app-dev.policy.hcl` to write
+your policy.
+
+```hcl
+namespace "default" {
+  policy       = "read"
+  capabilities = ["submit-job","dispatch-job","read-logs"]
+}
+```
+
+Note that the namespace rule has `policy = "read"`. The **write** policy is not
+suitable because it is overly permissive, granting "read-fs", "alloc-exec", and
+"alloc-lifecycle".
+
+### Production Operations policy
+
+Consider the requirements listed above, what rules should you add to your
+policy? Nomad will deny all requests that are not explicitly supplied, so focus
+on the policies you would like to permit.
+
+> The production operations team needs to be able to perform cluster maintenance and view the workload, including attached resources like volumes, in the running cluster. However, because the application developers are the owners of the running workload, the production operators should not be allowed to run or stop jobs in the cluster.
+
+Recall that [`namespace` rules] govern the job application deployment behaviors
+and introspection capabilities for a Nomad cluster.
+
+First define the policy in terms of required capabilities. What capabilities
+from the available options will this policy need to provide to Production
+Operators?
+
+| Capability                                                                                                                                            | Desired |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **deny** - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.                                | N/A     |
+| **list-jobs** - Allows listing the jobs and seeing coarse grain status.                                                                               | ✅      |
+| **read-job** - Allows inspecting a job and seeing fine grain status.                                                                                  | ✅      |
+| **submit-job** - Allows jobs to be submitted or modified.                                                                                             | 🚫      |
+| **dispatch-job** - Allows jobs to be dispatched                                                                                                       | 🚫      |
+| **read-logs** - Allows the logs associated with a job to be viewed.                                                                                   | 🚫      |
+| **read-fs** - Allows the filesystem of allocations associated to be viewed.                                                                           | 🚫      |
+| **alloc-exec** - Allows an operator to connect and run commands in running allocations.                                                               | 🚫      |
+| **alloc-node-exec** - Allows an operator to connect and run commands in allocations running without filesystem isolation, for example, raw_exec jobs. | 🚫      |
+| **alloc-lifecycle** - Allows an operator to stop individual allocations manually.                                                                     | 🚫      |
+| **csi-register-plugin** - Allows jobs to be submitted that register themselves as CSI plugins.                                                        | 🚫      |
+| **csi-write-volume** - Allows CSI volumes to be registered or deregistered.                                                                           | 🚫      |
+| **csi-read-volume** - Allows inspecting a CSI volume and seeing fine grain status.                                                                    | ✅      |
+| **csi-list-volume** - Allows listing CSI volumes and seeing coarse grain status.                                                                      | ✅      |
+| **csi-mount-volume** - Allows jobs to be submitted that claim a CSI volume.                                                                           | 🚫      |
+| **list-scaling-policies** - Allows listing scaling policies.                                                                                          | 🚫      |
+| **read-scaling-policy** - Allows inspecting a scaling policy.                                                                                         | 🚫      |
+| **read-job-scaling** - Allows inspecting the current scaling of a job.                                                                                | 🚫      |
+| **scale-job** - Allows scaling a job up or down.                                                                                                      | 🚫      |
+| **sentinel-override** - Allows soft mandatory policies to be overridden.                                                                              | 🚫      |
+
+Again, the coarse-grained `policy` value of a namespace rule is a list of
+capabilities.
+
+
+
+| policy value | capabilities                                                                                                                                                                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deny`       | deny                                                                                                                                                                                                                                                            |
+| `read`       | list-jobs<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                     |
+| `write`      | list-jobs<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
+| `scale`      | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+| `list`       | (grants listing plugin metadata only)                                                                                                                                                                                                                           |
+
+
+
+Express this in policy form. Create an file named `prod-ops.policy.hcl` to write
+your policy. The capabilities required over the Namespace API is captured with
+the `read` policy value.
+
+```hcl
+namespace "default" {
+  policy = "read"
+}
+```
+
+Operators will also need to have access to several other API endpoints: node,
+agent, operator. Consult the individual API documentation for more details on
+the endpoints.
+
+```hcl
+node {
+  policy = "write"
+}
+
+agent {
+  policy = "write"
+}
+
+operator {
+  policy = "write"
+}
+
+plugin {
+  policy = "list"
+}
+```
+
+Add all of these policy elements to your `prod-ops.policy.hcl` file and save it.
+
+## Upload the policies
+
+Use the `nomad acl policy apply` command to upload your policy specifications.
+Don't forget to provide a management token via the NOMAD_TOKEN environment
+variable or the `-token` flag. As practice, this time use the `-token` flag.
+
+Upload the "Application Developer policy."
+
+```shell-session
+$ nomad acl policy apply -description "Application Developer policy" app-dev app-dev.policy.hcl
+Successfully wrote "app-dev" ACL policy!
+```
+
+Upload the "Production Operations policy."
+
+```shell-session
+$ nomad acl policy apply -description "Production Operations policy" prod-ops prod-ops.policy.hcl
+Successfully wrote "prod-ops" ACL policy!
+```
+
+## Verify the policy
+
+In order to verify the policy works properly, you will need to create tokens and
+check the success case and the failure cases.
+
+Create an app-dev token. For this guide, pipe your output into the tee command
+to save it as `app-dev.token`.
+
+```shell-session
+$ nomad acl token create -name="Test app-dev token" -policy=app-dev -type=client | tee app-dev.token
+Accessor ID  = b8c67cb8-cc3b-2a7c-182a-0bc5dfc3a6ff
+Secret ID    = 17cadb8b-e8a8-2f47-db62-fea0c6a19602
+Name         = Test app-dev token
+Type         = client
+Global       = false
+Policies     = [app-dev]
+Create Time  = 2020-02-10 18:41:43.049735 +0000 UTC
+Create Index = 14
+Modify Index = 14
+```
+
+Next, create a prod-ops token, piping your output into the tee command to save
+it as `prod-ops.token`.
+
+```shell-session
+$ nomad acl token create -name="Test prod-ops token" -policy=prod-ops -type=client | tee prod-ops.token
+Accessor ID  = 4e3c1ac7-52d0-6c68-94a2-5e75f17e657e
+Secret ID    = 0be3c623-cc90-3645-c29d-5f0629084f68
+Name         = Test prod-ops token
+Type         = client
+Global       = false
+Policies     = [prod-ops]
+Create Time  = 2020-02-10 18:41:53.851133 +0000 UTC
+Create Index = 15
+Modify Index = 15
+```
+
+### Submit a job using each token
+
+First, set the active token to your test app-dev token. You can extract it from
+the files that you created above.
+
+```shell-session
+$ export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' app-dev.token)
+```
+
+Create the sample job with `nomad init`.
+
+```shell-session
+$ nomad init
+```
+
+Submit the sample job to your Nomad cluster.
+
+```shell-session
+$ nomad job run example.nomad.hcl
+==> Monitoring evaluation "0acad62d"
+    Evaluation triggered by job "example"
+    Allocation "8b54bf75" created: node "afcb4e20", group "cache"
+    Evaluation within deployment: "63bbb604"
+    Allocation "8b54bf75" status changed: "pending" -> "running" (Tasks are running)
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "0acad62d" finished with status "complete"
+```
+
+Verify that the job starts completely using the `nomad job status` command.
+
+```shell-session
+$ nomad job status example
+ID            = example
+Name          = example
+Submit Date   = 2020-02-10T13:42:17-05:00
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         1        0       0         0
+
+Latest Deployment
+ID          = 63bbb604
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+cache       1        1       0        0          2020-02-10T13:52:17-05:00
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+8b54bf75  afcb4e20  cache       0        run      running  26s ago  25s ago
+```
+
+Switch to the prod-ops token.
+
+```shell-session
+$ export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' prod-ops.token)
+```
+
+Try to stop the job; note that you are unable to do so.
+
+```shell-session
+$ nomad stop example
+Error deregistering job: Unexpected response code: 403 (Permission denied)
+```
+
+Switch back to the app-dev token.
+
+```shell-session
+$ export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' app-dev.token)
+
+$ nomad stop example
+==> Monitoring evaluation "2571f9f9"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "63bbb604"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "2571f9f9" finished with status "complete"
+```
+
+Try again to stop the job; note that this time you are successful.
+
+```shell-session
+$ nomad stop example
+==> Monitoring evaluation "2571f9f9"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "63bbb604"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "2571f9f9" finished with status "complete"
+```
+
+### Stimulate GC on your cluster
+
+With the app-dev token still active, export your cluster address into a variable for convenience.
+
+```shell-session
+$ export NOMAD_ADDR=http://localhost:4646
+```
+
+Try to use the Nodes API to list out the Nomad clients in the cluster.
+
+```shell-session
+$ curl --header "X-Nomad-Token: ${NOMAD_TOKEN}" ${NOMAD_ADDR}/v1/nodes
+Permission denied
+```
+
+Set the active token to your test prod-ops token.
+
+```shell-session
+$ export NOMAD_TOKEN=$(awk '/Secret/ {print $4}' prod-ops.token)
+```
+
+Resubmit your Nodes API query. Expect to have a significant amount of JSON
+returned to your screen which indicates successful API call.
+
+```shell-session
+$ curl --header "X-Nomad-Token: ${NOMAD_TOKEN}" ${NOMAD_ADDR}/v1/nodes
+```
+
+## Challenge: Restrict anonymous users
+
+The bootstrapping guide provides a very permissive anonymous user policy to
+minimize user and workload impacts from Nomad's default deny-all policy. This
+allows cluster users and other submitting agents to continue to work while
+tokens are being created and deployed.
+
+As a challenge to yourself, consider the minimum viable set of permissions for
+anonymous users in your organization. Craft a policy that prevents user access
+to capabilities that are not in your user's critical path.
+
+## Clean up
+
+If you would like to remove the objects that you created in this guide, switch
+back to your management token and revoke the tokens that you created above using
+the accessors in the files.
+
+~> If you receive a "Permission denied" error when you are running the delete
+commands, ensure that you have loaded your management token back into the
+NOMAD_TOKEN environment variable.
+
+```shell-session
+$ nomad acl token delete $(awk '/Accessor/ {print $4}' prod-ops.token)
+Token 4e3c1ac7-52d0-6c68-94a2-5e75f17e657e successfully deleted
+```
+
+```shell-session
+$ nomad acl token delete $(awk '/Accessor/ {print $4}' app-dev.token)
+Token b8c67cb8-cc3b-2a7c-182a-0bc5dfc3a6ff successfully deleted
+```
+
+Next, remove the prod-ops and app-dev policies that you created.
+
+```shell-session
+$ nomad acl policy delete prod-ops
+Successfully deleted prod-ops policy!
+```
+
+```shell-session
+$ nomad acl policy delete app-dev
+Successfully deleted app-dev policy!
+```
+
+## Next steps
+
+Now that you have deployed your own policy into the cluster, you will learn
+about Nomad access tokens. Nomad users will need to provide tokens for
+non-anonymous requests. These tokens map to one or more ACL policies which
+define the accessible Nomad objects for that request.
+
+[`namespace` rules]: /nomad/docs/secure/acl/policies/#namespace-rules

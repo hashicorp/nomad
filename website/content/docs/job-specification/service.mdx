@@ -318,7 +318,7 @@ network {
 
 ### Using driver address mode
 
-The [Docker](/nomad/docs/drivers/docker#network_mode) driver supports the `driver`
+The [Docker](/nomad/docs/job-declare/task-driver/docker#network_mode) driver supports the `driver`
 setting for the `address_mode` parameter in both `service` and `check` blocks.
 The driver address mode allows advertising and health checking the IP and port
 assigned to a task by the driver. This way, if you're using a network plugin like
@@ -430,7 +430,7 @@ directly since Nomad isn't managing any port assignments.
 
 ### IPv6 Docker containers
 
-The [Docker](/nomad/docs/drivers/docker#advertise_ipv6_address) driver supports the
+The [Docker](/nomad/docs/job-declare/task-driver/docker#advertise_ipv6_address) driver supports the
 `advertise_ipv6_address` parameter in its configuration.
 
 Services will automatically advertise the IPv6 address when `advertise_ipv6_address`
@@ -536,10 +536,10 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [check_restart_block]: /nomad/docs/job-specification/check_restart
 [consul_grpc]: /consul/api-docs/agent/check#grpc
 [consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
-[service-discovery]: /nomad/docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
+[service-discovery]: /nomad/docs/networking/service-discovery 'Nomad Service Discovery'
+[interpolation]: /nomad/docs/reference/runtime-variable-interpolation 'Nomad Runtime Interpolation'
 [network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
-[qemu]: /nomad/docs/drivers/qemu 'Nomad QEMU Driver'
+[qemu]: /nomad/docs/job-declare/task-driver/qemu 'Nomad QEMU Driver'
 [restart_block]: /nomad/docs/job-specification/restart 'restart block'
 [connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
 [kind]: /consul/api-docs/agent/service#kind

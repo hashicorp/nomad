@@ -1,0 +1,317 @@
+---
+layout: docs
+page_title: Bootstrap the ACL system
+description: |-
+  Enable and bootstrap the Nomad ACL system, deploy an anonymous policy, and create replication tokens for other regions.
+---
+
+# Bootstrap the ACL system
+
+Bootstrapping ACLs on a new cluster requires a few steps, outlined below. For
+multi-region clusters, you will perform the bootstrapping process on the
+authoritative region and set up replication.
+
+## Enable ACLs on Nomad servers
+
+The APIs needed to manage policies and tokens are not enabled until ACLs are
+enabled. To begin, you need to enable the ACLs on the servers. If a multi-region
+setup is used, the authoritative region should be enabled first. For each
+server:
+
+1. Set the [`enabled` value] of the [`acl` stanza] to true. The `acl` stanza is a
+   top-level stanza.
+
+```hcl
+acl {
+  enabled = true
+}
+```
+
+### Configure for multiple regions
+
+For multi-region configurations, you will also need to perform additional
+configuration. The regions must be joined before bootstrapping ACLs.
+If the non-authoritative region was already using ACLs, any existing tokens
+in that region will stop working after federation as they will be overwritten by the authoritative region.
+
+#### Set the authoritative region
+
+For all clusters in a multi-region setup, set the [`authoritative_region`
+value] in the [`server` stanza]. Later, you'll set the [`replication_token`
+value] of the [`acl` stanza]. You will learn how to generate management tokens
+later in this guide.
+
+### Reload your Nomad configuration
+
+Take care to restart the servers one at a time and to ensure each server has
+joined and is operating correctly before restarting another. You can use the
+[`nomad server members` command] to verify that a server is up and ready to
+handle requests.
+
+## Bootstrap and deploy anonymous policy
+
+Once the ACL system is enabled, you need to generate the initial token. This
+first management token is used to bootstrap the system. Care should be taken not
+to lose all of your management tokens. If you do, you will need to re-bootstrap
+the ACL subsystem.
+
+<Warning>
+
+Bootstrapping the ACL subsystem will interrupt access to your
+cluster. Once the [`nomad acl bootstrap` command] is run, Nomad's
+default-deny policy will become enabled. You should have an acceptable anonymous
+policy prepared and ready to submit immediately after bootstrapping.
+
+</Warning>
+
+### Stage an anonymous policy
+
+When the ACL system is enabled, Nomad starts with a default deny-all policy. This means that by default, no permissions are granted. For clients making requests without ACL tokens, you may want to create a transitional anonymous policy to allow traffic to your cluster while you are generating and distributing tokens to your users. This is done by setting rules on the special "anonymous" policy.
+
+<Warning>
+
+The anonymous policy assigns permissions to all unauthenticated requests to Nomad. We recommend using tokens with specific policies rather than an overly permissive anonymous policy. This guide uses it for illustrative purposes.
+
+</Warning>
+
+Create a file named `anonymous.policy.hcl`, add this content to the file, and save the file. This policy allows read-only access.
+
+```hcl
+namespace "default" {
+  policy       = "read"
+  capabilities = ["list-jobs", "read-job"]
+}
+
+agent {
+  policy = "read"
+}
+
+operator {
+  policy = "read"
+}
+
+quota {
+  policy = "read"
+}
+
+node {
+  policy = "read"
+}
+
+host_volume "*" {
+  policy = "read"
+}
+```
+
+You can use this policy as a transitional anonymous policy, which will minimize time in which requests can not be submitted to the cluster once you bootstrap. Additional information is available for [node rules](/nomad/docs/other-specifications/acl-policy#node-rules), [agent rules](/nomad/docs/other-specifications/acl-policy#agent-rules), [operator rules](/nomad/docs/other-specifications/acl-policy#operator-rules), [quota rules](/nomad/docs/other-specifications/acl-policy#quota-rules), and [host volume rules](/nomad/docs/other-specifications/acl-policy#host-volume-rules).
+
+### Run the bootstrap command
+
+Once the ACL system is enabled, use the [`nomad acl bootstrap` command]:
+
+```shell-session
+$ nomad acl bootstrap
+Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
+Secret ID    = 9184ec35-65d4-9258-61e3-0c066d0a45c5
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 17:38:10.999089612 +0000 UTC
+Create Index = 7
+Modify Index = 7
+```
+
+Once the initial bootstrap is performed, it cannot be performed again unless the
+[reset] procedure is complete. Make sure to save this AccessorID and SecretID.
+The bootstrap token is a `management` type token, meaning it can perform any
+operation. It should be used to setup the ACL policies and create additional ACL
+tokens. The bootstrap token can be deleted and is like any other token, care
+should be taken to not revoke all management tokens.
+
+### Provide a CLI token
+
+If you attempt to run a command at this point without a token provided, you will
+encounter an error.
+
+```shell-session
+$ nomad status
+Error querying jobs: Unexpected response code: 403 (Permission denied)
+```
+
+Save the bootstrap token value to a file named `bootstrap.token`. Replace `BOOTSTRAP_SECRET_ID` in the following command with the Secret ID you received above.
+
+```shell-session
+$ echo "BOOTSTRAP_SECRET_ID" > bootstrap.token
+```
+
+Provide the token for CLI commands by setting the NOMAD_TOKEN environment variable to the bootstrap token value in the `bootstrap.token` file.
+
+```shell-session
+$ export NOMAD_TOKEN=$(cat bootstrap.token)
+```
+
+Run the [`nomad status` command]. It completes successfully because a token value is set.
+
+```shell-session
+$ nomad status
+No running jobs
+```
+
+### Deploy your anonymous policy
+
+Next, install the anonymous policy with the [`nomad acl policy apply` command].
+
+```shell-session
+$ nomad acl policy apply -description "Anonymous policy (full-access)" anonymous anonymous.policy.hcl
+Successfully wrote "anonymous" ACL policy!
+```
+
+Once this command has completed, requests to the cluster that do not present a token
+will use this policy.
+
+You can also use the Nomad API to submit policies as JSON objects. Consult the
+Nomad [`acl/policy` API] documentation for more information.
+
+#### Verify anonymous requests succeed
+
+Verify that the anonymous policy is performing as expected.
+
+Unset your NOMAD_TOKEN environment variable to send unauthenticated requests to your cluster.
+
+```shell-session
+$ unset NOMAD_TOKEN
+```
+
+Verify that the token is unset. This command returns an empty response.
+
+```shell-session
+$ echo ${NOMAD_TOKEN}
+
+```
+
+Check the status. This command succeeds without a token set because the anonymous policy has permissions to read job status.
+
+```shell-session
+$ nomad status
+No running jobs
+```
+
+### Delete the anonymous policy
+
+Once you have provided your users with tokens, you can update the anonymous
+policy to be more restrictive or delete it completely to deny all requests from unauthenticated users.
+
+Delete the anonymous policy. Set the `NOMAD_TOKEN` environment variable to the bootstrap token value again. This is necessary as the `nomad acl policy delete` command [requires the management token](/nomad/commands/acl/policy/delete).
+
+```shell-session
+$ export NOMAD_TOKEN=$(cat bootstrap.token)
+```
+
+Then, delete the anonymous policy.
+
+```shell-session
+$ nomad acl policy delete anonymous
+Successfully deleted anonymous policy!
+```
+
+## Enable ACLs on Nomad clients
+
+To enforce client endpoints, you need to enable ACLs on clients as well. Do this
+by setting the [`enabled` value] of the [`acl` stanza] to true. Once complete,
+restart the client to read in the new configuration.
+
+## Create management tokens for other regions
+
+Once you have bootstrapped ACLs on the servers of the authoritative region, you
+can create the replication tokens for all of the non-authoritative regions in a
+multi-region configuration. These tokens must be management-type tokens since
+they are used to communicate with ACL API in the authoritative region.
+
+Create the replication token with the [`nomad acl token create` command]. Don't
+forget to provide a management token via the NOMAD_TOKEN environment variable or
+the `-token` flag. As practice, this time use the `-token` flag:
+
+```shell-session
+$ nomad acl token create -type="management" -global=true \
+  -name="Cluster A Replication Token" \
+  -token="c999c4c2-6146-1bac-eb47-3958bbffe9d8"
+Accessor ID  = ec175d30-26ea-4a54-4850-45f833acece5
+Secret ID    = 9e2bb5ed-b3af-6bf3-5bbc-16dc684c5c31
+Name         = Cluster A Replication Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2020-01-08 21:12:43.32324673 +0000 UTC
+Create Index = 2916
+Modify Index = 2916
+```
+
+## Re-bootstrap ACL system
+
+If all management tokens are lost, it is possible to reset the ACL bootstrap so
+that it can be performed again. First, you need to determine the reset index
+with the bootstrap endpoint:
+
+```shell-session
+$ nomad acl bootstrap
+Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
+```
+
+The error message contains the `reset index`. To reset the ACL system, create
+a file named `acl-bootstrap-reset` containing the value of the "reset index".
+This file should be placed in the data directory of the leader node:
+
+```shell-session
+$ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
+```
+
+Once the reset file is in place, you can re-bootstrap the cluster:
+
+```shell-session
+$ nomad acl bootstrap
+Accessor ID  = 52d3353d-d7b9-d945-0591-1af608732b76
+Secret ID    = 4b0a41ca-6d32-1853-e64b-de0d347e4525
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 18:38:11.929089612 +0000 UTC
+Create Index = 11
+Modify Index = 11
+```
+
+If you attempt to bootstrap again you will get a mismatch on the reset index:
+
+```shell-session
+$ nomad acl bootstrap
+
+Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset index (specified 7, reset index: 11))
+```
+
+This is because the reset file is in place, but with the former index. The reset
+file can be deleted. However, if it is left behind, Nomad will not reset the
+bootstrap unless the file's contents match the actual reset index.
+
+## Next steps
+
+For a single cluster, the process is complete. For multi-region clusters, you
+can generate tokens local to each region to scope policies to a specific
+region, or use tokens with a Global scope so that you can submit jobs from any
+region to any other region.
+
+Now that you have learned about bootstrapping your Nomad cluster, you will learn
+more about how to create Nomad ACL policies.
+
+[`acl/policy` api]: /nomad/api-docs/acl/policies
+[`acl` stanza]: /nomad/docs/configuration/acl
+[`authoritative_region` value]: /nomad/docs/configuration/server#authoritative_region
+[`enabled` value]: /nomad/docs/configuration/acl#enabled
+[`nomad acl bootstrap` command]: /nomad/commands/acl/bootstrap
+[`nomad acl token create` command]: /nomad/commands/acl/token/create
+[`nomad server members` command]: /nomad/commands/server/members
+[`nomad status` command]: /nomad/commands/status
+[`replication_token` value]: /nomad/docs/configuration/acl#replication_token
+[`server` stanza]: /nomad/docs/configuration/server
+[reset]: /nomad/docs/secure/acl/bootstrap#re-bootstrap-acl-system
+[`nomad acl policy apply` command]: /nomad/commands/acl/policy/apply

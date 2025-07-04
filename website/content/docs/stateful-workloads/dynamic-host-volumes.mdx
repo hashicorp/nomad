@@ -1,0 +1,250 @@
+---
+layout: docs
+page_title: Use dynamic host volumes
+description: >-
+  Create, configure, and deploy a dynamic host volume. Run a Nomad job with a workload that uses the dynamic host volume for the persistent storage of application data.
+---
+
+# Use dynamic host volumes
+
+This page describes how to to create and configure a dynamic host volume and use
+it to persist application data.
+
+## Introduction
+
+Nomad dynamic host volumes manage storage for stateful workloads without
+requiring a restart of the Nomad nodes to apply configuration changes. They
+provide a workload-agnostic way to specify resources and work with the `exec`,
+`java`, and `docker` task drivers. You create dynamic host volumes via the CLI
+or API and then configure the job with the
+[`volume`](/nomad/docs/job-specification/volume) and
+[`volume_mount`](/nomad/docs/job-specification/volume_mount) blocks in the job
+specification.
+
+Refer to the [dynamic host volume
+specification][dhv_spec] for more information on specifying dynamic host
+volumes.
+
+## Requirements
+
+A Nomad cluster v1.10.0 or greater with the Docker task driver enabled.
+
+## Create the volume specification
+
+
+Create a file with the name `volume.hcl`, add the following content to it, and
+save the file.
+
+<CodeBlockConfig filename="volume.hcl">
+
+```hcl
+namespace = "default"
+name      = "example"
+type      = "host"
+
+# mkdir is the default built-in plugin
+plugin_id = "mkdir"
+
+# allows mounting by only one allocation at a time
+capability {
+  access_mode     = "single-node-single-writer"
+  attachment_mode = "file-system"
+}
+```
+
+</CodeBlockConfig>
+
+Create the volume.
+
+```shell-session
+$ nomad volume create ./volume.hcl
+==> Created host volume example with ID 02eb1d8e-945e-50ee-7640-68b92f622870
+  ✓ Host volume "02eb1d8e" ready
+
+    2025-01-21T14:56:35-05:00
+    ID        = 02eb1d8e-945e-50ee-7640-68b92f622870
+    Name      = example
+    Namespace = default
+    Plugin ID = mkdir
+    Node ID   = d87c86d7-d22b-f811-c329-09e263995e86
+    Node Pool = default
+    Capacity  = 0 B
+    State     = ready
+    Host Path = /run/nomad/dev/alloc_mounts/02eb1d8e-945e-50ee-7640-68b92f622870
+```
+
+Verify the volume was fingerprinted on the node with the node ID from the output.
+
+```shell-session
+$ nomad node status -verbose d87c86d7-d22b-f811-c329-09e263995e86
+...
+Host Volumes
+Name         ReadOnly  Source
+example      false     /run/nomad/dev/alloc_mounts/02eb1d8e-945e-50ee-7640-68b92f622870
+...
+```
+
+Set the volume ID as an environment variable.
+
+```shell-session
+$ VOLUME_ID=02eb1d8e-945e-50ee-7640-68b92f622870
+```
+
+## Create and run the job
+
+The following job specification mounts the volume with the name `example` from
+the dynamic host volume specification.
+
+Create a file with the name `example.nomad.hcl`, add the following content to
+it, and save the file.
+
+<CodeBlockConfig filename="example.nomad.hcl">
+
+```hcl
+job "example" {
+
+  group "group" {
+
+    # claim the dynamic host volume for the allocation
+    volume "groupvol" {
+      type            = "host"
+      source          = "example"
+      access_mode     = "single-node-single-writer"
+      attachment_mode = "file-system"
+    }
+
+    network {
+      port "www" {
+        to = 8001
+      }
+    }
+
+    task "task" {
+
+      driver = "docker"
+
+      config {
+        image   = "busybox:1"
+        command = "httpd"
+        args    = ["-vv", "-f", "-p", "8001", "-h", "/srv"]
+        ports   = ["www"]
+      }
+
+      # mount the claimed volume to the task
+      volume_mount {
+        volume      = "groupvol"
+        destination = "/srv"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+Run the job.
+
+```shell-session
+$ nomad run ./example.nomad.hcl
+```
+
+## Interact with the host volume
+
+Export the Allocation ID of the job into an environment variable with the name `ALLOC_ID`.
+
+```shell-session
+$ ALLOC_ID=$(nomad alloc status -t '{{ range . }}{{if eq .JobID "example"}}{{if eq .DesiredStatus "run"}}{{ .ID }}{{end}}{{end}}{{end}}')
+```
+
+Open a shell session in the allocation.
+
+```shell-session
+$ nomad alloc exec -job example /bin/sh
+```
+
+In the allocation's shell prompt, write a file to the mounted volume.
+
+```shell-session
+$ echo '<html>hello, world</html>' > /srv/index.html
+```
+
+Exit the allocation's shell session.
+
+```shell-session
+exit
+```
+
+Get the address of the HTTP server running in the allocation.
+
+```shell-session
+$ nomad alloc status $ALLOC_ID
+...
+Allocation Addresses (mode = "bridge"):
+Label  Dynamic  Address
+*www   yes      192.168.1.160:26512 -> 8001
+```
+
+
+Open the address in your web browser or use a tool like `curl` to see the change.
+
+```shell-session
+$ curl -s "http://192.168.1.160:26512"
+<html>hello, world</html>
+```
+
+## Reschedule the allocation
+
+Stop the allocation to force Nomad to reschedule it.
+
+```shell-session
+$ nomad alloc stop $ALLOC_ID
+```
+
+Open a shell session in the replacement allocation.
+
+```shell-session
+$ nomad alloc exec -job example /bin/sh
+```
+
+In the allocation's shell prompt, read the file previously written to the
+mounted volume.
+
+```shell-session
+$ cat /srv/index.html
+<html>hello, world</html>
+```
+
+Exit the allocation's shell session.
+
+```shell-session
+exit
+```
+
+## Clean up
+
+Stop the `example` job.
+
+```shell-session
+$ nomad job stop example
+```
+
+Delete the dynamic host volume.
+
+```shell-session
+$ nomad volume delete -type host $VOLUME_ID
+```
+
+## Next steps
+
+
+Refer to the following resources for more information on dynamic host volumes
+and related concepts.
+
+- [The Nomad Volume Specification][dhv_spec]
+- [The `nomad alloc exec` command][alloc_exec]
+
+[dhv_spec]: /nomad/docs/other-specifications/volume/host
+[config_static_host_vol]: /nomad/docs/configuration/client#host_volume-block
+[tutorial_static_host_vol]: /nomad/docs/stateful-workloads/static-host-volumes
+[tf]: https://github.com/hashicorp/nomad/tree/main/terraform#provision-a-nomad-cluster-in-the-cloud
+[alloc_exec]: /nomad/commands/alloc/exec

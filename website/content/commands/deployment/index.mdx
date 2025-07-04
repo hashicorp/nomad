@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'nomad deployment command reference'
+description: |
+  The `nomad deployment` command interacts with deployments. List deployments, fetch status, and promote canaries. Pause, resume, and fail deployments.
+---
+
+# `nomad deployment` command reference
+
+The `deployment` command is used to interact with deployments.
+
+## Usage
+
+Usage: `nomad deployment <subcommand> [options]`
+
+Run `nomad deployment <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`deployment fail`][fail] - Manually fail a deployment
+- [`deployment list`][list] - List all deployments
+- [`deployment pause`][pause] - Pause a deployment
+- [`deployment promote`][promote] - Promote canaries in a deployment
+- [`deployment resume`][resume] - Resume a paused deployment
+- [`deployment status`][status] - Display the status of a deployment
+
+[fail]: /nomad/commands/deployment/fail 'Manually fail a deployment'
+[list]: /nomad/commands/deployment/list 'List all deployments'
+[pause]: /nomad/commands/deployment/pause 'Pause a deployment'
+[promote]: /nomad/commands/deployment/promote 'Promote canaries in a deployment'
+[resume]: /nomad/commands/deployment/resume 'Resume a paused deployment'
+[status]: /nomad/commands/deployment/status 'Display the status of a deployment'

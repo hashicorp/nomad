@@ -1,0 +1,491 @@
+---
+layout: docs
+page_title: Configure the Docker task driver
+description: Nomad's Docker task driver lets you run Docker-based tasks in your jobs. Modify the Docker task driver plugin configuration. Learn about CPU, memory, filesystem IO, and security resource isolation as well as how Nomad handles dangling containers.
+---
+
+# Configure the Docker task driver
+
+Name: `docker`
+
+The `docker` driver provides a first-class Docker workflow on Nomad. The Docker
+driver handles downloading containers, mapping ports, and starting, watching,
+and cleaning up after containers.
+
+**Note:** If you are using Docker Desktop for Windows or MacOS, check
+[the FAQ][faq-win-mac].
+
+## Capabilities
+
+The `docker` driver implements the following capabilities:
+
+| Feature              | Implementation    |
+| -------------------- | ----------------- |
+| `nomad alloc signal` | true              |
+| `nomad alloc exec`   | true              |
+| filesystem isolation | image             |
+| network isolation    | host, group, task |
+| volume mounting      | all               |
+
+## Client Requirements
+
+Nomad requires Docker to be installed and running on the host alongside the
+Nomad agent.
+
+By default Nomad communicates with the Docker daemon using the daemon's Unix
+socket. Nomad will need to be able to read/write to this socket. If you do not
+run Nomad as root, make sure you add the Nomad user to the Docker group so
+Nomad can communicate with the Docker daemon.
+
+For example, on Ubuntu you can use the `usermod` command to add the `nomad`
+user to the `docker` group so you can run Nomad without root:
+
+```shell-session
+$ sudo usermod -G docker -a nomad
+```
+
+Nomad clients manage a cpuset cgroup for each task to reserve or share CPU
+[cores][]. In order for Nomad to be compatible with Docker's own cgroups
+management, it must write to cgroups owned by Docker, which requires running as
+root. If Nomad is not running as root, CPU isolation and NUMA-aware scheduling
+will not function correctly for workloads with `resources.cores`, including
+workloads using task drivers other than `docker` on the same host.
+
+For the best performance and security features you should use recent versions
+of the Linux Kernel and Docker daemon.
+
+If you would like to change any of the options related to the `docker` driver
+on a Nomad client, you can modify them with the [plugin block][plugin-block]
+syntax. Below is an example of a configuration (many of the values are the
+default). See the next section for more information on the options.
+
+```hcl
+plugin "docker" {
+  config {
+    endpoint = "unix:///var/run/docker.sock"
+
+    auth {
+      config = "/etc/docker-auth.json"
+      helper = "ecr-login"
+    }
+
+    tls {
+      cert = "/etc/nomad/nomad.pub"
+      key  = "/etc/nomad/nomad.pem"
+      ca   = "/etc/nomad/nomad.cert"
+    }
+
+    extra_labels = ["job_name", "job_id", "task_group_name", "task_name", "namespace", "node_name", "node_id"]
+
+    gc {
+      image       = true
+      image_delay = "3m"
+      container   = true
+
+      dangling_containers {
+        enabled        = true
+        dry_run        = false
+        period         = "5m"
+        creation_grace = "5m"
+      }
+    }
+
+    volumes {
+      enabled      = true
+      selinuxlabel = "z"
+    }
+
+    allow_privileged = false
+    allow_caps       = ["chown", "net_raw"]
+  }
+}
+```
+
+## Plugin Options
+
+- `endpoint` - If using a non-standard socket, HTTP or another location, or if
+  TLS is being used, docker.endpoint must be set. If unset, Nomad will attempt
+  to instantiate a Docker client using the `DOCKER_HOST` environment variable and
+  then fall back to the default listen address for the given operating system.
+  Defaults to `unix:///var/run/docker.sock` on Unix platforms and
+  `npipe:////./pipe/docker_engine` for Windows.
+
+- `allow_privileged` - Defaults to `false`. Changing this to true will allow
+  containers to use privileged mode, which gives the containers full access to
+  the host's devices. Note that you must set a similar setting on the Docker
+  daemon for this to work.
+
+- `pull_activity_timeout` - Defaults to `2m`. If Nomad receives no communication
+  from the Docker engine during an image pull within this timeframe, Nomad will
+  time out the request that initiated the pull command. (Minimum of `1m`)
+
+- `pids_limit` - Defaults to unlimited (`0`). An integer value that specifies
+  the pid limit for all the Docker containers running on that Nomad client. You
+  can override this limit by setting [`pids_limit`] in your task config. If
+  this value is greater than `0`, your task `pids_limit` must be less than or
+  equal to the value defined here.
+
+- `allow_caps` - A list of allowed Linux capabilities. Defaults to
+
+```hcl
+["audit_write", "chown", "dac_override", "fowner", "fsetid", "kill", "mknod",
+ "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
+```
+
+  which is the same list of capabilities allowed by [docker by
+  default][docker_caps] (without [`NET_RAW`][no_net_raw]). Allows the operator
+  to control which capabilities can be obtained by tasks using
+  [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports the value
+  `"all"` as a shortcut for allow-listing all capabilities supported by the
+  operating system. Note that due to a limitation in Docker, tasks running as
+  non-root users cannot expand the capabilities set beyond the default. They can
+  only have their capabilities reduced.
+
+!> **Warning:** Allowing more capabilities beyond the default may lead to
+undesirable consequences, including untrusted tasks being able to compromise the
+host system.
+
+- `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
+  docker runtimes a task may use.
+
+- `auth` block:
+
+  - `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
+    JSON file which is in the dockercfg format containing authentication
+    information for a private registry, from either (in order) `auths`,
+    `credsStore` or `credHelpers`.
+
+  - `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify a
+    [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
+    like script on `$PATH` to lookup authentication information from external
+    sources. The script's name must begin with `docker-credential-` and this
+    option should include only the basename of the script, not the path.
+
+    If you set an auth helper, it will be tried for all images, including
+    public images. If you mix private and public images, you will need to
+    include [`auth_soft_fail=true`] in every job using a public image.
+
+- `tls` block:
+
+  - `cert` - Path to the server's certificate file (`.pem`). Specify this
+    along with `key` and `ca` to use a TLS client to connect to the docker
+    daemon. `endpoint` must also be specified or this setting will be ignored.
+
+  - `key` - Path to the client's private key (`.pem`). Specify this along with
+    `cert` and `ca` to use a TLS client to connect to the docker daemon.
+    `endpoint` must also be specified or this setting will be ignored.
+
+  - `ca` - Path to the server's CA file (`.pem`). Specify this along with
+    `cert` and `key` to use a TLS client to connect to the docker daemon.
+    `endpoint` must also be specified or this setting will be ignored.
+
+- `disable_log_collection` - Defaults to `false`. Setting this to true will
+  disable Nomad logs collection of Docker tasks. If you don't rely on nomad log
+  capabilities and exclusively use host based log aggregation, you may consider
+  this option to disable nomad log collection overhead.
+
+- `extra_labels` - Extra labels to add to Docker containers.
+  Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
+  `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
+
+- `logging` block:
+
+  - `type` - Defaults to `"json-file"`. Specifies the logging driver docker
+    should use for all containers Nomad starts. Note that for older versions
+    of Docker, only `json-file` file or `journald` will allow Nomad to read
+    the driver's logs via the Docker API, and this will prevent commands such
+    as `nomad alloc logs` from functioning.
+
+  - `config` - Defaults to `{ max-file = "2", max-size = "2m" }`. This option
+    can also be used to pass further
+    [configuration](https://docs.docker.com/config/containers/logging/configure/)
+    to the logging driver.
+
+- `gc` block:
+
+  - `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
+    from removing images from stopped tasks.
+
+  - `image_delay` - A time duration, as [defined
+    here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
+    The delay controls how long Nomad will wait between an image being unused
+    and deleting it. If a task is received that uses the same image within
+    the delay, the image will be reused. If an image is referenced by more than
+    one tag, `image_delay` may not work correctly.
+
+  - `container` - Defaults to `true`. This option can be used to disable Nomad
+    from removing a container when the task exits. Under a name conflict,
+    Nomad may still remove the dead container.
+
+  - `dangling_containers` block for controlling dangling container detection
+    and cleanup:
+
+    - `enabled` - Defaults to `true`. Enables dangling container handling.
+
+    - `dry_run` - Defaults to `false`. Only log dangling containers without
+      cleaning them up.
+
+    - `period` - Defaults to `"5m"`. A time duration that controls interval
+      between Nomad scans for dangling containers.
+
+    - `creation_grace` - Defaults to `"5m"`. Grace period after a container is
+      created during which the GC ignores it. Only used to prevent the GC from
+      removing newly created containers before they are registered with the
+      GC. Should not need adjusting higher but may be adjusted lower to GC
+      more aggressively.
+
+- `volumes` block:
+
+  - `enabled` - Defaults to `false`. Allows tasks to bind host paths
+    (`volumes`) inside their container and use volume drivers
+    (`volume_driver`). Binding relative paths is always allowed and will be
+    resolved relative to the allocation's directory.
+
+  - `selinuxlabel` - Allows the operator to set a SELinux label to the
+    allocation and task local bind-mounts to containers. If used with
+    `docker.volumes.enabled` set to false, the labels will still be applied to
+    the standard binds in the container.
+
+- `infra_image` - This is the Docker image to use when creating the parent
+  container necessary when sharing network namespaces between tasks. Defaults to
+  `registry.k8s.io/pause-<goarch>:3.3`. The image will only be pulled from the
+  container registry if its tag is `latest` or the image doesn't yet exist
+  locally.
+
+- `infra_image_pull_timeout` - A time duration that controls how long Nomad will
+  wait before cancelling an in-progress pull of the Docker image as specified in
+  `infra_image`. Defaults to `"5m"`.
+
+- `image_pull_timeout` - (Optional) A default time duration that controls how long Nomad
+  waits before cancelling an in-progress pull of the Docker image as specified
+  in `image` across all tasks. Defaults to `"5m"`.
+
+- `windows_allow_insecure_container_admin` - Indicates that on windows, docker
+  checks the `task.user` field or, if unset, the container image manifest after
+  pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
+  with an error unless the task config has `privileged=true`. Defaults to `false`.
+
+## Client Configuration
+
+~> Note: client configuration options will soon be deprecated. Please use
+[plugin options][plugin-options] instead. See the [plugin block][plugin-block]
+documentation for more information.
+
+The `docker` driver has the following [client configuration
+options](/nomad/docs/configuration/client#options):
+
+- `docker.endpoint` - If using a non-standard socket, HTTP or another location,
+  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
+  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
+  variable and then fall back to the default listen address for the given
+  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
+  and `npipe:////./pipe/docker_engine` for Windows.
+
+- `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
+  JSON file which is in the dockercfg format containing authentication
+  information for a private registry, from either (in order) `auths`,
+  `credsStore` or `credHelpers`.
+
+- `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify a
+  [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
+  -like script on \$PATH to lookup authentication information from external
+  sources. The script's name must begin with `docker-credential-` and this
+  option should include only the basename of the script, not the path.
+
+- `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
+  this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
+  connect to the docker daemon. `docker.endpoint` must also be specified or this
+  setting will be ignored.
+
+- `docker.tls.key` - Path to the client's private key (`.pem`). Specify this
+  along with `docker.tls.cert` and `docker.tls.ca` to use a TLS client to
+  connect to the docker daemon. `docker.endpoint` must also be specified or this
+  setting will be ignored.
+
+- `docker.tls.ca` - Path to the server's CA file (`.pem`). Specify this along
+  with `docker.tls.cert` and `docker.tls.key` to use a TLS client to connect to
+  the docker daemon. `docker.endpoint` must also be specified or this setting
+  will be ignored.
+
+- `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
+  prevent Nomad from removing images from stopped tasks.
+
+- `docker.cleanup.image.delay` A time duration, as [defined
+  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
+  delay controls how long Nomad will wait between an image being unused and
+  deleting it. If a tasks is received that uses the same image within the delay,
+  the image will be reused.
+
+- `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
+  (`volumes`) inside their container and use volume drivers (`volume_driver`).
+  Binding relative paths is always allowed and will be resolved relative to the
+  allocation's directory.
+
+- `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux label to
+  the allocation and task local bind-mounts to containers. If used with
+  `docker.volumes.enabled` set to false, the labels will still be applied to the
+  standard binds in the container.
+
+- `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
+  allow containers to use `privileged` mode, which gives the containers full
+  access to the host's devices. Note that you must set a similar setting on the
+  Docker daemon for this to work.
+
+- `docker.caps.allowlist`: A list of allowed Linux capabilities. Defaults to
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP, SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of
+  capabilities allowed by docker by default, as [defined
+  here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by tasks
+  using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
+  shortcut for allowlisting all capabilities.
+
+- `docker.cleanup.container`: Defaults to `true`. This option can be used to
+  disable Nomad from removing a container when the task exits. Under a name
+  conflict, Nomad may still remove the dead container.
+
+- `docker.nvidia_runtime`: Defaults to `nvidia`. This option allows operators to select the runtime that should be used in order to expose Nvidia GPUs to the container.
+
+Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
+`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
+`docker.endpoint` is set Nomad will **only** read client configuration from the
+config file.
+
+An example is given below:
+
+```hcl
+client {
+  options {
+    "docker.cleanup.image" = "false"
+  }
+}
+```
+
+## Client Attributes
+
+The `docker` driver will set the following client attributes:
+
+- `driver.docker` - This will be set to "1", indicating the driver is
+  available.
+
+- `driver.docker.bridge_ip` - The IP of the Docker bridge network if one
+  exists.
+
+- `driver.docker.version` - This will be set to version of the docker server.
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Require docker version higher than 1.2.
+  constraint {
+    attribute = "${attr.driver.docker.version}"
+    operator  = ">"
+    version   = "1.2"
+  }
+}
+```
+
+## Resource Isolation
+
+### CPU
+
+Nomad limits containers' CPU based on CPU shares. CPU shares allow containers
+to burst past their CPU limits. CPU limits will only be imposed when there is
+contention for resources. When the host is under load your process may be
+throttled to stabilize QoS depending on how many shares it has. You can see how
+many CPU shares are available to your process by reading [`NOMAD_CPU_LIMIT`][runtime_env].
+1000 shares are approximately equal to 1 GHz.
+
+Please keep the implications of CPU shares in mind when you load test workloads
+on Nomad.
+
+If resources [`cores`][cores] is set, the task is given an isolated reserved set of
+CPU cores to make use of. The total set of cores the task may run on is the private
+set combined with the variable set of unreserved cores. The private set of CPU cores
+is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
+
+### Memory
+
+Nomad limits containers' memory usage based on total virtual memory. This means
+that containers scheduled by Nomad cannot use swap. This is to ensure that a
+swappy process does not degrade performance for other workloads on the same
+host.
+
+Since memory is not an elastic resource, you will need to make sure your
+container does not exceed the amount of memory allocated to it, or it will be
+terminated or crash when it tries to malloc. A process can inspect its memory
+limit by reading [`NOMAD_MEMORY_LIMIT`][runtime_env], but will need to track its own memory
+usage. Memory limit is expressed in megabytes so 1024 = 1 GB.
+
+### IO
+
+Nomad's Docker integration does not currently provide QoS around network or
+filesystem IO. These will be added in a later release.
+
+### Security
+
+Docker provides resource isolation by way of
+[cgroups and namespaces](https://docs.docker.com/introduction/understanding-docker/#the-underlying-technology).
+Containers essentially have a virtual file system all to themselves. If you
+need a higher degree of isolation between processes for security or other
+reasons, it is recommended to use full virtualization like
+[QEMU](/nomad/docs/job-declare/task-driver/qemu).
+
+## Caveats
+
+### Dangling Containers
+
+Nomad has a detector and a reaper for dangling Docker containers,
+containers that Nomad starts yet does not manage or track. Though rare, they
+lead to unexpectedly running services, potentially with stale versions.
+
+When Docker daemon becomes unavailable as Nomad starts a task, it is possible
+for Docker to successfully start the container but return a 500 error code from
+the API call. In such cases, Nomad retries and eventually aims to kill such
+containers. However, if the Docker Engine remains unhealthy, subsequent retries
+and stop attempts may still fail, and the started container becomes a dangling
+container that Nomad no longer manages.
+
+The newly added reaper periodically scans for such containers. It only targets
+containers with a `com.hashicorp.nomad.allocation_id` label, or match Nomad's
+conventions for naming and bind-mounts (i.e. `/alloc`, `/secrets`, `local`).
+Containers that don't match Nomad container patterns are left untouched.
+
+Operators can run the reaper in a dry-run mode, where it only logs dangling
+container ids without killing them, or disable it by setting the
+`gc.dangling_containers` config block.
+
+### Docker for Windows
+
+Docker for Windows only supports running Windows containers. Because Docker for
+Windows is relatively new and rapidly evolving you may want to consult the
+[list of relevant issues on GitHub][winissues].
+
+## Next steps
+
+[Use the Docker task driver in a job](/nomad/docs/job-declare/task-driver/docker).
+
+[faq-win-mac]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
+[winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
+[plugin-options]: #plugin-options
+[plugin-block]: /nomad/docs/configuration/plugin
+[allocation working directory]: /nomad/docs/reference/runtime-environment-settings#task-directories 'Task Directories'
+[`auth_soft_fail=true`]: /nomad/docs/job-declare/task-driver/docker#auth_soft_fail
+[cap_add]: /nomad/docs/job-declare/task-driver/docker#cap_add
+[cap_drop]: /nomad/docs/job-declare/task-driver/docker#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
+[tini]: https://github.com/krallin/tini
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[allow_caps]: /nomad/docs/job-declare/task-driver/docker#allow_caps
+[Connect]: /nomad/docs/job-specification/connect
+[`bridge`]: /nomad/docs/job-specification/network#bridge
+[network block]: /nomad/docs/job-specification/network#bridge-mode
+[`network.mode`]: /nomad/docs/job-specification/network#mode
+[`pids_limit`]: /nomad/docs/job-declare/task-driver/docker#pids_limit
+[Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
+[cores]: /nomad/docs/job-specification/resources#cores
+[runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables
+[`--cap-add`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`--cap-drop`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cores]: /nomad/docs/job-specification/resources#cores

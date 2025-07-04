@@ -1,0 +1,33 @@
+---
+layout: docs
+page_title: Advanced job scheduling
+description: >-
+  Discover the advanced scheduling features available to Nomad jobs including affinity and spread.
+---
+
+# Advanced job scheduling
+
+The Nomad [scheduler][scheduling] uses a bin-packing algorithm to optimize the
+resource utilization and density of applications in your Nomad cluster. Nomad
+0.9 adds new features to allow operators more fine-grained control over
+allocation placement. This enables use cases similar to the following:
+
+- Expressing preference for a certain class of nodes for a specific application
+  via the [affinity stanza][affinity-stanza].
+
+- Spreading allocations across a datacenter, rack or any other node attribute or
+  metadata with the [spread stanza][spread-stanza].
+
+Please refer to the tutorials below for using affinity and spread in Nomad 0.9.
+
+- [Preemption][preemption-guide]
+- [Affinity][affinity-guide]
+- [Spread][spread-guide]
+
+[affinity-guide]: /nomad/docs/job-scheduling/affinity
+[affinity-stanza]: /nomad/docs/job-specification/affinity
+[preemption-guide]: /nomad/docs/job-scheduling/preemption
+[preemption-stanza]: /nomad/docs/job-specification/spread
+[scheduling]: /nomad/docs/concepts/scheduling/how-scheduling-works
+[spread-guide]: /nomad/docs/job-scheduling/spread
+[spread-stanza]: /nomad/docs/job-specification/spread

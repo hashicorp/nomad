@@ -1,0 +1,172 @@
+---
+layout: docs
+page_title: Inspect the cluster
+description: |-
+  View the server and client nodes, inspect an individual server or client node,
+  list allocations, and review client events from the Nomad web UI.
+---
+
+# Inspect the cluster
+
+The Web UI can be a powerful tool for monitoring the state of the Nomad cluster
+from an operator's perspective. This includes showing all client nodes, showing
+driver health for client nodes, driver status, resource utilization, allocations
+by client node, and more.
+
+## View cluster clients
+
+From any page, the Clients List page can be accessed from the left-hand
+navigation bar. On narrow screens this navigation bar may need to be opened from
+the top-right menu button. The table lists every client in the cluster and is
+searchable, sortable, and filterable. Each client row in the table shows basic
+information, such as the Node ID, name, state, address, datacenter, and how many
+allocations are running in it.
+
+This view will also live-update as the states of client nodes change.
+
+[![Clients List][img-clients-list]][img-clients-list]
+
+## Filter the client view
+
+If your Nomad cluster has many client nodes, it can be useful to filter the list
+of all client nodes down to only those matching certain facets. The Web UI has
+three facets you can filter by:
+
+1. **Class:** The node of the client, including a dynamically generated list
+   based on the node class of each client node in the cluster.
+
+1. **State:** The state of the cluster, including Initializing, Ready, Down,
+   Ineligible, and Draining.
+
+1. **Datacenter:** The datacenter the client node is in, including a dynamically
+   generated list based on all the datacenters in the cluster.
+
+[![Clients filters][img-clients-filters]][img-clients-filters]
+
+## Inspect an individual client
+
+From the Clients List page, clicking a client node in the table will direct you
+to the Client Detail page for the client node. This page includes all
+information about the client node is live-updated to always present up-to-date
+information.
+
+[![Client Detail][img-client-detail]][img-client-detail]
+
+## Monitor resource utilization
+
+Nomad has APIs for reading point-in-time resource utilization metrics for client
+nodes. The Web UI uses these metrics to create time-series graphics for the
+current session.
+
+When viewing a client node, resource utilization will automatically start
+logging.
+
+[![Client Resource Utilization][img-client-resource-utilization]][img-client-resource-utilization]
+
+## List client allocations
+
+Allocations belong to jobs and are placed on client nodes. The Client Detail
+page will list all allocations for a client node, including completed, failed,
+and lost allocations, until they are garbage-collected.
+
+This is presented in a searchable table which can additionally be filtered to
+only preempted allocations.
+
+[![Client Allocations][img-client-allocations]][img-client-allocations]
+
+## Review client events
+
+Client nodes will also emit events on meaningful state changes, such as when the
+node becomes ready for scheduling or when a driver becomes unhealthy.
+
+[![Client Events][img-client-events]][img-client-events]
+
+## Check client driver status
+
+Task drivers are additional services running on a client node. Nomad will
+fingerprint and communicate with the task driver to determine if the driver is
+available and healthy. This information is reported through the Web UI on the
+Client Detail page.
+
+[![Client Driver Status][img-client-driver-status]][img-client-driver-status]
+
+## View client attributes
+
+In order to allow job authors to constrain the placement of their jobs, Nomad
+fingerprints the hardware of the node the client agent is running on. This is a
+deeply nested document of properties that the Web UI presents in a scannable
+way.
+
+In addition to the hardware attributes, Nomad operators can annotate a client
+node with [metadata] as part of the client configuration. This metadata is also
+presented on the Client Detail page.
+
+[![Client Attributes][img-client-attributes]][img-client-attributes]
+
+## Monitor a node drain
+
+A routine part of maintaining a Nomad cluster is draining nodes of allocations.
+This can be in preparation of performing operating system upgrades or
+decommissioning an old node in favor of a new VM.
+
+Drains are [performed from the CLI], but the status of a drain can be monitored
+from the Web UI. A client node will state if it is actively draining or
+ineligible for scheduling.
+
+Since drains can be configured in a variety of ways, the Client Detail page will
+also present the details of how the drain is performed.
+
+[![Client Drain][img-client-drain]][img-client-drain]
+
+## View cluster servers
+
+Whereas client nodes are used to run your jobs, server nodes are used to run
+Nomad and maintain availability. From any page, the Servers List page can be
+accessed from the left-hand navigation bar.
+
+The table lists every server node in your cluster. This will be a small list—
+[typically three or five].
+
+[![Servers List][img-servers-list]][img-servers-list]
+
+## Inspect an individual server
+
+Clicking a server node on the Servers List will expand the tags table for the
+server node.
+
+[![Server Detail][img-server-detail]][img-server-detail]
+
+## Secure the UI
+
+Depending on the size of your team and the details of you Nomad deployment, you
+may wish to control which features different internal users have access to. This
+includes limiting who has access to list and manage client nodes and list and
+manage server nodes. You can enforce this with Nomad's access control list
+system.
+
+By default, all features—read and write—are available to all users of the Web
+UI. Check out the [Securing the Web UI with ACLs] tutorial to learn how to prevent
+anonymous users from having write permissions as well as how to continue to use
+Web UI write features as a privileged user.
+
+## Continue your exploration
+
+Now that you have explored how to inspect the state of your cluster through the
+Nomad UI, you will next learn some considerations you should keep in mind when
+using the Nomad UI.
+
+[img-client-allocations]: /img/nomad/web-ui/guide-ui-img-client-allocations.png
+[img-client-attributes]: /img/nomad/web-ui/guide-ui-img-client-attributes.png
+[img-client-detail]: /img/nomad/web-ui/guide-ui-img-client-detail.png
+[img-client-drain]: /img/nomad/web-ui/guide-ui-img-client-drain.png
+[img-client-driver-status]: /img/nomad/web-ui/guide-ui-img-client-driver-status.png
+[img-client-events]: /img/nomad/web-ui/guide-ui-img-client-events.png
+[img-client-resource-utilization]: /img/nomad/web-ui/guide-ui-img-client-resource-utilization.png
+[img-clients-filters]: /img/nomad/web-ui/guide-ui-img-clients-filters.png
+[img-clients-list]: /img/nomad/web-ui/guide-ui-img-clients-list.png
+[img-server-detail]: /img/nomad/web-ui/guide-ui-img-server-detail.png
+[img-servers-list]: /img/nomad/web-ui/guide-ui-img-servers-list.png
+[metadata]: /nomad/docs/configuration/client#meta
+[performed from the cli]: /nomad/tutorials/manage-clusters/node-drain
+[securing the web ui with acls]: /nomad/tutorials/access-control
+[typically three or five]: /nomad/docs/architecture/consensus#deployment-table
