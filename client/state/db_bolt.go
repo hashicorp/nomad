@@ -140,6 +140,12 @@ var (
 	nodeRegistrationKey = []byte("node_registration")
 
 	hostVolBucket = []byte("host_volumes_to_create")
+
+	// nodeIdentityBucket and nodeIdentityBucketStateKey are used to persist
+	// the client identity and its state. Each client will only have a single
+	// identity, so we use a single key value for the storage.
+	nodeIdentityBucket         = []byte("node_identity")
+	nodeIdentityBucketStateKey = []byte("node_identity_state")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -1087,6 +1093,42 @@ func (s *BoltStateDB) DeleteDynamicHostVolume(id string) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return tx.Bucket(hostVolBucket).Delete([]byte(id))
 	})
+}
+
+// clientIdentity wraps the signed client identity so we can safely add more
+// state in the future without needing a new entry type.
+type clientIdentity struct {
+	SignedIdentity string
+}
+
+func (s *BoltStateDB) PutNodeIdentity(identity string) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(nodeIdentityBucket)
+		if err != nil {
+			return err
+		}
+
+		identityWrapper := clientIdentity{SignedIdentity: identity}
+
+		return b.Put(nodeIdentityBucketStateKey, &identityWrapper)
+	})
+}
+
+func (s *BoltStateDB) GetNodeIdentity() (string, error) {
+	var identityWrapper clientIdentity
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		b := tx.Bucket(nodeIdentityBucket)
+		if b == nil {
+			return nil
+		}
+		return b.Get(nodeIdentityBucketStateKey, &identityWrapper)
+	})
+
+	if boltdd.IsErrNotFound(err) {
+		return "", nil
+	}
+
+	return identityWrapper.SignedIdentity, err
 }
 
 // init initializes metadata entries in a newly created state database.
