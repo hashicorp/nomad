@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Add reconciler annotations to the output of the `eval status` command
+```

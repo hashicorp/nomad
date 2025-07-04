@@ -540,7 +540,9 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 // setStatus is used to update the status of the evaluation
 func setStatus(logger log.Logger, planner sstructs.Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
-	tgMetrics map[string]*structs.AllocMetric, status, desc string,
+	tgMetrics map[string]*structs.AllocMetric,
+	annotations *structs.PlanAnnotations,
+	status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
 
 	logger.Debug("setting eval status", "status", status)
@@ -558,6 +560,7 @@ func setStatus(logger log.Logger, planner sstructs.Planner,
 	if queuedAllocs != nil {
 		newEval.QueuedAllocations = queuedAllocs
 	}
+	newEval.PlanAnnotations = annotations
 
 	return planner.UpdateEval(newEval)
 }

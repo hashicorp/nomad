@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
 )
 
 type EvalStatusCommand struct {
@@ -257,6 +258,36 @@ func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs 
 		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
 		c.Ui.Output(formatRelatedEvalStubs(eval.RelatedEvals, length))
 	}
+	if eval.PlanAnnotations != nil {
+
+		if len(eval.PlanAnnotations.DesiredTGUpdates) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Reconciler Annotations[reset]"))
+			annotations := make([]string, len(eval.PlanAnnotations.DesiredTGUpdates)+1)
+			annotations[0] = "Task Group|Ignore|Place|Stop|Migrate|InPlace|Destructive|Canary|Preemptions"
+			i := 1
+			for tg, updates := range eval.PlanAnnotations.DesiredTGUpdates {
+				annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d|%d",
+					tg,
+					updates.Ignore,
+					updates.Place,
+					updates.Stop,
+					updates.Migrate,
+					updates.InPlaceUpdate,
+					updates.DestructiveUpdate,
+					updates.Canary,
+					updates.Preemptions,
+				)
+				i++
+			}
+			c.Ui.Output(columnize.SimpleFormat(annotations))
+		}
+
+		if len(eval.PlanAnnotations.PreemptedAllocs) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Preempted Allocations[reset]"))
+			allocsOut := formatPreemptedAllocListStubs(eval.PlanAnnotations.PreemptedAllocs, length)
+			c.Ui.Output(allocsOut)
+		}
+	}
 	if len(placedAllocs) > 0 {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Placed Allocations[reset]"))
 		allocsOut := formatAllocListStubs(placedAllocs, false, length)
@@ -322,4 +353,28 @@ func formatRelatedEvalStubs(evals []*api.EvaluationStub, length int) string {
 	}
 
 	return formatList(out)
+}
+
+// formatPreemptedAllocListStubs formats alloc stubs but assumes they don't all
+// belong to the same job, as is the case when allocs are preempted by another
+// job
+func formatPreemptedAllocListStubs(stubs []*api.AllocationListStub, uuidLength int) string {
+	allocs := make([]string, len(stubs)+1)
+	allocs[0] = "ID|Job ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+	for i, alloc := range stubs {
+		now := time.Now()
+		createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+		modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			limit(alloc.ID, uuidLength),
+			alloc.JobID,
+			limit(alloc.NodeID, uuidLength),
+			alloc.TaskGroup,
+			alloc.JobVersion,
+			alloc.DesiredStatus,
+			alloc.ClientStatus,
+			createTimePretty,
+			modTimePretty)
+	}
+	return formatList(allocs)
 }

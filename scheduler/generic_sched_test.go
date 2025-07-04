@@ -64,10 +64,12 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 	plan := h.Plans[0]
 
-	// Ensure the plan doesn't have annotations.
+	// Ensure the plan doesn't have annotations but the eval does
 	if plan.Annotations != nil {
 		t.Fatalf("expected no annotations")
 	}
+	must.SliceNotEmpty(t, h.Evals)
+	must.Eq(t, 10, h.Evals[0].PlanAnnotations.DesiredTGUpdates["web"].Place)
 
 	// Ensure the eval has no spawned blocked eval
 	if len(h.CreateEvals) != 0 {
