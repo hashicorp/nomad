@@ -1052,7 +1052,7 @@ host system.
   container necessary when sharing network namespaces between tasks. Defaults to
   `registry.k8s.io/pause-<goarch>:3.3`. The image will only be pulled from the
   container registry if its tag is `latest` or the image doesn't yet exist
-  locally.
+  locally. Not used when `nomad_native_networking` is set.
 
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
@@ -1066,6 +1066,37 @@ host system.
   checks the `task.user` field or, if unset, the container image manifest after
   pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
   with an error unless the task config has `privileged=true`. Defaults to `false`.
+
+- `nomad_native_networking` - Indicates that bridge networking should not use a
+  pause container but rather let nomad setup the network namespace like it does
+  for other drivers. This requires the configuration of a `nomad` runtime in the
+  docker configuration file (usually `/etc/docker/daemon.json`) like this:
+
+```json
+{
+  "runtimes": {
+    "nomad": {
+      "path": "/usr/bin/nomad",
+      "runtimeArgs": ["runcshim", "runc"]
+    },
+  }
+}
+```
+
+  If you wish for other runtimes (for instance `nvidia`) to also support the native
+  networking add further runtimes prefixed with `nomad-` that relay to the original
+  one:
+
+```
+{
+  "runtimes": {
+    "nomad-nvidia": {
+      "path": "/usr/bin/nomad",
+      "runtimeArgs": ["runcshim", "/usr/bin/nvidia-container-runtime"]
+    },
+  }
+}
+```
 
 ## Client Configuration
 
