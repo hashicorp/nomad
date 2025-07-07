@@ -143,11 +143,16 @@ func (s *StateStore) deleteHostVolumeTxn(txn *txn, index uint64, ns string, id s
 	if obj != nil {
 		vol := obj.(*structs.HostVolume)
 
-		allocs, err := s.AllocsByNodeTerminal(nil, vol.NodeID, false)
+		// we can't use AllocsByNodeTerminal because we only want to filter out
+		// allocs that are client-terminal, not server-terminal
+		allocs, err := s.AllocsByNode(nil, vol.NodeID)
 		if err != nil {
 			return fmt.Errorf("could not query allocs to check for host volume claims: %w", err)
 		}
 		for _, alloc := range allocs {
+			if alloc.ClientTerminalStatus() {
+				continue
+			}
 			for _, volClaim := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
 				if volClaim.Type == structs.VolumeTypeHost && volClaim.Name == vol.Name {
 					return fmt.Errorf("could not delete volume %s in use by alloc %s",
