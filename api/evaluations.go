@@ -116,6 +116,7 @@ type Evaluation struct {
 	BlockedEval          string
 	RelatedEvals         []*EvaluationStub
 	FailedTGAllocs       map[string]*AllocationMetric
+	PlanAnnotations      *PlanAnnotations
 	ClassEligibility     map[string]bool
 	EscapedComputedClass bool
 	QuotaLimitReached    string

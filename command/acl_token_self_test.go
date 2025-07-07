@@ -53,3 +53,34 @@ func TestACLTokenSelfCommand_ViaEnvVar(t *testing.T) {
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, mockToken.AccessorID)
 }
+
+func TestACLTokenSelfCommand_ViaFlag(t *testing.T) {
+	config := func(c *agent.Config) {
+		c.ACL.Enabled = true
+	}
+
+	srv, _, url := testServer(t, true, config)
+	defer srv.Shutdown()
+
+	state := srv.Agent.Server().State()
+
+	// Bootstrap an initial ACL token
+	token := srv.RootToken
+	must.NotNil(t, token)
+
+	ui := cli.NewMockUi()
+	cmd := &ACLTokenSelfCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a valid token
+	mockToken := mock.ACLToken()
+	mockToken.Policies = []string{acl.PolicyWrite}
+	mockToken.SetHash()
+	must.NoError(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
+
+	// Fetch info on a token with a valid token
+	code := cmd.Run([]string{"-address=" + url, "-token=" + mockToken.SecretID})
+	must.Zero(t, code)
+
+	// Check the output
+	must.StrContains(t, ui.OutputWriter.String(), mockToken.AccessorID)
+}

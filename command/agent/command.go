@@ -989,13 +989,14 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 
 	timeout := gracefulTimeout
 
-	config := c.agent.client.GetConfig()
-	if config == nil {
-		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
-	}
+	if c.agent.client != nil {
+		config := c.agent.client.GetConfig()
 
-	if config.Drain != nil && config.Drain.Deadline != 0 {
-		timeout += config.Drain.Deadline
+		if config == nil {
+			c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
+		} else if config.Drain != nil && config.Drain.Deadline != 0 {
+			timeout += config.Drain.Deadline
+		}
 	}
 
 	c.Ui.Output("Gracefully shutting down agent...")

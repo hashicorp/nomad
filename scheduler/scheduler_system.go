@@ -52,8 +52,9 @@ type SystemScheduler struct {
 	limitReached bool
 	nextEval     *structs.Evaluation
 
-	failedTGAllocs map[string]*structs.AllocMetric
-	queuedAllocs   map[string]int
+	failedTGAllocs  map[string]*structs.AllocMetric
+	queuedAllocs    map[string]int
+	planAnnotations *structs.PlanAnnotations
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -97,7 +98,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Verify the evaluation trigger reason is understood
 	if !s.canHandle(eval.TriggeredBy) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc,
 			s.queuedAllocs, "")
 	}
 
@@ -110,14 +112,16 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, "")
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "",
 		s.queuedAllocs, "")
 }
 
@@ -186,6 +190,9 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	// Submit the plan
+	if s.eval.AnnotatePlan {
+		s.plan.Annotations = s.planAnnotations
+	}
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
 	if err != nil {
@@ -260,7 +267,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
-	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", r))
+	if s.logger.IsDebug() {
+		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
+	}
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
@@ -296,10 +305,8 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
 	}
 
-	if s.eval.AnnotatePlan {
-		s.plan.Annotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
-		}
+	s.planAnnotations = &structs.PlanAnnotations{
+		DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
 	}
 
 	// Check if a rolling upgrade strategy is being used
@@ -413,9 +420,9 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 
 				// If we are annotating the plan, then decrement the desired
 				// placements based on whether the node meets the constraints
-				if s.eval.AnnotatePlan && s.plan.Annotations != nil &&
-					s.plan.Annotations.DesiredTGUpdates != nil {
-					desired := s.plan.Annotations.DesiredTGUpdates[tgName]
+				if s.planAnnotations != nil &&
+					s.planAnnotations.DesiredTGUpdates != nil {
+					desired := s.planAnnotations.DesiredTGUpdates[tgName]
 					desired.Place -= 1
 				}
 
@@ -509,10 +516,10 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 				s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
 				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
-				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
-					if s.plan.Annotations.DesiredTGUpdates != nil {
-						desired := s.plan.Annotations.DesiredTGUpdates[tgName]
+				if s.eval.AnnotatePlan && s.planAnnotations != nil {
+					s.planAnnotations.PreemptedAllocs = append(s.planAnnotations.PreemptedAllocs, stop.Stub(nil))
+					if s.planAnnotations.DesiredTGUpdates != nil {
+						desired := s.planAnnotations.DesiredTGUpdates[tgName]
 						desired.Preemptions += 1
 					}
 				}

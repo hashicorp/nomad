@@ -53,8 +53,10 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	must.Len(t, 1, h.Plans)
 	plan := h.Plans[0]
 
-	// Ensure the plan does not have annotations
+	// Ensure the plan does not have annotations but the eval does
 	must.Nil(t, plan.Annotations, must.Sprint("expected no annotations"))
+	must.SliceNotEmpty(t, h.Evals)
+	must.Eq(t, 10, h.Evals[0].PlanAnnotations.DesiredTGUpdates["web"].Place)
 
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
