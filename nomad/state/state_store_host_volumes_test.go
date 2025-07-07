@@ -149,6 +149,18 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.EqError(t, err, fmt.Sprintf(
 		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID))
 
+	alloc = alloc.Copy()
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	index++
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
+		index, []*structs.Allocation{alloc}))
+
+	index++
+	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
+	must.EqError(t, err, fmt.Sprintf(
+		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID),
+		must.Sprint("allocs must be client-terminal to delete their volumes"))
+
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[1].ID)
 	must.NoError(t, err)
 	vol, err = store.HostVolumeByID(nil, vols[1].Namespace, vols[1].ID, true)
