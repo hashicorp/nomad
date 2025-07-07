@@ -179,6 +179,7 @@ func genReconcilerState(idg *idGenerator, job *structs.Job, clusterState Cluster
 	return rapid.Custom(func(t *rapid.T) ReconcilerState {
 		oldJob := job.Copy()
 		oldJob.Version--
+		oldJob.JobModifyIndex = 100
 		oldJob.CreateIndex = 100
 
 		currentAllocs := rapid.SliceOfN(
@@ -323,13 +324,14 @@ func genNode(idg *idGenerator) *rapid.Generator[*structs.Node] {
 func genJob(jobType string, idg *idGenerator) *rapid.Generator[*structs.Job] {
 	return rapid.Custom(func(t *rapid.T) *structs.Job {
 		return &structs.Job{
-			ID:          "jobID",
-			Name:        "jobID",
-			Type:        jobType,
-			TaskGroups:  rapid.SliceOfN(genTaskGroup(idg), 1, 3).Draw(t, "task_groups"),
-			Version:     3, // this gives us room to have older allocs
-			Stop:        weightedBool(30).Draw(t, "job_stopped"),
-			CreateIndex: 1000,
+			ID:             "jobID",
+			Name:           "jobID",
+			Type:           jobType,
+			TaskGroups:     rapid.SliceOfN(genTaskGroup(idg), 1, 3).Draw(t, "task_groups"),
+			Version:        3, // this gives us room to have older allocs
+			Stop:           weightedBool(30).Draw(t, "job_stopped"),
+			CreateIndex:    1000,
+			JobModifyIndex: 1000,
 		}
 	})
 }
@@ -403,6 +405,7 @@ func genExistingAlloc(idg *idGenerator, job *structs.Job, nodeID string, now tim
 			allocStates = append(allocStates, &structs.AllocState{
 				Field: structs.AllocStateFieldClientStatus,
 				Value: "unknown",
+				Time:  now.Add(time.Minute * time.Duration(-rapid.IntRange(0, 5).Draw(t, ""))),
 			})
 		}
 
