@@ -376,12 +376,6 @@ module.exports = [
     destination: '/nomad/docs/secure/workload-identity/aws-oidc-provider',
     permanent: true,
   },
-  // removed section index pages that had no meaningful content
-  {
-    source: '/nomad/docs/operations',
-    destination: '/nomad/docs',
-    permanent: true,
-  },
   {
     source: '/nomad/who-uses-nomad',
     destination: '/nomad/use-cases',
@@ -415,6 +409,22 @@ module.exports = [
   {
     source: '/nomad/docs/integrations/vault/:path*',
     destination: '/nomad/docs/secure/vault/:path*',
+    permanent: true,
+  },
+  // section index pages no longer in existence
+  {
+    source: '/nomad/docs/operations',
+    destination: '/nomad/docs',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations',
+    destination: '/nomad/docs',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts',
+    destination: '/nomad/docs',
     permanent: true,
   },
 ]
