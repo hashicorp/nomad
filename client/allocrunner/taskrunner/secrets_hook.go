@@ -173,7 +173,11 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 				providers = append(providers, p)
 			}
 		case "vault":
-			// Unimplemented
+			if p, err := secrets.NewVaultProvider(s, tmplPath); err != nil {
+				multierror.Append(mErr, err)
+			} else {
+				providers = append(providers, p)
+			}
 		default:
 			multierror.Append(mErr, fmt.Errorf("unknown secret provider type: %s", s.Provider))
 		}
