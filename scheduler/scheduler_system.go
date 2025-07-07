@@ -440,6 +440,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = s.nodesByDC
 			s.ctx.Metrics().NodesInPool = len(s.nodes)
+			s.ctx.Metrics().NodePool = s.job.NodePool
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
