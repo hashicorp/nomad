@@ -150,6 +150,22 @@ func TestEvalStatusCommand_Format(t *testing.T) {
 			CoalescedFailures: 0,
 			ScoreMetaData:     []*api.NodeScoreMeta{},
 		}},
+		PlanAnnotations: &api.PlanAnnotations{
+			DesiredTGUpdates: map[string]*api.DesiredUpdates{"web": {Place: 10}},
+			PreemptedAllocs: []*api.AllocationListStub{
+				{
+					ID:            uuid.Generate(),
+					JobID:         "another",
+					NodeID:        uuid.Generate(),
+					TaskGroup:     "db",
+					DesiredStatus: "evict",
+					JobVersion:    3,
+					ClientStatus:  "complete",
+					CreateTime:    now.Add(-10 * time.Minute).UnixNano(),
+					ModifyTime:    now.Add(-2 * time.Second).UnixNano(),
+				},
+			},
+		},
 		ClassEligibility:     map[string]bool{},
 		EscapedComputedClass: true,
 		QuotaLimitReached:    "",
@@ -207,4 +223,6 @@ Task Group "web" (failed to place 1 allocation):
 
 	must.StrContains(t, out, `Related Evaluations`)
 	must.StrContains(t, out, `Placed Allocations`)
+	must.StrContains(t, out, `Reconciler Annotations`)
+	must.StrContains(t, out, `Preempted Allocations`)
 }
