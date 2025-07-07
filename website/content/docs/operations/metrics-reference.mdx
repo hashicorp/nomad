@@ -528,9 +528,16 @@ Raft database metrics are emitted by the `raft-boltdb` library.
 
 Agent metrics are emitted by all Nomad agents running in either client or server mode.
 
-| Metric                                    | Description                                           | Unit        | Type    |
-| ----------------------------------------- | ----------------------------------------------------- | ----------- | ------- |
-| `nomad.agent.http.exceeded`               | Count of HTTP connections exceeding concurrency limit | Integer     | Counter |
+| Metric                                        | Description                                            | Unit    | Type    | Labels |
+|-----------------------------------------------|--------------------------------------------------------|---------|---------|--------|
+| `nomad.agent.http.exceeded`                   | Count of HTTP connections exceeding concurrency limit  | Integer | Counter | -      |
+| `nomad.client.consul.check_deregistrations`   | Number of Consul check deregistration operations       | Integer | Counter | host   |
+| `nomad.client.consul.check_registrations`     | Number of Consul check registration operations         | Integer | Counter | host   |
+| `nomad.client.consul.checks`                  | Number of Consul checks currently registered           | Integer | Gauge   | host   |
+| `nomad.client.consul.service_deregistrations` | Number of Consul service deregistration operations     | Integer | Counter | host   |
+| `nomad.client.consul.service_registrations`   | Number of Consul service registration operations       | Integer | Counter | host   |
+| `nomad.client.consul.services`                | Number of Consul services currently registered         | Integer | Gauge   | host   |
+| `nomad.client.consul.sync_failure`            | Number of failed attempts to sync services with Consul | Integer | Counter | host   |
 
 [tagged-metrics]: /nomad/docs/operations/metrics-reference#tagged-metrics
 [sticky]: /nomad/docs/job-specification/ephemeral_disk#sticky
