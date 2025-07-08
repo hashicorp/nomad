@@ -33,9 +33,8 @@ if [ -d "$PREVIEW_DIR" ]; then
 fi
 
 # Clone the base project, if needed
-echo "⏳ Cloning the $REPO_TO_CLONE repo ce871-NomadIA, this might take a while..."
-# temporarily checkout out the modified dev-portal branch with nomad ia changes
-git clone --depth=1 --branch ce871-NomadIA "https://github.com/hashicorp/$REPO_TO_CLONE.git" "$CLONE_DIR"
+echo "⏳ Cloning the $REPO_TO_CLONE repo, this might take a while..."
+git clone --depth=1 "https://github.com/hashicorp/$REPO_TO_CLONE.git" "$CLONE_DIR"
 
 if [ "$from_cache" = true ]; then
   echo "Setting up $PREVIEW_DIR"
