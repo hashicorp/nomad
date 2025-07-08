@@ -1569,6 +1569,12 @@ func (c *Client) setupNode() error {
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
 		node.NodeResources.Processors = newConfig.Node.NodeResources.Processors
+
+		if node.NodeResources.Processors.Empty() {
+			node.NodeResources.Processors = structs.NodeProcessorResources{
+				Topology: &numalib.Topology{},
+			}
+		}
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}

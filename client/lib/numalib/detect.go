@@ -18,7 +18,7 @@ type SystemScanner interface {
 // a single Topology, which can then be used to answer questions about the CPU
 // topology of the system.
 func Scan(scanners []SystemScanner) *Topology {
-	top := new(Topology)
+	top := &Topology{}
 	for _, scanner := range scanners {
 		scanner.ScanSystem(top)
 	}
