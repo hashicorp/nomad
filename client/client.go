@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -333,6 +334,11 @@ type Client struct {
 
 	// users is a pool of dynamic workload users
 	users dynamic.Pool
+
+	// identity is the node identity token that has been generated and signed by
+	// the servers. This is used to authenticate the client to the servers when
+	// performing RPC calls.
+	identity atomic.Value
 }
 
 var (
@@ -395,6 +401,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
+		identity:             atomic.Value{},
 	}
 
 	// we can't have this set in the default Config because of import cycles
@@ -602,6 +609,23 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	case <-c.fpInitialized:
 	case <-time.After(batchFirstFingerprintsProcessingGrace):
 		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
+	}
+
+	// Attempt to pull the node identity from the state database. If the client
+	// is starting for the first time, this will be empty, so avoid an
+	// unnecessary set call to the client atomic. This needs to happen before we
+	// start heartbeating to avoid unnecessary identity generation and load on
+	// the Nomad servers.
+	//
+	// If the DB returns an error, it is more than likely that the full
+	// restoration will fail. It isn't terminal for us at this point though, as
+	// we can generate a new identity on registration.
+	clientIdentity, err := c.stateDB.GetNodeIdentity()
+	if err != nil {
+		logger.Error("failed to get client identity from state", "error", err)
+	}
+	if clientIdentity != "" {
+		c.setNodeIdentityToken(clientIdentity)
 	}
 
 	// Register and then start heartbeating to the servers.
@@ -903,9 +927,55 @@ func (c *Client) NodeID() string {
 	return c.GetConfig().Node.ID
 }
 
-// secretNodeID returns the secret node ID for the given client
+// secretNodeID returns the secret node ID for the given client. This is no
+// longer used as the primary authentication method for Nomad clients. In fully
+// upgraded clusters, the node identity token is used instead. It will still be
+// used if the client has been upgraded, but the Nomad server has not. Most
+// callers should use the nodeAuthToken function instead of this as it correctly
+// handles both authentication token methods. There are some limited places
+// where the secret node ID is still used on the RPC request object such as
+// "Node.GetClientAllocs".
 func (c *Client) secretNodeID() string {
 	return c.GetConfig().Node.SecretID
+}
+
+// nodeAuthToken will return the authentication token for the client. This will
+// return the node identity token if it is set, otherwise it will return the
+// secret node ID.
+//
+// The callers of this should be moved to nodeIdentityToken in Nomad 1.13 when
+// all clients should be using the node identity token.
+func (c *Client) nodeAuthToken() string {
+	if nID := c.nodeIdentityToken(); nID != "" {
+		return nID
+	}
+	return c.secretNodeID()
+}
+
+// nodeIdentityToken returns the node identity token for the given client. If
+// the client is coming up for the first time, restarting, or is in a cluster
+// where the Nomad servers have not been upgraded to support the node identity,
+// this will be empty. Callers should use the nodeAuthToken function instead of
+// this as it correctly handles both authentication token methods.
+func (c *Client) nodeIdentityToken() string {
+	if v := c.identity.Load(); v != nil {
+		return v.(string)
+	}
+	return ""
+}
+
+// setNodeIdentityToken handles storing and updating all the client backend
+// processes with a new node identity token.
+func (c *Client) setNodeIdentityToken(token string) {
+
+	// Store the token on the client as the first step, so it's available for
+	// use by all RPCs immediately.
+	c.identity.Store(token)
+
+	// Update the Nomad service registration handler and workload identity
+	// signer processes.
+	assertAndSetNodeIdentityToken(c.nomadService, token)
+	assertAndSetNodeIdentityToken(c.widsigner, token)
 }
 
 // Shutdown is used to tear down the client
@@ -1954,7 +2024,7 @@ func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
 		NodeEvents: nodeEvents,
 		WriteRequest: structs.WriteRequest{
 			Region:    c.Region(),
-			AuthToken: c.secretNodeID(),
+			AuthToken: c.nodeAuthToken(),
 		},
 	}
 	var resp structs.EmitNodeEventsResponse
@@ -2053,7 +2123,7 @@ func (c *Client) getRegistrationToken() string {
 
 	select {
 	case <-c.registeredCh:
-		return c.secretNodeID()
+		return c.nodeAuthToken()
 	default:
 		// If we haven't yet closed the registeredCh we're either starting for
 		// the 1st time or we've just restarted. Check the local state to see if
@@ -2065,7 +2135,7 @@ func (c *Client) getRegistrationToken() string {
 		}
 		if registration != nil && registration.HasRegistered {
 			c.registeredOnce.Do(func() { close(c.registeredCh) })
-			return c.secretNodeID()
+			return c.nodeAuthToken()
 		}
 	}
 	return ""
@@ -2086,6 +2156,11 @@ func (c *Client) registerNode(authToken string) error {
 		return err
 	}
 
+	//
+	if err := c.handleNodeUpdateResponse(resp); err != nil {
+		return err
+	}
+
 	// Signal that we've registered once so that RPCs sent from the client can
 	// send authenticated requests. Persist this information in the state so
 	// that we don't block restoring running allocs when restarting while
@@ -2099,11 +2174,6 @@ func (c *Client) registerNode(authToken string) error {
 		}
 		close(c.registeredCh)
 	})
-
-	err := c.handleNodeUpdateResponse(resp)
-	if err != nil {
-		return err
-	}
 
 	// Update the node status to ready after we register.
 	c.UpdateConfig(func(c *config.Config) {
@@ -2131,7 +2201,7 @@ func (c *Client) updateNodeStatus() error {
 		Status: structs.NodeStatusReady,
 		WriteRequest: structs.WriteRequest{
 			Region:    c.Region(),
-			AuthToken: c.secretNodeID(),
+			AuthToken: c.nodeAuthToken(),
 		},
 	}
 	var resp structs.NodeUpdateResponse
@@ -2175,9 +2245,8 @@ func (c *Client) updateNodeStatus() error {
 		}
 	})
 
-	err := c.handleNodeUpdateResponse(resp)
-	if err != nil {
-		return fmt.Errorf("heartbeat response returned no valid servers")
+	if err := c.handleNodeUpdateResponse(resp); err != nil {
+		return fmt.Errorf("failed to handle node update response: %w", err)
 	}
 
 	// If there's no Leader in the response we may be talking to a partitioned
@@ -2194,6 +2263,20 @@ func (c *Client) handleNodeUpdateResponse(resp structs.NodeUpdateResponse) error
 	// Update the number of nodes in the cluster so we can adjust our server
 	// rebalance rate.
 	c.servers.SetNumNodes(resp.NumNodes)
+
+	// If the response includes a new identity, set it and save it to the state
+	// DB.
+	//
+	// In the unlikely event that we cannot write the identity to the state DB,
+	// we do not want to set the client identity token. That would mean the
+	// client memory state and persistent state DB are out of sync. Instead, we
+	// return an error and wait until the next heartbeat to try again.
+	if resp.SignedIdentity != nil {
+		if err := c.stateDB.PutNodeIdentity(*resp.SignedIdentity); err != nil {
+			return fmt.Errorf("error saving client identity: %w", err)
+		}
+		c.setNodeIdentityToken(*resp.SignedIdentity)
+	}
 
 	// Convert []*NodeServerInfo to []*servers.Server
 	nomadServers := make([]*servers.Server, 0, len(resp.Servers))
@@ -2277,7 +2360,7 @@ func (c *Client) allocSync() {
 				Alloc: toSync,
 				WriteRequest: structs.WriteRequest{
 					Region:    c.Region(),
-					AuthToken: c.secretNodeID(),
+					AuthToken: c.nodeAuthToken(),
 				},
 			}
 
@@ -2336,6 +2419,27 @@ type allocUpdates struct {
 
 // watchAllocations is used to scan for updates to allocations
 func (c *Client) watchAllocations(updates chan *allocUpdates) {
+
+	// The request object is generated as soon as this function is called, but
+	// the RPC can block on the register channel being closed. If we are
+	// starting for the first time and have not got our identity, the
+	// authentication token could be set to an empty string. This will result in
+	// a failed RPC when the call is unblocked.
+	//
+	// Although this will be quickly retried, we want to ensure that we do not
+	// throw errors into the logs or perform calls we know will fail if we can
+	// avoid it. Therefore, we wait for the registered channel to be closed,
+	// indicating the client has registered and has an identity token.
+	//
+	// This is a prevalent problem when the Nomad agent is run in development
+	// mode, as the server needs to start and have its encrypter ready, before
+	// it can generate identities.
+	select {
+	case <-c.shutdownCh:
+		return
+	case <-c.registeredCh:
+	}
+
 	// The request and response for getting the map of allocations that should
 	// be running on the Node to their AllocModifyIndex which is incremented
 	// when the allocation is updated by the servers.
@@ -2352,7 +2456,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			// After the first request, only require monotonically
 			// increasing state.
 			AllowStale: false,
-			AuthToken:  c.secretNodeID(),
+			AuthToken:  c.nodeAuthToken(),
 		},
 	}
 	var resp structs.NodeClientAllocsResponse
@@ -2363,7 +2467,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
 			AllowStale: true,
-			AuthToken:  c.secretNodeID(),
+			AuthToken:  c.nodeAuthToken(),
 		},
 	}
 	var allocsResp structs.AllocsGetResponse
@@ -2373,6 +2477,9 @@ OUTER:
 		// Get the allocation modify index map, blocking for updates. We will
 		// use this to determine exactly what allocations need to be downloaded
 		// in full.
+
+		req.AuthToken = c.nodeAuthToken()
+
 		resp = structs.NodeClientAllocsResponse{}
 		err := c.RPC("Node.GetClientAllocs", &req, &resp)
 		if err != nil {
@@ -2463,6 +2570,7 @@ OUTER:
 			// Pull the allocations that need to be updated.
 			allocsReq.AllocIDs = pull
 			allocsReq.MinQueryIndex = pullIndex - 1
+			allocsReq.AuthToken = c.nodeAuthToken()
 			allocsResp = structs.AllocsGetResponse{}
 			if err := c.RPC("Alloc.GetAllocs", &allocsReq, &allocsResp); err != nil {
 				c.logger.Error("error querying updated allocations", "error", err)
