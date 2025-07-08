@@ -128,7 +128,7 @@ type NodeProcessorResources struct {
 
 // partial struct serialization / copy / merge sadness means this struct can
 // exist with no data, which is a condition we must detect during the upgrade path
-func (r NodeProcessorResources) empty() bool {
+func (r NodeProcessorResources) Empty() bool {
 	return r.Topology == nil || len(r.Topology.Cores) == 0
 }
 
