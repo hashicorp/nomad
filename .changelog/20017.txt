@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: Added support for running without pause containers when configuring networking
+```
