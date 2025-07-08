@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -2256,6 +2257,12 @@ func (n *Node) Canonicalize() {
 					}
 				}
 				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
+			}
+		}
+
+		if n.NodeResources.Processors.Empty() {
+			n.NodeResources.Processors = NodeProcessorResources{
+				Topology: &numalib.Topology{},
 			}
 		}
 	}
