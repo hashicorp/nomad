@@ -1,3 +1,26 @@
+## 1.10.3 (July 08, 2025)
+
+IMPROVEMENTS:
+
+* consul: Added kind field to service block for Consul service registrations [[GH-26170](https://github.com/hashicorp/nomad/issues/26170)]
+* docker: Added support for cgroup namespaces in the task config [[GH-25927](https://github.com/hashicorp/nomad/issues/25927)]
+* task environment: new NOMAD_UNIX_ADDR env var points to the task API unix socket, for use with workload identity [[GH-25598](https://github.com/hashicorp/nomad/issues/25598)]
+
+BUG FIXES:
+
+* agent: Fixed a bug to prevent a possible panic during graceful shutdown [[GH-26018](https://github.com/hashicorp/nomad/issues/26018)]
+* agent: Fixed a bug to prevent panic during graceful server shutdown [[GH-26171](https://github.com/hashicorp/nomad/issues/26171)]
+* agent: Fixed bug where agent would exit early from graceful shutdown when managed by systemd [[GH-26023](https://github.com/hashicorp/nomad/issues/26023)]
+* cli: Fix panic when restarting stopped job with no scaling policies [[GH-26131](https://github.com/hashicorp/nomad/issues/26131)]
+* cli: Fixed a bug in the `tls cert create` command that always added ``"<role>.global.nomad"` to the certificate DNS names, even when the specified region was not ``"global"`. [[GH-26086](https://github.com/hashicorp/nomad/issues/26086)]
+* cli: Fixed a bug where the `acl token self` command only performed lookups for tokens set as environment variables and not by the `-token` flag. [[GH-26183](https://github.com/hashicorp/nomad/issues/26183)]
+* client: Attempt to rollback directory creation when the `mkdir` plugin fails to perform ownership changes on it [[GH-26194](https://github.com/hashicorp/nomad/issues/26194)]
+* client: Fixed bug where drained batch jobs would not be rescheduled if no eligible nodes were immediately available [[GH-26025](https://github.com/hashicorp/nomad/issues/26025)]
+* docker: Fixed a bug where very low resources.cpu values could generate invalid cpu weights on hosts with very large client.cpu_total_compute values [[GH-26081](https://github.com/hashicorp/nomad/issues/26081)]
+* host volumes: Fixed a bug where volumes with server-terminal allocations could be deleted from clients but not the state store [[GH-26213](https://github.com/hashicorp/nomad/issues/26213)]
+* tls: Fixed a bug where reloading the Nomad server process with an updated `tls.verify_server_hostname` configuration parameter would not apply an update to internal RPC handler verification and require a full server restart [[GH-26107](https://github.com/hashicorp/nomad/issues/26107)]
+* vault: Fixed a bug where non-periodic tokens would not have their TTL incremented to the lease duration [[GH-26041](https://github.com/hashicorp/nomad/issues/26041)]
+
 ## 1.10.2 (June 09, 2025)
 
 BREAKING CHANGES:
@@ -133,6 +156,19 @@ BUG FIXES:
 * server: Validate `num_schedulers` configuration parameter is between 0 and the number of CPUs available on the machine [[GH-25441](https://github.com/hashicorp/nomad/issues/25441)]
 * services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 * services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+
+## 1.9.11 (July 08, 2025)
+
+BUG FIXES:
+
+* agent: Fixed a bug to prevent a possible panic during graceful shutdown [[GH-26018](https://github.com/hashicorp/nomad/issues/26018)]
+* agent: Fixed a bug to prevent panic during graceful server shutdown [[GH-26171](https://github.com/hashicorp/nomad/issues/26171)]
+* agent: Fixed bug where agent would exit early from graceful shutdown when managed by systemd [[GH-26023](https://github.com/hashicorp/nomad/issues/26023)]
+* cli: Fixed a bug in the `tls cert create` command that always added ``"<role>.global.nomad"` to the certificate DNS names, even when the specified region was not ``"global"`. [[GH-26086](https://github.com/hashicorp/nomad/issues/26086)]
+* client: Fixed bug where drained batch jobs would not be rescheduled if no eligible nodes were immediately available [[GH-26025](https://github.com/hashicorp/nomad/issues/26025)]
+* docker: Fixed a bug where very low resources.cpu values could generate invalid cpu weights on hosts with very large client.cpu_total_compute values [[GH-26081](https://github.com/hashicorp/nomad/issues/26081)]
+* tls: Fixed a bug where reloading the Nomad server process with an updated `tls.verify_server_hostname` configuration parameter would not apply an update to internal RPC handler verification and require a full server restart [[GH-26107](https://github.com/hashicorp/nomad/issues/26107)]
+* vault: Fixed a bug where non-periodic tokens would not have their TTL incremented to the lease duration [[GH-26041](https://github.com/hashicorp/nomad/issues/26041)]
 
 ## 1.9.10 Enterprise (June 10, 2025)
 
@@ -438,6 +474,20 @@ BUG FIXES:
 * task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+
+## 1.8.15 (July 08, 2025)
+
+BUG FIXES:
+
+* agent: Fixed a bug to prevent a possible panic during graceful shutdown [[GH-26018](https://github.com/hashicorp/nomad/issues/26018)]
+* agent: Fixed a bug to prevent panic during graceful server shutdown [[GH-26171](https://github.com/hashicorp/nomad/issues/26171)]
+* agent: Fixed bug where agent would exit early from graceful shutdown when managed by systemd [[GH-26023](https://github.com/hashicorp/nomad/issues/26023)]
+* cli: Fixed a bug in the `tls cert create` command that always added ``"<role>.global.nomad"` to the certificate DNS names, even when the specified region was not ``"global"`. [[GH-26086](https://github.com/hashicorp/nomad/issues/26086)]
+* client: Fixed bug where drained batch jobs would not be rescheduled if no eligible nodes were immediately available [[GH-26025](https://github.com/hashicorp/nomad/issues/26025)]
+* docker: Fixed a bug where very low resources.cpu values could generate invalid cpu weights on hosts with very large client.cpu_total_compute values [[GH-26081](https://github.com/hashicorp/nomad/issues/26081)]
+* encrypter: Fixes a bug where waiting for the active keyset wouldn't return correctly
+* tls: Fixed a bug where reloading the Nomad server process with an updated `tls.verify_server_hostname` configuration parameter would not apply an update to internal RPC handler verification and require a full server restart [[GH-26107](https://github.com/hashicorp/nomad/issues/26107)]
+* vault: Fixed a bug where non-periodic tokens would not have their TTL incremented to the lease duration [[GH-26041](https://github.com/hashicorp/nomad/issues/26041)]
 
 ## 1.8.14 Enterprise (June 10, 2025)
 
