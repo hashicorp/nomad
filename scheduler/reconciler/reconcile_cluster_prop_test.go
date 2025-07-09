@@ -25,11 +25,92 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
 		results := ar.Compute()
+		must.NotNil(t, results, must.Sprint("results should never be nil"))
 
-		if results == nil {
-			t.Fatal("results should never be nil")
+		// convenience map that may hold multiple "states" for the same alloc
+		// (ex. all three of "total" and "terminal" and "failed")
+		perTaskGroup := map[string]map[string]int{}
+		for _, tg := range ar.jobState.Job.TaskGroups {
+			perTaskGroup[tg.Name] = map[string]int{"expect_count": tg.Count}
+			if tg.Update != nil {
+				perTaskGroup[tg.Name]["max_canaries"] = tg.Update.Canary
+			}
 		}
-		// TODO(tgross): this where the properties under test go
+
+		for _, alloc := range ar.jobState.ExistingAllocs {
+			if _, ok := perTaskGroup[alloc.TaskGroup]; !ok {
+				// existing task group doesn't exist in new job
+				perTaskGroup[alloc.TaskGroup] = map[string]int{"expect_count": 0}
+			}
+			perTaskGroup[alloc.TaskGroup]["exist_total"]++
+			perTaskGroup[alloc.TaskGroup]["exist_"+alloc.ClientStatus]++
+			if alloc.TerminalStatus() {
+				perTaskGroup[alloc.TaskGroup]["exist_terminal"]++
+			}
+			if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
+				perTaskGroup[alloc.TaskGroup]["exist_canary"]++
+			}
+		}
+
+		/*
+			SAFETY properties ("something bad never happens")
+		*/
+
+		if ar.jobState.DeploymentFailed && results.Deployment != nil {
+			t.Fatal("failed deployments should never result in new deployments")
+		}
+
+		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
+			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
+		}
+
+		for tgName, counts := range perTaskGroup {
+			tgUpdates := results.DesiredTGUpdates[tgName]
+
+			must.LessEq(t, counts["expect_count"], int(tgUpdates.Place),
+				must.Sprintf("group placements should never exceed group count (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["max_canaries"], int(tgUpdates.Canary),
+				must.Sprintf("canaries should never exceed expected canaries (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["max_canaries"], int(tgUpdates.Canary)+counts["exist_canary"],
+				must.Sprintf("canaries+existing canaries should never exceed expected canaries (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["expect_count"], int(tgUpdates.DestructiveUpdate),
+				must.Sprintf("destructive updates should never exceed group count (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["expect_count"]+counts["max_canaries"],
+				int(tgUpdates.Canary)+int(tgUpdates.Place)+int(tgUpdates.DestructiveUpdate),
+				must.Sprintf("place+canaries+destructive should never exceed group count + expected canaries (%s): %v",
+					tgName, counts))
+
+			// TODO(tgross): needs per-taskgroup reconnect/disconnect values
+			// must.Eq(t, counts["expect_count"]+int(tgUpdates.Stop)+int(tgUpdates.Disconnected),
+			// 	int(tgUpdates.Place)+int(tgUpdates.Ignore)+int(tgUpdates.InPlaceUpdate)+int(tgUpdates.DestructiveUpdate)+int(tgUpdates.Reconnected),
+			// 	must.Sprintf(""),
+			// )
+
+			must.LessEq(t, counts["exist_total"], int(tgUpdates.InPlaceUpdate),
+				must.Sprintf("in-place updates should never exceed existing allocs (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["exist_total"], int(tgUpdates.DestructiveUpdate),
+				must.Sprintf("destructive updates should never exceed existing allocs (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["exist_total"], int(tgUpdates.Migrate),
+				must.Sprintf("migrations should never exceed existing allocs (%s): %v",
+					tgName, counts))
+
+			must.LessEq(t, counts["exist_total"], int(tgUpdates.Ignore),
+				must.Sprintf("ignore should never exceed existing allocs (%s): %v",
+					tgName, counts))
+		}
+
 	}))
 
 	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
