@@ -110,15 +110,17 @@ type ReconcileResults struct {
 	Stop []AllocStopResult
 
 	// AttributeUpdates are updates to the allocation that are not from a
-	// jobspec change.
+	// jobspec change. map of alloc ID -> *Allocation
 	AttributeUpdates map[string]*structs.Allocation
 
 	// DisconnectUpdates is the set of allocations are on disconnected nodes, but
 	// have not yet had their ClientStatus set to AllocClientStatusUnknown.
+	// map of alloc ID -> *Allocation
 	DisconnectUpdates map[string]*structs.Allocation
 
 	// ReconnectUpdates is the set of allocations that have ClientStatus set to
 	// AllocClientStatusUnknown, but the associated Node has reconnected.
+	// map of alloc ID -> *Allocation
 	ReconnectUpdates map[string]*structs.Allocation
 
 	// DesiredTGUpdates captures the desired set of changes to make for each
@@ -634,6 +636,12 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.Deployment = a.jobState.DeploymentCurrent
 	}
 
+	// We can never have more placements than the count
+	if len(result.Place) > tg.Count {
+		result.Place = result.Place[:tg.Count]
+		result.DesiredTGUpdates[tg.Name].Place = uint64(tg.Count)
+	}
+
 	deploymentComplete := a.isDeploymentComplete(group, destructive, inplace,
 		migrate, rescheduleNow, result.Place, rescheduleLater, requiresCanaries)
 
@@ -1123,8 +1131,8 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 	// Hot path the nothing to do case
 	//
-	// Note that this path can result in duplication allocation indexes in a
-	// scenario with a destructive job change (ex. image update) happens with
+	// Note that this path can result in duplicated allocation indexes in a
+	// scenario where a destructive job change (ex. image update) happens with
 	// an increased group count. Once the canary is replaced, and we compute
 	// the next set of stops, the untainted set equals the new group count,
 	// which results is missing one removal. The duplicate alloc index is
