@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strings"
 
 	"github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -69,13 +69,19 @@ func (n *NomadProvider) BuildTemplate() *structs.Template {
 }
 
 func (n *NomadProvider) Parse() (map[string]string, error) {
-	f, err := os.OpenInRoot(n.secretDir, n.tmplFile)
+	r, err := os.OpenRoot(n.secretDir)
+	if err != nil {
+		return nil, fmt.Errorf("error opening task secrets directory: %v", err)
+	}
+	defer r.Close()
+
+	f, err := r.Open(n.tmplFile)
 	if err != nil {
 		return nil, fmt.Errorf("error opening env template: %v", err)
 	}
 	defer func() {
 		f.Close()
-		os.Remove(filepath.Join(n.secretDir, n.tmplFile))
+		r.Remove(n.tmplFile)
 	}()
 
 	return envparse.Parse(f)
@@ -84,14 +90,11 @@ func (n *NomadProvider) Parse() (map[string]string, error) {
 // validateNomadInputs ensures none of the user provided inputs contain delimiters
 // that could be used to inject other CT functions.
 func validateNomadInputs(conf *nomadProviderConfig, path string) error {
-	// match if a string contains (...), {{, or }}
-	var templateValidate = regexp.MustCompile(`\(.*\)|\{\{|\}\}`)
-
-	if templateValidate.MatchString(conf.Namespace) {
+	if strings.ContainsAny(conf.Namespace, "(){}") {
 		return fmt.Errorf("namespace cannot contain template delimiters or parenthesis")
 	}
 
-	if templateValidate.MatchString(path) {
+	if strings.ContainsAny(path, "(){}") {
 		return fmt.Errorf("path cannot contain template delimiters or parenthesis")
 	}
 
