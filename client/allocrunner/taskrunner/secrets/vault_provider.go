@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strings"
 
 	"github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -44,8 +44,7 @@ func NewVaultProvider(secret *structs.Secret, secretDir string, tmplFile string)
 		return nil, err
 	}
 
-	// match if a string contains (...), {{, or }}
-	if regexp.MustCompile(`\(.*\)|\{\{|\}\}`).MatchString(secret.Path) {
+	if strings.ContainsAny(secret.Path, "(){}") {
 		return nil, fmt.Errorf("secret path cannot contain template delimiters or parenthesis")
 	}
 
@@ -80,13 +79,19 @@ func (v *VaultProvider) BuildTemplate() *structs.Template {
 }
 
 func (v *VaultProvider) Parse() (map[string]string, error) {
-	f, err := os.OpenInRoot(v.secretDir, v.tmplFile)
+	r, err := os.OpenRoot(v.secretDir)
+	if err != nil {
+		return nil, fmt.Errorf("error opening task secrets directory: %v", err)
+	}
+	defer r.Close()
+
+	f, err := r.Open(v.tmplFile)
 	if err != nil {
 		return nil, fmt.Errorf("error opening env template: %v", err)
 	}
 	defer func() {
 		f.Close()
-		os.Remove(filepath.Join(v.secretDir, v.tmplFile))
+		r.Remove(v.tmplFile)
 	}()
 
 	return envparse.Parse(f)
