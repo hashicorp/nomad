@@ -1,0 +1,226 @@
+---
+layout: docs
+page_title: Connect nodes into a cluster
+description: |-
+  Connect nodes together to create a Nomad cluster manually
+  or automatically with cloud auto-join on AWS, Azure, and GCP.
+---
+
+# Connect nodes into a cluster
+
+In order to create a Nomad cluster out of individual nodes, you need to
+introduce them to one another. There are several ways to perform this:
+
+- Manually
+- Cloud Auto-Join
+- Consul
+
+This tutorial describes each method and provides configuration snippets, which
+you can use as starting points for your own configuration.
+
+## Manual clustering
+
+Manually bootstrapping a Nomad cluster does not rely on additional tooling, but
+does require operator participation in the cluster formation process. When
+bootstrapping, Nomad servers and clients must be started and informed with the
+address of at least one Nomad server.
+
+As you can tell, this creates a chicken-and-egg problem where one server must
+first be fully bootstrapped and configured before the remaining servers and
+clients can join the cluster. This requirement can add additional provisioning
+time as well as ordered dependencies during provisioning.
+
+First, you need to bootstrap a single Nomad server and capture its IP address.
+Place this address in the configuration once you have that nodes IP address.
+
+For Nomad servers, this configuration may look something like this:
+
+```hcl
+server {
+  enabled          = true
+  bootstrap_expect = 3
+
+  # This is the IP address of the first server provisioned
+  server_join {
+    retry_join = ["<known-address>:4648"]
+  }
+}
+```
+
+Alternatively, you can supply a server's address after the servers have all been
+started by running the [`server join` command] on the servers individually to
+cluster the servers. All servers can join one other server, and then rely on the
+gossip protocol to discover the rest.
+
+```shell-session
+$ nomad server join <known-address>
+```
+
+For Nomad clients, the configuration may look something like:
+
+```hcl
+client {
+  enabled = true
+  server_join {
+    retry_join = ["<known-address>:4647"]
+  }
+}
+```
+
+The client node's server list can be updated at run time using the
+[`node config` command].
+
+```shell-session
+$ nomad node config -update-servers <IP>:4647
+```
+
+The port corresponds to the RPC port. If no port is specified with the IP
+address, the default RPC port of `4647` is assumed.
+
+As servers are added or removed from the cluster, this information is pushed to
+the client. This means only one server must be specified because, after initial
+contact, the full set of servers in the client's region are shared with the
+client.
+
+## Join nodes using cloud auto-join
+
+As of Nomad 0.8.4, [`retry_join`] accepts a unified interface using the
+[go-discover] library for doing automatic cluster joining using cloud metadata.
+To use retry-join with a supported cloud provider, specify the configuration on
+the command line or configuration file as a `key=value key=value ...` string.
+Values are taken literally and must not be URL encoded. If the values contain
+spaces, backslashes or double quotes they need to be double quoted and the usual
+escaping rules apply.
+
+```json
+{
+  "retry_join": ["provider=my-cloud config=val config2=\"some other val\" ..."]
+}
+```
+
+Consult the [cloud provider-specific configurations] in the cloud-autojoin
+documentation. This can be combined with static IP or DNS addresses or even
+multiple configurations for different providers. In order to use discovery
+behind a proxy, you will need to set `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
+environment variables per [Golang `net/http` library].
+
+## Use Consul to automatically cluster nodes
+
+To automatically bootstrap a Nomad cluster, Nomad can leverage another HashiCorp
+open source tool, [Consul]. Bootstrapping Nomad is easiest against an existing
+Consul cluster. The Nomad servers and clients will become informed of each
+other's existence when the Consul agent is installed and configured on each
+host. As an added benefit, integrating Consul with Nomad provides service and
+health check registration for applications which later run under Nomad.
+
+Consul models infrastructures as datacenters and multiple Consul datacenters can
+be connected over the WAN so that clients can discover nodes in other
+datacenters. Since Nomad regions can encapsulate many datacenters, you should be
+running a Consul cluster in every Nomad region and connecting them over the
+WAN. Refer to the Consul tutorial for both [bootstrapping] a single
+datacenter and [connecting multiple Consul clusters over the WAN].
+
+If a Consul agent is installed on the host prior to Nomad starting, the Nomad
+agent will register with Consul and discover other nodes.
+
+For servers, you must inform the cluster how many servers you expect to have.
+This is required to form the initial quorum, since Nomad is unaware of how many
+peers to expect. For example, to form a region with three Nomad servers, you
+would use the following Nomad configuration file:
+
+```hcl
+# /etc/nomad.d/server.hcl
+
+# data_dir tends to be environment specific.
+data_dir = "/opt/nomad/data"
+
+server {
+  enabled          = true
+  bootstrap_expect = 3
+}
+```
+
+This configuration would be saved to disk and then run:
+
+```shell-session
+$ nomad agent -config=/etc/nomad.d/server.hcl
+```
+
+A similar configuration is available for Nomad clients:
+
+```hcl
+# /etc/nomad.d/client.hcl
+
+datacenter = "dc1"
+
+# data_dir tends to be environment specific.
+data_dir = "/opt/nomad/data"
+
+client {
+  enabled = true
+}
+```
+
+The agent is started in a similar manner:
+
+```shell-session
+$ sudo nomad agent -config=/etc/nomad.d/client.hcl
+```
+
+Nomad clients should always run as root (or with `sudo`). The above
+configurations include no IP or DNS addresses between the clients and
+servers. This is because Nomad detected the existence of Consul and utilized
+service discovery to form the cluster.
+
+### Consul auto-join internals
+
+~> This section discusses the internals of the Consul and Nomad integration at a
+very high level. Reading is only recommended for those curious to the
+implementation.
+
+As discussed in the previous section, Nomad merges multiple configuration files
+together, so the `-config` may be specified more than once:
+
+```shell-session
+$ nomad agent -config=base.hcl -config=server.hcl
+```
+
+In addition to merging configuration on the command line, Nomad also maintains
+its own internal configurations (called "default configs") which include reasonable
+base defaults. One of those default configurations includes a "consul" block,
+which specifies reasonable defaults for connecting to and integrating with Consul. In
+essence, this configuration file resembles the following:
+
+```hcl
+# You do not need to add this to your configuration file. This is an example
+# that is part of Nomad's internal default configuration for Consul integration.
+consul {
+  # The address to the Consul agent.
+  address = "127.0.0.1:8500"
+
+  # The service name to register the server and client with Consul.
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+
+  # Enables automatically registering the services.
+  auto_advertise = true
+
+  # Enabling the server and client to bootstrap using Consul.
+  server_auto_join = true
+  client_auto_join = true
+}
+```
+
+Refer to the [`consul` stanza] documentation for the complete set of configuration
+options.
+
+[`consul` stanza]: /nomad/docs/configuration/consul
+[`node config` command]: /nomad/commands/node/config
+[`retry_join`]: /nomad/docs/configuration/server_join#retry_join
+[`server join` command]: /nomad/commands/server/join
+[bootstrapping]: /consul/docs/deploy/server/vm/bootstrap
+[cloud provider-specific configurations]: /nomad/docs/configuration/server_join#cloud-auto-join
+[connecting multiple consul clusters over the wan]: /consul/docs/east-west/wan-federation
+[consul]: /consul/
+[go-discover]: https://github.com/hashicorp/go-discover
+[golang `net/http` library]: https://golang.org/pkg/net/http/#ProxyFromEnvironment

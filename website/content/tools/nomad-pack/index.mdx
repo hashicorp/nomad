@@ -1,0 +1,268 @@
+---
+layout: docs
+page_title: Nomad Pack
+description: |-
+  Discover what Nomad Pack does, how it helps speed up deployment, and deploy an
+  application to Nomad using Nomad Pack.
+---
+
+# Nomad Pack
+
+This guide will walk you through basic usage of [Nomad Pack][pack-repo], a
+package manager and templating tool for Nomad.
+
+By the end of this guide, you will know what Nomad Pack does, be able to deploy
+applications to Nomad using Nomad Pack, and discover packs built by the Nomad community.
+
+## What is Nomad Pack?
+
+Nomad Pack is a templating and packaging tool used with [HashiCorp Nomad][nomad-site].
+
+Nomad Pack is used to:
+
+- Easily deploy popular applications to Nomad
+- Re-use common patterns across internal applications
+- Find and share job specifications with the Nomad community
+
+Nomad Pack can be thought of as a templating and deployment tool like [Levant](https://github.com/hashicorp/levant)
+with the ability to pull from remote registries and deploy multiple resources together, like [Helm](https://helm.sh/).
+
+## Requirements
+
+- A Nomad cluster available
+- Nomad cluster address defined in the `NOMAD_ADDR` environment variable.
+
+<Note>
+
+ If Nomad ACLs are enabled, a token with proper permissions must be defined in the `NOMAD_TOKEN` environment variable.
+
+</Note>
+
+## Installing Nomad Pack
+
+To use Nomad Pack, download the binary for your system from [HashiCorp Releases][releases].
+
+After downloading Nomad Pack, unzip the package, and make sure that the `nomad-pack` binary is available on your PATH.
+
+Alternatively, you can install it with Homebrew if you are on MacOS.
+
+```shell-session
+$ brew tap hashicorp/tap
+$ brew install hashicorp/tap/nomad-pack
+```
+
+You can now run `nomad-pack`.
+
+## Basic use
+
+To get started, run the `list` command to see which packs are available to deploy.
+
+```shell-session
+$ nomad-pack list
+          PACK NAME          | METADATA VERSION |                  REGISTRY NAME
+-----------------------------+------------------+---------------------------------------------------
+  alertmanager               | 0.0.1            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  aws_ebs_csi                | 0.1.0            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  aws_efs_csi                | 0.0.1            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  backstage                  | 0.0.1            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  boundary                   | 0.0.1            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  caddy                      | 0.0.1            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  ceph                       | 0.1.0            | default@6bac78a905b7966ed93078cba1604fafe0fa2334
+  [...]
+```
+
+The first time you run the `list` command, Nomad Pack will add a `nomad/packs`
+directory to your desktop user's cache directory—`$XDG_CACHE_DIR` on Linux,
+`~/Library/Caches` on macOS, `%AppData%` on Windows, etc. This folder stores
+information about cloned registries and their available packs.
+
+During initializing, Nomad Pack downloads a default registry of packs from the
+[Nomad Pack community registry][community-registry].
+
+To deploy one of these packs, use the `run` command. This deploys each job defined in the pack to Nomad.
+To deploy the `hello_world` pack, you would run the following command:
+
+```shell-session
+$ nomad-pack run hello_world
+
+  Evaluation ID: 67835384-763b-62b0-7c41-eb98a5417e9c
+  Job 'hello_world' in pack deployment 'hello_world@latest' registered successfully
+Pack successfully deployed. Use --name=hello_world@latest to manage this this deployed instance with run, plan, or destroy
+
+Congrats! You deployed a simple service on Nomad.
+```
+
+<Note>
+
+The syntax for Nomad Pack is different in version 0.1. To run packs written with the old syntax, provide the `--parser-v1` flag.
+
+</Note>
+
+Each pack defines a set of variables that can be provided by the user. To get information on the pack
+and to see which variables can be passed in, run the `info` command.
+
+```shell-session
+$ nomad-pack info hello_world
+
+Pack Name          hello_world
+Description        This deploys a simple application as a service with an optional associated consul service.
+Application URL    https://learn.hashicorp.com/tutorials/nomad/get-started-run?in=nomad/get-started
+Application Author HashiCorp
+
+Pack "hello_world" Variables:
+  - "message" (string) - The message your application will render
+  - "register_consul_service" (bool) - If you want to register a consul service for the job
+  - "consul_service_name" (string) - The consul service name for the hello-world application
+  - "consul_service_tags" (list of string) - The consul service name for the hello-world application
+  - "job_name" (string) - The name to use as the job name which overrides using the pack name
+  - "region" (string) - The region where jobs will be deployed
+  - "datacenters" (list of string) - A list of datacenters in the region which are eligible for task placement
+  - "count" (number) - The number of app instances to deploy
+```
+
+Values for these variables are provided using the `--var` flag. Update your pack using
+the following command:
+
+```shell-session
+$ nomad-pack run hello_world --var message=hola
+```
+
+Values can also be provided by passing in a variables file with the `-f` flag.
+
+```shell-session
+$ tee -a ./my-variables.hcl << END
+message=bonjour
+END
+```
+
+```shell-session
+$ nomad-pack run hello_world -f ./my-variables.hcl
+```
+
+To see a list of deployed packs, run the `status` command
+
+```shell-session
+$ nomad-pack status
+
+   PACK NAME  | REGISTRY NAME
+--------------+----------------
+  hello_world | default
+
+```
+
+To see the status of the jobs deployed by a pack, run the `status` command with the pack name.
+
+```shell-session
+$ nomad-pack status hello_world
+
+   PACK NAME  | REGISTRY NAME |  DEPLOYMENT NAME   |  JOB NAME   | STATUS
+--------------+---------------+--------------------+-------------+----------
+  hello_world | default       | hello_world@latest | hello_world | pending
+
+```
+
+To remove all the resources deployed by a pack, run the `destroy` command with the
+pack name.
+
+```shell-session
+$ nomad-pack destroy hello_world
+```
+
+To stop the jobs without removing them from Nomad, use the `stop` command:
+
+```shell-session
+$ nomad-pack stop hello_world
+```
+
+### Adding non-default Pack registries
+
+When using Nomad Pack, the default registry for packs is
+[the Nomad Pack Community Registry][community-registry].
+Packs from this registry will be made automatically available.
+
+You can add more registries by using the `registry add` command. For instance, if you want to add a registry from GitLab with the alias `my_packs`, you can run the following command to download the registry and its contents.
+
+```shell-session
+$ nomad-pack registry add my_packs gitlab.com/mikenomitch/pack-registry
+```
+
+<CodeBlockConfig hideClipboard>
+
+```shell-session
+go-getter URL is gitlab.com/mikenomitch/pack-registry
+Registry successfully cloned at /Users/arusso/Library/Caches/nomad/packs/nomad-pack-tmp
+Processing pack entries at /Users/arusso/Library/Caches/nomad/packs/nomad-pack-tmp
+found pack entry fabio
+Processing pack fabio@latest
+Updating pack
+Removing previous latest
+Writing pack to /Users/arusso/Library/Caches/nomad/packs/my_packs/fabio@latest
+Loading cloned pack from /Users/arusso/Library/Caches/nomad/packs/my_packs/fabio@latest
+Calculating SHA for latest
+found pack entry grafana
+Processing pack grafana@latest
+Updating pack
+Removing previous latest
+Writing pack to /Users/arusso/Library/Caches/nomad/packs/my_packs/grafana@latest
+Loading cloned pack from /Users/arusso/Library/Caches/nomad/packs/my_packs/grafana@latest
+Calculating SHA for latest
+[...]
+  Try running one the packs you just added liked this
+
+    nomad-pack run fabio --registry=my_packs --ref=latest
+```
+
+</CodeBlockConfig>
+
+To view the available registries, including yours, run the `registry list` command.
+
+```shell-session
+$ nomad-pack registry list
+  REGISTRY NAME |  REF   | LOCAL REF |                    REGISTRY URL
+----------------+--------+-----------+-----------------------------------------------------
+  default       | latest | 6bac78a9  | github.com/hashicorp/nomad-pack-community-registry
+  my_packs      | latest | 7ca313c7  | gitlab.com/mikenomitch/pack-registry
+```
+
+To view the available packs, including yours, run the `list` command.
+
+```shell-session
+$ nomad-pack list
+[...]
+  fabio                      | 0.0.1            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  grafana                    | 0.1.0            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  haproxy                    | 0.0.1            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  hello_world                | 0.0.1            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  loki                       | 0.0.1            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  nginx                      | 0.0.1            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  nomad_autoscaler           | 0.1.0            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+  traefik                    | 0.1.0            | my_packs@7ca313c705b7966ed93078cba1604fafe0fa2334
+```
+
+You can deploy packs from this registry with the `run` command and the alias given
+to the registry, in this case `my_packs`.
+
+```shell-session
+$ nomad-pack run nginx --registry=my_packs
+  Evaluation ID: aaa3c319-1928-7c35-54b0-2358841c0e96
+  Job 'nginx' in pack deployment 'nginx@latest' registered successfully
+Pack successfully deployed. Use nginx with --ref=latest to manage this this deployed instance with plan, stop, destroy, or info
+
+Nginx successfully deployed.
+
+See the Load Balancing with Nginx tutorial for more information:
+https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx
+```
+
+## Next steps
+
+In this tutorial you learned what Nomad Pack does, how to deploy applications to Nomad
+using Nomad Pack, and how to discover packs built by the Nomad community.
+
+Continue on to the [Usage guide][detailed-usage] for more detailed information about how to use Nomad Pack.
+
+[nomad-site]: /nomad/
+[pack-repo]: https://github.com/hashicorp/nomad-pack
+[detailed-usage]: /nomad/tools/nomad-pack/advanced-usage
+[community-registry]: https://github.com/hashicorp/nomad-pack-community-registry
+[releases]: https://releases.hashicorp.com/nomad-pack

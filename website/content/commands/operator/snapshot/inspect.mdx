@@ -1,0 +1,60 @@
+---
+layout: docs
+page_title: 'nomad operator snapshot inspect command reference'
+description: |
+  The `nomad operator snapshot inspect` command displays information about a snapshot file stored on local disk.
+---
+
+# `nomad operator snapshot inspect` command reference
+
+Displays information about a snapshot file stored on local disk.
+
+## Usage
+
+```plaintext
+nomad operator snapshot inspect [options] [file]
+```
+
+## Options
+
+- `-json` : Output information about the snapshot file in JSON format.
+
+## Examples
+
+To inspect the file "backup.snap":
+```shell-session
+$ nomad operator snapshot inspect backup.snap
+Created = 2024-06-10T10:54:41+01:00
+ID      = 10-215871-1718013281130
+Size    = 158 KiB
+Index   = 215871
+Term    = 10
+Version = 1
+
+Type                 Count  Size
+JobVersion           15     42 KiB
+Alloc                5      37 KiB
+TimeTable            1      28 KiB
+JobSubmission        15     17 KiB
+Node                 2      14 KiB
+Job                  4      10 KiB
+CSIPlugin            1      1.9 KiB
+Eval                 5      1.6 KiB
+CSIVolume            1      1.1 KiB
+JobSummary           4      825 B
+Variables            2      695 B
+VariablesQuota       8      562 B
+Index                18     498 B
+Deployment           1      496 B
+ServiceRegistration  1      318 B
+ACLToken             1      286 B
+SchedulerConfig      1      242 B
+NodePool             2      236 B
+Namespace            1      209 B
+RootKeyMeta          1      127 B
+ClusterMetadata      1      71 B
+
+Total                90     158 KiB
+```
+
+[outage recovery]: /nomad/docs/manage/outage-recovery

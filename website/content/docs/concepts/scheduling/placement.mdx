@@ -112,7 +112,7 @@ Refer to the [Node Pools][concept_np] concept page for more information.
 ## Understanding Evaluation Status
 
 When a job cannot be immediately placed, Nomad creates a chain of evaluations
-to manage placement. First, your initial evaluation may be marked complete even if 
+to manage placement. First, your initial evaluation may be marked complete even if
 placement fails. Then Nomad creates a blocked evaluation to retry placement when
 resources become available. Your job remains pending until Nomad places all allocations.
 
@@ -120,12 +120,12 @@ For example, if your job has specific constraints that are not available, you
 get an initial completed evaluation and a blocked evaluation. Nomad tracks
 ongoing placement attempts until a node that fits your constraints is available.
 
-To troubleshoot placement issues, use `nomad eval status <eval_id>`. Check the output 
+To troubleshoot placement issues, use `nomad eval status <eval_id>`. Check the output
 for placement failures and linked evaluations.
 
 [api_client_metadata]: /nomad/api-docs/client#update-dynamic-node-metadata
 [cli_node_meta]: /nomad/docs/commands/node/meta
-[concept_np]: /nomad/docs/concepts/node-pools
+[concept_np]: /nomad/docs/architecture/cluster/node-pools
 [config_client_meta]: /nomad/docs/configuration/client#meta
 [config_client_node_class]: /nomad/docs/configuration/client#node_class
 [config_client_node_pool]: /nomad/docs/configuration/client#node_pool
@@ -133,6 +133,6 @@ for placement failures and linked evaluations.
 [job_affinity]: /nomad/docs/job-specification/affinity
 [job_constraint]: /nomad/docs/job-specification/constraint
 [job_spread]: /nomad/docs/job-specification/spread
-[node attributes]: /nomad/docs/runtime/interpolation#node-attributes
+[node attributes]: /nomad/docs/reference/runtime-variable-interpolation#node-attributes
 [spec_node_pool]: /nomad/docs/other-specifications/node-pool
 [spec_node_pool_sched_config]: /nomad/docs/other-specifications/node-pool#scheduler_config-parameters

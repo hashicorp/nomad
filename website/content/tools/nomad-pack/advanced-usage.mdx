@@ -1,0 +1,193 @@
+---
+layout: docs
+page_title: Nomad Pack advanced usage
+description: |-
+  Generate a variables files, render a Nomad Pack, plan a Pack deployment, and
+  manage your local Pack registry.
+---
+
+# Nomad Pack advanced usage
+
+In the [Nomad Pack overview guide][pack-intro] you learned about Nomad Pack, how to deploy applications with it, and how to discover community packs.
+
+In this guide, you will learn about more advanced usage including:
+
+- Generating a variable file
+- Rendering a Pack
+- Advanced `run` options
+- Planning with `plan`
+- Registry management
+
+## Generating a variable file
+
+You can pass in variables to a pack with a variables file.
+
+```shell-session
+$ nomad-pack run hello_world -f ./my-variables.hcl
+```
+
+The `generate var-file` command can generate variable files from a pack.
+
+```shell-session
+$ nomad-pack generate var-file hello_world -o ./my-variables.hcl
+```
+
+You can also use the path to a pack instead of a pack name.
+
+```shell-session
+$ nomad-pack generate var-file ./my-local-pack -o ./my-variables.hcl
+```
+
+## Rendering a Pack
+
+At times, you may wish to use Nomad Pack to render jobspecs, but you will not want to immediately deploy these to Nomad.
+
+This can be useful when writing a pack, debugging deployments, integrating Nomad Pack into a CI/CD environment, or if you have another mechanism for handling Nomad deploys.
+
+The `render` command takes the same `--var` and `--var-file` flags that `run` takes.
+
+The `--to-dir` flag determines the directory where the rendered templates will be written.
+
+You can pass the `--render-output-template` flag to additionally render the output template. Some output templates rely on a deployment for information. In these cases, the output template may not render with all the necessary information.
+
+```shell-session
+$ nomad-pack render hello_world --to-dir ./tmp --var greeting=hola --render-output-template
+```
+
+## Advanced `run` options
+
+To deploy the resources in a pack to Nomad, use the `run` command.
+
+```shell-session
+$ nomad-pack run hello_world
+```
+
+By passing a `--name` value into `run`, Nomad Pack deploys each resource in the
+pack with a metadata value for pack name. If no name is given, the pack name
+is used by default.
+
+This allows Nomad Pack to manage multiple deployments of the same pack.
+
+```shell-session
+$ nomad-pack run hello_world --name hola-mundo
+```
+
+It is also possible to run a local pack directly from the pack directory by passing in the directory instead of the pack name.
+This can be helpful while developing a pack.
+
+```
+nomad pack run .
+```
+
+## Planning with `plan`
+
+If you want see details on how Nomad Pack will deploy a pack but are not ready to immediately deploy the pack, run the `plan` command.
+
+This invokes Nomad in a dry-run mode using the [Nomad Plan](/nomad/api-docs/jobs#create-job-plan) API endpoint.
+
+```
+nomad-pack plan hello_world
+```
+
+Similar to `run`, `plan` takes the `--name` flag to look for packs deployments with that name. Nomad Pack uses the pack name by default.
+
+```
+nomad-pack plan hello_world --name hola-mundo
+```
+
+The `plan` command also takes the `--var` and `-f` flags like the `run` command.
+
+```
+nomad-pack plan hello_world -f ./my-variables.hcl --var greeting=hallo
+```
+
+## Registry management
+
+The [Introduction to Nomad Pack guide][pack-intro] explains the basics of adding to and listing packs in the registry. The following section provides additional details on registry management.
+
+### Initialization and directory structure
+
+The first time you run `list`, Nomad Pack will add a `nomad/packs`
+directory to your desktop user's cache directory—`$XDG_CACHE_DIR` on Linux,
+`~/Library/Caches` on macOS, `%AppData%` on Windows, etc. This folder stores
+information about cloned registries and their available packs.
+
+During initialization, Nomad Pack downloads a default registry of packs from the
+[Nomad Pack community registry][community-registry].
+
+The directory structure is as follows:
+
+```
+parent-directories (see above)
+└── nomad
+    └── packs
+        ├── <REGISTRY>
+            ├── <REGISTRY-TAG>
+                ├── <PACK-NAME@REF>
+                    ├── ...files containing pack contents...
+```
+
+Nomad Pack requires the contents of the pack cache directory to work properly, but you should not manually manage or change these files. Instead, you can use the `registry` commands.
+
+### Adding new registries
+
+The `registry` command includes several sub-commands for interacting with registries.
+
+Add custom registries with the `registry add` command. Any `git` based
+registry supported by [`go-getter`](https://github.com/hashicorp/go-getter) should
+work.
+
+For example, to add the entire [Nomad Pack Community Registry](https://github.com/hashicorp/nomad-pack-community-registry), use the `registry add` command to download the registry.
+
+```shell-session
+$ nomad-pack registry add community github.com/hashicorp/nomad-pack-community-registry
+```
+
+### Adding an individual pack from a registry
+
+To add a single pack from the registry, use the `--target` flag.
+
+```shell-session
+$ nomad-pack registry add community github.com/hashicorp/nomad-pack-community-registry --target=nginx
+```
+
+### Adding a registry at a specific commit
+
+To download a single pack or an entire registry at a specific version/SHA, use the `--ref` flag.
+
+```shell-session
+$ nomad-pack registry add community github.com/hashicorp/nomad-pack-community-registry --ref=v0.0.1
+```
+
+### Removing a registry
+
+To remove a registry or pack from your local cache, use the `registry delete` command.
+This command also supports the `--target` and `--ref` flags.
+
+```shell-session
+$ nomad-pack registry delete community
+```
+
+### Updating a registry
+
+To update a registry, use the `add` command and Nomad Pack will re-download the registry and replace the contents.
+
+```shell-session
+$ nomad-pack registry add default github.com/hashicorp/nomad-pack-community-registry
+```
+
+## Next steps
+
+In this guide you learned how to interact with Nomad Pack in an advanced way. You learned how to generate a variable file, render a pack, use additional `run` options, use the `plan` command, and interact with Nomad Pack registries.
+
+The official and community packs available to Nomad Pack are valuable because it allows you to quickly deploy apps using the best practices and leverage the knowledge of the Nomad community.
+
+To learn how to write your own Nomad Packs or convert your existing Nomad job
+specifications into reusable packs, continue on to the [Creating packs
+guide][writing-packs].
+
+[nomad-site]: /nomad/
+[pack-repo]: https://github.com/hashicorp/nomad-pack
+[pack-intro]: /nomad/tools/nomad-pack/
+[writing-packs]: /nomad/tools/nomad-pack/create-packs
+[community-registry]: https://github.com/hashicorp/nomad-pack-community-registry

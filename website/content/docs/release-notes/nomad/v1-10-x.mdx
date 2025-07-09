@@ -47,7 +47,7 @@ governance when provisioning host volumes:
   specific workloads. Being able to apply policy to the volume specification
   gives you a method to enforce specific patterns while providing platform
   consumers with more flexibility around self-service volume provisioning. Refer
-  to the [Sentinel policy reference](/nomad/docs/enterprise/sentinel#sentinel-dynamic-host-volume-objects) for more information.
+  to the [Sentinel policy reference](/nomad/docs/reference/sentinel-policy#sentinel-dynamic-host-volume-objects) for more information.
 
 - **Resource quota support**
 
@@ -71,15 +71,15 @@ governance when provisioning host volumes:
 
 Refer to the following resources to learn more about dynamic host volumes:
 
-- [Host volumes section](/nomad/docs/operations/stateful-workloads#host-volumes)
+- [Host volumes section](/nomad/docs/architecture/storage/stateful-workloads#host-volumes)
   in the _Considerations for stateful workloads_ guide for an overview and
   comparison of storage options
 - [Host volumes plugin
-  specification](/nomad/docs/concepts/plugins/storage/host-volumes) for examples
+  specification](/nomad/docs/architecture/storage/host-volumes) for examples
   of how to write your own plugin to dynamically configure persistent storage on
   your Nomad client nodes
 - [Use Nomad dynamic host volumes to persist data for stateful workloads
-  tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
+  tutorial](/nomad/docs/stateful-workloads/dynamic-host-volumes)
   to learn how to create and use a dynamic host volume for persistent storage
 
 ### OpenID Connect (OIDC) enhancements
@@ -122,7 +122,7 @@ We added the following:
 - CSI volume and plugin events to the event stream
 - Volume capabilities to the `nomad volume status` command output
 - The ability to use a volume ID prefix search and wildcard namespace with the
-  [`nomad volume delete` command](/nomad/docs/commands/volume/delete). Refer to
+  [`nomad volume delete` command](/nomad/commands/volume/delete). Refer to
   the [GitHub pull request](https://github.com/hashicorp/nomad/pull/24997) for
   details. Example usage:
 
@@ -208,13 +208,13 @@ These links take you to the changelogs on the GitHub website.
 - [v1.10.0-beta.1](https://github.com/hashicorp/nomad/releases/tag/v1.10.0-beta.1)
 
 
-[consul-integration]: /nomad/docs/integrations/consul/acl
-[vault-integration]: /nomad/docs/integrations/vault/acl
+[consul-integration]: /nomad/docs/secure/acl/consul
+[vault-integration]: /nomad/docs/secure/vault/acl
 [GH-18529]: https://github.com/hashicorp/nomad/issues/18529
 [upgrade]: /nomad/docs/upgrade/upgrade-specific#nomad-1-10-0
 [github-releases]: https://github.com/hashicorp/nomad/releases/
 [pkjwt]: https://oauth.net/private-key-jwt/
 [pkce]: https://oauth.net/2/pkce/
-[oidc-concepts]: /nomad/docs/concepts/acl/auth-methods/oidc#client-assertions
-[oidc-trouble]: /nomad/docs/concepts/acl/auth-methods/oidc#oidc-configuration-troubleshooting
+[oidc-concepts]: /nomad/docs/secure/authentication/oidc#client-assertions
+[oidc-trouble]: /nomad/docs/secure/authentication/oidc#oidc-configuration-troubleshooting
 [oidc-tutorial]: /nomad/tutorials/single-sign-on/sso-oidc-keycloak
