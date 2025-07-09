@@ -26,8 +26,7 @@ Usage: nomad volume delete [options] <vol id>
   Delete a volume from an external storage provider. The volume must still be
   registered with Nomad in order to be deleted. Deleting will fail if the
   volume is still in use by an allocation or in the process of being
-  unpublished. If the volume no longer exists, this command will silently
-  return without an error.
+  unpublished.
 
   When ACLs are enabled, this command requires a token with the appropriate
   capability in the volume's namespace: the 'csi-write-volume' capability for
