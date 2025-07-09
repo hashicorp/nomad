@@ -6,6 +6,7 @@ package structs
 //go:generate codecgen -c github.com/hashicorp/go-msgpack/v2/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -13,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/client/hoststats"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
-	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -93,8 +94,8 @@ type MonitorExportRequest struct {
 	// is true
 	NomadLogPath string
 
-	// MockMonitor is only used for testing
-	MockMonitor *monitor.ExportMonitor
+	// PlainText disables base64 encoding.
+	PlainText bool
 
 	structs.QueryOptions
 }
@@ -539,4 +540,83 @@ OUTER:
 			}
 		}
 	}
+}
+
+type StreamParser struct {
+	buf        *bytes.Buffer
+	conn       io.ReadWriteCloser
+	encoder    *codec.Encoder
+	frameCodec *codec.Encoder
+	plainText  bool
+}
+
+func NewStreamParser(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder, frameCodec *codec.Encoder,
+	plainText bool) StreamParser {
+	return StreamParser{
+		buf:        buf,
+		conn:       conn,
+		encoder:    encoder,
+		frameCodec: frameCodec,
+	}
+}
+func (s *StreamParser) ParseStream(frame *sframer.StreamFrame) error {
+
+	var resp StreamErrWrapper
+	if s.plainText {
+		resp.Payload = frame.Data
+	} else {
+		if err := s.frameCodec.Encode(frame); err != nil && err != io.EOF {
+			return err
+		}
+
+		resp.Payload = s.buf.Bytes()
+		s.buf.Reset()
+	}
+	if err := s.encoder.Encode(resp); err != nil {
+		return err
+	}
+	s.encoder.Reset(s.conn)
+	return nil
+}
+
+func (s *StreamParser) ExpectStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context) (err error) {
+	var streamErr error
+OUTER:
+	for {
+		select {
+		case frame, ok := <-frames:
+			if !ok {
+				// frame may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					return streamErr
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+				break OUTER
+			}
+
+			var resp StreamErrWrapper
+			if s.plainText {
+				resp.Payload = frame.Data
+			} else {
+				if err := s.frameCodec.Encode(frame); err != nil && err != io.EOF {
+					return err
+				}
+
+				resp.Payload = s.buf.Bytes()
+				s.buf.Reset()
+			}
+			if err := s.encoder.Encode(resp); err != nil {
+				return err
+			}
+			s.encoder.Reset(s.conn)
+
+		case <-ctx.Done():
+			break OUTER
+		}
+	}
+	return nil
 }

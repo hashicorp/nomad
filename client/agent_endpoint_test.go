@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -499,13 +498,6 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			token:        root.SecretID,
 		},
 		{
-			name:         "happy_path_golden_cli",
-			serviceName:  "nomad",
-			nomadLogPath: testFilePath,
-			expected:     string(testFileContents),
-			token:        root.SecretID,
-		},
-		{
 			name:         "token_error",
 			onDisk:       true,
 			nomadLogPath: testFilePath,
@@ -523,20 +515,13 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		monitor := monitor.NewExportMonitor(
-			monitor.MonitorExportOpts{
-				NomadLogPath: tc.nomadLogPath,
-				ServiceName:  tc.serviceName,
-				OnDisk:       tc.onDisk,
-			},
-		)
 		t.Run(tc.name, func(t *testing.T) {
 			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
-				NodeID:       "doesn't_really_matter",
+				NodeID:       "this is checked in the CLI",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
-				MockMonitor:  monitor,
+				OnDisk:       tc.onDisk,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token,

@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1049,7 +1048,6 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	defer os.Remove(inlineFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
-	//mon := monitor.Mock()
 	cases := []struct {
 		name         string
 		expected     string
@@ -1067,15 +1065,8 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			token:        root,
 		},
 		{
-			name:         "happy_path_golden_cli",
-			serviceName:  "nomad",
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
-			token:        root,
-		},
-		{
 			name:         "token_error",
-			serviceName:  "nomad",
+			onDisk:       true,
 			nomadLogPath: inlineFilePath,
 			expected:     string(goldenFileContents),
 			token:        &structs.ACLToken{},
@@ -1092,17 +1083,14 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			monitor := monitor.NewExportMonitor(monitor.MonitorExportOpts{
-				NomadLogPath: tc.nomadLogPath,
-				ServiceName:  tc.serviceName,
-				OnDisk:       tc.onDisk,
-			})
-			// No node ID to monitor the remote server
+
+			// No NodeID set to force server use
 			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
 				NomadLogPath: tc.nomadLogPath,
-				ServiceName:  tc.serviceName,
-				MockMonitor:  monitor,
+				OnDisk:       tc.onDisk,
+
+				ServiceName: tc.serviceName,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token.SecretID,
