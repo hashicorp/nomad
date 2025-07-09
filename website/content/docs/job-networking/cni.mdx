@@ -1,0 +1,46 @@
+---
+layout: docs
+page_title: Use a CNI network with a job
+description: |-
+  Learn how to use CNI networks with Nomad jobs.
+---
+
+# Use a CNI network with a job
+
+## Prerequisites
+
+Make sure your Nomad instance has a configured CNI network. Refer to [CNI
+plugins and bridge networking](/nomad/docs/networking/cni) for instructions.
+
+## Job task configuration
+
+To specify that a job should use a CNI network, set the task group's network
+[`mode`](/nomad/docs/job-specification/network#mode) attribute to the value
+`cni/<your_cni_config_name>`.
+
+For example, to use the configuration named `mynet`, you should set the task
+group's network mode to `cni/mynet`.
+
+```hcl
+job "docs" {
+  group "example" {
+    network {
+      mode = "cni/mynet"
+    }
+  }
+}
+```
+
+Nodes that have a network configuration defining a network named `mynet` in
+their `cni_config_dir` are eligible to run the workload. Nomad then schedules
+the workload on client nodes that have fingerprinted a CNI configuration with
+the given name.
+
+Nomad additionally supplies the following arguments via `CNI_ARGS` to the CNI
+network: `NOMAD_REGION`, `NOMAD_NAMESPACE`, `NOMAD_JOB_ID`, `NOMAD_GROUP_NAME`,
+and `NOMAD_ALLOC_ID`.
+
+Since the `CNI_ARGS` do not allow values to contain a semicolon, Nomad will not
+set keys where the value contains a semicolon (this could happen with the job
+ID). CNI plugins utilizing `NOMAD_*` CNI arguments are advised to apply a
+defensive policy or simply error out.

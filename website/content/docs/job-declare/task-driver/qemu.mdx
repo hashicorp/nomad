@@ -1,0 +1,112 @@
+---
+layout: docs
+page_title: Use the QEMU task driver in a job
+description: Nomad's QEMU task driver provides a generic virtual machine runner that can execute any regular QEMU image. Learn how to use the QEMU task driver in your jobs. Configure image path, driver interface, accelerator, graceful shutdown, guest agent, and port map.
+---
+
+# Use the QEMU task driver in a job
+
+Name: `qemu`
+
+The `qemu` driver provides a generic virtual machine runner. QEMU can utilize
+the KVM kernel module to utilize hardware virtualization features and provide
+great performance. Currently the `qemu` driver can map a set of ports from the
+host machine to the guest virtual machine, and provides configuration for
+resource allocation.
+
+The `qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
+`iso`), and is currently invoked with `qemu-system-x86_64`.
+
+The driver requires the image to be accessible from the Nomad client via the
+[`artifact` downloader](/nomad/docs/job-specification/artifact).
+
+Refer to [Configure the QEMU task driver](/nomad/docs/deploy/task-driver/qemu)
+for capabilities, client requirements, and plugin configuration.
+
+## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "qemu"
+
+  config {
+    image_path        = "/path/to/my/linux.img"
+    accelerator       = "kvm"
+    graceful_shutdown = true
+    args              = ["-nodefaults", "-nodefconfig"]
+  }
+}
+```
+
+The `qemu` driver supports the following configuration in the job spec:
+
+- `image_path` - The path to the downloaded image. In most cases this will just
+  be the name of the image. However, if the supplied artifact is an archive that
+  contains the image in a subfolder, the path will need to be the relative path
+  (`subdir/from_archive/my.img`).
+
+- `drive_interface` - (Optional) This option defines on which type of interface
+  the drive is connected. Available types are: `ide`, `scsi`, `sd`, `mtd`,
+  `floppy`, `pflash`, `virtio` and `none`. Default is `ide`.
+
+- `accelerator` - (Optional) The type of accelerator to use in the invocation.
+  If the host machine has `qemu` installed with KVM support, users can specify
+  `kvm` for the `accelerator`. Default is `tcg`.
+
+- `graceful_shutdown` `(bool: false)` - Using the [qemu
+  monitor](https://en.wikibooks.org/wiki/QEMU/Monitor), send an ACPI shutdown
+  signal to virtual machines rather than simply terminating them. This emulates
+  a physical power button press, and gives instances a chance to shut down
+  cleanly. If the VM is still running after `kill_timeout`, it will be
+  forcefully terminated. This feature uses a Unix socket that is placed within
+  the task directory and operating systems may impose a limit on how long these
+  paths can be. This feature is currently not supported on Windows.
+
+- `guest_agent` `(bool: false)` - Enable support for the [QEMU Guest
+  Agent](https://wiki.qemu.org/Features/GuestAgent) for this virtual machine.
+  This will add the necessary virtual hardware and create a `qa.sock` file in
+  the task's working directory for interacting with the agent. The QEMU Guest
+  Agent must be running in the guest VM. This feature is currently not
+  supported on Windows.
+
+- `port_map` - (Optional) A key-value map of port labels.
+
+  ```hcl
+  config {
+    # Forward the host port with the label "db" to the guest VM's port 6539.
+    port_map {
+      db = 6539
+    }
+  }
+  ```
+
+- `args` - (Optional) A list of strings that is passed to QEMU as command line
+  options.
+
+## Examples
+
+A simple config block to run a `qemu` image:
+
+```
+task "virtual" {
+  driver = "qemu"
+
+  config {
+    image_path  = "local/linux.img"
+    accelerator = "kvm"
+    args        = ["-nodefaults", "-nodefconfig"]
+  }
+
+  # Specifying an artifact is required with the "qemu"
+  # driver. This is the # mechanism to ship the image to be run.
+  artifact {
+    source = "https://internal.file.server/linux.img"
+
+    options {
+      checksum = "md5:123445555555555"
+    }
+  }
+```
+
+[`args`]: /nomad/docs/job-declare/task-driver/qemu#args
+[QEMU documentation]: https://www.qemu.org/docs/master/system/invocation.html

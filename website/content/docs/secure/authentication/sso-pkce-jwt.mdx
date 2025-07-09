@@ -1,0 +1,1032 @@
+---
+layout: docs
+page_title: SSO with PKCE and private key JWT
+description: |-
+  Create and configure a Keycloak OIDC application for SSO in Nomad,
+  configure a Nomad auth method that uses PKCE and Private Key JWT, set up
+  Nomad ACL policies and roles, and configure binding rules to assign user
+  permissions automatically.
+---
+
+# SSO with PKCE and private key JWT
+
+OpenID Connect (OIDC) authentication lets you provide Nomad access control list (ACL) tokens to users when they log in using a single sign-on (SSO) provider.
+
+Nomad's OIDC SSO login feature includes these capabilities:
+- [Proof Key for Code Exchange](https://oauth.net/2/pkce/), also known as PKCE, adds extra security for both
+  traditional client secrets and client assertions.
+- [Private Key JWT](https://oauth.net/private-key-jwt/), also known as client assertions, is a more secure alternative to client secrets.
+
+These options offer extra security during the OIDC login flow. For a summary, refer to the [Nomad OIDC page](/nomad/docs/secure/authentication/oidc).
+
+To demonstrate how to use PKCE and Private Key JWT, this tutorial uses the open source [Keycloak identity provider application](https://www.keycloak.org/) running as a Nomad job. You will configure Nomad and Keycloak to automatically grant permissions in Nomad ACL, enable the Keycloak provider to require PKCE, and reconfigure the Keycloak provider to use client assertions.
+
+
+## Prerequisites
+
+For this tutorial, you will need:
+
+- The [Nomad CLI](/nomad/install) version 1.10.0 or higher installed locally
+- A Nomad v1.10 or higher cluster with ACLs enabled and bootstrapped, as well as:
+  - The ACL management token saved to the `NOMAD_TOKEN` environment variable
+  - Docker installed on the client node
+- [`openssl`](https://openssl-library.org/source/index.html) installed locally to generate client assertion certificates
+
+## Run Keycloak as a Nomad job
+
+This job specification [runs Keycloak in development mode](https://www.keycloak.org/nightly/server/containers#_trying_keycloak_in_development_mode) with the username `admin` and password `admin`. Copy the contents to a file and save the file as `keycloak.nomad.hcl`.
+
+<!--
+TODO: bug mentioned below in keycloak_tag variable
+- update version after this ships: https://github.com/keycloak/keycloak/commit/9ca134931b49932227b24a660cbdf926ba2f59bd
+- available tags: https://quay.io/repository/keycloak/keycloak?tab=tags
+-->
+
+<Tabs>
+
+<Tab group="mac" heading="MacOS">
+
+<CodeBlockConfig filename="keycloak.nomad.hcl">
+
+```hcl
+variable "keycloak_tag" {
+  default = "26.0.8" # newer versions have a certificate upload bug at the moment
+}
+
+job "keycloak" {
+  group "kc" {
+    network {
+      port "http" {
+        static = 8080
+      }
+    }
+    service {
+      name     = "keycloak"
+      port     = "http"
+      provider = "nomad"
+    }
+    task "kc" {
+      driver = "docker"
+      config {
+        image        = "quay.io/keycloak/keycloak:${var.keycloak_tag}"
+        args         = ["start-dev", "--hostname", "http://${NOMAD_IP_http}:${NOMAD_PORT_http}"]
+        ports        = ["http"]
+        # note: keycloak config will be lost unless you use persistent storage.
+        #volumes = [
+        #  # /opt/keycloak-data on the host machine needs to be owned by user 1000
+        #  "/opt/keycloak-data:/opt/keycloak/data",
+        #]
+      }
+      env {
+        KC_BOOTSTRAP_ADMIN_USERNAME = "admin"
+        KC_BOOTSTRAP_ADMIN_PASSWORD = "admin"
+        PROXY_ADDRESS_FORWARDING    = true
+        KC_PROXY_HEADERS            = "xforwarded"
+      }
+      resources {
+        memory = 800
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+</Tab>
+
+<Tab group="linux" heading="Linux">
+
+<CodeBlockConfig filename="keycloak.nomad.hcl">
+
+```hcl
+variable "keycloak_tag" {
+  default = "26.0.8" # newer versions have a certificate upload bug at the moment
+}
+
+job "keycloak" {
+  group "kc" {
+    network {
+      mode = "host"
+      port "http" {
+        static = 8080
+      }
+    }
+    service {
+      name     = "keycloak"
+      port     = "http"
+      provider = "nomad"
+    }
+    task "kc" {
+      driver = "docker"
+      config {
+        image        = "quay.io/keycloak/keycloak:${var.keycloak_tag}"
+        args         = ["start-dev", "--hostname", "http://${NOMAD_IP_http}:${NOMAD_PORT_http}"]
+        ports        = ["http"]
+        network_mode = "host"
+        # note: keycloak config will be lost unless you use persistent storage.
+        #volumes = [
+        #  # /opt/keycloak-data on the host machine needs to be owned by user 1000
+        #  "/opt/keycloak-data:/opt/keycloak/data",
+        #]
+      }
+      env {
+        KC_BOOTSTRAP_ADMIN_USERNAME = "admin"
+        KC_BOOTSTRAP_ADMIN_PASSWORD = "admin"
+        PROXY_ADDRESS_FORWARDING    = true
+        KC_PROXY_HEADERS            = "xforwarded"
+      }
+      resources {
+        memory = 800
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+</Tab>
+
+</Tabs>
+
+Submit the job to Nomad.
+
+```shell-session
+$ nomad job run keycloak.nomad.hcl
+```
+
+## Log in to Keycloak
+
+Retrieve the Keycloak web address and open it in your web browser. In the following example, the address is `192.168.1.201:8080`.
+
+```shell-session
+$ nomad service info keycloak
+Job ID    Address             Tags  Node ID   Alloc ID
+keycloak  192.168.1.201:8080  []    1885c25d  c7f18cc3
+```
+
+At the Keycloak sign in page, enter the username `admin` and the password `admin`, and then click **Sign In**. Keycloak loads the landing page for the **master realm** with the **Welcome to Keycloak** message.
+
+## Configure Keycloak
+
+You will now make the necessary configurations through the Keycloak web UI.
+
+### Create a realm
+
+In Keycloak, a _realm_ manages a set of users, credentials, roles, and groups. It is equivalent to a tenant.
+
+1. At the top left, click the dropdown list that displays **Keycloak** and **master** below it.
+1. Click **Create realm**.
+1. In **Realm name**, enter `Nomad`.
+1. Click **Create**.
+
+Keycloak creates a new realm, redirects you to the landing page for the Nomad realm, and displays the **Welcome to Nomad** message.
+
+### Create a group
+
+A group in Keycloak is a set of attributes and role mappings that you can apply to a user. Users in this group will be given permissions in Nomad.
+
+1. In the left navigation, click **Groups**.
+1. Click **Create group**.
+1. In **Name**, enter `engineering`.
+1. Click **Create**.
+
+### Create a user
+
+1. In the left navigation, click **Users**.
+1. Click **Create new user**.
+1. Enter the following values for each labelled field:
+
+    |Field name|Value|
+    |--|--|
+    |Username|`testuser`|
+    |Email|`testuser@example.com`|
+    |First Name|`Test`|
+    |Last Name|`User`|
+
+1. Click **Join Groups**.
+1. Select the check box for the `engineering` group.
+1. Click **Join**.
+1. Click **Create** to complete the process.
+
+Next, create a password for the new user.
+
+1. From the **User details** page, at the top, click **Credentials**.
+1. Click **Set password**.
+1. Enter `password` in the **Password** and **Password confirmation** fields.
+1. Turn off **Temporary**.
+1. Click **Save**.
+1. In the prompt that appears, click **Save password**.
+
+### Create a client scope
+
+Nomad checks the ID token response from Keycloak for a group. Keycloak adds this group to the response with a client scope.
+
+1. In the left navigation, click **Client scopes**.
+1. Near the top of the page, click **Create client scope**.
+1. For **Name** enter `scope-for-nomad`.
+1. Next to **Type**, click the dropdown and then select **Default**.
+1. Click **Save**.
+
+Keycloak redirects you to the **Client scope details** page.
+
+1. In the top navigation, click **Mappers**.
+1. Click **Configure a new mapper**.
+1. In the **Name** column, click **Group Membership**.
+1. In the **Add mapper** form, for the **Name**, enter `nomad-mapper`.
+1. For **Token Claim Name**, enter `kc-groups`.
+1. Click **Save**.
+
+### Create the client
+
+A client in Keycloak is an application or service that can request authentication of a user. Nomad is a client in Keycloak.
+
+1. In the left navigation, click **Clients**.
+1. Near the top of the page, click **Create client**.
+1. For **Client ID**, enter `nomad-oidc`.
+1. Click **Next** to continue.
+1. Turn on **Client authentication**.
+1. Click **Next** to continue.
+1. For **Valid redirect URIs**, enter `http://localhost:4649/oidc/callback`. Note that the port for this URI is `4649`. This URI is for login attempts with the Nomad CLI.
+1. Click **Add valid redirect URIs** to add another URI.
+1. Enter `https://localhost:4646/ui/settings/tokens`. Note that the port for this URI is `4646`. This URI is for login attempts with the Nomad web UI.
+
+   There are now two URI values in **Valid redirect URIs**. These
+   values are the location that Keycloak redirects users to after they log in.
+
+1. Click **Save**.
+
+### Verify scope for client
+
+1. From the **Clients** page, in the top navigation, click **Client scopes**.
+1. In the **Search by name** search field, enter `scope-for-nomad`.
+1. Click the button with the arrow to search. Note that the **Assigned type** for the `scope-for-nomad` client scope is set to **Default**.
+
+### View credentials
+
+Nomad requires a secret to verify that it has authorization to use this client in Keycloak.
+
+1. In the left navigation, click **Clients**.
+1. In the **Client ID** column, click **nomad-oidc** .
+1. At the top, click **Credentials**. The dropdown under **Client Authenticator** shows that Keycloak uses client ID and secret by default.
+1. Reveal the **Client Secret**.
+1. Copy this value and save it. You will use it in the next section.
+
+## Configure Nomad
+
+Nomad requires the following configuration to complete the set up with Keycloak:
+
+- An [auth method](/nomad/commands/acl/auth-method/create) using the Keycloak details
+- A policy and role to specify user permissions in Nomad
+- A binding rule to associate the Keycloak group to the Nomad role
+
+### Create an auth method
+
+Copy the following example configuration to a file and then replace these placeholder values:
+
+- `_KEYCLOAK_ADDRESS`: the address of the Keycloak service in Nomad, from the [Log in to Keycloak section of this tutorial](#log-in-to-keycloak).
+- `_KEYCLOAK_CLIENT_SECRET`: The client secret value from the [View credentials section of this tutorial](#view-credentials).
+
+Save the file as `auth-method-keycloak.json`.
+
+Note that the `ListClaimMappings` value maps the group `kc-groups` in Keycloak to a value that you will define in the Nomad binding rule named `keycloak_groups`.
+
+<CodeBlockConfig filename="auth-method-keycloak.json">
+
+```json
+{
+  "OIDCDiscoveryURL": "http://_KEYCLOAK_ADDRESS/realms/Nomad",
+  "OIDCClientSecret": "_KEYCLOAK_CLIENT_SECRET",
+  "OIDCClientID": "nomad-oidc",
+  "BoundAudiences": ["nomad-oidc"],
+  "AllowedRedirectURIs": [
+    "http://localhost:4649/oidc/callback",
+    "https://localhost:4646/ui/settings/tokens"
+  ],
+  "OIDCScopes": [
+    "openid",
+    "scope-for-nomad"
+  ],
+  "ListClaimMappings": {
+    "kc-groups": "keycloak_groups"
+  },
+  "VerboseLogging": true
+}
+```
+
+</CodeBlockConfig>
+
+Ensure that the `NOMAD_TOKEN` environment variable is set to your Nomad management token, as only management tokens can create auth methods.
+
+<CodeBlockConfig>
+
+```shell-session
+$ nomad acl token self | grep Type
+Type         = management
+```
+
+</CodeBlockConfig>
+
+Create the auth method.
+
+```shell-session
+$ nomad acl auth-method create \
+  -type=OIDC \
+  -name=keycloak \
+  -default=true \
+  -max-token-ttl=5m \
+  -token-locality=global \
+  -config=@auth-method-keycloak.json
+```
+
+The command prints information about the auth method similar to the following example output.
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+Name              = keycloak
+Type              = OIDC
+Locality          = global
+Max Token TTL     = 5m0s
+Token Name Format = ${auth_method_type}-${auth_method_name}
+Default           = true
+Create Index      = 382
+Modify Index      = 382
+
+Auth Method Config
+
+JWT Validation Public Keys = <none>
+JWKS URL                   = <none>
+OIDC Discovery URL         = http://192.168.1.201:8080/realms/Nomad
+OIDC Client ID             = nomad-oidc
+OIDC Client Secret         = redacted
+OIDC Enable PKCE           = false
+OIDC Disable UserInfo      = false
+OIDC Scopes                = openid,scope-for-nomad
+Bound audiences            = nomad-oidc
+Bound issuer               = <none>
+Allowed redirects URIs     = http://localhost:4649/oidc/callback,https://localhost:4646/ui/settings/tokens
+Discovery CA pem           = <none>
+JWKS CA cert               = <none>
+Signing algorithms         = <none>
+Expiration Leeway          = 0s
+NotBefore Leeway           = 0s
+ClockSkew Leeway           = 0s
+Claim mappings             = <none>
+List claim mappings        = {kc-groups: keycloak_groups}
+```
+
+</CodeBlockConfig>
+
+### Create policy and role
+
+Create an ACL policy that grants access to the `default` namespace and Nomad nodes.
+
+First, create the policy file. Copy the following example policy to a file and save it as `engineering-policy.hcl`.
+
+```hcl
+namespace "default" {
+  capabilities = ["list-jobs"]
+}
+```
+
+Create the policy.
+
+```shell-session
+$ nomad acl policy apply engineering-policy engineering-policy.hcl
+Successfully wrote "engineering-policy" ACL policy!
+```
+
+Create a role and associate it to the policy.
+
+```shell-session
+$ nomad acl role create -name=engineering-role -policy=engineering-policy
+ID           = 6987c982-082d-35ac-aff3-57f24e5829a0
+Name         = engineering-role
+Description  = <none>
+Policies     = engineering-policy
+Create Index = 448
+Modify Index = 448
+```
+
+### Create binding rule
+
+Grant users in the `/engineering` Keycloak group the Nomad ACL role named `engineering-role`. Note the single quotes around the whole `selector` value and the backticks around the `/engineering` segment. These are important, as you must include `/` in the selector expression.
+
+```shell-session
+$ nomad acl binding-rule create \
+  -auth-method=keycloak \
+  -bind-type=role \
+  -bind-name=engineering-role \
+  -selector='`/engineering` in list.keycloak_groups'
+```
+
+The command prints information about the binding-rule similar to the following example output.
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+ID           = b5d6bc45-0667-868e-7054-a75b45b6676f
+Description  = <none>
+Auth Method  = keycloak
+Selector     = "`/engineering` in list.keycloak_groups"
+Bind Type    = role
+Bind Name    = engineering-role
+Create Time  = 2025-03-25 20:39:25.923021 +0000 UTC
+Modify Time  = 2025-03-25 20:39:25.923021 +0000 UTC
+Create Index = 451
+Modify Index = 451
+```
+
+</CodeBlockConfig>
+
+## Log in to Nomad
+
+In your terminal session, log in to Nomad. You do not need additional arguments since the auth method included the `-default=true` flag. This command opens a web browser window to Keycloak and prompts you to sign in.
+
+```shell-session
+$ nomad login
+```
+
+Enter `testuser` in the **Username or email** field and `password` in the **Password** field.
+
+After a successful login, Keycloak redirects you to a page at `localhost:4649/oidc/callback` that contains text with the message `Signed in via your OIDC provider`.
+
+Open your terminal and note the output from the login command. You are now signed into Nomad via authentication with Keycloak.
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+$ nomad login
+Successfully logged in via OIDC and keycloak
+
+Accessor ID  = 3b45aa90-eeb7-7b55-11d6-fe5d597b1753
+Secret ID    = 83e70c65-54b4-e2a3-3158-6ab59b9bb989
+Name         = OIDC-keycloak
+Type         = client
+Global       = true
+Create Time  = 2025-03-26 14:02:27.365842 +0000 UTC
+Expiry Time  = 2025-03-26 14:07:27.365842 +0000 UTC
+Create Index = 39
+Modify Index = 39
+Policies     = []
+
+Roles
+ID                                    Name
+4d60501e-57c6-07ba-d06d-72f76ab1f650  engineering-role
+```
+
+</CodeBlockConfig>
+
+Refer to the [OIDC auth method page](/nomad/docs/secure/authentication/oidc#oidc-configuration-troubleshooting) for information about OIDC configuration and troubleshooting.
+
+### Test the token
+
+Copy the Secret ID from the output and use it to query Nomad for jobs status. In this example, the Secret ID is `83e70c65-54b4-e2a3-3158-6ab59b9bb989`.
+
+```shell-session
+$ NOMAD_TOKEN=83e70c65-54b4-e2a3-3158-6ab59b9bb989 nomad job status
+ID        Type     Priority  Status   Submit Date
+keycloak  service  50        running  2025-03-26T09:51:59-04:00
+```
+
+Copy the secret ID again and use it to query the status of the `keycloak` job. This command will fail because the OIDC token does not have the required permissions.
+
+```shell-session
+$ NOMAD_TOKEN=83e70c65-54b4-e2a3-3158-6ab59b9bb989 nomad job status keycloak
+Error querying job: Unexpected response code: 403 (Permission denied)
+```
+
+The `-max-token-ttl=5m` flag of the `nomad acl auth-method create` command sets the token validity to expire after five minutes. After the TTL expires, you must run `nomad login` again to get another valid token.
+
+## Enable PKCE
+
+PKCE is an extension to the [Authorization Code flow](https://oauth.net/2/grant-types/authorization-code/) to prevent CSRF and authorization code injection attacks. Beginning with Nomad v1.10.0, Nomad supports PKCE.
+
+To take advantage of the additional security of PKCE, you must enable it in Keycloak.
+
+1. Open the Keycloak web UI. To fetch the address, run `nomad service info keycloak`.
+1. In the left navigation, click **Clients**.
+1. Under **Client ID**, click `nomad-oidc`.
+1. At the top, click **Advanced**.
+1. Scroll to **Advanced settings**.
+1. Find **Proof Key for Code Exchange Code Challenge Method**.
+1. Click the dropdown and then select **S256**.
+1. Scroll to the bottom of the page and then click **Save**.
+
+Keycloak now ensures that any authentication attempt uses PKCE. A login attempt with `nomad login` now returns an error.
+
+```plaintext
+Error performing login: Unexpected response code: 400
+  (invalid OIDC complete-auth request: 1 error occurred:
+        * missing code)
+```
+
+### Configure Nomad to enable PKCE
+
+Update the auth method configuration file to enable PKCE in Nomad. Add the highlighted section for `OIDCEnablePKCE` to the file and then save it.
+
+<CodeBlockConfig highlight="4" filename="auth-method-keycloak.json">
+
+```json
+{
+  "OIDCDiscoveryURL": "http://_KEYCLOAK_ADDRESS/realms/Nomad",
+  "OIDCClientSecret": "_KEYCLOAK_CLIENT_SECRET",
+  "OIDCEnablePKCE": true,
+  "OIDCClientID": "nomad-oidc",
+  "BoundAudiences": ["nomad-oidc"],
+  "AllowedRedirectURIs": [
+    "http://localhost:4649/oidc/callback",
+    "https://localhost:4646/ui/settings/tokens"
+  ],
+  "OIDCScopes": [
+    "openid",
+    "scope-for-nomad"
+  ],
+  "ListClaimMappings": {
+    "kc-groups": "keycloak_groups"
+  },
+  "VerboseLogging": true
+}
+```
+
+</CodeBlockConfig>
+
+Update the auth method. Note that the output shows that PKCE is enabled.
+
+<CodeBlockConfig highlight="10">
+
+```shell-session
+$ nomad acl auth-method update -config @auth-method-keycloak.json keycloak
+Name              = keycloak
+Type              = OIDC
+
+# ...
+
+OIDC Discovery URL              = http://192.168.1.201:8080/realms/Nomad
+OIDC Client ID                  = nomad-oidc
+OIDC Client Secret              = redacted
+OIDC Enable PKCE                = true
+OIDC Disable UserInfo           = false
+
+# ...
+```
+
+</CodeBlockConfig>
+
+Log in with Nomad to confirm that the functionality works.
+
+```shell-session
+$ nomad login
+Successfully logged in via OIDC and keycloak
+
+# ...
+```
+
+## Enable client assertions
+
+A client assertion is a token provided by a client application to confirm the proof of the client's identity.
+
+Keycloak refers to client assertions as *signed JWT* or *signed JWT with client secret*. Nomad supports both methods. Client assertions provide additional security and function as an alternative to using client secrets.
+
+Nomad builds a JWT and signs it with a private key that the OIDC provider can verify with Nomad's accompanying public key. Nomad asserts that it is a valid OIDC client without sending any secret information over the network.
+
+1. Navigate to the Keycloak web UI.
+1. In the left navigation, click **Clients**.
+1. Under **Client ID**, click `nomad-oidc`.
+1. At the top, click **Credentials**.
+1. Next to **Client Authenticator**, click the dropdown.
+
+Take note of the available options: **Signed Jwt**, **Client Id and Secret**, **X509 Certificate**, and **Signed Jwt with Client Secret**.
+
+You have set up the **Client Id and Secret** authenticator. In the next section, you can choose how you want to set up a client assertion:
+- Signed JWT with the client secret
+- Signed JWT with Nomad's _built-in_ private key pair
+- Signed JWT with a _new_ private key pair
+
+<Tabs>
+
+<Tab heading="Client secret" group="client_secret">
+
+### Signed JWT with the client secret
+
+This authenticator method uses the client secret as a Hash-Based Message Authentication Code (HMAC) key to sign the client assertion JWT. Nomad sends the signed JWT to Keycloak instead of sending the secret itself over the network.
+
+Keycloak has the same client secret, which it uses to verify the JWT signature. Keycloak knows that Nomad must have the client secret, otherwise it would not have been able to use it to sign the JWT.
+
+To enable the **Signed Jwt with Client Secret** authenticator, complete the following steps:
+
+1. Open the Keycloak web UI.
+1. In the left navigation, click **Clients**.
+1. Under **Client ID**, click `nomad-oidc`.
+1. At the top, click **Credentials**.
+1. Next to **Client Authenticator**, click the dropdown  and then select **Signed Jwt with Client Secret**.
+1. Next to **Signature algorithm**, click the dropdown and then select **HS256**.
+1. Click **Save**. In the dialog that appears, click **Yes** to confirm the change.
+
+Attempting to log in with `nomad login` will cause an error as the request from Nomad is missing the `client_assertion_type`.
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+Error performing login: Unexpected response code: 500
+  (failed to exchange token with provider: Provider.Exchange:
+  unable to exchange auth code with provider: oauth2:
+  "invalid_client" "Parameter client_assertion_type is missing")
+```
+
+</CodeBlockConfig>
+
+Update the auth method configuration file to enable the client assertion in Nomad. Add the highlighted section for `OIDCClientAssertion` to the file and then save it.
+
+The `"KeySource" = "client_secret"` instructs Nomad to use the `OIDCClientSecret` as a client assertion HMAC instead of a normal client secret.
+
+<CodeBlockConfig highlight="4-7" filename="auth-method-keycloak.json">
+
+```json
+{
+  "OIDCDiscoveryURL": "http://_KEYCLOAK_ADDRESS/realms/Nomad",
+  "OIDCClientSecret": "_KEYCLOAK_CLIENT_SECRET",
+  "OIDCClientAssertion": {
+    "KeySource": "client_secret",
+    "Algorithm": "HS256"
+  },
+  "OIDCEnablePKCE": true,
+  "OIDCClientID": "nomad-oidc",
+  "BoundAudiences": ["nomad-oidc"],
+  "AllowedRedirectURIs": [
+    "http://localhost:4649/oidc/callback",
+    "https://localhost:4646/ui/settings/tokens"
+  ],
+  "OIDCScopes": [
+    "openid",
+    "scope-for-nomad"
+  ],
+  "ListClaimMappings": {
+    "kc-groups": "keycloak_groups"
+  },
+  "VerboseLogging": true
+}
+```
+
+</CodeBlockConfig>
+
+Update the auth method. Note that the output now includes the client assertion attributes.
+
+<CodeBlockConfig highlight="12-15">
+
+```shell-session
+$ nomad acl auth-method update -config @auth-method-keycloak.json keycloak
+Name              = keycloak
+Type              = OIDC
+
+# ...
+
+Auth Method Config
+JWT Validation Public Keys      = <none>
+JWKS URL                        = <none>
+OIDC Discovery URL              = http://192.168.1.201:8080/realms/Nomad
+OIDC Client ID                  = nomad-oidc
+OIDC Client Secret              = redacted
+OIDC Client Assertion KeySource = client_secret
+OIDC Client Assertion Algorithm = HS256
+OIDC Client Assertion Audience  = http://192.168.1.201:8080/realms/Nomad
+OIDC Enable PKCE                = true
+OIDC Disable UserInfo           = false
+
+# ...
+```
+
+</CodeBlockConfig>
+
+Log in with Nomad to confirm that the functionality works.
+
+```shell-session
+$ nomad login
+Successfully logged in via OIDC and keycloak
+
+Accessor ID  = 001b3ac1-f238-3003-fc94-539fa824b9a9
+Secret ID    = redacted
+Name         = OIDC-keycloak
+Type         = client
+
+# ...
+
+Roles
+ID                                    Name
+19c19cbf-dd6a-6084-bca4-5505cb9028b8  engineering-role
+```
+
+</Tab>
+
+<Tab heading="Built-in key pair" group="builtin_keypair">
+
+### Signed JWT with the built-in key pair
+
+This authenticator method uses a private and public key to sign and verify the JWT. Nomad uses its private key to sign the JWT, and Keycloak uses Nomad's public key to verify the JWT.
+
+Keycloak sends a request to Nomad's JWKS URL to retrieve the public key so that it can verify that the JWT signature is from Nomad. Keycloak requires access to the JWKS URL either directly or through a proxy.
+
+#### Deploy the Nomad API proxy
+
+In this section, you will deploy an API proxy that uses [Nomad's task API](/nomad/api-docs/task-api) to serve the JWKS URL. The task API is convenient as an example, but be aware that it does not work on Windows. This tutorial uses HTTP as for demonstration purposes, but we recommend having a valid TLS certificate and using HTTPS for production implementations.
+
+Copy the following contents to a file and save the file as `jwks-proxy.nomad.hcl`.
+
+<CodeBlockConfig filename="jwks-proxy.nomad.hcl">
+
+```hcl
+variable "caddy_tag" {
+  # https://hub.docker.com/_/caddy
+  default = "2.9.1-alpine"
+}
+
+job "jwks-proxy" {
+  group "proxy" {
+    network {
+      mode = "host"
+      port "http" {
+        static = 4444
+      }
+    }
+    service {
+      name     = "jwks-proxy"
+      port     = "http"
+      provider = "nomad"
+    }
+    task "caddy" {
+      driver = "docker"
+      config {
+        image   = "caddy:${var.caddy_tag}"
+        command = "caddy"
+        args    = ["run", "--config", "${NOMAD_TASK_DIR}/Caddyfile"]
+        ports   = ["http"]
+      }
+      identity {
+        env = true # makes the api.sock unix socket and Nomad token
+      }
+      template {
+        # https://caddyserver.com/docs/caddyfile
+        destination     = "${NOMAD_TASK_DIR}/Caddyfile"
+        left_delimiter  = "[[" # for clarity
+        right_delimiter = "]]"
+        data = <<EOF
+:[[ env `NOMAD_PORT_http` ]] {
+	log {
+		output stdout
+	}
+	# only serve the jwks endpoint
+	reverse_proxy /.well-known/jwks.json {
+		to unix/[[ env `NOMAD_SECRETS_DIR` ]]/api.sock
+		# task api always requires a token, even though
+		# the jwks endpoint is unauthenticated.
+		header_up X-Nomad-Token "[[ env `NOMAD_TOKEN` ]]"
+	}
+}
+EOF
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+Submit the proxy job to Nomad.
+
+```shell-session
+$ nomad job run jwks-proxy.nomad.hcl
+```
+
+Get the service address of the proxy.
+
+```shell-session
+$ nomad service info jwks-proxy
+Job ID      Address             Tags  Node ID   Alloc ID
+jwks-proxy  192.168.1.201:4444  []    1885c25d  668f188c
+```
+
+The JWKS URL consists of the the service address of the proxy and the path to the `jwks.json` file. In this example, the JWKS URL is `http://192.168.1.201:4444/.well-known/jwks.json`.
+
+Test connectivity to the JWKS URL.
+
+```shell-session
+$ curl http://192.168.1.201:4444/.well-known/jwks.json
+{"keys":[{"use":"sig","kty":"RSA","kid":"a33560ad-0321-8006-228d-cc759335609b","alg":"RS256","n":"this-is-the-public-key","e":"AQAB"}]}
+```
+
+#### Configure Keycloak with Nomad JWKS
+
+Perform these steps to configure Keycloak:
+
+1. Navigate to the Keycloak web UI.
+1. In the left navigation, click **Clients**.
+1. Under **Client ID**, click `nomad-oidc`.
+1. At the top, click **Credentials**.
+1. Next to **Client Authenticator**, click the dropdown and then select **Signed Jwt**.
+1. Next to **Signature algorithm**, click the dropdown and then select **Any algorithm**.
+1. Click **Save**. Then click **Yes** in the dialog that appears.
+1. At the top, click **Keys**.
+1. Turn on **Use JWKS URL**.
+1. For **JWKS URL**, enter the JWKS URL. In this tutorial, the JWKS URL is `http://192.168.1.201:4444/.well-known/jwks.json`.
+1. Click **Save**.
+
+#### Update the Nomad auth method configuration
+
+Update the auth method configuration file to enable the feature in Nomad. Add the highlighted section for `OIDCClientAssertion` to the file and then save it.
+
+Note that the configuration no longer contains any secret value. Nomad has the private key and Keycloak retrieves the public key at the JWKS URL.
+
+<CodeBlockConfig highlight="3-5" filename="auth-method-keycloak.json">
+
+```json
+{
+  "OIDCDiscoveryURL": "http://_KEYCLOAK_ADDRESS/realms/Nomad",
+  "OIDCClientAssertion": {
+    "KeySource": "nomad"
+  },
+  "OIDCEnablePKCE": true,
+  "OIDCClientID": "nomad-oidc",
+  "BoundAudiences": ["nomad-oidc"],
+  "AllowedRedirectURIs": [
+    "http://localhost:4649/oidc/callback",
+    "https://localhost:4646/ui/settings/tokens"
+  ],
+  "OIDCScopes": [
+    "openid",
+    "scope-for-nomad"
+  ],
+  "ListClaimMappings": {
+    "kc-groups": "keycloak_groups"
+  },
+  "VerboseLogging": true
+}
+```
+
+</CodeBlockConfig>
+
+Update the auth method.
+
+```shell-session
+$ nomad acl auth-method update -config @auth-method-keycloak.json keycloak
+Name              = keycloak
+Type              = OIDC
+
+# ...
+
+Auth Method Config
+JWT Validation Public Keys      = <none>
+JWKS URL                        = http://192.168.1.201:4444/.well-known/jwks.json
+OIDC Discovery URL              = http://192.168.1.201:8080/realms/Nomad
+OIDC Client ID                  = nomad-oidc
+OIDC Client Secret              = <none>
+OIDC Client Assertion KeySource = nomad
+OIDC Client Assertion Algorithm = RS256
+OIDC Client Assertion Audience  = http://192.168.1.201:8080/realms/Nomad
+OIDC Enable PKCE                = true
+OIDC Disable UserInfo           = false
+
+# ...
+```
+
+Log in with Nomad to confirm that functionality works.
+
+```shell-session
+$ nomad login
+Successfully logged in via OIDC and keycloak
+
+# ...
+```
+
+</Tab>
+
+<Tab heading="New key pair" group="new_keypair">
+
+### Signed JWT with a new key pair
+
+This authenticator method uses a new private and public keypair set to sign the JWT instead of Nomad's built-in one.
+
+You can use this method to manage the keys yourself, but it requires updating the keys manually in both Nomad and the OIDC provider.
+
+#### Generate a key and certificate
+
+Open your terminal and use `openssl` to generate a new private key.
+
+```shell-session
+$ openssl genrsa -out private.pem
+```
+
+Generate a certificate with the private key. Be sure to update the subject values in the `-subj` flag for your environment.
+
+```shell-session
+$ openssl req -new -x509 -key private.pem -days 365 \
+  -subj '/C=US/ST=CA/L=Example/O=ExampleOrg/OU=OrgUnit/CN=example.com' \
+  -out certificate.pem
+```
+
+#### Upload the certificate to Keycloak
+
+1. Open the Keycloak web UI.
+1. In the left navigation, click **Clients**.
+1. Under **Client ID**, click `nomad-oidc`.
+1. At the top, click **Keys**.
+1. Turn off **Use JWKS URL**.
+1. Click **Import**.
+1. Under **Archive format**, click the dropdown and then select **Certificate PEM**.
+1. Under **Import file**, click **Browse**. Navigate to the directory that contains the certificate file and then select it.
+1. Click **Import**. Keycloak automatically fills in the form field with the contents of the certificate.
+1. Click **Save**.
+
+#### Update Nomad with the key and certificate
+
+Open `auth-method-keycloak.json` in your text editor and add the `OIDCClientAssertion` block highlighted below to it. Copy the contents of the private key file and paste them into the value for the `PemKey` attribute. Copy the contents of the certificate key file and paste them into the value for `PemCert`.
+
+<CodeBlockConfig highlight="3-9" filename="auth-method-keycloak.json">
+
+```json
+{
+  "OIDCDiscoveryURL": "http://_KEYCLOAK_ADDRESS/realms/Nomad",
+  "OIDCClientAssertion": {
+    "KeySource": "private_key",
+    "PrivateKey": {
+      "PemKey": "-----BEGIN PRIVATE KEY-----[EXAMPLE_KEY_CONTENTS]-----END PRIVATE KEY-----",
+      "PemCert": "-----BEGIN CERTIFICATE-----[EXAMPLE_CERTIFICATE_CONTENTS]-----END CERTIFICATE-----"
+    }
+  },
+  "OIDCEnablePKCE": true,
+  "OIDCClientID": "nomad-oidc",
+  "BoundAudiences": ["nomad-oidc"],
+  "AllowedRedirectURIs": [
+    "http://localhost:4649/oidc/callback",
+    "https://localhost:4646/ui/settings/tokens"
+  ],
+  "OIDCScopes": [
+    "openid",
+    "scope-for-nomad"
+  ],
+  "ListClaimMappings": {
+    "kc-groups": "keycloak_groups"
+  },
+  "VerboseLogging": true
+}
+```
+
+</CodeBlockConfig>
+
+The contents must be on one line and cannot contain newline characters. You can use the `tr` command to remove newline characters if you are editing the files in your terminal.
+
+```shell-session
+$ tr -d '\n' < _KEY_OR_CERT_FILENAME
+```
+
+Save the file after you update both values.
+
+Update the auth method config to enable the feature in Nomad. Nomad uses the certificate to derive a special JWT header called [x5t#S256](https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8), which Keycloak uses to look up the public key it has saved.
+
+```shell-session
+$ nomad acl auth-method update -config @auth-method-keycloak.json keycloak
+Name              = keycloak
+Type              = OIDC
+
+# ...
+
+Auth Method Config
+JWT Validation Public Keys      = <none>
+JWKS URL                        = http://192.168.1.201:4444/.well-known/jwks.json
+OIDC Discovery URL              = http://192.168.1.201:8080/realms/Nomad
+OIDC Client ID                  = nomad-oidc
+OIDC Client Secret              = <none>
+OIDC Client Assertion KeySource = private_key
+OIDC Client Assertion Algorithm = RS256
+OIDC Client Assertion Audience  = http://192.168.1.201:8080/realms/Nomad
+OIDC Enable PKCE                = true
+OIDC Disable UserInfo           = false
+
+# ...
+```
+
+Log in with Nomad to confirm that functionality works.
+
+```shell-session
+$ nomad login
+Successfully logged in via OIDC and keycloak
+
+# ...
+```
+
+</Tab>
+
+</Tabs>
+
+Navigate back to the [Configure Keycloak for client assertions](#enable-client-assertions) section if you want to try out the other client assertion options.
+
+## Next Steps
+
+In this tutorial you learned how to configure Nomad and Keycloak to automatically grant permissions with Nomad's ACL system. Then you enabled the Keycloak provider to require PKCE and reconfigured Keycloak to use client assertions.
+
+To continue your learning, check out these resources:
+- Learn more about the [JWT Auth Method](/nomad/docs/secure/authentication/jwt) in Nomad.
+- Learn more about the [OIDC Auth method](/nomad/docs/secure/authentication//oidc) in Nomad.
+- Learn how to [use Vault as an OIDC
+  provider](/nomad/docs/secure/authentication/sso-vault) with Nomad.
