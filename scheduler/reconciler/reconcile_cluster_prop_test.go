@@ -75,13 +75,6 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 				t.Fatal("for new jobs, amount of allocs to place should never exceed total tg count")
 			}
 		}
-
-		/*
-			LIVENESS properties ("something good eventually happens")
-		*/
-
-		// TODO(pkazmierczak): implement
-
 	}))
 }
 
