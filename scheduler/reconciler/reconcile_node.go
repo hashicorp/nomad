@@ -18,14 +18,14 @@ func Node(
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
-	allocs []*structs.Allocation, // non-terminal allocations
+	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
 	// Build a mapping of nodes to all their allocs.
-	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
-	for _, alloc := range allocs {
+	nodeAllocs := make(map[string][]*structs.Allocation, len(live))
+	for _, alloc := range live {
 		nodeAllocs[alloc.NodeID] = append(nodeAllocs[alloc.NodeID], alloc)
 	}
 
@@ -65,7 +65,7 @@ func diffSystemAllocsForNode(
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
-	allocs []*structs.Allocation, // non-terminal allocations that exist
+	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
@@ -73,7 +73,7 @@ func diffSystemAllocsForNode(
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
-	for _, exist := range allocs {
+	for _, exist := range liveAllocs {
 		// Index the existing node
 		name := exist.Name
 		existing[name] = struct{}{}
@@ -108,18 +108,8 @@ func diffSystemAllocsForNode(
 		}
 
 		// If we have been marked for migration and aren't terminal, migrate
-		if !exist.TerminalStatus() && exist.DesiredTransition.ShouldMigrate() {
+		if exist.DesiredTransition.ShouldMigrate() {
 			result.Migrate = append(result.Migrate, AllocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
-			continue
-		}
-
-		// If we are a sysbatch job and terminal, ignore (or stop?) the alloc
-		if job.Type == structs.JobTypeSysBatch && exist.TerminalStatus() {
-			result.Ignore = append(result.Ignore, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     exist,
@@ -149,6 +139,7 @@ func diffSystemAllocsForNode(
 			continue
 		}
 
+		// note: the node can be both tainted and nil
 		node, nodeIsTainted := taintedNodes[exist.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
@@ -198,7 +189,7 @@ func diffSystemAllocsForNode(
 				continue
 			}
 
-			if !exist.TerminalStatus() && (node == nil || node.TerminalStatus()) {
+			if node == nil || node.TerminalStatus() {
 				result.Lost = append(result.Lost, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,
@@ -319,7 +310,7 @@ func materializeSystemTaskGroups(job *structs.Job) map[string]*structs.TaskGroup
 	}
 
 	for _, tg := range job.TaskGroups {
-		for i := 0; i < tg.Count; i++ {
+		for i := range tg.Count {
 			name := fmt.Sprintf("%s.%s[%d]", job.Name, tg.Name, i)
 			out[name] = tg
 		}
