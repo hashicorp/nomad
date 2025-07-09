@@ -1,0 +1,193 @@
+---
+layout: docs
+page_title: Create and submit a job
+description: |-
+ Create a Nomad job file and follow the job workflow to plan, submit, update,  and run a job.
+---
+
+# Create and submit a job
+
+In Nomad, the description of the job and all its requirements are maintained in
+a single file called the "job file". This job file resides locally on disk and
+it is highly recommended that you check job files into source control.
+
+The general flow for submitting a job in Nomad is:
+
+1. Author a job file according to the job specification
+1. Plan and review changes with a Nomad server
+1. Submit the job file to a Nomad server
+1. (Optional) Review job status and logs
+
+Here is a very basic example to get you started.
+
+## Author a job file
+
+Nomad attempts to strike a balance between ease and expressiveness in its job
+specification. Nomad also provides the `nomad init` command to generate sample
+job files. For more detailed information about the Nomad job specification,
+please consult the [Nomad documentation][job specification].
+
+Here is a sample job file which runs a small docker container web server to
+start with.
+
+```hcl
+job "docs" {
+  datacenters = ["dc1"]
+
+  group "example" {
+    network {
+      port "http" {
+        static = "5678"
+      }
+    }
+    task "server" {
+      driver = "docker"
+
+      config {
+        image = "hashicorp/http-echo"
+        ports = ["http"]
+        args = [
+          "-listen",
+          ":5678",
+          "-text",
+          "hello world",
+        ]
+      }
+    }
+  }
+}
+```
+
+This job file exists on your local workstation in plain text. When you are
+satisfied with this job file, you will plan and review the scheduler decision.
+It is generally a best practice to commit job files to source control,
+especially if you are working in a team.
+
+## Plan the job
+
+Once the job file is authored, you probably want to preview the changes Nomad
+will make when it runs. The `nomad job plan` command invokes a dry-run of the
+scheduler and output which scheduling decisions would take place.
+
+```shell-session
+$ nomad job plan docs.nomad.hcl
++ Job: "docs"
++ Task Group: "example" (1 create)
+  + Task: "server" (forces create)
+
+Scheduler dry-run:
+- All tasks successfully allocated.
+
+Job Modify Index: 0
+To submit the job with version verification run:
+
+nomad job run -check-index 0 docs.nomad.hcl
+
+When running the job with the check-index flag, the job will only be run if the
+job modify index given matches the server-side version. If the index has
+changed, another user has modified the job and the plan's results are
+potentially invalid.
+```
+
+Note that no action was taken. This job is not running. This is a complete
+dry-run and no allocations have taken place.
+
+## Submit the job
+
+Assuming the output of the plan looks acceptable, now ask Nomad to execute the
+job. This is done via the `nomad job run` command. You can optionally supply the
+modify index provided by the plan command to ensure no changes to this job have
+taken place between our plan and now.
+
+```shell-session
+$ nomad job run docs.nomad.hcl
+==> Monitoring evaluation "0d159869"
+    Evaluation triggered by job "docs"
+    Allocation "5cbf23a1" created: node "1e1aa1e0", group "example"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "0d159869" finished with status "complete"
+```
+
+Now that the job is scheduled, it may or may not be running. You need to inspect
+the allocation status and logs to make sure the job started correctly. The next
+section on [inspecting state](/nomad/docs/job-run/inspect)
+details ways to examine this job's state.
+
+## Update and plan the job
+
+When making updates to the job, it is best to always run the plan command and
+then the run command. For example:
+
+```diff
+@@ -2,6 +2,8 @@ job "docs" {
+   datacenters = ["dc1"]
+
+   group "example" {
++    count = "2"
++
+     task "server" {
+       driver = "docker"
+```
+
+After saving these changes to disk, run the `nomad job plan` command:
+
+```shell-session
+$ nomad job plan docs.nomad.hcl
++/- Job: "docs"
++/- Task Group: "example" (1 create, 1 in-place update)
+  +/- Count: "1" => "2" (forces create)
+      Task: "server"
+
+Scheduler dry-run:
+- All tasks successfully allocated.
+
+Job Modify Index: 131
+To submit the job with version verification run:
+
+nomad job run -check-index 131 docs.nomad.hcl
+
+When running the job with the check-index flag, the job will only be run if the
+job modify index given matches the server-side version. If the index has
+changed, another user has modified the job and the plan's results are
+potentially invalid.
+```
+
+#### Reserved port collisions
+
+Because this job uses a static port, it is possible for some instances to not be
+placeable depending on the number of clients you have in your Nomad cluster. If
+your plan output contains:
+
+```plaintext hideClipboard
+Dimension "network: reserved port collision" exhausted on x nodes
+```
+
+This indicates that every feasible client in your cluster has or will have
+something placed at the requested port, leaving no place for some of these
+allocations to run. To resolve this, you need to reduce the requested count,
+add additional clients, or migrate from static ports to dynamic ports in your
+job specification.
+
+## Run the job
+
+Now, assuming the output is okay, execute the `nomad job run` command. Including
+the `check-index` parameter ensures that the job
+was not changed between the plan and run phases.
+
+```shell-session
+$ nomad job run -check-index 131 docs.nomad.hcl
+==> Monitoring evaluation "42d788a3"
+    Evaluation triggered by job "docs"
+    Allocation "e7b8d4f5" created: node "012ea79b", group "example"
+    Allocation "5cbf23a1" modified: node "1e1aa1e0", group "example"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "42d788a3" finished with status "complete"
+```
+
+For more details on advanced job updating strategies such as canary builds and
+build-green deployments, consult the documentation on [job update strategies].
+
+[job specification]: /nomad/docs/job-specification
+[job update strategies]:/nomad/docs/job-declare/strategy
+[inspecting state]: /nomad/docs/job-run/inspect
+

@@ -1,0 +1,61 @@
+---
+layout: docs
+page_title: 'nomad job start command reference'
+description: |
+  The nomad job start command starts the latest version of an existing job
+  with a status of Stopped.
+---
+
+# nomad job start command reference
+
+Use the `nomad job start` command to start the latest version of an existing job
+with a status of Stopped. Refer to [Job statuses] for status explanations.
+
+## Usage
+
+```shell-session
+nomad job start [options] <job_id>
+```
+
+The `nomad job start` command requires the job ID. Nomad creates new version of
+the job based on its most recent version. This command fails if the job is not
+registered or not currently stopped.
+
+When Nomad uses ACLs, the `nomad job start` command requires a token with one of
+the following capabilities based on the specific scenario:
+
+- The `submit-job`capability for the job's namespace
+
+## Options
+
+- `-detach`: Return immediately instead of monitoring. Nomad outputs a new
+  evaluation ID, which you can use to examine the evaluation using the
+  [eval status] command.
+
+- `-verbose`: Show full information.
+
+## Examples
+
+Start a previously stopped job.
+
+```shell-session
+$ nomad job status
+ID       Type     Priority  Status          Submit Date
+example  service  50        dead (stopped)  2025-02-11T15:33:27-05:00
+
+$ nomad job start example
+==> 2025-02-11T15:34:48-05:00: Monitoring evaluation "8b715538"
+    2025-02-11T15:34:48-05:00: Evaluation triggered by job "example"
+    2025-02-11T15:34:49-05:00: Evaluation within deployment: "866ca498"
+    2025-02-11T15:34:49-05:00: Allocation "4d050576" created: node "8e17fa4d", group "echo"
+    2025-02-11T15:34:49-05:00: Evaluation status changed: "pending" -> "complete"
+==> 2025-02-11T15:34:49-05:00: Evaluation "8b715538" finished with status "complete"
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+[eval status]: /nomad/commands/eval/status
+[run]: /nomad/commands/job/run
+[Job statuses]: /nomad/docs/concepts/job#job-statuses
