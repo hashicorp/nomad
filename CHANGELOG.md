@@ -157,7 +157,7 @@ BUG FIXES:
 * services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 * services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 
-## 1.9.11 (July 08, 2025)
+## 1.9.11 Enterprise (July 08, 2025)
 
 BUG FIXES:
 
@@ -475,7 +475,7 @@ BUG FIXES:
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
 
-## 1.8.15 (July 08, 2025)
+## 1.8.15 Enterprise (July 08, 2025)
 
 BUG FIXES:
 
