@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -139,30 +136,13 @@ func (c *MonitorExportCommand) Run(args []string) int {
 
 	eventDoneCh := make(chan struct{})
 	frames, errCh := client.Agent().MonitorExport(eventDoneCh, query)
-	select {
-	case err := <-errCh:
+
+	r, err := streamFrames(frames, errCh, -1, eventDoneCh)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
 		c.Ui.Error(commandErrorText(c))
 		return 1
-	default:
 	}
-
-	// Create a reader
-	var r io.ReadCloser
-
-	frameReader := api.NewFrameReader(frames, errCh, eventDoneCh)
-	frameReader.SetUnblockTime(300 * time.Millisecond)
-	r = frameReader
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-
-	//close stream on sigterm
-	go func() {
-		<-signalCh
-		r.Close()
-	}()
-
 	_, err = io.Copy(os.Stdout, r)
 	if err != nil && err != io.EOF {
 		c.Ui.Error(fmt.Sprintf("error monitoring logs: %s", err.Error()))
