@@ -1,0 +1,166 @@
+---
+layout: docs
+page_title: Hashicorp Configuration Language (HCL) reference
+description: |-
+  This section contains reference material for the Hashicorp Configuration Language (HCL) as it relates to defining a Nomad job specifications. Learn about HCL syntax elements such as arguments, blocks, and expressions. Review heredoc string support and how to format decimals.
+---
+
+# Hashicorp Configuration Language (HCL) reference
+
+Define your job specification with the Hashicorp Configuration Language (HCL),
+which is a syntax specifically designed for building structured configuration
+formats. Refer to the [HCL GitHub repository](https://github.com/hashicorp/hcl)
+to learn more about HCL.
+
+## Parsing context
+
+The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
+When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
+parses HCL and ultimately converts it to JSON. Because this parsing happens locally
+(i.e., where the operator is running the CLI) before job submission, there are some
+limits to the capabilities that can be accessed by HCL job specifications. For
+example, scheduling information is not yet available, including information about
+the client. Similarly, HCL features that depend on external context will take that
+context from the local environment of the CLI (e.g., files, environment variables).
+
+[jobs-api]: /nomad/api-docs/jobs
+
+## JSON jobs
+
+Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
+parse a JSON job using the HCL parser. However, the JSON format accepted by
+the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The
+HCL parser's JSON format is unspecified, so the API format is preferred. You can
+use the API format with the [`-json` command line flag][run-json]:
+
+```shell-session
+$ # Generate an HCL formatted job
+$ nomad init
+
+$ # Convert HCL to API JSON format
+$ nomad job run -output example.nomad.hcl > example.json
+
+$ # Submit with the -json flag
+$ nomad job run -json example.json
+```
+
+
+[json-jobs-api]: /nomad/api-docs/json-jobs
+[run-json]: /nomad/commands/job/run#json
+
+## Arguments, bocks, and expressions
+
+The syntax of the HCL language consists of only a few basic elements:
+
+```hcl
+task "example" {
+  driver = "docker"
+}
+
+<BLOCK TYPE> "<BLOCK LABEL>" {
+  # Block body
+  <IDENTIFIER> = <EXPRESSION> # Argument
+}
+```
+
+- _Blocks_ are containers for other content and usually represent the
+  configuration of some kind of object, like a task. Blocks have a
+  _block type,_ can have zero or more _labels,_ and have a _body_ that contains
+  any number of arguments and nested blocks. Block labels must be string literals.
+- _Arguments_ assign a value to a name. They appear within blocks.
+- _Expressions_ represent a value, either literally or by referencing and
+  combining other values. They appear as values for arguments, or within other
+  expressions.
+
+For full details about Nomad's syntax, see:
+
+- [Configuration Syntax](/nomad/docs/reference/hcl2/syntax)
+- [Expressions](/nomad/docs/reference/hcl2/expressions)
+
+### Blocks
+
+Block syntax is as follows, using unquoted attributes and quoted values:
+
+```hcl
+meta {
+  team         = "..."
+  organization = "..."
+}
+```
+
+Additionally, block attributes must be [HCL valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
+Generally, identifiers may only contain letters, numbers, underscore `_`,
+or a dash `-`, and start with a letter. Notable,
+[`meta`](/nomad/docs/job-specification/meta), and
+[`env`](/nomad/docs/job-specification/env) keys may not
+contain other symbols (e.g. `.`, `#`).
+
+Task driver config fields may require extra attention if they contain invalid
+identifiers. For example, docker [`sysctl`](/nomad/docs/job-declare/task-driver/docker#sysctl) must
+use the map assignment syntax if the keys aren't valid:
+
+```hcl
+sysctl = {
+  "net.core.somaxconn/docs/drivers/docker#sysctl" = "16384"
+}
+```
+
+Additionally, task driver config fields may not nest block syntax within an
+assignment syntax. The following [`mounts`](/nomad/docs/job-declare/task-driver/docker#mounts) syntax is no longer valid:
+
+```hcl
+# INVALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options {  # <- block syntax is not valid here
+      size = 10000
+    }
+  }
+]
+```
+
+Here, the `tmpfs_options` block declaration is invalid HCL syntax, and must be an assignment instead:
+
+```hcl
+# VALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options = {
+      size = 10000
+    }
+  }
+]
+```
+
+Or better yet, the new [`mount`](/nomad/docs/job-declare/task-driver/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
+
+```hcl
+mount {
+  type = "tmpfs"
+  tmpfs_options {
+    size = 10000
+  }
+}
+```
+
+### Multiline "heredoc" string
+
+Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
+
+```hcl
+template {
+  data = <<EOF
+hello
+  world
+  EOF
+}
+```
+
+HCL trims the whitespace preceding the delimiter in the last line. So in the
+above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n world\n"` (note lack of trailing whitespace) in HCL.
+
+### Decimals
+
+HCL requires a leading zero for decimal values lower than 1 (e.g. `0.3`, `0.59`, `0.9`).

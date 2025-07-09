@@ -1,0 +1,32 @@
+---
+layout: docs
+page_title: Failure recovery strategies
+description: |-
+  Discover the available job failure recovery strategies in Nomad so that you
+  can restart or reschedule jobs automatically if they fail.
+---
+
+# Failure recovery strategies
+
+Most applications deployed in Nomad are either long running services or one time
+batch jobs. They can fail for various reasons like:
+
+- A temporary error in the service that resolves when its restarted.
+
+- An upstream dependency might not be available, leading to a health check
+  failure.
+
+- Disk, Memory or CPU contention on the node that the application is running on.
+
+- The application uses Docker and the Docker daemon on that node is
+  unresponsive.
+
+Nomad provides configurable options to enable recovering failed tasks to avoid
+downtime. Nomad will try to restart a failed task on the node it is running on,
+and also try to reschedule it on another node. Please start with one of the
+guides below or use the navigation on the left for details on each option:
+
+- [Local restarts](/nomad/docs/job-declare/failure/restart)
+- [Health check restarts](/nomad/docs/job-declare/failure/check-restart)
+- [Reschedule](/nomad/docs/job-declare/failure/reschedule)
+

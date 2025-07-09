@@ -15,8 +15,8 @@ allocation directories, artifact and template behavior, networking, node pools,
 servers to join, garbage collection, workload behavior, client resources,
 chroot, host volumes, host network, and driver-specific behavior.
 
-Refer to the [Set Server and Client Nodes](/nomad/docs/operations/nomad-agent)
-and [Nomad Agent](/nomad/docs/commands/agent) pages to learn about the Nomad
+Refer to the [Set Server and Client Nodes](/nomad/docs/deploy/nomad-agent)
+and [Nomad Agent](/nomad/commands/agent) pages to learn about the Nomad
 agent process and how to configure the server and client nodes in your cluster.
 
 ```hcl
@@ -248,7 +248,7 @@ client {
 
 ### `chroot_env` Parameters
 
-On Linux, drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
+On Linux, drivers based on [isolated fork/exec](/nomad/docs/job-declare/task-driver/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
 
 The mapping format is:
 
@@ -276,7 +276,7 @@ client {
 @include 'chroot-limitations.mdx'
 
 When `chroot_env` is unspecified, the `exec` driver uses a default chroot
-environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
+environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/deploy/task-driver/exec#chroot) for
 the full list.
 
 Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would cause infinite recursion.
@@ -288,7 +288,7 @@ Refer to the [plugin block][plugin-block] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver,
-refer to the [drivers documentation](/nomad/docs/drivers).
+refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
   allowlisted drivers. If specified, drivers not in the allowlist will be
@@ -830,17 +830,17 @@ client {
 [plugin-block]: /nomad/docs/configuration/plugin
 [server-join]: /nomad/docs/configuration/server_join 'Server Join'
 [metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
-[runtime_var_interpolation]: /nomad/docs/runtime/interpolation
-[task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
+[runtime_var_interpolation]: /nomad/docs/reference/runtime-variable-interpolation
+[task working directory]: /nomad/docs/reference/runtime-environment-settings#task-directories 'Task directories'
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
 [migrate]: /nomad/docs/job-specification/migrate
-[`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
+[`nomad node drain -self -no-deadline`]: /nomad/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
 [unveil]: /nomad/docs/concepts/plugins/task-drivers#fsisolation-unveil
 [dynamic host volumes]: /nomad/docs/other-specifications/volume/host
-[`volume create`]: /nomad/docs/commands/volume/create
-[`volume register`]: /nomad/docs/commands/volume/register
+[`volume create`]: /nomad/commands/volume/create
+[`volume register`]: /nomad/commands/volume/register
