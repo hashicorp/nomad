@@ -33,11 +33,11 @@ func (c *MonitorExportCommand) Help() string {
 	helpText := `
 Usage: nomad monitor export [options]
 
-  Return logs written to disk by a nomad agent. The monitor export command
-  lets you read nomad logs from either the agent's configured log path or
-  journalctl. To export journalctl logs provide the service-name and how
+  Return logs written to disk by a Nomad agent. The monitor export command
+  lets you read Nomad logs from either the agent's configured log path or
+  journalctl. To export journald logs provide the service-name and how
   far back (in hours) you would like to view logs along with the node or server
-  ID. To export an agent's nomad log file pass 'log-path=true' and the node or
+  ID. To export an agent's Nomad log file pass 'log-path=true' and the node or
   server ID with no other options.
 
   When ACLs are enabled, this command requires a token with the 'agent:read'
@@ -50,10 +50,12 @@ General Options:
 Monitor Specific Options:
 
   -node-id <node-id>
-    Sets the specific node to monitor
+    Sets the specific node to monitor. Accepts only a single node-id and cannot
+	be used with server-id.
 
   -server-id <server-id>
-    Sets the specific server to monitor
+    Sets the specific server to monitor. Accepts only a single server-id and
+	cannot be used with node-id.
 
   -service-name <service-name>
     Sets the systemd unit name to query journalctl
@@ -63,11 +65,11 @@ Monitor Specific Options:
 
   -follow <bool>
 	If set, the export command will continue streaming until interrupted. Ignored
-	if on-disk
+	if on-disk=true.
 
   -on-disk <bool>
-    If set, the export command will retrieve the nomad log file defined in the
-	target agent's config.
+    If set, the export command will retrieve the Nomad log file defined in the
+	target agent's log_file configuration.
 	`
 	return strings.TrimSpace(helpText)
 }
