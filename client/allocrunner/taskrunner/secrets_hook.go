@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -97,7 +96,7 @@ func (h *secretsHook) Name() string {
 	return "secrets"
 }
 
-func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, _ *interfaces.TaskPrestartResponse) error {
+func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	templates := []*structs.Template{}
 
 	providers, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
@@ -155,6 +154,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		maps.Copy(h.taskSecrets, vars)
 	}
 
+	resp.Done = true
 	return nil
 }
 
@@ -164,16 +164,20 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 	providers, mErr := []SecretProvider{}, new(multierror.Error)
 
 	for idx, s := range h.secrets {
-		tmplPath := filepath.Join(secretDir, fmt.Sprintf("temp-%d", idx))
+		if s == nil {
+			continue
+		}
+
+		tmplFile := fmt.Sprintf("temp-%d", idx)
 		switch s.Provider {
 		case "nomad":
-			if p, err := secrets.NewNomadProvider(s, tmplPath, h.nomadNamespace); err != nil {
+			if p, err := secrets.NewNomadProvider(s, secretDir, tmplFile, h.nomadNamespace); err != nil {
 				multierror.Append(mErr, err)
 			} else {
 				providers = append(providers, p)
 			}
 		case "vault":
-			if p, err := secrets.NewVaultProvider(s, tmplPath); err != nil {
+			if p, err := secrets.NewVaultProvider(s, secretDir, tmplFile); err != nil {
 				multierror.Append(mErr, err)
 			} else {
 				providers = append(providers, p)

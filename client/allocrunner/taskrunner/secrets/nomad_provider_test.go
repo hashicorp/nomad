@@ -23,7 +23,7 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": "dev",
 			},
 		}
-		p, err := NewNomadProvider(testSecret, testDir, "default")
+		p, err := NewNomadProvider(testSecret, testDir, "test", "default")
 		must.NoError(t, err)
 
 		tmpl := p.BuildTemplate()
@@ -50,27 +50,53 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": 123,
 			},
 		}
-		_, err := NewNomadProvider(testSecret, testDir, "default")
+		_, err := NewNomadProvider(testSecret, testDir, "test", "default")
 		must.Error(t, err)
+	})
 
-		// tmpl := p.BuildTemplate()
-		// must.Nil(t, tmpl)
+	t.Run("path with delimiter errors", func(t *testing.T) {
+		testDir := t.TempDir()
+		testSecret := &structs.Secret{
+			Name:     "foo",
+			Provider: "nomad",
+			Path:     "/test/path}}",
+			Config: map[string]any{
+				"namespace": 123,
+			},
+		}
+		_, err := NewNomadProvider(testSecret, testDir, "test", "default")
+		must.Error(t, err)
+	})
+
+	t.Run("namespace with parenthesis errors", func(t *testing.T) {
+		testDir := t.TempDir()
+		testSecret := &structs.Secret{
+			Name:     "foo",
+			Provider: "nomad",
+			Path:     "/test/path",
+			Config: map[string]any{
+				"namespace": "( some namespace )",
+			},
+		}
+		_, err := NewNomadProvider(testSecret, testDir, "test", "default")
+		must.Error(t, err)
 	})
 }
 
 func TestNomadProvider_Parse(t *testing.T) {
 	testDir := t.TempDir()
-
-	tmplPath := filepath.Join(testDir, "foo")
+	tmplFile := "foo"
+	tmplPath := filepath.Join(testDir, tmplFile)
 
 	data := "foo=bar"
 	err := os.WriteFile(tmplPath, []byte(data), 0777)
 	must.NoError(t, err)
 
-	p, err := NewNomadProvider(&structs.Secret{}, tmplPath, "default")
+	p, err := NewNomadProvider(&structs.Secret{}, testDir, tmplFile, "default")
 	must.NoError(t, err)
 
 	vars, err := p.Parse()
+	must.NoError(t, err)
 	must.Eq(t, vars, map[string]string{"foo": "bar"})
 
 	_, err = os.Stat(tmplPath)
