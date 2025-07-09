@@ -25,6 +25,7 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
 		results := ar.Compute()
+
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
@@ -34,10 +35,48 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeService, &idGenerator{}).Draw(t, "reconciler")
 		results := ar.Compute()
+
+		/*
+			SAFETY properties ("something bad never happens")
+		*/
+
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
-		// TODO(tgross): this where the properties under test go
+
+		// stopped jobs
+		if ar.jobState.Job.Stopped() {
+			if ar.jobState.DeploymentCurrent != nil {
+				if results.Deployment != nil {
+					t.Fatal("stopped jobs with current deployments should never result in a new deployment")
+				}
+				if results.Stop == nil {
+					t.Fatal("stopped jobs with current deployments should always have stopped allocs")
+				}
+			}
+		}
+
+		if results.DesiredTGUpdates == nil {
+			t.Fatal("we should never have nil desired task group updates")
+		}
+
+		if ar.jobState.DeploymentFailed && results.Deployment != nil {
+			t.Fatal("failed deployments should never result in new deployments")
+		}
+
+		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
+			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
+		}
+
+		if ar.jobState.DeploymentCurrent == nil && ar.jobState.DeploymentOld == nil && len(ar.jobState.ExistingAllocs) == 0 {
+			count := 0
+			for _, tg := range ar.jobState.Job.TaskGroups {
+				count += tg.Count
+			}
+			if len(results.Place) > count {
+				t.Fatal("for new jobs, amount of allocs to place should never exceed total tg count")
+			}
+		}
 	}))
 }
 
@@ -125,7 +164,7 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 				AutoPromote:       tg.Update.AutoPromote,
 				ProgressDeadline:  tg.Update.ProgressDeadline,
 				RequireProgressBy: time.Time{},
-				Promoted:          false, // TODO(tgross): what to do with this?
+				Promoted:          rapid.Bool().Draw(t, "promoted"),
 				PlacedCanaries:    []string{},
 				DesiredCanaries:   tg.Update.Canary,
 				DesiredTotal:      tg.Count,
@@ -163,13 +202,20 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 			JobCreateIndex:     job.CreateIndex,
 			IsMultiregion:      false,
 			TaskGroups:         dstates,
-			Status:             structs.DeploymentStatusRunning, // TODO(tgross)
-			StatusDescription:  "",
-			EvalPriority:       0,
-			CreateIndex:        job.CreateIndex,
-			ModifyIndex:        0,
-			CreateTime:         0,
-			ModifyTime:         0,
+			Status: rapid.SampledFrom([]string{
+				structs.DeploymentStatusRunning,
+				structs.DeploymentStatusPending,
+				structs.DeploymentStatusInitializing,
+				structs.DeploymentStatusPaused,
+				structs.DeploymentStatusFailed,
+				structs.DeploymentStatusSuccessful,
+			}).Draw(t, "deployment_status"),
+			StatusDescription: "",
+			EvalPriority:      0,
+			CreateIndex:       job.CreateIndex,
+			ModifyIndex:       0,
+			CreateTime:        0,
+			ModifyTime:        0,
 		}
 	})
 }
