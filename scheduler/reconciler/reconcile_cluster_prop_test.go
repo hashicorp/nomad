@@ -53,9 +53,10 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 					t.Fatal("stopped jobs with current deployments should always have stopped allocs")
 				}
 			}
-			if results.DesiredTGUpdates == nil {
-				t.Fatal("stopped jobs should result in non-nil desired task group updates")
-			}
+		}
+
+		if results.DesiredTGUpdates == nil {
+			t.Fatal("we should never have nil desired task group updates")
 		}
 
 		if ar.jobState.DeploymentFailed && results.Deployment != nil {
