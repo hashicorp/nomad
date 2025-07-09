@@ -1,0 +1,402 @@
+---
+layout: docs
+page_title: Go template syntax
+description: |-
+  Discover the syntax of the text and template packages in Go and
+  become comfortable using them to create templates for Nomad
+  jobs.
+---
+
+# Go template syntax
+
+Go's internal templating language, provided by the text/template package, is the
+basis for many commonly used template implementations. Some HashiCorp specific
+examples are:
+
+- Nomad `template` stanzas
+- Consul-template
+- Vault agent templates
+- Nomad Pack
+
+Some other implementations you might have seen are:
+
+- Hugo
+- Helm
+
+Go's template is designed to be extended by developers, and provides access to
+data objects and additional functions that are passed into the template engine
+programmatically. This guide only uses functions universally provided in
+the text/template package, and does not discuss the specifics of data access.
+However, once you have learned the basics of Go templates, implementation
+specific data access is easier to understand.
+
+Early in this guide, you will see elements that you are not familiar with
+yet, but don't panic. Use your intuition and experience with other languages as
+your guide. As the guide progresses, it revisits these examples
+with a more thorough explanation.
+
+## Starting template
+
+Here is a template to get you started on your journey. This guide refers
+to this template while you are learning the names for the syntax.
+
+```plaintext
+This is a simple template
+It can {{ "output" }} something.
+It also
+{{- " demonstrates" }} trim markers.
+{{/* it has a comment */}}
+It can {{ "output" }} something.
+It can demonstrate {{ "output" | print }} using pipelines.
+It also {{ $A := "assigns variables" }}{{ $A }}.
+And conditionals:
+{{ $B := 2 }}{{ if eq $B 1 }}B is 1{{ else }}B is 2{{ end }}
+```
+
+## Nomenclature
+
+Go template uses names for its objects that are not immediately familiar. Once
+you have familiarized yourself with the concepts, the canonical documentation
+becomes easier to read.
+
+### Template
+
+Not surprisingly, the template is the entire text that is submitted to the
+template engine to be rendered. The template consists of text and "actions". All
+text outside of actions is copied to the output unchanged.
+
+### Actions
+
+Actions provide the dynamic components of the template. They are set off from
+the text using delimiters. The actions in the sample template are:
+
+```plaintext
+{{ "output" }}
+{{- " demonstrates" }}
+{{/* it has a comment */}}
+{{ "output" | print }}
+{{ $A := "assigns variables" }}{{ $A }}.
+{{ $B := 2 }}{{ if eq $B 1 }}{{ else }}{{ end }}
+```
+
+Actions are composed of "control structures," or data evaluations through
+"pipelines."
+
+<Note>
+
+ Actions may not span newlines. However, raw-string literals and
+comments may contain newlines. Raw-string literals are a special type of
+string literal discussed later.
+
+</Note>
+
+### Delimiters
+
+As said earlier, actions are set between a left delimiter (`{{` by default)
+and a right delimiter (`}}` by default). The implementation can either use
+alternative delimiters, like Levant's use of `[[` and `]]`; or allow you to
+specify them as in Nomad's `template` stanza.
+
+<Note>
+
+ The HashiCorp Learn tutorials use go template's default delimiters
+of `{{` and `}}` unless specifically stated in the guide itself. Remember
+that these delimiters might need to be customized for your specific use case.
+
+</Note>
+
+#### Trim markers
+
+Go template outputs everything between actions, including whitespace and
+line feeds. This can make it challenging to read nested template code.
+
+If an action's left delimiter is followed immediately by
+a minus sign and ASCII space character `{{- `, all trailing white space
+is trimmed from the immediately preceding text. Similarly, if the right
+delimiter is preceded by a space and minus sign ` -}}`, all
+leading white space is trimmed from the immediately following text.
+
+<Note>
+
+ The ASCII space must be present in these trim markers. `{{-3}}`
+parses as an action containing the number -3.
+
+</Note>
+
+### Comments
+
+Comments are a special action created using a `/*` immediately following the
+left delimiter and a `*/` immediately preceding the right delimiter. The sample
+template has a comment.
+
+```plaintext
+{{/* it has a comment */}}
+```
+
+Comments can span multiple lines. Any elements within the comment start and end
+delimiters is not processed by the rendering engine. Comments can also contain
+trim markers on one or both ends to remove whitespace. Comments with trim markers
+must have a space between the `-` and the start or end of the comment.
+
+```plaintext
+{{- /* example comment with trim markers /* -}}
+```
+
+<Tip>
+
+ Comment out sections of a template while you are debugging it to
+simplify your troubleshooting.
+
+</Tip>
+
+### Pipelines
+
+A pipeline is one or more "commands" chained together using the pipe `|` symbol.
+A command is a:
+
+- simple value (argument)
+- function or method call, possibly with multiple arguments.
+
+For example:
+
+```plaintext
+It can demonstrate {{ "output" | print }} using pipelines.
+```
+
+This template line uses pipelining to send the string literal "output" to the
+print function.
+
+#### Simple values
+
+Simple values are typically used as either the sole element in an action, like a
+string literal
+
+```plaintext
+{{ "output" }}
+```
+
+which is rendered to the template in place. Simple values can also be references
+to data provided as context to the template. This context is represented by a
+period '.' and called "dot".
+
+<Note>
+
+ Implementation-specific tutorials will describe dot and its usage
+in further detail.
+
+</Note>
+
+#### Literals
+
+Go template supports the following types as literals.
+
+| Data type        | Example                          | Specification                                                                      | Notes                                |
+| ---------------- | -------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------ |
+| `string`         | "output"                         | [String literal spec](https://golang.org/ref/spec#String_literals)                 | may not contain unescaped line feeds |
+| `raw string`     | \`"out<br />put"\`               | [String literal spec](https://golang.org/ref/spec#String_literals)                 | can contain raw linefeed characters  |
+| `integer`        | 42 <br />0xBadFace<br />         | [Integer literal Spec](https://golang.org/ref/spec#Integer_literals)               |                                      |
+| `floating point` | 0.<br />72.40<br />2.71828<br /> | [Floating-point literal Spec](https://golang.org/ref/spec#Floating-point_literals) |                                      |
+| `boolean`        | true<br />false                  | [Boolean type](https://golang.org/ref/spec#Boolean_types)                          |                                      |
+
+#### Function calls
+
+Go template provides a very limited number of functions universally, and instead
+relies on the specific implementation to add functions to enhance the user
+experience. However, `print` is one of the available functions.
+
+```plaintext
+{{ "output" | print }}
+```
+
+Later in the guide, there is a list of the built-in functions provided by all
+Go template environments.
+
+#### Method calls
+
+Since Go template provides an empty context to the template by default, there
+are no methods to be called. Refer to an implementation specific guide for more
+information on method calls.
+
+### Control structures
+
+Go template control structures are used to provide branching, iteration, and
+sub-templates. The control structure documentation uses `T0` and `T1` as
+placeholders for the specific template content that would be contained there.
+
+T0 and T1 might see a different version of dot depending on the control
+structure that is generating them. For example, `with` and `range` redefine
+dot to a new scope when their pipeline is non-empty.
+
+## Control structure list
+
+### if
+
+```plaintext
+{{if pipeline}} T1 {{end}}
+```
+
+If the value of the pipeline is empty, no output is generated; otherwise, T1 is
+executed. The empty values are false, 0, any nil pointer or interface value, and
+any array, slice, map, or string of length zero. Dot is unaffected.
+
+```plaintext
+{{if pipeline}} T1 {{else}} T0 {{end}}
+```
+
+If the value of the pipeline is empty, T0 is executed; otherwise, T1 is
+executed. Dot is unaffected.
+
+```plaintext
+{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
+```
+
+To simplify the appearance of if-else chains, the else action
+of an if may include another if directly; the effect is exactly
+the same as writing:
+
+```plaintext
+{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
+```
+
+The sample template uses `if` and the `eq` function to branch
+between outputs.
+
+```plaintext
+{{ if eq $B 1 }}B is 1{{ else }}B is not 1{{ end }}
+```
+
+### range
+
+```plaintext
+{{range pipeline}} T1 {{end}}
+```
+
+The value of the pipeline must be an array, slice, map, or channel.
+If the value of the pipeline has length zero, nothing is output;
+otherwise, dot is set to the successive elements of the array,
+slice, or map and T1 is executed. If the value is a map and the
+keys are of basic type with a defined order, the elements are
+visited in sorted key order.
+
+```plaintext
+{{range pipeline}} T1 {{else}} T0 {{end}}
+```
+
+The value of the pipeline must be an array, slice, map, or channel.
+If the value of the pipeline has length zero, dot is unaffected and
+T0 is executed; otherwise, dot is set to the successive elements
+of the array, slice, or map and T1 is executed.
+
+One place you can test range is using the `-t` flag on many of the
+nomad commands. For example, you can retrieve the Node ID and version
+of each client in your cluster with the following command.
+
+```shell-session
+$ nomad node status -t '{{range .}}{{print .ID}} {{println .Version}}{{end}}'
+```
+
+### with
+
+```plaintext
+{{with pipeline}} T1 {{end}}
+```
+
+If the value of the pipeline is empty, no output is generated; otherwise, dot is
+set to the value of the pipeline and T1 is executed.
+
+```plaintext
+{{with pipeline}} T1 {{else}} T0 {{end}}
+```
+
+If the value of the pipeline is empty, dot is unaffected and T0 is executed;
+otherwise, dot is set to the value of the pipeline and T1 is executed.
+
+### define
+
+```plaintext
+{{define "name"}} T1 {{end}}
+```
+
+Create a template with the specified name that can be invoked using a `template`
+control structure
+
+### template
+
+```plaintext
+{{template "name"}}
+```
+
+The template with the specified name is executed with nil data.
+
+```plaintext
+{{template "name" pipeline}}
+```
+
+The template with the specified name is executed with dot set to the value of
+the pipeline.
+
+### block
+
+```plaintext
+{{block "name" pipeline}} T1 {{end}}
+```
+
+A block is shorthand for defining a template
+
+```plaintext
+{{define "name"}} T1 {{end}}
+```
+
+and then executing it in place
+
+```plaintext
+{{template "name" pipeline}}
+```
+
+The typical use is to define a set of root templates that are then customized by
+redefining the block templates within.
+
+## Function list
+
+Go template provides the following functions. Most implementations provide
+additional functions and can optionally override the default implementations.
+Consult the specific application's documentation for more information.
+
+### Functions
+
+| Function name | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| and           | Returns the boolean AND of its arguments by returning the first empty argument or the last argument, that is, "and x y" behaves as "if x then y else x". **All the arguments are evaluated.**                                                                                                                                                                                                                                                                                                                                                                                                 |
+| call          | Returns the result of calling the first argument, which must be a function, with the remaining arguments as parameters. Thus "call .X.Y 1 2" is, in Go notation, dot.X.Y(1, 2) where Y is a func-valued field, map entry, or the like. The first argument must be the result of an evaluation that yields a value of function type (as distinct from a predefined function such as print). The function must return either one or two result values, the second of which is of type error. If the arguments don't match the function or the returned error value is non-nil, execution stops. |
+| index         | Returns the result of indexing its first argument by the following arguments. Thus `index x 1 2 3` is, in Go syntax, `x[1][2][3]`. Each indexed item must be a map, slice, or array.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| slice         | slice returns the result of slicing its first argument by the remaining arguments. Thus:<ul><li>`slice x 1 2` is, in Go syntax, `x[1:2]`</li><li> `slice x` is `x[:]`</li><li> `slice x 1` is `x[1:]`, </li><li>`slice x 1 2 3` is `x[1:2:3]`</li></ul> The first argument must be a string, slice, or array.                                                                                                                                                                                                                                                                                 |
+| len           | Returns the integer length of its argument.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| not           | Returns the boolean negation of its single argument.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| or            | Returns the boolean OR of its arguments by returning the first non-empty argument or the last argument, that is,"or x y" behaves as "if x then x else y". **All the arguments are evaluated.**                                                                                                                                                                                                                                                                                                                                                                                                |
+| print         | An alias for [fmt.Sprint][]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| printf        | An alias for [fmt.Sprintf][]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| println       | An alias for [fmt.Sprintln][]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+### Comparison functions
+
+| Function name | Description                               |
+| ------------- | ----------------------------------------- |
+| eq            | Returns the boolean truth of arg1 == arg2 |
+| ne            | Returns the boolean truth of arg1 != arg2 |
+| lt            | Returns the boolean truth of arg1 < arg2  |
+| le            | Returns the boolean truth of arg1 <= arg2 |
+| gt            | Returns the boolean truth of arg1 > arg2  |
+| ge            | Returns the boolean truth of arg1 >= arg2 |
+
+### Specialized output functions
+
+| Function name | Description                                                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| html          | Returns the escaped HTML equivalent of the textual representation of its arguments.                                       |
+| js            | Returns the escaped JavaScript equivalent of the textual representation of its arguments.                                 |
+| urlquery      | Returns the escaped value of the textual representation of its arguments in a form suitable for embedding in a URL query. |
+
+
+[fmt.sprint]: https://golang.org/pkg/fmt/#Sprint
+[fmt.sprintf]: https://golang.org/pkg/fmt/#Sprintf
+[fmt.sprintln]: https://golang.org/pkg/fmt/#Sprintln

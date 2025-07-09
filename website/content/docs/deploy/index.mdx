@@ -1,0 +1,318 @@
+---
+layout: docs
+page_title: Install Nomad
+description: |-
+  Learn how to install Nomad on Linux, Mac, and Windows. Review Linux post-installation steps such as installing Container Network Interface (CNI) reference plugins, the consul-cni plugin, and the dmidecode tool. Configure bridge network traffic to route through iptables and verify cgroup controllers. Learn how to compile a Nomad binary from source code.
+---
+
+# Install Nomad
+
+Nomad is available as a pre-compiled binary or as a package for several
+operating systems. You can also [build Nomad from source](#from-source).
+
+-> If you are interested in trialing Nomad without installing it locally, see
+the [Quickstart](/nomad/docs/quickstart) for options to get started with
+Nomad.
+
+<Tabs>
+<Tab heading="Linux" group="linux">
+
+<Tabs>
+<Tab heading="Ubuntu/Debian" group="ubuntu">
+
+Install the required packages.
+
+```shell-session
+$ sudo apt-get update && \
+  sudo apt-get install wget gpg coreutils
+```
+
+Add the HashiCorp [GPG key][gpg-key].
+
+```shell-session
+$ wget -O- https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+
+Add the official HashiCorp Linux repository.
+
+```shell-session
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+| sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
+
+Update and install.
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install nomad
+```
+
+</Tab>
+<Tab heading="RHEL/CentOS" group="rhel">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad
+```
+
+</Tab>
+<Tab heading="Fedora" group="fedora">
+
+Install `dnf config-manager` to manage your repositories.
+
+```shell-session
+$ sudo dnf install -y dnf-plugins-core
+```
+
+Use `dnf config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo dnf config-manager addrepo --from-repofile=https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo dnf -y install nomad
+```
+
+</Tab>
+<Tab heading="Amazon Linux" group="amazonlinux">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager \
+  --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad
+```
+
+</Tab>
+<Tab heading="Manual" group="linux-manual">
+
+@include 'install/manual-install.mdx'
+
+</Tab>
+</Tabs>
+
+</Tab>
+
+<Tab heading="Mac" group="mac">
+
+<Tabs>
+<Tab heading="Homebrew" group="mac-homebrew">
+
+[Homebrew](https://brew.sh) is a free and open source package management system
+for Mac OS X. Install the official [Nomad
+formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
+
+First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
+packages.
+
+```shell-session
+$ brew tap hashicorp/tap
+```
+
+Now, install Nomad with `hashicorp/tap/nomad`.
+
+```shell-session
+$ brew install hashicorp/tap/nomad
+```
+
+-> This installs a signed binary and is automatically updated with
+every new official release.
+
+To update to the latest, run
+
+```shell-session
+$ brew upgrade hashicorp/tap/nomad
+```
+</Tab>
+<Tab heading="Manual" group="mac-manual">
+
+@include 'install/manual-install.mdx'
+
+</Tab>
+</Tabs>
+
+</Tab>
+
+<Tab heading="Windows" group="windows">
+
+<Tabs>
+<Tab heading="Chocolatey" group="windows-chocolatey">
+
+[Chocolatey](https://chocolatey.org/) is a free and open-source package
+management system for Windows. Install the [Nomad
+package](https://chocolatey.org/packages/nomad) from the command-line.
+
+```shell-session
+$ choco install nomad
+```
+
+-> Chocolatey and the Nomad package are **NOT** directly maintained
+by HashiCorp. The latest version of Nomad is always available by manual
+installation.
+
+</Tab>
+<Tab heading="Manual" group="windows-manual">
+
+@include 'install/manual-install.mdx'
+
+</Tab>
+</Tabs>
+
+</Tab>
+
+</Tabs>
+
+
+## Linux post-installation steps
+
+These steps are optional but can be helpful for running Nomad and to
+take advantage of additional Nomad functionalities.
+
+-> You need to run client agents as root (or with `sudo`) so that cpuset accounting and network namespaces work correctly.
+
+### Install CNI reference plugins
+
+@include 'install/install-cni-plugins.mdx'
+
+### Install consul-cni plugin
+
+@include 'install/install-consul-cni-plugin.mdx'
+
+### Install dmidecode
+
+When running on a virtualized host such as Amazon EC2, Nomad makes use of the
+`dmidecode` tool to detect CPU performance data. Some Linux distributions
+require installing the dmidecode package manually.
+
+### Configure bridge network to route traffic through iptables
+
+@include 'install/bridge-iptables.mdx'
+
+### Verify cgroup controllers
+
+@include 'install/cgroup-controllers.mdx'
+
+
+## Verify the installation
+
+To verify Nomad was installed correctly, try the `nomad` command.
+
+```shell-session
+$ nomad
+```
+
+You should see help output, similar to the following.
+
+```plaintext
+Usage: nomad [-version] [-help] [-autocomplete-(un)install] <command> [args]
+
+Common commands:
+    run         Run a new job or update an existing job
+    stop        Stop a running job
+    status      Display the status output for a resource
+    alloc       Interact with allocations
+    job         Interact with jobs
+    node        Interact with nodes
+    agent       Runs a Nomad agent
+
+Other commands:
+    acl                 Interact with ACL policies and tokens
+    agent-info          Display status information about the local agent
+    config              Interact with configurations
+    deployment          Interact with deployments
+    eval                Interact with evaluations
+    exec                Execute commands in task
+    fmt                 Rewrites Nomad config and job files to canonical format
+    license             Interact with Nomad Enterprise License
+    login               Login to Nomad using an auth method
+    monitor             Stream logs from a Nomad agent
+    namespace           Interact with namespaces
+    operator            Provides cluster-level tools for Nomad operators
+    plugin              Inspect plugins
+    quota               Interact with quotas
+    recommendation      Interact with the Nomad recommendation endpoint
+    scaling             Interact with the Nomad scaling endpoint
+    sentinel            Interact with Sentinel policies
+    server              Interact with servers
+    service             Interact with registered services
+    system              Interact with the system API
+    tls                 Generate Self Signed TLS Certificates for Nomad
+    ui                  Open the Nomad Web UI
+    var                 Interact with variables
+    version             Prints the Nomad version
+    volume              Interact with volumes
+```
+
+---
+
+## Compiling from source ((#from-source))
+
+To compile from source, you will need [Go](https://golang.org) installed at the
+version described by the [.go-version][go-version] file. You should properly
+configure your Go environment, including setting a `GOPATH` environment variable
+and ensuring `GOPATH/bin` is within your `PATH`. A copy of
+[`git`](https://www.git-scm.com/) is also needed in your `PATH`.
+
+1. Clone the Nomad repository from GitHub into your `GOPATH`:
+
+   ```shell-session
+   $ mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
+   $ git clone https://github.com/hashicorp/nomad.git
+   $ cd nomad
+   ```
+
+1. Bootstrap the project. This will download and compile libraries and tools
+   needed to compile Nomad:
+
+   ```shell-session
+   $ make bootstrap
+   ```
+
+1. Build Nomad for your current system and put the
+   binary in `./bin/` (relative to the git checkout). The `make dev` target is
+   just a shortcut that builds `nomad` for only your local build environment (no
+   cross-compiled targets).
+
+   ```shell-session
+   $ make dev
+   ```
+
+[consul-dev]: /consul/tutorials/certification-associate-tutorials/get-started-agent#start-the-agent
+
+[consul-download]: /consul/downloads
+
+[destroy]: /vagrant/docs/cli/destroy
+
+[gh-7865]: https://github.com/hashicorp/nomad/issues/7865
+
+[gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
+[go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version
+

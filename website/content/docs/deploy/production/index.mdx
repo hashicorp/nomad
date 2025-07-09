@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: Deploy Nomad in a production environment
+description: |-
+  This page contains a high-level overview of Nomad production deployment and links review hardware requirements, reference architecture, a deployment guide, and configuration documentation.
+---
+
+# Deploy Nomad in a production environment
+
+While HashiCorp Nomad provides a low-friction practitioner experience out of
+the box, there are a few critical steps to take for a successful production
+Nomad deployment.
+
+## Explore the reference architecture and installation guide
+
+Learn more about recommended practices and explore a reference architecture for
+deploying HashiCorp Nomad in production.
+
+- [Nomad Reference Architecture][] - Learn recommended practices and a reference
+  architecture for Nomad production deployments. This reference architecture
+  conveys a general architecture. Adapt it to accommodate the specific needs
+  of your implementation.
+
+- [Nomad Deployment Guide][] - Follow along with an end-to-end outline of the
+  steps required to install a single production-ready Nomad cluster as defined
+  in the Reference Architecture section.
+
+## Verify hardware requirements
+
+Review the recommended machine resources (instances), port requirements, and
+network topology for Nomad in the [Hardware Requirements](/nomad/docs/deploy/production/requirements).
+
+## Install Nomad
+
+Visit the [Install Nomad](/nomad/docs/deploy) page to learn the options
+available for installing Nomad and how to verify a successful
+installation.
+
+## Configure your Nomad servers and clients
+
+Refer to the [Set Server & Client Nodes](/nomad/docs/deploy/nomad-agent)
+and [Nomad Agent documentation](/nomad/commands/agent) pages to learn about the
+Nomad agent process and how to configure the server and client nodes in your
+cluster.
+
+[nomad reference architecture]: /nomad/docs/deploy/production/reference-architecture
+[nomad deployment guide]: /nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul

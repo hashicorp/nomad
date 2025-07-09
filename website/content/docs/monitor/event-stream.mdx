@@ -1,0 +1,99 @@
+---
+layout: docs
+page_title: Monitor Nomad's event stream
+description: |-
+  Subscribe to Nomad's event stream to observe activities in your Nomad cluster.
+---
+
+# Monitor Nomad's event stream
+
+The event stream provides a way to subscribe to Job, Allocation, Evaluation,
+Deployment, and Node changes in near real time. Whenever a state change occurs in
+Nomad via Nomad's Finite State Machine (FSM) a set of events for each updated
+object are created.
+
+Currently, Nomad users must take a number of steps to build a mental model of
+what recent actions have occurred in their cluster. Individual log statements
+often provide a small fragment of information related to a unit of work within
+Nomad. Logs can also be interlaced with other unrelated logs, complicating the
+process of understanding and building context around the issue a user is trying
+to identify. Log statements may also be too specific to a smaller piece of work
+that took place and the larger context around the log or action is missed or
+hard to infer.
+
+Another pain point is that the value of log statements depend on how they are
+managed by an organization. Larger teams with external log aggregators find
+more value out of standard logging than a smaller team who manually scans
+through files to debug issues. Today, an operator might combine the information
+returned by `/v1/nodes`, `/v1/evaluations`, `/v1/allocations`, and then
+`/v1/nodes` again using the Nomad API to try to figure out what exactly
+happened.
+
+This complex workflow has led to a lack of prescriptive guidance when working
+with customers and users on how to best monitor and debug their Nomad clusters.
+Third party tools such as `nomad-firehose` have also emerged to try to solve
+the issue by continuously scraping endpoints to react to changes within Nomad.
+
+The event stream provides a first-class solution to receiving a stream of events
+in Nomad and provides users a much better understanding of how their cluster is
+operating out of the box.
+
+## Access the event stream
+
+The event stream currently exists in the API, so users can access the new event
+stream endpoint from the below command.
+
+```shell-session
+$ curl -s -v -N http://127.0.0.1:4646/v1/event/stream
+```
+
+## Subscribe to all or certain events
+
+Filter on certain topics by specifying a filter key. This example listens
+for Node events only relating to that particular node's ID. It also listens
+to all Deployment events and Job events related to a job named web.
+
+```shell-session
+$ curl -s -v -N \
+  --data-urlencode "topic=Node:ccc4ce56-7f0a-4124-b8b1-a4015aa82c40" \
+  --data-urlencode "topic=Deployment" \
+  --data-urlencode "topic=Job:web" \
+  http://127.0.0.1:4646/v1/event/stream
+```
+
+## What is in an event?
+
+Each event contains a `Topic`, `Type`, `Key`, `Namespace`, `FilterKeys`, `Index`,
+and `Payload`. The contents of the Payload depend on the event Topic. An event
+for the Node Topic contains a Node object. For example:
+
+```json
+{
+  "Topic": "Node",
+  "Type": "NodeRegistration",
+  "Key": "afb9c810-d701-875a-b2a6-f2631d7c2f60",
+  "Namespace": "",
+  "FilterKeys": null,
+  "Index": 7,
+  "Payload": {
+    "Node": {
+      "//": "...entire node object"
+    }
+  }
+}
+```
+
+## Develop using event stream
+
+Here are some patterns of how you might use Nomad's event stream.
+
+- Subscribe to all or subset of cluster events
+
+- Add an additional tool in your regular debugging & monitoring workflow as an
+  SRE to gauge the qualitative state and health of your cluster.
+
+- Trace through a specific job deployment as it upgrades from an evaluation to a
+  deployment and uncover any blockers in the path for the scheduler.
+
+- Build a slack bot integration to send deploy notifications.
+  - https://github.com/drewbailey/nomad-deploy-notifier

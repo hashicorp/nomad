@@ -1,0 +1,46 @@
+---
+layout: docs
+page_title: Run Nomad jobs
+description: |-
+  This section provides guidance for running Nomad jobs. Inspect job, access logs for troubleshooting, collect resource utilization metrics, and create job versions.
+---
+
+# Run Nomad jobs
+
+This section provides guidance for running Nomad jobs. Inspect job, access logs
+for troubleshooting, collect resource utilization metrics, and create job
+versions.
+
+The following list is the general flow for operating a job in Nomad:
+
+1. Declare the job according to the [job specification](/nomad/docs/job-specification).
+1. Plan and review the changes with a Nomad server.
+1. Submit the job file to a Nomad server.
+1. (Optional) Review job status and logs.
+
+Refer to [Create and submit a job](/nomad/docs/job-declare/create-job) to learn
+how to create a job specification, review the job plan, and submit the job.
+
+## Run a job
+
+Execute the [`nomad job run` command](/nomad/commands/job/run) to run your job.
+
+Now that the job is scheduled, it may or may not be running. You need to inspect
+the allocation status and logs to make sure the job started correctly. Refer to
+the section on [inspecting state](/nomad/docs/job-run/inspect)
+details ways to examine this job's state.
+
+## Update a running job
+
+When updating a job, there are a number of [built-in update
+strategies](/nomad/docs/job-declare/strategy) which may be defined in the job
+file. The general flow for updating an existing job in Nomad is:
+
+1. Modify the existing job file with the desired changes.
+1. Plan and review the changes with a Nomad server.
+1. Submit the job file to a Nomad server.
+1. (Optional) Review job status and logs.
+
+Because the job specification defines the deployment strategy, the workflow
+remains the same regardless of whether this is an initial deployment or a
+long-running job.

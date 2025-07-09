@@ -1,0 +1,325 @@
+---
+layout: docs
+page_title: ACL tokens overview
+description: |-
+  Create a management token and a client token and use them to submit requests with the Nomad CLI.
+products_used:
+---
+
+# ACL tokens overview
+
+Nomad uses tokens to authenticate requests to the cluster. These tokens are
+created using the `nomad acl token create` command. When a token is being
+created, the operator can specify one or more policies to apply to the token.
+These policies determine if any action specified by the token bearer is
+authorized. This guide will demonstrate this process and teach you how to
+inspect existing tokens.
+
+If you completed the [Bootstrap Nomad ACL System][] guide, you generated a
+management token during bootstrap. For this guide, you will need to have
+either that token or another management token set in the NOMAD_TOKEN environment
+variable. Replace `BOOTSTRAP_SECRET_ID` in the following command with a
+bootstrap or management token:
+
+```shell
+## Store our token secret ID
+$ export NOMAD_TOKEN="BOOTSTRAP_SECRET_ID"
+```
+
+## Examine a token
+
+You can use the `nomad acl token self` command to get the information about your
+current token. Remember, you must have the token in the NOMAD_TOKEN environment
+variable or pass it in via the -token flag.
+
+```shell-session
+$ nomad acl token self
+Accessor ID  = 59baab4d-1c7b-9605-37e5-5690ec7e6c3a
+Secret ID    = 948bb149-8266-904d-8824-58b25529a8ca
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2020-01-23 18:51:33.446571 +0000 UTC
+Create Index = 9
+Modify Index = 9
+```
+
+### Token internals
+
+A token contains:
+
+- **Accessor ID** - The public identifier for a specific token. It can be
+  used to look up information about a token or to revoke a token.
+
+- **Secret ID** - Used to make requests to Nomad and should be kept private
+
+- **Name** (optional) - A user-supplied identifier.
+
+- **Type** - Shows the type of the token. Management tokens are used for
+  administration and can be thought of as root-level tokens. Client tokens are
+  used for applications and can have policies assigned to them at creation.
+
+- **Global** - (bool) Indicates whether or not the token was created with the
+  `--global` flag. Global tokens are replicated from the authoritative region to
+  other connected regions in the cluster.
+
+- **Policies** - ([string]) A list of the policies assigned to the token.
+
+- **Create Time** - Wall clock time on the Nomad server leader when the token
+  was generated.
+
+- **Create/Modification index** - Used by Nomad internally to determine when a
+  token was created and/or modified relative to other system events.
+
+### Token types
+
+You can observe in the output above that the token in question is a management
+token, but what is a Nomad token type?
+
+There are two types of tokens: management and client tokens.
+
+Management tokens can perform any action in your cluster. Because they allow all
+requests, they can not be associated with a policy.
+
+Client tokens are associated with one or more policies when they are created,
+and can perform an action if any associated policy allows it.
+
+Tokens can be associated with policies that do not exist, which is equivalent to
+granting no capabilities.
+
+### Token replication settings
+
+Nomad has two token types: local and global. Local tokens are created and stored
+within the current Nomad region. However, for multi-region clusters, you can
+also create global tokens which are created in the authoritative region and
+replicated to the other regions.
+
+Nomad creates local tokens by default. They can not be used for cross-region
+requests since they are not replicated between regions.
+
+When ACL tokens are created, you can optionally mark them as Global. Global
+tokens are created in the authoritative region and then replicate to all other
+regions.
+
+Use the `-global` flag on the [`nomad acl token create`][cli_create_token]
+command or set the ["Global" parameter] to `true` in your [Create Token API
+call][api_create_token] to create global tokens.
+
+### Token names
+
+Token names are optional information that is provided by the user at creation
+time. Token names can be used for human-readable values, like "Bootstrap Token"
+on tokens that Nomad creates during the bootstrap process. Token names are not
+required to be unique and can not be used for identification of a specific
+token.
+
+You can store up to 256 characters in the token name, so it can also be used for
+machine generated identifiers. You can use Unicode in this field as well:
+
+```shell-session
+$ nomad acl token create -name="🤞"
+Accessor ID  = c46ba94a-0653-4135-a5e7-aaa307e64e9b
+Secret ID    = 1783bc34-ad82-4f82-d36e-e2def1fe8453
+Name         = 🤞
+Type         = client
+Global       = false
+Policies     = []
+Create Time  = 2020-01-23 19:22:51.196728 +0000 UTC
+Create Index = 42
+Modify Index = 42
+```
+
+### Generate a management token
+
+Management tokens are necessary for working with the Nomad ACL API. You can have
+as many management tokens as you like. They are revocable at any time by another
+management token. However, if you lose all of your management tokens, you will
+have to re-bootstrap your ACL subsystem.
+
+Create a management token:
+
+```shell-session
+$ nomad acl token create -name="New Management Token" -type="management"
+Accessor ID  = a57be18f-31ed-a8f9-682c-be9b16d5db77
+Secret ID    = 775b2821-e0f4-3ad9-0f69-44d973daf737
+Name         = New ManagementToken
+Type         = management
+Global       = false
+Policies     = n/a
+Create Time  = 2020-01-23 19:32:25.078669 +0000 UTC
+Create Index = 53
+Modify Index = 53
+```
+
+Your token material will be different. Load this management token into your
+environment for the next step. Replace the token with the **Secret ID** from the
+output of the token create command.
+
+```shell-session
+$ export NOMAD_TOKEN=775b2821-e0f4-3ad9-0f69-44d973daf737
+```
+
+### Generate a client token
+
+The primary token type used in an ACL-enabled cluster is a "client" token.
+Client tokens allow you to specify one or more policies when creating a token.
+The policies determine what Nomad resources that the token-bearer has access to.
+
+Create a client token called "client1" that is associated with the policies
+"app1" and "app2". It does not matter that these policies do not yet exist.
+Nonexistent policies provide no capabilities to a token, but they will not cause
+an error.
+
+```shell-session
+$ nomad acl token create -name="client1" -policy="app1" -policy="app2"
+Accessor ID  = a7bef400-a66c-d163-52c4-5ff4978f19b8
+Secret ID    = 950e462b-b333-dd52-1e18-76837e9b97fa
+Name         = client1
+Type         = client
+Global       = false
+Policies     = [app1 app2]
+Create Time  = 2020-01-23 20:10:11.600915 +0000 UTC
+Create Index = 19
+Modify Index = 19
+```
+
+Generate a global token named "client2" that has access to the app2 policy.
+
+```shell-session
+$ nomad acl token create -name="client2" -global -policy="app2"
+Accessor ID  = ab3b15dc-1647-a81d-c637-90be45440d18
+Secret ID    = 6d164ce7-c8b8-82a2-a350-bb0bcb43010a
+Name         = client2
+Type         = client
+Global       = true
+Policies     = [app2]
+Create Time  = 2020-01-23 20:42:00.683964 +0000 UTC
+Create Index = 53
+Modify Index = 53
+```
+
+## Use a token
+
+You can provide a token for CLI commands in two ways:
+
+- Use the -token flag. Be mindful that flags must come before positional
+  parameters.
+
+  ```shell-session
+  $ nomad acl token self -token=05392bd8-bb8a-8f63-a405-53c87b0d7d63
+  ```
+
+  or
+
+  ```shell-session
+  $ nomad job run -token=05392bd8-bb8a-8f63-a405-53c87b0d7d63 example.nomad.hcl
+  ```
+
+- Set the NOMAD_TOKEN environment variable. An advantage of this approach is
+  that you do no longer have to be concerned with argument ordering.
+
+  ```shell-session
+  $ export NOMAD_TOKEN="«Token to use»"
+  $ nomad status
+  No running jobs
+  ```
+
+For direct API calls, you will need to supply the token using the
+"X-Nomad-Token" header. This can be paired nicely with the NOMAD_TOKEN
+environment variable or can be passed directly. This example requires you to
+have set the NOMAD_ADDR environment variable to the protocol, address, and port
+for your NOMAD API, e.g. `http://127.0.0.1:4646`.
+
+```shell-session
+$ curl --header "X-Nomad-Token: ${NOMAD_TOKEN}" ${NOMAD_ADDR}/v1/jobs
+[]
+```
+
+## Inspect a token via accessor
+
+Token accessors are the unique public identifier for a token. They can be safely
+stored in the clear and are used by management token-bearers to get information
+about a token, update a token, or revoke a token.
+
+Use the accessor for the "client1" token to inspect it.
+
+```shell-session
+$ nomad acl token info a7bef400-a66c-d163-52c4-5ff4978f19b8
+Accessor ID  = a7bef400-a66c-d163-52c4-5ff4978f19b8
+Secret ID    = 950e462b-b333-dd52-1e18-76837e9b97fa
+Name         = client1
+Type         = client
+Global       = false
+Policies     = [app1 app2]
+Create Time  = 2020-01-23 20:10:11.600915 +0000 UTC
+Create Index = 19
+Modify Index = 19
+```
+
+You can get this same data from the API:
+
+```shell-session
+$ curl --header "X-Nomad-Token: ${NOMAD_TOKEN}" \
+  ${NOMAD_ADDR}/v1/acl/token/a7bef400-a66c-d163-52c4-5ff4978f19b8\?pretty
+{
+    "AccessorID": "a7bef400-a66c-d163-52c4-5ff4978f19b8",
+    "CreateIndex": 19,
+    "CreateTime": "2020-01-23T20:10:11.600915Z",
+    "Global": false,
+    "Hash": "bY2538leml33LX7mIIBYT2ngBDMhpie065x+4/pQWJ0=",
+    "ModifyIndex": 19,
+    "Name": "client1",
+    "Policies": [
+        "app1",
+        "app2"
+    ],
+    "SecretID": "950e462b-b333-dd52-1e18-76837e9b97fa",
+    "Type": "client"
+}
+```
+
+## Delete a token via accessor
+
+Sometimes a token needs to be revoked. You can do that by running the `nomad acl token delete` command and supplying the accessor of the token to revoke. You must
+use a management token to run this command.
+
+Clean up the three tokens you made in this guide. Switch to the first token you
+used in the start of the guide:
+
+```shell-session
+$ export NOMAD_TOKEN=«original token»
+```
+
+Run the `nomad acl token delete` command and pass in the accessor of the created
+tokens. The example output below uses the token IDs from the earlier examples.
+
+Revoke the client1 token.
+
+```shell-session
+$ nomad acl token delete a7bef400-a66c-d163-52c4-5ff4978f19b8
+Token a7bef400-a66c-d163-52c4-5ff4978f19b8 successfully deleted
+```
+
+Revoke client2.
+
+```shell-session
+$ nomad acl token delete ab3b15dc-1647-a81d-c637-90be45440d18
+Token ab3b15dc-1647-a81d-c637-90be45440d18 successfully deleted
+```
+
+Revoke the "New Management Token".
+
+```shell-session
+$ nomad acl token delete a57be18f-31ed-a8f9-682c-be9b16d5db77
+Token a57be18f-31ed-a8f9-682c-be9b16d5db77 successfully deleted
+```
+
+## Next steps
+
+Next, you will explore policy creation in Nomad through a scenario.
+
+["global" parameter]: /nomad/api-docs/acl/tokens#global
+[api_create_token]: /nomad/api-docs/acl/tokens#create-token
+[cli_create_token]: /nomad/commands/acl/token/create
+[bootstrap nomad acl system]: /nomad/docs/secure/acl/bootstrap

@@ -1,0 +1,88 @@
+---
+layout: docs
+page_title: Enable gossip encryption
+description: |-
+  Create an encryption key and then configure Nomad to encrypt the gossip protocol, which communicates membership and node health information between Nomad servers.
+---
+
+# Enable gossip encryption
+
+Nomad server's gossip protocol that is used to communicate membership and
+liveness information can be encrypted with symmetric keys. Enabling gossip
+encryption requires you to set an encryption key when starting the Nomad server.
+The key can be set via the [`encrypt`] parameter or with the [`-encrypt` command
+line option]. The key must be a base64-encoded string of 32 random bytes.
+The same encryption key should be used on every server in a region.
+
+<Note>
+
+To secure RPC and HTTP communication, you will need to configure
+TLS. You can learn how in the [Enable TLS encryption guide][tls-guide].
+
+</Note>
+
+## Generate an encryption key
+
+The Nomad CLI includes a `operator gossip keyring generate` command for generating a new secure
+gossip encryption key.
+
+```shell-session
+$ nomad operator gossip keyring generate
+4kRkFQfcc3LU0BazP1ca+z==
+```
+
+Current and older versions of `nomad operator gossip keyring generate` return 16 bytes; however,
+Nomad supports gossip encryption keys of 32 bytes as well. Supplying a 32 byte key
+enables AES-256 mode, where supplying a 16 byte key enables AES-128 mode.
+
+Alternatively, you can use any method that can create 32 random bytes encoded in
+base64.
+
+```shell-session
+$ openssl rand -base64 32
+4YwLQm6ZMwYgfldNBT5P76tAWMdcBmu+FPYRvCxvsHc=
+```
+
+```shell-session
+$ dd if=/dev/urandom bs=32 count=1 status=none | base64
+IisA4F7Mu/RwGfBZelcsFzMlJ4+twnO5Z7eoTzD0T6c=
+```
+
+## Configure the server to use the key
+
+Put the same generated key into every server's configuration file or command
+line arguments:
+
+```hcl
+server {
+  enabled = true
+
+  # Self-elect, should be 3 or 5 for production. This is only for single node
+  # clusters which are strictly for development/demo.
+  bootstrap_expect = 1
+
+  # Encrypt gossip communication
+  encrypt = "+p7iF56z0EWoSIvhpYHWXZrSAAtnjR9l6XHRzHqQKlg="
+}
+```
+
+## Restart the server to enable encryption
+
+You can perform a rolling restart of the Nomad process on each of your server
+nodes to enable encryption. Restart your servers one at a time in order to
+maintain a quorum of nodes on one side or the other of this soft partition.
+
+Once all of the nodes have been restarted all gossip traffic will be encrypted
+between all of your server nodes.
+
+## Next steps
+
+If you would like to learn more technical information about Nomad's gossip
+protocol, consult the [Serf library] documentation.
+
+[tls-guide]: /nomad/docs/secure/traffic/tls
+[`-encrypt` command line option]: /nomad/commands/agent
+[`encrypt`]: /nomad/docs/configuration/server#encrypt
+[`nomad operator gossip keyring` command]: /nomad/commands/operator/gossip/keyring-generate
+[serf library]: https://www.serf.io/docs/internals/gossip.html
+[tls]: /nomad/docs/configuration/tls

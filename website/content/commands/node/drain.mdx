@@ -1,0 +1,165 @@
+---
+layout: docs
+page_title: 'nomad node drain command reference'
+description: |
+  The `nomad node drain` command turns on or turns off a node's drain mode. Drain mode prevents any new tasks from being allocated to the node and beings migrating all existing allocations to other nodes.
+---
+
+# `nomad node drain` command reference
+
+The `node drain` command is used to toggle drain mode on a given node. Drain
+mode prevents any new tasks from being allocated to the node, and begins
+migrating all existing allocations away.
+
+The exact behavior of drained allocations depends on the job type:
+* Allocations for `service` jobs will be migrated according to their
+  [`migrate`][] block until the drain's deadline is reached. These allocations
+  are not considered rescheduled and their previous [`reschedule`][] attempts
+  will not be propagated to any replacement allocations.
+* Allocations for `batch` and `sysbatch` jobs will wait until they complete or
+  the drain's deadline is reached, whichever comes first. These allocations will
+  not be replaced.
+* Allocations for `system` job allocations will be drained last by
+  default. These allocations will be stopped but not replaced.
+
+By default the `node drain` command blocks until a node is done draining and
+all allocations have terminated. Canceling the `node drain` command _will not_
+cancel the drain. Drains may be canceled by using the `-disable` parameter
+below.
+
+When draining more than one node at a time, it is recommended you first
+disable [scheduling eligibility][eligibility] on all nodes that will be
+drained. For example if you are decommissioning an entire class of nodes,
+first run `node eligibility -disable` on all of their node IDs, and then run
+`node drain -enable`. This will ensure allocations drained from the first node
+are not placed on another node about to be drained.
+
+The [node status] command compliments this nicely by providing the current drain
+status of a given node.
+
+See the [Workload Migration guide] for detailed examples of node draining.
+
+## Usage
+
+```plaintext
+nomad node drain [options] <node>
+```
+
+A `-self` flag can be used to drain the local node. If this is not supplied, a
+node ID or prefix must be provided. If there is an exact match, the drain mode
+will be adjusted for that node. Otherwise, a list of matching nodes and
+information will be displayed.
+
+It is also required to pass one of `-enable` or `-disable`, depending on which
+operation is desired.
+
+If ACLs are enabled, this option requires a token with the 'node:write'
+capability.
+
+## Options
+
+- `-enable`: Enable node drain mode.
+
+- `-disable`: Disable node drain mode.
+
+- `-deadline`: Set the deadline by which all allocations must be moved off the
+  node. Remaining allocations after the deadline are removed from the node,
+  regardless of their [`migrate`][] block. Defaults to 1 hour.
+
+- `-detach`: Return immediately instead of entering monitor mode.
+
+- `-monitor`: Enter monitor mode directly without modifying the drain status.
+
+- `-force`: Remove allocations off the node immediately, regardless of the
+  allocation's [`migrate`][] block. This will include system jobs and CSI
+  plugins if `-ignore-system` is not also set, and is not safe for use with CSI
+  node plugins if the volumes are not being detached externally (for example, a
+  cloud VM is being terminated).
+
+- `-no-deadline`: No deadline allows the allocations to drain off the node,
+  ignoring the default 1 hour deadline before allocations are removed regardless
+  of their [`migrate`][] block.
+
+- `-ignore-system`: Ignore system allows the drain to complete without
+  stopping system job allocations. By default system jobs (and CSI
+  plugins) are stopped last.
+
+- `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
+  ineligibility even if the drain is being disabled. This is useful when an
+  existing drain is being cancelled but additional scheduling on the node is not
+  desired.
+
+- `-m`: Message for the drain update operation. Registered in drain metadata as
+  `"message"` during drain enable and `"cancel_message"` during drain disable.
+
+- `-meta <key>=<value>`: Custom metadata to store on the drain operation, can be
+  used multiple times.
+
+- `-self`: Drain the local node.
+
+- `-yes`: Automatic yes to prompts.
+
+## Examples
+
+Enable drain mode on node with ID prefix "4d2ba53b":
+
+```shell-session
+$ nomad node drain -enable f4e8a9e5 -m "node maintenance"
+Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e"? [y/N] y
+2018-03-30T23:13:16Z: Ctrl-C to stop monitoring: will not cancel the node drain
+2018-03-30T23:13:16Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" drain strategy set
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" marked for migration
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" draining
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" status running -> complete
+2018-03-30T23:13:29Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" marked for migration
+2018-03-30T23:13:29Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" draining
+2018-03-30T23:13:30Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" status running -> complete
+2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" marked for migration
+2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" draining
+2018-03-30T23:13:41Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" has marked all allocations for migration
+2018-03-30T23:13:42Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" status running -> complete
+2018-03-30T23:13:42Z: All allocations on node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" have stopped.
+```
+
+Enable drain mode on the local node:
+
+```shell-session
+$ nomad node drain -enable -self
+...
+```
+
+Enable drain mode but do not stop system jobs:
+
+```shell-session
+$ nomad node drain -enable -ignore-system 4d2ba53b
+...
+```
+
+Disable drain mode but keep the node ineligible for scheduling. Useful for
+inspecting the current state of a misbehaving node without Nomad trying to
+start or migrate allocations:
+
+```shell-session
+$ nomad node drain -disable -keep-ineligible 4d2ba53b
+...
+```
+
+Enable drain mode and detach from monitoring, then reattach later:
+
+```shell-session
+$ nomad node drain -enable -detach -self
+...
+$ nomad node drain -self -monitor
+...
+```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
+
+[eligibility]: /nomad/commands/node/eligibility
+[`migrate`]: /nomad/docs/job-specification/migrate
+[`reschedule`]: /nomad/docs/job-specification/reschedule
+[node status]: /nomad/commands/node/status
+[workload migration guide]: /nomad/docs/manage/migrate-workloads
+[internals-csi]: /nomad/docs/architecture/storage/csi
