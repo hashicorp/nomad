@@ -1,0 +1,42 @@
+---
+layout: docs
+page_title: Use Nomad task drivers in jobs
+description: Nomad's bundled task drivers integrate with the host OS to run job tasks in isolation. Review conceptual, installation, usage, and reference information for the Docker, Isolated Fork/Exec, Java, QEMU, and Raw Fork/Exec task drivers.
+---
+
+# Use Nomad task drivers in jobs
+
+Nomad's bundled task drivers integrate with the host OS to run job tasks in
+isolation. Review job usage for the Docker, Isolated
+Fork/Exec, Java, QEMU, and Raw Fork/Exec task drivers.
+
+@include 'task-driver-intro.mdx'
+
+## Nomad task drivers
+
+The Nomad binary contains several bundled task drivers. We also support
+additional task driver plugins that you may install separately.
+
+| Bundled with Nomad   | Plugins               |
+|----------------------|-----------------------|
+| [Docker]             | [Exec2]               |
+| [Isolated Fork/Exec] | [Podman]              |
+| [Java]               | [Virt]                |
+| [QEMU]               |                       |
+| [Raw Fork/Exec]      |                       |
+
+Refer to each task driver's page for detailed usage.
+
+## Configure task driver plugins
+
+Refer to [Configure Nomad task drivers](/nomad/docs/deploy/task-driver) for task
+driver plugin configuration details.
+
+[Docker]: /nomad/docs/job-declare/task-driver/docker
+[Exec2]: /nomad/plugins/drivers/exec2
+[Isolated Fork/Exec]: /nomad/docs/job-declare/task-driver/exec
+[Podman]: /nomad/plugins/drivers/podman
+[Java]: /nomad/docs/job-declare/task-driver/java
+[Virt]: /nomad/plugins/drivers/virt
+[QEMU]: /nomad/docs/job-declare/task-driver/qemu
+[Raw Fork/Exec]: /nomad/docs/job-declare/task-driver/raw_exec

@@ -1,0 +1,16 @@
+---
+layout: docs
+page_title: Job deployment strategies
+description: |-
+  Discover common patterns to update running jobs in Nomad, including rolling updates, blue-green deployments, and canary deployments. Nomad  provides built-in support for each strategy.
+---
+
+# Job deployment strategies
+
+Most applications are long-lived and require updates over time. Whether you are
+deploying a new version of your web application or upgrading to a new version of
+Redis, Nomad has built-in support for rolling, blue/green, and canary updates.
+When a job specifies a rolling update, Nomad uses task state and health check
+information in order to detect allocation health and minimize or eliminate
+downtime. This section and subsections will explore how to do so safely with
+Nomad.

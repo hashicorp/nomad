@@ -1,0 +1,80 @@
+---
+layout: docs
+page_title: 'nomad namespace apply command reference'
+description: |
+  The `nomad namespace apply` command creates or updates a Nomad namespace.
+---
+
+# `nomad namespace apply` command reference
+
+The `namespace apply` command is used create or update a namespace.
+
+<Tip>
+  Visit the <a href="https://developer.hashicorp.com/nomad/docs/govern/namespaces">
+    Nomad Namespaces tutorial
+  </a> for more information.
+</Tip>
+
+## Usage
+
+```plaintext
+nomad namespace apply [options] <input>
+```
+
+Apply is used to create or update a namespace. The HCL specification file
+will be read from stdin by specifying "-", otherwise a path to the file is
+expected.
+
+Instead of a file, you may instead pass the namespace name to create
+or update as the only argument.
+
+If ACLs are enabled, this command requires a management ACL token. In federated
+clusters, the namespace will be created in the authoritative region and will be
+replicated to all federated regions.
+
+## Options
+
+- `-quota` : An optional quota to apply to the namespace.
+
+- `-description` : An optional human readable description for the namespace.
+
+- `-json` : Parse the input as a JSON namespace specification.
+
+## Examples
+
+Create a namespace with a quota:
+
+```shell-session
+$ nomad namespace apply -description "Prod API servers" -quota prod api-prod
+Successfully applied namespace "api-prod"!
+```
+
+Remove a quota from a namespace:
+
+```shell-session
+$ nomad namespace apply -quota= api-prod
+```
+
+Create a namespace from a file:
+```shell-session
+$ cat namespace.hcl
+name        = "dev"
+description = "Namespace for developers"
+
+capabilities {
+  enabled_task_drivers   = ["docker", "exec"]
+  disabled_task_drivers  = ["raw_exec"]
+  enabled_network_modes  = ["bridge", "cni/custom"]
+  disabled_network_modes = ["host"]
+}
+
+meta {
+  owner        = "John Doe"
+  contact_mail = "john@mycompany.com"
+}
+$ nomad namespace apply namespace.hcl
+```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

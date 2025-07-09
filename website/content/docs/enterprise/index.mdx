@@ -61,7 +61,7 @@ the numbers match, Nomad will begin to promote new servers and demote old
 ones.
 
 See the [Autopilot - Upgrade
-Migrations](/nomad/tutorials/manage-clusters/autopilot#upgrade-migrations)
+Migrations](/nomad/docs/manage/autopilot#upgrade-migrations)
 documentation for a thorough overview.
 
 ### Automated Backups
@@ -75,7 +75,7 @@ This capability provides an enterprise solution for backup and restoring the
 state of Nomad servers within an environment in an automated manner. These
 snapshots are atomic and point-in-time.
 
-See the [Operator Snapshot agent](/nomad/docs/commands/operator/snapshot/agent)
+See the [Operator Snapshot agent](/nomad/commands/operator/snapshot/agent)
 documentation for a thorough overview.
 
 ### Enhanced Read Scalability
@@ -87,7 +87,7 @@ committed). Adding explicit non-voters will scale reads and scheduling without
 impacting write latency.
 
 See the [Autopilot - Read
-Scalability](/nomad/tutorials/manage-clusters/autopilot#server-read-and-scheduling-scaling)
+Scalability](/nomad/docs/manage/autopilot#server-read-and-scheduling-scaling)
 documentation for a thorough overview.
 
 ### Redundancy Zones
@@ -102,7 +102,7 @@ will promote the non-voter to a voter automatically, putting the hot standby
 server into service quickly.
 
 See the [Autopilot - Redundancy
-Zones](/nomad/tutorials/manage-clusters/autopilot#redundancy-zones)
+Zones](/nomad/docs/manage/autopilot#redundancy-zones)
 documentation for a thorough overview.
 
 ### Multiple Vault Namespaces
@@ -113,7 +113,7 @@ consolidation when running Nomad and Vault together. Nomad will automatically
 retrieve a Vault token based on a job's defined Vault Namespace and make it
 available for the specified Nomad task at hand.
 
-Refer to the [Vault Integration documentation](/nomad/docs/integrations/vault/acl#vault-namespaces)) for more information.
+Refer to the [Vault Integration documentation](/nomad/docs/secure/vault/acl#vault-namespaces)) for more information.
 
 ### Multiple Vault and Consul Clusters
 
@@ -162,7 +162,7 @@ This allows operators to partition a shared cluster and ensure that no single
 actor can consume the whole resources of the cluster.
 
 See the [Resource Quotas
-Guide](/nomad/tutorials/governance-and-policy/quotas) for a thorough
+Guide](/nomad/docs/govern/resource-quotas) for a thorough
 overview.
 
 ### Sentinel Policies
@@ -208,5 +208,5 @@ request a trial of Nomad Enterprise.
 [multiregion deployments]: /nomad/docs/job-specification/multiregion
 [autoscaling capabilities]: /nomad/tools/autoscaling
 [scaling policies]: /nomad/tools/autoscaling/policy
-[Sentinel Policies Guide]: /nomad/tutorials/governance-and-policy/sentinel
-[Nomad Sentinel policy reference]: /nomad/docs/enterprise/sentinel
+[Sentinel Policies Guide]: /nomad/docs/govern/sentinel
+[Nomad Sentinel policy reference]: /nomad/docs/reference/sentinel-policy

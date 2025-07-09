@@ -18,7 +18,13 @@ This program is intended to be largely a self-service process with links and gui
 
 ## Types of Nomad Integrations
 
-Nomad is a simple and flexible orchestrator to deploy and manage containers and non-containerized applications across on-premises and cloud environments at scale. Nomad is widely adopted and used in production by organizations like Cloudflare, Roblox, Q2, Pandora, and more. See the [Introduction](/nomad/intro) page for a full description of the current features. The diagram below depicts the key Nomad integration categories and types.
+Nomad is a simple and flexible orchestrator to deploy and manage containers and
+non-containerized applications across on-premises and cloud environments at
+scale. Nomad is widely adopted and used in production by organizations like
+Cloudflare, Roblox, Q2, Pandora, and more. Refer to the [What is Nomad?
+page](/nomad/docs/what-is-nomad) for a full description of the current features.
+
+This diagram depicts the key Nomad integration categories and types.
 
 ![Integration Categories](/img/nomad-workload.png)
 
@@ -73,7 +79,7 @@ Nomad requires all code-level integrations to be written in the [Go](https://gol
 
 Container Runtime
 
-- [Task driver documentation](/nomad/docs/drivers)
+- [Task driver documentation](/nomad/docs/job-declare/task-driver)
 - [Guide to build, install, and maintaining a task driver plugin](/nomad/docs/concepts/plugins/task-drivers)
 - [Community examples of task drivers](/nomad/plugins/drivers/community)
 
@@ -90,11 +96,11 @@ Autoscaling
 
 Storage
 
-- [CSI plugins documentation](/nomad/docs/concepts/plugins/storage/csi)
+- [CSI plugins documentation](/nomad/docs/architecture/storage/csi)
 
 Observability & Analysis
 
-- [Telemetry documentation](/nomad/docs/operations/monitoring-nomad)
+- [Telemetry documentation](/nomad/docs/monitor)
 
 ## 4. Review
 
