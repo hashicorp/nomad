@@ -557,6 +557,7 @@ func NewStreamParser(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.
 		conn:       conn,
 		encoder:    encoder,
 		frameCodec: frameCodec,
+		plainText:  plainText,
 	}
 }
 func (s *StreamParser) ParseStream(frame *sframer.StreamFrame) error {
