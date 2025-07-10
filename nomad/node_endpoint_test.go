@@ -3250,6 +3250,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 		must.Eq(t, expJobID, eval.JobID)
 		must.NonZero(t, eval.CreateTime)
 		must.NonZero(t, eval.ModifyTime)
+		must.Eq(t, job.NodePool, eval.NodePool)
 	}
 }
 
@@ -3447,6 +3448,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("ModifyTime is unset: %#v", eval)
 	}
+	must.Eq(t, alloc.Job.NodePool, eval.NodePool)
 }
 
 func TestClientEndpoint_Evaluate_ACL(t *testing.T) {

@@ -876,6 +876,7 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
 		JobID:        w.j.ID,
 		DeploymentID: w.deploymentID,
+		NodePool:     w.j.NodePool,
 		Status:       structs.EvalStatusPending,
 		CreateTime:   now,
 		ModifyTime:   now,

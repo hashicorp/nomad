@@ -114,6 +114,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
+	must.Eq(t, job.NodePool, eval.NodePool)
 }
 
 // TestJobEndpoint_Register_NonOverlapping asserts that ClientStatus must be
@@ -2773,6 +2774,7 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
+	must.Eq(t, job.NodePool, eval.NodePool)
 }
 
 func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
@@ -6931,6 +6933,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			must.NoError(t, err)
 			must.NotNil(t, eval)
 			must.Eq(t, eval.CreateIndex, dispatchResp.EvalCreateIndex)
+			must.Eq(t, eval.NodePool, tc.parameterizedJob.NodePool)
 		})
 	}
 }

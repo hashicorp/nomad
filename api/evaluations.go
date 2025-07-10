@@ -106,6 +106,7 @@ type Evaluation struct {
 	JobModifyIndex       uint64
 	NodeID               string
 	NodeModifyIndex      uint64
+	NodePool             string
 	DeploymentID         string
 	Status               string
 	StatusDescription    string

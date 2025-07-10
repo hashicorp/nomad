@@ -11883,9 +11883,6 @@ type AllocMetric struct {
 	// NodesInPool is the number of nodes in the node pool used by the job.
 	NodesInPool int
 
-	// NodePool is the node pool the node belongs to.
-	NodePool string
-
 	// NodesAvailable is the number of nodes available for evaluation per DC.
 	NodesAvailable map[string]int
 
@@ -12395,6 +12392,9 @@ type Evaluation struct {
 	// the evaluation was created
 	NodeModifyIndex uint64
 
+	// NodePool is the node pool the node belongs to.
+	NodePool string
+
 	// DeploymentID is the ID of the deployment that triggered the evaluation.
 	DeploymentID string
 
@@ -12679,6 +12679,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 		TriggeredBy:    EvalTriggerRollingUpdate,
 		JobID:          e.JobID,
 		JobModifyIndex: e.JobModifyIndex,
+		NodePool:       e.NodePool,
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,
@@ -12702,6 +12703,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		TriggeredBy:          EvalTriggerQueuedAllocs,
 		JobID:                e.JobID,
 		JobModifyIndex:       e.JobModifyIndex,
+		NodePool:             e.NodePool,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
 		FailedTGAllocs:       failedTGAllocs,
@@ -12727,6 +12729,7 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 		TriggeredBy:    EvalTriggerFailedFollowUp,
 		JobID:          e.JobID,
 		JobModifyIndex: e.JobModifyIndex,
+		NodePool:       e.NodePool,
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,

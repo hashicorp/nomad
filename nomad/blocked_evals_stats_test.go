@@ -323,7 +323,7 @@ func (t testBlockedEvalsRandomBlockedEval) Generate(rand *rand.Rand, _ int) refl
 	tgCount := rand.Intn(10) + 1
 	dcCount := rand.Intn(3) + 1
 	nodeClassCount := rand.Intn(3) + 1
-	nodePoolName := fmt.Sprintf("node-pool-%d", rand.Intn(3)+1)
+	e.NodePool = fmt.Sprintf("node-pool-%d", rand.Intn(3)+1)
 
 	failedTGAllocs := map[string]*structs.AllocMetric{}
 
@@ -343,7 +343,6 @@ func (t testBlockedEvalsRandomBlockedEval) Generate(rand *rand.Rand, _ int) refl
 			},
 			NodesAvailable: map[string]int{},
 			ClassExhausted: map[string]int{},
-			NodePool:       nodePoolName,
 		}
 
 		for dc := 1; dc <= dcCount; dc++ {
