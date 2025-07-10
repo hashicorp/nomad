@@ -162,6 +162,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	n.Meta = map[string]string{
 		"metaKey": "metaVal",
 	}
+	n.Attributes["unique.hostname"] = "test-hostname"
 	a := mock.Alloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"] = &structs.AllocatedTaskResources{
@@ -245,6 +246,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_DC=dc1",
 		"NOMAD_NAMESPACE=not-default",
 		"NOMAD_REGION=global",
+		"NOMAD_UNIQUE_HOSTNAME=test-hostname",
 		"NOMAD_MEMORY_LIMIT=256",
 		"NOMAD_MEMORY_MAX_LIMIT=512",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
@@ -281,6 +283,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"invalid...metakey": "b",
 	}
 	n.CgroupParent = "abc.slice"
+	n.Attributes["unique.hostname"] = "test-hostname"
 	a := mock.ConnectAlloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
@@ -421,6 +424,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PARENT_CGROUP":                       "abc.slice",
 		"NOMAD_NAMESPACE":                           "default",
 		"NOMAD_REGION":                              "global",
+		"NOMAD_UNIQUE_HOSTNAME":                     "test-hostname",
 		"NOMAD_MEMORY_LIMIT":                        "256",
 		"NOMAD_META_ELB_CHECK_INTERVAL":             "30s",
 		"NOMAD_META_ELB_CHECK_MIN":                  "3",

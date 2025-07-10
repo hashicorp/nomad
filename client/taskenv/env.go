@@ -89,6 +89,9 @@ const (
 	// Region is the environment variable for passing the region in which the alloc is running.
 	Region = "NOMAD_REGION"
 
+	// UniqueHostname is the environment variable for passing the unique hostname of the node.
+	UniqueHostname = "NOMAD_UNIQUE_HOSTNAME"
+
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
@@ -592,6 +595,11 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.region != "" {
 		envMap[Region] = b.region
+	}
+
+	// Add the unique hostname from node attributes
+	if uniqueHostname := nodeAttrs[fmt.Sprintf("%s%s", nodeAttributePrefix, "unique.hostname")]; uniqueHostname != "" {
+		envMap[UniqueHostname] = uniqueHostname
 	}
 
 	// Build the network related env vars
