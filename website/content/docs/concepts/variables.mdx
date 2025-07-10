@@ -222,16 +222,16 @@ As soon as any instance starts, it tries to lock the sync variable. If it succee
 it continues to execute while a secondary thread is in charge of keeping track of
 the lock and renewing it when necessary. If by any chance the renewal fails,
 the main process is forced to return, and the instance goes into standby until it
-attempts to acquire the lock over the sync variable. 
+attempts to acquire the lock over the sync variable.
 
-Only threads 1 and 3 or thread 2 are running at any given time, because every 
-instance is either executing as normal while renewing the lock or waiting for a 
+Only threads 1 and 3 or thread 2 are running at any given time, because every
+instance is either executing as normal while renewing the lock or waiting for a
 chance to acquire it and run.
 
-When the main process, or protected function, returns, the helper releases the 
+When the main process, or protected function, returns, the helper releases the
 lock, allowing a second instance to start running.
 
-To see it implemented live, look for the [`nomad var lock`][] command 
+To see it implemented live, look for the [`nomad var lock`][] command
 implementation or the [Nomad Autoscaler][] High Availability implementation.
 
 
@@ -244,7 +244,7 @@ implementation or the [Nomad Autoscaler][] High Availability implementation.
 [Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies
 [ACL policy namespace rules]: /nomad/docs/other-specifications/acl-policy#namespace-rules
 [The Chubby Lock Service for Loosely-Coupled Distributed Systems]: https://research.google/pubs/pub27897/
-[`nomad var lock`]: /nomad/docs/commands/var
+[`nomad var lock`]: /nomad/commands/var
 [Go Package]: https://pkg.go.dev/github.com/hashicorp/nomad/api
 [implementation]: https://github.com/hashicorp/nomad/blob/release/1.7.0/command/var_lock.go#L240
 [Nomad Autoscaler]: https://github.com/hashicorp/nomad-autoscaler/blob/v0.4.0/command/agent.go#L392

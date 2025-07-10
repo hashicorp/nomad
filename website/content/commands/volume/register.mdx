@@ -1,0 +1,87 @@
+---
+layout: docs
+page_title: 'Commands: volume register'
+description: |
+  Register volumes with CSI plugins.
+---
+
+# Command: volume register
+
+The `volume register` command registers external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support. The volume must exist on the
+remote storage provider before it can be registered and used by a task.
+
+CSI plugins that implement the [Controller][csi_plugins_internals] interface
+can be created via the [`volume create`] command, which will automatically
+register the volume as well.
+
+## Usage
+
+```plaintext
+nomad volume register [options] [file]
+```
+
+The `volume register` command requires a single argument, specifying the path
+to a file containing a valid [volume specification][volume_specification]. This
+file will be read and the job will be submitted to Nomad for scheduling. If the
+supplied path is "-", the job file is read from STDIN. Otherwise it is read
+from the file at the supplied path.
+
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Volume Specification
+
+<!--
+Redirection rules are applied server-side, so we can't redirect these sections
+that used to be located in this page since they use URL fragments. Creating
+these hidden anchors will at least point users to the new page, although not to
+the exact section.
+-->
+
+<span id="volume-specification-parameters" />
+<span id="id" />
+<span id="namespace-1" />
+<span id="name" />
+<span id="type" />
+<span id="external_id" />
+<span id="plugin_id" />
+<span id="capability" />
+<span id="access_mode" />
+<span id="attachment_mode" />
+<span id="mount_options" />
+<span id="fs_type" />
+<span id="mount_flags" />
+<span id="topology_request" />
+<span id="secrets" />
+<span id="parameters" />
+<span id="context" />
+<span id="topology_request-parameters" />
+<span id="segments" />
+<span id="unused-fields" />
+
+The volume specification is documented in the [Volume
+Specification][volume_specification] page.
+
+Not all fields can be updated after the volume is registered:
+
+* The `capacity_min` and `capacity_max` fields can be updated, and may increase
+  the volume size if the CSI plugin supports it. Expansion may or may not be
+  possible while the volume is in use, again depending on the plugin.
+  Reducing volume capacity is not allowed per the CSI spec.
+* The `capability` blocks can be added or removed, but only if the capability is
+  not currently in use by a mounted volume.
+* The `mount_options` block can be updated if the volume is not in use.
+* The `secrets` block can be updated.
+* The `context` block can be updated. The values for this field are typically
+  provided by the CSI plugin, and should not be updated unless recommended by
+  the CSI plugin's documentation.
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
+[volume_specification]: /nomad/docs/other-specifications/volume
+[`volume create`]: /nomad/commands/volume/create

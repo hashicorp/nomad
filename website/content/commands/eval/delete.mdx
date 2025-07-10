@@ -1,0 +1,73 @@
+---
+layout: docs
+page_title: 'Commands: eval delete'
+description: |
+  The eval delete command is used to delete evaluations.
+---
+
+# Command: eval delete
+
+The `eval delete` command is used to delete evaluations. It should be used
+cautiously and only in outage situations where there is a large backlog of
+evaluations not being processed. During most normal and outage scenarios,
+Nomad's reconciliation and state management will handle evaluations as needed.
+
+The eval broker is expected to be paused prior to running this command and
+un-paused after. These actions can be performed by the
+[`operator scheduler get-config`][scheduler_get_config]
+and [`operator scheduler set-config`][scheduler_set_config] commands respectively.
+
+## Usage
+
+```plaintext
+nomad eval delete [options] [args]
+```
+
+It takes an optional argument which is the ID of the evaluation to delete. If
+the evaluation ID is omitted, this command will use the filter flag to identify
+and delete a set of evaluations.
+
+When ACLs are enabled, this command requires a `management` token.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Delete Options
+
+- `-filter`: Specifies an expression used to filter evaluations by for
+  deletion. When using this flag, it is advisable to ensure the syntax is
+  correct using the eval list command first. Note that deleting evals by filter
+  is imprecise: for sets of evals larger than a single raft log batch, evals can
+  be inserted behind the cursor and therefore be missed.
+
+- `-yes`: Bypass the confirmation prompt if an evaluation ID was not provided.
+
+## Examples
+
+Delete an evaluation using its ID:
+
+```shell-session
+$ nomad eval delete 9ecffbba-73be-d909-5d7e-ac2694c10e0c
+Successfully deleted 1 evaluation
+```
+
+Delete all evaluations with status `pending` for the `example` job:
+
+```shell-session
+$ nomad eval delete -filter='Status == "pending" and JobID == "example"'
+Are you sure you want to delete 3 evals? [y/N] y
+
+Successfully deleted 3 evaluations
+```
+
+Delete all evaluations for the `system` and `service` whilst skipping all
+prompts:
+
+```shell-session
+$ nomad eval delete -filter='Scheduler == "system" or Scheduler == "service"' -yes
+Successfully deleted 23 evaluations
+```
+
+[scheduler_get_config]: /nomad/commands/operator/scheduler/get-config
+[scheduler_set_config]: /nomad/commands/operator/scheduler/set-config

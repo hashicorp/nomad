@@ -1,0 +1,72 @@
+---
+layout: docs
+page_title: 'Commands: volume create'
+description: |
+  Create volumes with CSI plugins.
+---
+
+# Command: volume create
+
+The `volume create` command creates external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support. Only CSI plugins that
+implement the [Controller][csi_plugins_internals] interface support this
+command. The volume will also be [registered] when it is successfully created.
+
+## Usage
+
+```plaintext
+nomad volume create [options] [file]
+```
+
+The `volume create` command requires a single argument, specifying the path to
+a file containing a valid [volume specification][volume_specification]. This
+file will be read and the volume will be submitted to Nomad for scheduling. If
+the supplied path is "-", the volume file is read from STDIN. Otherwise it is
+read from the file at the supplied path.
+
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Volume Specification
+
+<!--
+Redirection rules are applied server-side, so we can't redirect these sections
+that used to be located in this page since they use URL fragments. Creating
+these hidden anchors will at least point users to the new page, although not to
+the exact section.
+-->
+
+<span id="volume-specification-parameters" />
+<span id="id" />
+<span id="namespace-1" />
+<span id="name" />
+<span id="type" />
+<span id="plugin_id" />
+<span id="snapshot_id" />
+<span id="clone_id" />
+<span id="capacity_min" />
+<span id="capacity_max" />
+<span id="capability" />
+<span id="access_mode" />
+<span id="attachment_mode" />
+<span id="mount_options" />
+<span id="fs_type" />
+<span id="mount_flags" />
+<span id="topology_request" />
+<span id="secrets" />
+<span id="parameters" />
+<span id="topology_request-parameters" />
+<span id="segments" />
+<span id="unused-fields" />
+
+The volume specification is documented in the [Volume
+Specification][volume_specification] page.
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
+[registered]: /nomad/commands/volume/register
+[volume_specification]: /nomad/docs/other-specifications/volume

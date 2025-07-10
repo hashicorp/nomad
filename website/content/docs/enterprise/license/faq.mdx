@@ -21,7 +21,7 @@ when the license expires, and a server can not start with an expired license.
 
 For new "non-terminating" contract licenses, instead of expiration being compared to the current time,
 expiration time is compared to the build date of the Nomad binary, which you can find in the output of the
-[`nomad version`](/nomad/docs/commands/version) command.
+[`nomad version`](/nomad/commands/version) command.
 
 The practical result is that newer contract licenses will work in perpetuity for any v1.6.0+ version of Nomad
 built prior to the expiration time of the license.  No features will stop working,
@@ -97,4 +97,4 @@ not having forward compatibility, and may result in a crash loop.
 ## Q: Is there a tutorial available for the license configuration steps?
 Please visit the [Enterprise License Tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license).
 
-[license inspect]: /nomad/docs/commands/license/inspect
+[license inspect]: /nomad/commands/license/inspect
