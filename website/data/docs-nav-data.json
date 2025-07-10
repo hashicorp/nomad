@@ -263,19 +263,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
