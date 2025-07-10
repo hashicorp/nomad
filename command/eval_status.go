@@ -6,6 +6,7 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -262,24 +263,7 @@ func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs 
 
 		if len(eval.PlanAnnotations.DesiredTGUpdates) > 0 {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Reconciler Annotations[reset]"))
-			annotations := make([]string, len(eval.PlanAnnotations.DesiredTGUpdates)+1)
-			annotations[0] = "Task Group|Ignore|Place|Stop|Migrate|InPlace|Destructive|Canary|Preemptions"
-			i := 1
-			for tg, updates := range eval.PlanAnnotations.DesiredTGUpdates {
-				annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d|%d",
-					tg,
-					updates.Ignore,
-					updates.Place,
-					updates.Stop,
-					updates.Migrate,
-					updates.InPlaceUpdate,
-					updates.DestructiveUpdate,
-					updates.Canary,
-					updates.Preemptions,
-				)
-				i++
-			}
-			c.Ui.Output(columnize.SimpleFormat(annotations))
+			c.Ui.Output(formatReconcilerAnnotations(eval.PlanAnnotations.DesiredTGUpdates))
 		}
 
 		if len(eval.PlanAnnotations.PreemptedAllocs) > 0 {
@@ -377,4 +361,62 @@ func formatPreemptedAllocListStubs(stubs []*api.AllocationListStub, uuidLength i
 			modTimePretty)
 	}
 	return formatList(allocs)
+}
+
+// formatReconcilerAnnotations produces a table with one row per task group
+// where the columns are all the changes (ignore, place, stop, etc.) plus all
+// the non-zero causes of those changes (migrate, canary, reschedule, etc)
+func formatReconcilerAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates) string {
+	annotations := make([]string, len(desiredTGUpdates)+1)
+
+	annotations[0] = "Task Group|Ignore|Place|Stop|InPlace|Destructive"
+	optCols := []string{
+		"Migrate", "Canary", "Preemptions",
+		"Reschedule Now", "Reschedule Later", "Disconnect", "Reconnect"}
+
+	byCol := make([][]uint64, len(optCols))
+	for i := range byCol {
+		for j := range len(desiredTGUpdates) + 1 {
+			byCol[i] = make([]uint64, j+1)
+		}
+	}
+
+	i := 1
+	for tg, updates := range desiredTGUpdates {
+		// we always show the first 5 columns
+		annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d",
+			tg,
+			updates.Ignore,
+			updates.Place,
+			updates.Stop,
+			updates.InPlaceUpdate,
+			updates.DestructiveUpdate,
+		)
+
+		// we record how many we have of the other columns so we can show them
+		// only if populated
+		byCol[0][i] = updates.Migrate
+		byCol[1][i] = updates.Canary
+		byCol[2][i] = updates.Preemptions
+		byCol[3][i] = updates.RescheduleNow
+		byCol[4][i] = updates.RescheduleLater
+		byCol[5][i] = updates.Disconnect
+		byCol[6][i] = updates.Reconnect
+		i++
+	}
+
+	// the remaining columns only show if they're populated
+	for i, col := range optCols {
+		for tgIdx := range len(desiredTGUpdates) + 1 {
+			byCol[i][0] += byCol[i][tgIdx]
+		}
+		if byCol[i][0] > 0 {
+			annotations[0] += "|" + col
+			for tgIdx := 1; tgIdx < len(desiredTGUpdates)+1; tgIdx++ {
+				annotations[tgIdx] += "|" + strconv.FormatUint(byCol[i][tgIdx], 10)
+			}
+		}
+	}
+
+	return columnize.SimpleFormat(annotations)
 }
