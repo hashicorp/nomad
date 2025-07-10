@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Add NOMAD_UNIQUE_HOSTNAME environment variable
+```
