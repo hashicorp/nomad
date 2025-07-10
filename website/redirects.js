@@ -427,4 +427,10 @@ module.exports = [
     destination: '/nomad/docs',
     permanent: true,
   },
+  /* redirect to handle new /commands path in 1.9, 1.8 */
+  {
+    source: '/nomad/docs/:version(v1.(?:8|9).x)/commands/:path*',
+    destination: '/nomad/commands/:version/:path*',
+    permanent: true,
+  },
 ]
