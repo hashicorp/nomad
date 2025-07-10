@@ -28,7 +28,7 @@ When ACLs are enabled, this command requires a token with the `read-job` and
 ## Options
 
 - `-short`: Display short output. Shows only the most recent task event.
-- `-verbose`: Show full information.
+- `-verbose`: Show full-length IDs, exact timestamps, and placement metrics.
 - `-json` : Output the allocation in its JSON format.
 - `-t` : Format and display the allocation using a Go template.
 - `-ui` : Open the allocation status page in the browser.
@@ -118,7 +118,9 @@ Recent Events:
 07/25/17 16:12:48 UTC  Received    Task received by client
 ```
 
-Verbose status can also be accessed:
+The `-verbose` flag includes information the scheduler's placement decision,
+including the number of nodes evaluated and rejected, and the scoring of each
+node considered.
 
 ```shell-session
 $ nomad alloc status -verbose 0af996ed
@@ -176,6 +178,10 @@ Time                   Type        Description
 07/25/17 16:12:49 UTC  Started     Task started by client
 07/25/17 16:12:48 UTC  Task Setup  Building Task Directory
 07/25/17 16:12:48 UTC  Received    Task received by client
+
+Placement Metrics
+Node                                  binpack  job-anti-affinity  node-affinity  node-reschedule-penalty  final score
+43c0b14e-7f96-e432-a7da-06605257ce0c  0.0238   0                  0              0                        0.0238
 ```
 
 ## General options
