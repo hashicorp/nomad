@@ -34,7 +34,7 @@ thousands of clients.
 
 ## Running an Agent
 
-The agent is started with the [`nomad agent` command](/nomad/docs/commands/agent). This
+The agent is started with the [`nomad agent` command](/nomad/commands/agent). This
 command blocks, running forever or until told to quit. The agent command takes a variety
 of configuration options, but most have sane defaults.
 
@@ -155,7 +155,7 @@ participate in a [gossip protocol](/nomad/docs/concepts/gossip) both to cluster
 within a region and to support multi-region configurations. When a server is
 first started, it does not know the address of other servers in the cluster.
 To discover its peers, it must _join_ the cluster. This is done with the
-[`server join` command](/nomad/docs/commands/server/join) or by providing the
+[`server join` command](/nomad/commands/server/join) or by providing the
 proper configuration on start. Once a node joins, this information is gossiped
 to the entire cluster, meaning all nodes will eventually be aware of each other.
 
@@ -181,7 +181,7 @@ owned by `root` with filesystem permissions set to `0700`.
 
 [`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
-[`server force-leave` command]: /nomad/docs/commands/server/force-leave
+[`server force-leave` command]: /nomad/commands/server/force-leave
 [consensus]: /nomad/docs/concepts/consensus
 [`drain_on_shutdown`]: /nomad/docs/configuration/client#drain_on_shutdown
 [reload its configuration]: /nomad/docs/configuration#configuration-reload

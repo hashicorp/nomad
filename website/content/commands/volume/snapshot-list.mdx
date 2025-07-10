@@ -1,0 +1,67 @@
+---
+layout: docs
+page_title: 'nomad volume snapshot list command reference'
+description: |
+  The `nomad volume snapshot list` command displays a list external Container Storage Interface (CSI) volume snapshots along with the source volume ID as known to the external storage provider.
+---
+
+# `nomad volume snapshot list` command reference
+
+The `volume snapshot list` command lists volume snapshots known to a
+[Container Storage Interface (CSI)][csi] storage provider. Only CSI plugins
+that implement the [Controller][csi_plugins_internals] interface support this
+command.
+
+## Usage
+
+```plaintext
+nomad volume snapshot list [-plugin plugin_id -secrets key=value]
+```
+
+The `volume snapshot list` command returns a list of snapshots along with their
+source volume ID as known to the external storage provider. This is not the
+same as the Nomad volume ID, as the source volume may not be [registered] with
+Nomad.
+
+## General options
+
+@include 'general_options.mdx'
+
+## Snapshot list options
+
+- `-page-token`: Where to start pagination.
+- `-per-page`: How many results to show per page.
+- `-plugin`: Display only snapshots managed by a particular [CSI
+  plugin][csi_plugin]. This flag is required and accepts a plugin ID
+  or prefix. If there is an exact match based on the provided plugin,
+  then that specific plugin will be queried. Otherwise, a list of
+  matching plugins will be displayed.
+- `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
+  multiple flags in the form `-secret key=value`
+- `-verbose`: Display full information for the resulting snapshot.
+
+When ACLs are enabled, this command requires a token with the
+`csi-list-volumes` capability for the plugin's namespace.
+
+## Examples
+
+List volume snapshots for a plugin:
+
+```shell-session
+$ nomad volume snapshot list -plugin aws-ebs0
+Snapshot ID  External ID  Size   Creation Time         Ready?
+snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
+snap-67890   vol-fedcba   50GiB  2021-01-04T15:45:00Z  true
+```
+
+List volume snapshots with two secret key/value pairs:
+```shell-session
+$ nomad volume snapshot list -plugin aws-ebs0 -secret key1=value1 -secret key2=val2
+Snapshot ID  External ID  Size   Creation Time         Ready?
+snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
+```
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /nomad/docs/job-specification/csi_plugin
+[registered]: /nomad/commands/volume/register
+[csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins

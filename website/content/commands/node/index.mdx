@@ -1,0 +1,34 @@
+---
+layout: docs
+page_title: 'nomad node command reference'
+description: |
+  The nomad node reference command interacts with nodes. View or modify client configuration. Toggle scheduling eligibility and node drain mode. Display metadata and status information.
+---
+
+# `nomad node` command reference
+
+The `node` command is used to interact with nodes.
+
+## Usage
+
+Usage: `nomad node <subcommand> [options]`
+
+Run `nomad node <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`node config`][config] - View or modify client configuration details
+
+- [`node drain`][drain] - Set drain mode on a given node
+
+- [`node eligibility`][eligibility] - Toggle scheduling eligibility on a given
+  node
+
+- [`node meta`][meta] - Interact with node metadata
+
+- [`node status`][status] - Display status information about nodes
+
+[config]: /nomad/commands/node/config 'View or modify client configuration details'
+[drain]: /nomad/commands/node/drain 'Set drain mode on a given node'
+[eligibility]: /nomad/commands/node/eligibility 'Toggle scheduling eligibility on a given node'
+[meta]: /nomad/commands/node/meta 'Interact with node metadata'
+[status]: /nomad/commands/node/status 'Display status information about nodes'

@@ -291,7 +291,7 @@ sign workload identities with the `RS256` signing algorithm.
 
 Before setting up third party authentication methods to use workload
 identities, it is recommended to run [`nomad operator root keyring
-rotate`](/nomad/docs/commands/operator/root/keyring-rotate) to ensure you
+rotate`](/nomad/commands/operator/root/keyring-rotate) to ensure you
 generate a new RSA key.
 
 To verify an RSA key is present you may check the [`/.well-known/jwks.json`
@@ -403,7 +403,7 @@ Nomad Enterprise 1.6.0 now compares license `ExpirationTime` with the Nomad bina
 rather than comparing the sometimes more lenient license `TerminationTime` with `time.Now()`.
 See the [licensing FAQ](/nomad/docs/v1.6.x/enterprise/license/faq) for more info,
 but most relevant here is that you should run the new
-[`nomad license inspect`](/nomad/docs/commands/license/inspect) command
+[`nomad license inspect`](/nomad/commands/license/inspect) command
 before trying to upgrade your Enterprise servers to v1.6.0 or higher.
 
 #### Job Evaluate API Endpoint Requires `submit-job` Instead of `read-job`
@@ -2048,7 +2048,7 @@ as specified: `registry.consul.addr=127.0.0.1:8500`.
 ### Client APIs Unavailable on Older Nodes
 
 Because Nomad 0.8 uses a new RPC mechanism to route node-specific APIs like
-[`nomad alloc fs`](/nomad/docs/commands/alloc/fs) through servers to the node,
+[`nomad alloc fs`](/nomad/commands/alloc/fs) through servers to the node,
 0.8 CLIs are incompatible using these commands on clients older than 0.8.
 
 To access these commands on older clients either continue to use a pre-0.8
@@ -2194,8 +2194,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [`vault.policies`]: /nomad/docs/job-specification/vault#policies
 [`vault.task_token_ttl`]: /nomad/docs/configuration/vault#task_token_ttl
 [`vault.token`]: /nomad/docs/configuration/vault#token
-[`volume create`]: /nomad/docs/commands/volume/create
-[`volume register`]: /nomad/docs/commands/volume/register
+[`volume create`]: /nomad/commands/volume/create
+[`volume register`]: /nomad/commands/volume/register
 [`volume`]: /nomad/docs/job-specification/volume
 [alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
 [allow_caps_exec]: /nomad/docs/drivers/exec#allow_caps
@@ -2219,7 +2219,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
 [decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [drain-api]: /nomad/api-docs/nodes#drain-node
-[drain-cli]: /nomad/docs/commands/node/drain
+[drain-cli]: /nomad/commands/node/drain
 [dst]: /nomad/docs/job-specification/periodic#daylight-saving-time
 [enterprise licensing]: /nomad/docs/enterprise/license
 [envoy_concurrency]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
@@ -2263,7 +2263,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [update]: /nomad/docs/job-specification/update
 [upgrade process]: /nomad/docs/upgrade#upgrade-process
 [Upgrading to Raft Protocol 3]: /nomad/docs/upgrade#upgrading-to-raft-protocol-3
-[validate]: /nomad/docs/commands/job/validate
+[validate]: /nomad/commands/job/validate
 [vault_grace]: /nomad/docs/job-specification/template
 [Workload Identity]: /nomad/docs/concepts/workload-identity
 [Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation

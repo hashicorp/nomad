@@ -1883,7 +1883,7 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
 
-- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use either 
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use either
   this parameter or `TaggedVersion`, but do not use both.
 
 - `TaggedVersion` `(string: "")` - Specifies the tag name of the job version you
@@ -1893,10 +1893,10 @@ The table below shows this endpoint's support for
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
 
-- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/nomad/docs/commands/job/revert)
+- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/nomad/commands/job/revert)
   used for Consul [service identity polity authentication checking](/nomad/docs/configuration/consul#allow_unauthenticated).
 
-- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/nomad/docs/commands/job/revert)
+- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/nomad/commands/job/revert)
   used for Vault [policy authentication checking](/nomad/docs/configuration/vault#allow_unauthenticated).
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
