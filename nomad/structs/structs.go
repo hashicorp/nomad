@@ -13084,11 +13084,15 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 func (d *DesiredUpdates) GoString() string {
-	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
-		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d) (reschedule now %d) (reschedule later %d) (disconnect %d) (reconnect %d)",
+		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary, d.RescheduleNow, d.RescheduleLater, d.Disconnect, d.Reconnect)
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
