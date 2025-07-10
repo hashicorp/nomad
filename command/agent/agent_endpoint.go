@@ -238,71 +238,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	if handlerErr != nil {
 		return nil, CodedError(500, handlerErr.Error())
 	}
-	httpPipe, handlerPipe := net.Pipe()
-	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
-	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
-
-	ctx, cancel := context.WithCancel(req.Context())
-	go func() {
-		<-ctx.Done()
-		httpPipe.Close()
-	}()
-
-	// Create an output that gets flushed on every write
-	output := ioutils.NewWriteFlusher(resp)
-
-	// create an error channel to handle errors
-	errCh := make(chan HTTPCodedError, 2)
-
-	// stream response
-	go func() {
-		defer cancel()
-
-		// Send the request
-		if err := encoder.Encode(args); err != nil {
-			errCh <- CodedError(500, err.Error())
-			return
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				errCh <- nil
-				return
-			default:
-			}
-
-			var res cstructs.StreamErrWrapper
-			if err := decoder.Decode(&res); err != nil {
-				errCh <- CodedError(500, err.Error())
-				return
-			}
-			decoder.Reset(httpPipe)
-
-			if err := res.Error; err != nil {
-				if err.Code != nil {
-					errCh <- CodedError(int(*err.Code), err.Error())
-					return
-				}
-			}
-
-			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
-				errCh <- CodedError(500, err.Error())
-				return
-			}
-		}
-	}()
-
-	handler(handlerPipe)
-	cancel()
-	codedErr := <-errCh
-
-	if codedErr != nil &&
-		(codedErr == io.EOF ||
-			strings.Contains(codedErr.Error(), "closed") ||
-			strings.Contains(codedErr.Error(), "EOF")) {
-		codedErr = nil
-	}
+	codedErr := s.streamMonitor(resp, req, args, handler)
 	return nil, codedErr
 }
 
@@ -377,14 +313,16 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	if args.OnDisk && args.Follow {
 		return nil, CodedError(400, "Cannot follow log file")
 	}
-	if err := monitor.ScanServiceName(args.ServiceName); err != nil {
-		return nil, CodedError(422, err.Error())
+	if args.ServiceName != "" {
+		if err := monitor.ScanServiceName(args.ServiceName); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
 	}
-
-	if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
-		return nil, CodedError(422, err.Error())
+	if args.NomadLogPath != "" {
+		if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
 	}
-
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
 	// detecting an incorrect or unsafe one.
 	if plainText {
@@ -420,6 +358,13 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	if handlerErr != nil {
 		return nil, CodedError(500, handlerErr.Error())
 	}
+	codedErr := s.streamMonitor(resp, req, args, handler)
+
+	return nil, codedErr
+
+}
+func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request, args any, handler structs.StreamingRpcHandler) error {
+	// Make the RPC
 	httpPipe, handlerPipe := net.Pipe()
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
@@ -455,13 +400,13 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 			}
 
 			var res cstructs.StreamErrWrapper
-			if err := decoder.Decode(&res); err != nil && err != io.EOF {
+			if err := decoder.Decode(&res); err != nil {
 				errCh <- CodedError(500, err.Error())
 				return
 			}
 			decoder.Reset(httpPipe)
 
-			if err := res.Error; err != nil && err != io.EOF {
+			if err := res.Error; err != nil {
 				if err.Code != nil {
 					errCh <- CodedError(int(*err.Code), err.Error())
 					return
@@ -470,26 +415,23 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
 				errCh <- CodedError(500, err.Error())
+				return
 			}
 		}
 	}()
 
 	handler(handlerPipe)
 	cancel()
-
 	codedErr := <-errCh
 
 	if codedErr != nil &&
 		(codedErr == io.EOF ||
 			strings.Contains(codedErr.Error(), "closed") ||
 			strings.Contains(codedErr.Error(), "EOF")) {
-		s.logger.Info(codedErr.Error())
 		codedErr = nil
 	}
-	return nil, codedErr
-
+	return codedErr
 }
-
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)

@@ -523,11 +523,9 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 
 				urlString := baseURL +
 					"on_disk=" + tc.onDisk +
-					"&service_name=" + tc.serviceName +
 					"&follow=" + tc.follow +
 					"&node_id=" + tc.nodeID +
-					"&server_id=" + tc.serverID +
-					"&mocked=" + "true"
+					"&server_id=" + tc.serverID
 
 				req, err := http.NewRequest(http.MethodGet, urlString, nil)
 				must.NoError(t, err)
@@ -557,7 +555,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 						must.Eq(t, err.(HTTPCodedError).Code(), tc.errCode)
 						return
 					} else {
-						must.Unreachable(t)
+						must.NoError(t, err)
 					}
 				default:
 				}

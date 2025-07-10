@@ -200,8 +200,9 @@ func (d *ExportMonitor) cliReader() (*exec.Cmd, io.Reader, error) {
 	return cmd, multiReader, nil
 }
 
-func (d *ExportMonitor) fileReader(logfile string) (io.Reader, error) {
-	file, err := os.Open(logfile)
+func (d *ExportMonitor) fileReader() (io.Reader, error) {
+	d.logger.Error("file reader got called")
+	file, err := os.Open(d.Opts.NomadLogPath)
 	if err != nil {
 		return nil, err
 	}
