@@ -123,4 +123,15 @@ module.exports = [
     destination: '/nomad/plugins/devices/usb',
     permanent: true,
   },
+  /* redirect for new commands structure */
+  {
+    source: '/nomad/docs/commands/:path*',
+    destination: '/nomad/commands/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/:version(v1.(?:8|9).x)/commands/:path*',
+    destination: '/nomad/commands/:version/:path*',
+    permanent: true,
+  },
 ]

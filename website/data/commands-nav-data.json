@@ -1,0 +1,957 @@
+[
+  {
+    "title": "Commands (CLI)",
+    "path": "index"
+  },
+  {
+    "title": "acl",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "acl"
+      },
+      {
+        "title": "bootstrap",
+        "path": "acl/bootstrap"
+      },
+      {
+        "title": "auth-method",
+        "routes": [
+          {
+            "title": "create",
+            "path": "acl/auth-method/create"
+          },
+          {
+            "title": "delete",
+            "path": "acl/auth-method/delete"
+          },
+          {
+            "title": "info",
+            "path": "acl/auth-method/info"
+          },
+          {
+            "title": "list",
+            "path": "acl/auth-method/list"
+          },
+          {
+            "title": "update",
+            "path": "acl/auth-method/update"
+          }
+        ]
+      },
+      {
+        "title": "binding-rule",
+        "routes": [
+          {
+            "title": "create",
+            "path": "acl/binding-rule/create"
+          },
+          {
+            "title": "delete",
+            "path": "acl/binding-rule/delete"
+          },
+          {
+            "title": "info",
+            "path": "acl/binding-rule/info"
+          },
+          {
+            "title": "list",
+            "path": "acl/binding-rule/list"
+          },
+          {
+            "title": "update",
+            "path": "acl/binding-rule/update"
+          }
+        ]
+      },
+      {
+        "title": "policy",
+        "routes": [
+          {
+            "title": "apply",
+            "path": "acl/policy/apply"
+          },
+          {
+            "title": "delete",
+            "path": "acl/policy/delete"
+          },
+          {
+            "title": "info",
+            "path": "acl/policy/info"
+          },
+          {
+            "title": "list",
+            "path": "acl/policy/list"
+          }
+        ]
+      },
+      {
+        "title": "role",
+        "routes": [
+          {
+            "title": "create",
+            "path": "acl/role/create"
+          },
+          {
+            "title": "delete",
+            "path": "acl/role/delete"
+          },
+          {
+            "title": "info",
+            "path": "acl/role/info"
+          },
+          {
+            "title": "list",
+            "path": "acl/role/list"
+          },
+          {
+            "title": "update",
+            "path": "acl/role/update"
+          }
+        ]
+      },
+      {
+        "title": "token",
+        "routes": [
+          {
+            "title": "create",
+            "path": "acl/token/create"
+          },
+          {
+            "title": "delete",
+            "path": "acl/token/delete"
+          },
+          {
+            "title": "info",
+            "path": "acl/token/info"
+          },
+          {
+            "title": "list",
+            "path": "acl/token/list"
+          },
+          {
+            "title": "self",
+            "path": "acl/token/self"
+          },
+          {
+            "title": "update",
+            "path": "acl/token/update"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "agent",
+    "path": "agent"
+  },
+  {
+    "title": "agent-info",
+    "path": "agent-info"
+  },
+  {
+    "title": "alloc",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "alloc"
+      },
+      {
+        "title": "checks",
+        "path": "alloc/checks"
+      },
+      {
+        "title": "exec",
+        "path": "alloc/exec"
+      },
+      {
+        "title": "fs",
+        "path": "alloc/fs"
+      },
+      {
+        "title": "logs",
+        "path": "alloc/logs"
+      },
+      {
+        "title": "pause",
+        "path": "alloc/pause"
+      },
+      {
+        "title": "restart",
+        "path": "alloc/restart"
+      },
+      {
+        "title": "signal",
+        "path": "alloc/signal"
+      },
+      {
+        "title": "status",
+        "path": "alloc/status"
+      },
+      {
+        "title": "stop",
+        "path": "alloc/stop"
+      }
+    ]
+  },
+  {
+    "title": "config",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "config"
+      },
+      {
+        "title": "validate",
+        "path": "config/validate"
+      }
+    ]
+  },
+  {
+    "title": "deployment",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "deployment"
+      },
+      {
+        "title": "fail",
+        "path": "deployment/fail"
+      },
+      {
+        "title": "list",
+        "path": "deployment/list"
+      },
+      {
+        "title": "pause",
+        "path": "deployment/pause"
+      },
+      {
+        "title": "promote",
+        "path": "deployment/promote"
+      },
+      {
+        "title": "resume",
+        "path": "deployment/resume"
+      },
+      {
+        "title": "status",
+        "path": "deployment/status"
+      },
+      {
+        "title": "unblock",
+        "path": "deployment/unblock"
+      }
+    ]
+  },
+  {
+    "title": "eval",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "eval"
+      },
+      {
+        "title": "delete",
+        "path": "eval/delete"
+      },
+      {
+        "title": "list",
+        "path": "eval/list"
+      },
+      {
+        "title": "status",
+        "path": "eval/status"
+      }
+    ]
+  },
+  {
+    "title": "fmt",
+    "path": "fmt"
+  },
+  {
+    "title": "job",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "job"
+      },
+      {
+        "title": "action",
+        "path": "job/action"
+      },
+      {
+        "title": "allocs",
+        "path": "job/allocs"
+      },
+      {
+        "title": "deployments",
+        "path": "job/deployments"
+      },
+      {
+        "title": "dispatch",
+        "path": "job/dispatch"
+      },
+      {
+        "title": "eval",
+        "path": "job/eval"
+      },
+      {
+        "title": "history",
+        "path": "job/history"
+      },
+      {
+        "title": "init",
+        "path": "job/init"
+      },
+      {
+        "title": "inspect",
+        "path": "job/inspect"
+      },
+      {
+        "title": "plan",
+        "path": "job/plan"
+      },
+      {
+        "title": "periodic force",
+        "path": "job/periodic-force"
+      },
+      {
+        "title": "promote",
+        "path": "job/promote"
+      },
+      {
+        "title": "restart",
+        "path": "job/restart"
+      },
+      {
+        "title": "revert",
+        "path": "job/revert"
+      },
+      {
+        "title": "run",
+        "path": "job/run"
+      },
+      {
+        "title": "scale",
+        "path": "job/scale"
+      },
+      {
+        "title": "scaling-events",
+        "path": "job/scaling-events"
+      },
+      {
+        "title": "status",
+        "path": "job/status"
+      },
+      {
+        "title": "stop",
+        "path": "job/stop"
+      },
+      {
+        "title": "tag",
+        "path": "job/tag"
+      },
+      {
+        "title": "validate",
+        "path": "job/validate"
+      }
+    ]
+  },
+  {
+    "title": "license",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "license"
+      },
+      {
+        "title": "get",
+        "path": "license/get"
+      },
+      {
+        "title": "inspect",
+        "path": "license/inspect"
+      }
+    ]
+  },
+  {
+    "title": "login",
+    "path": "login"
+  },
+  {
+    "title": "monitor",
+    "path": "monitor"
+  },
+  {
+    "title": "namespace",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "namespace"
+      },
+      {
+        "title": "apply",
+        "path": "namespace/apply"
+      },
+      {
+        "title": "delete",
+        "path": "namespace/delete"
+      },
+      {
+        "title": "inspect",
+        "path": "namespace/inspect"
+      },
+      {
+        "title": "list",
+        "path": "namespace/list"
+      },
+      {
+        "title": "status",
+        "path": "namespace/status"
+      }
+    ]
+  },
+  {
+    "title": "node",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "node"
+      },
+      {
+        "title": "config",
+        "path": "node/config"
+      },
+      {
+        "title": "drain",
+        "path": "node/drain"
+      },
+      {
+        "title": "eligibility",
+        "path": "node/eligibility"
+      },
+      {
+        "title": "meta",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "node/meta"
+          },
+          {
+            "title": "apply",
+            "path": "node/meta/apply"
+          },
+          {
+            "title": "read",
+            "path": "node/meta/read"
+          }
+        ]
+      },
+      {
+        "title": "status",
+        "path": "node/status"
+      }
+    ]
+  },
+  {
+    "title": "node pool",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "node-pool"
+      },
+      {
+        "title": "apply",
+        "path": "node-pool/apply"
+      },
+      {
+        "title": "delete",
+        "path": "node-pool/delete"
+      },
+      {
+        "title": "info",
+        "path": "node-pool/info"
+      },
+      {
+        "title": "init",
+        "path": "node-pool/init"
+      },
+      {
+        "title": "jobs",
+        "path": "node-pool/jobs"
+      },
+      {
+        "title": "list",
+        "path": "node-pool/list"
+      },
+      {
+        "title": "nodes",
+        "path": "node-pool/nodes"
+      }
+    ]
+  },
+  {
+    "title": "operator",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "operator"
+      },
+      {
+        "title": "api",
+        "path": "operator/api"
+      },
+      {
+        "title": "autopilot",
+        "routes": [
+          {
+            "title": "get-config",
+            "path": "operator/autopilot/get-config"
+          },
+          {
+            "title": "set-config",
+            "path": "operator/autopilot/set-config"
+          },
+          {
+            "title": "health",
+            "path": "operator/autopilot/health"
+          }
+        ]
+      },
+      {
+        "title": "client-state",
+        "path": "operator/client-state"
+      },
+      {
+        "title": "debug",
+        "path": "operator/debug"
+      },
+      {
+        "title": "gossip",
+        "routes": [
+          {
+            "title": "keyring generate",
+            "path": "operator/gossip/keyring-generate"
+          },
+          {
+            "title": "keyring install",
+            "path": "operator/gossip/keyring-install"
+          },
+          {
+            "title": "keyring list",
+            "path": "operator/gossip/keyring-list"
+          },
+          {
+            "title": "keyring remove",
+            "path": "operator/gossip/keyring-remove"
+          },
+          {
+            "title": "keyring use",
+            "path": "operator/gossip/keyring-use"
+          }
+        ]
+      },
+      {
+        "title": "metrics",
+        "path": "operator/metrics"
+      },
+      {
+        "title": "raft",
+        "routes": [
+          {
+            "title": "info",
+            "path": "operator/raft/info"
+          },
+          {
+            "title": "list-peers",
+            "path": "operator/raft/list-peers"
+          },
+          {
+            "title": "logs",
+            "path": "operator/raft/logs"
+          },
+          {
+            "title": "remove-peer",
+            "path": "operator/raft/remove-peer"
+          },
+          {
+            "title": "state",
+            "path": "operator/raft/state"
+          },
+          {
+            "title": "transfer-leadership",
+            "path": "operator/raft/transfer-leadership"
+          }
+        ]
+      },
+      {
+        "title": "root",
+        "routes": [
+          {
+            "title": "keyring list",
+            "path": "operator/root/keyring-list"
+          },
+          {
+            "title": "keyring remove",
+            "path": "operator/root/keyring-remove"
+          },
+          {
+            "title": "keyring rotate",
+            "path": "operator/root/keyring-rotate"
+          }
+        ]
+      },
+      {
+        "title": "scheduler",
+        "routes": [
+          {
+            "title": "get-config",
+            "path": "operator/scheduler/get-config"
+          },
+          {
+            "title": "set-config",
+            "path": "operator/scheduler/set-config"
+          }
+        ]
+      },
+      {
+        "title": "snapshot",
+        "routes": [
+          {
+            "title": "agent",
+            "path": "operator/snapshot/agent"
+          },
+          {
+            "title": "inspect",
+            "path": "operator/snapshot/inspect"
+          },
+          {
+            "title": "redact",
+            "path": "operator/snapshot/redact"
+          },
+          {
+            "title": "restore",
+            "path": "operator/snapshot/restore"
+          },
+          {
+            "title": "save",
+            "path": "operator/snapshot/save"
+          },
+          {
+            "title": "state",
+            "path": "operator/snapshot/state"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "plugin",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "plugin"
+      },
+      {
+        "title": "status",
+        "path": "plugin/status"
+      }
+    ]
+  },
+  {
+    "title": "quota",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "quota"
+      },
+      {
+        "title": "apply",
+        "path": "quota/apply"
+      },
+      {
+        "title": "delete",
+        "path": "quota/delete"
+      },
+      {
+        "title": "init",
+        "path": "quota/init"
+      },
+      {
+        "title": "inspect",
+        "path": "quota/inspect"
+      },
+      {
+        "title": "list",
+        "path": "quota/list"
+      },
+      {
+        "title": "status",
+        "path": "quota/status"
+      }
+    ]
+  },
+  {
+    "title": "recommendation",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "recommendation"
+      },
+      {
+        "title": "apply",
+        "path": "recommendation/apply"
+      },
+      {
+        "title": "dismiss",
+        "path": "recommendation/dismiss"
+      },
+      {
+        "title": "info",
+        "path": "recommendation/info"
+      },
+      {
+        "title": "list",
+        "path": "recommendation/list"
+      }
+    ]
+  },
+  {
+    "title": "setup",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "setup"
+      },
+      {
+        "title": "consul",
+        "path": "setup/consul"
+      },
+      {
+        "title": "vault",
+        "path": "setup/vault"
+      }
+    ]
+  },
+  {
+    "title": "scaling",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "scaling"
+      },
+      {
+        "title": "policy info",
+        "path": "scaling/policy-info"
+      },
+      {
+        "title": "policy list",
+        "path": "scaling/policy-list"
+      }
+    ]
+  },
+  {
+    "title": "sentinel",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "sentinel"
+      },
+      {
+        "title": "apply",
+        "path": "sentinel/apply"
+      },
+      {
+        "title": "delete",
+        "path": "sentinel/delete"
+      },
+      {
+        "title": "list",
+        "path": "sentinel/list"
+      },
+      {
+        "title": "read",
+        "path": "sentinel/read"
+      }
+    ]
+  },
+  {
+    "title": "server",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "server"
+      },
+      {
+        "title": "force-leave",
+        "path": "server/force-leave"
+      },
+      {
+        "title": "join",
+        "path": "server/join"
+      },
+      {
+        "title": "members",
+        "path": "server/members"
+      }
+    ]
+  },
+  {
+    "title": "service",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "service"
+      },
+      {
+        "title": "service delete",
+        "path": "service/delete"
+      },
+      {
+        "title": "service info",
+        "path": "service/info"
+      },
+      {
+        "title": "service list",
+        "path": "service/list"
+      }
+    ]
+  },
+  {
+    "title": "status",
+    "path": "status"
+  },
+  {
+    "title": "system",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "system"
+      },
+      {
+        "title": "gc",
+        "path": "system/gc"
+      },
+      {
+        "title": "reconcile summaries",
+        "path": "system/reconcile-summaries"
+      }
+    ]
+  },
+  {
+    "title": "tls",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "tls"
+      },
+      {
+        "title": "ca create",
+        "path": "tls/ca-create"
+      },
+      {
+        "title": "ca info",
+        "path": "tls/ca-info"
+      },
+      {
+        "title": "cert create",
+        "path": "tls/cert-create"
+      },
+      {
+        "title": "cert info",
+        "path": "tls/cert-info"
+      }
+    ]
+  },
+  {
+    "title": "ui",
+    "path": "ui"
+  },
+  {
+    "title": "var",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "var"
+      },
+      {
+        "title": "get",
+        "path": "var/get"
+      },
+      {
+        "title": "init",
+        "path": "var/init"
+      },
+      {
+        "title": "list",
+        "path": "var/list"
+      },
+      {
+        "title": "put",
+        "path": "var/put"
+      },
+      {
+        "title": "lock",
+        "path": "var/lock"
+      },
+      {
+        "title": "purge",
+        "path": "var/purge"
+      }
+    ]
+  },
+  {
+    "title": "version",
+    "path": "version"
+  },
+  {
+    "title": "volume",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "volume"
+      },
+      {
+        "title": "create",
+        "path": "volume/create"
+      },
+      {
+        "title": "delete",
+        "path": "volume/delete"
+      },
+      {
+        "title": "deregister",
+        "path": "volume/deregister"
+      },
+      {
+        "title": "detach",
+        "path": "volume/detach"
+      },
+      {
+        "title": "init",
+        "path": "volume/init"
+      },
+      {
+        "title": "register",
+        "path": "volume/register"
+      },
+      {
+        "title": "snapshot create",
+        "path": "volume/snapshot-create"
+      },
+      {
+        "title": "snapshot delete",
+        "path": "volume/snapshot-delete"
+      },
+      {
+        "title": "snapshot list",
+        "path": "volume/snapshot-list"
+      },
+      {
+        "title": "status",
+        "path": "volume/status"
+      }
+    ]
+  }
+]

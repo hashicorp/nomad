@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'nomad setup command reference'
+description: |
+  The `nomad setup` command sets up Consul and Vault integration.
+---
+
+# `nomad setup` command reference
+
+The `setup` command groups helper subcommands used for setting up external
+tools.
+
+<Warning>
+
+These commands are experimental features and may change their behavior in future
+versions of Nomad.
+
+</Warning>
+
+## Usage
+
+Usage: `nomad setup <subcommand> [options]`
+
+Run `nomad setup <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`setup consul`][consul] - Setup a Consul cluster for Nomad integration.
+- [`setup vault`][vault] - Setup a Vault cluster for Nomad integration.
+
+[consul]: /nomad/commands/setup/consul
+[vault]: /nomad/commands/setup/vault

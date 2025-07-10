@@ -1,0 +1,39 @@
+---
+layout: docs
+page_title: 'nomad node pool command reference'
+description: |
+  The `nomad node pool` command interact with node pools. Generate an example node pool specification. Create, update, and delete a node pool. Display a list of node pools and information about a specific node pool. Display jobs and nodes in a node pool.
+---
+
+# `nomad node pool` command reference
+
+The `node pool` command is used to interact with node pools.
+
+## Usage
+
+Usage: `nomad node pool <subcommand> [options]`
+
+Run `nomad node pool <subcommand> -h` for help on that subcommand. The
+following subcommands are available:
+
+- [`node pool apply`][apply] - Create or update a node pool.
+
+- [`node pool delete`][delete] - Delete a node pool.
+
+- [`node pool info`][info] - Fetch information on an existing node pool.
+
+- [`node pool init`][init] - Generate an example node pool specification.
+
+- [`node pool jobs`][jobs] - Retrieve a list of jobs in a node pool.
+
+- [`node pool list`][list] - Retrieve a list of node pools.
+
+- [`node pool nodes`][nodes] - Retrieve a list of nodes in a node pool.
+
+[apply]: /nomad/commands/node-pool/apply
+[delete]: /nomad/commands/node-pool/delete
+[info]: /nomad/commands/node-pool/info
+[init]: /nomad/commands/node-pool/init
+[jobs]: /nomad/commands/node-pool/jobs
+[list]: /nomad/commands/node-pool/list
+[nodes]: /nomad/commands/node-pool/nodes

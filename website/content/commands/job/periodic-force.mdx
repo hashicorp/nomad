@@ -1,0 +1,71 @@
+---
+layout: docs
+page_title: 'nomad job periodic force command reference'
+description: >
+  The `nomad job periodic force` command forces the evaluation of a periodic
+  job. Use this command to immediately run a periodic job, even if it violates the job's `prohibit_overlap` setting.
+---
+
+# `nomad job periodic force` command reference
+
+The `job periodic force` command is used to [force the evaluation] of a
+[periodic job].
+
+## Usage
+
+```plaintext
+nomad job periodic force [options] <job id>
+```
+
+The `job periodic force` command requires a single argument, specifying the ID
+of the job. This job must be a periodic job. This is used to immediately run a
+periodic job, even if it violates the job's `prohibit_overlap` setting.
+
+By default, on successful job submission the command will enter an interactive
+monitor and display log information detailing the scheduling decisions and
+placement information for the forced evaluation. The monitor will exit after
+scheduling has finished or failed.
+
+When ACLs are enabled, this command requires a token with the `submit-job`
+capability for the job's namespace. The `list-jobs` capability is required to
+run the command with a job prefix instead of the exact job ID. The `read-job`
+capability is required to monitor the resulting evaluation when `-detach` is
+not used.
+
+## General options
+
+@include 'general_options.mdx'
+
+## Run options
+
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval status] command.
+
+- `-verbose`: Show full information.
+
+## Examples
+
+Force the evaluation of the job `example`, monitoring placement:
+
+```shell-session
+$ nomad job periodic force example
+==> Monitoring evaluation "54b2d6d9"
+    Evaluation triggered by job "example/periodic-1555094493"
+    Allocation "637aee17" created: node "a35ab8fc", group "cache"
+    Allocation "637aee17" status changed: "pending" -> "running" (Tasks are running)
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "54b2d6d9" finished with status "complete"
+```
+
+Force the evaluation of the job `example` and return immediately:
+
+```shell-session
+$ nomad job periodic force -detach example
+Force periodic successful
+Evaluation ID: 0865fbf3-30de-5f53-0811-821e73e63178
+```
+
+[eval status]: /nomad/commands/eval/status
+[force the evaluation]: /nomad/api-docs/jobs#force-new-periodic-instance
+[periodic job]: /nomad/docs/job-specification/periodic

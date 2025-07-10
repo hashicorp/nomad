@@ -30,7 +30,7 @@ node_pool "example" {
   # The scheduler configuration options specific to this node pool. This block
   # supports a subset of the fields supported in the global scheduler
   # configuration as described at:
-  # https://developer.hashicorp.com/nomad/docs/commands/operator/scheduler/set-config
+  # https://developer.hashicorp.com/nomad/commands/operator/scheduler/set-config
   #
   # * scheduler_algorithm is the scheduling algorithm to use for the pool.
   #   If not defined, the global cluster scheduling algorithm is used.
@@ -71,9 +71,9 @@ Successfully applied node pool "example"!
 - `memory_oversubscription_enabled` `(bool: <optional>)` - The [memory
   oversubscription][] setting to use for this node pool.
 
-[pool-apply]: /nomad/docs/commands/node-pool/apply
+[pool-apply]: /nomad/commands/node-pool/apply
 [jobspecs]: /nomad/docs/job-specification
-[pool-init]: /nomad/docs/commands/node-pool/init
+[pool-init]: /nomad/commands/node-pool/init
 [sched-config]: #scheduler_config-parameters
 [scheduler algorithm]: /nomad/api-docs/operator/scheduler#scheduleralgorithm-1
 [memory oversubscription]: /nomad/api-docs/operator/scheduler#memoryoversubscriptionenabled-1
