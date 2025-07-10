@@ -166,9 +166,9 @@ Nomad processes a periodic with parameterized job in the following order:
 2. After Nomad dispatches the parameterized job and gives it parameters, Nomad uses the periodic configuration.
 3. Nomad dispatches new jobs according to the periodic configuration that uses thee parameters from the triggering parameterized job.
 
-In this example, the periodic job does not trigger any new jobs 
-until the operator dispatches the parameterized job at least once. After that, the 
-dispatched child periodically triggers more children with the given parameters. 
+In this example, the periodic job does not trigger any new jobs
+until the operator dispatches the parameterized job at least once. After that, the
+dispatched child periodically triggers more children with the given parameters.
 
 ```hcl
   periodic {
@@ -188,7 +188,7 @@ dispatched child periodically triggers more children with the given parameters.
 There are three columns plus comments in this example output, which is for the preceding periodic, parameterized example job. Scroll to the last column to review the comments.
 
 ```
-$ nomad job status                                                      
+$ nomad job status
 ID                                                     Type                            Submit Date
 sync                                                   batch/periodic/parameterized    2024-11-07T10:43:30+01:00 // Original submitted job
 sync/dispatch-1730972650-247c6e97                      batch/periodic                  2024-11-07T10:44:10+01:00 // First dispatched job with parameters A
@@ -209,11 +209,11 @@ If you need to force the periodic job, force the the corresponding parameterized
 This example forces the first dispatched job with parameters A from the preceding example.
 
 ```
-$ nomad job periodic force sync/dispatch-1730972650-247c6e97 
+$ nomad job periodic force sync/dispatch-1730972650-247c6e97
 ```
 
 [batch-type]: /nomad/docs/job-specification/job#type 'Batch scheduler type'
-[dispatch command]: /nomad/docs/commands/job/dispatch 'Nomad Job Dispatch Command'
+[dispatch command]: /nomad/commands/job/dispatch 'Nomad Job Dispatch Command'
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [dispatch_payload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'

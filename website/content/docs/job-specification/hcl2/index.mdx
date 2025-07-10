@@ -35,8 +35,8 @@ context from the local environment of the CLI (e.g., files, environment variable
 
 Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
 parse a JSON job using the HCL parser. However, the JSON format accepted by
-the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The 
-HCL parser's JSON format is unspecified, so the API format is preferred. You can 
+the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The
+HCL parser's JSON format is unspecified, so the API format is preferred. You can
 use the API format with the [`-json` command line flag][run-json]:
 
 ```shell-session
@@ -52,7 +52,7 @@ $ nomad job run -json example.json
 
 
 [json-jobs-api]: /nomad/api-docs/json-jobs
-[run-json]: /nomad/docs/commands/job/run#json
+[run-json]: /nomad/commands/job/run#json
 
 ## Arguments, Blocks, and Expressions
 

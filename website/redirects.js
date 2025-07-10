@@ -65,7 +65,8 @@ module.exports = [
   },
   {
     source: '/nomad/tools/autoscaling/concepts/node-selector-strategy',
-    destination: '/nomad/tools/autoscaling/concepts/policy-eval/node-selector-strategy',
+    destination:
+      '/nomad/tools/autoscaling/concepts/policy-eval/node-selector-strategy',
     permanent: true,
   },
   // Redirect Consul and Vault integrations page
@@ -87,6 +88,17 @@ module.exports = [
   {
     source: '/nomad/tools/autoscaling/agent/source',
     destination: '/nomad/tools/autoscaling/agent/policy',
+    permanent: true,
+  },
+  /* redirect for new commands structure */
+  {
+    source: '/nomad/docs/commands/:path*',
+    destination: '/nomad/commands/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/:version(v1.(?:8|9).x)/commands/:path*',
+    destination: '/nomad/commands/:version/:path*',
     permanent: true,
   },
 ]

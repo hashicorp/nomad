@@ -136,7 +136,7 @@ Following the successful upgrade of the servers you can now update your
 clients using a similar process as the servers. You may either upgrade clients
 in-place or start new nodes on the new version. See the [Workload Migration
 Guide](/nomad/tutorials/manage-clusters/node-drain) for instructions on how to migrate running
-allocations from the old nodes to the new nodes with the [`nomad node drain`](/nomad/docs/commands/node/drain) command.
+allocations from the old nodes to the new nodes with the [`nomad node drain`](/nomad/commands/node/drain) command.
 
 ## Done
 
@@ -148,7 +148,7 @@ are in a `ready` state.
 
 Before upgrading servers to Nomad Enterprise versions 1.6.0 and later,
 you should validate your enterprise license with the
-[`nomad license inspect` command](/nomad/docs/commands/license/inspect)
+[`nomad license inspect` command](/nomad/commands/license/inspect)
 using the binary that you are upgrading to.
 See the [licensing FAQ](/nomad/docs/enterprise/license/faq)
 for more information.
@@ -161,9 +161,9 @@ differences may require specific steps.
 
 [data_dir]: /nomad/docs/configuration#data_dir
 [heartbeat_grace]: /nomad/docs/configuration/server#heartbeat_grace
-[monitor]: /nomad/docs/commands/monitor
-[node-status]: /nomad/docs/commands/node/status
-[server-members]: /nomad/docs/commands/server/members
+[monitor]: /nomad/commands/monitor
+[node-status]: /nomad/commands/node/status
+[server-members]: /nomad/commands/server/members
 [upgrade-specific]: /nomad/docs/upgrade/upgrade-specific
 
 ## Upgrading to Raft Protocol 3
