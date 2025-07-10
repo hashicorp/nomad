@@ -80,9 +80,9 @@ Provide the file as either HCL or JSON to the commands and as JSON to the API.
   &lt;required&gt;)</code> - Options for mounting `file-system` volumes that
   don't already have a pre-formatted file system.
 
-- `name` `(string: <required>)` - The display name of the volume. On volume
-  creation, this field may be used by the external storage provider to tag the
-  volume.
+- `name` `(string: <required>)` - The name of the volume. On volume creation,
+  the external storage provider may use this field to tag the volume or as an
+  idempotency token, so it must be unique across all namespaces.
 
 - `namespace` `(string: <optional>)` - The namespace of the volume. This field
   overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
