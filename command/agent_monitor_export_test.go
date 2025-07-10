@@ -4,10 +4,12 @@
 package command
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/shoenig/test/must"
 )
 
@@ -18,8 +20,18 @@ func TestMonitorExportCommand_Implements(t *testing.T) {
 
 func TestMonitorExportCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
+	const expectedText = "log log log log log"
 
-	srv, _, url := testServer(t, false, nil)
+	testFile, err := os.CreateTemp("", "nomadtests")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+	config := func(c *agent.Config) {
+		c.LogFile = inlineFilePath
+	}
+	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()

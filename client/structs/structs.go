@@ -560,7 +560,6 @@ func NewStreamParser(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.
 	}
 }
 func (s *StreamParser) ParseStream(frame *sframer.StreamFrame) error {
-
 	var resp StreamErrWrapper
 	if s.plainText {
 		resp.Payload = frame.Data

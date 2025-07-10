@@ -165,34 +165,8 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			}
 		}
 	}()
-	streamOpts := cstructs.NewStreamParser(&buf, conn, encoder, frameCodec, args.PlainText)
-	var streamErr error
-OUTER:
-	for {
-		select {
-		case frame, ok := <-frames:
-			if !ok {
-				// frame may have been closed when an error
-				// occurred. Check once more for an error.
-				select {
-				case streamErr = <-errCh:
-					// There was a pending error!
-				default:
-					// No error, continue on
-				}
-
-				break OUTER
-			}
-
-			err := streamOpts.ParseStream(frame)
-			if err != nil {
-				streamErr = err
-				break OUTER
-			}
-		case <-ctx.Done():
-			break OUTER
-		}
-	}
+	streamParser := cstructs.NewStreamParser(&buf, conn, encoder, frameCodec, args.PlainText)
+	streamErr := streamParser.ExpectStream(frames, errCh, ctx)
 
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)

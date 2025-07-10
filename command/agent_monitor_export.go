@@ -86,12 +86,13 @@ func (c *MonitorExportCommand) Run(args []string) int {
 		ErrorPrefix:  "==> ",
 		Ui:           c.Ui,
 	}
+	defaultDur := time.Hour * 72
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
-	flags.DurationVar(&c.logSince, "logs-since", 72, "")
+	flags.DurationVar(&c.logSince, "logs-since", defaultDur, "")
 	flags.StringVar(&c.serviceName, "service-name", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
 	flags.BoolVar(&c.onDisk, "on-disk", false, "use configured nomad log file")
 	flags.BoolVar(&c.follow, "follow", false, "")

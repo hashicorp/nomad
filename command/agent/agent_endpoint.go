@@ -238,6 +238,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	if handlerErr != nil {
 		return nil, CodedError(500, handlerErr.Error())
 	}
+
 	codedErr := s.streamMonitor(resp, req, args, handler)
 	return nil, codedErr
 }
@@ -264,10 +265,10 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		follow = parsedfollow
 	}
 
-	logSince := "72" //default value
+	logSince := "72h" //default value
 	logSinceStr := req.URL.Query().Get("log_since")
 	if logSinceStr != "" {
-		_, err := strconv.Atoi(logSinceStr)
+		_, err := time.ParseDuration(logSinceStr)
 		if err != nil {
 			return nil, CodedError(400, fmt.Sprintf("Unknown integer for log-since: %v", err))
 		}
