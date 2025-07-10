@@ -50,7 +50,7 @@ indicated by exit code 1.
 ## Examples
 
 Show the status of an evaluation with related evaluations, successful
-placements, failed placements.
+placements, failed placements, and preemptions.
 
 ```shell-session
 $ nomad eval status 8f6af533
@@ -72,6 +72,14 @@ Blocked Eval       = 2b83d3af
 Related Evaluations
 ID        Priority  Triggered By   Node ID  Status   Description
 fd6f3091  50        queued-allocs  <none>   pending  <none>
+
+Reconciler Annotations
+Task Group  Ignore  Place  Stop  Migrate  InPlace  Destructive  Canary  Preemptions
+group       0       3      0     0        0        0            0       1
+
+Preempted Allocations
+ID        Job ID    Node ID   Task Group  Version  Desired  Status   Created   Modified
+116e9046  example1  24c15262  group       0        run      running  1m9s ago  2s ago
 
 Placed Allocations
 ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
