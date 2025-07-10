@@ -9,6 +9,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper"
 )
 

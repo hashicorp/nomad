@@ -7,12 +7,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -344,10 +342,19 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	nodeID := req.URL.Query().Get("node_id")
 
 	nomadLogPath := s.agent.GetConfig().LogFile
-	//var mockMonitor monitor.ExportMonitor
-	//if mocked := req.URL.Query().Get("mocked"); mocked != "" {
-	//	mockMonitor = monitor.Mock()
-	//}
+	if onDisk && nomadLogPath == "" {
+		return nil, CodedError(400, "No nomad log file defined")
+	}
+
+	plainText := false
+	plainTextStr := req.URL.Query().Get("plain")
+	if plainTextStr != "" {
+		parsed, err := strconv.ParseBool(plainTextStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
+		}
+		plainText = parsed
+	}
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExportRequest{
 		NodeID:       nodeID,
@@ -357,6 +364,7 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		OnDisk:       onDisk,
 		NomadLogPath: nomadLogPath,
 		Follow:       follow,
+		PlainText:    plainText,
 	}
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
@@ -366,6 +374,9 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
 	}
 
+	if args.OnDisk && args.Follow {
+		return nil, CodedError(400, "Cannot follow log file")
+	}
 	if err := monitor.ScanServiceName(args.ServiceName); err != nil {
 		return nil, CodedError(422, err.Error())
 	}
@@ -373,9 +384,14 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
 		return nil, CodedError(422, err.Error())
 	}
+
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
 	// detecting an incorrect or unsafe one.
-	resp.Header().Set("Content-Type", "application/json")
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
@@ -1036,18 +1052,4 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 
 	return response, nil
-}
-
-func ValidateSystemdPrefix(input string) error {
-	// Trim leading and trailing spaces.
-	input = strings.TrimSpace(input)
-
-	// Create a regex pattern to exclude unwanted characters.
-	re := regexp.MustCompile(`[!@#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
-
-	unsafe := re.MatchString(input)
-	if unsafe {
-		return errors.New("valid systemd unit prefixes may only contain alphanumerics and the following special characters \":\", \"-\",\" _\", \".\", \"\\\" and \",\"")
-	}
-	return nil
 }

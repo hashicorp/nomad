@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -21,7 +22,7 @@ type MonitorExportCommand struct {
 	nodeID      string
 	serverID    string
 	onDisk      bool
-	logSince    int
+	logSince    time.Duration
 	serviceName string
 	follow      bool
 }
@@ -55,10 +56,11 @@ Monitor Specific Options:
 	cannot be used with node-id.
 
   -service-name <service-name>
-    Sets the systemd unit name to query journalctl
+    Sets the systemd unit name to query journalctl. Only available on Linux.
 
   -log-since <int>
-    Sets the log period for journald logs. Defaults to 72 and ignored if on-disk
+    Sets the log period for journald logs. Defaults to 72 and ignored if
+	on-disk=true.
 
   -follow <bool>
 	If set, the export command will continue streaming until interrupted. Ignored
@@ -89,7 +91,7 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
-	flags.IntVar(&c.logSince, "logs-since", 72, "")
+	flags.DurationVar(&c.logSince, "logs-since", 72, "")
 	flags.StringVar(&c.serviceName, "service-name", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
 	flags.BoolVar(&c.onDisk, "on-disk", false, "use configured nomad log file")
 	flags.BoolVar(&c.follow, "follow", false, "")
@@ -124,7 +126,7 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	params := map[string]string{
 		"node_id":      c.nodeID,
 		"server_id":    c.serverID,
-		"log_since":    strconv.Itoa(c.logSince),
+		"log_since":    c.logSince.String(),
 		"service_name": c.serviceName,
 		"on_disk":      strconv.FormatBool(c.onDisk),
 		"follow":       strconv.FormatBool(c.follow),

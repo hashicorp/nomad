@@ -102,14 +102,14 @@ func (d *ExportMonitor) Start() <-chan []byte {
 	}
 
 	if d.Opts.OnDisk {
-		multiReader, prepErr = d.fileReader(d.Opts.NomadLogPath)
+		multiReader, prepErr = d.fileReader()
 		if prepErr != nil {
 			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
 			return nil
 		}
 	} else {
 		useCli = true
-		cmd, multiReader, prepErr = d.cliReader(d.Opts)
+		cmd, multiReader, prepErr = d.cliReader()
 		if prepErr != nil {
 			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
 			return nil
@@ -164,76 +164,27 @@ func (d *ExportMonitor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-//// MonitorExport reads a file or executes a CLI command and streams a single
-//// log bundle over the monitor's channel
-//func (d *ExportMonitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
-//	var (
-//		multiReader io.Reader
-//		cmd         *exec.Cmd
-//		prepErr     error
-//		useCli      bool
-//	)
-
-//	if opts.OnDisk {
-//		multiReader, prepErr = d.fileReader(opts.NomadLogPath)
-//		if prepErr != nil {
-//			fmt.Printf("error attempting to prepare reader %s", prepErr.Error())
-//			return nil
-//		}
-//	} else {
-//		useCli = true
-//		cmd, multiReader, prepErr = d.cliReader(opts)
-//		if prepErr != nil {
-//			fmt.Printf("error attempting to prepare reader %s", prepErr.Error())
-//			return nil
-//		}
-//		cmd.Start()
-//	}
-
-//	// Read, copy, and send to channel until we hit EOF or error
-//	streamCh := make(chan []byte)
-//	go func() {
-//		if useCli {
-//			defer cmd.Wait()
-//		}
-//		defer close(streamCh)
-//		logChunk := make([]byte, 32)
-
-//		for {
-//			n, readErr := multiReader.Read(logChunk)
-//			if readErr != nil && readErr != io.EOF {
-//				fmt.Printf("error attempting to read logs into channel %s", readErr.Error())
-//				return
-//			}
-
-//			streamCh <- logChunk[:n]
-
-//				if readErr == io.EOF && !opts.Follow {
-//					break
-//				}
-//			}
-//		}()
-//		return streamCh
-//	}
-func (d *ExportMonitor) cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
+func (d *ExportMonitor) cliReader() (*exec.Cmd, io.Reader, error) {
 	var cmdString string
 	// Vet servicename again
-	if err := ScanServiceName(opts.ServiceName); err != nil {
+	if err := ScanServiceName(d.Opts.ServiceName); err != nil {
 		return nil, nil, err
 	}
-
+	cmdDuration := "72"
+	if d.Opts.LogSince != "" {
+		parsedDur, err := time.ParseDuration(d.Opts.LogSince)
+		if err != nil {
+			return nil, nil, err
+		}
+		cmdDuration = parsedDur.String()
+	}
 	// build command with vetted inputs
-	shell := "/bin/sh"
-	if other := os.Getenv("SHELL"); other != "" {
-		shell = other
-	}
+	cmdArgs := strings.Join([]string{"-xu", d.Opts.ServiceName, "--since", fmt.Sprintf("%s ago", cmdDuration)}, " ")
 
-	if opts.Follow {
-		cmdString = "less" + opts.NomadLogPath
-	} else {
-		cmdString = "cat " + opts.NomadLogPath
+	if d.Opts.Follow {
+		cmdString += "- f"
 	}
-	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
+	cmd := exec.CommandContext(context.Background(), "journalctl", cmdArgs)
 
 	// set up reader
 	stdOut, err := cmd.StdoutPipe()

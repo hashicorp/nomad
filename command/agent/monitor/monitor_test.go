@@ -98,9 +98,17 @@ func TestMonitor_Export(t *testing.T) {
 
 	ci.Parallel(t)
 	const (
-		expectedText   = "log log log log log"
-		goldenFilePath = "../testdata/monitor-export.golden"
+		expectedText = "log log log log log"
 	)
+
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	goldenFilePath := f.Name()
 	goldenFileContents, err := os.ReadFile(goldenFilePath)
 	must.NoError(t, err)
 
