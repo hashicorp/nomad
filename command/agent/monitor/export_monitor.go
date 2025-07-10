@@ -165,12 +165,12 @@ func (d *ExportMonitor) Write(p []byte) (n int, err error) {
 }
 
 func (d *ExportMonitor) cliReader() (*exec.Cmd, io.Reader, error) {
-	var cmdString string
+
 	// Vet servicename again
 	if err := ScanServiceName(d.Opts.ServiceName); err != nil {
 		return nil, nil, err
 	}
-	cmdDuration := "72"
+	cmdDuration := "72 hours"
 	if d.Opts.LogSince != "" {
 		parsedDur, err := time.ParseDuration(d.Opts.LogSince)
 		if err != nil {
@@ -182,7 +182,7 @@ func (d *ExportMonitor) cliReader() (*exec.Cmd, io.Reader, error) {
 	cmdArgs := strings.Join([]string{"-xu", d.Opts.ServiceName, "--since", fmt.Sprintf("%s ago", cmdDuration)}, " ")
 
 	if d.Opts.Follow {
-		cmdString += "- f"
+		cmdArgs += "- f"
 	}
 	cmd := exec.CommandContext(context.Background(), "journalctl", cmdArgs)
 
