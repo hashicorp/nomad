@@ -4,6 +4,7 @@
 package secrets
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,11 +92,11 @@ func (n *NomadProvider) Parse() (map[string]string, error) {
 // that could be used to inject other CT functions.
 func validateNomadInputs(conf *nomadProviderConfig, path string) error {
 	if strings.ContainsAny(conf.Namespace, "(){}") {
-		return fmt.Errorf("namespace cannot contain template delimiters or parenthesis")
+		return errors.New("namespace cannot contain template delimiters or parenthesis")
 	}
 
 	if strings.ContainsAny(path, "(){}") {
-		return fmt.Errorf("path cannot contain template delimiters or parenthesis")
+		return errors.New("path cannot contain template delimiters or parenthesis")
 	}
 
 	return nil

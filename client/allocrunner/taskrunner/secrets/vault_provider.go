@@ -4,6 +4,7 @@
 package secrets
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,7 +46,7 @@ func NewVaultProvider(secret *structs.Secret, secretDir string, tmplFile string)
 	}
 
 	if strings.ContainsAny(secret.Path, "(){}") {
-		return nil, fmt.Errorf("secret path cannot contain template delimiters or parenthesis")
+		return nil, errors.New("secret path cannot contain template delimiters or parenthesis")
 	}
 
 	return &VaultProvider{
