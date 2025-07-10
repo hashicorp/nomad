@@ -598,7 +598,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 
 	// Add the unique hostname from node attributes
-	if uniqueHostname := nodeAttrs[fmt.Sprintf("%s%s", nodeAttributePrefix, "unique.hostname")]; uniqueHostname != "" {
+	if uniqueHostname := nodeAttrs[nodeAttributePrefix+"unique.hostname"]; uniqueHostname != "" {
 		envMap[UniqueHostname] = uniqueHostname
 	}
 
