@@ -22,13 +22,10 @@ import (
 const maxAllocs = 30
 
 func TestAllocReconciler_PropTest(t *testing.T) {
-	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
-		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
-		results := ar.Compute()
-		must.NotNil(t, results, must.Sprint("results should never be nil"))
 
-		// convenience map that may hold multiple "states" for the same alloc
-		// (ex. all three of "total" and "terminal" and "failed")
+	// collectExpected returns a convenience map that may hold multiple "states" for
+	// the same alloc (ex. all three of "total" and "terminal" and "failed")
+	collectExpected := func(ar *AllocReconciler) map[string]map[string]int {
 		perTaskGroup := map[string]map[string]int{}
 		for _, tg := range ar.jobState.Job.TaskGroups {
 			perTaskGroup[tg.Name] = map[string]int{"expect_count": tg.Count}
@@ -52,9 +49,27 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			}
 		}
 
-		/*
-			SAFETY properties ("something bad never happens")
-		*/
+		return perTaskGroup
+	}
+
+	// sharedSafetyProperties asserts safety properties ("something bad never
+	// happens") that apply to all job types that use the cluster reconciler
+	sharedSafetyProperties := func(t *rapid.T, ar *AllocReconciler, results *ReconcileResults, perTaskGroup map[string]map[string]int) {
+
+		// stopped jobs
+		if ar.jobState.Job.Stopped() {
+			if ar.jobState.DeploymentCurrent != nil {
+				if results.Deployment != nil {
+					t.Fatal("stopped jobs with current deployments should never result in a new deployment")
+				}
+				if results.Stop == nil {
+					t.Fatal("stopped jobs with current deployments should always have stopped allocs")
+				}
+			}
+		}
+
+		must.NotNil(t, results.DesiredTGUpdates,
+			must.Sprint("desired task group updates should always be initialized"))
 
 		if ar.jobState.DeploymentFailed && results.Deployment != nil {
 			t.Fatal("failed deployments should never result in new deployments")
@@ -62,6 +77,16 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 
 		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
 			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
+		}
+
+		if ar.jobState.DeploymentCurrent == nil && ar.jobState.DeploymentOld == nil && len(ar.jobState.ExistingAllocs) == 0 {
+			count := 0
+			for _, tg := range ar.jobState.Job.TaskGroups {
+				count += tg.Count
+			}
+			if len(results.Place) > count {
+				t.Fatal("for new jobs, amount of allocs to place should never exceed total tg count")
+			}
 		}
 
 		for tgName, counts := range perTaskGroup {
@@ -111,53 +136,24 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 					tgName, counts))
 		}
 
+	}
+
+	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
+		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
+		perTaskGroup := collectExpected(ar)
+		results := ar.Compute()
+		must.NotNil(t, results, must.Sprint("results should never be nil"))
+
+		sharedSafetyProperties(t, ar, results, perTaskGroup)
 	}))
 
 	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeService, &idGenerator{}).Draw(t, "reconciler")
+		perTaskGroup := collectExpected(ar)
 		results := ar.Compute()
+		must.NotNil(t, results, must.Sprint("results should never be nil"))
 
-		/*
-			SAFETY properties ("something bad never happens")
-		*/
-
-		if results == nil {
-			t.Fatal("results should never be nil")
-		}
-
-		// stopped jobs
-		if ar.jobState.Job.Stopped() {
-			if ar.jobState.DeploymentCurrent != nil {
-				if results.Deployment != nil {
-					t.Fatal("stopped jobs with current deployments should never result in a new deployment")
-				}
-				if results.Stop == nil {
-					t.Fatal("stopped jobs with current deployments should always have stopped allocs")
-				}
-			}
-		}
-
-		if results.DesiredTGUpdates == nil {
-			t.Fatal("we should never have nil desired task group updates")
-		}
-
-		if ar.jobState.DeploymentFailed && results.Deployment != nil {
-			t.Fatal("failed deployments should never result in new deployments")
-		}
-
-		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
-			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
-		}
-
-		if ar.jobState.DeploymentCurrent == nil && ar.jobState.DeploymentOld == nil && len(ar.jobState.ExistingAllocs) == 0 {
-			count := 0
-			for _, tg := range ar.jobState.Job.TaskGroups {
-				count += tg.Count
-			}
-			if len(results.Place) > count {
-				t.Fatal("for new jobs, amount of allocs to place should never exceed total tg count")
-			}
-		}
+		sharedSafetyProperties(t, ar, results, perTaskGroup)
 	}))
 }
 
