@@ -1699,6 +1699,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 		map[string]string{"NOMAD_META_path": "exists"},
 		map[string]string{},
 		map[string]string{},
+		map[string]string{},
 		d, "")
 
 	vars, err := loadTemplateEnv(templates, taskEnv)

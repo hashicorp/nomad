@@ -6,7 +6,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"maps"
 	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
@@ -73,9 +72,6 @@ type secretsHook struct {
 
 	// secrets to be fetched and populated for interpolation
 	secrets []*structs.Secret
-
-	// taskrunner secrets map
-	taskSecrets map[string]string
 }
 
 func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secretsHook {
@@ -87,9 +83,6 @@ func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secrets
 		envBuilder:     conf.envBuilder,
 		nomadNamespace: conf.nomadNamespace,
 		secrets:        secrets,
-		// Future work will inject taskSecrets from the taskRunner, so that the taskrunner
-		// can make these secrets available to other hooks.
-		taskSecrets: make(map[string]string),
 	}
 }
 
@@ -146,13 +139,13 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	case <-unblock:
 	}
 
-	// parse and copy variables to taskSecrets
+	// parse and copy variables to envBuilder secrets
 	for _, p := range providers {
 		vars, err := p.Parse()
 		if err != nil {
 			return err
 		}
-		maps.Copy(h.taskSecrets, vars)
+		h.envBuilder.SetSecrets(vars)
 	}
 
 	return nil
