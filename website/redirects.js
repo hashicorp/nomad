@@ -433,4 +433,220 @@ module.exports = [
     destination: '/nomad/commands/:version/:path*',
     permanent: true,
   },
+  /* redirects for versioned docs in 1.9, 1.8 */
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/what-is-nomad/',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/quickstart/',
+    destination: '/nomad/docs/:version/install/quickstart',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/',
+    destination: '/nomad/docs/:version/concepts/architecture',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/cluster/consensus/',
+    destination: '/nomad/docs/:version/concepts/consensus',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/cluster/federation/',
+    destination: '/nomad/docs/:version/concepts/architecture/federation',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/cluster/node-pools/',
+    destination: '/nomad/docs/:version/concepts/node-pools',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/cpu/',
+    destination: '/nomad/docs/:version/concepts/cpu',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/security/',
+    destination: '/nomad/docs/:version/concepts/security',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/security/gossip/',
+    destination: '/nomad/docs/:version/concepts/gossip',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/architecture/storage/:slug*',
+    destination: '/nomad/docs/:version/concepts/plugins/storage/:slug*',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/concepts/scheduling/how-scheduling-works/',
+    destination: '/nomad/docs/:version/concepts/scheduling/scheduling',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/concepts/scheduling/schedulers/',
+    destination: '/nomad/docs/:version/schedulers',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/intro/use-cases/',
+    destination: '/nomad/docs/use-cases',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/:slug*',
+    destination: '/nomad/docs/:version/install/:slug*',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/production/windows-service/',
+    destination: '/nomad/docs/:version/install/windows-service',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/nomad-agent/',
+    destination: '/nomad/docs/:versions/operations/nomad-agent',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/clusters/federation-considerations/',
+    destination: '/nomad/docs/:version/operations/federation',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/clusters/federation-failure-scenarios/',
+    destination: '/nomad/docs/:version/operations/federation/failure',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/task-driver/:slug*',
+    destination: '/nomad/docs/:version/drivers/:slug*',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/networking/consul/',
+    destination: '/nomad/docs/:version/integrations',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/garbage-collection/',
+    destination: '/nomad/docs/:version/operations/garbage-collection',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/key-management/',
+    destination: '/nomad/docs/:version/operations/key-management',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/monitor/',
+    destination: '/nomad/docs/:version/operations/monitoring-nomad',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/networking/consul/service-mesh/',
+    destination: '/nomad/docs/:version/networking/service-mesh',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/networking/consul/',
+    destination: '/nomad/docs/:version/integrations/consul',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/consul/',
+    destination: '/nomad/docs/:version/integrations/consul/acl',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/networking/consul/service-mesh/',
+    destination: '/nomad/docs/:version/integrations/consul/service-mesh',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/scale/benchmarking/',
+    destination: '/nomad/docs/:version/operations/benchmarking',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/authentication/jwt/',
+    destination: '/nomad/docs/:version/concepts/acl/auth-methods/jwt',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/authentication/oidc/',
+    destination: '/nomad/docs/:version/concepts/acl/auth-methods/oidc',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/vault/',
+    destination: '/nomad/docs/:version/integrations/vault',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/vault/',
+    destination: '/nomad/docs/:version/integrations/vault',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/vault/acl/',
+    destination: '/nomad/docs/:version/integrations/vault/acl',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/workload-identity/aws-oidc-provider/',
+    destination: '/nomad/docs/:version/operations/aws-oidc-provider',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/task-driver/',
+    destination: '/nomad/docs/:version/drivers',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/hcl2/',
+    destination: '/nomad/docs/:version/job-specification/hcl2',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/metrics/',
+    destination: '/nomad/docs/:version/operations/metrics-reference',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/runtime-environment-settings/',
+    destination: '/nomad/docs/:version/runtime/environment',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/runtime-variable-interpolation/',
+    destination: '/nomad/docs/:version/runtime/interpolation',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/sentinel-policy/',
+    destination: '/nomad/docs/:version/enterprise/sentinel',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/use-cases/',
+    destination: '/nomad/docs/:version/who-uses-nomad',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/runtime-environment-variables/',
+    destination: '/nomad/docs/:version/runtime/',
+    permanent: true
+  },
+  {
+    source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/runtime-environment-settings/',
+    destination: '/nomad/docs/:version/runtime',
+    permanent: true
+  },
 ]
