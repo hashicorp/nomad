@@ -25,7 +25,9 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 
 	// collectExpected returns a convenience map that may hold multiple "states" for
 	// the same alloc (ex. all three of "total" and "terminal" and "failed")
-	collectExpected := func(ar *AllocReconciler) map[string]map[string]int {
+	collectExpected := func(t *rapid.T, ar *AllocReconciler) map[string]map[string]int {
+		t.Helper()
+
 		perTaskGroup := map[string]map[string]int{}
 		for _, tg := range ar.jobState.Job.TaskGroups {
 			perTaskGroup[tg.Name] = map[string]int{"expect_count": tg.Count}
@@ -33,7 +35,6 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 				perTaskGroup[tg.Name]["max_canaries"] = tg.Update.Canary
 			}
 		}
-
 		for _, alloc := range ar.jobState.ExistingAllocs {
 			if _, ok := perTaskGroup[alloc.TaskGroup]; !ok {
 				// existing task group doesn't exist in new job
@@ -41,12 +42,45 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			}
 			perTaskGroup[alloc.TaskGroup]["exist_total"]++
 			perTaskGroup[alloc.TaskGroup]["exist_"+alloc.ClientStatus]++
+			perTaskGroup[alloc.TaskGroup]["exist_desired_"+alloc.DesiredStatus]++
 			if alloc.TerminalStatus() {
 				perTaskGroup[alloc.TaskGroup]["exist_terminal"]++
+			} else {
+				perTaskGroup[alloc.TaskGroup]["exist_non_terminal"]++
 			}
+			if alloc.ClientTerminalStatus() {
+				perTaskGroup[alloc.TaskGroup]["exist_client_terminal"]++
+			} else {
+				perTaskGroup[alloc.TaskGroup]["exist_non_client_terminal"]++
+			}
+			if alloc.ServerTerminalStatus() {
+				perTaskGroup[alloc.TaskGroup]["exist_server_terminal"]++
+			} else {
+				perTaskGroup[alloc.TaskGroup]["exist_non_server_terminal"]++
+			}
+
 			if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
 				perTaskGroup[alloc.TaskGroup]["exist_canary"]++
 			}
+		}
+
+		// these only assert our categories are reasonable
+
+		for _, counts := range perTaskGroup {
+			must.Eq(t, counts["exist_total"],
+				(counts["exist_pending"] +
+					counts["exist_running"] +
+					counts["exist_complete"] +
+					counts["exist_failed"] +
+					counts["exist_lost"] +
+					counts["exist_unknown"]),
+				must.Sprintf("exist_total doesn't add up: %+v", counts))
+
+			must.Eq(t, counts["exist_client_terminal"],
+				(counts["exist_complete"] +
+					counts["exist_failed"] +
+					counts["exist_lost"]),
+				must.Sprintf("exist_client_terminal doesn't add up: %+v", counts))
 		}
 
 		return perTaskGroup
@@ -55,6 +89,7 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	// sharedSafetyProperties asserts safety properties ("something bad never
 	// happens") that apply to all job types that use the cluster reconciler
 	sharedSafetyProperties := func(t *rapid.T, ar *AllocReconciler, results *ReconcileResults, perTaskGroup map[string]map[string]int) {
+		t.Helper()
 
 		// stopped jobs
 		if ar.jobState.Job.Stopped() {
@@ -92,55 +127,73 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 		for tgName, counts := range perTaskGroup {
 			tgUpdates := results.DesiredTGUpdates[tgName]
 
+			tprintf := func(msg string) must.Setting {
+				return must.Sprintf(msg+" (%s) %v => %+v", tgName, counts, tgUpdates)
+			}
+
+			// when the job is stopped or scaled to zero we can make stronger
+			// assertions, so split out these checks
+			if counts["expect_count"] == 0 || ar.jobState.Job.Stopped() {
+
+				must.Eq(t, 0, int(tgUpdates.Place),
+					tprintf("no placements on stop or scale-to-zero"))
+				must.Eq(t, 0, int(tgUpdates.Canary),
+					tprintf("no canaries on stop or scale-to-zero"))
+				must.Eq(t, 0, int(tgUpdates.DestructiveUpdate),
+					tprintf("no destructive updates on stop or scale-to-zero"))
+				must.Eq(t, 0, int(tgUpdates.Migrate),
+					tprintf("no migrating on stop or scale-to-zero"))
+				must.Eq(t, 0, int(tgUpdates.RescheduleLater),
+					tprintf("no rescheduling later on stop or scale-to-zero"))
+				must.Eq(t, 0, int(tgUpdates.Preemptions),
+					tprintf("no preemptions on stop or scale-to-zero"))
+
+				continue
+			}
+
 			must.LessEq(t, counts["expect_count"], int(tgUpdates.Place),
-				must.Sprintf("group placements should never exceed group count (%s): %v",
-					tgName, counts))
+				tprintf("group placements should never exceed group count"))
 
 			must.LessEq(t, counts["max_canaries"], int(tgUpdates.Canary),
-				must.Sprintf("canaries should never exceed expected canaries (%s): %v",
-					tgName, counts))
+				tprintf("canaries should never exceed expected canaries"))
 
 			must.LessEq(t, counts["max_canaries"], int(tgUpdates.Canary)+counts["exist_canary"],
-				must.Sprintf("canaries+existing canaries should never exceed expected canaries (%s): %v",
-					tgName, counts))
+				tprintf("canaries+existing canaries should never exceed expected canaries"))
 
 			must.LessEq(t, counts["expect_count"], int(tgUpdates.DestructiveUpdate),
-				must.Sprintf("destructive updates should never exceed group count (%s): %v",
-					tgName, counts))
+				tprintf("destructive updates should never exceed group count"))
 
 			must.LessEq(t, counts["expect_count"]+counts["max_canaries"],
 				int(tgUpdates.Canary)+int(tgUpdates.Place)+int(tgUpdates.DestructiveUpdate),
-				must.Sprintf("place+canaries+destructive should never exceed group count + expected canaries (%s): %v",
-					tgName, counts))
+				tprintf("place+canaries+destructive should never exceed group count + expected canaries"))
 
-			// TODO(tgross): needs per-taskgroup reconnect/disconnect values
-			// must.Eq(t, counts["expect_count"]+int(tgUpdates.Stop)+int(tgUpdates.Disconnected),
-			// 	int(tgUpdates.Place)+int(tgUpdates.Ignore)+int(tgUpdates.InPlaceUpdate)+int(tgUpdates.DestructiveUpdate)+int(tgUpdates.Reconnected),
-			// 	must.Sprintf(""),
-			// )
+			must.LessEq(t, counts["exist_non_client_terminal"], int(tgUpdates.Reconnect),
+				tprintf("reconnected should never exceed non-client-terminal"))
 
 			must.LessEq(t, counts["exist_total"], int(tgUpdates.InPlaceUpdate),
-				must.Sprintf("in-place updates should never exceed existing allocs (%s): %v",
-					tgName, counts))
+				tprintf("in-place updates should never exceed existing allocs"))
 
 			must.LessEq(t, counts["exist_total"], int(tgUpdates.DestructiveUpdate),
-				must.Sprintf("destructive updates should never exceed existing allocs (%s): %v",
-					tgName, counts))
+				tprintf("destructive updates should never exceed existing allocs"))
 
 			must.LessEq(t, counts["exist_total"], int(tgUpdates.Migrate),
-				must.Sprintf("migrations should never exceed existing allocs (%s): %v",
-					tgName, counts))
+				tprintf("migrations should never exceed existing allocs"))
 
 			must.LessEq(t, counts["exist_total"], int(tgUpdates.Ignore),
-				must.Sprintf("ignore should never exceed existing allocs (%s): %v",
-					tgName, counts))
+				tprintf("ignore should never exceed existing allocs"))
+
+			must.GreaterEq(t, tgUpdates.Migrate, tgUpdates.Stop,
+				tprintf("migrated allocs should be stopped"))
+
+			must.GreaterEq(t, tgUpdates.RescheduleLater, tgUpdates.Ignore,
+				tprintf("reschedule-later allocs should be ignored"))
 		}
 
 	}
 
 	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
-		perTaskGroup := collectExpected(ar)
+		perTaskGroup := collectExpected(t, ar)
 		results := ar.Compute()
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 
@@ -149,7 +202,7 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 
 	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
 		ar := genAllocReconciler(structs.JobTypeService, &idGenerator{}).Draw(t, "reconciler")
-		perTaskGroup := collectExpected(ar)
+		perTaskGroup := collectExpected(t, ar)
 		results := ar.Compute()
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 
