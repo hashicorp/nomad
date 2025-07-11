@@ -511,7 +511,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/nomad-agent/',
-    destination: '/nomad/docs/:versions/operations/nomad-agent',
+    destination: '/nomad/docs/:version/operations/nomad-agent',
     permanent: true
   },
   {
