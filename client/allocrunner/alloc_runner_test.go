@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1587,6 +1588,44 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	require.Contains(t, last.Message, "by healthy_deadline")
 }
 
+// TestAllocRunner_Postrun asserts that all postrun hooks run even when one of them fails
+func TestAllocRunner_Postrun(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc() // batch alloc runs to completion without a stop signal
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	t.Cleanup(cleanup)
+
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	// set up test hooks
+	good1, good2 := &allocPostrunHook{}, &allocPostrunHook{}
+	sadErr := errors.New("sad day")
+	bad := &allocPostrunHook{err: sadErr}
+
+	ar.(*allocRunner).runnerHooks = []interfaces.RunnerHook{
+		good1, bad, good2,
+	}
+
+	go ar.Run()
+
+	select {
+	case <-time.After(500 * time.Millisecond):
+		t.Errorf("allocrunner timeout")
+	case <-ar.WaitCh():
+	}
+
+	must.True(t, good1.ran, must.Sprint("first hook should run"))
+	must.True(t, bad.ran, must.Sprint("second hook should run"))
+	must.True(t, good2.ran, must.Sprint("third hook should run, even after second failed"))
+
+	// check postrun error return directly
+	err = ar.(*allocRunner).postrun()
+	must.ErrorIs(t, err, sadErr)
+	must.Eq(t, `post-run hook "test_postrun" failed: sad day`, err.Error())
+}
+
 // TestAllocRunner_Destroy asserts that Destroy kills and cleans up a running
 // alloc.
 func TestAllocRunner_Destroy(t *testing.T) {
@@ -2826,4 +2865,21 @@ func TestAllocRunner_setHookStatsHandler(t *testing.T) {
 	noopHandler, ok := baseAllocRunner.hookStatsHandler.(*hookstats.NoOpHandler)
 	must.True(t, ok)
 	must.NotNil(t, noopHandler)
+}
+
+type allocPostrunHook struct {
+	mut sync.Mutex
+	err error
+	ran bool
+}
+
+func (h *allocPostrunHook) Name() string {
+	return "test_postrun"
+}
+
+func (h *allocPostrunHook) Postrun() error {
+	h.mut.Lock()
+	defer h.mut.Unlock()
+	h.ran = true
+	return h.err
 }

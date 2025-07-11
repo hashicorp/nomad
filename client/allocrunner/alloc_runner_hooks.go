@@ -12,6 +12,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -254,6 +255,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 }
 
 // postrun is used to run the runners postrun hooks.
+// all hooks will run, even if any of them fail, and return a multierror, single error, or nil.
 func (ar *allocRunner) postrun() error {
 	if ar.logger.IsTrace() {
 		start := time.Now()
@@ -264,6 +266,7 @@ func (ar *allocRunner) postrun() error {
 		}()
 	}
 
+	var merr multierror.Error
 	for _, hook := range ar.runnerHooks {
 		post, ok := hook.(interfaces.RunnerPostrunHook)
 		if !ok {
@@ -278,7 +281,7 @@ func (ar *allocRunner) postrun() error {
 		}
 
 		if err := post.Postrun(); err != nil {
-			return fmt.Errorf("hook %q failed: %v", name, err)
+			merr.Errors = append(merr.Errors, fmt.Errorf("post-run hook %q failed: %w", name, err))
 		}
 
 		if ar.logger.IsTrace() {
@@ -287,7 +290,7 @@ func (ar *allocRunner) postrun() error {
 		}
 	}
 
-	return nil
+	return helper.FlattenMultierror(merr.ErrorOrNil())
 }
 
 // destroy is used to run the runners destroy hooks. All hooks are run and
