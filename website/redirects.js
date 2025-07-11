@@ -649,4 +649,314 @@ module.exports = [
     destination: '/nomad/docs/:version/runtime',
     permanent: true
   },
+    {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/',
+  destination: '/nomad/tutorials/archive/access-control',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/bootstrap/',
+  destination: '/nomad/tutorials/archive/access-control-bootstrap',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/policies/create-policy/',
+  destination: '/nomad/tutorials/archive/access-control-create-policy',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/policies/',
+  destination: '/nomad/tutorials/archive/access-control-policies',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/tokens/',
+  destination: '/nomad/tutorials/archive/access-control-tokens',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/authentication/sso-auth0/',
+  destination: '/nomad/tutorials/archive/sso-oidc-auth0',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/authentication/sso-pkce-jwt/',
+  destination: '/nomad/tutorials/archive/sso-oidc-keycloak',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/tokens/vault/',
+  destination: '/nomad/tutorials/archive/vault-nomad-secrets',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-scheduling/',
+  destination: '/nomad/tutorials/archive/advanced-scheduling',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-scheduling/affinity/',
+  destination: '/nomad/tutorials/archive/affinity',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-scheduling/preemption/',
+  destination: '/nomad/tutorials/archive/preemption',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-scheduling/spread/',
+  destination: '/nomad/tutorials/archive/spread',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/govern/',
+  destination: '/nomad/tutorials/archive/governance-and-policy',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/govern/resource-quotas/',
+  destination: '/nomad/tutorials/archive/quotas',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/govern/sentinel/',
+  destination: '/nomad/tutorials/archive/sentinel',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/monitor/event-stream/',
+  destination: '/nomad/tutorials/archive/event-stream',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/workload-identity/vault-acl/',
+  destination: '/nomad/tutorials/archive/vault-acl',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/acl/tokens/vault/',
+  destination: '/nomad/tutorials/archive/vault-nomad-secrets',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/failure/',
+  destination: '/nomad/tutorials/archive/failures',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/failure/check-restart/',
+  destination: '/nomad/tutorials/archive/failures-check-restart',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/failure/reschedule/',
+  destination: '/nomad/tutorials/archive/failures-reschedule',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/failure/restart/',
+  destination: '/nomad/tutorials/archive/failures-restart',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/nomad-actions/',
+  destination: '/nomad/tutorials/archive/job-spec-actions',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/strategy/blue-green-canary/',
+  destination: '/nomad/tutorials/archive/job-blue-green-and-canary-deployments',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/strategy/rolling/',
+  destination: '/nomad/tutorials/archive/job-rolling-update',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/exit-signals/',
+  destination: '/nomad/tutorials/archive/job-update-handle-signals',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/strategy/',
+  destination: '/nomad/tutorials/archive/job-update-strategies',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/autopilot/',
+  destination: '/nomad/tutorials/archive/autopilot',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/clusters/connect-nodes/',
+  destination: '/nomad/tutorials/archive/clustering',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/clusters/federate-regions/',
+  destination: '/nomad/tutorials/archive/federation',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/multiregion/',
+  destination: '/nomad/tutorials/archive/multiregion-deployments',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/govern/namespaces/',
+  destination: '/nomad/tutorials/archive/namespaces',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/migrate-workloads/',
+  destination: '/nomad/tutorials/archive/node-drain',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/outage-recovery/',
+  destination: '/nomad/tutorials/archive/outage-recovery',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/deploy/clusters/reverse-proxy-ui/',
+  destination: '/nomad/tutorials/archive/reverse-proxy-ui',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/',
+  destination: '/nomad/tutorials/archive/jobs',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-run/logs/',
+  destination: '/nomad/tutorials/archive/jobs-accessing-logs',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/configure-tasks/',
+  destination: '/nomad/tutorials/archive/jobs-configuring',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-run/inspect/',
+  destination: '/nomad/tutorials/archive/jobs-inspect',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/create-job/',
+  destination: '/nomad/tutorials/archive/jobs-submit',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-run/utilization-metrics/',
+  destination: '/nomad/tutorials/archive/jobs-utilization',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-run/versions/',
+  destination: '/nomad/tutorials/archive/jobs-version',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)s/nomad-pack/advanced-usage/',
+  destination: '/nomad/tutorials/archive/nomad-pack-detailed-usage',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)s/nomad-pack/',
+  destination: '/nomad/tutorials/archive/nomad-pack-intro',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)s/nomad-pack/create-packs/',
+  destination: '/nomad/tutorials/archive/nomad-pack-writing-packs',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)archiving b/c LXC plugin removed a while ago/',
+  destination: '/nomad/tutorials/archive/plugin-lxc',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/authentication/sso-vault/',
+  destination: '/nomad/tutorials/archive/sso-oidc-vault',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/stateful-workloads/static-host-volumes/',
+  destination: '/nomad/tutorials/archive/exec-users-host-volumes',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/stateful-workloads/',
+  destination: '/nomad/tutorials/archive/stateful-workloads',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/stateful-workloads/csi-volumes/',
+  destination: '/nomad/tutorials/archive/stateful-workloads-csi-volumes',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/stateful-workloads/dynamic-host-volumes/',
+  destination: '/nomad/tutorials/archive/stateful-workloads-dynamic-host-volumes',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/stateful-workloads/static-host-volumes/',
+  destination: '/nomad/tutorials/archive/stateful-workloads-host-volumes',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/task-dependencies/',
+  destination: '/nomad/tutorials/archive/task-dependencies-interjob',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/manage/format-cli-output/',
+  destination: '/nomad/tutorials/archive/format-output-with-templates',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/reference/go-template-syntax/',
+  destination: '/nomad/tutorials/archive/go-template-syntax',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/traffic/',
+  destination: '/nomad/tutorials/archive/security-concepts',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/traffic/tls/',
+  destination: '/nomad/tutorials/archive/security-enable-tls',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/secure/traffic/gossip-encryption/',
+  destination: '/nomad/tutorials/archive/security-gossip-encryption',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/job-declare/nomad-variables/',
+  destination: '/nomad/tutorials/archive/variables-tasks',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/monitor/cluster-topology/',
+  destination: '/nomad/tutorials/archive/topology-visualization',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/monitor/inspect-cluster/',
+  destination: '/nomad/tutorials/archive/web-ui-cluster-info',
+  permanent: true
+  },
+  {
+  source: '/nomad/docs/:version(v1\.(?:8|9)\.x)/monitor/inspect-workloads/',
+  destination: '/nomad/tutorials/archive/web-ui-workload-info',
+  permanent: true
+  },
 ]
