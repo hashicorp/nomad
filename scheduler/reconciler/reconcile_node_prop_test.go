@@ -69,6 +69,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 	// sharedSafetyProperties asserts safety properties ("something bad never
 	// happens") that apply to all job types that use the node reconciler
 	sharedSafetyProperties := func(t *rapid.T, nr *nodeReconcilerInput, results *NodeReconcileResult, perTaskGroup map[string]map[string]int) {
+		t.Helper()
 
 		if !nr.serverSupportsDisconnectedClients {
 			must.Len(t, 0, results.Disconnecting,
