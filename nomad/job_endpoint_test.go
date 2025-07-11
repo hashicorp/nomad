@@ -80,40 +80,17 @@ func TestJobEndpoint_Register(t *testing.T) {
 
 	// Lookup the evaluation
 	eval, err := state.EvalByID(ws, resp.EvalID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != resp.EvalCreateIndex {
-		t.Fatalf("index mis-match")
-	}
-
-	if eval.Priority != job.Priority {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Type != job.Type {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerJobRegister {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != job.ID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobModifyIndex != resp.JobModifyIndex {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.CreateTime == 0 {
-		t.Fatalf("eval CreateTime is unset: %#v", eval)
-	}
-	if eval.ModifyTime == 0 {
-		t.Fatalf("eval ModifyTime is unset: %#v", eval)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, eval)
+	must.Eq(t, eval.CreateIndex, resp.EvalCreateIndex)
+	must.Eq(t, eval.Priority, job.Priority)
+	must.Eq(t, eval.Type, job.Type)
+	must.Eq(t, eval.TriggeredBy, structs.EvalTriggerJobRegister)
+	must.Eq(t, eval.JobID, job.ID)
+	must.Eq(t, eval.JobModifyIndex, resp.JobModifyIndex)
+	must.Eq(t, eval.Status, structs.EvalStatusPending)
+	must.NonZero(t, eval.CreateTime)
+	must.NonZero(t, eval.ModifyTime)
 	must.Eq(t, job.NodePool, eval.NodePool)
 }
 
@@ -2740,40 +2717,17 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	eval, err := state.EvalByID(ws, resp.EvalID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != resp.EvalCreateIndex {
-		t.Fatalf("index mis-match")
-	}
-
-	if eval.Priority != job.Priority {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Type != job.Type {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerJobRegister {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != job.ID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobModifyIndex != resp.JobModifyIndex {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.CreateTime == 0 {
-		t.Fatalf("eval CreateTime is unset: %#v", eval)
-	}
-	if eval.ModifyTime == 0 {
-		t.Fatalf("eval ModifyTime is unset: %#v", eval)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, eval)
+	must.Eq(t, eval.CreateIndex, resp.EvalCreateIndex)
+	must.Eq(t, eval.Priority, job.Priority)
+	must.Eq(t, eval.Type, job.Type)
+	must.Eq(t, eval.TriggeredBy, structs.EvalTriggerJobRegister)
+	must.Eq(t, eval.JobID, job.ID)
+	must.Eq(t, eval.JobModifyIndex, resp.JobModifyIndex)
+	must.Eq(t, eval.Status, structs.EvalStatusPending)
+	must.NonZero(t, eval.CreateTime)
+	must.NonZero(t, eval.ModifyTime)
 	must.Eq(t, job.NodePool, eval.NodePool)
 }
 

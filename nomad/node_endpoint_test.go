@@ -3411,43 +3411,18 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	// Lookup the evaluation
 	ws := memdb.NewWatchSet()
 	eval, err := state.EvalByID(ws, ids[0])
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != resp.Index {
-		t.Fatalf("index mis-match")
-	}
-
-	if eval.Priority != alloc.Job.Priority {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Type != alloc.Job.Type {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerNodeUpdate {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != alloc.JobID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.NodeID != alloc.NodeID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.NodeModifyIndex != 1 {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.CreateTime == 0 {
-		t.Fatalf("CreateTime is unset: %#v", eval)
-	}
-	if eval.ModifyTime == 0 {
-		t.Fatalf("ModifyTime is unset: %#v", eval)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, eval)
+	must.Eq(t, eval.CreateIndex, resp.EvalCreateIndex)
+	must.Eq(t, eval.Priority, alloc.Job.Priority)
+	must.Eq(t, eval.Type, alloc.Job.Type)
+	must.Eq(t, eval.TriggeredBy, structs.EvalTriggerNodeUpdate)
+	must.Eq(t, eval.JobID, alloc.JobID)
+	must.Eq(t, eval.NodeID, alloc.NodeID)
+	must.Eq(t, eval.NodeModifyIndex, 1)
+	must.Eq(t, eval.Status, structs.EvalStatusPending)
+	must.NonZero(t, eval.CreateTime)
+	must.NonZero(t, eval.ModifyTime)
 	must.Eq(t, alloc.Job.NodePool, eval.NodePool)
 }
 
