@@ -10,6 +10,7 @@ import RESTAdapter from '@ember-data/adapter/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
 import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
+import { ForbiddenError } from '@ember-data/adapter/error';
 import classic from 'ember-classic-decorator';
 
 export const namespace = 'v1';
@@ -36,6 +37,17 @@ export default class ApplicationAdapter extends RESTAdapter {
   handleResponse(status, headers, payload) {
     if (status === 500 && payload === NO_LEADER) {
       return new NoLeaderError();
+    }
+    if (status === 403) {
+      const error = new ForbiddenError([
+        {
+          status: String(status),
+          title: 'The backend responded with an error',
+          detail: payload,
+        },
+      ]);
+      error.message = payload;
+      return error;
     }
     return super.handleResponse(...arguments);
   }
