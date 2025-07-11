@@ -85,16 +85,11 @@ The following diagram illustrates the logic flow of the cluster reconciler:
           |Compute()|
           +---------+
                |
-               v
-        +------------+
-        |create a new|          allocMatrix is created from existing
-        | allocation |          allocations for a job, and is a map of
-        |  matrix m  |          task groups to allocation sets.
-        +------------+
+               |
                |
                v                deployments are unneeded in 3 cases:
  +---------------------------+  1. when the are already successful
- |cancelUnneededDeployments()|  2. when they are active but reference an older job
+ | cancelUnneededDeployments |  2. when they are active but reference an older job
  +---------------------------+  3. when the job is marked as stopped, but the
                |                deployment is non-terminal
                v
@@ -102,23 +97,18 @@ The following diagram illustrates the logic flow of the cluster reconciler:
          |handle stop|          all allocations and handle the
          +-----------+          lost allocations.
                |
-               v
-  +-------------------------+   sets deploymentPaused and
-  |computeDeploymentPaused()|   deploymentFailed fields on the
-  +-------------------------+   reconciler.
-               |
                |
                |                for every task group, this method
-               v                calls computeGroup which returns
-+----------------------------+  "true" if deployment is complete
-|computeDeploymentComplete(m)|  for the task group.
-+----------------------------+  computeDeploymentComplete itself
-               |                returns a boolean.
+               |                calls computeGroup which returns
++--------------+-------------+  "true" if deployment is complete
+| computeDeploy|entComplete  |  for the task group.
++--------------+-------------+  computeDeploymentComplete itself
+               |                returns a boolean and a
+               |                ReconcileResults object.
                |
-               |              +------------------------------------+
-               |              |    computeGroup(groupName, all     |
-               +------------->|            allocations)            |
-               |              +------------------------------------+
+               |                        +---------------+
+               +----------------------->| computeGroup  |
+               |                        +---------------+
                |
                |                contains the main, and most complex part
                |                of the reconciler. it calls many helper
@@ -134,35 +124,31 @@ The following diagram illustrates the logic flow of the cluster reconciler:
                |                - filterByRescheduleable: updates the
                |                untainted bucket and creates 2 new ones:
                |                rescheduleNow and rescheduleLater
-               +-------+        - reconcileReconnecting: returns which
-                       |        allocs should be marked for reconnecting
-                       |        and which should be stopped
-                       |        - computeStop
-                       |        - computeCanaries
-                       |        - computePlacements: allocs are placed if
-                       |        deployment is not paused or failed, they
-                       |        are not canaries (unless promoted),
-                       |        previous alloc was lost
-                       |        - computeReplacements
-                       |        - createDeployment
-                       |
-                       |
-                       |
-                       |
-                       |
-                       |
-                       |
-                       v
-+--------------------------------------------+
-|computeDeploymentUpdates(deploymentComplete)|
-+--------------------------------------------+
-                       |
-                +------+        for complete deployments, it
-                |               handles multi-region case and
-                v               sets the deploymentUpdates
-        +---------------+
-        |return a.result|
-        +---------------+
+               |                - reconcileReconnecting: returns which
+               |                allocs should be marked for reconnecting
+               |                and which should be stopped
+               |                - computeStop
+               |                - computeCanaries
+               |                - computePlacements: allocs are placed if
+               |                deployment is not paused or failed, they
+               |                are not canaries (unless promoted),
+               |                previous alloc was lost
+               |                - placeAllocs
+               |                - computeDestructiveUpdates
+               |                - computeMigrations
+               |                - createDeployment
+               |
+               v
++-----------------------------+
+|setDeploymentStatusAndUpdates|
++-----------------------------+
+               |
+               |                for complete deployments, it
+               |                handles multi-region case and
+               v                sets the deploymentUpdates
+  +------------------------+
+  |return *ReconcileResults|
+  +------------------------+
 ```
 
 ### Node Reconciler
