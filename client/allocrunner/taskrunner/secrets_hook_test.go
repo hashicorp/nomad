@@ -66,12 +66,13 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		alloc := mock.MinAlloc()
 		task := alloc.Job.TaskGroups[0].Tasks[0]
 
+		taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
 		conf := &secretsHookConfig{
 			logger:       testlog.HCLogger(t),
 			lifecycle:    trtesting.NewMockTaskHooks(),
 			events:       &trtesting.MockEmitter{},
 			clientConfig: clientConfig,
-			envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+			envBuilder:   taskEnv,
 		}
 		secretHook := newSecretsHook(conf, []*structs.Secret{
 			{
@@ -100,7 +101,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 			"secret.test_secret.key1": "value1",
 			"secret.test_secret.key2": "value2",
 		}
-		must.Eq(t, expected, secretHook.taskSecrets)
+		must.Eq(t, expected, taskEnv.Build().TaskSecrets)
 	})
 
 	t.Run("returns early if context is cancelled", func(t *testing.T) {
@@ -140,13 +141,13 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		alloc := mock.MinAlloc()
 		task := alloc.Job.TaskGroups[0].Tasks[0]
 
+		taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
 		conf := &secretsHookConfig{
-
 			logger:       testlog.HCLogger(t),
 			lifecycle:    trtesting.NewMockTaskHooks(),
 			events:       &trtesting.MockEmitter{},
 			clientConfig: clientConfig,
-			envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+			envBuilder:   taskEnv,
 		}
 		secretHook := newSecretsHook(conf, []*structs.Secret{
 			{
@@ -172,7 +173,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		must.NoError(t, err)
 
 		expected := map[string]string{}
-		must.Eq(t, expected, secretHook.taskSecrets)
+		must.Eq(t, expected, taskEnv.Build().TaskSecrets)
 	})
 
 	t.Run("errors when failure building secret providers", func(t *testing.T) {
@@ -182,13 +183,13 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		alloc := mock.MinAlloc()
 		task := alloc.Job.TaskGroups[0].Tasks[0]
 
+		taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
 		conf := &secretsHookConfig{
-
 			logger:       testlog.HCLogger(t),
 			lifecycle:    trtesting.NewMockTaskHooks(),
 			events:       &trtesting.MockEmitter{},
 			clientConfig: clientConfig,
-			envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+			envBuilder:   taskEnv,
 		}
 
 		// give an invalid secret, in this case a nomad secret with bad namespace
@@ -214,7 +215,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		must.Error(t, err)
 
 		expected := map[string]string{}
-		must.Eq(t, expected, secretHook.taskSecrets)
+		must.Eq(t, expected, taskEnv.Build().TaskSecrets)
 	})
 }
 
@@ -259,14 +260,13 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 	alloc := mock.MinAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
+	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
 	conf := &secretsHookConfig{
-
-		// alloc:        alloc,
 		logger:       testlog.HCLogger(t),
 		lifecycle:    trtesting.NewMockTaskHooks(),
 		events:       &trtesting.MockEmitter{},
 		clientConfig: clientConfig,
-		envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+		envBuilder:   taskEnv,
 	}
 	secretHook := newSecretsHook(conf, []*structs.Secret{
 		{
@@ -296,5 +296,5 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 		"secret.test_secret.secret": "secret",
 	}
 
-	must.Eq(t, exp, secretHook.taskSecrets)
+	must.Eq(t, exp, taskEnv.Build().TaskSecrets)
 }
