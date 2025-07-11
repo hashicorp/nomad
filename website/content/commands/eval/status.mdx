@@ -40,7 +40,8 @@ indicated by exit code 1.
 ## Options
 
 - `-monitor`: Monitor an outstanding evaluation
-- `-verbose`: Show full-length IDs and exact timestamps.
+- `-verbose`: Show full-length IDs, exact timestamps, and all reconciler
+  annotation fields.
 - `-json`: Output the evaluation in its JSON format. This format will not
     include placed allocations.
 - `-t` : Format and display evaluation using a Go template. This format will not
@@ -50,7 +51,17 @@ indicated by exit code 1.
 ## Examples
 
 Show the status of an evaluation with related evaluations, successful
-placements, failed placements, and preemptions.
+placements, scheduler annotations, failed placements, and preemptions.
+
+The reconciler annotations table shows the output of the scheduler's
+reconciliation stage, which produces a desired set of changes that later stages
+of the scheduler attempt. The [`update.max_parallel`][] field or placement
+failures may result in a difference between these numbers and the updates made
+to the job. This table will always include the count for allocations to ignore,
+place, stop, inplace update, and destructively update. It may also include the
+count of canary allocations or allocations that were rescheduled, migrated,
+preemptted, reconnected, or disconnected. Any of these counts may overlap so
+that, for example, an allocation can be both migrated and stopped.
 
 ```shell-session
 $ nomad eval status 8f6af533
@@ -74,8 +85,8 @@ ID        Priority  Triggered By   Node ID  Status   Description
 fd6f3091  50        queued-allocs  <none>   pending  <none>
 
 Reconciler Annotations
-Task Group  Ignore  Place  Stop  Migrate  InPlace  Destructive  Canary  Preemptions
-group       0       3      0     0        0        0            0       1
+Task Group  Ignore  Place  Stop  InPlace  Destructive  Migrate  Canary  Preemptions
+group       0       3      0     0        0            0        0       1
 
 Preempted Allocations
 ID        Job ID    Node ID   Task Group  Version  Desired  Status   Created   Modified
