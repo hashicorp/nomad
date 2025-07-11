@@ -480,6 +480,10 @@ for deleting the volume as comma-separated key-value pairs (see the
 example below). These secrets will be merged with any secrets already
 stored when the CSI volume was created.
 
+The volume must still be registered with Nomad in order to be deleted. This API
+call fails if an allocation still claims the volume or if Nomad is unpublishing
+the volume.
+
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
