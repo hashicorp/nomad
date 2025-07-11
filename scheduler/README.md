@@ -101,7 +101,7 @@ The following diagram illustrates the logic flow of the cluster reconciler:
                |                for every task group, this method
                |                calls computeGroup which returns
 +--------------+-------------+  "true" if deployment is complete
-| computeDeploy|entComplete  |  for the task group.
+| computeDeploymentComplete  |  for the task group.
 +--------------+-------------+  computeDeploymentComplete itself
                |                returns a boolean and a
                |                ReconcileResults object.
