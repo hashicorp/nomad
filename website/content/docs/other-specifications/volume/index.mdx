@@ -74,9 +74,9 @@ parameters {
   overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
   environment variable. Defaults to `"default"` if unset.
 
-- `name` `(string: <required>)` - The display name of the volume. On **volume
-  creation**, this field may be used by the external storage provider to tag
-  the volume.
+  - `name` `(string: <required>)` - The name of the volume. On **volume creation**,
+  the external storage provider may use this field to tag the volume or as an
+  idempotency token, so it must be unique across all namespaces.
 
 - `type` `(string: <required>)` - The type of volume. Currently only `"csi"`
   is supported.
