@@ -417,7 +417,7 @@
         "title": "monitor",
         "path": "monitor"
       },
-      { "title": "monitor",
+      { "title": "export",
         "path": "monitor/export"
       }
     ]
