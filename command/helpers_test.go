@@ -722,3 +722,126 @@ func TestHelperGetByPrefix(t *testing.T) {
 	}
 
 }
+
+// TestHelperStreamFrames tests the streamFrames command helper used
+// by the agent_monitor and fs_alloc endpoints to populate a reader
+// with data from the streamFrame channel passed to the function
+func TestHelperStreamFrames(t *testing.T) {
+	const loopCount = 50
+
+	// Create test file
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	writeLine := []byte("[INFO]log log log made of wood you are heavy but so good\n")
+	writeLength := len(writeLine)
+
+	for range loopCount {
+		_, _ = f.Write(writeLine)
+	}
+	f.Close()
+
+	// Create test file reader for streaming
+	goldenFilePath := f.Name()
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	fileReader, err := os.Open(goldenFilePath)
+	must.NoError(t, err)
+
+	// Helper func to populate stream chan in test case
+	streamFunc := func() (chan *api.StreamFrame, chan error, chan struct{}) {
+		framesCh := make(chan *api.StreamFrame, 30)
+		errCh := make(chan error)
+		cancelCh := make(chan struct{})
+
+		offset := 0
+
+		r := io.LimitReader(fileReader, 64)
+		for {
+			bytesHolder := make([]byte, 64)
+			n, err := r.Read(bytesHolder)
+			if err != nil && err != io.EOF {
+				must.NoError(t, err)
+			}
+
+			if n == 0 && err == io.EOF {
+				break
+			}
+			offset += n
+			framesCh <- &api.StreamFrame{
+				Offset: int64(offset),
+				Data:   goldenFileContents,
+				File:   goldenFilePath,
+			}
+
+			if n != 0 && err == io.EOF {
+				//break after sending if we hit EOF with bytes in buffer
+				break
+			}
+		}
+
+		close(framesCh)
+		return framesCh, errCh, cancelCh
+	}
+	testErr := errors.New("isErr")
+	cases := []struct {
+		name      string
+		numLines  int
+		expectErr bool
+		err       error
+	}{
+		{
+			name:     "happy_no_limit",
+			numLines: -1,
+		},
+		{
+			name:     "happy_limit",
+			numLines: 25,
+		},
+		{
+			name:      "error",
+			numLines:  -1,
+			expectErr: true,
+			err:       testErr,
+		},
+	}
+
+	for _, tc := range cases {
+
+		t.Run(tc.name, func(t *testing.T) {
+
+			framesCh, errCh, cancelCh := streamFunc()
+
+			if tc.expectErr {
+				go func() {
+					time.Sleep(time.Nanosecond * 1)
+					errCh <- tc.err
+				}()
+			}
+
+			r, err := streamFrames(framesCh, errCh, int64(tc.numLines), cancelCh)
+			if !tc.expectErr {
+				must.NoError(t, err)
+			}
+
+			result, err := io.ReadAll(r)
+			if !tc.expectErr {
+				must.NoError(t, err)
+			}
+			if tc.numLines == -1 {
+				//expectedLength := writeLength * loopCount
+				must.Eq(t,
+					goldenFileContents,
+					result)
+			} else {
+				expectedLength := (writeLength * tc.numLines)
+				must.Eq(t,
+					expectedLength,
+					len(result))
+			}
+
+			r.Close()
+		})
+	}
+}

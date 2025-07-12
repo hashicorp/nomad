@@ -412,7 +412,15 @@
   },
   {
     "title": "monitor",
-    "path": "monitor"
+    "routes": [
+      {
+        "title": "monitor",
+        "path": "monitor"
+      },
+      { "title": "export",
+        "path": "monitor/export"
+      }
+    ]
   },
   {
     "title": "namespace",

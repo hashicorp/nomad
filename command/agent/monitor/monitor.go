@@ -9,6 +9,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -23,6 +24,9 @@ type Monitor interface {
 	// Stop de-registers the sink from the InterceptLogger
 	// and closes the log channels
 	Stop()
+
+	//// MonitorExport returns a channel of monitor export messages
+	//MonitorExport(opts MonitorExportOpts) <-chan []byte
 }
 
 // monitor implements the Monitor interface
