@@ -346,12 +346,12 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	logCh := mon.Start()
+	streamCh := mon.Start()
 	defer mon.Stop()
 	initialOffset := int64(0)
 
 	var eofCancelCh chan error
-	streamReader := cstructs.NewStreamReader(logCh)
+	streamReader := cstructs.NewStreamReader(streamCh)
 
 	// receive logs and build frames
 	go func() {
