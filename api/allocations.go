@@ -307,6 +307,7 @@ type AllocationMetric struct {
 	NodesEvaluated     int
 	NodesFiltered      int
 	NodesInPool        int
+	NodePool           string
 	NodesAvailable     map[string]int
 	ClassFiltered      map[string]int
 	ConstraintFiltered map[string]int

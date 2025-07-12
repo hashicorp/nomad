@@ -29,8 +29,9 @@ type BlockedStats struct {
 
 // classInDC is a coordinate of a specific class in a specific datacenter
 type classInDC struct {
-	dc    string
-	class string
+	dc       string
+	class    string
+	nodepool string
 }
 
 // NewBlockedStats returns a new BlockedStats.
@@ -109,7 +110,7 @@ func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 	byClassInDC := make(map[classInDC]BlockedResourcesSummary)
 	for dc := range dcs {
 		for class := range classes {
-			k := classInDC{dc: dc, class: class}
+			k := classInDC{dc: dc, class: class, nodepool: eval.NodePool}
 			byClassInDC[k] = resources
 		}
 	}
