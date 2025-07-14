@@ -154,14 +154,17 @@ const (
 	nodeMetaPrefix      = "meta."
 )
 
-// TaskEnv is a task's environment as well as node attribute's for
-// interpolation.
+// TaskEnv is a task's environment as well as node attribute's and
+// task secrets for interpolation.
 type TaskEnv struct {
 	// NodeAttrs is the map of node attributes for interpolation
 	NodeAttrs map[string]string
 
 	// EnvMap is the map of environment variables
 	EnvMap map[string]string
+
+	// TaskSecrets is the map of secrets populated from the secrets hook
+	TaskSecrets map[string]string
 
 	// deviceEnv is the environment variables populated from the device hooks.
 	deviceEnv map[string]string
@@ -185,11 +188,12 @@ type TaskEnv struct {
 
 // NewTaskEnv creates a new task environment with the given environment, device
 // environment and node attribute maps.
-func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
+func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, secrets map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
 	return &TaskEnv{
 		NodeAttrs:            node,
 		deviceEnv:            deviceEnv,
 		EnvMap:               env,
+		TaskSecrets:          secrets,
 		EnvMapClient:         envClient,
 		clientTaskDir:        clientTaskDir,
 		clientSharedAllocDir: clientAllocDir,
@@ -311,6 +315,13 @@ func (t *TaskEnv) AllValues() (map[string]cty.Value, map[string]error, error) {
 		}
 	}
 
+	// Prepare task-based secrets for use in interpolation
+	for k, v := range t.TaskSecrets {
+		if err := addNestedKey(allMap, k, v); err != nil {
+			errs[k] = err
+		}
+	}
+
 	// Add flat envMap as a Map to allMap so users can access any key via
 	// HCL2's indexing syntax: ${env["foo...bar"]}
 	allMap["env"] = cty.MapVal(envMap)
@@ -359,10 +370,10 @@ func (t *TaskEnv) ParseAndReplace(args []string) []string {
 }
 
 // ReplaceEnv takes an arg and replaces all occurrences of environment variables
-// and Nomad variables.  If the variable is found in the passed map it is
-// replaced, otherwise the original string is returned.
+// and Node attributes, and task secrets. If the variable is found in the passed map
+// it is replaced, otherwise the original string is returned.
 func (t *TaskEnv) ReplaceEnv(arg string) string {
-	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
+	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs, t.TaskSecrets)
 }
 
 // replaceEnvClient takes an arg and replaces all occurrences of client-specific
@@ -424,6 +435,9 @@ type Builder struct {
 
 	// nodeAttrs are Node attributes and metadata
 	nodeAttrs map[string]string
+
+	// taskSecrets are secrets populated from the secrets hook
+	taskSecrets map[string]string
 
 	// taskMeta are the meta attributes on the task
 	taskMeta map[string]string
@@ -516,9 +530,10 @@ func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Tas
 // NewEmptyBuilder creates a new environment builder.
 func NewEmptyBuilder() *Builder {
 	return &Builder{
-		mu:       &sync.RWMutex{},
-		hookEnvs: map[string]map[string]string{},
-		envvars:  make(map[string]string),
+		mu:          &sync.RWMutex{},
+		hookEnvs:    map[string]map[string]string{},
+		envvars:     make(map[string]string),
+		taskSecrets: make(map[string]string),
 	}
 }
 
@@ -649,7 +664,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 
 	// Copy interpolated task env vars second as they override host env vars
 	for k, v := range b.envvars {
-		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap, b.taskSecrets)
 	}
 
 	// Copy hook env vars in the order the hooks were run
@@ -709,7 +724,13 @@ func (b *Builder) Build() *TaskEnv {
 	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
 	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
 
-	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
+	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.taskSecrets, b.clientTaskRoot, b.clientSharedAllocDir)
+}
+
+func (b *Builder) SetSecrets(secrets map[string]string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	maps.Copy(b.taskSecrets, secrets)
 }
 
 // SetHookEnv sets environment variables from a hook. Variables are
