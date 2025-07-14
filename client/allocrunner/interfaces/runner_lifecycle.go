@@ -30,8 +30,8 @@ type RunnerPreKillHook interface {
 }
 
 // A RunnerPostrunHook is executed after calling TaskRunner.Run, even for
-// terminal allocations. Therefore Postrun hooks must be safe to call without
-// first calling Prerun hooks.
+// terminal allocations, and all Postrun hooks will be run even if any of them error.
+// Therefore, Postrun hooks must be safe to call without first calling Prerun hooks.
 type RunnerPostrunHook interface {
 	RunnerHook
 	Postrun() error
