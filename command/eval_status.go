@@ -38,8 +38,7 @@ Eval Status Options:
     Monitor an outstanding evaluation
 
   -verbose
-    Show full-length IDs, exact timestamps, and all reconciler annotation
-    fields.
+    Show full-length IDs, exact timestamps, and all plan annotation fields.
 
   -json
     Output the evaluation in its JSON format. This format will not include
@@ -263,8 +262,8 @@ func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs 
 	if eval.PlanAnnotations != nil {
 
 		if len(eval.PlanAnnotations.DesiredTGUpdates) > 0 {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Reconciler Annotations[reset]"))
-			c.Ui.Output(formatReconcilerAnnotations(
+			c.Ui.Output(c.Colorize().Color("\n[bold]Plan Annotations[reset]"))
+			c.Ui.Output(formatPlanAnnotations(
 				eval.PlanAnnotations.DesiredTGUpdates, verbose))
 		}
 
@@ -365,10 +364,10 @@ func formatPreemptedAllocListStubs(stubs []*api.AllocationListStub, uuidLength i
 	return formatList(allocs)
 }
 
-// formatReconcilerAnnotations produces a table with one row per task group
-// where the columns are all the changes (ignore, place, stop, etc.) plus all
-// the non-zero causes of those changes (migrate, canary, reschedule, etc)
-func formatReconcilerAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates, verbose bool) string {
+// formatPlanAnnotations produces a table with one row per task group where the
+// columns are all the changes (ignore, place, stop, etc.) plus all the non-zero
+// causes of those changes (migrate, canary, reschedule, etc)
+func formatPlanAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates, verbose bool) string {
 	annotations := make([]string, len(desiredTGUpdates)+1)
 
 	annotations[0] = "Task Group|Ignore|Place|Stop|InPlace|Destructive"

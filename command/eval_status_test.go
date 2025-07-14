@@ -223,18 +223,18 @@ Task Group "web" (failed to place 1 allocation):
 
 	must.StrContains(t, out, `Related Evaluations`)
 	must.StrContains(t, out, `Placed Allocations`)
-	must.StrContains(t, out, `Reconciler Annotations`)
+	must.StrContains(t, out, `Plan Annotations`)
 	must.StrContains(t, out, `Preempted Allocations`)
 }
 
-func TestEvalStatus_FormatReconcilerAnnotations(t *testing.T) {
+func TestEvalStatus_FormatPlanAnnotations(t *testing.T) {
 
 	updates := map[string]*api.DesiredUpdates{
 		"foo": {Place: 1, Ignore: 2, Canary: 1},
 		"bar": {Place: 1, Stop: 3, Reconnect: 2},
 	}
 
-	out := formatReconcilerAnnotations(updates, false)
+	out := formatPlanAnnotations(updates, false)
 	must.Eq(t, `Task Group  Ignore  Place  Stop  InPlace  Destructive  Canary  Reconnect
 foo         2       1      0     0        0            1       0
 bar         0       1      3     0        0            0       2`, out)

@@ -53,15 +53,15 @@ indicated by exit code 1.
 Show the status of an evaluation with related evaluations, successful
 placements, scheduler annotations, failed placements, and preemptions.
 
-The reconciler annotations table shows the output of the scheduler's
-reconciliation stage, which produces a desired set of changes that later stages
-of the scheduler attempt. The [`update.max_parallel`][] field or placement
-failures may result in a difference between these numbers and the updates made
-to the job. This table will always include the count for allocations to ignore,
-place, stop, inplace update, and destructively update. It may also include the
-count of canary allocations or allocations that were rescheduled, migrated,
-preemptted, reconnected, or disconnected. Any of these counts may overlap so
-that, for example, an allocation can be both migrated and stopped.
+The plan annotations table shows the output of the scheduler's reconciliation
+stage, which produces a desired set of changes that later stages of the
+scheduler attempt. The [`update.max_parallel`][] field or placement failures may
+result in a difference between these numbers and the updates made to the
+job. This table will always include the count for allocations to ignore, place,
+stop, inplace update, and destructively update. It may also include the count of
+canary allocations or allocations that were rescheduled, migrated, preemptted,
+reconnected, or disconnected. Any of these counts may overlap so that, for
+example, an allocation can be both migrated and stopped.
 
 ```shell-session
 $ nomad eval status 8f6af533
@@ -84,7 +84,7 @@ Related Evaluations
 ID        Priority  Triggered By   Node ID  Status   Description
 fd6f3091  50        queued-allocs  <none>   pending  <none>
 
-Reconciler Annotations
+Plan Annotations
 Task Group  Ignore  Place  Stop  InPlace  Destructive  Migrate  Canary  Preemptions
 group       0       3      0     0        0            0        0       1
 
