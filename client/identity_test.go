@@ -20,14 +20,6 @@ var (
 func Test_assertAndSetNodeIdentityToken(t *testing.T) {
 	ci.Parallel(t)
 
-	// Call the function with a nil implementation to ensure it does not panic.
-	assertAndSetNodeIdentityToken(nil, "test-token")
-
-	// Call the function with a non-nil object that does not implement the
-	// interface.
-	type testInlineHandler struct{}
-	assertAndSetNodeIdentityToken(&testInlineHandler{}, "test-token")
-
 	// Call the function with a non-nil object that implements the interface and
 	// verify that SetNodeIdentityToken is called with the expected token.
 	testImpl := &testHandler{}

@@ -10,11 +10,12 @@ type NodeIdentityHandler interface {
 	SetNodeIdentityToken(token string)
 }
 
-// assertAndSetNodeIdentityToken safely asserts that the provided implementation
-// satisfies the NodeIdentityHandler interface and calls SetNodeIdentityToken if
-// it does.
+// assertAndSetNodeIdentityToken expects the passed interface implements
+// NodeIdentityHandler and calls SetNodeIdentityToken. It is a programming error
+// if the interface does not implement NodeIdentityHandler and will panic. The
+// test file performs test assertions.
 func assertAndSetNodeIdentityToken(impl any, token string) {
-	if handler, ok := impl.(NodeIdentityHandler); ok {
-		handler.SetNodeIdentityToken(token)
+	if impl != nil {
+		impl.(NodeIdentityHandler).SetNodeIdentityToken(token)
 	}
 }
