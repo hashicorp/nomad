@@ -7112,9 +7112,9 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	if j.Type == JobTypeSystem {
+	if j.Type == JobTypeSystem || j.Type == JobTypeSysBatch {
 		if tg.ReschedulePolicy != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("System jobs should not have a reschedule policy"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System or sysbatch jobs should not have a reschedule policy"))
 		}
 	} else {
 		if tg.ReschedulePolicy != nil {

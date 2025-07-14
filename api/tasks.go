@@ -202,6 +202,9 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 }
 
 func (r *ReschedulePolicy) Canonicalize(jobType string) {
+	if r == nil || jobType == JobTypeSystem || jobType == JobTypeSysbatch {
+		return
+	}
 	dp := NewDefaultReschedulePolicy(jobType)
 	if r.Interval == nil {
 		r.Interval = dp.Interval
@@ -280,16 +283,6 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 
 			MaxDelay:  pointerOf(time.Duration(0)),
 			Unlimited: pointerOf(false),
-		}
-
-	case "system":
-		dp = &ReschedulePolicy{
-			Attempts:      pointerOf(0),
-			Interval:      pointerOf(time.Duration(0)),
-			Delay:         pointerOf(time.Duration(0)),
-			DelayFunction: pointerOf(""),
-			MaxDelay:      pointerOf(time.Duration(0)),
-			Unlimited:     pointerOf(false),
 		}
 
 	default:
@@ -583,13 +576,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jobReschedule := job.Reschedule.Copy()
 		g.ReschedulePolicy = jobReschedule
 	}
-	// Only use default reschedule policy for non system jobs
-	if g.ReschedulePolicy == nil && *job.Type != "system" {
+	if g.ReschedulePolicy == nil && *job.Type != JobTypeSysbatch && *job.Type != JobTypeSystem {
 		g.ReschedulePolicy = NewDefaultReschedulePolicy(*job.Type)
 	}
-	if g.ReschedulePolicy != nil {
-		g.ReschedulePolicy.Canonicalize(*job.Type)
-	}
+	g.ReschedulePolicy.Canonicalize(*job.Type)
 
 	// Merge the migrate strategy from the job
 	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {

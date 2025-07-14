@@ -12,6 +12,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.11.0
+
+#### Sysbatch jobs will no longer accept `reschedule` blocks
+
+Nomad 1.11.0 fixed a bug where submitting a sysbatch job with a `reschedule`
+block will return an error instead of being silently ignored, matching the
+behavior of system jobs.
+
 ## Nomad 1.10.2
 
 #### Clients respect `telemetry.publish_allocation_metrics`

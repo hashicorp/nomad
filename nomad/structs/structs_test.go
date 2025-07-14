@@ -1512,7 +1512,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				},
 			},
 			expErr: []string{
-				"System jobs should not have a reschedule policy",
+				"System or sysbatch jobs should not have a reschedule policy",
 			},
 			jobType: JobTypeSystem,
 		},
