@@ -339,6 +339,11 @@ type Client struct {
 	// the servers. This is used to authenticate the client to the servers when
 	// performing RPC calls.
 	identity atomic.Value
+
+	// identityForceRenewal is used to force the client to renew its identity
+	// at the next heartbeat. It is set by an operator calling the node identity
+	// renew RPC method.
+	identityForceRenewal atomic.Value
 }
 
 var (
@@ -402,6 +407,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
 		identity:             atomic.Value{},
+		identityForceRenewal: atomic.Value{},
 	}
 
 	// we can't have this set in the default Config because of import cycles
@@ -967,6 +973,10 @@ func (c *Client) nodeIdentityToken() string {
 // setNodeIdentityToken handles storing and updating all the client backend
 // processes with a new node identity token.
 func (c *Client) setNodeIdentityToken(token string) {
+
+	// It's a bit of a simple log line, but it is useful to know when the client
+	// has renewed or set its node identity token.
+	c.logger.Info("setting node identity token")
 
 	// Store the token on the client as the first step, so it's available for
 	// use by all RPCs immediately.
@@ -2204,6 +2214,13 @@ func (c *Client) updateNodeStatus() error {
 			AuthToken: c.nodeAuthToken(),
 		},
 	}
+
+	//
+	if forceIdentityRenew := c.identityForceRenewal.Load(); forceIdentityRenew != nil && forceIdentityRenew.(bool) {
+		c.logger.Debug("forcing identity renewal")
+		req.ForceIdentityRenewal = true
+	}
+
 	var resp structs.NodeUpdateResponse
 	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
 		c.triggerDiscovery()
@@ -2226,7 +2243,17 @@ func (c *Client) updateNodeStatus() error {
 	c.heartbeatLock.Unlock()
 	c.logger.Trace("next heartbeat", "period", resp.HeartbeatTTL)
 
-	if resp.Index != 0 {
+	// The Nomad server will return an index of greater than zero when a Raft
+	// update has occurred, indicating a change in the state of the persisted
+	// node object.
+	//
+	// This can be due to a Nomad server invalidating the node's heartbeat timer
+	// and marking the node as down. In this case, we want to log a warning for
+	// the operator to see the client missed a heartbeat. If the server
+	// responded with a new identity, we assume the client did not miss a
+	// heartbeat. If we did, this line would appear each time the identity was
+	// renewed, which could confuse cluster operators.
+	if resp.Index != 0 && resp.SignedIdentity == nil {
 		c.logger.Debug("state updated", "node_status", req.Status)
 
 		// We have potentially missed our TTL log how delayed we were
@@ -2276,6 +2303,10 @@ func (c *Client) handleNodeUpdateResponse(resp structs.NodeUpdateResponse) error
 			return fmt.Errorf("error saving client identity: %w", err)
 		}
 		c.setNodeIdentityToken(*resp.SignedIdentity)
+
+		// If the operator forced this renewal, reset the flag so that we don't
+		// keep renewing the identity on every heartbeat.
+		c.identityForceRenewal.Store(false)
 	}
 
 	// Convert []*NodeServerInfo to []*servers.Server

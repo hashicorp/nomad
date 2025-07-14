@@ -714,3 +714,25 @@ type NodeUpdateResponse struct {
 
 	QueryMeta
 }
+
+const (
+	// NodeIdentityRenewRPCMethod is the RPC method for batch creating or
+	// modifying ACL policies.
+	//
+	// Args: NodeIdentityRenewReq
+	// Reply: NodeIdentityRenewResp
+	NodeIdentityRenewRPCMethod = "NodeIdentity.Renew"
+)
+
+// NodeIdentityRenewReq is used to instruct the Nomad server to renew the client
+// identity at its next heartbeat regardless of whether it is close to
+// expiration.
+type NodeIdentityRenewReq struct {
+	NodeID string
+
+	// This is a client RPC, so we must use query options which allow us to set
+	// AllowStale=true.
+	QueryOptions
+}
+
+type NodeIdentityRenewResp struct{}

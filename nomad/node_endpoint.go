@@ -262,6 +262,8 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 		reply.SignedIdentity = &signedJWT
 		args.Node.IdentitySigningKeyID = signingKeyID
+	} else if originalNode != nil {
+		args.Node.IdentitySigningKeyID = originalNode.IdentitySigningKeyID
 	}
 
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
