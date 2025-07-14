@@ -493,7 +493,7 @@ func resolveServer(s string) (net.Addr, error) {
 func (c *Client) Ping(srv net.Addr) error {
 	pingRequest := &structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
-			AuthToken: c.secretNodeID(),
+			AuthToken: c.nodeAuthToken(),
 		},
 	}
 	var reply struct{}
