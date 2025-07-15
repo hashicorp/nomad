@@ -579,6 +579,7 @@ func (s *GenericScheduler) computePlacements(
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
 			s.ctx.Metrics().NodesInPool = len(nodes)
+			s.ctx.Metrics().NodePool = s.job.NodePool
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
