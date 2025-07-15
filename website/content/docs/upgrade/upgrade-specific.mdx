@@ -16,9 +16,9 @@ used to document those details separately from the standard upgrade flow.
 
 #### Sysbatch jobs will no longer accept `reschedule` blocks
 
-Nomad 1.11.0 fixed a bug where submitting a sysbatch job with a `reschedule`
-block will return an error instead of being silently ignored, matching the
-behavior of system jobs.
+In Nomad 1.11.0, submitting a sysbatch job with a `reschedule` block returns
+an error instead of being silently ignored, as it was in previous versions. The
+same behavior applies to system jobs. 
 
 ## Nomad 1.10.2
 
