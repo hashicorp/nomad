@@ -4,16 +4,10 @@
 package monitor
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"io"
-	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
-	"strings"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -28,19 +22,10 @@ type ExportMonitor struct {
 	// DoneCh coordinates the shutdown of logCh
 	DoneCh chan struct{}
 
-	// droppedCount is the current count of messages
-	// that were dropped from the logCh buffer.
-	// only access under lock
-	droppedCount int
-
 	bufSize int
-	// droppedDuration is the amount of time we should
-	// wait to check for dropped messages. Defaults
-	// to 3 seconds
-	droppedDuration time.Duration
 
-	// Putting the export opts on the monitor allows us to maintain the monitor interface
-	Opts MonitorExportOpts
+	// ExportReader can read from the cli or the NomadFilePath
+	ExportReader ExportReader
 }
 
 type MonitorExportOpts struct {
@@ -67,17 +52,54 @@ type MonitorExportOpts struct {
 
 const bufSize = 512
 
-func NewExportMonitor(opts MonitorExportOpts) *ExportMonitor {
-	sw := ExportMonitor{
-		logger:          opts.Logger,
-		LogCh:           make(chan []byte, bufSize),
-		DoneCh:          make(chan struct{}, 1),
-		bufSize:         bufSize,
-		droppedDuration: 3 * time.Second,
-		Opts:            opts,
+type ExportReader struct {
+	Cmd    *exec.Cmd
+	Reader io.Reader
+	UseCli bool
+	Follow bool
+}
+
+func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
+	var (
+		multiReader io.Reader
+		cmd         *exec.Cmd
+		prepErr     error
+	)
+
+	ExportReader := ExportReader{Follow: opts.Follow}
+
+	if runtime.GOOS != "linux" &&
+		opts.ServiceName != "" {
+		return nil, errors.New("journald log monitoring only available on linux")
 	}
 
-	return &sw
+	if opts.OnDisk {
+		multiReader, prepErr = fileReader(opts.NomadLogPath)
+		if prepErr != nil {
+			return nil, prepErr
+		}
+
+		ExportReader.Reader = multiReader
+		ExportReader.UseCli = false
+	} else {
+		cmd, multiReader, prepErr = cliReader(opts)
+		if prepErr != nil {
+			return nil, prepErr
+		}
+
+		ExportReader.Reader = multiReader
+		ExportReader.Cmd = cmd
+		ExportReader.UseCli = true
+	}
+	sw := ExportMonitor{
+		logger:       opts.Logger,
+		LogCh:        make(chan []byte, bufSize),
+		DoneCh:       make(chan struct{}, 1),
+		bufSize:      bufSize,
+		ExportReader: ExportReader,
+	}
+
+	return &sw, nil
 }
 
 // Stop stops the monitoring process
@@ -89,34 +111,14 @@ func (d *ExportMonitor) Stop() {
 // received log messages over the returned channel.
 func (d *ExportMonitor) Start() <-chan []byte {
 	var (
-		multiReader io.Reader
-		cmd         *exec.Cmd
-		prepErr     error
-		useCli      bool
+		cmd    *exec.Cmd
+		useCli bool
 	)
 
-	if runtime.GOOS != "linux" &&
-		d.Opts.ServiceName != "" {
-		d.logger.Error("systemd unit log monitoring only available on linux")
-		return nil
-	}
-
-	if d.Opts.OnDisk {
-		multiReader, prepErr = d.fileReader()
-		if prepErr != nil {
-			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
-			return nil
-		}
-	} else {
+	if d.ExportReader.UseCli {
 		useCli = true
-		cmd, multiReader, prepErr = d.cliReader()
-		if prepErr != nil {
-			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
-			return nil
-		}
-		cmd.Start()
+		cmd = d.ExportReader.Cmd
 	}
-
 	// Read, copy, and send to channel until we hit EOF or error
 	streamCh := make(chan []byte)
 	go func() {
@@ -124,118 +126,26 @@ func (d *ExportMonitor) Start() <-chan []byte {
 			defer cmd.Wait()
 		}
 		defer close(streamCh)
-		logChunk := make([]byte, 32)
-
+		logChunk := make([]byte, bufSize)
+	OUTER:
 		for {
 			select {
 			case <-d.DoneCh:
-				return
+				break OUTER
 			default:
-				n, readErr := multiReader.Read(logChunk)
-				if readErr != nil && readErr != io.EOF {
+				n, readErr := io.ReadFull(d.ExportReader.Reader, logChunk)
+				if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
 					d.logger.Error("unable to read logs into channel", readErr.Error())
 					return
 				}
 
 				streamCh <- logChunk[:n]
 
-				if readErr == io.EOF && !d.Opts.Follow {
-					break
+				if readErr == io.EOF && !d.ExportReader.Follow {
+					break OUTER
 				}
 			}
 		}
 	}()
 	return streamCh
-}
-
-// Write attempts to send latest log to logCh
-// it drops the log if channel is unavailable to receive
-func (d *ExportMonitor) Write(p []byte) (n int, err error) {
-	select {
-	case <-d.DoneCh:
-		return
-	default:
-	}
-
-	bytes := make([]byte, len(p))
-	copy(bytes, p)
-
-	select {
-	case d.LogCh <- bytes:
-	default:
-		d.droppedCount++
-	}
-
-	return len(p), nil
-}
-
-func (d *ExportMonitor) cliReader() (*exec.Cmd, io.Reader, error) {
-
-	// Vet servicename again
-	if err := ScanServiceName(d.Opts.ServiceName); err != nil {
-		return nil, nil, err
-	}
-	cmdDuration := "72 hours"
-	if d.Opts.LogSince != "" {
-		parsedDur, err := time.ParseDuration(d.Opts.LogSince)
-		if err != nil {
-			return nil, nil, err
-		}
-		cmdDuration = parsedDur.String()
-	}
-	// build command with vetted inputs
-	cmdArgs := strings.Join([]string{"-xu", d.Opts.ServiceName, "--since", fmt.Sprintf("%s ago", cmdDuration)}, " ")
-
-	if d.Opts.Follow {
-		cmdArgs += "- f"
-	}
-	cmd := exec.CommandContext(context.Background(), "journalctl", cmdArgs)
-
-	// set up reader
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	multiReader := io.MultiReader(stdOut, stdErr)
-
-	return cmd, multiReader, nil
-}
-
-func (d *ExportMonitor) fileReader() (io.Reader, error) {
-	file, err := os.Open(d.Opts.NomadLogPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
-}
-
-func ScanServiceName(input string) error {
-	input = strings.TrimSpace(input)
-	// only allow
-	// ":", "-", "_", ".", "\" , "@" (only difference from above)
-	re := regexp.MustCompile(`\w*[.:_\-\\@]\w*`)
-
-	safe := re.MatchString(input)
-	if !safe {
-		return errors.New("service name must conform to systemd conventions")
-	}
-	return nil
-}
-
-func ScanField(input string, fieldname string) error {
-	input = strings.TrimSpace(input)
-	// only allow
-	// ":", "-", "_", ".", "\" , and "/" (replacing @ with / is only difference from above)
-	re := regexp.MustCompile(`\w*[_\-\\/]\w*`)
-
-	safe := re.MatchString(input)
-	if !safe {
-		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
-	}
-	return nil
 }

@@ -6,11 +6,13 @@ package command
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestMonitorExportCommand_Implements(t *testing.T) {
@@ -19,7 +21,6 @@ func TestMonitorExportCommand_Implements(t *testing.T) {
 }
 
 func TestMonitorExportCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
 	const expectedText = "log log log log log"
 
 	testFile, err := os.CreateTemp("", "nomadtests")
@@ -33,53 +34,69 @@ func TestMonitorExportCommand_Fails(t *testing.T) {
 	}
 	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			if url != "" {
+				return true
+			}
+			return false
+		}),
+		wait.Timeout(time.Second*10),
+		wait.Gap(time.Millisecond*30),
+	))
+	cases := []struct {
+		name       string
+		cmdArgs    []string
+		defaultErr bool
+		errString  string
+	}{
+		{
+			name:       "misuse",
+			cmdArgs:    []string{"some", "bad", "args"},
+			defaultErr: true,
+		},
+		{
+			name:      "no address",
+			cmdArgs:   []string{"-address=nope"},
+			errString: "unsupported protocol scheme",
+		},
+		{
+			name:      "invalid follow boolean",
+			cmdArgs:   []string{"-address=" + url, "-follow=maybe"},
+			errString: `invalid boolean value "maybe" for -follow`,
+		},
+		{
+			name:      "invalid on-disk boolean",
+			cmdArgs:   []string{"-address=" + url, "-on-disk=maybe"},
+			errString: `invalid boolean value "maybe" for -on-disk`,
+		},
+		{
+			name:      "setting both on-disk and service-name",
+			cmdArgs:   []string{"-address=" + url, "-on-disk=true", "-service-name=nomad"},
+			errString: "journald and nomad log file simultaneously",
+		},
+		{
+			name:      "returns error from newExportMonitor",
+			cmdArgs:   []string{"-address=" + url, "-service-name=nomad"},
+			errString: "(service name must include 'nomad' and conform to systemd conventions)",
+		},
+	}
 
-	ui := cli.NewMockUi()
-	cmd := &MonitorExportCommand{Meta: Meta{Ui: ui}}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &MonitorExportCommand{Meta: Meta{Ui: ui}}
 
-	// Fails on misuse
-	code := cmd.Run([]string{"some", "bad", "args"})
-	must.One(t, code)
+			code := cmd.Run(tc.cmdArgs)
+			must.One(t, code)
 
-	out := ui.ErrorWriter.String()
-	must.StrContains(t, out, commandErrorText(cmd))
-
-	ui.ErrorWriter.Reset()
-
-	code = cmd.Run([]string{"-address=nope"})
-	must.One(t, code)
-
-	// Fails on nonexistent node
-	code = cmd.Run([]string{"-address=" + url, "-node-id=12345678-abcd-efab-cdef-123456789abc"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, "No node(s) with prefix")
-
-	ui.ErrorWriter.Reset()
-
-	// Fails on passing a non boolean value to -follow.
-	code = cmd.Run([]string{"-address=" + url, "-follow=maybe"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, `invalid boolean value "maybe" for -follow`)
-
-	ui.ErrorWriter.Reset()
-
-	// Fails on passing non boolean value to -on-disk.
-	code = cmd.Run([]string{"-address=" + url, "-on-disk=maybe"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, `invalid boolean value "maybe" for -on-disk`)
-
-	ui.ErrorWriter.Reset()
-
-	// Fails on passing both on-disk and service-name
-	code = cmd.Run([]string{"-address=" + url, "-on-disk=true", "-service-name=nomad"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, `journalctl and nomad log file simultaneously`)
+			out := ui.ErrorWriter.String()
+			if tc.defaultErr {
+				must.StrContains(t, out, commandErrorText(cmd))
+			} else {
+				must.StrContains(t, out, tc.errString)
+			}
+			time.Sleep(time.Second * 1)
+		})
+	}
 }

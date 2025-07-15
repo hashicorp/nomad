@@ -450,13 +450,14 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 func TestHTTP_AgentMonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	const expectedText = "log log log log log"
-
-	testFile, err := os.CreateTemp("", "nomadtests")
+	dir := t.TempDir()
+	testFile, err := os.CreateTemp(dir, "nomadtests")
 	must.NoError(t, err)
 
 	_, err = testFile.Write([]byte(expectedText))
 	must.NoError(t, err)
 	inlineFilePath := testFile.Name()
+
 	config := func(c *Config) {
 		c.LogFile = inlineFilePath
 	}
@@ -547,7 +548,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 
 			config:        invalidLogConfig,
 			errCode:       400,
-			errString:     "Cannot target journalctl and nomad log file simultaneously",
+			errString:     "Cannot target journald and nomad log file simultaneously",
 			expectErr:     true,
 			nomadFilePath: inlineFilePath,
 			want:          expectedText,
@@ -635,18 +636,22 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 				var (
 					builder strings.Builder
 					frame   sframer.StreamFrame
+					wg      sync.WaitGroup
 				)
+				wg.Add(1)
 				errCh := make(chan error, 1)
 				go func(errCh chan error) {
+					defer wg.Done()
 					_, err = s.Server.AgentMonitorExport(resp, req)
 					if err != nil {
 						errCh <- err
 					}
 				}(errCh)
+				wg.Wait()
 				select {
 				case err := <-errCh:
 					if tc.expectErr {
-						must.Eq(t, err.(HTTPCodedError).Code(), tc.errCode)
+						must.Eq(t, tc.errCode, err.(HTTPCodedError).Code())
 						return
 					} else {
 						must.NoError(t, err)
