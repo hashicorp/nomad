@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type MonitorExportCommand struct {
@@ -33,7 +34,7 @@ Usage: nomad monitor export [options]
 
   Return logs written to disk by a Nomad agent. The monitor export command
   lets you read Nomad logs from either the agent's configured log path or
-  journalctl. To export journald logs provide the service-name and how
+  journald. To export journald logs provide the service-name and how
   far back (in hours) you would like to view logs along with the node or server
   ID. To export an agent's Nomad log file pass 'log-path=true' and the node or
   server ID with no other options.
@@ -56,11 +57,11 @@ Monitor Specific Options:
 	cannot be used with node-id.
 
   -service-name <service-name>
-    Sets the systemd unit name to query journalctl. Only available on Linux.
+    Sets the systemd unit name to query journald. Only available on Linux.
 
   -log-since <duration string>
-    Sets the journalctl log period, invalid if on-disk=true. Defaults to 72h.
-	Valid time strings are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    Sets the journald log period, invalid if on-disk=true. Defaults to 72h.
+	Valid unit strings are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
   -follow <bool>
 	If set, the export command will continue streaming until interrupted. Ignored
@@ -77,7 +78,19 @@ func (c *MonitorExportCommand) Synopsis() string {
 	return "Stream logs from a Nomad agent"
 }
 
-func (c *MonitorExportCommand) Name() string { return "monitor" }
+func (c *MonitorExportCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-node-id":      NodePredictor(c.Client),
+			"-server-id":    ServerPredictor(c.Client),
+			"-service-name": complete.PredictAnything,
+			"-log-since":    complete.PredictNothing,
+			"-follow":       complete.PredictNothing,
+			"-on-disk":      complete.PredictNothing,
+		})
+}
+
+func (c *MonitorExportCommand) Name() string { return "monitor export" }
 
 func (c *MonitorExportCommand) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
@@ -92,9 +105,13 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
-	flags.DurationVar(&c.logSince, "logs-since", defaultDur, "")
-	flags.StringVar(&c.serviceName, "service-name", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
-	flags.BoolVar(&c.onDisk, "on-disk", false, "use configured nomad log file")
+	flags.DurationVar(&c.logSince, "logs-since", defaultDur,
+		`sets the journald	log period.  Defaults to 72h, valid unit strings are
+		 "ns", "us" (or "µs"), "ms", "s", "m", or "h".`)
+	flags.StringVar(&c.serviceName, "service-name", "",
+		"the name of the systemdervice unit to collect logs for, cannot be used with on-disk=true")
+	flags.BoolVar(&c.onDisk, "on-disk", false,
+		"directs the cli to stream the configured nomad log file, cannot be used with -service-name")
 	flags.BoolVar(&c.follow, "follow", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -106,6 +123,11 @@ func (c *MonitorExportCommand) Run(args []string) int {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	if c.serviceName != "" && c.onDisk {
+		c.Ui.Error("Cannot target journalctl and nomad log file simultaneously")
+		c.Ui.Error(commandErrorText(c))
 	}
 
 	client, err := c.Meta.Client()
@@ -139,10 +161,10 @@ func (c *MonitorExportCommand) Run(args []string) int {
 
 	eventDoneCh := make(chan struct{})
 	frames, errCh := client.Agent().MonitorExport(eventDoneCh, query)
-
 	r, err := streamFrames(frames, errCh, -1, eventDoneCh)
+
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", err))
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -151,6 +173,5 @@ func (c *MonitorExportCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("error monitoring logs: %s", err.Error()))
 		return 1
 	}
-
 	return 0
 }
