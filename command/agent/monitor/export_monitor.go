@@ -127,16 +127,21 @@ func (d *ExportMonitor) Start() <-chan []byte {
 		logChunk := make([]byte, 32)
 
 		for {
-			n, readErr := multiReader.Read(logChunk)
-			if readErr != nil && readErr != io.EOF {
-				d.logger.Error("unable to read logs into channel", readErr.Error())
+			select {
+			case <-d.DoneCh:
 				return
-			}
+			default:
+				n, readErr := multiReader.Read(logChunk)
+				if readErr != nil && readErr != io.EOF {
+					d.logger.Error("unable to read logs into channel", readErr.Error())
+					return
+				}
 
-			streamCh <- logChunk[:n]
+				streamCh <- logChunk[:n]
 
-			if readErr == io.EOF && !d.Opts.Follow {
-				break
+				if readErr == io.EOF && !d.Opts.Follow {
+					break
+				}
 			}
 		}
 	}()
