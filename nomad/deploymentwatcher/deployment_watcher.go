@@ -156,7 +156,7 @@ func (w *deploymentWatcher) getDeployment() *structs.Deployment {
 	return w.d
 }
 
-func (w *deploymentWatcher) SetAllocHealth(
+func (w *deploymentWatcher) setAllocHealth(
 	req *structs.DeploymentAllocHealthRequest,
 	resp *structs.DeploymentUpdateResponse) error {
 
