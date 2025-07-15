@@ -200,7 +200,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, a.srv.logger, &log.LoggerOptions{
+	m := monitor.New(512, a.srv.logger, &log.LoggerOptions{
 		Level:           logLevel,
 		JSONFormat:      args.LogJSON,
 		IncludeLocation: args.LogIncludeLocation,
@@ -225,8 +225,8 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	logCh := monitor.Start()
-	defer monitor.Stop()
+	logCh := m.Start()
+	defer m.Stop()
 
 	initialOffset := int64(0)
 
@@ -249,9 +249,8 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			}
 		}
 	}()
-	streamParser := cstructs.NewStreamParser(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamParser.EncodeStream(frames, errCh, ctx)
-
+	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
@@ -326,7 +325,6 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
 	}
-	monitor := monitor.NewExportMonitor(opts)
 
 	frames := make(chan *sframer.StreamFrame, 32)
 	errCh := make(chan error)
@@ -346,14 +344,18 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-
-	streamCh := monitor.Start()
-	defer monitor.Stop()
+	m, err := monitor.NewExportMonitor(opts)
+	if err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+	streamCh := m.Start()
+	defer m.Stop()
 
 	initialOffset := int64(0)
 
 	var eofCancelCh chan error
-	streamReader := cstructs.NewStreamReader(streamCh, framer)
+	streamReader := monitor.NewStreamReader(streamCh, framer)
 	cancelAfterFirstEof := true
 	// receive logs and build frames
 	go func() {
@@ -366,10 +368,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 			}
 		}
 	}()
-
-	streamParser := cstructs.NewStreamParser(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamParser.EncodeStream(frames, errCh, ctx)
-
+	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return

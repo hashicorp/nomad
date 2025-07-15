@@ -6,6 +6,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"io"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -452,7 +454,6 @@ func TestAgentHost_ACL(t *testing.T) {
 
 func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Create test file
 	dir := t.TempDir()
@@ -520,76 +521,17 @@ func TestMonitor_MonitorExport(t *testing.T) {
 					AuthToken: tc.token,
 				},
 			}
-			handler, err := c.StreamingRpcHandler("Agent.MonitorExport")
-			require.Nil(err)
 
-			// create pipe
-			p1, p2 := net.Pipe()
-			defer p1.Close()
-			defer p2.Close()
-
-			errCh := make(chan error)
-			streamMsg := make(chan *cstructs.StreamErrWrapper)
-
-			go handler(p2)
-
-			// Start decoder
-			go func() {
-				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
-				for {
-					var msg cstructs.StreamErrWrapper
-					err := decoder.Decode(&msg)
-
-					streamMsg <- &msg
-					if err != nil {
-						errCh <- err
-					}
-				}
-			}()
-
-			// send request
-			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
-			timeout := time.After(3 * time.Second)
-			copyLength := 0
-
-			var builder strings.Builder
-
-		OUTER:
-			for {
-				select {
-				case <-timeout:
-					must.Unreachable(t)
-					continue
-				case err := <-errCh:
-					if err != nil && err != io.EOF {
-						if tc.expectErr {
-							continue
-						}
-						must.NoError(t, err)
-					}
-				case message := <-streamMsg:
-					var frame sframer.StreamFrame
-
-					err = json.Unmarshal(message.Payload, &frame)
-					if err != nil && err != io.EOF {
-						if !strings.Contains(err.Error(), "unexpected end") {
-							must.NoError(t, err)
-						}
-					}
-					builder.Write(frame.Data)
-
-					currentLength := builder.Len()
-					if currentLength == copyLength {
-						must.Nil(t, p2.Close())
-						break OUTER
-					}
-					copyLength = currentLength
-
-				}
-			}
+			var wg sync.WaitGroup
+			wg.Add(1)
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, c, &wg)
+			wg.Wait()
 			if !tc.expectErr {
-				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
+				must.NotNil(t, builder)
+				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+			} else {
+				must.NotNil(t, finalError)
+				t.Log(finalError.Error())
 			}
 
 		})
