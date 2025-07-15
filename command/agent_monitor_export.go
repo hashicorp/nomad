@@ -58,9 +58,9 @@ Monitor Specific Options:
   -service-name <service-name>
     Sets the systemd unit name to query journalctl. Only available on Linux.
 
-  -log-since <int>
-    Sets the log period for journald logs. Defaults to 72 and ignored if
-	on-disk=true.
+  -log-since <duration string>
+    Sets the journalctl log period, invalid if on-disk=true. Defaults to 72h.
+	Valid time strings are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
   -follow <bool>
 	If set, the export command will continue streaming until interrupted. Ignored
