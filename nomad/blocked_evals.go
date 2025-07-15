@@ -749,6 +749,7 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				labels := []metrics.Label{
 					{Name: "datacenter", Value: k.dc},
 					{Name: "node_class", Value: k.class},
+					{Name: "node_pool", Value: k.nodepool},
 				}
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "cpu"}, float32(v.CPU), labels)
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "memory"}, float32(v.MemoryMB), labels)
