@@ -805,8 +805,8 @@ func streamFrames(frames <-chan *api.StreamFrame, errCh <-chan error,
 	// If numLines is set, wrap the reader
 	if numLines != -1 {
 		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
+	} else {
 	}
-
 	go func() {
 		<-signalCh
 

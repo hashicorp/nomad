@@ -245,24 +245,31 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 
 func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Process and validate arguments
-	onDisk := false //default value
-	onDiskStr := req.URL.Query().Get("on_disk")
-	if onDiskStr != "" {
-		parsedonDisk, err := strconv.ParseBool(onDiskStr)
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown option for on_disk: %v", err))
-		}
-		onDisk = parsedonDisk
+	onDisk := false
+	onDiskBool, err := parseBool(req, "on_disk")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for on-disk: %v", err))
+	}
+	if onDiskBool != nil {
+		onDisk = *onDiskBool
 	}
 
-	follow := false //default value
-	followStr := req.URL.Query().Get("follow")
-	if followStr != "" {
-		parsedfollow, err := strconv.ParseBool(followStr)
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown option for follow %v", err))
-		}
-		follow = parsedfollow
+	follow := false
+	followBool, err := parseBool(req, "follow")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for follow: %v", err))
+	}
+	if followBool != nil {
+		follow = *followBool
+	}
+
+	plainText := false
+	plainTextBool, err := parseBool(req, "plain")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for plain: %v", err))
+	}
+	if plainTextBool != nil {
+		plainText = *plainTextBool
 	}
 
 	logSince := "72h" //default value
@@ -276,26 +283,37 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	}
 
 	serviceName := req.URL.Query().Get("service_name")
-	nodeID := req.URL.Query().Get("node_id")
-
 	nomadLogPath := s.agent.GetConfig().LogFile
+
+	nodeID := req.URL.Query().Get("node_id")
+	serverID := req.URL.Query().Get("server_id")
+
 	if onDisk && nomadLogPath == "" {
 		return nil, CodedError(400, "No nomad log file defined")
 	}
 
-	plainText := false
-	plainTextStr := req.URL.Query().Get("plain")
-	if plainTextStr != "" {
-		parsed, err := strconv.ParseBool(plainTextStr)
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
-		}
-		plainText = parsed
+	if nodeID != "" && serverID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
 	}
+
+	if onDisk && serviceName != "" {
+		return nil, CodedError(400, "Cannot target journald and nomad log file simultaneously")
+	}
+
+	if onDisk && follow {
+		return nil, CodedError(400, "Cannot follow log file")
+	}
+
+	if serviceName != "" {
+		if err := monitor.ScanServiceName(serviceName); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
+	}
+
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExportRequest{
 		NodeID:       nodeID,
-		ServerID:     req.URL.Query().Get("server_id"),
+		ServerID:     serverID,
 		LogSince:     logSince,
 		ServiceName:  serviceName,
 		OnDisk:       onDisk,
@@ -303,27 +321,7 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		Follow:       follow,
 		PlainText:    plainText,
 	}
-	if args.NodeID != "" && args.ServerID != "" {
-		return nil, CodedError(400, "Cannot target node and server simultaneously")
-	}
 
-	if args.OnDisk && args.ServiceName != "" {
-		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
-	}
-
-	if args.OnDisk && args.Follow {
-		return nil, CodedError(400, "Cannot follow log file")
-	}
-	if args.ServiceName != "" {
-		if err := monitor.ScanServiceName(args.ServiceName); err != nil {
-			return nil, CodedError(422, err.Error())
-		}
-	}
-	if args.NomadLogPath != "" {
-		if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
-			return nil, CodedError(422, err.Error())
-		}
-	}
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
 	// detecting an incorrect or unsafe one.
 	if plainText {

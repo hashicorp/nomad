@@ -94,7 +94,6 @@ TEST:
 }
 
 func TestMonitor_Export(t *testing.T) {
-
 	ci.Parallel(t)
 	const (
 		expectedText = "log log log log log"
@@ -130,6 +129,7 @@ func TestMonitor_Export(t *testing.T) {
 		{
 			name: "happy_path_logpath_long_file",
 			opts: MonitorExportOpts{
+				Logger:       logger,
 				LogSince:     "72",
 				OnDisk:       true,
 				NomadLogPath: goldenFilePath,
@@ -139,6 +139,7 @@ func TestMonitor_Export(t *testing.T) {
 		{
 			name: "happy_path_logpath_short_file",
 			opts: MonitorExportOpts{
+				Logger:       logger,
 				LogSince:     "72",
 				OnDisk:       true,
 				NomadLogPath: inlineFilePath,
@@ -149,14 +150,8 @@ func TestMonitor_Export(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			opts := MonitorExportOpts{
-				Logger:       logger,
-				LogSince:     tc.opts.LogSince,
-				ServiceName:  tc.opts.ServiceName,
-				Follow:       tc.opts.Follow,
-				NomadLogPath: tc.opts.NomadLogPath,
-			}
-			monitor := NewExportMonitor(opts)
+			monitor, err := NewExportMonitor(tc.opts)
+			must.NoError(t, err)
 			logCh := monitor.Start()
 
 			var builder strings.Builder
