@@ -11873,6 +11873,9 @@ type AllocMetric struct {
 	// NodesInPool is the number of nodes in the node pool used by the job.
 	NodesInPool int
 
+	// NodePool is the node pool the node belongs to.
+	NodePool string
+
 	// NodesAvailable is the number of nodes available for evaluation per DC.
 	NodesAvailable map[string]int
 
