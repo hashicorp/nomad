@@ -454,8 +454,8 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
+	// Create test file
 	dir := t.TempDir()
-
 	f, err := os.CreateTemp(dir, "log")
 	must.NoError(t, err)
 	for range 1000 {
@@ -465,6 +465,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	testFilePath := f.Name()
 	testFileContents, err := os.ReadFile(testFilePath)
 	must.NoError(t, err)
+
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
 	defer cleanupS()

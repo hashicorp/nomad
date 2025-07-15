@@ -347,7 +347,7 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		} else if useServerRPC {
 			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExport")
 		} else {
-			handlerErr = CodedError(400, "No local Node and node_id not provided")
+			handlerErr = CodedError(400, "No local Node")
 		}
 		// No node id monitor current server/client
 	} else if srv := s.agent.Server(); srv != nil {

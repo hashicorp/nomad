@@ -248,6 +248,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	}()
 
 	logCh := monitor.Start()
+	defer monitor.Stop()
 
 	initialOffset := int64(0)
 	var (
