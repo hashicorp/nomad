@@ -414,7 +414,7 @@
     "title": "monitor",
     "routes": [
       {
-        "title": "monitor",
+        "title": "Overview",
         "path": "monitor"
       },
       { "title": "export",

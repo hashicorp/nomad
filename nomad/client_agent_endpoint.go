@@ -227,6 +227,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	logCh := monitor.Start()
 	defer monitor.Stop()
+
 	initialOffset := int64(0)
 
 	// receive logs and build frames
@@ -325,7 +326,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
 	}
-	mon := monitor.NewExportMonitor(opts)
+	monitor := monitor.NewExportMonitor(opts)
 
 	frames := make(chan *sframer.StreamFrame, 32)
 	errCh := make(chan error)
@@ -346,8 +347,9 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	streamCh := mon.Start()
-	defer mon.Stop()
+	streamCh := monitor.Start()
+	defer monitor.Stop()
+
 	initialOffset := int64(0)
 
 	var eofCancelCh chan error

@@ -1029,23 +1029,31 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	const (
-		expectedText   = "log log log log log"
-		goldenFilePath = "./testdata/monitor-export.golden"
+		shortText = "log log log log log"
 	)
-	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	// Create test file
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	longFilePath := f.Name()
+	longFileContents, err := os.ReadFile(longFilePath)
 	must.NoError(t, err)
 
 	testFile, err := os.CreateTemp("", "nomadtests")
 	must.NoError(t, err)
 
-	_, err = testFile.Write([]byte(expectedText))
+	_, err = testFile.Write([]byte(shortText))
 	must.NoError(t, err)
-	inlineFilePath := testFile.Name()
+	shortFilePath := testFile.Name()
 
 	// start server
 	s, root, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
-	defer os.Remove(inlineFilePath)
+	defer os.Remove(shortFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
@@ -1058,25 +1066,32 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		expectErr    bool
 	}{
 		{
-			name:         "happy_path_golden_file",
+			name:         "happy_path_long_file",
 			onDisk:       true,
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: longFilePath,
+			expected:     string(longFileContents),
+			token:        root,
+		},
+		{
+			name:         "happy_path_short_file",
+			onDisk:       true,
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
 			token:        root,
 		},
 		{
 			name:         "token_error",
 			onDisk:       true,
-			nomadLogPath: inlineFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
 			token:        &structs.ACLToken{},
 			expectErr:    true,
 		},
 		{
 			name:         "invalid_service_name",
 			serviceName:  "nomad$",
-			nomadLogPath: inlineFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
 			token:        &structs.ACLToken{},
 			expectErr:    true,
 		},

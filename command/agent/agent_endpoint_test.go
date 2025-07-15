@@ -635,20 +635,14 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 				var (
 					builder strings.Builder
 					frame   sframer.StreamFrame
-					wg      sync.WaitGroup
 				)
 				errCh := make(chan error, 1)
-				wg.Add(1)
 				go func(errCh chan error) {
-					defer wg.Done()
-
 					_, err = s.Server.AgentMonitorExport(resp, req)
 					if err != nil {
 						errCh <- err
 					}
-
 				}(errCh)
-				wg.Wait()
 				select {
 				case err := <-errCh:
 					if tc.expectErr {
