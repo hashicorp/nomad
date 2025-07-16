@@ -30,7 +30,7 @@ func (n *NodeIdentity) Renew(args *structs.NodeIdentityRenewReq, reply *structs.
 	if done, err := n.srv.forward(structs.NodeIdentityRenewRPCMethod, args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("client_identity", structs.RateMetricRead, args)
+	n.srv.MeasureRPCRate("client_identity", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

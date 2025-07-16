@@ -343,7 +343,7 @@ type Client struct {
 	// identityForceRenewal is used to force the client to renew its identity
 	// at the next heartbeat. It is set by an operator calling the node identity
 	// renew RPC method.
-	identityForceRenewal atomic.Value
+	identityForceRenewal atomic.Bool
 }
 
 var (
@@ -407,7 +407,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
 		identity:             atomic.Value{},
-		identityForceRenewal: atomic.Value{},
+		identityForceRenewal: atomic.Bool{},
 	}
 
 	// we can't have this set in the default Config because of import cycles
@@ -2215,8 +2215,9 @@ func (c *Client) updateNodeStatus() error {
 		},
 	}
 
-	//
-	if forceIdentityRenew := c.identityForceRenewal.Load(); forceIdentityRenew != nil && forceIdentityRenew.(bool) {
+	// Check if the client has been informed to force a renewal of its identity,
+	// and set the flag in the request if so.
+	if c.identityForceRenewal.Load() {
 		c.logger.Debug("forcing identity renewal")
 		req.ForceIdentityRenewal = true
 	}

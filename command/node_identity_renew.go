@@ -80,12 +80,9 @@ func (n *NodeIdentityRenewCommand) Run(args []string) int {
 }
 
 func (n *NodeIdentityRenewCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(n.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-node-id": complete.PredictNothing,
-		})
+	return n.Meta.AutocompleteFlags(FlagSetClient)
 }
 
 func (n *NodeIdentityRenewCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictAnything
+	return nodePredictor(n.Client, nil)
 }

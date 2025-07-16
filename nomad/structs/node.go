@@ -716,8 +716,8 @@ type NodeUpdateResponse struct {
 }
 
 const (
-	// NodeIdentityRenewRPCMethod is the RPC method for batch creating or
-	// modifying ACL policies.
+	// NodeIdentityRenewRPCMethod is the RPC method for instructing a client to
+	// forcibly request a renewal of its node identity at the next heartbeat.
 	//
 	// Args: NodeIdentityRenewReq
 	// Reply: NodeIdentityRenewResp

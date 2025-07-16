@@ -21,7 +21,7 @@ func TestNodeIdentity_Renew(t *testing.T) {
 
 	// Create a test ACL server and client and perform our node identity renewal
 	// tests against it.
-	testACLServer, _, testACLServerCleanup := nomad.TestACLServer(t, nil)
+	testACLServer, testServerToken, testACLServerCleanup := nomad.TestACLServer(t, nil)
 	t.Cleanup(func() { testACLServerCleanup() })
 	testutil.WaitForLeader(t, testACLServer.RPC)
 
@@ -30,6 +30,10 @@ func TestNodeIdentity_Renew(t *testing.T) {
 		c.Servers = []string{testACLServer.GetConfig().RPCAddr.String()}
 	})
 	t.Cleanup(func() { _ = testACLClientCleanup() })
+	testutil.WaitForClientStatusWithToken(
+		t, testACLServer.RPC, testACLClient.NodeID(), testACLClient.Region(),
+		structs.NodeStatusReady, testServerToken.SecretID,
+	)
 
 	t.Run("acl_denied", func(t *testing.T) {
 		must.ErrorContains(
@@ -65,7 +69,7 @@ func TestNodeIdentity_Renew(t *testing.T) {
 		)
 
 		renewalVal := testACLClient.identityForceRenewal.Load()
-		must.True(t, renewalVal.(bool))
+		must.True(t, renewalVal)
 	})
 
 	// Create a test non-ACL server and client and perform our node identity
@@ -78,18 +82,22 @@ func TestNodeIdentity_Renew(t *testing.T) {
 		c.Servers = []string{testServer.GetConfig().RPCAddr.String()}
 	})
 	t.Cleanup(func() { _ = testClientCleanup() })
+	testutil.WaitForClient(t, testServer.RPC, testClient.NodeID(), testClient.Region())
 
-	t.Run("acl_denied", func(t *testing.T) {
+	t.Run("non_acl_valid", func(t *testing.T) {
 		must.NoError(
 			t,
 			testClient.ClientRPC(
 				structs.NodeIdentityRenewRPCMethod,
-				&structs.NodeIdentityRenewReq{},
+				&structs.NodeIdentityRenewReq{
+					NodeID:       testClient.NodeID(),
+					QueryOptions: structs.QueryOptions{},
+				},
 				&structs.NodeIdentityRenewResp{},
 			),
 		)
 
-		renewalVal := testACLClient.identityForceRenewal.Load()
-		must.True(t, renewalVal.(bool))
+		renewalVal := testClient.identityForceRenewal.Load()
+		must.True(t, renewalVal)
 	})
 }
