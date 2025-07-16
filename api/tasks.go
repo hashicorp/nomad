@@ -757,13 +757,13 @@ const (
 )
 
 type TaskLifecycle struct {
-	Hook    string `mapstructure:"hook" hcl:"hook,optional"`
+	Hook    string `mapstructure:"hook" hcl:"hook"`
 	Sidecar bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
 }
 
 // Determine if lifecycle has user-input values
 func (l *TaskLifecycle) Empty() bool {
-	return l == nil || (l.Hook == "")
+	return l == nil
 }
 
 // Task is a single process in a task group.
