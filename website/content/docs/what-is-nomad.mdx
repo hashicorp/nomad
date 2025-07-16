@@ -68,6 +68,8 @@ Nomad is designed with the Unix philosophy of having a small scope while
 composing with tools like Consul for service discovery/service mesh and Vault
 for secret management.
 
+<VideoEmbed url="https://www.youtube.com/embed/ZfSuted4pcA?si=IyqGzqOAnYO06398"/>
+
 ### Simplicity
 
 Kubernetes is designed as a collection of more than a half-dozen interoperating services which together provide the full functionality. Coordination and storage is provided by etcd at the core. The state is wrapped by API controllers which are consumed by other services that provide higher level APIs for features like scheduling. Kubernetes supports running in a highly available configuration but is operationally complex to setup.
@@ -118,7 +120,22 @@ Characteristics of teams that typically adopt Nomad:
 - On-premises environment, or hybrid environments
 - Require simplicity to move fast and fulfill business needs with hard deadlines
 
-We continue to see small enterprises continue to standardize on a single orchestrator given the natural staffing and organizational constraints. There are not enough DevOps members to maintain more than one orchestrator, not enough developers to warrant diverging workflows, or simply not enough workload diversity to require more than one orchestrator.
+We continue to see small enterprises continue to standardize on a single
+orchestrator given the natural staffing and organizational constraints. There
+are not enough DevOps members to maintain more than one orchestrator, not enough
+developers to warrant diverging workflows, or simply not enough workload
+diversity to require more than one orchestrator.
+
+### Resources
+
+Review the following resources for in-depth comparisons between Nomad and
+Kubernetes:
+
+- [A Kubernetes User's Guide to HashiCorp
+  Nomad](https://www.hashicorp.com/en/blog/a-kubernetes-user-s-guide-to-hashicorp-nomad)
+- [The Kubernetes to Nomad Cheat
+  Sheet](https://www.hashicorp.com/en/blog/the-kubernetes-to-nomad-cheat-sheet)
+- [A Kubernetes User's Guide to HashiCorp Nomad Secret Management](https://www.hashicorp.com/en/blog/a-kubernetes-user-s-guide-to-hashicorp-nomad-secret-management)
 
 ## Nomad versus AWS ECS
 
