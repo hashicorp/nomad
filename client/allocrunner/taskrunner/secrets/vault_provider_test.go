@@ -20,7 +20,7 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 			Provider: "vault",
 			Path:     "/test/path",
 		}
-		p, err := NewVaultProvider(testSecret, testDir)
+		p, err := NewVaultProvider(testSecret, testDir, "test")
 		must.NoError(t, err)
 
 		tmpl := p.BuildTemplate()
@@ -47,7 +47,7 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 				"engine": VAULT_KV_V2,
 			},
 		}
-		p, err := NewVaultProvider(testSecret, testDir)
+		p, err := NewVaultProvider(testSecret, testDir, "test")
 		must.NoError(t, err)
 
 		tmpl := p.BuildTemplate()
@@ -74,7 +74,18 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 				"engine": 123,
 			},
 		}
-		_, err := NewVaultProvider(testSecret, testDir)
+		_, err := NewVaultProvider(testSecret, testDir, "test")
+		must.Error(t, err)
+	})
+
+	t.Run("path containing delimeter errors", func(t *testing.T) {
+		testDir := t.TempDir()
+		testSecret := &structs.Secret{
+			Name:     "foo",
+			Provider: "vault",
+			Path:     "/test/path}}",
+		}
+		_, err := NewVaultProvider(testSecret, testDir, "test")
 		must.Error(t, err)
 	})
 }
@@ -82,13 +93,14 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 func TestVaultProvider_Parse(t *testing.T) {
 	testDir := t.TempDir()
 
-	tmplPath := filepath.Join(testDir, "foo")
+	tmplFile := "foo"
+	tmplPath := filepath.Join(testDir, tmplFile)
 
 	data := "foo=bar"
 	err := os.WriteFile(tmplPath, []byte(data), 0777)
 	must.NoError(t, err)
 
-	p, err := NewVaultProvider(&structs.Secret{}, tmplPath)
+	p, err := NewVaultProvider(&structs.Secret{}, testDir, tmplFile)
 	must.NoError(t, err)
 
 	vars, err := p.Parse()
