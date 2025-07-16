@@ -63,7 +63,7 @@ func (n *NomadProvider) BuildTemplate() *structs.Template {
 
 	return &structs.Template{
 		EmbeddedTmpl: data,
-		DestPath:     filepath.Join(n.secretDir, n.tmplFile),
+		DestPath:     filepath.Clean(filepath.Join(n.secretDir, n.tmplFile)),
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Once:         true,
 	}

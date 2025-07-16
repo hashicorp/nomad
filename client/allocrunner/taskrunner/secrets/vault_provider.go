@@ -73,7 +73,7 @@ func (v *VaultProvider) BuildTemplate() *structs.Template {
 
 	return &structs.Template{
 		EmbeddedTmpl: data,
-		DestPath:     filepath.Join(v.secretDir, v.tmplFile),
+		DestPath:     filepath.Clean(filepath.Join(v.secretDir, v.tmplFile)),
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Once:         true,
 	}
