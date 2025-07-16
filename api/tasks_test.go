@@ -344,9 +344,35 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 		{
 			name: "empty",
 			task: &Task{
-				Lifecycle: &TaskLifecycle{},
+				Lifecycle: nil,
 			},
 			expected: nil,
+		},
+		{
+			name: "missing hook",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{},
+			},
+			expected: &TaskLifecycle{},
+		},
+		{
+			name: "with sidecar",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{
+					Sidecar: true,
+				},
+			},
+			expected: &TaskLifecycle{Sidecar: true},
+		},
+		{
+			name: "valid",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{
+					Hook:    "prestart",
+					Sidecar: true,
+				},
+			},
+			expected: &TaskLifecycle{Hook: "prestart", Sidecar: true},
 		},
 	}
 
