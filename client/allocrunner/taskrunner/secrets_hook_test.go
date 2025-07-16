@@ -94,7 +94,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		err := secretHook.Prestart(ctx, req, nil)
+		err := secretHook.Prestart(ctx, req, &interfaces.TaskPrestartResponse{})
 		must.NoError(t, err)
 
 		expected := map[string]string{
@@ -169,7 +169,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		cancel() // cancel context to simulate task being stopped
 
-		err := secretHook.Prestart(ctx, req, nil)
+		err := secretHook.Prestart(ctx, req, &interfaces.TaskPrestartResponse{})
 		must.NoError(t, err)
 
 		expected := map[string]string{}
@@ -289,7 +289,7 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	t.Cleanup(cancel)
 
-	err := secretHook.Prestart(ctx, req, nil)
+	err := secretHook.Prestart(ctx, req, &interfaces.TaskPrestartResponse{})
 	must.NoError(t, err)
 
 	exp := map[string]string{
