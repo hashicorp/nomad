@@ -1596,6 +1596,10 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 type JobDispatchRequest struct {

@@ -231,6 +231,10 @@ func (r *ReconcileResults) Fields() []any {
 			tg+"_migrate", u.Migrate,
 			tg+"_canary", u.Canary,
 			tg+"_preempt", u.Preemptions,
+			tg+"_reschedule_now", u.RescheduleNow,
+			tg+"_reschedule_later", u.RescheduleLater,
+			tg+"_disconnect", u.Disconnect,
+			tg+"_reconnect", u.Reconnect,
 		)
 	}
 
@@ -362,8 +366,9 @@ func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.
 }
 
 // handleStop marks all allocations to be stopped, handling the lost case.
-// Returns result structure with desired changes field set to stopped allocations
-// and an array of stopped allocations.
+// Returns result structure with desired changes field set to stopped
+// allocations and an array of stopped allocations. It mutates the Stop fields
+// on the DesiredUpdates.
 func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.DesiredUpdates, []AllocStopResult) {
 	result := make(map[string]*structs.DesiredUpdates)
 	allocsToStop := []AllocStopResult{}
@@ -489,6 +494,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		// logged.
 		if len(reconnect) > 0 {
 			result.ReconnectUpdates = a.computeReconnecting(reconnect)
+			result.DesiredTGUpdates[tg.Name].Reconnect = uint64(len(result.ReconnectUpdates))
+
 			// The rest of the reconnecting allocations is now untainted and will
 			// be further reconciled below.
 			untainted = untainted.union(reconnect)
@@ -527,6 +534,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
 		maps.Copy(result.DisconnectUpdates, updates)
+		result.DesiredTGUpdates[tg.Name].Disconnect = uint64(len(result.DisconnectUpdates))
+		result.DesiredTGUpdates[tg.Name].RescheduleNow = uint64(len(rescheduleNow))
 	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
@@ -550,6 +559,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		var followups []*structs.Evaluation
 		followups, result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
 		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followups...)
+		result.DesiredTGUpdates[tg.Name].RescheduleLater = uint64(len(rescheduleLater))
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -728,6 +738,8 @@ func requiresCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState, de
 		!canariesPromoted
 }
 
+// computeCanaries returns the set of new canaries to place. It mutates the
+// Canary field on the DesiredUpdates and the DesiredCanaries on the dstate
 func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
 	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *AllocNameIndex) []AllocPlaceResult {
 	dstate.DesiredCanaries = tg.Update.Canary
@@ -997,6 +1009,8 @@ func (a *AllocReconciler) placeAllocs(deploymentPlaceReady bool, desiredChanges 
 	return underProvisionedBy, resultingPlacements, resultingAllocsToStop
 }
 
+// computeDestructiveUpdates returns the set of destructive updates. It mutates
+// the DestructiveUpdate and Ignore fields on the DesiredUpdates counts
 func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underProvisionedBy int,
 	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) []allocDestructiveResult {
 
@@ -1018,6 +1032,8 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	return destructiveResult
 }
 
+// computeMigrations returns the stops and placements for the allocs marked for
+// migration. It mutates the Migrate field on the DesiredUpdates counts
 func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet,
 	tg *structs.TaskGroup, isCanarying bool) ([]AllocStopResult, []AllocPlaceResult) {
 
