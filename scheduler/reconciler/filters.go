@@ -83,6 +83,7 @@ func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore 
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that are on a node that has reconnected.
 // 6. Those that are in a state that results in a noop.
+// 7. Those that are disconnected and need to be marked lost (and possibly replaced)
 func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)

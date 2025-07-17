@@ -525,8 +525,9 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 			untainted = untainted.union(untaintedDisconnecting)
 			rescheduleLater = append(rescheduleLater, laterDisconnecting...)
 
-			// Find delays for any disconnecting allocs that have max_client_disconnect,
-			// create followup evals, and update the ClientStatus to unknown.
+			// Find delays for any disconnecting allocs that have
+			// disconnect.lost_after, create followup evals, and update the
+			// ClientStatus to unknown.
 			var followupEvals []*structs.Evaluation
 			timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 			result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
@@ -538,7 +539,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredTGUpdates[tg.Name].RescheduleNow = uint64(len(rescheduleNow))
 	}
 
-	// Find delays for any lost allocs that have stop_after_client_disconnect
+	// Find delays for any lost allocs that have disconnect.stop_on_client_after
 	lostLaterEvals := map[string]string{}
 	lostLater := []*delayedRescheduleInfo{}
 
@@ -549,7 +550,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 	}
 
-	// Merge disconnecting with the stop_after_client_disconnect set into the
+	// Merge disconnecting with the disconnect.stop_on_client_after set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
 	lostLaterEvals = helper.MergeMapStringString(lostLaterEvals, timeoutLaterEvals)
 
@@ -805,6 +806,7 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 
 		canaries = all.fromKeys(canaryIDs)
 		untainted, migrate, lost, _, _, _, _ := filterByTainted(canaries, a.clusterState)
+
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final
 		// state. These transient failures aren't meaningful.
