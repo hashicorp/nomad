@@ -110,15 +110,17 @@ type ReconcileResults struct {
 	Stop []AllocStopResult
 
 	// AttributeUpdates are updates to the allocation that are not from a
-	// jobspec change.
+	// jobspec change. map of alloc ID -> *Allocation
 	AttributeUpdates map[string]*structs.Allocation
 
 	// DisconnectUpdates is the set of allocations are on disconnected nodes, but
 	// have not yet had their ClientStatus set to AllocClientStatusUnknown.
+	// map of alloc ID -> *Allocation
 	DisconnectUpdates map[string]*structs.Allocation
 
 	// ReconnectUpdates is the set of allocations that have ClientStatus set to
 	// AllocClientStatusUnknown, but the associated Node has reconnected.
+	// map of alloc ID -> *Allocation
 	ReconnectUpdates map[string]*structs.Allocation
 
 	// DesiredTGUpdates captures the desired set of changes to make for each
@@ -202,22 +204,41 @@ type delayedRescheduleInfo struct {
 	rescheduleTime time.Time
 }
 
-func (r *ReconcileResults) GoString() string {
-	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d) (disconnect %d) (reconnect %d)",
-		len(r.Place), len(r.DestructiveUpdate), len(r.InplaceUpdate), len(r.Stop), len(r.DisconnectUpdates), len(r.ReconnectUpdates))
-
+func (r *ReconcileResults) Fields() []any {
+	fields := []any{
+		"total_place", len(r.Place),
+		"total_destructive", len(r.DestructiveUpdate),
+		"total_inplace", len(r.InplaceUpdate),
+		"total_stop", len(r.Stop),
+		"total_disconnect", len(r.DisconnectUpdates),
+		"total_reconnect", len(r.ReconnectUpdates),
+	}
 	if r.Deployment != nil {
-		base += fmt.Sprintf("\nCreated Deployment: %q", r.Deployment.ID)
+		fields = append(fields, "deployment_created", r.Deployment.ID)
 	}
 	for _, u := range r.DeploymentUpdates {
-		base += fmt.Sprintf("\nDeployment Update for ID %q: Status %q; Description %q",
-			u.DeploymentID, u.Status, u.StatusDescription)
+		fields = append(fields,
+			"deployment_updated", u.DeploymentID,
+			"deployment_update", fmt.Sprintf("%s (%s)", u.Status, u.StatusDescription))
 	}
 	for tg, u := range r.DesiredTGUpdates {
-		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
+		fields = append(fields,
+			tg+"_ignore", u.Ignore,
+			tg+"_place", u.Place,
+			tg+"_destructive", u.DestructiveUpdate,
+			tg+"_inplace", u.InPlaceUpdate,
+			tg+"_stop", u.Stop,
+			tg+"_migrate", u.Migrate,
+			tg+"_canary", u.Canary,
+			tg+"_preempt", u.Preemptions,
+			tg+"_reschedule_now", u.RescheduleNow,
+			tg+"_reschedule_later", u.RescheduleLater,
+			tg+"_disconnect", u.Disconnect,
+			tg+"_reconnect", u.Reconnect,
+		)
 	}
 
-	return base
+	return fields
 }
 
 // ClusterState holds frequently used information about the state of the
@@ -345,8 +366,9 @@ func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.
 }
 
 // handleStop marks all allocations to be stopped, handling the lost case.
-// Returns result structure with desired changes field set to stopped allocations
-// and an array of stopped allocations.
+// Returns result structure with desired changes field set to stopped
+// allocations and an array of stopped allocations. It mutates the Stop fields
+// on the DesiredUpdates.
 func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.DesiredUpdates, []AllocStopResult) {
 	result := make(map[string]*structs.DesiredUpdates)
 	allocsToStop := []AllocStopResult{}
@@ -472,6 +494,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		// logged.
 		if len(reconnect) > 0 {
 			result.ReconnectUpdates = a.computeReconnecting(reconnect)
+			result.DesiredTGUpdates[tg.Name].Reconnect = uint64(len(result.ReconnectUpdates))
+
 			// The rest of the reconnecting allocations is now untainted and will
 			// be further reconciled below.
 			untainted = untainted.union(reconnect)
@@ -510,6 +534,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
 		maps.Copy(result.DisconnectUpdates, updates)
+		result.DesiredTGUpdates[tg.Name].Disconnect = uint64(len(result.DisconnectUpdates))
+		result.DesiredTGUpdates[tg.Name].RescheduleNow = uint64(len(rescheduleNow))
 	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
@@ -533,6 +559,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		var followups []*structs.Evaluation
 		followups, result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
 		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followups...)
+		result.DesiredTGUpdates[tg.Name].RescheduleLater = uint64(len(rescheduleLater))
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -617,6 +644,12 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// plan so its internal state can be persisted by the plan applier.
 	if a.jobState.DeploymentCurrent != nil && a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
 		result.Deployment = a.jobState.DeploymentCurrent
+	}
+
+	// We can never have more placements than the count
+	if len(result.Place) > tg.Count {
+		result.Place = result.Place[:tg.Count]
+		result.DesiredTGUpdates[tg.Name].Place = uint64(tg.Count)
 	}
 
 	deploymentComplete := a.isDeploymentComplete(group, destructive, inplace,
@@ -705,6 +738,8 @@ func requiresCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState, de
 		!canariesPromoted
 }
 
+// computeCanaries returns the set of new canaries to place. It mutates the
+// Canary field on the DesiredUpdates and the DesiredCanaries on the dstate
 func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
 	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *AllocNameIndex) []AllocPlaceResult {
 	dstate.DesiredCanaries = tg.Update.Canary
@@ -974,6 +1009,8 @@ func (a *AllocReconciler) placeAllocs(deploymentPlaceReady bool, desiredChanges 
 	return underProvisionedBy, resultingPlacements, resultingAllocsToStop
 }
 
+// computeDestructiveUpdates returns the set of destructive updates. It mutates
+// the DestructiveUpdate and Ignore fields on the DesiredUpdates counts
 func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underProvisionedBy int,
 	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) []allocDestructiveResult {
 
@@ -995,6 +1032,8 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	return destructiveResult
 }
 
+// computeMigrations returns the stops and placements for the allocs marked for
+// migration. It mutates the Migrate field on the DesiredUpdates counts
 func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet,
 	tg *structs.TaskGroup, isCanarying bool) ([]AllocStopResult, []AllocPlaceResult) {
 
@@ -1108,8 +1147,8 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 	// Hot path the nothing to do case
 	//
-	// Note that this path can result in duplication allocation indexes in a
-	// scenario with a destructive job change (ex. image update) happens with
+	// Note that this path can result in duplicated allocation indexes in a
+	// scenario where a destructive job change (ex. image update) happens with
 	// an increased group count. Once the canary is replaced, and we compute
 	// the next set of stops, the untainted set equals the new group count,
 	// which results is missing one removal. The duplicate alloc index is
@@ -1206,7 +1245,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 // reconcileReconnecting receives the set of allocations that are reconnecting
 // and all other allocations for the same group and determines which ones to
-// reconnect which ones or stop.
+// reconnect, which ones to stop, and the stop results for the latter.
 //
 //   - Every reconnecting allocation MUST be present in one, and only one, of
 //     the returned set.

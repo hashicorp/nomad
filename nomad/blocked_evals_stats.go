@@ -29,8 +29,9 @@ type BlockedStats struct {
 
 // classInDC is a coordinate of a specific class in a specific datacenter
 type classInDC struct {
-	dc    string
-	class string
+	dc       string
+	class    string
+	nodepool string
 }
 
 // NewBlockedStats returns a new BlockedStats.
@@ -80,6 +81,7 @@ func (b *BlockedStats) prune(cutoff time.Time) {
 func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 	dcs := make(map[string]struct{})
 	classes := make(map[string]struct{})
+	nodepools := make(map[string]struct{})
 
 	resources := BlockedResourcesSummary{
 		Timestamp: time.Now().UTC(),
@@ -92,6 +94,9 @@ func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 		for class := range allocMetrics.ClassExhausted {
 			classes[class] = struct{}{}
 		}
+
+		nodepools[allocMetrics.NodePool] = struct{}{}
+
 		if len(allocMetrics.ClassExhausted) == 0 {
 			// some evaluations have no class
 			classes[""] = struct{}{}
@@ -107,10 +112,12 @@ func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 	byJob[nsID] = resources
 
 	byClassInDC := make(map[classInDC]BlockedResourcesSummary)
-	for dc := range dcs {
-		for class := range classes {
-			k := classInDC{dc: dc, class: class}
-			byClassInDC[k] = resources
+	for nodepool := range nodepools {
+		for dc := range dcs {
+			for class := range classes {
+				k := classInDC{dc: dc, class: class, nodepool: nodepool}
+				byClassInDC[k] = resources
+			}
 		}
 	}
 

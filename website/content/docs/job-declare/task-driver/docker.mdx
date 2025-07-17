@@ -1,0 +1,847 @@
+---
+layout: docs
+page_title: Use the Docker task driver in a job
+description: Nomad's Docker task driver lets you run Docker-based tasks in your jobs. Learn how to configure job tasks, authenticate against a private repository, use insecure registries, and configure Docker networking.
+---
+
+# Use the Docker task driver in a job
+
+Name: `docker`
+
+The `docker` driver provides a first-class Docker workflow on Nomad. The Docker
+driver handles downloading containers, mapping ports, and starting, watching,
+and cleaning up after containers.
+
+**Note:** If you are using Docker Desktop for Windows or MacOS, check
+[the FAQ][faq-win-mac].
+
+Refer to [Configure the Docker task
+driver](/nomad/docs/deploy/task-driver/docker) for capabilities, client
+requirements, and plugin configuration.
+
+## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "docker"
+
+  config {
+    image = "redis:7"
+    labels {
+      group = "webservice-cache"
+    }
+  }
+}
+```
+
+The `docker` driver supports the following configuration in the job spec. Only
+`image` is required.
+
+- `image` - The Docker image to run. The image may include a tag or custom URL
+  and should include `https://` if required. By default it will be fetched from
+  Docker Hub. If the tag is omitted or equal to `latest` the driver will always
+  try to pull the image. If the image to be pulled exists in a registry that
+  requires authentication credentials must be provided to Nomad.
+
+  ```hcl
+  config {
+    image = "https://hub.docker.internal/redis:7"
+  }
+  ```
+
+- `image_pull_timeout` - (Optional) A time duration that controls how long Nomad
+  will wait before cancelling an in-progress pull of the Docker image as specified
+  in `image`. Defaults to `"5m"`.
+
+- `args` - (Optional) A list of arguments to the optional `command`. If no
+  `command` is specified, the arguments are passed directly to the container.
+  References to environment variables or any [interpretable Nomad
+  variables](/nomad/docs/reference/runtime-variable-interpolation) will be interpreted before
+  launching the task. For example:
+
+  ```hcl
+  config {
+    args = [
+      "-bind", "${NOMAD_PORT_http}",
+      "${nomad.datacenter}",
+      "${MY_ENV}",
+      "${meta.foo}",
+    ]
+  }
+  ```
+
+- `auth` - (Optional) Provide authentication for a private registry (see below).
+
+- `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
+  Attempt to continue without auth. If the Nomad client configuration has an
+  [`auth.helper`](/nomad/docs/deploy/task-driver/docker#helper) block, the helper will be tried for
+  all images, including public images. If you mix private and public images,
+  you will need to include `auth_soft_fail=true` in every job using a public
+  image.
+
+- `command` - (Optional) The command to run when starting the container.
+
+  ```hcl
+  config {
+    command = "my-command"
+  }
+  ```
+
+- `cgroupns` - (Optional) Cgroup namespace to use. Set to `host` or
+  `private`. If not specified, the driver uses Docker's default. Refer to Docker's [dockerd reference](https://docs.docker.com/reference/cli/dockerd/) for more information.
+
+- `container_exists_attempts` - (Optional) A number of attempts to be made to
+  purge a container if during task creation Nomad encounters an existing one in
+  non-running state for the same task. Defaults to `5`.
+
+- `dns_search_domains` - (Optional) A list of DNS search domains for
+  the container to use. If you are using bridge networking mode with a
+  `network` block in the task group, you must set all DNS options in
+  the `network.dns` block instead.
+
+- `dns_options` - (Optional) A list of DNS options for the container
+  to use. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
+
+- `dns_servers` - (Optional) A list of DNS servers for the container
+  to use (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or
+  greater. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
+
+- `entrypoint` - (Optional) A string list overriding the image's entrypoint.
+
+- `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
+  `/etc/hosts`. This option may not work as expected in `bridge` network mode
+  when there is more than one task within the same group. Refer to the
+  [upgrade guide][upgrade_guide_extra_hosts] for more information.
+
+- `force_pull` - (Optional) `true` or `false` (default). Always pull most recent image
+  instead of using existing local image. Should be set to `true` if repository tags
+  are mutable. If image's tag is `latest` or omitted, the image will always be pulled
+  regardless of this setting.
+
+- `group_add` - (Optional) A list of supplementary groups to be applied
+  to the container user.
+
+- `healthchecks` - (Optional) A configuration block for controlling how the
+  docker driver manages HEALTHCHECK directives built into the container. Set
+  `healthchecks.disable` to disable any built-in healthcheck.
+
+  ```hcl
+  config {
+    healthchecks {
+      disable = true
+    }
+  }
+  ```
+
+- `hostname` - (Optional) The hostname to assign to the container. When
+  launching more than one of a task (using `count`) with this option set, every
+  container the task starts will have the same hostname.
+
+- `init` - (Optional) `true` or `false` (default). Enable init (tini) system when
+   launching your container. When enabled, an init process will be used as the PID1
+   in the container. Specifying an init process ensures the usual responsibilities
+   of an init system, such as reaping zombie processes, are performed inside the
+   created container.
+
+   The default init process used is the first `docker-init` executable found in the
+   system path of the Docker daemon process. This `docker-init` binary, included in
+   the default installation, is backed by [tini][tini].
+
+- `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
+  the container.
+
+- `isolation` - (Optional) Specifies [Windows isolation][] mode: `"hyperv"` or
+  `"process"`. Defaults to `"hyperv"`.
+
+
+- `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+  containers on start.
+
+  ```hcl
+  config {
+    sysctl = {
+      "net.core.somaxconn" = "16384"
+    }
+  }
+  ```
+
+   <Warning>
+
+   If you are creating your job specification in JSON, you must use wrap the map in an
+   array. Do not use a bare map as you would in HCL.
+
+   ```json
+   config {
+     "sysctl": [
+      {
+       "net.core.somaxconn": "16384",
+       "net.ipv4.tw_reuse": "1"
+      }
+    ]
+   }
+   ```
+
+   </Warning>
+
+- `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
+  containers on start.
+
+  ```hcl
+  config {
+    ulimit {
+      nproc = "4242"
+      nofile = "2048:4096"
+    }
+  }
+  ```
+
+- `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
+  the container access to devices on the host. Note that this also requires the
+  nomad agent and docker daemon to be configured to allow privileged
+  containers.
+
+- `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
+  is `none` for a private IPC namespace. Other values are `host` for sharing
+  the host IPC namespace or the name or id of an existing container. Note that
+  it is not possible to refer to Docker containers started by Nomad since their
+  names are not known in advance. Note that setting this option also requires the
+  Nomad agent to be configured to allow privileged containers.
+
+- `ipv4_address` - (Optional) The IPv4 address to be used for the container when
+  using user defined networks. Requires Docker 1.13 or greater.
+
+- `ipv6_address` - (Optional) The IPv6 address to be used for the container when
+  using user defined networks. Requires Docker 1.13 or greater.
+
+- `labels` - (Optional) A key-value map of labels to set to the containers on
+  start.
+
+  ```hcl
+  config {
+    labels {
+      foo = "bar"
+      zip = "zap"
+    }
+  }
+  ```
+
+  A more verbose syntax must be used to specify labels with keys that require
+  quoting. For example DataDog's autodiscovery mechanism looks for labels with
+  dots in the key which must be quoted:
+
+  ```hcl
+  config {
+    labels = [
+      {
+        "com.datadoghq.ad.check_names"  =  "[\"openmetrics\"]"
+        "com.datadoghq.ad.init_configs" = "[{}]"
+      }
+    ]
+  }
+  ```
+
+- `load` - (Optional) Load an image from a `tar` archive file instead of from a
+  remote repository. Equivalent to the `docker load -i <filename>` command. If
+  you're using an `artifact` block to fetch the archive file, you'll need to
+  ensure that Nomad keeps the archive intact after download.
+
+  ```hcl
+  artifact {
+    source = "http://path.to/redis.tar"
+    options {
+      archive = false
+    }
+  }
+  config {
+    load = "redis.tar"
+    image = "redis"
+  }
+  ```
+
+- `logging` - (Optional) A key-value map of Docker logging options.
+  Defaults to `json-file` with log rotation (`max-file=2` and `max-size=2m`).
+
+  ```hcl
+  config {
+    logging {
+      type = "fluentd"
+      config {
+        fluentd-address = "localhost:24224"
+        tag = "your_tag"
+      }
+    }
+  }
+  ```
+
+- `mac_address` - (Optional) The MAC address for the container to use (e.g.
+  "02:68:b3:29:da:98").
+
+- `memory_hard_limit` - (Optional) The maximum allowable amount of memory used
+  (megabytes) by the container. If set, the [`memory`](/nomad/docs/job-specification/resources#memory)
+  parameter of the task resource configuration becomes a soft limit passed to the
+  docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
+  and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
+  hard limit. When the host is under memory pressure, the behavior of soft limit
+  activation is governed by the [Kernel](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt).
+
+- `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
+  container to be discovered by an alternate name by any other container within
+  the scope of a particular network. Network-scoped alias is supported only for
+  containers in user defined networks
+
+  ```hcl
+  config {
+    network_mode = "user-network"
+    network_aliases = [
+      "${NOMAD_TASK_NAME}",
+      "${NOMAD_TASK_NAME}-${NOMAD_ALLOC_INDEX}"
+    ]
+  }
+  ```
+
+- `network_mode` - (Optional) The network mode to be used for the container. In
+  order to support userspace networking plugins in Docker 1.9 this accepts any
+  value. The default is `bridge` for all operating systems but Windows, which
+  defaults to `nat`. Other networking modes may not work without additional
+  configuration on the host (which is outside the scope of Nomad). Valid values
+  pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
+
+  The default `network_mode` for tasks that use group networking in [`bridge`]
+  mode will be `container:<name>`, where the name is the container name of the
+  parent container used to share network namespaces between tasks. If you set
+  the group [`network.mode`][] to `"bridge"` you should not set this Docker
+  `network_mode` config, otherwise the container will be unable to reach other
+  containers in the task group. This will also prevent [Connect]-enabled tasks
+  from reaching the Envoy sidecar proxy. You must also set any DNS options in
+  the `network.dns` block and not in the task configuration.
+
+  If you are in the process of migrating from the default Docker network to
+  group-wide bridge networking, you may encounter issues preventing your
+  containers from reaching networks outside of the bridge interface on systems with
+  firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
+  network as trusted and can be resolved as described in the [network block] documentation.
+
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
+
+- `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the PID namespace with the host. Note that this also requires the Nomad agent
+  to be configured to allow privileged containers.
+  See below for more details.
+
+- `ports` - (Optional) A list of port labels to map into the container (see below).
+
+- `port_map` - (Optional) _Deprecated_ A key-value map of port labels (see below).
+
+- `security_opt` - (Optional) A list of string flags to pass directly to
+  [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
+  For example:
+
+  ```hcl
+  config {
+    security_opt = [
+      "credentialspec=file://gmsaUser.json",
+    ]
+  }
+  ```
+
+- `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
+
+- `storage_opt` - (Optional) A key-value map of storage options set to the containers on start.
+  This overrides the [host dockerd configuration](https://docs.docker.com/engine/reference/commandline/dockerd/#options-per-storage-driver).
+  For example:
+
+  ```hcl
+  config {
+    storage_opt = {
+      size = "40G"
+    }
+  }
+  ```
+
+- `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
+  container.
+
+- `uts_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the UTS namespace with the host. Note that this also requires the Nomad agent
+  to be configured to allow privileged containers.
+
+- `userns_mode` - (Optional) `host` or not set (default). Set to `host` to use
+  the host's user namespace (effectively disabling user namespacing) when user
+  namespace remapping is enabled on the docker daemon. This field has no
+  effect if the docker daemon does not have user namespace remapping enabled.
+
+- `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+  host paths to container paths. Mounting host paths outside of the [allocation
+  working directory] is prevented by default and limits volumes to directories
+  that exist inside the allocation working directory. You can allow mounting
+  host paths outside of the [allocation working directory] on individual clients
+  by setting the `docker.volumes.enabled` option to `true` in the
+  [client's configuration](/nomad/docs/deploy/task-driver/docker#client-requirements). We recommend using
+  [`mount`](#mount) if you wish to have more control over volume definitions.
+
+  ```hcl
+  config {
+    volumes = [
+      # Use absolute paths to mount arbitrary paths on the host
+      "/path/on/host:/path/in/container",
+
+      # Use relative paths to rebind paths already in the allocation dir
+      "relative/to/task:/also/in/container"
+    ]
+  }
+  ```
+
+- `volume_driver` - (Optional) The name of the volume driver used to mount
+  volumes. Must be used along with `volumes`. If `volume_driver` is omitted,
+  then relative paths will be mounted from inside the allocation dir. If a
+  `"local"` or other driver is used, then they may be named volumes instead.
+  If `docker.volumes.enabled` is false then volume drivers and paths outside the
+  allocation directory are disallowed.
+
+  ```hcl
+  config {
+    volumes = [
+      # Use named volume created outside nomad.
+      "name-of-the-volume:/path/in/container"
+    ]
+    # Name of the Docker Volume Driver used by the container
+    volume_driver = "pxd"
+  }
+  ```
+
+- `work_dir` - (Optional) The working directory inside the container.
+
+- `mount` - _Since 1.0.1_ (Optional) Specify a
+  [mount](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
+  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported. May be specified multiple times.
+
+  ```hcl
+  config {
+    # sample volume mount
+    mount {
+      type = "volume"
+      target = "/path/in/container"
+      source = "name-of-volume"
+      readonly = false
+      volume_options {
+        no_copy = false
+        labels {
+          foo = "bar"
+        }
+        driver_config {
+          name = "pxd"
+          options {
+            foo = "bar"
+          }
+        }
+      }
+    }
+
+    # sample bind mount
+    mount {
+      type = "bind"
+      target = "/path/in/container"
+      source = "/path/in/host"
+      readonly = false
+      bind_options {
+        propagation = "rshared"
+      }
+    }
+
+    # sample tmpfs mount
+    mount {
+      type = "tmpfs"
+      target = "/path/in/container"
+      readonly = false
+      tmpfs_options {
+        size = 100000 # size in bytes
+      }
+    }
+  }
+  ```
+
+- `mounts` - (_deprecated_: Replaced by `mount` in 1.0.1) (Optional) A list of
+  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
+  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
+
+  ```hcl
+  config {
+    mounts = [
+      # sample volume mount
+      {
+        type = "volume"
+        target = "/path/in/container"
+        source = "name-of-volume"
+        readonly = false
+        volume_options = {
+          no_copy = false
+          labels = {
+            foo = "bar"
+          }
+          driver_config = {
+            name = "pxd"
+            options = {
+              foo = "bar"
+            }
+          }
+        }
+      },
+      # sample bind mount
+      {
+        type = "bind"
+        target = "/path/in/container"
+        source = "/path/in/host"
+        readonly = false
+        bind_options = {
+          propagation = "rshared"
+        }
+      },
+      # sample tmpfs mount
+      {
+        type = "tmpfs"
+        target = "/path/in/container"
+        readonly = false
+        tmpfs_options = {
+          size = 100000 # size in bytes
+        }
+      }
+    ]
+  }
+  ```
+
+- `devices` - (Optional) A list of
+  [devices](https://docs.docker.com/engine/reference/commandline/run/#add-host-device-to-container-device)
+  to be exposed the container. `host_path` is the only required field. By default, the container will be able to
+  `read`, `write` and `mknod` these devices. Use the optional `cgroup_permissions` field to restrict permissions.
+
+  ```hcl
+  config {
+    devices = [
+      {
+        host_path = "/dev/sda1"
+        container_path = "/dev/xvdc"
+        cgroup_permissions = "r"
+      },
+      {
+        host_path = "/dev/sda2"
+        container_path = "/dev/xvdd"
+      }
+    ]
+  }
+  ```
+
+- `cap_add` - (Optional) A list of Linux capabilities as strings to pass
+  directly to [`--cap-add`][]. Effective capabilities (computed from `cap_add`
+  and `cap_drop`) must be a subset of the allowed capabilities configured with
+  the [`allow_caps`][allow_caps] plugin option key in the client node's
+  configuration. Note that `"all"` is not permitted here if the `allow_caps`
+  field in the driver configuration doesn't also allow all capabilities. For
+  example:
+
+```hcl
+config {
+  cap_add = ["net_raw", "sys_time"]
+}
+```
+
+- `cap_drop` - (Optional) A list of Linux capabilities as strings to pass
+  directly to [`--cap-drop`][]. Effective capabilities (computed from `cap_add`
+  and `cap_drop`) must be a subset of the allowed capabilities configured with
+  the [`allow_caps`][allow_caps] plugin option key in the client node's
+  configuration. For example:
+
+```hcl
+config {
+  cap_drop = ["mknod"]
+}
+```
+
+- `cpu_hard_limit` - (Optional) `true` or `false` (default). Use hard CPU
+  limiting instead of soft limiting. By default this is `false` which means
+  soft limiting is used and containers are able to burst above their CPU limit
+  when there is idle capacity.
+
+- `cpu_cfs_period` - (Optional) An integer value that specifies the duration in microseconds of the period
+  during which the CPU usage quota is measured. The default is 100000 (0.1 second) and the maximum allowed
+  value is 1000000 (1 second). See [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu#sect-cfs)
+  for more details.
+
+- `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
+  IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
+  See [IPv6 Docker containers](/nomad/docs/job-specification/service#ipv6-docker-containers) for details.
+
+- `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
+  the container's filesystem as read only.
+
+- `runtime` - (Optional) A string representing a configured runtime to pass to docker.
+  This is equivalent to the `--runtime` argument in the docker CLI
+  For example, to use gVisor:
+
+  ```hcl
+  config {
+    # gVisor runtime is runsc
+    runtime = "runsc"
+  }
+  ```
+
+- `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
+
+Additionally, the docker driver supports customization of the container's user through the task's [`user` option](/nomad/docs/job-specification/task#user).
+
+### Container Name
+
+Nomad creates a container after pulling an image. Containers are named
+`{taskName}-{allocId}`. This is necessary in order to place more than one
+container from the same task on a host (e.g. with count > 1). This also means
+that each container's name is unique across the cluster.
+
+This is not configurable.
+
+### Authentication
+
+If you want to pull from a private repo (for example on dockerhub or quay.io),
+you will need to specify credentials in your job via:
+
+- the `auth` option in the task config.
+
+- by storing explicit repository credentials or by specifying Docker
+  `credHelpers` in a file and setting the auth [config](/nomad/docs/deploy/task-driver/docker#config)
+  value on the client in the plugin options.
+
+- by specifying an auth [helper](/nomad/docs/deploy/task-driver/docker#helper) on the client in the
+  plugin options.
+
+The `auth` object supports the following keys:
+
+- `username` - (Optional) The account username.
+
+- `password` - (Optional) The account password.
+
+- `email` - (Optional) The account email.
+
+- `server_address` - (Optional) The server domain/IP without the protocol.
+  Docker Hub is used by default.
+
+Example task-config:
+
+```hcl
+task "example" {
+  driver = "docker"
+
+  config {
+    image = "secret/service"
+
+    auth {
+      username = "dockerhub_user"
+      password = "dockerhub_password"
+    }
+  }
+}
+```
+
+Example docker-config, using two helper scripts in `$PATH`,
+"docker-credential-ecr-login" and "docker-credential-vault":
+
+```json
+{
+  "auths": {
+    "internal.repo": {
+      "auth": "`echo -n '<username>:<password>' | base64 -w0`"
+    }
+  },
+  "credHelpers": {
+    "<XYZ>.dkr.ecr.<region>.amazonaws.com": "ecr-login"
+  },
+  "credsStore": "secretservice"
+}
+```
+
+Example agent configuration, using a helper script
+"docker-credential-ecr-login" in `$PATH`
+
+```hcl
+client {
+  enabled = true
+}
+
+plugin "docker" {
+  config {
+    auth {
+      # Nomad will prepend "docker-credential-" to the helper value and call
+      # that script name.
+      helper = "ecr-login"
+    }
+  }
+}
+```
+
+!> **Be Careful!** At this time these credentials are stored in Nomad in plain
+text. Secrets management will be added in a later release.
+
+## Insecure Registries
+
+In order to pull images from a registry without TLS, you must configure the
+Docker daemon's `insecure-registries` flag. No additional Nomad client
+configuration is required. You should only allow insecure registries for
+registries running locally on the client or when the communication to the
+registry is otherwise encrypted. List the `insecure-registries` flag in the
+`dockerd` [configuration file](https://docs.docker.com/config/daemon/).
+
+```json
+{
+  "insecure-registries": ["example.local:5000"]
+}
+```
+
+## Networking
+
+Docker supports a variety of networking configurations, including using host
+interfaces, SDNs, etc. Nomad uses `bridged` networking by default, like Docker.
+
+You can specify other networking options, including custom networking plugins
+in Docker 1.9. **You may need to perform additional configuration on the host
+in order to make these work.** This additional configuration is outside the
+scope of Nomad.
+
+### Allocating Ports
+
+You can allocate ports to your task using the port syntax described on the
+[networking page](/nomad/docs/job-specification/network). Here is a recap:
+
+```hcl
+group {
+  network {
+    port "http" {}
+    port "https" {}
+  }
+  task "example" {
+    driver = "docker"
+    config {
+      ports = ["http", "https"]
+    }
+  }
+}
+```
+
+### Forwarding and Exposing Ports
+
+A Docker container typically specifies which port a service will listen on by
+specifying the `EXPOSE` directive in the `Dockerfile`.
+
+Because dynamic ports will not match the ports exposed in your Dockerfile,
+Nomad will automatically expose any ports specified in the `ports` field.
+
+These ports will be identified via environment variables. For example:
+
+```hcl
+group {
+  network {
+    port "http" {}
+  }
+  task "api" {
+    driver = "docker"
+    config {
+      ports = ["http"]
+    }
+  }
+}
+```
+
+If Nomad allocates port `23332` to your api task for `http`, `23332` will be
+automatically exposed and forwarded to your container, and the driver will set
+an environment variable `NOMAD_PORT_http` with the value `23332` that you can
+read inside your container.
+
+This provides an easy way to use the `host` networking option for better
+performance.
+
+### Using the Port Map
+
+If you prefer to use the traditional port-mapping method, you can specify the
+the `to` field in the port configuration. It looks like this:
+
+```hcl
+group "example" {
+  network {
+    port "redis" { to = 6379 }
+  }
+  task "example" {
+    driver = "docker"
+
+    config {
+      image = "redis"
+      ports = ["redis"]
+    }
+  }
+}
+```
+
+If Nomad allocates port `23332` to your allocation, the Docker driver will
+automatically setup the port mapping from `23332` on the host to `6379` in your
+container, so it will just work.
+
+Note that by default this only works with `bridged` networking mode. It may
+also work with custom networking plugins which implement the same API for
+expose and port forwarding.
+
+#### Deprecated `port_map` Syntax
+
+Up until Nomad 0.12, ports could be specified in a task's resource block and set using the docker
+`port_map` field. As more features have been added to the group network resource allocation, task based
+network resources are deprecated. With it the `port_map` field is also deprecated and can only be used
+with task network resources.
+
+Users should migrate their jobs to define ports in the group network block and specified which ports
+a task maps with the `ports` field.
+
+### Advertising Container IPs
+
+When using network plugins like `weave` that assign containers a routable IP
+address, that address will automatically be used in any `service`
+advertisements for the task. You may override what address is advertised by
+using the `address_mode` parameter on a `service`. See
+[service](/nomad/docs/job-specification/service) for details.
+
+### Networking Protocols
+
+The Docker driver configures ports on both the `tcp` and `udp` protocols.
+
+This is not configurable.
+
+### Other Networking Modes
+
+Some networking modes like `container` or `none` will require coordination
+outside of Nomad. First-class support for these options may be improved later
+through Nomad plugins or dynamic job configuration.
+
+
+[faq-win-mac]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
+[winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
+[plugin-options]: #plugin-options
+[plugin-block]: /nomad/docs/configuration/plugin
+[allocation working directory]: /nomad/docs/reference/runtime-environment-settings#task-directories 'Task Directories'
+[`auth_soft_fail=true`]: #auth_soft_fail
+[cap_add]: /nomad/docs/deploy/task-driver/docker#cap_add
+[cap_drop]: /nomad/docs/deploy/task-driver/docker#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
+[tini]: https://github.com/krallin/tini
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[allow_caps]: /nomad/docs/deploy/task-driver/docker#allow_caps
+[Connect]: /nomad/docs/job-specification/connect
+[`bridge`]: /nomad/docs/job-specification/network#bridge
+[network block]: /nomad/docs/job-specification/network#bridge-mode
+[`network.mode`]: /nomad/docs/job-specification/network#mode
+[`pids_limit`]: /nomad/docs/deploy/task-driver/docker#pids_limit
+[Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
+[cores]: /nomad/docs/job-specification/resources#cores
+[runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables
+[`--cap-add`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`--cap-drop`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cores]: /nomad/docs/job-specification/resources#cores

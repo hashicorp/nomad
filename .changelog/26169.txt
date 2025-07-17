@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Debug-level logs emitted by the scheduler are now single-line structured logs
+```

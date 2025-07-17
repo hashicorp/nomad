@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: 'nomad operator autopilot get-config command reference'
+description: |
+  The `nomad operator autopilot get-config` command displays the current Autopilot configuration.
+---
+
+# `nomad operator autopilot get-config` command reference
+
+The Autopilot operator command is used to view the current Autopilot
+settings, which you configure in the [`autopilot` block of the Agent configuration][autopilot-config].
+
+Refer to the [Autopilot Guide][autopilot-guide] for more information about
+Autopilot.
+
+## Usage
+
+```plaintext
+nomad operator autopilot get-config [options]
+```
+
+If ACLs are enabled, this command requires a token with the `operator:read`
+capability.
+
+## Example
+
+This example returns the configuration information.
+
+```shell-session
+$ nomad operator autopilot get-config
+
+CleanupDeadServers = true
+LastContactThreshold = 200ms
+MaxTrailingLogs = 250
+ServerStabilizationTime = 10s
+RedundancyZoneTag = ""
+DisableUpgradeMigration = false
+UpgradeMigrationTag = ""
+```
+
+Refer to the [`autopilot` block of the Agent
+configuration][autopilot-config] for explanations of the
+returned configuration settings.
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
+
+[autopilot-guide]: /nomad/docs/manage/autopilot
+[autopilot-config]: /nomad/docs/configuration/autopilot

@@ -1,0 +1,124 @@
+---
+layout: docs
+page_title: 'nomad eval status command reference'
+description: >
+  The `nomad eval status` command displays the status and potential failed
+  allocations of an evaluation. Use with the `monitor` flag to start an interactive monitoring session.
+---
+
+# `nomad eval status` command reference
+
+The `eval status` command is used to display information about an existing
+evaluation. In the case an evaluation could not place all the requested
+allocations, this command can be used to determine the failure reasons.
+
+Optionally, it can also be invoked in a monitor mode to track an outstanding
+evaluation. In this mode, logs will be output describing state changes to the
+evaluation or its associated allocations. The monitor will exit when the
+evaluation reaches a terminal state.
+
+## Usage
+
+```plaintext
+nomad eval status [options] <evaluation>
+```
+
+An evaluation ID or prefix must be provided. If there is an exact match, the
+the status will be shown. Otherwise, a list of matching evaluations and
+information will be displayed.
+
+If the `-monitor` flag is passed, an interactive monitoring session will be
+started in the terminal. It is safe to exit the monitor at any time using
+ctrl+c. The command will exit when the given evaluation reaches a terminal
+state (completed or failed). Exit code 0 is returned on successful
+evaluation, and if there are no scheduling problems. If there are
+job placement issues encountered (unsatisfiable constraints,
+resource exhaustion, etc), then the exit code will be 2. Any other
+errors, including client connection issues or internal errors, are
+indicated by exit code 1.
+
+## Options
+
+- `-monitor`: Monitor an outstanding evaluation
+- `-verbose`: Show full-length IDs, exact timestamps, and all reconciler
+  annotation fields.
+- `-json`: Output the evaluation in its JSON format. This format will not
+    include placed allocations.
+- `-t` : Format and display evaluation using a Go template. This format will not
+  include placed allocations.
+- `-ui`: Open the evaluation in the browser.
+
+## Examples
+
+Show the status of an evaluation with related evaluations, successful
+placements, scheduler annotations, failed placements, and preemptions.
+
+The plan annotations table shows the output of the scheduler's reconciliation
+stage, which produces a desired set of changes that later stages of the
+scheduler attempt. The [`update.max_parallel`][] field or placement failures may
+result in a difference between these numbers and the updates made to the
+job. This table will always include the count for allocations to ignore, place,
+stop, inplace update, and destructively update. It may also include the count of
+canary allocations or allocations that were rescheduled, migrated, preemptted,
+reconnected, or disconnected. Any of these counts may overlap so that, for
+example, an allocation can be both migrated and stopped.
+
+```shell-session
+$ nomad eval status 8f6af533
+ID                 = 8f6af533
+Create Time        = 11s ago
+Modify Time        = 10s ago
+Status             = complete
+Status Description = complete
+Type               = service
+TriggeredBy        = job-register
+Job ID             = example
+Namespace          = default
+Priority           = 50
+Placement Failures = true
+Previous Eval      = c324b46f
+Next Eval          = <none>
+Blocked Eval       = 2b83d3af
+
+Related Evaluations
+ID        Priority  Triggered By   Node ID  Status   Description
+fd6f3091  50        queued-allocs  <none>   pending  <none>
+
+Plan Annotations
+Task Group  Ignore  Place  Stop  InPlace  Destructive  Migrate  Canary  Preemptions
+group       0       3      0     0        0            0        0       1
+
+Preempted Allocations
+ID        Job ID    Node ID   Task Group  Version  Desired  Status   Created   Modified
+116e9046  example1  24c15262  group       0        run      running  1m9s ago  2s ago
+
+Placed Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+b7e298fa  24c15262  web         2        run      running  10s ago  2s ago
+108841a9  41f70903  web         2        run      pending  3s ago   1s ago
+4869a26d  d372b337  web         2        run      pending  4s ago   0s ago
+
+Failed Placements
+Task Group "web" (failed to place 1 allocation):
+  * Constraint "${attr.kernel.name} = linux": 2 nodes excluded by filter
+  * Resources exhausted on 2 nodes
+  * Dimension "memory" exhausted on 2 nodes
+
+Evaluation "2b83d3af" waiting for additional capacity to place remainder
+```
+
+Monitor an existing evaluation
+
+```shell-session
+$ nomad eval status -monitor 8262bc83
+==> Monitoring evaluation "8262bc83"
+    Allocation "bd6bd0de" created: node "6f299da5", group "group1"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "8262bc83" finished with status "complete"
+```
+
+## General options
+
+@include 'general_options.mdx'
+
+[`update.max_parallel`]: /nomad/docs/job-specification/update#max_parallel

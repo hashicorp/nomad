@@ -497,6 +497,10 @@ for deleting the volume as comma-separated key-value pairs (see the
 example below). These secrets will be merged with any secrets already
 stored when the CSI volume was created.
 
+The volume must still be registered with Nomad in order to be deleted. This API
+call fails if an allocation still claims the volume or if Nomad is unpublishing
+the volume.
+
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
@@ -1219,6 +1223,6 @@ $ curl \
 [required ACLs]: /nomad/api-docs#acls
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
-[csi_plugins_internals]: /nomad/docs/concepts/plugins/storage/csi
+[csi_plugins_internals]: /nomad/docs/architecture/storage/csi
 [Create CSI Volume]: #create-csi-volume
 [Volume Expansion]: /nomad/docs/other-specifications/volume/csi#volume-expansion

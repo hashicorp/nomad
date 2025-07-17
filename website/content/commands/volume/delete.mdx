@@ -1,0 +1,55 @@
+---
+layout: docs
+page_title: 'nomad volume delete command reference'
+description: |
+  The `nomad volume delete` command deletes Container Storage Interface (CSI) and dynamic host storage volumes.
+---
+
+# `nomad volume delete` command reference
+
+The `volume delete` command deletes storage volumes that are either [Container
+Storage Interface (CSI)][csi] volumes or dynamic host volumes.
+
+For CSI volumes, only CSI plugins that implement the
+[Controller][csi_plugins_internals] interface support this command. The volume
+is [deregistered][] when it is successfully deleted.
+
+For dynamic host volumes, only volumes with plugins are deleted. Volumes without
+plugins are deregistered without deleting them.
+
+## Usage
+
+```plaintext
+nomad volume delete [options] [volume]
+```
+
+The `volume delete` command requires a single argument, specifying the ID of
+volume to be deleted. The volume must still be [registered][] with Nomad in
+order to be deleted. Deleting fails if the volume is still in use by an
+allocation or in the process of being unpublished.
+
+When ACLs are enabled, this command requires a token with the appropriate
+capability in the volume's namespace: the `csi-write-volume` capability for CSI
+volumes or `host-volume-delete` for dynamic host volumes.
+
+## Options
+
+- `-force`: Delete the volume from the Nomad state store if the node has been
+  garbage collected. You should only use `-force` if the node will never rejoin
+  the cluster. Only available for dynamic host volumes.
+
+- `-secret`: Secrets to pass to the plugin to delete the snapshot. Accepts
+  multiple flags in the form `-secret key=value`. Only available for CSI
+  volumes.
+
+- `-type`: Type of volume to delete. Must be one of "csi" or "host". Defaults to
+  "csi".
+
+## General options
+
+@include 'general_options.mdx'
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugins_internals]: /nomad/docs/architecture/storage/csi
+[deregistered]: /nomad/commands/volume/deregister
+[registered]: /nomad/commands/volume/register

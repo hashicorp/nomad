@@ -820,6 +820,7 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 				Stop:              1,
 				InPlaceUpdate:     1,
 				DestructiveUpdate: 1,
+				RescheduleLater:   1,
 			},
 		},
 	})
@@ -1829,10 +1830,11 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:         0,
-				InPlaceUpdate: 0,
-				Ignore:        4,
-				Stop:          0,
+				Place:           0,
+				InPlaceUpdate:   0,
+				Ignore:          4,
+				Stop:            0,
+				RescheduleLater: 1,
 			},
 		},
 	})
@@ -1925,10 +1927,11 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:         0,
-				InPlaceUpdate: 0,
-				Ignore:        10,
-				Stop:          0,
+				Place:           0,
+				InPlaceUpdate:   0,
+				Ignore:          10,
+				Stop:            0,
+				RescheduleLater: 7,
 			},
 		},
 	})
@@ -2115,10 +2118,11 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:         1,
-				InPlaceUpdate: 0,
-				Ignore:        4,
-				Stop:          0,
+				Place:           1,
+				InPlaceUpdate:   0,
+				Ignore:          4,
+				Stop:            0,
+				RescheduleLater: 1,
 			},
 		},
 	})
@@ -4048,7 +4052,7 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 
 	// Create 3 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4087,18 +4091,18 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  newD,
 		deploymentUpdates: nil,
-		place:             7,
+		place:             3,
 		inplace:           0,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Canary: 7,
 				Ignore: 3,
+				Place:  3,
 			},
 		},
 	})
-
-	assertNamesHaveIndexes(t, intRange(0, 2, 3, 6), placeResultsToNames(r.Place))
+	assertNamesHaveIndexes(t, []int{0, 1, 2}, placeResultsToNames(r.Place))
 }
 
 // Tests the reconciler creates new canaries when the job changes for multiple
@@ -6022,7 +6026,8 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				reconnectUpdates: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Ignore: 2,
+						Ignore:    2,
+						Reconnect: 2,
 					},
 				},
 			},
@@ -6041,8 +6046,9 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				reconnectUpdates: 1,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Stop:   1,
-						Ignore: 3,
+						Stop:      1,
+						Ignore:    3,
+						Reconnect: 1,
 					},
 				},
 			},
@@ -6223,8 +6229,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				disconnectUpdates: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Place:  2,
-						Ignore: 3,
+						Place:         2,
+						Ignore:        3,
+						Disconnect:    2,
+						RescheduleNow: 2,
 					},
 				},
 			},
@@ -6519,6 +6527,8 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 				Stop:          0,
 				Ignore:        1,
 				InPlaceUpdate: 0,
+				Disconnect:    2,
+				RescheduleNow: 2,
 			},
 		},
 	})
@@ -6668,9 +6678,11 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 				reconnectUpdates:  0,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					updatedJob.TaskGroups[0].Name: {
-						Place:  3,
-						Canary: 0,
-						Ignore: 6,
+						Place:         3,
+						Canary:        0,
+						Ignore:        6,
+						Disconnect:    3,
+						RescheduleNow: 3,
 					},
 				},
 			},
@@ -6732,9 +6744,11 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 				reconnectUpdates:  0,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					updatedJob.TaskGroups[0].Name: {
-						Place:  2,
-						Canary: 0,
-						Ignore: 7,
+						Place:         2,
+						Canary:        0,
+						Ignore:        7,
+						Disconnect:    2,
+						RescheduleNow: 2,
 					},
 				},
 			},
@@ -6805,7 +6819,9 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 						// the deployment can still progress. We don't include
 						// them in the stop count since DesiredTGUpdates is used
 						// to report deployment progress or final deployment state.
-						Stop: 0,
+						Stop:          0,
+						Disconnect:    2,
+						RescheduleNow: 2,
 					},
 				},
 			},

@@ -6,12 +6,14 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
 )
 
 type EvalStatusCommand struct {
@@ -36,13 +38,15 @@ Eval Status Options:
     Monitor an outstanding evaluation
 
   -verbose
-    Show full information.
+    Show full-length IDs, exact timestamps, and all plan annotation fields.
 
   -json
-    Output the evaluation in its JSON format.
+    Output the evaluation in its JSON format. This format will not include
+    placed allocations.
 
   -t
-    Format and display evaluation using a Go template.
+    Format and display evaluation using a Go template. This format will not
+    include placed allocations.
 
   -ui
     Open the evaluation in the browser.
@@ -69,10 +73,6 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
 		if err != nil {
 			return nil
 		}
@@ -120,12 +120,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	evalID := args[0]
 
-	// Truncate the id unless full length is requested
-	length := shortId
-	if verbose {
-		length = fullId
-	}
-
 	// Query the allocation info
 	if len(evalID) == 1 {
 		c.Ui.Error("Identifier must contain at least two characters.")
@@ -153,6 +147,12 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
 	// If we are in monitor mode, monitor and exit
 	if monitor {
 		mon := newMonitor(c.Ui, client, length)
@@ -177,6 +177,30 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Output(out)
 		return 0
 	}
+
+	placedAllocs, _, err := client.Evaluations().Allocations(eval.ID, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying related allocations: %s", err))
+		return 1
+	}
+
+	c.formatEvalStatus(eval, placedAllocs, verbose, length)
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "eval status",
+		PathParams: map[string]string{
+			"evalID": eval.ID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Warn(hint)
+	}
+
+	return 0
+}
+
+func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs []*api.AllocationListStub, verbose bool, length int) {
 
 	failureString, failures := evalFailureStatus(eval)
 	triggerNoun, triggerSubj := getTriggerDetails(eval)
@@ -220,15 +244,40 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		basic = append(basic,
 			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
 	}
-
-	if verbose {
-		// NextEval, PreviousEval, BlockedEval
+	if eval.QuotaLimitReached != "" {
 		basic = append(basic,
-			fmt.Sprintf("Previous Eval|%s", eval.PreviousEval),
-			fmt.Sprintf("Next Eval|%s", eval.NextEval),
-			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval))
+			fmt.Sprintf("Quota Limit Reached|%s", eval.QuotaLimitReached))
 	}
+	basic = append(basic,
+		fmt.Sprintf("Previous Eval|%s", limit(eval.PreviousEval, length)),
+		fmt.Sprintf("Next Eval|%s", limit(eval.NextEval, length)),
+		fmt.Sprintf("Blocked Eval|%s", limit(eval.BlockedEval, length)),
+	)
 	c.Ui.Output(formatKV(basic))
+
+	if len(eval.RelatedEvals) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
+		c.Ui.Output(formatRelatedEvalStubs(eval.RelatedEvals, length))
+	}
+	if eval.PlanAnnotations != nil {
+
+		if len(eval.PlanAnnotations.DesiredTGUpdates) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Plan Annotations[reset]"))
+			c.Ui.Output(formatPlanAnnotations(
+				eval.PlanAnnotations.DesiredTGUpdates, verbose))
+		}
+
+		if len(eval.PlanAnnotations.PreemptedAllocs) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Preempted Allocations[reset]"))
+			allocsOut := formatPreemptedAllocListStubs(eval.PlanAnnotations.PreemptedAllocs, length)
+			c.Ui.Output(allocsOut)
+		}
+	}
+	if len(placedAllocs) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Placed Allocations[reset]"))
+		allocsOut := formatAllocListStubs(placedAllocs, false, length)
+		c.Ui.Output(allocsOut)
+	}
 
 	if failures {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Failed Placements[reset]"))
@@ -240,29 +289,18 @@ func (c *EvalStatusCommand) Run(args []string) int {
 			if metrics.CoalescedFailures > 0 {
 				noun += "s"
 			}
-			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):",
+				tg, metrics.CoalescedFailures+1, noun))
 			c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
 			c.Ui.Output("")
 		}
 
 		if eval.BlockedEval != "" {
-			c.Ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
+			c.Ui.Output(fmt.Sprintf(
+				"Evaluation %q waiting for additional capacity to place remainder",
 				limit(eval.BlockedEval, length)))
 		}
 	}
-
-	hint, _ := c.Meta.showUIPath(UIHintContext{
-		Command: "eval status",
-		PathParams: map[string]string{
-			"evalID": eval.ID,
-		},
-		OpenURL: openURL,
-	})
-	if hint != "" {
-		c.Ui.Warn(hint)
-	}
-
-	return 0
 }
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
@@ -283,4 +321,104 @@ func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	default:
 		return "", ""
 	}
+}
+
+func formatRelatedEvalStubs(evals []*api.EvaluationStub, length int) string {
+	out := make([]string, len(evals)+1)
+	out[0] = "ID|Priority|Triggered By|Node ID|Status|Description"
+	for i, eval := range evals {
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+			limit(eval.ID, length),
+			eval.Priority,
+			eval.TriggeredBy,
+			limit(eval.NodeID, length),
+			eval.Status,
+			eval.StatusDescription,
+		)
+	}
+
+	return formatList(out)
+}
+
+// formatPreemptedAllocListStubs formats alloc stubs but assumes they don't all
+// belong to the same job, as is the case when allocs are preempted by another
+// job
+func formatPreemptedAllocListStubs(stubs []*api.AllocationListStub, uuidLength int) string {
+	allocs := make([]string, len(stubs)+1)
+	allocs[0] = "ID|Job ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+	for i, alloc := range stubs {
+		now := time.Now()
+		createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+		modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			limit(alloc.ID, uuidLength),
+			alloc.JobID,
+			limit(alloc.NodeID, uuidLength),
+			alloc.TaskGroup,
+			alloc.JobVersion,
+			alloc.DesiredStatus,
+			alloc.ClientStatus,
+			createTimePretty,
+			modTimePretty)
+	}
+	return formatList(allocs)
+}
+
+// formatPlanAnnotations produces a table with one row per task group where the
+// columns are all the changes (ignore, place, stop, etc.) plus all the non-zero
+// causes of those changes (migrate, canary, reschedule, etc)
+func formatPlanAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates, verbose bool) string {
+	annotations := make([]string, len(desiredTGUpdates)+1)
+
+	annotations[0] = "Task Group|Ignore|Place|Stop|InPlace|Destructive"
+	optCols := []string{
+		"Migrate", "Canary", "Preemptions",
+		"Reschedule Now", "Reschedule Later", "Disconnect", "Reconnect"}
+
+	byCol := make([][]uint64, len(optCols))
+	for i := range byCol {
+		for j := range len(desiredTGUpdates) + 1 {
+			byCol[i] = make([]uint64, j+1)
+		}
+	}
+
+	i := 1
+	for tg, updates := range desiredTGUpdates {
+		// we always show the first 5 columns
+		annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d",
+			tg,
+			updates.Ignore,
+			updates.Place,
+			updates.Stop,
+			updates.InPlaceUpdate,
+			updates.DestructiveUpdate,
+		)
+
+		// we record how many we have of the other columns so we can show them
+		// only if populated
+		byCol[0][i] = updates.Migrate
+		byCol[1][i] = updates.Canary
+		byCol[2][i] = updates.Preemptions
+		byCol[3][i] = updates.RescheduleNow
+		byCol[4][i] = updates.RescheduleLater
+		byCol[5][i] = updates.Disconnect
+		byCol[6][i] = updates.Reconnect
+		i++
+	}
+
+	// the remaining columns only show if they're populated or if we're in
+	// verbose mode
+	for i, col := range optCols {
+		for tgIdx := range len(desiredTGUpdates) + 1 {
+			byCol[i][0] += byCol[i][tgIdx]
+		}
+		if verbose || byCol[i][0] > 0 {
+			annotations[0] += "|" + col
+			for tgIdx := 1; tgIdx < len(desiredTGUpdates)+1; tgIdx++ {
+				annotations[tgIdx] += "|" + strconv.FormatUint(byCol[i][tgIdx], 10)
+			}
+		}
+	}
+
+	return columnize.SimpleFormat(annotations)
 }

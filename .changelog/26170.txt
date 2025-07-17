@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Added kind field to service block for Consul service registrations
+```

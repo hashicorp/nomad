@@ -1,0 +1,3 @@
+```release-note:bug
+client: Attempt to rollback directory creation when the `mkdir` plugin fails to perform ownership changes on it
+```

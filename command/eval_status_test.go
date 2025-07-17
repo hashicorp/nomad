@@ -6,9 +6,13 @@ package command
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
@@ -87,4 +91,151 @@ func TestEvalStatusCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	must.SliceLen(t, 1, res)
 	must.Eq(t, e.ID, res[0])
+}
+
+func TestEvalStatusCommand_Format(t *testing.T) {
+	now := time.Now().UTC()
+	ui := cli.NewMockUi()
+	cmd := &EvalStatusCommand{Meta: Meta{Ui: ui}}
+
+	eval := &api.Evaluation{
+		ID:                uuid.Generate(),
+		Priority:          50,
+		Type:              api.JobTypeService,
+		TriggeredBy:       structs.EvalTriggerAllocStop,
+		Namespace:         api.DefaultNamespace,
+		JobID:             "example",
+		JobModifyIndex:    0,
+		DeploymentID:      uuid.Generate(),
+		Status:            api.EvalStatusComplete,
+		StatusDescription: "complete",
+		NextEval:          "",
+		PreviousEval:      uuid.Generate(),
+		BlockedEval:       uuid.Generate(),
+		RelatedEvals: []*api.EvaluationStub{{
+			ID:                uuid.Generate(),
+			Priority:          50,
+			Type:              "service",
+			TriggeredBy:       "queued-allocs",
+			Namespace:         api.DefaultNamespace,
+			JobID:             "example",
+			DeploymentID:      "",
+			Status:            "pending",
+			StatusDescription: "",
+			WaitUntil:         time.Time{},
+			NextEval:          "",
+			PreviousEval:      uuid.Generate(),
+			BlockedEval:       "",
+			CreateIndex:       0,
+			ModifyIndex:       0,
+			CreateTime:        0,
+			ModifyTime:        0,
+		}},
+		FailedTGAllocs: map[string]*api.AllocationMetric{"web": {
+			NodesEvaluated:     6,
+			NodesFiltered:      4,
+			NodesInPool:        10,
+			NodesAvailable:     map[string]int{},
+			ClassFiltered:      map[string]int{},
+			ConstraintFiltered: map[string]int{"${attr.kernel.name} = linux": 2},
+			NodesExhausted:     2,
+			ClassExhausted:     map[string]int{},
+			DimensionExhausted: map[string]int{"memory": 2},
+			QuotaExhausted:     []string{},
+			ResourcesExhausted: map[string]*api.Resources{"web": {
+				Cores: pointer.Of(3),
+			}},
+			Scores:            map[string]float64{},
+			AllocationTime:    0,
+			CoalescedFailures: 0,
+			ScoreMetaData:     []*api.NodeScoreMeta{},
+		}},
+		PlanAnnotations: &api.PlanAnnotations{
+			DesiredTGUpdates: map[string]*api.DesiredUpdates{"web": {Place: 10}},
+			PreemptedAllocs: []*api.AllocationListStub{
+				{
+					ID:            uuid.Generate(),
+					JobID:         "another",
+					NodeID:        uuid.Generate(),
+					TaskGroup:     "db",
+					DesiredStatus: "evict",
+					JobVersion:    3,
+					ClientStatus:  "complete",
+					CreateTime:    now.Add(-10 * time.Minute).UnixNano(),
+					ModifyTime:    now.Add(-2 * time.Second).UnixNano(),
+				},
+			},
+		},
+		ClassEligibility:     map[string]bool{},
+		EscapedComputedClass: true,
+		QuotaLimitReached:    "",
+		QueuedAllocations:    map[string]int{},
+		SnapshotIndex:        1001,
+		CreateIndex:          999,
+		ModifyIndex:          1003,
+		CreateTime:           now.UnixNano(),
+		ModifyTime:           now.Add(time.Second).UnixNano(),
+	}
+
+	placed := []*api.AllocationListStub{
+		{
+			ID:            uuid.Generate(),
+			NodeID:        uuid.Generate(),
+			TaskGroup:     "web",
+			DesiredStatus: "run",
+			JobVersion:    2,
+			ClientStatus:  "running",
+			CreateTime:    now.Add(-10 * time.Second).UnixNano(),
+			ModifyTime:    now.Add(-2 * time.Second).UnixNano(),
+		},
+		{
+			ID:            uuid.Generate(),
+			NodeID:        uuid.Generate(),
+			TaskGroup:     "web",
+			JobVersion:    2,
+			DesiredStatus: "run",
+			ClientStatus:  "pending",
+			CreateTime:    now.Add(-3 * time.Second).UnixNano(),
+			ModifyTime:    now.Add(-1 * time.Second).UnixNano(),
+		},
+		{
+			ID:            uuid.Generate(),
+			NodeID:        uuid.Generate(),
+			TaskGroup:     "web",
+			JobVersion:    2,
+			DesiredStatus: "run",
+			ClientStatus:  "pending",
+			CreateTime:    now.Add(-4 * time.Second).UnixNano(),
+			ModifyTime:    now.UnixNano(),
+		},
+	}
+
+	cmd.formatEvalStatus(eval, placed, false, shortId)
+	out := ui.OutputWriter.String()
+
+	// there isn't much logic here, so this is just a smoke test
+	must.StrContains(t, out, `
+Failed Placements
+Task Group "web" (failed to place 1 allocation):
+  * Constraint "${attr.kernel.name} = linux": 2 nodes excluded by filter
+  * Resources exhausted on 2 nodes
+  * Dimension "memory" exhausted on 2 nodes`)
+
+	must.StrContains(t, out, `Related Evaluations`)
+	must.StrContains(t, out, `Placed Allocations`)
+	must.StrContains(t, out, `Plan Annotations`)
+	must.StrContains(t, out, `Preempted Allocations`)
+}
+
+func TestEvalStatus_FormatPlanAnnotations(t *testing.T) {
+
+	updates := map[string]*api.DesiredUpdates{
+		"foo": {Place: 1, Ignore: 2, Canary: 1},
+		"bar": {Place: 1, Stop: 3, Reconnect: 2},
+	}
+
+	out := formatPlanAnnotations(updates, false)
+	must.Eq(t, `Task Group  Ignore  Place  Stop  InPlace  Destructive  Canary  Reconnect
+foo         2       1      0     0        0            1       0
+bar         0       1      3     0        0            0       2`, out)
 }

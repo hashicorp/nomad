@@ -1,0 +1,148 @@
+---
+layout: docs
+page_title: Use the Isolated Fork/Exec task driver in a job
+description: Nomad's Isolated Fork/Exec task driver lets you run binaries using OS isolation primitives. Learn how to use the Isolated Fork/Exec task driver in your jobs. Configure the command to execute with command arguments, namespace isolation, and Linux capabilities.
+---
+
+# Use the Isolated Fork/Exec task driver in a job
+
+Name: `exec`
+
+The `exec` driver is used to execute a particular command for a task. However,
+unlike [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec) it uses the
+underlying isolation primitives of the operating system to limit the task's
+access to resources. While simple, since the `exec` driver can invoke any
+command, it can be used to call scripts or other wrappers which provide higher
+level features.
+
+Refer to [Configure the Isolated Fork/Exec task
+driver](/nomad/docs/deploy/task-driver/exec) for capabilities, client
+requirements, and plugin configuration.
+
+## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "exec"
+
+  config {
+    command = "my-binary"
+    args    = ["-flag", "1"]
+  }
+}
+```
+
+The `exec` driver supports the following configuration in the job spec:
+
+- `command` - The command to execute. Must be provided. If executing a binary
+  that exists on the host, the path must be absolute and within the task's
+  [chroot](/nomad/docs/deploy/task-driver/exec#chroot) or in a [host volume][] mounted with a
+  [`volume_mount`][volume_mount] block. The driver will make the binary
+  executable and will search, in order:
+
+  - The `local` directory with the task directory.
+  - The task directory.
+  - Any mounts, in the order listed in the job specification.
+  - The `usr/local/bin`, `usr/bin` and `bin` directories inside the task
+    directory.
+
+  If executing a binary that is downloaded
+  from an [`artifact`](/nomad/docs/job-specification/artifact), the path can be
+  relative from the allocation's root directory.
+
+- `args` - (Optional) A list of arguments to the `command`. References
+  to environment variables or any [interpretable Nomad
+  variables](/nomad/docs/reference/runtime-variable-interpolation) will be interpreted before
+  launching the task.
+
+- `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_pid_mode`][default_pid_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+be able to access sensitive process information like environment variables.
+
+- `ipc_mode` - (Optional) Set to `"private"` to enable IPC namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_ipc_mode`][default_ipc_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+able to make use of IPC features, like sending unexpected POSIX signals.
+
+- `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a
+  subset of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Note that `"all"` is not permitted here if the `allow_caps` field in the
+  driver configuration doesn't also allow all capabilities.
+
+```hcl
+config {
+  cap_add = ["net_raw", "sys_time"]
+}
+```
+
+- `cap_drop` - (Optional) A list of Linux capabilities to disable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
+  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+
+```hcl
+config {
+  cap_drop = ["all"]
+  cap_add  = ["chown", "sys_chroot", "mknod"]
+}
+```
+
+- `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
+  absolute and within the task's [chroot](/nomad/docs/deploy/task-driver/exec#chroot) or in a [host volume][] mounted
+  with a [`volume_mount`][volume_mount] block. This will also change the working
+  directory when using `nomad alloc exec`.
+
+## Examples
+
+To run a binary present on the Node:
+
+```hcl
+task "example" {
+  driver = "exec"
+
+  config {
+    # When running a binary that exists on the host, the path must be absolute.
+    command = "/bin/sleep"
+    args    = ["1"]
+  }
+}
+```
+
+To execute a binary downloaded from an
+[`artifact`](/nomad/docs/job-specification/artifact):
+
+```hcl
+task "example" {
+  driver = "exec"
+
+  config {
+    command = "name-of-my-binary"
+  }
+
+  artifact {
+    source = "https://internal.file.server/name-of-my-binary"
+    options {
+      checksum = "sha256:abd123445ds4555555555"
+    }
+  }
+}
+```
+
+
+[default_pid_mode]: /nomad/docs/deploy/task-driver/exec#default_pid_mode
+[default_ipc_mode]: /nomad/docs/deploy/task-driver/exec#default_ipc_mode
+[cap_add]: /nomad/docs/deploy/task-driver/exec#cap_add
+[cap_drop]: /nomad/docs/deploy/task-driver/exec#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps]: /nomad/docs/deploy/task-driver/exec#allow_caps
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[host volume]: /nomad/docs/configuration/client#host_volume-block
+[volume_mount]: /nomad/docs/job-specification/volume_mount
+[cores]: /nomad/docs/job-specification/resources#cores
+[runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables
+[cgroup controller requirements]: /nomad/docs/deploy/production/requirements#hardening-nomad

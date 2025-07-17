@@ -1,0 +1,69 @@
+---
+layout: docs
+page_title: Federation
+description: |-
+  Nomad federation enables multiple Nomad clusters in different regions to work together seamlessly. Learn about cross-region request forwarding, replication, and Nomad Enterprise's multi-region job deployments.
+---
+
+# Federation
+
+This page provides conceptual information about the Nomad federation feature.
+Learn about cross-region request forwarding, replication, and Nomad Enterprise's
+multi-region job deployments.
+
+Nomad federation is a multi-cluster orchestration and management feature that
+enables multiple Nomad clusters running in different regions to work together
+seamlessly. By federating clusters, you benefit from improved scalability, fault
+tolerance, and centralized management of workloads across various data centers
+or geographical locations.
+
+## Cross-Region request forwarding
+
+API calls can include a `region` query parameter that defines the Nomad region
+the query is specified for. If this is not the local region, Nomad transparently
+forwards the request to a server in the requested region. When you omit the
+query parameter, Nomad uses the region of the server that is processing the
+request.
+
+## Replication
+
+Nomad writes the following objects in the authoritative region and replicates
+them to all federated regions:
+
+- ACL [policies][acl_policy], [roles][acl_role], [auth methods][acl_auth_method],
+  [binding rules][acl_binding_rule], and [global tokens][acl_token]
+- [Namespaces][namespace]
+- [Node pools][node_pool]
+- [Quota specifications][quota]
+- [Sentinel policies][sentinel_policies]
+
+When creating, updating, or deleting these objects, Nomad always sends the
+request to the authoritative region using RPC forwarding.
+
+Nomad starts replication routines on each federated cluster's leader server in a
+hub and spoke design. The routines then use blocking queries to receive updates
+from the authoritative region to mirror in their own state store. These routines
+also implement rate limiting, so that busy clusters do not degrade due to overly
+aggressive replication processes.
+
+<Note> Nomad writes ACL local tokens in the region where you make the request
+and  does not replicate those local tokens. </Note>
+
+## Multi-Region job deployments <EnterpriseAlert inline />
+
+Nomad job deployments can use the [`multiregion`][] block when running in
+federated mode. Multiregion configuration instructs Nomad to register and run
+the job on all the specified regions, removing the need for multiple job
+specification copies and registration on each region. Multiregion jobs do not
+provide regional failover in the event of failure.
+
+[acl_policy]: /nomad/docs/secure/acl/#policies
+[acl_role]: /nomad/docs/secure/acl/#roles
+[acl_auth_method]: /nomad/docs/secure/acl/#authentication-methods
+[acl_binding_rule]: /nomad/docs/secure/acl/#binding-rules
+[acl_token]: /nomad/docs/secure/acl/#tokens
+[node_pool]: /nomad/docs/architecture/cluster/node-pools
+[namespace]: /nomad/docs/other-specifications/namespace
+[quota]: /nomad/docs/other-specifications/quota
+[sentinel_policies]: /nomad/docs/reference/sentinel-policy
+[`multiregion`]: /nomad/docs/job-specification/multiregion

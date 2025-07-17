@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -2215,6 +2216,12 @@ func (n *Node) Canonicalize() {
 					}
 				}
 				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
+			}
+		}
+
+		if n.NodeResources.Processors.Empty() {
+			n.NodeResources.Processors = NodeProcessorResources{
+				Topology: &numalib.Topology{},
 			}
 		}
 	}
@@ -7064,9 +7071,9 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	if j.Type == JobTypeSystem {
+	if j.Type == JobTypeSystem || j.Type == JobTypeSysBatch {
 		if tg.ReschedulePolicy != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("System jobs should not have a reschedule policy"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System or sysbatch jobs should not have a reschedule policy"))
 		}
 	} else {
 		if tg.ReschedulePolicy != nil {
@@ -9913,6 +9920,11 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// DiffID fulfills the DiffableWithID interface.
+func (c *Constraint) DiffID() string {
+	return c.String()
+}
+
 type Constraints []*Constraint
 
 // Equal compares Constraints as a set
@@ -10027,6 +10039,11 @@ func (a *Affinity) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (a *Affinity) DiffID() string {
+	return a.String()
 }
 
 // Spread is used to specify desired distribution of allocations according to weight
@@ -11825,6 +11842,9 @@ type AllocMetric struct {
 	// NodesInPool is the number of nodes in the node pool used by the job.
 	NodesInPool int
 
+	// NodePool is the node pool the node belongs to.
+	NodePool string
+
 	// NodesAvailable is the number of nodes available for evaluation per DC.
 	NodesAvailable map[string]int
 
@@ -12376,6 +12396,9 @@ type Evaluation struct {
 	// made, but the metrics are persisted so that the user can use the feedback
 	// to determine the cause.
 	FailedTGAllocs map[string]*AllocMetric
+
+	// PlanAnnotations represents the output of the reconciliation step.
+	PlanAnnotations *PlanAnnotations
 
 	// ClassEligibility tracks computed node classes that have been explicitly
 	// marked as eligible or ineligible.
@@ -13023,11 +13046,15 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 func (d *DesiredUpdates) GoString() string {
-	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
-		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d) (reschedule now %d) (reschedule later %d) (disconnect %d) (reconnect %d)",
+		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary, d.RescheduleNow, d.RescheduleLater, d.Disconnect, d.Reconnect)
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

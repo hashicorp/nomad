@@ -1,0 +1,115 @@
+---
+layout: docs
+page_title: 'nomad volume register command reference'
+description: |
+  The `nomad volume register` command registers existing Container Storage Interface (CSI) and dynamic host storage volumes.
+---
+
+# `nomad volume register` command reference
+
+The `volume register` command registers storage volumes as either [Container
+Storage Interface (CSI)][csi] volumes or dynamic host volumes. The volume must
+already exist on a node or remote storage provider before you can register
+the volume for use in job task.
+
+To instead create a volume that does not already exist, use the [`volume
+create`][] command. The `volume create` command automatically registers the
+volume as well.
+
+## Usage
+
+```plaintext
+nomad volume register [options] [file]
+```
+
+The `volume register` command requires a single argument, specifying the path to
+a file containing a valid [volume specification][volume_specification]. Nomad
+reads the file and submits the volume to the server for placement. If the
+supplied path is "-", Nomad reads the volume file from STDIN. Otherwise Nomad
+reads the file from the supplied path.
+
+When ACLs are enabled, this command requires a token with the appropriate
+capability in the volume's namespace: the `csi-write-volume` capability for CSI
+volumes or `host-volume-register` for dynamic host volumes.
+
+## Options
+
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies. Used for dynamic host volumes only. Not valid for CSI
+  volumes.
+
+## Volume specification
+
+Refer to the [CSI Volume Specification][csi_vol_spec] and the [Dynamic Host
+Volume Specification][host_vol_spec] for further information.
+
+The `volume register` command allows updating a volume definition. However, you
+can only update some fields after the volume is registered.
+
+For CSI volumes:
+
+- Update the `capacity_min` and `capacity_max` fields and increase
+  the volume size if the CSI plugin supports it. Expansion may or may not be
+  possible while the volume is in use, again depending on the plugin.
+  Reducing volume capacity is not allowed per the CSI spec.
+- Add or remove the `capability` blocks, but only if the capability is
+  not currently in use by a mounted volume.
+- Update the `mount_options` block if the volume is not in use.
+- Update the `secrets` block.
+- Update the `context` block. The values for this field are typically provided
+  by the CSI plugin, and you should not update them unless recommended by the
+  CSI plugin's documentation.
+
+For dynamic host volumes:
+
+- Update the `capacity_min` and `capacity_max` fields. The fields are ignored
+  but must be consistent with the `capacity` value if set.
+- Update the `capacity` field to record that you've increased the size of the
+  volume. Reducing volume capacity is not allowed.
+- Update the `constraint` fields on `volume create`, but not after you create the volume.
+- Add or remove the `capability` blocks but only if a mounted volume is not
+  using currently using the capability.
+- Change the `node_pool` field only from empty to the node pool that matches the
+  `node_id` field.
+
+You cannot update the following:
+
+- The `name`, `type`, and `plugin_id` fields.
+- The `node_id` field.
+
+## General options
+
+@include 'general_options.mdx'
+
+<!--
+Redirection rules are applied server-side, so we can't redirect these sections
+that used to be located in this page since they use URL fragments. Creating
+these hidden anchors will at least point users to the new page, although not to
+the exact section.
+-->
+
+<span id="volume-specification-parameters" />
+<span id="id" />
+<span id="namespace-1" />
+<span id="name" />
+<span id="type" />
+<span id="external_id" />
+<span id="plugin_id" />
+<span id="capability" />
+<span id="access_mode" />
+<span id="attachment_mode" />
+<span id="mount_options" />
+<span id="fs_type" />
+<span id="mount_flags" />
+<span id="topology_request" />
+<span id="secrets" />
+<span id="parameters" />
+<span id="context" />
+<span id="topology_request-parameters" />
+<span id="segments" />
+<span id="unused-fields" />
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugins_internals]: /nomad/docs/architecture/storage/csi
+[volume_specification]: /nomad/docs/other-specifications/volume
+[`volume create`]: /nomad/commands/volume/create

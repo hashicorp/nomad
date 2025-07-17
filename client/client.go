@@ -1649,6 +1649,12 @@ func (c *Client) setupNode() error {
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
 		node.NodeResources.Processors = newConfig.Node.NodeResources.Processors
+
+		if node.NodeResources.Processors.Empty() {
+			node.NodeResources.Processors = structs.NodeProcessorResources{
+				Topology: &numalib.Topology{},
+			}
+		}
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -2227,7 +2233,7 @@ func (c *Client) updateNodeStatus() error {
 		c.triggerDiscovery()
 		return fmt.Errorf("failed to update status: %v", err)
 	}
-	end := time.Now()
+	endTime := time.Now()
 
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Debug("evaluations triggered by node update", "num_evals", len(resp.EvalIDs))
@@ -2238,7 +2244,7 @@ func (c *Client) updateNodeStatus() error {
 	last := c.lastHeartbeat()
 	oldTTL := c.heartbeatTTL
 	haveHeartbeated := c.haveHeartbeated
-	c.heartbeatStop.setLastOk(time.Now())
+	c.heartbeatStop.setLastOk(endTime)
 	c.heartbeatTTL = resp.HeartbeatTTL
 	c.haveHeartbeated = true
 	c.heartbeatLock.Unlock()
@@ -2260,7 +2266,7 @@ func (c *Client) updateNodeStatus() error {
 		// We have potentially missed our TTL log how delayed we were
 		if haveHeartbeated {
 			c.logger.Warn("missed heartbeat",
-				"req_latency", end.Sub(start), "heartbeat_ttl", oldTTL, "since_last_heartbeat", time.Since(last))
+				"req_latency", endTime.Sub(start), "heartbeat_ttl", oldTTL, "since_last_heartbeat", time.Since(last))
 		}
 	}
 

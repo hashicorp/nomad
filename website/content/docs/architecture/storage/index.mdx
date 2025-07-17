@@ -1,0 +1,32 @@
+---
+layout: docs
+page_title: Storage Plugins
+description: |-
+  Storage plugins help you schedule job tasks with dynamically managed storage volumes. Dynamic host volume plugins provision host volumes on client nodes. Container Storage Interface (CSI) plugins provision volumes in
+  third-party systems, such as AWS Elastic Block Storage (EBS) volumes, Google Cloud Platform (GCP) persistent disks, and Ceph.
+---
+
+# Storage Plugins
+
+Nomad has built-in support for scheduling compute resources such as
+CPU, memory, and networking. Nomad's storage plugin support extends
+this to allow scheduling tasks with dynamically managed storage volumes.
+
+Choose between two types of storage plugins:
+
+* [Dynamic host volume (DHV) plugins][dhv] provision host volumes on client
+  nodes, and jobs request placement on any node that has a particular host
+  volume by name.
+  * DHV brings allocations to volumes.
+  * Install DHV plugins on Nomad nodes, similar to task drivers. Creating a
+    host volume ties it to the node until the volume is deleted.
+* [Container Storage Interface (CSI) plugins][csi] provision volumes in
+  third-party systems, such as cloud vendors. Nomad calls on them to make
+  the volume available on any node that Nomad chooses to place an allocation.
+  * CSI brings volumes to allocations.
+  * Deploy CSI plugins as Nomad jobs, often two jobs per plugin. Nomad tracks
+    which clients have instances of a given plugin, so it can call on the
+    plugin to mount the volume.
+
+[dhv]: /nomad/docs/architecture/storage/host-volumes
+[csi]: /nomad/docs/architecture/storage/csi

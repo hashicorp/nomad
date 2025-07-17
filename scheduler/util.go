@@ -540,7 +540,9 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 // setStatus is used to update the status of the evaluation
 func setStatus(logger log.Logger, planner sstructs.Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
-	tgMetrics map[string]*structs.AllocMetric, status, desc string,
+	tgMetrics map[string]*structs.AllocMetric,
+	annotations *structs.PlanAnnotations,
+	status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
 
 	logger.Debug("setting eval status", "status", status)
@@ -558,6 +560,7 @@ func setStatus(logger log.Logger, planner sstructs.Planner,
 	if queuedAllocs != nil {
 		newEval.QueuedAllocations = queuedAllocs
 	}
+	newEval.PlanAnnotations = annotations
 
 	return planner.UpdateEval(newEval)
 }
@@ -697,17 +700,7 @@ func desiredUpdates(diff *reconciler.NodeReconcileResult, inplaceUpdates,
 	destructiveUpdates []reconciler.AllocTuple) map[string]*structs.DesiredUpdates {
 	desiredTgs := make(map[string]*structs.DesiredUpdates)
 
-	for _, tuple := range diff.Place {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.Place++
-	}
-
+	// diff.Stop may have a nil TaskGroup
 	for _, tuple := range diff.Stop {
 		name := tuple.Alloc.TaskGroup
 		des, ok := desiredTgs[name]
@@ -719,49 +712,26 @@ func desiredUpdates(diff *reconciler.NodeReconcileResult, inplaceUpdates,
 		des.Stop++
 	}
 
-	for _, tuple := range diff.Ignore {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
+	incUpdates := func(tuples []reconciler.AllocTuple, fn func(des *structs.DesiredUpdates)) {
+		for _, tuple := range tuples {
+			name := tuple.TaskGroup.Name
+			des, ok := desiredTgs[name]
+			if !ok {
+				des = &structs.DesiredUpdates{}
+				desiredTgs[name] = des
+			}
 
-		des.Ignore++
+			fn(des)
+		}
 	}
 
-	for _, tuple := range diff.Migrate {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.Migrate++
-	}
-
-	for _, tuple := range inplaceUpdates {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.InPlaceUpdate++
-	}
-
-	for _, tuple := range destructiveUpdates {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.DestructiveUpdate++
-	}
+	incUpdates(diff.Place, func(des *structs.DesiredUpdates) { des.Place++ })
+	incUpdates(diff.Ignore, func(des *structs.DesiredUpdates) { des.Ignore++ })
+	incUpdates(diff.Migrate, func(des *structs.DesiredUpdates) { des.Migrate++ })
+	incUpdates(inplaceUpdates, func(des *structs.DesiredUpdates) { des.InPlaceUpdate++ })
+	incUpdates(destructiveUpdates, func(des *structs.DesiredUpdates) { des.DestructiveUpdate++ })
+	incUpdates(diff.Disconnecting, func(des *structs.DesiredUpdates) { des.Disconnect++ })
+	incUpdates(diff.Reconnecting, func(des *structs.DesiredUpdates) { des.Reconnect++ })
 
 	return desiredTgs
 }

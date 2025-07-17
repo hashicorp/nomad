@@ -492,6 +492,10 @@ func TestService_Hash(t *testing.T) {
 		try(t, func(s *svc) { s.PortLabel = "newPortLabel" })
 	})
 
+	t.Run("mod kind", func(t *testing.T) {
+		try(t, func(s *svc) { s.Kind = "api-gateway" })
+	})
+
 	t.Run("mod tags", func(t *testing.T) {
 		try(t, func(s *svc) { s.Tags = []string{"new", "tags"} })
 	})
@@ -2039,6 +2043,25 @@ func TestService_Validate(t *testing.T) {
 			expErr:    true,
 			expErrStr: "notes must not be longer than 255 characters",
 		},
+		{
+			name: "provider consul with service kind",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "consul",
+				Kind:     "api-gateway",
+			},
+			expErr: false,
+		},
+		{
+			name: "provider consul with invalid service kind",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "consul",
+				Kind:     "garbage",
+			},
+			expErr:    true,
+			expErrStr: "Service testservice kind must be one of consul service kind or empty",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -2138,6 +2161,9 @@ func TestService_Equal(t *testing.T) {
 	assertDiff()
 
 	o.TaggedAddresses = map[string]string{"foo": "bar"}
+	assertDiff()
+
+	o.Kind = "api-gateway"
 	assertDiff()
 }
 

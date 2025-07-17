@@ -1,0 +1,133 @@
+---
+layout: docs
+page_title: Raw Fork/Exec task driver
+description: Nomad's Raw Exec task driver lets you execute commands with no resource isolation. Review the Isolated Fork/Exec task driver capabilities, plugin options, client requirements, and client attributes.
+---
+
+# Configure the Raw Fork/Exec task driver
+
+Name: `raw_exec`
+
+The `raw_exec` driver is used to execute a command for a task without any
+isolation. Further, the task is started as the same user as the Nomad process.
+As such, it should be used with extreme care and is disabled by default.
+
+## Capabilities
+
+The `raw_exec` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature              | Implementation |
+| -------------------- | -------------- |
+| `nomad alloc signal` | true           |
+| `nomad alloc exec`   | true           |
+| filesystem isolation | none           |
+| network isolation    | host, group    |
+| volume mounting      | none           |
+
+## Client Requirements
+
+The `raw_exec` driver can run on all supported operating systems. For security
+reasons, it is disabled by default. To enable raw exec, the Nomad client
+configuration must explicitly enable the `raw_exec` driver in the plugin's options:
+
+```
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+```
+
+Nomad versions before v0.9 use the following client configuration. This configuration is
+also supported in Nomad v0.9.0, but is deprecated in favor of the plugin block:
+
+```
+client {
+  options = {
+    "driver.raw_exec.enable" = "1"
+  }
+}
+```
+
+## Plugin Options
+
+- `enabled` - Specifies whether the driver should be enabled or disabled.
+  Defaults to `false`.
+
+- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting. This will not be checked on Windows
+  clients.
+
+```hcl
+config {
+  denied_host_uids = "0,10-15,22"
+}
+```
+
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host gids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting. This will not be checked on Windows clients.
+
+```hcl
+config {
+  denied_host_gids = "2,4-8"
+}
+```
+
+- `denied_envvars` - (Optional) Passes a list of environment variables that
+  the driver should scrub from all task environments. Supports globbing with "*"
+  wildcard accepted as prefix and/or suffix.
+
+```hcl
+config {
+  denied_envvars = ["AWS_SECRET_KEY", "*_TOKEN"]
+}
+```
+## Client Options
+
+~> Note: client configuration options will soon be deprecated. Please use
+[plugin options][plugin-options] instead. See the [plugin block][plugin-block] documentation for more information.
+
+- `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
+  disabled. Defaults to `false`.
+
+## Client Attributes
+
+The `raw_exec` driver will set the following client attributes:
+
+- `driver.raw_exec` - This will be set to "1", indicating the driver is available.
+
+## Resource Isolation
+
+The `raw_exec` driver provides no filesystem isolation.
+
+If the launched process creates a new process group, it is possible that
+Nomad will leak processes on shutdown unless the application forwards signals
+properly. Nomad will not leak any processes if cgroups are being used to
+manage the process tree. Cgroups are used on Linux when Nomad is being run with
+appropriate privileges, and the cgroup system is mounted.
+
+If the cluster is configured with memory oversubscription enabled, a task using
+the `raw_exec` driver can be configured to have no maximum memory limit by
+setting `memory_max = -1`.
+
+```hcl
+resources {
+  cpu        = 500
+  memory     = 128
+  memory_max = -1 # no limit
+}
+```
+
+## Next steps
+
+[Use the `raw_exec` driver in a job](/nomad/docs/job-declare/task-driver/raw_exec).
+
+[hardening]: /nomad/docs/deploy/production/requirements#user-permissions
+[service]: /nomad/docs/deploy/production/windows-service
+[plugin-options]: #plugin-options
+[plugin-block]: /nomad/docs/configuration/plugin

@@ -1,0 +1,198 @@
+---
+layout: intro
+page_title: What is Nomad?
+description: >-
+  Learn what Nomad is, what problems it can solve, its key features, and how it
+  compares to Kubernetes and AWS ECS.
+---
+
+# Introduction to Nomad
+
+Welcome to the intro guide to Nomad. This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and how you can get started using it. If you are familiar with the basics of Nomad, the [documentation](/nomad/docs) and [tutorials](/nomad/tutorials) provide a more detailed reference of available features.
+
+<VideoEmbed url="https://www.youtube.com/embed/s_Fm9UtL4YU"/>
+
+## What is Nomad?
+
+Nomad is a flexible workload orchestrator that enables an organization to easily deploy and manage any containerized or legacy application using a single, unified workflow. Nomad can run a diverse workload of Docker, non-containerized, microservice, and batch applications.
+
+Nomad enables developers to use declarative infrastructure-as-code for deploying applications. Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization. Nomad is supported on macOS, Windows, and Linux.
+
+Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.
+
+## Key features
+
+- **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure. Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable [task drivers](/nomad/docs/job-declare/task-driver).
+
+- **Simple & Reliable**: Nomad runs as a single binary and is entirely self contained - combining resource management and scheduling into a single system. Nomad does not require any external services for storage or coordination. Nomad automatically handles application, node, and driver failures. Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
+
+- **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI). Nomad uses [device plugins](/nomad/plugins/devices) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+
+- **Federation for Multi-Region**: Nomad has native support for multi-region federation. This built-in capability allows multiple clusters to be linked together, which in turn enables developers to deploy jobs to any cluster in any region. Federation also enables automatic replication of ACL policies, namespaces, resource quotas and Sentinel policies across all clusters.
+
+- **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads. Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
+
+- **HashiCorp Ecosystem**: Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
+
+## How Nomad compares to other tools
+
+The following characteristics generally differentiate Nomad from related products:
+
+- **Simplicity**: Nomad runs as a single process with zero external
+  dependencies. Operators can easily provision, manage, and scale Nomad.
+  Developers can easily define and run applications.
+- **Flexibility**: Nomad can run a diverse workload of containerized, legacy,
+  microservice, and batch applications. Nomad can schedule service, batch
+  processing and system jobs, and can run on both Linux and Windows.
+- **Scalability and High Performance**: Nomad can schedule thousands of
+  containers per second, scale to thousands of nodes in a single cluster, and
+  easily federate across regions and cloud providers.
+- **HashiCorp Interoperability**: Nomad elegantly integrates with Vault for
+  secrets management and Consul for service discovery and dynamic configuration.
+  Nomad's Consul-like architecture and Terraform-like job specification lower
+  the barrier to entry for existing users of the HashiCorp stack.
+
+There are many relevant categories for comparison including cluster managers,
+resource managers, workload managers, and schedulers. There are many existing
+tools in each category, and the comparisons are not exhaustive of the entire
+space.
+
+## Nomad versus Kubernetes
+
+Kubernetes and Nomad support similar core use cases for application deployment
+and management, but they differ in a few key ways. Kubernetes aims to provide
+all the features needed to run Linux container-based applications including
+cluster management, scheduling, service discovery, monitoring, and secrets
+management. Nomad only aims to focus on cluster management and scheduling, and
+Nomad is designed with the Unix philosophy of having a small scope while
+composing with tools like Consul for service discovery/service mesh and Vault
+for secret management.
+
+<VideoEmbed url="https://www.youtube.com/embed/ZfSuted4pcA?si=IyqGzqOAnYO06398"/>
+
+### Simplicity
+
+Kubernetes is designed as a collection of more than a half-dozen interoperating services which together provide the full functionality. Coordination and storage is provided by etcd at the core. The state is wrapped by API controllers which are consumed by other services that provide higher level APIs for features like scheduling. Kubernetes supports running in a highly available configuration but is operationally complex to setup.
+
+Nomad is architecturally much simpler. Nomad is a single binary, both for clients and servers, and requires no external services for coordination or storage. Nomad combines a lightweight resource manager and a sophisticated scheduler into a single system. By default, Nomad is distributed, highly available, and operationally simple.
+
+### Flexible Workload Support
+
+While Kubernetes is specifically focused on Linux containers, Nomad is more general purpose. Nomad supports virtualized, containerized and standalone applications, including Docker, Java, IIS on Windows, Qemu, etc. Nomad is designed with extensible drivers and support will be extended to all common drivers.
+
+### Consistent Deployment
+
+A full Kubernetes installation for a production environment is time consuming, operationally complex, and resource intensive. An increasing number of implementations are created by the Kubernetes community to mitigate these challenges, such as minikube, kubeadm, k3s, and more. These trimmed versions of Kubernetes offer easier adoption for development and testing, but lead to inconsistency in capabilities, configuration, and management when moving into production.
+
+In contrast to Kubernetes' fragmented distributions, Nomad as a single lightweight binary can be deployed in local dev, production, on-prem, at the edge, and in the cloud in a consistent manner, and provides the same operational ease-of-use across all environments.
+
+### Scalability
+
+[Kubernetes documentation](https://kubernetes.io/docs/setup/best-practices/cluster-large/) states that they support clusters up to 5,000 nodes and 300,000 total containers. As the environment grows, the interoperating components with different constraints compound the operational complexity. [Even operators at Google revealed the significant challenges of managing the system at scale](https://blog.dave.tf/post/new-kubernetes/). The lack of maturity in the Federation project and the additional overhead of managing a centralized management plane also make it a hard experience to deploy a distributed system that spans multiple clusters.
+
+Nomad has been proven to scale to cluster sizes that exceed 10,000 nodes in real-world production environments. It can be deployed across multiple availability zones, regions, and data centers with a single cluster or multiple clusters. Nomad is designed to natively handle multi-cluster deployments without the overhead of running clusters on clusters. This makes it easier to scale the application deployment across multiple datacenters, regions, and clouds with no additional complexity.
+
+Nomad has performed strenuous benchmark on scalability with [1 million container challenge](https://www.hashicorp.com/c1m) in 2016 and [2 million container challenge](https://www.hashicorp.com/c2m) in 2020. These tests are aimed to validate Nomad's architectural design and ensure that Nomad performs under the most extreme requirements.
+
+### Supplement to Kubernetes
+
+Enterprises are comprised of multiple groups of people (business units) with different projects, infrastructure environments, technical competencies, team sizes, budgets, and SLAs. Each group has different requirements and leverages technologies based on their particular needs and constraints.
+
+Medium to large scale enterprises run into challenges when trying to standardize hundreds to thousands of software developers and administrators onto one single orchestrator (Kubernetes, Nomad, Mesos) as no scheduler today fits all applications, environments, projects, and teams.
+
+Companies in the Global 2000 today such as Intel, Autodesk and GitHub with multiple products and business units organically run Nomad and Kubernetes to supplement each other. They leverage each scheduler to its strengths with Kubernetes for its cutting edge ecosystem and Nomad for simple maintenance and flexibility in core scheduling.
+
+![How organizations leverage Nomad and Kubernetes](/img/nomad-kubernetes.png)
+
+These are the characteristics we see in teams that typically adopt self-hosted Kubernetes:
+
+- Greenfield use cases such as machine learning (ML), serverless, and big data that require the Kubernetes ecosystem and Helm chart
+- High budget and full-time staffing to maintain Kubernetes
+- High-profile projects with significant investment and long-term timeline (multi-year)
+- Deploying and managing new, cloud-native applications
+- Public cloud environment such as AWS, GCP, Azure
+
+Characteristics of teams that typically adopt Nomad:
+
+- Run a mix of containerized and non-containerized workloads (Windows, Java)
+- Small/medium-sized teams with limited capacity to maintain an orchestrator
+- Deploying and managing core, existing applications
+- On-premises environment, or hybrid environments
+- Require simplicity to move fast and fulfill business needs with hard deadlines
+
+We continue to see small enterprises continue to standardize on a single
+orchestrator given the natural staffing and organizational constraints. There
+are not enough DevOps members to maintain more than one orchestrator, not enough
+developers to warrant diverging workflows, or simply not enough workload
+diversity to require more than one orchestrator.
+
+### Resources
+
+Review the following resources for in-depth comparisons between Nomad and
+Kubernetes:
+
+- [A Kubernetes User's Guide to HashiCorp
+  Nomad](https://www.hashicorp.com/en/blog/a-kubernetes-user-s-guide-to-hashicorp-nomad)
+- [The Kubernetes to Nomad Cheat
+  Sheet](https://www.hashicorp.com/en/blog/the-kubernetes-to-nomad-cheat-sheet)
+- [A Kubernetes User's Guide to HashiCorp Nomad Secret Management](https://www.hashicorp.com/en/blog/a-kubernetes-user-s-guide-to-hashicorp-nomad-secret-management)
+
+## Nomad versus AWS ECS
+
+Amazon Web Services provides the Elastic Container Service (ECS), which is
+a cluster manager. The ECS service is only available within AWS and
+can only be used for Docker workloads. Amazon provides customers with
+the agent that is installed on EC2 instances, but does not provide
+the servers which are a hosted service of AWS.
+
+There are a number of fundamental differences between Nomad and ECS.
+Nomad is completely open source, including both the client and server
+components. By contrast, only the agent code for ECS is open and
+the servers are closed sourced and managed by Amazon.
+
+As a side effect of the ECS servers being managed by AWS, it is not possible
+to use ECS outside of AWS. Nomad is agnostic to the environment in which it is run,
+supporting public and private clouds, as well as bare metal datacenters.
+Clusters in Nomad can span multiple datacenters and regions, meaning
+a single cluster could be managing machines on AWS, Azure, and GCE simultaneously.
+
+The ECS service is specifically focused on containers and the Docker
+engine, while Nomad is more general purpose. Nomad supports virtualized,
+containerized, and standalone applications, including Docker. Nomad is
+designed with extensible drivers and support will be extended to all
+common drivers.
+
+## Nomad versus Terraform
+
+[Terraform](https://www.terraform.io/) is a tool for building, changing, and
+versioning infrastructure safely and efficiently. Configuration files describe
+to Terraform the components needed to run a single application or your entire
+datacenter. Terraform generates an execution plan describing what it will do to
+reach the desired state, and then executes it to build the described
+infrastructure. As the configuration changes, Terraform is able to determine
+what changed and create incremental execution plans which can be applied.
+
+Nomad differs from Terraform in a number of key ways. Terraform is designed to
+support any type of resource including low-level components such as compute
+instances, storage, and networking, as well as high-level components such as DNS
+entries, SaaS features, etc. Terraform knows how to create, provision, and
+manage the lifecycle of these resources. Nomad runs on existing infrastructure
+and manages the lifecycle of applications running on that infrastructure.
+
+Another major distinction is that Terraform is an offline tool that runs to
+completion, while Nomad is an online system with long lived servers. Nomad
+allows new jobs to be submitted, existing jobs updated or deleted, and can
+handle node failures. This requires operating continuously instead of in a
+single shot like Terraform.
+
+For small infrastructures with only a handful of servers or applications, the
+complexity of Nomad may not outweigh simply using Terraform to statically assign
+applications to machines. At larger scales, Terraform should be used to
+provision capacity for Nomad, and Nomad used to manage scheduling applications
+to machines dynamically.
+
+## Next steps
+
+Review [use cases](/nomad/docs/use-cases) to understand the many ways
+Nomad is used in production today across many industries to solve critical,
+real-world business objectives.
