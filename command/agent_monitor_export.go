@@ -163,6 +163,11 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	frames, errCh := client.Agent().MonitorExport(eventDoneCh, query)
 	r, err := streamFrames(frames, errCh, -1, eventDoneCh)
 
+	if len(frames) == 0 && err == nil {
+		emptyMessage := fmt.Sprintf("Returned no data or errors, check your log_file configuration or service name")
+		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", emptyMessage))
+	}
+
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", err))
 		c.Ui.Error(commandErrorText(c))
