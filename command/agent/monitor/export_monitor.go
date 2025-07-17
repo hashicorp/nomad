@@ -53,8 +53,8 @@ type MonitorExportOpts struct {
 const bufSize = 512
 
 type ExportReader struct {
+	io.Reader
 	Cmd    *exec.Cmd
-	Reader io.Reader
 	UseCli bool
 	Follow bool
 }
@@ -133,8 +133,8 @@ func (d *ExportMonitor) Start() <-chan []byte {
 			case <-d.DoneCh:
 				break OUTER
 			default:
-				n, readErr := io.ReadFull(d.ExportReader.Reader, logChunk)
-				if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+				n, readErr := d.ExportReader.Read(logChunk)
+				if readErr != nil && readErr != io.EOF {
 					d.logger.Error("unable to read logs into channel", readErr.Error())
 					return
 				}

@@ -277,7 +277,7 @@ func ScanServiceName(input string) error {
 	invalidServiceName := errors.New(`service name must include 'nomad' and conform to systemd conventions`)
 
 	// invalid if prefix and suffix together are < 255 char
-	if len(input) < 255 {
+	if len(input) > 255 {
 		return invalidServiceName
 	}
 
