@@ -5,6 +5,7 @@ package command
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,15 +24,13 @@ func TestMonitorExportCommand_Implements(t *testing.T) {
 func TestMonitorExportCommand_Fails(t *testing.T) {
 	const expectedText = "log log log log log"
 
-	testFile, err := os.CreateTemp("", "nomadtests")
-	must.NoError(t, err)
-
-	_, err = testFile.Write([]byte(expectedText))
-	must.NoError(t, err)
-	inlineFilePath := testFile.Name()
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "test.log")
+	must.NoError(t, os.WriteFile(testFile, []byte(expectedText), 0777))
 	config := func(c *agent.Config) {
-		c.LogFile = inlineFilePath
+		c.LogFile = testFile
 	}
+
 	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
 	must.Wait(t, wait.InitialSuccess(
