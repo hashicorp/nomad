@@ -6128,10 +6128,9 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name: "stop-original-alloc-failed-replacements-replaced",
+			name: "second-replacements-are-reconnected",
 			disconnect: &structs.DisconnectStrategy{
 				LostAfter: time.Minute * 5,
-				Reconcile: structs.ReconcileOptionBestScore,
 			},
 			allocCount:               5,
 			allocDesiredStatus:       structs.AllocDesiredStatusRun,
@@ -6142,15 +6141,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			failReplacement:          true,
 			replaceFailedReplacement: true,
 			expected: &resultExpectation{
-				stop: 2,
+				stop:             2,
+				reconnectUpdates: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Stop:   2,
-						Ignore: 7,
+						Stop:      2,
+						Ignore:    5,
+						Reconnect: 2,
 					},
 				},
 			},
-			expectPickerCalled: true,
 		},
 		{
 			name:                     "stop-original-alloc-desired-status-stop",
@@ -6163,11 +6163,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			failReplacement:          true,
 			replaceFailedReplacement: true,
 			expected: &resultExpectation{
-				stop: 1,
+				stop: 0,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Stop:   1,
-						Ignore: 2,
+						Stop:   0,
+						Ignore: 1,
 					},
 				},
 			},

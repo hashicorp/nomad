@@ -446,12 +446,15 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// that the task group no longer exists
 	tg := a.jobState.Job.LookupTaskGroup(group)
 
-	// If the task group is nil, then the task group has been removed so all we
-	// need to do is stop everything
-	if tg == nil {
+	// If the task group is nil or scaled-to-zero, then the task group has been
+	// removed so all we need to do is stop everything
+	if tg == nil || tg.Count == 0 {
+		all = filterServerTerminalAllocs(all)
 		result.DesiredTGUpdates[group].Stop, result.Stop = filterAndStopAll(all, a.clusterState)
 		return result, true
 	}
+
+	all = filterServerTerminalAllocs(all)
 
 	dstate, existingDeployment := a.initializeDeploymentState(group, tg)
 

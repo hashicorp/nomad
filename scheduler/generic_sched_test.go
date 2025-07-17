@@ -4260,10 +4260,8 @@ func TestServiceSched_NodeDrain_Canaries(t *testing.T) {
 	must.Eq(t, 1, h.Plans[0].Annotations.DesiredTGUpdates["web"].Canary)
 
 	must.MapLen(t, 1, h.Plans[0].NodeUpdate)
-	must.Len(t, 2, h.Plans[0].NodeUpdate[drainedNode.ID])
-	for _, alloc := range h.Plans[0].NodeUpdate[drainedNode.ID] {
-		must.SliceContains(t, []string{deadCanary.ID, canaryToDrain.ID}, alloc.ID)
-	}
+	must.Len(t, 1, h.Plans[0].NodeUpdate[drainedNode.ID])
+	must.Eq(t, canaryToDrain.ID, h.Plans[0].NodeUpdate[drainedNode.ID][0].ID)
 }
 
 func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
