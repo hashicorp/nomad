@@ -249,14 +249,14 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		plainText = *plainTextBool
 	}
 
-	logSince := "72h" //default value
-	logSinceStr := req.URL.Query().Get("log_since")
-	if logSinceStr != "" {
-		_, err := time.ParseDuration(logSinceStr)
+	logsSince := "72h" //default value
+	logsSinceStr := req.URL.Query().Get("logs_since")
+	if logsSinceStr != "" {
+		_, err := time.ParseDuration(logsSinceStr)
 		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown value for log-since: %v", err))
+			return nil, CodedError(400, fmt.Sprintf("Unknown value for logs-since: %v", err))
 		}
-		logSince = logSinceStr
+		logsSince = logsSinceStr
 	}
 
 	serviceName := req.URL.Query().Get("service_name")
@@ -291,7 +291,7 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	args := cstructs.MonitorExportRequest{
 		NodeID:       nodeID,
 		ServerID:     serverID,
-		LogSince:     logSince,
+		LogsSince:    logsSince,
 		ServiceName:  serviceName,
 		OnDisk:       onDisk,
 		NomadLogPath: nomadLogPath,

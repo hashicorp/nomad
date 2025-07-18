@@ -219,7 +219,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	defer cancel()
 	opts := monitor.MonitorExportOpts{
 		Logger:       a.c.logger,
-		LogSince:     args.LogSince,
+		LogsSince:    args.LogsSince,
 		ServiceName:  args.ServiceName,
 		NomadLogPath: args.NomadLogPath,
 		OnDisk:       args.OnDisk,

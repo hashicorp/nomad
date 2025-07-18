@@ -33,7 +33,7 @@ type MonitorExportOpts struct {
 	Logger hclog.Logger
 
 	// LogsSince sets the lookback time for monitorExport logs in hours
-	LogSince string
+	LogsSince string
 
 	// OnDisk indicates that nomad should export logs written to the configured nomad log path
 	OnDisk bool
@@ -162,8 +162,8 @@ func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 		return nil, nil, err
 	}
 	cmdDuration := "72 hours"
-	if opts.LogSince != "" {
-		parsedDur, err := time.ParseDuration(opts.LogSince)
+	if opts.LogsSince != "" {
+		parsedDur, err := time.ParseDuration(opts.LogsSince)
 		if err != nil {
 			return nil, nil, err
 		}
