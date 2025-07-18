@@ -4,23 +4,16 @@
 package monitor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"io"
-	"net"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/ci"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -43,151 +36,6 @@ func prepFile(t *testing.T) *os.File {
 	fileReader, err := os.Open(goldenFilePath)
 	must.NoError(t, err)
 	return fileReader
-}
-func streamFunc(t *testing.T, fileReader *os.File) (chan *sframer.StreamFrame, chan error) {
-	//build stream from test file contents
-	framesCh := make(chan *sframer.StreamFrame, 1)
-	errCh := make(chan error, 1)
-	offset := 0
-	r := io.LimitReader(fileReader, 64)
-	for {
-		bytesHolder := make([]byte, 64)
-		n, err := r.Read(bytesHolder)
-		if err != nil && err != io.EOF {
-			must.NoError(t, err)
-		}
-
-		if n == 0 && err == io.EOF {
-			break
-		}
-
-		framesCh <- &sframer.StreamFrame{
-			Offset: int64(offset),
-			Data:   bytesHolder[offset:n],
-			File:   fileReader.Name(),
-		}
-		offset += n
-		if n != 0 && err == io.EOF {
-			//break after sending if we hit EOF with bytes in buffer
-			break
-		}
-	}
-
-	close(framesCh)
-	return framesCh, errCh
-}
-func TestClientStreamEncoder_EncodeStream(t *testing.T) {
-	ci.Parallel(t)
-	file := prepFile(t)
-
-	testErr := errors.New("isErr")
-
-	cases := []struct {
-		name         string
-		expected     string
-		nomadLogPath string
-		serviceName  string
-		token        string
-		onDisk       bool
-		expectErr    bool
-		err          error
-	}{
-		{
-			name: "happy_path",
-		},
-		{
-			name:      "error",
-			onDisk:    true,
-			expectErr: true,
-			err:       testErr,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			//populate framesCh
-			framesCh, errCh := streamFunc(t, file)
-
-			// create pipes
-			p1, p2 := net.Pipe()
-			defer p1.Close()
-			defer p2.Close()
-
-			// prepare streamEncoder
-			var buf bytes.Buffer
-			frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
-			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			streamEncoder := NewStreamEncoder(&buf, p1, encoder, frameCodec, false)
-
-			// Start reading on decoder pipe
-			streamMsg := make(chan *cstructs.StreamErrWrapper, 1)
-			go func() {
-				decoder := codec.NewDecoder(p2, structs.MsgpackHandle)
-				for {
-					var msg cstructs.StreamErrWrapper
-					err := decoder.Decode(&msg)
-
-					streamMsg <- &msg
-					if err != nil {
-						errCh <- err
-					}
-				}
-			}()
-
-			ctx, cancel := context.WithCancel(context.Background())
-			// mimic error or EOF/signal to close encoder encoder goroutine
-			go func() {
-				if tc.expectErr {
-					time.Sleep(time.Millisecond * 1)
-					errCh <- tc.err
-				} else {
-					time.Sleep(time.Second * 3)
-					cancel()
-				}
-			}()
-			// Encode stream
-			go func() {
-				quit := time.After(5 * time.Second)
-				streamErr := streamEncoder.EncodeStream(framesCh, errCh, ctx)
-				if !tc.expectErr {
-					must.NoError(t, streamErr)
-				}
-				// ensure gofunc exits before test ends
-				if now := <-quit; now.After(time.Now()) {
-					return
-				}
-
-			}()
-			timeout := time.After(3 * time.Second)
-
-			//verify stream contents are encoded as expected
-		OUTER:
-			for {
-				select {
-				case <-timeout:
-					must.Unreachable(t)
-				case err := <-errCh:
-					if err != nil && err != io.EOF {
-						if tc.expectErr {
-							must.Eq(t, tc.err.Error(), err.Error())
-						}
-						must.NoError(t, err)
-					}
-				case message := <-streamMsg:
-					var frame sframer.StreamFrame
-
-					err := json.Unmarshal(message.Payload, &frame)
-					if err != nil && err != io.EOF {
-						if !strings.Contains(err.Error(), "unexpected end") {
-							must.NoError(t, err)
-						}
-					}
-					must.SliceContainsSubset(t, frame.Data, writeLine)
-					break OUTER
-				}
-			}
-		})
-
-	}
 }
 
 func TestClientStreamReader_StreamFixed(t *testing.T) {

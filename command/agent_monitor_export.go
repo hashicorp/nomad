@@ -32,15 +32,23 @@ func (c *MonitorExportCommand) Help() string {
 	helpText := `
 Usage: nomad monitor export [options]
 
-  Return logs written to disk by a Nomad agent. The monitor export command
-  lets you read Nomad logs from either the agent's configured log path or
-  journald. To export journald logs provide the service-name and how
-  far back (in hours) you would like to view logs along with the node or server
-  ID. To export an agent's Nomad log file pass 'log-path=true' and the node or
-  server ID with no other options.
+Use the 'nomad monitor export' command to export an agent's historic data
+from journald or its Nomad log file. If exporting journald logs, you must
+pass '-service-name' with the name of the nomad service.
+The '-logs-since' and '-follow' options are only valid for journald queries.
+You may pass a duration string to the '-logs-since' option to override the
+default 72h duration. Nomad will accept the following time units in the
+'-logs-since' duration string:"ns", "us" (or "µs"), "ms", "s", "m", "h".
+The '-follow=true' option causes the agent to continue to stream logs until
+interrupted or until the remote agent quits. Nomad only supports journald
+queries on Linux.
 
-  When ACLs are enabled, this command requires a token with the 'agent:read'
-  capability.
+If you do not use Linux or you do not run Nomad as a systemd unit, pass the
+'-on-disk=true' option to export the entirety of a given agent's nomad log file.
+
+When ACLs are enabled, this command requires a token with the 'agent:read'
+capability.
+
 
 General Options:
 
@@ -57,7 +65,10 @@ Monitor Specific Options:
 	cannot be used with node-id.
 
   -service-name <service-name>
-    Sets the systemd unit name to query journald. Only available on Linux.
+    Sets the name of the nomad service, must match systemd conventions and
+	include the word 'nomad'. You may provide the full systemd file name
+	or omit the suffix. If your service name includes a '.', you must include
+	a valid suffix (e.g. nomad.client.service).
 
   -log-since <duration string>
     Sets the journald log period, invalid if on-disk=true. Defaults to 72h.
@@ -83,11 +94,15 @@ func (c *MonitorExportCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-node-id":      NodePredictor(c.Client),
 			"-server-id":    ServerPredictor(c.Client),
-			"-service-name": complete.PredictAnything,
+			"-service-name": complete.PredictSet("nomad"),
 			"-log-since":    complete.PredictNothing,
 			"-follow":       complete.PredictNothing,
 			"-on-disk":      complete.PredictNothing,
 		})
+}
+
+func (c *MonitorExportCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *MonitorExportCommand) Name() string { return "monitor export" }
@@ -130,6 +145,12 @@ func (c *MonitorExportCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 	}
 
+	if c.serviceName != "" {
+		if isNomad := strings.Contains(c.serviceName, "nomad"); !isNomad {
+			c.Ui.Error(fmt.Sprintf("Invalid value: -service-name=%s does not include 'nomad'", c.serviceName))
+			c.Ui.Error(commandErrorText(c))
+		}
+	}
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
@@ -163,19 +184,21 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	frames, errCh := client.Agent().MonitorExport(eventDoneCh, query)
 	r, err := streamFrames(frames, errCh, -1, eventDoneCh)
 
-	if len(frames) == 0 && err == nil {
-		emptyMessage := fmt.Sprintf("Returned no data or errors, check your log_file configuration or service name")
-		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", emptyMessage))
-	}
-
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", err))
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	_, err = io.Copy(os.Stdout, r)
+
+	n, err := io.Copy(os.Stdout, r)
 	if err != nil && err != io.EOF {
-		c.Ui.Error(fmt.Sprintf("error monitoring logs: %s", err.Error()))
+		c.Ui.Error(fmt.Sprintf("Error monitoring logs: %s", err.Error()))
+		return 1
+	}
+
+	if n == 0 && err == nil {
+		emptyMessage := "Returned no data or errors, check your log_file configuration or service name"
+		c.Ui.Error(fmt.Sprintf("Error starting monitor: \n%s", emptyMessage))
 		return 1
 	}
 	return 0

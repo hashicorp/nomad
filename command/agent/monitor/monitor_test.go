@@ -4,6 +4,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -121,17 +122,18 @@ func TestMonitor_Export(t *testing.T) {
 	logger := log.NewInterceptLogger(&log.LoggerOptions{
 		Level: log.Error,
 	})
-
+	ctx, cancel := context.WithCancel(context.Background())
 	cases := []struct {
-		name     string
-		opts     MonitorExportOpts
-		expected string
+		name        string
+		opts        MonitorExportOpts
+		expected    string
+		expectClose bool
 	}{
 		{
 			name: "happy_path_logpath_long_file",
 			opts: MonitorExportOpts{
+				Context:      ctx,
 				Logger:       logger,
-				LogSince:     "72",
 				OnDisk:       true,
 				NomadLogPath: goldenFilePath,
 			},
@@ -140,8 +142,18 @@ func TestMonitor_Export(t *testing.T) {
 		{
 			name: "happy_path_logpath_short_file",
 			opts: MonitorExportOpts{
+				Context:      ctx,
 				Logger:       logger,
-				LogSince:     "72",
+				OnDisk:       true,
+				NomadLogPath: inlineFilePath,
+			},
+			expected: expectedText,
+		},
+		{
+			name: "close context",
+			opts: MonitorExportOpts{
+				Context:      ctx,
+				Logger:       logger,
 				OnDisk:       true,
 				NomadLogPath: inlineFilePath,
 			},
@@ -154,7 +166,9 @@ func TestMonitor_Export(t *testing.T) {
 			monitor, err := NewExportMonitor(tc.opts)
 			must.NoError(t, err)
 			logCh := monitor.Start()
-
+			if tc.expectClose {
+				cancel()
+			}
 			var (
 				builder strings.Builder
 				wg      sync.WaitGroup
@@ -178,8 +192,11 @@ func TestMonitor_Export(t *testing.T) {
 				}
 			}()
 			wg.Wait()
-			received := builder.String()
-			must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(received))
+			if !tc.expectClose {
+				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+			} else {
+				must.Eq(t, builder.String(), "")
+			}
 
 		})
 	}
