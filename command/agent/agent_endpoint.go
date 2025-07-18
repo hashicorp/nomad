@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
@@ -212,34 +213,10 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-
-	// Make the RPC
-	var handler structs.StreamingRpcHandler
-	var handlerErr error
-	if nodeID != "" {
-		// Determine the handler to use
-		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
-		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
-		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Monitor")
-		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
-		} else {
-			handlerErr = CodedError(400, "No local Node and node_id not provided")
-		}
-		// No node id monitor current server/client
-	} else if srv := s.agent.Server(); srv != nil {
-		handler, handlerErr = srv.StreamingRpcHandler("Agent.Monitor")
-	} else {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
-	}
-
-	if handlerErr != nil {
-		return nil, CodedError(500, handlerErr.Error())
-	}
-
-	codedErr := s.streamMonitor(resp, req, args, handler)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.Monitor", &wg)
+	wg.Wait()
 	return nil, codedErr
 }
 
@@ -331,7 +308,15 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.MonitorExport", &wg)
+	wg.Wait()
+	return nil, codedErr
+}
+func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
+	args any, nodeID string, endpoint string, wg *sync.WaitGroup) error {
+	defer wg.Done()
 	// Make the RPC
 	var handler structs.StreamingRpcHandler
 	var handlerErr error
@@ -339,31 +324,25 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		// Determine the handler to use
 		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler(endpoint)
 		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExport")
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler(endpoint)
 		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExport")
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler(endpoint)
 		} else {
 			handlerErr = CodedError(400, "No local Node")
 		}
 		// No node id monitor current server/client
 	} else if srv := s.agent.Server(); srv != nil {
-		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExport")
+		handler, handlerErr = srv.StreamingRpcHandler(endpoint)
 	} else {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler(endpoint)
 	}
 
 	if handlerErr != nil {
-		return nil, CodedError(500, handlerErr.Error())
+		return CodedError(500, handlerErr.Error())
 	}
-	codedErr := s.streamMonitor(resp, req, args, handler)
 
-	return nil, codedErr
-
-}
-func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request, args any, handler structs.StreamingRpcHandler) error {
-	// Make the RPC
 	httpPipe, handlerPipe := net.Pipe()
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
@@ -431,6 +410,7 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request, 
 	}
 	return codedErr
 }
+
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)

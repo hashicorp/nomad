@@ -42,7 +42,10 @@ capability.
   which will target the current leader.
 
 - `-service-name`: Specifies the the name of the systemd unit for export.
-  Do not use with `-on-disk`. Must conform to systemd naming conventions.
+  Do not use with `-on-disk`. Must include 'nomad' and conform to systemd
+  naming conventions. You may provide the full systemd file name
+	or omit the suffix. If your service name includes a '.', you must include
+	a valid suffix (e.g. nomad.client.service).
   
 - `-log-since`: Duration, in hours, used to determine how far back to return
   logs from journald. Ignored if used with `-on-disk` and defaults to `72` if
@@ -62,9 +65,11 @@ This example returns journald log entries with a specific node ID and service na
 $ nomad monitor export -node-id=$(nomad node status --quiet) -service-name="nomad"
 Jun 04 20:09:29 nomad-client01 systemd[1]: Starting Nomad...
 Subject: A start job for unit nomad_client.service has begun execution
+```
 
 This example returns the contents of the nomad log file for a specific server.
 
+```shell-session
 $ nomad monitor export -server-id=a57b2adb-1a30-2dda-8df0-25abb0881952 -on-disk=true
 2025-06-20T12:22:08.528-0500 [DEBUG] http: request complete: method=GET path=/v1/agent/health?type=server duration=1.445739ms
 2025-06-20T12:22:09.892-0500 [DEBUG] nomad: memberlist: Stream connection from=127.0.0.1:53628
