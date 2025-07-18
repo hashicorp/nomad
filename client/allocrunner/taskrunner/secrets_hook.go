@@ -13,6 +13,7 @@ import (
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/secrets"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template"
+	"github.com/hashicorp/nomad/client/commonplugins"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,12 +23,18 @@ import (
 // work can modify this interface to include custom providers using a plugin
 // interface.
 type SecretProvider interface {
-	// BuildTemplate should construct a template appropriate for that provider
-	// and append it to the templateManager's templates.
-	BuildTemplate() *structs.Template
-
 	// Parse allows each provider implementation to parse its "response" object.
 	Parse() (map[string]string, error)
+}
+
+type TemplateProvider interface {
+	SecretProvider
+	BuildTemplate() *structs.Template
+}
+
+type PluginProvider interface {
+	SecretProvider
+	Fetch(context.Context) error
 }
 
 type secretsHookConfig struct {
@@ -98,7 +105,14 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 
 	for _, p := range providers {
-		templates = append(templates, p.BuildTemplate())
+		switch v := p.(type) {
+		case TemplateProvider:
+			templates = append(templates, v.BuildTemplate())
+		case PluginProvider:
+			if err := v.Fetch(ctx); err != nil {
+				return err
+			}
+		}
 	}
 
 	vaultCluster := req.Task.GetVaultClusterName()
@@ -176,7 +190,12 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 				providers = append(providers, p)
 			}
 		default:
-			multierror.Append(mErr, fmt.Errorf("unknown secret provider type: %s", s.Provider))
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginsDir, s.Name)
+			if err != nil {
+				multierror.Append(mErr, err)
+				continue
+			}
+			providers = append(providers, secrets.NewExternalPluginProvider(plug, s.Name, s.Path))
 		}
 	}
 

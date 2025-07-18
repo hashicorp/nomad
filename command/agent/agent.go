@@ -766,6 +766,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
 		conf.HostVolumesDir = filepath.Join(agentConfig.DataDir, "host_volumes")
 		conf.HostVolumePluginDir = filepath.Join(agentConfig.DataDir, "host_volume_plugins")
+		conf.CommonPluginsDir = filepath.Join(agentConfig.DataDir, "common_plugins")
 		dataParent := filepath.Dir(agentConfig.DataDir)
 		conf.AllocMountsDir = filepath.Join(dataParent, "alloc_mounts")
 	}
@@ -783,6 +784,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	if agentConfig.Client.HostVolumesDir != "" {
 		conf.HostVolumesDir = agentConfig.Client.HostVolumesDir
+	}
+	if agentConfig.Client.CommonPluginsDir != "" {
+		conf.CommonPluginsDir = agentConfig.Client.CommonPluginsDir
 	}
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
