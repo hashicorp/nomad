@@ -251,7 +251,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
-	logCh := m.Start()
+	streamCh := m.Start()
 	defer m.Stop()
 
 	initialOffset := int64(0)
@@ -263,11 +263,11 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	// receive logs and build frames
 	wg := sync.WaitGroup{}
-	streamReader := monitor.NewStreamReader(logCh, framer)
+	streamReader := monitor.NewStreamReader(streamCh, framer)
 	wg.Add(1)
 	go func() {
-		defer framer.Destroy()
 		defer wg.Done()
+		defer framer.Destroy()
 		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {
 			select {
 			case errCh <- err:
@@ -276,9 +276,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
-	wg.Wait()
-
 	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	wg.Wait()
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return

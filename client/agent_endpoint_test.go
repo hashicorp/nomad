@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -510,27 +509,22 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := cstructs.MonitorExportRequest{
-				LogSince:     "72",
 				NodeID:       "this is checked in the CLI",
 				NomadLogPath: tc.nomadLogPath,
-				ServiceName:  tc.serviceName,
-				OnDisk:       tc.onDisk,
+
+				OnDisk: tc.onDisk,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token,
 				},
 			}
 
-			var wg sync.WaitGroup
-			wg.Add(1)
-			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, c, &wg)
-			wg.Wait()
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, c)
 			if !tc.expectErr {
 				must.NotNil(t, builder)
 				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 			} else {
-				must.Nil(t, finalError)
-				t.Log(finalError.Error())
+				must.Error(t, finalError)
 			}
 
 		})
