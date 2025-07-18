@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
@@ -26,11 +24,53 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type ExpectedUnreachable error
+// ScanServiceName checks that the length, prefix and suffix conform to
+// systemd conventions and ensures the service name includes the word 'nomad'
+func ScanServiceName(input string) error {
+	// invalid if prefix and suffix together are < 255 char
+	if len(input) > 255 {
+		return errors.New("service name too long")
+	}
 
-//	type InvalidServiceName error {
-//		Message string
-//	}
+	if isNomad := strings.Contains(input, "nomad"); !isNomad {
+		return errors.New(`service name must include 'nomad' and conform to systemd conventions`)
+	}
+
+	// only allow ., :, @ , - , _ and \
+	re := regexp.MustCompile(`[\w.:@_\-\\]*`)
+
+	// Remove all matches and error if the returned string isn't empty
+	// to ensure only characters that match are present
+	safe := re.ReplaceAllString(input, "")
+	if len(safe) != 0 {
+		return fmt.Errorf("these strings did not match %s", safe)
+	}
+
+	// if there is a suffix, check against list of valid suffixes
+	splitInput := strings.Split(input, ".")
+	if len(splitInput) > 1 {
+		suffix := splitInput[len(splitInput)-1]
+		validSuffix := []string{
+			"service",
+			"socket",
+			"device",
+			"mount",
+			"automount",
+			"swap",
+			"target",
+			"path",
+			"timer",
+			"slice",
+			"scope"}
+
+		if valid := slices.Contains(validSuffix, suffix); !valid {
+			return errors.New("invalid suffix")
+		}
+	}
+	return nil
+}
+
+// Stream Helpers
 type StreamReader struct {
 	framer *sframer.StreamFramer
 	ch     <-chan []byte
@@ -96,7 +136,6 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 	}
 	streamBuffer := make([]byte, bufSize)
 
-	// Create a variable to allow setting the last event
 	var lastEvent string
 
 	// Only watch file when there is a need for it
@@ -227,104 +266,7 @@ OUTER:
 	return nil
 }
 
-func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
-	// Vet servicename again
-	if err := ScanServiceName(opts.ServiceName); err != nil {
-		return nil, nil, err
-	}
-	cmdDuration := "72 hours"
-	if opts.LogSince != "" {
-		parsedDur, err := time.ParseDuration(opts.LogSince)
-		if err != nil {
-			return nil, nil, err
-		}
-		cmdDuration = parsedDur.String()
-	}
-	// build command with vetted inputs
-	cmdArgs := []string{"-xu", opts.ServiceName, "--since", fmt.Sprintf("%s ago", cmdDuration)}
-
-	if opts.Follow {
-		cmdArgs = append(cmdArgs, "-f")
-	}
-	cmd := exec.CommandContext(context.Background(), "journalctl", cmdArgs...)
-
-	// set up reader
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	multiReader := io.MultiReader(stdOut, stdErr)
-
-	return cmd, multiReader, nil
-}
-
-func fileReader(logPath string) (io.Reader, error) {
-	file, err := os.Open(logPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
-}
-
-// ScanServiceName checks that the length, prefix and suffix conform to
-// systemd conventions and ensures the service name includes the word 'nomad'
-func ScanServiceName(input string) error {
-	invalidServiceName := errors.New(`service name must include 'nomad' and conform to systemd conventions`)
-
-	// invalid if prefix and suffix together are < 255 char
-	if len(input) > 255 {
-		return invalidServiceName
-	}
-
-	splitInput := strings.Split(input, ".")
-	prefix := splitInput[0]
-
-	// if there is a suffix, check against list of valid suffixes
-	if len(splitInput) > 1 {
-		suffix := splitInput[1]
-		validSuffix := []string{
-			"service",
-			"socket",
-			"device",
-			"mount",
-			"automount",
-			"swap",
-			"target",
-			"path",
-			"timer",
-			"slice",
-			"scope"}
-
-		if valid := slices.Contains(validSuffix, suffix); !valid {
-			return invalidServiceName
-		}
-	}
-	// only allow ., :, @ , - , _ and \
-	re := regexp.MustCompile(`[\w.:@_\-\\/]*`)
-
-	// Remove all matches and error if the returned string isn't empty
-	safe := re.ReplaceAllString(prefix, "")
-	if len(safe) != 0 {
-		fmt.Printf("these strings did not match %s", safe)
-		return invalidServiceName
-	}
-
-	if isNomad := strings.Contains(prefix, "nomad"); !isNomad {
-		return invalidServiceName
-	}
-	return nil
-}
-
-//type ExportMonitorClient_TestCase struct {
-//	opts MonitorExportOpts
-
-//}
-
+// Test Helpers
 type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
 }

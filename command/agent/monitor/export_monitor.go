@@ -4,10 +4,14 @@
 package monitor
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -16,10 +20,7 @@ import (
 type ExportMonitor struct {
 	logger hclog.Logger
 
-	// logCh is a buffered chan where we send logs when streaming
-	LogCh chan []byte
-
-	// DoneCh coordinates the shutdown of logCh
+	// DoneCh coordinates breaking out of the export loop
 	DoneCh chan struct{}
 
 	bufSize int
@@ -48,6 +49,9 @@ type MonitorExportOpts struct {
 	// Follow indicates that the monitor should continue to deliver logs until
 	// an outside interrupt
 	Follow bool
+
+	// Context passed from client to close the cmd and exit the function
+	Context context.Context
 }
 
 const bufSize = 512
@@ -59,6 +63,8 @@ type ExportReader struct {
 	Follow bool
 }
 
+// NewExportMonitor validates and prepares the appropriate reader before
+// returning a new ExportMonitor or the appropriate error
 func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 	var (
 		multiReader io.Reader
@@ -93,7 +99,6 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 	}
 	sw := ExportMonitor{
 		logger:       opts.Logger,
-		LogCh:        make(chan []byte, bufSize),
 		DoneCh:       make(chan struct{}, 1),
 		bufSize:      bufSize,
 		ExportReader: ExportReader,
@@ -118,14 +123,15 @@ func (d *ExportMonitor) Start() <-chan []byte {
 	if d.ExportReader.UseCli {
 		useCli = true
 		cmd = d.ExportReader.Cmd
+		cmd.Start()
 	}
 	// Read, copy, and send to channel until we hit EOF or error
 	streamCh := make(chan []byte)
 	go func() {
+		defer close(streamCh)
 		if useCli {
 			defer cmd.Wait()
 		}
-		defer close(streamCh)
 		logChunk := make([]byte, bufSize)
 	OUTER:
 		for {
@@ -148,4 +154,48 @@ func (d *ExportMonitor) Start() <-chan []byte {
 		}
 	}()
 	return streamCh
+}
+
+func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
+	// Vet servicename again
+	if err := ScanServiceName(opts.ServiceName); err != nil {
+		return nil, nil, err
+	}
+	cmdDuration := "72 hours"
+	if opts.LogSince != "" {
+		parsedDur, err := time.ParseDuration(opts.LogSince)
+		if err != nil {
+			return nil, nil, err
+		}
+		cmdDuration = parsedDur.String()
+	}
+	// build command with vetted inputs
+	cmdArgs := []string{"-xu", opts.ServiceName, "--since", fmt.Sprintf("%s ago", cmdDuration)}
+
+	if opts.Follow {
+		cmdArgs = append(cmdArgs, "-f")
+	}
+	cmd := exec.CommandContext(opts.Context, "journalctl", cmdArgs...)
+
+	// set up reader
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	multiReader := io.MultiReader(stdOut, stdErr)
+
+	return cmd, multiReader, nil
+}
+
+func fileReader(logPath string) (io.Reader, error) {
+	file, err := os.Open(logPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }

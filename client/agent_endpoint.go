@@ -8,20 +8,19 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
-
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
-
-	log "github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 type Agent struct {
@@ -225,6 +224,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		NomadLogPath: args.NomadLogPath,
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
+		Context:      ctx,
 	}
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
@@ -260,11 +260,14 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		eofCancel   bool
 	)
 	eofCancel = !opts.Follow
+
 	// receive logs and build frames
+	wg := sync.WaitGroup{}
 	streamReader := monitor.NewStreamReader(logCh, framer)
+	wg.Add(1)
 	go func() {
 		defer framer.Destroy()
-
+		defer wg.Done()
 		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {
 			select {
 			case errCh <- err:
@@ -273,8 +276,9 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	wg.Wait()
 
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
