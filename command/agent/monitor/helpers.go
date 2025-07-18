@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -271,8 +270,7 @@ type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
 }
 
-func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient, wg *sync.WaitGroup) (*strings.Builder, error) {
-	defer wg.Done()
+func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient) (*strings.Builder, error) {
 	var (
 		builder     strings.Builder
 		returnedErr error

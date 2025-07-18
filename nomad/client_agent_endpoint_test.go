@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -1113,10 +1112,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 				},
 			}
 
-			var wg sync.WaitGroup
-			wg.Add(1)
-			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s, &wg)
-			wg.Wait()
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s)
 			if !tc.expectErr {
 				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 			} else {
