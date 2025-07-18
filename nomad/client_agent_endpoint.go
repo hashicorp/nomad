@@ -10,10 +10,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
@@ -21,8 +22,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
-
-	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
 type Agent struct {
@@ -35,6 +34,7 @@ func NewAgentEndpoint(srv *Server) *Agent {
 
 func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
+	a.srv.streamingRpcs.Register("Agent.MonitorExport", a.monitorExport)
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
@@ -200,7 +200,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, a.srv.logger, &log.LoggerOptions{
+	m := monitor.New(512, a.srv.logger, &log.LoggerOptions{
 		Level:           logLevel,
 		JSONFormat:      args.LogJSON,
 		IncludeLocation: args.LogIncludeLocation,
@@ -225,8 +225,9 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	logCh := monitor.Start()
-	defer monitor.Stop()
+	logCh := m.Start()
+	defer m.Stop()
+
 	initialOffset := int64(0)
 
 	// receive logs and build frames
@@ -248,48 +249,134 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			}
 		}
 	}()
+	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	if streamErr != nil {
+		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
+		return
+	}
+}
 
-	var streamErr error
-OUTER:
-	for {
-		select {
-		case frame, ok := <-frames:
-			if !ok {
-				// frame may have been closed when an error
-				// occurred. Check once more for an error.
-				select {
-				case streamErr = <-errCh:
-					// There was a pending error!
-				default:
-					// No error, continue on
-				}
+func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
+	defer conn.Close()
+	// Decode args
+	var args cstructs.MonitorExportRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
-				break OUTER
-			}
+	if err := decoder.Decode(&args); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+	authErr := a.srv.Authenticate(nil, &args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, &args)
+	if authErr != nil {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
+	}
 
-			var resp cstructs.StreamErrWrapper
-			if args.PlainText {
-				resp.Payload = frame.Data
-			} else {
-				if err := frameCodec.Encode(frame); err != nil {
-					streamErr = err
-					break OUTER
-				}
+	// Check agent read permissions
+	if aclObj, err := a.srv.ResolveACL(&args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	} else if !aclObj.AllowAgentRead() {
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		return
+	}
 
-				resp.Payload = buf.Bytes()
-				buf.Reset()
-			}
+	// Targeting a node, forward request to node
+	if args.NodeID != "" {
+		a.forwardMonitorExportClient(conn, args, encoder, decoder)
+		// forwarded request has ended, return
+		return
+	}
 
-			if err := encoder.Encode(resp); err != nil {
-				streamErr = err
-				break OUTER
-			}
-			encoder.Reset(conn)
-		case <-ctx.Done():
-			break OUTER
+	region := args.RequestRegion()
+	if region == "" {
+		handleStreamResultError(fmt.Errorf("missing target RPC"), pointer.Of(int64(400)), encoder)
+		return
+	}
+	if region != a.srv.config.Region {
+		// Mark that we are forwarding
+		args.SetForwarded()
+	}
+
+	// Try to forward request to remote region/server
+	if args.ServerID != "" {
+		serverToFwd, err := a.forwardFor(args.ServerID, region)
+		if err != nil {
+			handleStreamResultError(err, pointer.Of(int64(400)), encoder)
+			return
+		}
+		if serverToFwd != nil {
+			a.forwardMonitorExportServer(conn, serverToFwd, args, encoder, decoder)
+			return
 		}
 	}
 
+	// NodeID was empty, ServerID was equal to this server,  monitor this server
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	opts := monitor.MonitorExportOpts{
+		Logger:       a.srv.logger,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
+		Context:      ctx,
+	}
+
+	frames := make(chan *sframer.StreamFrame, 32)
+	errCh := make(chan error)
+	var buf bytes.Buffer
+	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
+
+	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
+	framer.Run()
+	defer framer.Destroy()
+
+	// goroutine to detect remote side closing
+	go func() {
+		if _, err := conn.Read(nil); err != nil {
+			// One end of the pipe explicitly closed, exit
+			cancel()
+			return
+		}
+		<-ctx.Done()
+	}()
+	m, err := monitor.NewExportMonitor(opts)
+	if err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+	streamCh := m.Start()
+	defer m.Stop()
+
+	initialOffset := int64(0)
+	var (
+		eofCancelCh chan error
+		eofCancel   bool
+	)
+	eofCancel = !opts.Follow
+
+	// receive logs and build frames
+	wg := sync.WaitGroup{}
+	streamReader := monitor.NewStreamReader(streamCh, framer)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer framer.Destroy()
+		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {
+			select {
+			case errCh <- err:
+			case <-ctx.Done():
+			}
+		}
+	}()
+	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	wg.Wait()
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
@@ -393,6 +480,65 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 	}
 
 	structs.Bridge(conn, serverConn)
+}
+func (a *Agent) forwardMonitorExportServer(conn io.ReadWriteCloser, server *serverParts, args cstructs.MonitorExportRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	// empty ServerID to prevent forwarding loop
+	args.ServerID = ""
+
+	serverConn, err := a.srv.streamingRpc(server, "Agent.MonitorExport")
+	if err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+	defer serverConn.Close()
+
+	// Send the Request
+	outEncoder := codec.NewEncoder(serverConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	structs.Bridge(conn, serverConn)
+}
+func (a *Agent) forwardMonitorExportClient(conn io.ReadWriteCloser, args cstructs.MonitorExportRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	// Get the Connection to the client either by fowarding to another server
+	// or creating direct stream
+
+	state, srv, err := a.findClientConn(args.NodeID)
+	if err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	var clientConn net.Conn
+
+	if state == nil {
+		conn, err := a.srv.streamingRpc(srv, "Agent.MonitorExport")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		clientConn = conn
+	} else {
+		stream, err := NodeStreamingRpc(state.Session, "Agent.MonitorExport")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+		clientConn = stream
+	}
+	defer clientConn.Close()
+
+	// Send the Request
+	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, clientConn)
 }
 
 func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
