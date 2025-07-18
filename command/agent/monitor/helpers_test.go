@@ -152,3 +152,68 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 
 	}
 }
+
+func TestScanServiceName(t *testing.T) {
+	cases := []struct {
+		testString string
+		expectErr  bool
+	}{
+		{
+			testString: `nomad`,
+		},
+		{
+			testString: `nomad.socket`,
+		},
+		{
+			testString: `nomad-client.service`,
+		},
+		{
+			testString: `nomadhelper@.device`,
+		},
+		{
+			testString: `1.\@_-nomad@.automount`,
+		},
+		{
+			testString: `nomad.client.02.swap`,
+		},
+		{
+			testString: `docker.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad.path.gotcha`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad/.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad%.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nom4ad.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad,.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad.client`,
+			expectErr:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.testString, func(t *testing.T) {
+			err := ScanServiceName(tc.testString)
+			if !tc.expectErr {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+			}
+		})
+	}
+}

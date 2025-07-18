@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -353,15 +354,20 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	defer m.Stop()
 
 	initialOffset := int64(0)
+	var (
+		eofCancelCh chan error
+		eofCancel   bool
+	)
+	eofCancel = !opts.Follow
 
-	var eofCancelCh chan error
-	streamReader := monitor.NewStreamReader(streamCh, framer)
-	cancelAfterFirstEof := true
 	// receive logs and build frames
+	wg := sync.WaitGroup{}
+	streamReader := monitor.NewStreamReader(streamCh, framer)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer framer.Destroy()
-
-		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, cancelAfterFirstEof); err != nil {
+		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -370,6 +376,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
 	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	wg.Wait()
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
