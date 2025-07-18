@@ -490,8 +490,6 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		migrate = migrate.difference(stopAllocSet)
 		lost = lost.difference(stopAllocSet)
 		disconnecting = disconnecting.difference(stopAllocSet)
-		reconnecting = reconnecting.difference(stopAllocSet)
-		ignore = ignore.difference(stopAllocSet)
 
 		// Validate and add reconnecting allocations to the plan so they are
 		// logged.
