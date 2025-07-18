@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1022,4 +1024,101 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 
 	err := s.RPC("Agent.Host", &req, &resp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+func TestMonitor_MonitorExport(t *testing.T) {
+	ci.Parallel(t)
+	const (
+		shortText = "log log log log log"
+	)
+	// Create test file
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	longFilePath := f.Name()
+	longFileContents, err := os.ReadFile(longFilePath)
+	must.NoError(t, err)
+
+	testFile, err := os.CreateTemp("", "nomadtests")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(shortText))
+	must.NoError(t, err)
+	shortFilePath := testFile.Name()
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	defer os.Remove(shortFilePath)
+	testutil.WaitForLeader(t, s.RPC)
+
+	cases := []struct {
+		name         string
+		expected     string
+		nomadLogPath string
+		serviceName  string
+		token        *structs.ACLToken
+		onDisk       bool
+		expectErr    bool
+	}{
+		{
+			name:         "happy_path_long_file",
+			onDisk:       true,
+			nomadLogPath: longFilePath,
+			expected:     string(longFileContents),
+			token:        root,
+		},
+		{
+			name:         "happy_path_short_file",
+			onDisk:       true,
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
+			token:        root,
+		},
+		{
+			name:         "token_error",
+			onDisk:       true,
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
+			token:        &structs.ACLToken{},
+			expectErr:    true,
+		},
+		{
+			name:         "invalid_service_name",
+			serviceName:  "nomad$",
+			nomadLogPath: shortFilePath,
+			expected:     shortText,
+			token:        &structs.ACLToken{},
+			expectErr:    true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// No NodeID set to force server use
+			req := cstructs.MonitorExportRequest{
+				LogSince:     "72",
+				NomadLogPath: tc.nomadLogPath,
+				OnDisk:       tc.onDisk,
+
+				ServiceName: tc.serviceName,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token.SecretID,
+				},
+			}
+
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s)
+			if !tc.expectErr {
+				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+			} else {
+				must.NotNil(t, finalError)
+				t.Log(finalError.Error())
+			}
+		})
+	}
 }
