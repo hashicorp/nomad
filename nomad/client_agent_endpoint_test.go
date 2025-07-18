@@ -1101,7 +1101,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 
 			// No NodeID set to force server use
 			req := cstructs.MonitorExportRequest{
-				LogSince:     "72",
+				LogsSince:    "72",
 				NomadLogPath: tc.nomadLogPath,
 				OnDisk:       tc.onDisk,
 

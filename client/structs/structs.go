@@ -78,7 +78,7 @@ type MonitorExportRequest struct {
 	Follow bool
 
 	// LogsSince sets the lookback time for monitorExport logs in hours
-	LogSince string
+	LogsSince string
 
 	// OnDisk indicates that nomad should export logs written to the configured nomad log path
 	OnDisk bool

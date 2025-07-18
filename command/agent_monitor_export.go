@@ -23,7 +23,7 @@ type MonitorExportCommand struct {
 	nodeID      string
 	serverID    string
 	onDisk      bool
-	logSince    time.Duration
+	logsSince   time.Duration
 	serviceName string
 	follow      bool
 }
@@ -38,7 +38,7 @@ pass '-service-name' with the name of the nomad service.
 The '-logs-since' and '-follow' options are only valid for journald queries.
 You may pass a duration string to the '-logs-since' option to override the
 default 72h duration. Nomad will accept the following time units in the
-'-logs-since' duration string:"ns", "us" (or "µs"), "ms", "s", "m", "h".
+'-logs-since duration string:"ns", "us" (or "µs"), "ms", "s", "m", "h".
 The '-follow=true' option causes the agent to continue to stream logs until
 interrupted or until the remote agent quits. Nomad only supports journald
 queries on Linux.
@@ -58,30 +58,30 @@ Monitor Specific Options:
 
   -node-id <node-id>
     Sets the specific node to monitor. Accepts only a single node-id and cannot
-	be used with server-id.
+    be used with server-id.
 
   -server-id <server-id>
     Sets the specific server to monitor. Accepts only a single server-id and
-	cannot be used with node-id.
+    cannot be used with node-id.
 
   -service-name <service-name>
     Sets the name of the nomad service, must match systemd conventions and
-	include the word 'nomad'. You may provide the full systemd file name
-	or omit the suffix. If your service name includes a '.', you must include
-	a valid suffix (e.g. nomad.client.service).
+    include the word 'nomad'. You may provide the full systemd file name
+    or omit the suffix. If your service name includes a '.', you must include
+    a valid suffix (e.g. nomad.client.service).
 
-  -log-since <duration string>
+  -logs-since <duration string>
     Sets the journald log period, invalid if on-disk=true. Defaults to 72h.
-	Valid unit strings are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    Valid unit strings are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
   -follow <bool>
-	If set, the export command will continue streaming until interrupted. Ignored
-	if on-disk=true.
+    If set, the export command will continue streaming until interrupted. Ignored
+    if on-disk=true.
 
   -on-disk <bool>
     If set, the export command will retrieve the Nomad log file defined in the
-	target agent's log_file configuration.
-	`
+    target agent's log_file configuration.
+    `
 	return strings.TrimSpace(helpText)
 }
 
@@ -95,7 +95,7 @@ func (c *MonitorExportCommand) AutocompleteFlags() complete.Flags {
 			"-node-id":      NodePredictor(c.Client),
 			"-server-id":    ServerPredictor(c.Client),
 			"-service-name": complete.PredictSet("nomad"),
-			"-log-since":    complete.PredictNothing,
+			"-logs-since":   complete.PredictNothing,
 			"-follow":       complete.PredictNothing,
 			"-on-disk":      complete.PredictNothing,
 		})
@@ -120,7 +120,7 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
-	flags.DurationVar(&c.logSince, "logs-since", defaultDur,
+	flags.DurationVar(&c.logsSince, "logs-since", defaultDur,
 		`sets the journald	log period.  Defaults to 72h, valid unit strings are
 		 "ns", "us" (or "µs"), "ms", "s", "m", or "h".`)
 	flags.StringVar(&c.serviceName, "service-name", "",
@@ -169,7 +169,7 @@ func (c *MonitorExportCommand) Run(args []string) int {
 
 	params := map[string]string{
 		"follow":       strconv.FormatBool(c.follow),
-		"log_since":    c.logSince.String(),
+		"logs_since":   c.logsSince.String(),
 		"node_id":      c.nodeID,
 		"on_disk":      strconv.FormatBool(c.onDisk),
 		"server_id":    c.serverID,

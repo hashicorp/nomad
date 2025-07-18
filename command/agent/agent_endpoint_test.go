@@ -469,7 +469,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 	cases := []struct {
 		name        string
 		follow      string
-		logSince    string
+		logsSince   string
 		nodeID      string
 		onDisk      string
 		serviceName string
@@ -483,10 +483,10 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 		want          string
 	}{
 		{
-			name:     "happy_path",
-			follow:   "false",
-			onDisk:   "true",
-			logSince: "9s",
+			name:      "happy_path",
+			follow:    "false",
+			onDisk:    "true",
+			logsSince: "9s",
 
 			config:        config,
 			expectErr:     false,
@@ -528,11 +528,11 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			want:          expectedText,
 		},
 		{
-			name:        "invalid_logSince_duration",
+			name:        "invalid_logsSince_duration",
 			follow:      "false",
 			onDisk:      "true",
 			serviceName: "nomad",
-			logSince:    "98seconds",
+			logsSince:   "98seconds",
 
 			config:        config,
 			errCode:       400,
@@ -621,7 +621,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 				}
 
 				urlParamPrep("follow", tc.follow, "false", &urlVal)
-				urlParamPrep("log_since", tc.logSince, "", &urlVal)
+				urlParamPrep("logs_since", tc.logsSince, "", &urlVal)
 				urlParamPrep("on_disk", tc.onDisk, "", &urlVal)
 				urlParamPrep("node_id", tc.nodeID, "", &urlVal)
 				urlParamPrep("server_id", tc.serverID, "", &urlVal)
