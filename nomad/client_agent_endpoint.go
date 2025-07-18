@@ -13,7 +13,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -324,6 +323,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		NomadLogPath: args.NomadLogPath,
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
+		Context:      ctx,
 	}
 
 	frames := make(chan *sframer.StreamFrame, 32)

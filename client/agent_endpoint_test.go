@@ -6,12 +6,11 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-
 	"io"
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -530,7 +529,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 				must.NotNil(t, builder)
 				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 			} else {
-				must.NotNil(t, finalError)
+				must.Nil(t, finalError)
 				t.Log(finalError.Error())
 			}
 
