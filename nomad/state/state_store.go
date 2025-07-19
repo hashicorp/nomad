@@ -5492,7 +5492,6 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	}
 
 	// If there is a non-terminal allocation, the job is running.
-	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
 		if !alloc.(*structs.Allocation).TerminalStatus() {
 			return structs.JobStatusRunning, nil
@@ -5515,7 +5514,7 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// The job is dead if all allocations for this version are terminal,
 	// all evals are terminal. In the event a jobs allocs and evals
 	// are all GC'd, we don't want the job to be marked pending.
-	if evalDelete || hasEval || hasAlloc || job.Stop {
+	if evalDelete || hasEval || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
