@@ -1455,6 +1455,9 @@ type SidecarTask struct {
 	// VolumeMounts is a list of Volume name <-> mount configurations that will be
 	// attached to this task.
 	VolumeMounts []*VolumeMount
+
+	// Identities is a list of Workload Identies to attach to this task
+	Identities []*WorkloadIdentity
 }
 
 func (t *SidecarTask) Equal(o *SidecarTask) bool {
@@ -1512,6 +1515,11 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
+	if !slices.EqualFunc(t.Identities, o.Identities,
+		func(tID, oID *WorkloadIdentity) bool { return tID.Equal(oID) }) {
+		return false
+	}
+
 	return true
 }
 
@@ -1542,6 +1550,8 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	nt.VolumeMounts = CopySliceVolumeMount(t.VolumeMounts)
+
+	nt.Identities = CopySliceWorkloadIdentity(t.Identities)
 
 	return nt
 }
@@ -1618,6 +1628,10 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 
 	if t.VolumeMounts != nil {
 		task.VolumeMounts = t.VolumeMounts
+	}
+
+	if t.Identities != nil {
+		task.Identities = t.Identities
 	}
 }
 
