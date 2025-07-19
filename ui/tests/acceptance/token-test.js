@@ -27,10 +27,8 @@ import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
 import { run } from '@ember/runloop';
 import { allScenarios } from '../../mirage/scenarios/default';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { selectChoose } from 'ember-power-select/test-support';
+import { clickTrigger } from 'ember-power-select/test-support/helpers';
 
 let job;
 let node;

@@ -5,6 +5,8 @@
 
 <div data-test-single-select-dropdown class="dropdown" ...attributes>
   <PowerSelect
+    @ariaLabel="label-single-select-dropdown-{{@label}}"
+    @ariaLabelledBy="label-single-select-dropdown-{{@label}}"
     @options={{@options}}
     @disabled={{@disabled}}
     @selected={{this.activeOption}}
