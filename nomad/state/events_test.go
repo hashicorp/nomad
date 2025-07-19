@@ -377,7 +377,7 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 		NodeEvent: &structs.NodeEvent{Message: "down"},
 	}
 
-	must.NoError(t, s.UpdateNodeStatus(msgType, 100, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent))
+	must.NoError(t, s.UpdateNodeStatus(msgType, 100, req))
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	must.Len(t, 1, events)
 

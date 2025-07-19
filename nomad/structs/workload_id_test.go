@@ -178,261 +178,303 @@ func TestNewIdentityClaims(t *testing.T) {
 	expectedClaims := map[string]*IdentityClaims{
 		// group: no consul.
 		"job/group/services/group-service": {
-			Namespace:   "default",
-			JobID:       "parentJob",
-			ServiceName: "group-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				ServiceName: "group-service",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  no consul, no vault.
 		"job/group/task/default-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		"job/group/task/alt-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// No ConsulNamespace because there is no consul block at either task
 		// or group level.
 		"job/group/task/consul_default": {
-			ConsulNamespace: "",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			TaskName:        "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				TaskName:        "task",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// No VaultNamespace because there is no vault block at either task
 		// or group level.
 		"job/group/task/vault_default": {
-			VaultNamespace: "",
-			Namespace:      "default",
-			JobID:          "parentJob",
-			TaskName:       "task",
-			VaultRole:      "", // not specified in jobspec
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				VaultNamespace: "",
+				Namespace:      "default",
+				JobID:          "parentJob",
+				TaskName:       "task",
+				VaultRole:      "", // not specified in jobspec
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "global:default:parentJob",
+				},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
-			ExtraClaims: map[string]string{
-				"nomad_workload_id": "global:default:parentJob",
-			},
 		},
 		"job/group/task/services/task-service": {
-			Namespace:   "default",
-			JobID:       "parentJob",
-			ServiceName: "task-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				ServiceName: "task-service",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  with consul, with vault.
 		"job/group/consul-vault-task/default-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "consul-vault-task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "consul-vault-task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Consul namespace.
 		"job/group/consul-vault-task/consul_default": {
-			ConsulNamespace: "task-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			TaskName:        "consul-vault-task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "task-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				TaskName:        "consul-vault-task",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Vault namespace.
 		"job/group/consul-vault-task/vault_default": {
-			VaultNamespace: "vault-namespace",
-			Namespace:      "default",
-			JobID:          "parentJob",
-			TaskName:       "consul-vault-task",
-			VaultRole:      "role-from-spec-group",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				VaultNamespace: "vault-namespace",
+				Namespace:      "default",
+				JobID:          "parentJob",
+				TaskName:       "consul-vault-task",
+				VaultRole:      "role-from-spec-group",
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "global:default:parentJob",
+				},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
-			ExtraClaims: map[string]string{
-				"nomad_workload_id": "global:default:parentJob",
-			},
 		},
 		// Use task-level Consul namespace for task services.
 		"job/group/consul-vault-task/services/consul-vault-task-service": {
-			ConsulNamespace: "task-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			ServiceName:     "consul-vault-task-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "task-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				ServiceName:     "consul-vault-task-service",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// group: with consul.
 		// Use group-level Consul namespace for group services.
 		"job/consul-group/services/group-service": {
-			ConsulNamespace: "group-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			ServiceName:     "group-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "group-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				ServiceName:     "group-service",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// group: with consul.
 		// task:  no consul, no vault.
 		"job/consul-group/task/default-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/task/alt-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// Use group-level Consul namespace because task doesn't have a consul
 		// block.
 		"job/consul-group/task/consul_default": {
-			ConsulNamespace: "group-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			TaskName:        "task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "group-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				TaskName:        "task",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/task/vault_default": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "task",
-			VaultRole: "", // not specified in jobspec
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace: "default",
+				JobID:     "parentJob",
+				TaskName:  "task",
+				VaultRole: "", // not specified in jobspec
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "global:default:parentJob",
+				},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
-			},
-			ExtraClaims: map[string]string{
-				"nomad_workload_id": "global:default:parentJob",
 			},
 		},
 		// Use group-level Consul namespace for task service because task
 		// doesn't have a consul block.
 		"job/consul-group/task/services/task-service": {
-			ConsulNamespace: "group-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			ServiceName:     "task-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "group-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				ServiceName:     "task-service",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  with consul, with vault.
 		"job/consul-group/consul-vault-task/default-identity": {
-			Namespace: "default",
-			JobID:     "parentJob",
-			TaskName:  "consul-vault-task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "consul-vault-task",
+				ExtraClaims: map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Consul namespace.
 		"job/consul-group/consul-vault-task/consul_default": {
-			ConsulNamespace: "task-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			TaskName:        "consul-vault-task",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "task-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				TaskName:        "consul-vault-task",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/consul-vault-task/vault_default": {
-			VaultNamespace: "vault-namespace",
-			Namespace:      "default",
-			JobID:          "parentJob",
-			TaskName:       "consul-vault-task",
-			VaultRole:      "role-from-spec-consul-group",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				VaultNamespace: "vault-namespace",
+				Namespace:      "default",
+				JobID:          "parentJob",
+				TaskName:       "consul-vault-task",
+				VaultRole:      "role-from-spec-consul-group",
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "global:default:parentJob",
+				},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
-			ExtraClaims: map[string]string{
-				"nomad_workload_id": "global:default:parentJob",
-			},
 		},
 		// Use task-level Consul namespace for task services.
 		"job/consul-group/consul-vault-task/services/consul-task-service": {
-			ConsulNamespace: "task-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			ServiceName:     "consul-task-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "task-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				ServiceName:     "consul-task-service",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 		"job/group/consul-vault-task/services/consul-task-service": {
-			ConsulNamespace: "task-consul-namespace",
-			Namespace:       "default",
-			JobID:           "parentJob",
-			ServiceName:     "consul-task-service",
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				ConsulNamespace: "task-consul-namespace",
+				Namespace:       "default",
+				JobID:           "parentJob",
+				ServiceName:     "consul-task-service",
+				ExtraClaims:     map[string]string{},
+			},
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
-			ExtraClaims: map[string]string{},
 		},
 	}
 
@@ -625,7 +667,7 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 			In:   WorkloadIdentity{},
 			Exp: WorkloadIdentity{
 				Name:     WorkloadIdentityDefaultName,
-				Audience: []string{WorkloadIdentityDefaultAud},
+				Audience: []string{IdentityDefaultAud},
 			},
 		},
 		{
@@ -635,7 +677,7 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 			},
 			Exp: WorkloadIdentity{
 				Name:     WorkloadIdentityDefaultName,
-				Audience: []string{WorkloadIdentityDefaultAud},
+				Audience: []string{IdentityDefaultAud},
 			},
 		},
 		{

@@ -34,7 +34,9 @@ func (c *Client) DrainSelf() error {
 		MarkEligible: false,
 		Meta:         map[string]string{"message": "shutting down"},
 		WriteRequest: structs.WriteRequest{
-			Region: c.Region(), AuthToken: c.secretNodeID()},
+			Region:    c.Region(),
+			AuthToken: c.nodeAuthToken(),
+		},
 	}
 	if drainSpec.Deadline > 0 {
 		drainReq.DrainStrategy.ForceDeadline = now.Add(drainSpec.Deadline)
@@ -94,7 +96,9 @@ func (c *Client) pollServerForDrainStatus(ctx context.Context, interval time.Dur
 		NodeID:   c.NodeID(),
 		SecretID: c.secretNodeID(),
 		QueryOptions: structs.QueryOptions{
-			Region: c.Region(), AuthToken: c.secretNodeID()},
+			Region:    c.Region(),
+			AuthToken: c.nodeAuthToken(),
+		},
 	}
 	var statusResp structs.SingleNodeResponse
 

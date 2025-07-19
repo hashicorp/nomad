@@ -634,6 +634,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"node identity": func() (cli.Command, error) {
+			return &NodeIdentityCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity renew": func() (cli.Command, error) {
+			return &NodeIdentityRenewCommand{
+				Meta: meta,
+			}, nil
+		},
 		"node meta": func() (cli.Command, error) {
 			return &NodeMetaCommand{
 				Meta: meta,

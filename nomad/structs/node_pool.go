@@ -8,6 +8,7 @@ import (
 	"maps"
 	"regexp"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -28,6 +29,11 @@ const (
 	// maxNodePoolDescriptionLength is the maximum length allowed for a node
 	// pool description.
 	maxNodePoolDescriptionLength = 256
+
+	// DefaultNodePoolNodeIdentityTTL is the default TTL for node identities
+	// when the operator does not specify this as part of the node pool
+	// specification.
+	DefaultNodePoolNodeIdentityTTL = 24 * time.Hour
 )
 
 var (
@@ -43,7 +49,7 @@ func ValidateNodePoolName(pool string) error {
 	return nil
 }
 
-// NodePool allows partioning infrastructure
+// NodePool allows partitioning infrastructure
 type NodePool struct {
 	// Name is the node pool name. It must be unique.
 	Name string
@@ -57,6 +63,9 @@ type NodePool struct {
 	// SchedulerConfiguration is the scheduler configuration specific to the
 	// node pool.
 	SchedulerConfiguration *NodePoolSchedulerConfiguration
+
+	// NodeIdentityTTL is the time-to-live for node identities in the pool.
+	NodeIdentityTTL time.Duration
 
 	// Hash is the hash of the node pool which is used to efficiently diff when
 	// we replicate pools across regions.
@@ -85,6 +94,18 @@ func (n *NodePool) Validate() error {
 	mErr = multierror.Append(mErr, n.SchedulerConfiguration.Validate())
 
 	return mErr.ErrorOrNil()
+}
+
+// Canonicalize is used to set default values for the node pool. This currently
+// only sets the default TTL for node identities if it is not set.
+func (n *NodePool) Canonicalize() {
+	if n == nil {
+		return
+	}
+
+	if n.NodeIdentityTTL == 0 {
+		n.NodeIdentityTTL = DefaultNodePoolNodeIdentityTTL
+	}
 }
 
 // Copy returns a deep copy of the node pool.
@@ -151,6 +172,8 @@ func (n *NodePool) SetHash() []byte {
 	// Write all the user set fields
 	_, _ = hash.Write([]byte(n.Name))
 	_, _ = hash.Write([]byte(n.Description))
+	_, _ = hash.Write([]byte(n.NodeIdentityTTL.String()))
+
 	if n.SchedulerConfiguration != nil {
 		_, _ = hash.Write([]byte(n.SchedulerConfiguration.SchedulerAlgorithm))
 
@@ -184,7 +207,7 @@ func (n *NodePool) SetHash() []byte {
 	return hashVal
 }
 
-// NodePoolSchedulerConfiguration is the scheduler confinguration applied to a
+// NodePoolSchedulerConfiguration is the scheduler configuration applied to a
 // node pool.
 //
 // When adding new values that should override global scheduler configuration,

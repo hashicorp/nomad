@@ -5,6 +5,7 @@ package widmgr
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,9 +35,10 @@ type SignerConfig struct {
 
 // Signer fetches and validates workload identities.
 type Signer struct {
-	nodeSecret string
-	region     string
-	rpc        RPCer
+	nodeSecret        string
+	nodeIdentityToken atomic.Value
+	region            string
+	rpc               RPCer
 }
 
 // NewSigner workload identity manager.
@@ -47,6 +49,11 @@ func NewSigner(c SignerConfig) *Signer {
 		rpc:        c.RPC,
 	}
 }
+
+// SetNodeIdentityToken fulfills the NodeIdentityHandler interface, allowing
+// the client to update the node identity token used for RPC calls when it is
+// renewed.
+func (s *Signer) SetNodeIdentityToken(token string) { s.nodeIdentityToken.Store(token) }
 
 // SignIdentities wraps the Alloc.SignIdentities RPC and retrieves signed
 // workload identities. The minIndex should be set to the lowest allocation
@@ -62,6 +69,15 @@ func (s *Signer) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentity
 		return nil, fmt.Errorf("no identities to sign")
 	}
 
+	// Default to using the node secret, but if the node identity token is set,
+	// this will be used instead. This handles the case where the node is
+	// upgraded before the Nomad servers and should be removed in Nomad 1.13.
+	authToken := s.nodeSecret
+
+	if id := s.nodeIdentityToken.Load(); id != nil {
+		authToken = id.(string)
+	}
+
 	args := structs.AllocIdentitiesRequest{
 		Identities: req,
 		QueryOptions: structs.QueryOptions{
@@ -73,7 +89,7 @@ func (s *Signer) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentity
 			// Server to block at least until the Allocation is created.
 			MinQueryIndex: minIndex - 1,
 			AllowStale:    true,
-			AuthToken:     s.nodeSecret,
+			AuthToken:     authToken,
 		},
 	}
 	reply := structs.AllocIdentitiesResponse{}
