@@ -20,6 +20,9 @@ module('Acceptance | server detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.createList('agent', 3);
+    let managementToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     server.create('region', { id: 'global' });
     agent = server.db.agents[0];
     await ServerDetail.visit({ name: agent.name });
