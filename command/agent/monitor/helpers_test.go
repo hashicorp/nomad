@@ -111,7 +111,7 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 					must.NoError(t, err)
 				} else {
 					must.NotNil(t, err)
-					must.Eq(t, tc.errString, err.Error())
+					must.EqError(t, err, tc.errString)
 				}
 
 			}()

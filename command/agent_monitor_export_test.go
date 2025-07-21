@@ -7,13 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
 
 func TestMonitorExportCommand_Implements(t *testing.T) {
@@ -33,16 +31,6 @@ func TestMonitorExportCommand_Fails(t *testing.T) {
 
 	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			if url != "" {
-				return true
-			}
-			return false
-		}),
-		wait.Timeout(time.Second*10),
-		wait.Gap(time.Millisecond*30),
-	))
 	cases := []struct {
 		name       string
 		cmdArgs    []string
@@ -95,7 +83,6 @@ func TestMonitorExportCommand_Fails(t *testing.T) {
 			} else {
 				must.StrContains(t, out, tc.errString)
 			}
-			time.Sleep(time.Second * 1)
 		})
 	}
 }
