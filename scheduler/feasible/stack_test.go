@@ -617,8 +617,10 @@ func TestSystemStack_Select_Secrets(t *testing.T) {
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Secrets[0] = &structs.Secret{
-		Provider: "foo",
+	job.TaskGroups[0].Tasks[0].Secrets = []*structs.Secret{
+		{
+			Provider: "foo",
+		},
 	}
 	stack.SetJob(job)
 
