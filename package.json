@@ -11,7 +11,15 @@
     "overrides": {
       "cross-spawn": "7.0.5",
       "ember-auto-import": "^2.7.3",
-      "prop-types": "^15.8.1"
+      "prop-types": "^15.8.1",
+      "clean-css@<4.1.11": ">=4.1.11",
+      "markdown-it@<12.3.2": ">=12.3.2",
+      "json5@<1.0.2": ">=1.0.2",
+      "braces@<3.0.3": ">=3.0.3",
+      "micromatch@<4.0.8": ">=4.0.8",
+      "ansi-html@<0.0.8": ">=0.0.8",
+      "@babel/runtime@<7.26.10": ">=7.26.10",
+      "on-headers@<1.1.0": ">=1.1.0"
     }
   }
 }
