@@ -88,13 +88,6 @@ func Job() *structs.Job {
 								Args:    []string{"hello world"},
 							},
 						},
-						Secrets: []*structs.Secret{
-							{
-								Name:     "test-secret",
-								Provider: "foo",
-								Path:     "test/path",
-							},
-						},
 						Constraints: []*structs.Constraint{
 							{
 								LTarget: "${attr.consul.version}",
