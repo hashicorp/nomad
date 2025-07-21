@@ -86,15 +86,16 @@ jobs:
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
-      - name: Setup node and yarn
+      - name: Install PNPM
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          run_install: false
+      - name: Setup node
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
-          node-version: "20"
-          cache-dependency-path: "ui/yarn.lock"
-
-      - name: Install Yarn
-        run: |
-          npm install -g yarn
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Install dependencies
         run: |
