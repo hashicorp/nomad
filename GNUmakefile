@@ -372,14 +372,14 @@ static-assets: ## Compile the static routes to serve alongside the API
 test-ui: ## Run Nomad UI test suite
 	@echo "==> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
-	@cd ui && yarn install
+	@cd ui && pnpm install
 	@echo "==> Running ember tests"
 	@cd ui && npm test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "==> Installing JavaScript assets"
-	@cd ui && yarn install --silent --network-timeout 300000
+	@cd ui && pnpm install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
 	@echo "==> Building Ember application"
 	@cd ui && npm run build
