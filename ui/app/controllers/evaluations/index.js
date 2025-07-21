@@ -10,7 +10,7 @@ import { tracked } from '@glimmer/tracking';
 import { schedule } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import { useMachine } from 'ember-statecharts';
-import { use } from 'ember-usable';
+import { use } from 'ember-could-get-used-to-this';
 import evaluationsMachine from '../../machines/evaluations';
 
 const ALL_NAMESPACE_WILDCARD = '*';
