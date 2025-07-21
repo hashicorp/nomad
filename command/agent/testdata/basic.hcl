@@ -168,6 +168,12 @@ server {
     }
   }
 
+  client_introduction {
+    enforcement          = "warn"
+    default_identity_ttl = "5m"
+    max_identity_ttl     = "30m"
+  }
+
   license_path = "/tmp/nomad.hclic"
 }
 

@@ -448,6 +448,11 @@ type Config struct {
 	// considered healthy. Without this, the server can hang indefinitely
 	// waiting for these.
 	StartTimeout time.Duration
+
+	// NodeIntroductionConfig is the configuration for the node introduction
+	// feature. This feature allows servers to validate node registration
+	// requests and perform the appropriate enforcement actions.
+	NodeIntroductionConfig *structs.NodeIntroductionConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -477,6 +482,7 @@ func (c *Config) Copy() *Config {
 	nc.LicenseConfig = c.LicenseConfig.Copy()
 	nc.SearchConfig = c.SearchConfig.Copy()
 	nc.KEKProviderConfigs = helper.CopySlice(c.KEKProviderConfigs)
+	nc.NodeIntroductionConfig = c.NodeIntroductionConfig.Copy()
 
 	return &nc
 }
@@ -657,6 +663,7 @@ func DefaultConfig() *Config {
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 		StartTimeout:             30 * time.Second,
+		NodeIntroductionConfig:   structs.DefaultNodeIntroductionConfig(),
 	}
 
 	// Enable all known schedulers by default

@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -269,10 +270,10 @@ func TestGenerateNodeIdentityClaims(t *testing.T) {
 
 	claims := GenerateNodeIdentityClaims(node, "euw", 10*time.Minute)
 
-	must.Eq(t, "node-id-1", claims.NodeID)
-	must.Eq(t, "custom-pool", claims.NodePool)
-	must.Eq(t, "custom-class", claims.NodeClass)
-	must.Eq(t, "euw2", claims.NodeDatacenter)
+	must.Eq(t, "node-id-1", claims.NodeIdentityClaims.NodeID)
+	must.Eq(t, "custom-pool", claims.NodeIdentityClaims.NodePool)
+	must.Eq(t, "custom-class", claims.NodeIdentityClaims.NodeClass)
+	must.Eq(t, "euw2", claims.NodeIdentityClaims.NodeDatacenter)
 	must.StrEqFold(t, "node:euw:custom-pool:node-id-1:default", claims.Subject)
 	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
 	must.NotNil(t, claims.ID)
@@ -648,4 +649,32 @@ func TestNodeUpdateStatusRequest_IdentitySigningErrorIsTerminal(t *testing.T) {
 			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
+}
+
+func Test_DefaultNodeIntroductionConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	expected := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+	must.Eq(t, expected, DefaultNodeIntroductionConfig())
+}
+
+func TestNodeIntroductionConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	nodeIntro := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+
+	copiedNodeIntro := nodeIntro.Copy()
+
+	// Ensure the copied object contains the same values, but the underlying
+	// pointer address is different.
+	must.Eq(t, nodeIntro, copiedNodeIntro)
+	must.NotEq(t, fmt.Sprintf("%p", nodeIntro), fmt.Sprintf("%p", copiedNodeIntro))
 }

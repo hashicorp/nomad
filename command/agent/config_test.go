@@ -1260,6 +1260,123 @@ func TestIsMissingPort(t *testing.T) {
 	}
 }
 
+func TestClientIntroduction_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	clientIntro := &ClientIntroduction{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+
+	copiedClientIntro := clientIntro.Copy()
+
+	// Ensure the copied object contains the same values, but the underlying
+	// pointer address is different.
+	must.Eq(t, clientIntro, copiedClientIntro)
+	must.NotEq(t, fmt.Sprintf("%p", clientIntro), fmt.Sprintf("%p", copiedClientIntro))
+}
+
+func TestClientIntroduction_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	clientIntro1 := &ClientIntroduction{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+		ExtraKeysHCL:       []string{"key1", "key2"},
+	}
+	clientIntro2 := &ClientIntroduction{
+		Enforcement:        "strict",
+		DefaultIdentityTTL: 30 * time.Minute,
+		MaxIdentityTTL:     60 * time.Minute,
+		ExtraKeysHCL:       []string{"key3", "key4"},
+	}
+	expectedClientIntro := &ClientIntroduction{
+		Enforcement:        "strict",
+		DefaultIdentityTTL: 30 * time.Minute,
+		MaxIdentityTTL:     60 * time.Minute,
+		ExtraKeysHCL:       []string{"key1", "key2", "key3", "key4"},
+	}
+	must.Eq(t, expectedClientIntro, clientIntro1.Merge(clientIntro2))
+}
+
+func TestClientIntroduction_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                    string
+		inputClientIntroduction *ClientIntroduction
+		expectedError           bool
+	}{
+		{
+			name:                    "nil block",
+			inputClientIntroduction: nil,
+			expectedError:           false,
+		},
+		{
+			name: "empty enforcement",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "",
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid enforcement",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "nuclear",
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid default_identity_ttl",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 0,
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid max_identity_ttl",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid ttl combination",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     4 * time.Minute,
+			},
+			expectedError: true,
+		},
+		{
+			name: "valid",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputClientIntroduction.Validate()
+			if tc.expectedError {
+				must.Error(t, actualOutput)
+			} else {
+				must.NoError(t, actualOutput)
+			}
+		})
+	}
+}
+
 func TestMergeServerJoin(t *testing.T) {
 	ci.Parallel(t)
 
