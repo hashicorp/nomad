@@ -673,7 +673,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 				}
 
 				builder.WriteString(string(frame.Data))
-				must.Eq(t, builder.String(), tc.want)
+				must.Eq(t, tc.want, builder.String())
 			})
 		})
 	}

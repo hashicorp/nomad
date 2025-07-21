@@ -128,10 +128,11 @@ func (d *ExportMonitor) Start() <-chan []byte {
 	// Read, copy, and send to channel until we hit EOF or error
 	streamCh := make(chan []byte)
 	go func() {
-		defer close(streamCh)
 		if useCli {
 			defer cmd.Wait()
 		}
+		defer close(streamCh)
+
 		logChunk := make([]byte, bufSize)
 	OUTER:
 		for {
@@ -146,8 +147,7 @@ func (d *ExportMonitor) Start() <-chan []byte {
 				}
 
 				streamCh <- logChunk[:n]
-
-				if readErr == io.EOF && !d.ExportReader.Follow {
+				if readErr == io.EOF && n == 0 && !d.ExportReader.Follow {
 					break OUTER
 				}
 			}
