@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
@@ -741,11 +742,30 @@ type NodeIdentityRenewResp struct{}
 // configuration object for the node introduction feature.
 func DefaultNodeIntroductionConfig() *NodeIntroductionConfig {
 	return &NodeIntroductionConfig{
-		Enforcement:        "warn",
+		Enforcement:        NodeIntroductionEnforcementWarn,
 		DefaultIdentityTTL: 5 * time.Minute,
 		MaxIdentityTTL:     30 * time.Minute,
 	}
 }
+
+const (
+	// NodeIntroductionEnforcementNone means secure intro token, and the
+	// pre-1.11 workflow that uses an empty authentication token can be used for
+	// initial client registration. No enforcement is applied and no emits are
+	// emitted based on the registration introduction.
+	NodeIntroductionEnforcementNone = "none"
+
+	// NodeIntroductionEnforcementWarn means secure intro token, and the
+	// pre-1.11 workflow that uses an empty authentication token can be used for
+	// initial client registration. The server will emit a log and a metric for
+	// each registration that does not use an introduction token.
+	NodeIntroductionEnforcementWarn = "warn"
+
+	// NodeIntroductionEnforcementStrict means initial client registration must
+	// use a secure introduction token. The server will reject any registration
+	// that does not use an introduction token.
+	NodeIntroductionEnforcementStrict = "strict"
+)
 
 // NodeIntroductionConfig is the server configuration block that configures
 // the client introduction feature. This feature allows servers to validate
@@ -753,7 +773,10 @@ func DefaultNodeIntroductionConfig() *NodeIntroductionConfig {
 type NodeIntroductionConfig struct {
 
 	// Enforcement is the level of enforcement that the server will apply to
-	// client registrations. This can be one of "none", "warn", or "strict".
+	// client registrations. This can be one of "none", "warn", or "strict"
+	// which are defined as NodeIntroductionEnforcementNone,
+	// NodeIntroductionEnforcementWarn, and NodeIntroductionEnforcementStrict
+	// respectively.
 	Enforcement string
 
 	// DefaultIdentityTTL is the TTL assigned to client introduction identities
@@ -774,4 +797,38 @@ func (n *NodeIntroductionConfig) Copy() *NodeIntroductionConfig {
 
 	newCI := *n
 	return &newCI
+}
+
+// Validate checks that the node introduction configuration is valid.
+func (n *NodeIntroductionConfig) Validate() error {
+
+	if n == nil {
+		return fmt.Errorf("cannot be empty")
+	}
+
+	var mErr *multierror.Error
+
+	switch n.Enforcement {
+	case NodeIntroductionEnforcementNone,
+		NodeIntroductionEnforcementWarn,
+		NodeIntroductionEnforcementStrict:
+	default:
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid enforcement %q", n.Enforcement))
+	}
+
+	if n.DefaultIdentityTTL < 1 {
+		mErr = multierror.Append(mErr, errors.New("default_identity_ttl must be greater than 0"))
+	}
+
+	if n.MaxIdentityTTL < 1 {
+		mErr = multierror.Append(mErr, errors.New("max_identity_ttl must be greater than 0"))
+	}
+
+	if n.MaxIdentityTTL < n.DefaultIdentityTTL {
+		mErr = multierror.Append(mErr, errors.New(
+			"max_identity_ttl must be greater than or equal to default_identity_ttl",
+		))
+	}
+
+	return mErr.ErrorOrNil()
 }

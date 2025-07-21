@@ -678,3 +678,75 @@ func TestNodeIntroductionConfig_Copy(t *testing.T) {
 	must.Eq(t, nodeIntro, copiedNodeIntro)
 	must.NotEq(t, fmt.Sprintf("%p", nodeIntro), fmt.Sprintf("%p", copiedNodeIntro))
 }
+
+func TestNodeIntroductionConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                        string
+		inputNodeIntroductionConfig *NodeIntroductionConfig
+		expectedErrorContains       string
+	}{
+		{
+			name:                        "nil config",
+			inputNodeIntroductionConfig: nil,
+			expectedErrorContains:       "cannot be empty",
+		},
+		{
+			name: "incorrect enforcement",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        "invalid",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "invalid enforcement",
+		},
+		{
+			name: "incorrect default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 0,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "default_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL greater than default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than or equal to default_identity_ttl",
+		},
+		{
+			name: "valid",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 15 * time.Minute,
+				MaxIdentityTTL:     45 * time.Minute,
+			},
+			expectedErrorContains: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputNodeIntroductionConfig.Validate()
+			if tc.expectedErrorContains == "" {
+				must.NoError(t, actualError)
+			} else {
+				must.ErrorContains(t, actualError, tc.expectedErrorContains)
+			}
+		})
+	}
+}

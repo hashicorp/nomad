@@ -656,6 +656,24 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			runtime.NumCPU())
 	}
 
+	// If the operator has specified a client introduction server config block,
+	// translate this into the internal server configuration object.
+	if agentConfig.Server.ClientIntroduction != nil {
+		if agentConfig.Server.ClientIntroduction.Enforcement != "" {
+			conf.NodeIntroductionConfig.Enforcement = agentConfig.Server.ClientIntroduction.Enforcement
+		}
+		if agentConfig.Server.ClientIntroduction.DefaultIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.DefaultIdentityTTL = agentConfig.Server.ClientIntroduction.DefaultIdentityTTL
+		}
+		if agentConfig.Server.ClientIntroduction.MaxIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.MaxIdentityTTL = agentConfig.Server.ClientIntroduction.MaxIdentityTTL
+		}
+	}
+
+	if err := conf.NodeIntroductionConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid server.client_introduction configuration: %w", err)
+	}
+
 	return conf, nil
 }
 
