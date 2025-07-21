@@ -7,6 +7,8 @@
   <div class="boxed-section-head" data-test-level-switcher-parent>
     <PowerSelect
       data-test-level-switcher
+      @ariaLabel="label-level-switcher"
+      @ariaLabelledBy="label-level-switcher"
       @tagName="div"
       @triggerClass="is-compact pull-left"
       @options={{this.levels}}
