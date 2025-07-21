@@ -97,7 +97,6 @@
     "ember-composable-helpers": "^5.0.0",
     "ember-concurrency": "^4.0.4",
     "ember-copy": "^2.0.1",
-    "ember-could-get-used-to-this": "^1.0.1",
     "ember-data": "~3.24",
     "ember-data-model-fragments": "5.0.0-beta.3",
     "ember-decorators": "^6.1.1",
