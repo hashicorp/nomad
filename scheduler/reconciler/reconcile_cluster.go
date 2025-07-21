@@ -482,16 +482,14 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		reconnect, stopAllocSet, stopAllocResult := a.reconcileReconnecting(reconnecting, all, tg)
 		result.Stop = append(result.Stop, stopAllocResult...)
 
-		// Stop the reconciled allocations and remove them from the other sets
-		// since they have been already handled.
+		// Stop the reconciled allocations and remove them from untainted, migrate, lost
+		// and disconnecting sets, since they have been already handled.
 		result.DesiredTGUpdates[group].Stop += uint64(len(stopAllocSet))
 
 		untainted = untainted.difference(stopAllocSet)
 		migrate = migrate.difference(stopAllocSet)
 		lost = lost.difference(stopAllocSet)
 		disconnecting = disconnecting.difference(stopAllocSet)
-		reconnecting = reconnecting.difference(stopAllocSet)
-		ignore = ignore.difference(stopAllocSet)
 
 		// Validate and add reconnecting allocations to the plan so they are
 		// logged.
