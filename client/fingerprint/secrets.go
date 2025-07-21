@@ -4,7 +4,6 @@
 package fingerprint
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -22,8 +21,8 @@ func NewPluginsSecretsFingerprint(logger hclog.Logger) Fingerprint {
 
 func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
 	// Add builtin secrets providers
-	response.AddAttribute(fmt.Sprintf("plugins.secrets.%s.version", "nomad"), "1.0.0")
-	response.AddAttribute(fmt.Sprintf("plugins.secrets.%s.version", "vault"), "1.0.0")
+	response.AddAttribute("plugins.secrets.nomad.version", "1.0.0")
+	response.AddAttribute("plugins.secrets.vault.version", "1.0.0")
 	response.Detected = true
 
 	return nil
