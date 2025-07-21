@@ -88,6 +88,59 @@ func TestRandomIterator(t *testing.T) {
 
 }
 
+func TestSecretsChecker(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[1].Attributes["plugins.secrets.foo.version"] = "1.0.0"
+	nodes[2].Attributes["plugins.secrets.bar.version"] = "1.0.0"
+
+	m := map[string]struct{}{
+		"foo": struct{}{},
+	}
+	checker := NewSecretsProviderChecker(ctx, m)
+
+	cases := []struct {
+		Node    *structs.Node
+		Secrets map[string]struct{}
+		Result  bool
+	}{
+		{
+			Node: nodes[0],
+			Secrets: map[string]struct{}{
+				"foo": {},
+			},
+			Result: false,
+		},
+		{
+			Node: nodes[1],
+			Secrets: map[string]struct{}{
+				"foo": {},
+			},
+			Result: true,
+		},
+		{
+			Node: nodes[2],
+			Secrets: map[string]struct{}{
+				"foo": {},
+			},
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetSecrets(c.Secrets)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
 func TestHostVolumeChecker_Static(t *testing.T) {
 	ci.Parallel(t)
 
