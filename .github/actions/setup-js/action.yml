@@ -17,9 +17,7 @@ runs:
       with:
         node-version-file: package.json
         cache: pnpm
-        cache-dependency-path: pnpm-lock.yaml
-        
+
     - name: PNPM install
-      run: pnpm install --frozen-lockfile
-      working-directory: ui
+      run: pnpm install
       shell: bash
