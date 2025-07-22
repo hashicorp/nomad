@@ -65,7 +65,7 @@ func TestMonitorExportCommand_Fails(t *testing.T) {
 		{
 			name:      "requires nomad in service name",
 			cmdArgs:   []string{"-address=" + url, "-service-name=docker.path"},
-			errString: "(service name must include 'nomad' and conform to systemd conventions)",
+			errString: "does not include 'nomad'",
 		},
 	}
 

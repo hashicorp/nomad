@@ -168,13 +168,18 @@ func TestScanServiceName(t *testing.T) {
 			testString: `nomad-client.service`,
 		},
 		{
-			testString: `nomadhelper@.device`,
-		},
-		{
-			testString: `1.\@_-nomad@.automount`,
-		},
-		{
 			testString: `nomad.client.02.swap`,
+		},
+		{
+			testString: `nomadhelper@54.device`,
+		},
+		{
+			testString: `1.\@_-nomad@`,
+			expectErr:  true,
+		},
+		{
+			testString: `1./@_-nomad@.automount`,
+			expectErr:  true,
 		},
 		{
 			testString: `docker.path`,
@@ -185,7 +190,7 @@ func TestScanServiceName(t *testing.T) {
 			expectErr:  true,
 		},
 		{
-			testString: `nomad/.path`,
+			testString: `nomad/8.path`,
 			expectErr:  true,
 		},
 		{
@@ -204,6 +209,30 @@ func TestScanServiceName(t *testing.T) {
 			testString: `nomad.client`,
 			expectErr:  true,
 		},
+		{
+			testString: `nomad!.path`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad%http.timer`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad,http.mount`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad$http.service`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad$.http.service`,
+			expectErr:  true,
+		},
+		{
+			testString: `nomad$`,
+			expectErr:  true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -214,6 +243,7 @@ func TestScanServiceName(t *testing.T) {
 			} else {
 				must.Error(t, err)
 			}
+
 		})
 	}
 }
