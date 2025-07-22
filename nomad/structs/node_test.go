@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -269,10 +270,10 @@ func TestGenerateNodeIdentityClaims(t *testing.T) {
 
 	claims := GenerateNodeIdentityClaims(node, "euw", 10*time.Minute)
 
-	must.Eq(t, "node-id-1", claims.NodeID)
-	must.Eq(t, "custom-pool", claims.NodePool)
-	must.Eq(t, "custom-class", claims.NodeClass)
-	must.Eq(t, "euw2", claims.NodeDatacenter)
+	must.Eq(t, "node-id-1", claims.NodeIdentityClaims.NodeID)
+	must.Eq(t, "custom-pool", claims.NodeIdentityClaims.NodePool)
+	must.Eq(t, "custom-class", claims.NodeIdentityClaims.NodeClass)
+	must.Eq(t, "euw2", claims.NodeIdentityClaims.NodeDatacenter)
 	must.StrEqFold(t, "node:euw:custom-pool:node-id-1:default", claims.Subject)
 	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
 	must.NotNil(t, claims.ID)
@@ -646,6 +647,106 @@ func TestNodeUpdateStatusRequest_IdentitySigningErrorIsTerminal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputNodeRegisterRequest.IdentitySigningErrorIsTerminal(tc.inputTime)
 			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func Test_DefaultNodeIntroductionConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	expected := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+	must.Eq(t, expected, DefaultNodeIntroductionConfig())
+}
+
+func TestNodeIntroductionConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	nodeIntro := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+
+	copiedNodeIntro := nodeIntro.Copy()
+
+	// Ensure the copied object contains the same values, but the underlying
+	// pointer address is different.
+	must.Eq(t, nodeIntro, copiedNodeIntro)
+	must.NotEq(t, fmt.Sprintf("%p", nodeIntro), fmt.Sprintf("%p", copiedNodeIntro))
+}
+
+func TestNodeIntroductionConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                        string
+		inputNodeIntroductionConfig *NodeIntroductionConfig
+		expectedErrorContains       string
+	}{
+		{
+			name:                        "nil config",
+			inputNodeIntroductionConfig: nil,
+			expectedErrorContains:       "cannot be empty",
+		},
+		{
+			name: "incorrect enforcement",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        "invalid",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "invalid enforcement",
+		},
+		{
+			name: "incorrect default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 0,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "default_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL greater than default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than or equal to default_identity_ttl",
+		},
+		{
+			name: "valid",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 15 * time.Minute,
+				MaxIdentityTTL:     45 * time.Minute,
+			},
+			expectedErrorContains: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputNodeIntroductionConfig.Validate()
+			if tc.expectedErrorContains == "" {
+				must.NoError(t, actualError)
+			} else {
+				must.ErrorContains(t, actualError, tc.expectedErrorContains)
+			}
 		})
 	}
 }

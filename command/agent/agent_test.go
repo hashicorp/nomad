@@ -1898,3 +1898,60 @@ func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
 		})
 	}
 }
+
+func Test_convertServerConfig_clientIntroduction(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                           string
+		inputClientIntroduction        *ClientIntroduction
+		expectedNodeIntroductionConfig *structs.NodeIntroductionConfig
+	}{
+		{
+			name:                    "nil client introduction",
+			inputClientIntroduction: nil,
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+		},
+		{
+			name: "partial override",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "strict",
+			},
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+		},
+		{
+			name: "partial override",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 50 * time.Minute,
+				MaxIdentityTTL:     300 * time.Minute,
+			},
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 50 * time.Minute,
+				MaxIdentityTTL:     300 * time.Minute,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			baseConfig := DevConfig(nil)
+			must.NoError(t, baseConfig.normalizeAddrs())
+			baseConfig.Server.ClientIntroduction = tc.inputClientIntroduction
+
+			serverConf, err := convertServerConfig(baseConfig)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeIntroductionConfig, serverConf.NodeIntroductionConfig)
+		})
+	}
+}

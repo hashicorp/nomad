@@ -361,6 +361,11 @@
           ]
         }
       ],
+      "client_introduction": {
+        "enforcement": "warn",
+        "default_identity_ttl": "5m",
+        "max_identity_ttl": "30m"
+      },
       "upgrade_version": "0.8.0",
       "license_path": "/tmp/nomad.hclic",
       "job_default_priority": 100,
