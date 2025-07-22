@@ -26,28 +26,22 @@ import (
 // ScanServiceName checks that the length, prefix and suffix conform to
 // systemd conventions and ensures the service name includes the word 'nomad'
 func ScanServiceName(input string) error {
+	prefix := ""
 	// invalid if prefix and suffix together are < 255 char
 	if len(input) > 255 {
 		return errors.New("service name too long")
 	}
 
 	if isNomad := strings.Contains(input, "nomad"); !isNomad {
-		return errors.New(`service name must include 'nomad' and conform to systemd conventions`)
-	}
-
-	// only allow ., :, @ , - , _ and \
-	re := regexp.MustCompile(`[\w.:@_\-\\]*`)
-
-	// Remove all matches and error if the returned string isn't empty
-	// to ensure only characters that match are present
-	safe := re.ReplaceAllString(input, "")
-	if len(safe) != 0 {
-		return fmt.Errorf("these strings did not match %s", safe)
+		return errors.New(`service name must include 'nomad`)
 	}
 
 	// if there is a suffix, check against list of valid suffixes
+	// and set prefix to exclude suffix index, else set prefix
 	splitInput := strings.Split(input, ".")
-	if len(splitInput) > 1 {
+	if len(splitInput) < 2 {
+		prefix = input
+	} else {
 		suffix := splitInput[len(splitInput)-1]
 		validSuffix := []string{
 			"service",
@@ -60,11 +54,17 @@ func ScanServiceName(input string) error {
 			"path",
 			"timer",
 			"slice",
-			"scope"}
-
+			"scope",
+		}
 		if valid := slices.Contains(validSuffix, suffix); !valid {
 			return errors.New("invalid suffix")
 		}
+		prefix = strings.Join(splitInput[:len(splitInput)-1], "")
+	}
+
+	safe, _ := regexp.MatchString(`^[\w\\._-]*(@[\w\\._-]+)?$`, prefix)
+	if !safe {
+		return fmt.Errorf("%s does not meet systemd conventions", prefix)
 	}
 	return nil
 }
