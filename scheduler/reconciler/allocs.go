@@ -4,12 +4,9 @@
 package reconciler
 
 import (
-	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -222,73 +219,6 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 		}
 	}
 	return from
-}
-
-// delayByStopAfter returns a delay for any lost allocation that's got a
-// disconnect.stop_on_client_after configured
-func (a allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
-	now := time.Now().UTC()
-	for _, a := range a {
-		if !a.ShouldClientStop() {
-			continue
-		}
-
-		t := a.WaitClientStop()
-
-		if t.After(now) {
-			later = append(later, &delayedRescheduleInfo{
-				allocID:        a.ID,
-				alloc:          a,
-				rescheduleTime: t,
-			})
-		}
-	}
-	return later
-}
-
-// delayByLostAfter returns a delay for any unknown allocation
-// that has disconnect.lost_after configured
-func (a allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, error) {
-	var later []*delayedRescheduleInfo
-
-	for _, alloc := range a {
-		timeout := alloc.DisconnectTimeout(now)
-		if !timeout.After(now) {
-			return nil, errors.New("unable to computing disconnecting timeouts")
-		}
-
-		later = append(later, &delayedRescheduleInfo{
-			allocID:        alloc.ID,
-			alloc:          alloc,
-			rescheduleTime: timeout,
-		})
-	}
-
-	return later, nil
-}
-
-// filterOutByClientStatus returns all allocs from the set without the specified client status.
-func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
-	allocs := make(allocSet)
-	for _, alloc := range a {
-		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
-			allocs[alloc.ID] = alloc
-		}
-	}
-
-	return allocs
-}
-
-// filterByClientStatus returns allocs from the set with the specified client status.
-func (a allocSet) filterByClientStatus(clientStatus string) allocSet {
-	allocs := make(allocSet)
-	for _, alloc := range a {
-		if alloc.ClientStatus == clientStatus {
-			allocs[alloc.ID] = alloc
-		}
-	}
-
-	return allocs
 }
 
 // AllocNameIndex is used to select allocation names for placement or removal
