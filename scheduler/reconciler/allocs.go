@@ -218,6 +218,18 @@ func (set allocSet) fromKeys(keys []string) allocSet {
 	return from
 }
 
+// update returns a new allocSet which copies this set but with updates for any
+// alloc that's also in the "other" set
+func (set allocSet) update(other allocSet) (updated allocSet) {
+	updated = updated.union(set)
+	for id, alloc := range other {
+		if _, ok := updated[id]; ok {
+			updated[id] = alloc
+		}
+	}
+	return updated
+}
+
 // AllocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
 type AllocNameIndex struct {

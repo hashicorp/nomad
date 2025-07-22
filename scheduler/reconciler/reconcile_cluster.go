@@ -532,7 +532,9 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 			result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 		}
 
-		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
+		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
+		rescheduleNow = rescheduleNow.update(updates)
+
 		maps.Copy(result.DisconnectUpdates, updates)
 		result.DesiredTGUpdates[tg.Name].Disconnect = uint64(len(result.DisconnectUpdates))
 		result.DesiredTGUpdates[tg.Name].RescheduleNow = uint64(len(rescheduleNow))
@@ -1589,11 +1591,12 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 	return allocIDToFollowupEvalID, evals
 }
 
-// Create updates that will be applied to the allocs to mark the FollowupEvalID
-// and the unknown ClientStatus and AllocState.
+// appendUnknownDisconnectingUpdates returns a new allocSet of allocations with
+// updates to mark the FollowupEvalID and and the unknown ClientStatus and
+// AllocState.
 func appendUnknownDisconnectingUpdates(disconnecting allocSet,
-	allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) map[string]*structs.Allocation {
-	resultingDisconnectUpdates := map[string]*structs.Allocation{}
+	allocIDToFollowupEvalID map[string]string) allocSet {
+	resultingDisconnectUpdates := make(allocSet)
 	for id, alloc := range disconnecting {
 		updatedAlloc := alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
@@ -1601,14 +1604,6 @@ func appendUnknownDisconnectingUpdates(disconnecting allocSet,
 		updatedAlloc.ClientDescription = sstructs.StatusAllocUnknown
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[id]
 		resultingDisconnectUpdates[updatedAlloc.ID] = updatedAlloc
-
-		// update the reschedule set so that any placements holding onto this
-		// pointer are using the right pointer for PreviousAllocation()
-		for i, alloc := range rescheduleNow {
-			if alloc.ID == updatedAlloc.ID {
-				rescheduleNow[i] = updatedAlloc
-			}
-		}
 	}
 
 	return resultingDisconnectUpdates
