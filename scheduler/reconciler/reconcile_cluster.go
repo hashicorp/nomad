@@ -110,18 +110,16 @@ type ReconcileResults struct {
 	Stop []AllocStopResult
 
 	// AttributeUpdates are updates to the allocation that are not from a
-	// jobspec change. map of alloc ID -> *Allocation
-	AttributeUpdates map[string]*structs.Allocation
+	// jobspec change.
+	AttributeUpdates allocSet
 
 	// DisconnectUpdates is the set of allocations are on disconnected nodes, but
 	// have not yet had their ClientStatus set to AllocClientStatusUnknown.
-	// map of alloc ID -> *Allocation
-	DisconnectUpdates map[string]*structs.Allocation
+	DisconnectUpdates allocSet
 
 	// ReconnectUpdates is the set of allocations that have ClientStatus set to
 	// AllocClientStatusUnknown, but the associated Node has reconnected.
-	// map of alloc ID -> *Allocation
-	ReconnectUpdates map[string]*structs.Allocation
+	ReconnectUpdates allocSet
 
 	// DesiredTGUpdates captures the desired set of changes to make for each
 	// task group.
@@ -512,7 +510,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	result.DesiredFollowupEvals = map[string][]*structs.Evaluation{}
-	result.DisconnectUpdates = map[string]*structs.Allocation{}
+	result.DisconnectUpdates = make(allocSet)
 
 	// Determine what set of disconnecting allocations need to be rescheduled now,
 	// which ones later and which ones can't be rescheduled at all.
@@ -936,7 +934,7 @@ func computePlacements(group *structs.TaskGroup,
 // is not paused, failed, or canarying. It returns the number of allocs still
 // needed, allocations to place, and allocations to stop.
 func (a *AllocReconciler) placeAllocs(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
-	place []AllocPlaceResult, rescheduleNow, lost allocSet, disconnectUpdates map[string]*structs.Allocation,
+	place []AllocPlaceResult, rescheduleNow, lost allocSet, disconnectUpdates allocSet,
 	underProvisionedBy int) (int, []AllocPlaceResult, []AllocStopResult) {
 
 	// Disconnecting allocs are not failing, but are included in rescheduleNow.
@@ -1373,10 +1371,10 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted allocSet) (
 	ignore, inplaceUpdateMap allocSet, inplaceUpdateSlice []*structs.Allocation, destructive allocSet) {
 	// Determine the set of allocations that need to be updated
-	ignore = make(map[string]*structs.Allocation)
-	inplaceUpdateMap = make(map[string]*structs.Allocation)
+	ignore = make(allocSet)
+	inplaceUpdateMap = make(allocSet)
 	inplaceUpdateSlice = make([]*structs.Allocation, 0)
-	destructive = make(map[string]*structs.Allocation)
+	destructive = make(allocSet)
 
 	for _, alloc := range untainted {
 		ignoreChange, destructiveChange, inplaceAlloc := a.allocUpdateFn(alloc, a.jobState.Job, group)
@@ -1396,12 +1394,12 @@ func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID. this function modifies disconnectUpdates in place.
 func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet,
-	disconnectUpdates map[string]*structs.Allocation) ([]*structs.Evaluation, map[string]*structs.Allocation) {
+	disconnectUpdates allocSet) ([]*structs.Evaluation, allocSet) {
 
 	// followupEvals are created in the same way as for delayed lost allocs
 	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater)
 
-	var attributeUpdates = make(map[string]*structs.Allocation)
+	attributeUpdates := make(allocSet)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for _, laterAlloc := range rescheduleLater {
@@ -1425,9 +1423,9 @@ func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 // set to running, and these allocs are appended to the Plan as non-destructive
 // updates. Clients are responsible for reconciling the DesiredState with the
 // actual state as the node comes back online.
-func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) map[string]*structs.Allocation {
+func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) allocSet {
 
-	reconnectingUpdates := map[string]*structs.Allocation{}
+	reconnectingUpdates := make(allocSet)
 
 	// Create updates that will be appended to the plan.
 	for _, alloc := range reconnecting {
