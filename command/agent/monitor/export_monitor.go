@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -18,15 +19,26 @@ import (
 
 // ExportMonitor implements the Monitor interface for testing
 type ExportMonitor struct {
+	sync.Mutex
+
+	logCh  chan []byte
 	logger hclog.Logger
 
-	// DoneCh coordinates breaking out of the export loop
-	DoneCh chan struct{}
-
-	bufSize int
+	// doneCh coordinates breaking out of the export loop
+	doneCh chan struct{}
 
 	// ExportReader can read from the cli or the NomadFilePath
 	ExportReader ExportReader
+
+	// droppedCount is the current count of messages
+	// that were dropped from the logCh buffer.
+	// only access under lock
+	droppedCount int
+	bufSize      int
+	// droppedDuration is the amount of time we should
+	// wait to check for dropped messages. Defaults
+	// to 3 seconds
+	droppedDuration time.Duration
 }
 
 type MonitorExportOpts struct {
@@ -52,9 +64,11 @@ type MonitorExportOpts struct {
 
 	// Context passed from client to close the cmd and exit the function
 	Context context.Context
+
+	bufSize int
 }
 
-const bufSize = 512
+const defaultBufSize = 512
 
 type ExportReader struct {
 	io.Reader
@@ -70,6 +84,7 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		multiReader io.Reader
 		cmd         *exec.Cmd
 		prepErr     error
+		bufSize     int
 	)
 
 	ExportReader := ExportReader{Follow: opts.Follow}
@@ -97,9 +112,16 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		ExportReader.Cmd = cmd
 		ExportReader.UseCli = true
 	}
+
+	if opts.bufSize == 0 {
+		bufSize = defaultBufSize
+	} else {
+		bufSize = opts.bufSize
+	}
 	sw := ExportMonitor{
 		logger:       opts.Logger,
-		DoneCh:       make(chan struct{}, 1),
+		doneCh:       make(chan struct{}, 1),
+		logCh:        make(chan []byte, bufSize),
 		bufSize:      bufSize,
 		ExportReader: ExportReader,
 	}
@@ -109,7 +131,7 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 
 // Stop stops the monitoring process
 func (d *ExportMonitor) Stop() {
-	close(d.DoneCh)
+	close(d.doneCh)
 }
 
 // Start registers a sink on the monitor's logger and starts sending
@@ -123,21 +145,21 @@ func (d *ExportMonitor) Start() <-chan []byte {
 	if d.ExportReader.UseCli {
 		useCli = true
 		cmd = d.ExportReader.Cmd
-		cmd.Start()
+		//	cmd.Start()
 	}
 	// Read, copy, and send to channel until we hit EOF or error
-	streamCh := make(chan []byte)
+	//streamCh := make(chan []byte, 1)
 	go func() {
+		defer close(d.logCh)
 		if useCli {
 			defer cmd.Wait()
 		}
-		defer close(streamCh)
 
-		logChunk := make([]byte, bufSize)
+		logChunk := make([]byte, d.bufSize)
 	OUTER:
 		for {
 			select {
-			case <-d.DoneCh:
+			case <-d.doneCh:
 				break OUTER
 			default:
 				n, readErr := d.ExportReader.Read(logChunk)
@@ -146,16 +168,40 @@ func (d *ExportMonitor) Start() <-chan []byte {
 					return
 				}
 
-				streamCh <- logChunk[:n]
+				sN := d.Write(logChunk[:n])
+				if sN != n {
+					d.droppedCount++
+				}
 				if readErr == io.EOF && n == 0 && !d.ExportReader.Follow {
 					break OUTER
 				}
+
 			}
 		}
 	}()
-	return streamCh
+	return d.logCh
 }
 
+// Write attempts to send latest log to logCh
+// it drops the log if channel is unavailable to receive
+func (d *ExportMonitor) Write(p []byte) (n int) {
+	d.Lock()
+	defer d.Unlock()
+
+	// ensure logCh is still open
+	select {
+	case <-d.doneCh:
+		return
+	default:
+	}
+
+	bytes := make([]byte, len(p))
+	copy(bytes, p)
+
+	d.logCh <- bytes
+
+	return len(p)
+}
 func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 	// Vet servicename again
 	if err := ScanServiceName(opts.ServiceName); err != nil {
