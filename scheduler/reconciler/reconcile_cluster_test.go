@@ -238,7 +238,7 @@ func stopResultsToNames(stop []AllocStopResult) []string {
 	return names
 }
 
-func attributeUpdatesToNames(attributeUpdates map[string]*structs.Allocation) []string {
+func attributeUpdatesToNames(attributeUpdates allocSet) []string {
 	names := make([]string, 0, len(attributeUpdates))
 	for _, a := range attributeUpdates {
 		names = append(names, a.Name)

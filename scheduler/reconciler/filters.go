@@ -28,7 +28,7 @@ func filterAndStopAll(set allocSet, cs ClusterState) (uint64, []AllocStopResult)
 }
 
 func filterServerTerminalAllocs(all allocSet) (remaining allocSet) {
-	remaining = make(map[string]*structs.Allocation)
+	remaining = make(allocSet)
 	for id, alloc := range all {
 		if !alloc.ServerTerminalStatus() {
 			remaining[id] = alloc
@@ -39,7 +39,7 @@ func filterServerTerminalAllocs(all allocSet) (remaining allocSet) {
 
 // filterByTerminal filters out terminal allocs
 func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
-	nonTerminal = make(map[string]*structs.Allocation)
+	nonTerminal = make(allocSet)
 	for id, alloc := range untainted {
 		if !alloc.TerminalStatus() {
 			nonTerminal[id] = alloc
@@ -51,8 +51,8 @@ func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
 // filterByDeployment filters allocations into two sets, those that match the
 // given deployment ID and those that don't
 func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
-	match = make(map[string]*structs.Allocation)
-	nonmatch = make(map[string]*structs.Allocation)
+	match = make(allocSet)
+	nonmatch = make(allocSet)
 	for _, alloc := range a {
 		if alloc.DeploymentID == id {
 			match[alloc.ID] = alloc
@@ -71,7 +71,7 @@ func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore 
 	}
 
 	filtered = filtered.union(all)
-	ignored := make(map[string]*structs.Allocation)
+	ignored := make(allocSet)
 
 	// Ignore terminal batch jobs from older versions
 	for id, alloc := range filtered {
@@ -95,13 +95,13 @@ func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore 
 // 6. Those that are in a state that results in a noop.
 // 7. Those that are disconnected and need to be marked lost (and possibly replaced)
 func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
-	untainted = make(map[string]*structs.Allocation)
-	migrate = make(map[string]*structs.Allocation)
-	lost = make(map[string]*structs.Allocation)
-	disconnecting = make(map[string]*structs.Allocation)
-	reconnecting = make(map[string]*structs.Allocation)
-	ignore = make(map[string]*structs.Allocation)
-	expiring = make(map[string]*structs.Allocation)
+	untainted = make(allocSet)
+	migrate = make(allocSet)
+	lost = make(allocSet)
+	disconnecting = make(allocSet)
+	reconnecting = make(allocSet)
+	ignore = make(allocSet)
+	expiring = make(allocSet)
 
 	for _, alloc := range a {
 		// make sure we don't apply any reconnect logic to task groups
@@ -268,8 +268,8 @@ func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, 
 // Allocs are skipped or considered untainted according to logic defined in
 // shouldFilter method.
 func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo) {
-	untainted := make(map[string]*structs.Allocation)
-	rescheduleNow := make(map[string]*structs.Allocation)
+	untainted := make(allocSet)
+	rescheduleNow := make(allocSet)
 	rescheduleLater := []*delayedRescheduleInfo{}
 
 	for _, alloc := range a {

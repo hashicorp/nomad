@@ -124,7 +124,7 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 	for _, a := range allocs {
 		s, ok := m[a.TaskGroup]
 		if !ok {
-			s = make(map[string]*structs.Allocation)
+			s = make(allocSet)
 			m[a.TaskGroup] = s
 		}
 		s[a.ID] = a
@@ -133,7 +133,7 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 	if job != nil {
 		for _, tg := range job.TaskGroups {
 			if _, ok := m[tg.Name]; !ok {
-				m[tg.Name] = make(map[string]*structs.Allocation)
+				m[tg.Name] = make(allocSet)
 			}
 		}
 	}
@@ -182,7 +182,7 @@ func (a allocSet) nameOrder() []*structs.Allocation {
 // difference returns a new allocSet that has all the existing item except those
 // contained within the other allocation sets
 func (a allocSet) difference(others ...allocSet) allocSet {
-	diff := make(map[string]*structs.Allocation)
+	diff := make(allocSet)
 OUTER:
 	for k, v := range a {
 		for _, other := range others {
@@ -198,7 +198,7 @@ OUTER:
 // union returns a new allocSet that has the union of the two allocSets.
 // Conflicts prefer the last passed allocSet containing the value
 func (a allocSet) union(others ...allocSet) allocSet {
-	union := make(map[string]*structs.Allocation, len(a))
+	union := make(allocSet, len(a))
 	order := []allocSet{a}
 	order = append(order, others...)
 
@@ -213,7 +213,7 @@ func (a allocSet) union(others ...allocSet) allocSet {
 
 // fromKeys returns an alloc set matching the passed keys
 func (a allocSet) fromKeys(keys ...[]string) allocSet {
-	from := make(map[string]*structs.Allocation)
+	from := make(allocSet)
 	for _, set := range keys {
 		for _, k := range set {
 			if alloc, ok := a[k]; ok {
