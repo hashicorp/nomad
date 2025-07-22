@@ -292,10 +292,20 @@
       },
       {
         "title": "Namespaces",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "govern/namespaces"
       },
       {
         "title": "Node pools",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "govern/use-node-pools"
       },
       {
@@ -327,6 +337,11 @@
       },
       {
         "title": "Autopilot",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "manage/autopilot"
       },
       {
@@ -720,6 +735,11 @@
       },
       {
         "title": "Configure multi-region deployments",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-declare/multiregion"
       },
       {
@@ -920,10 +940,20 @@
       },
       {
         "title": "audit",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/audit"
       },
       {
         "title": "autopilot",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/autopilot"
       },
       {
@@ -932,6 +962,11 @@
       },
       {
         "title": "consul",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/consul"
       },
       {
@@ -939,6 +974,11 @@
         "routes": [
           {
             "title": "Overview",
+            "badge": {
+              "text": "CE/ENT",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "path": "configuration/keyring"
           },
           {
@@ -965,6 +1005,11 @@
       },
       {
         "title": "reporting",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/reporting"
       },
       {
@@ -977,6 +1022,11 @@
       },
       {
         "title": "sentinel",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/sentinel"
       },
       {
@@ -1001,6 +1051,11 @@
       },
       {
         "title": "vault",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/vault"
       }
     ]
@@ -1046,6 +1101,11 @@
       },
       {
         "title": "consul",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/consul"
       },
       {
@@ -1110,6 +1170,11 @@
       },
       {
         "title": "multiregion",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/multiregion"
       },
       {
@@ -1118,6 +1183,11 @@
       },
       {
         "title": "numa",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/numa"
       },
       {
@@ -1150,10 +1220,20 @@
       },
       {
         "title": "schedule",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/schedule"
       },
       {
         "title": "service",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/service"
       },
       {
@@ -1194,6 +1274,11 @@
       },
       {
         "title": "vault",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/vault"
       },
       {
@@ -1219,14 +1304,29 @@
       },
       {
         "title": "Namespace",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "other-specifications/namespace"
       },
       {
         "title": "Node pool",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "other-specifications/node-pool"
       },
       {
         "title": "Resource quota",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "other-specifications/quota"
       },
       {
@@ -1281,6 +1381,11 @@
       },
       {
         "title": "Sentinel policy",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "reference/sentinel-policy"
       },
       {

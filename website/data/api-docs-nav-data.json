@@ -88,6 +88,11 @@
   },
   {
     "title": "Namespaces",
+    "badge": {
+      "text": "CE/ENT",
+      "type": "outlined",
+      "color": "neutral"
+    },
     "path": "namespaces"
   },
   {
@@ -111,6 +116,11 @@
       },
       {
         "title": "Autopilot",
+        "badge": {
+          "text": "CE/ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "operator/autopilot"
       },
       {
@@ -119,6 +129,11 @@
       },
       {
         "title": "License",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "operator/license"
       },
       {
@@ -139,6 +154,11 @@
       },
       {
         "title": "Utilization Reporting",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "operator/utilization"
       }
     ]
@@ -149,10 +169,20 @@
   },
   {
     "title": "Quotas",
+    "badge": {
+      "text": "ENT",
+      "type": "outlined",
+      "color": "neutral"
+    },
     "path": "quotas"
   },
   {
     "title": "Recommendations",
+    "badge": {
+      "text": "ENT",
+      "type": "outlined",
+      "color": "neutral"
+    },
     "path": "recommendations"
   },
   {
@@ -169,6 +199,11 @@
   },
   {
     "title": "Sentinel Policies",
+    "badge": {
+      "text": "ENT",
+      "type": "outlined",
+      "color": "neutral"
+    },
     "path": "sentinel-policies"
   },
   {
@@ -185,6 +220,11 @@
   },
   {
     "title": "UI",
+    "badge": {
+      "text": "CE/ENT",
+      "type": "outlined",
+      "color": "neutral"
+    },
     "path": "ui"
   },
   {

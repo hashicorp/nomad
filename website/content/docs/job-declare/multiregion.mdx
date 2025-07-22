@@ -8,11 +8,12 @@ description: |-
 
 # Configure multi-region deployments
 
-Federated Nomad clusters enable users to submit jobs targeting any region
-from any server even if that server resides in a different region. As of Nomad 0.12
-Enterprise, you can also submit jobs that are deployed to multiple
-regions. This tutorial demonstrates multi-region deployments, including
+Federated Nomad clusters enable you to submit jobs targeting any region
+from any server even if that server resides in a different region. You may submit jobs that are deployed to multiple
+regions. This guide demonstrates multi-region deployments, including
 configurable rollout and rollback strategies.
+
+<EnterpriseAlert/>
 
 You can create a multi-region deployment job by adding a [`multiregion`]
 stanza to the job as shown below.
@@ -37,16 +38,6 @@ multiregion {
 
 }
 ```
-
-<Note>
-
-The functionality described here is available only in [Nomad
-Enterprise](https://www.hashicorp.com/products/nomad/pricing/) with the
-Multi-Cluster & Efficiency module. To explore Nomad Enterprise features, you can
-sign up for a free 30-day trial from
-[here](https://www.hashicorp.com/products/nomad/trial).
-
-</Note>
 
 ## Prerequisites
 

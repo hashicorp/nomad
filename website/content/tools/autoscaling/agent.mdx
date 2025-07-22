@@ -52,14 +52,17 @@ namespace "default" {
 }
 ```
 
-If running Nomad Autoscaler Enterprise, the following ACL policy addition is
-needed to ensure it can read the Nomad Enterprise license.
+<Note>
+
+If you are running Nomad Autoscaler Enterprise, add this ACL policy to ensure Nomad Autoscaler Enterprise is able to read the Nomad Enterprise license.
 
 ```hcl
 operator {
   policy = "read"
 }
 ```
+
+</Note>
 
 Other APM and target plugins may require additional ACLs; see the plugin documentation for more information.
 
