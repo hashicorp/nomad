@@ -44,11 +44,67 @@ func TestIdentityClaims_IsNode(t *testing.T) {
 			},
 			expectedOutput: true,
 		},
+		{
+			name: "node introduction identity claims",
+			inputIdentityClaims: &IdentityClaims{
+				NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{},
+			},
+			expectedOutput: false,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputIdentityClaims.IsNode()
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestIdentityClaims_IsNodeIntroduction(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputIdentityClaims *IdentityClaims
+		expectedOutput      bool
+	}{
+		{
+			name:                "nil identity claims",
+			inputIdentityClaims: nil,
+			expectedOutput:      false,
+		},
+		{
+			name:                "no identity claims",
+			inputIdentityClaims: &IdentityClaims{},
+			expectedOutput:      false,
+		},
+		{
+			name: "workload identity claims",
+			inputIdentityClaims: &IdentityClaims{
+				WorkloadIdentityClaims: &WorkloadIdentityClaims{},
+			},
+			expectedOutput: false,
+		},
+		{
+			name: "node identity claims",
+			inputIdentityClaims: &IdentityClaims{
+				NodeIdentityClaims: &NodeIdentityClaims{},
+			},
+			expectedOutput: false,
+		},
+		{
+			name: "node introduction identity claims",
+			inputIdentityClaims: &IdentityClaims{
+				NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{},
+			},
+			expectedOutput: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputIdentityClaims.IsNodeIntroduction()
 			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -85,6 +141,13 @@ func TestIdentityClaims_IsWorkload(t *testing.T) {
 				WorkloadIdentityClaims: &WorkloadIdentityClaims{},
 			},
 			expectedOutput: true,
+		},
+		{
+			name: "node introduction identity claims",
+			inputIdentityClaims: &IdentityClaims{
+				NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{},
+			},
+			expectedOutput: false,
 		},
 	}
 
@@ -225,7 +288,7 @@ func TestIdentityClaims_IsExpiringWithTTL(t *testing.T) {
 	}
 }
 
-func TestIdentityClaimsNg_setExpiry(t *testing.T) {
+func TestIdentityClaims_setExpiry(t *testing.T) {
 	ci.Parallel(t)
 
 	timeNow := time.Now().UTC()
@@ -242,7 +305,7 @@ func TestIdentityClaimsNg_setExpiry(t *testing.T) {
 		claims.Expiry.Time().UTC().Round(time.Minute))
 }
 
-func TestIdentityClaimsNg_setNodeSubject(t *testing.T) {
+func TestIdentityClaims_setNodeSubject(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -273,10 +336,43 @@ func TestIdentityClaimsNg_setNodeSubject(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-
 			claims := IdentityClaims{}
 			claims.setNodeSubject(tc.inputNode, tc.inputRegion)
+			must.Eq(t, tc.expectedSubject, claims.Subject)
+		})
+	}
+}
+
+func TestIdentityClaims_setNodeIntroductionSubject(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name            string
+		inputName       string
+		inputPool       string
+		inputRegion     string
+		expectedSubject string
+	}{
+		{
+			name:            "eu1 region with node name",
+			inputName:       "node-id-1",
+			inputPool:       "nlp",
+			inputRegion:     "eu1",
+			expectedSubject: "node-introduction:eu1:nlp:node-id-1:default",
+		},
+		{
+			name:            "eu1 region without node name",
+			inputName:       "",
+			inputPool:       "nlp",
+			inputRegion:     "eu1",
+			expectedSubject: "node-introduction:eu1:nlp:default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			claims := IdentityClaims{}
+			claims.setNodeIntroductionSubject(tc.inputName, tc.inputPool, tc.inputRegion)
 			must.Eq(t, tc.expectedSubject, claims.Subject)
 		})
 	}

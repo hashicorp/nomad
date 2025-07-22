@@ -832,3 +832,39 @@ func (n *NodeIntroductionConfig) Validate() error {
 
 	return mErr.ErrorOrNil()
 }
+
+// NodeIntroductionIdentityClaims contains the claims for node introduction.
+type NodeIntroductionIdentityClaims struct {
+	NodeRegion string `json:"nomad_region"`
+	NodePool   string `json:"nomad_node_pool"`
+	NodeName   string `json:"nomad_node_name"`
+}
+
+// GenerateNodeIntroductionIdentityClaims generates a new identity JWT for node
+// introduction.
+//
+// The caller is responsible for ensuring that the passed arguments are valid.
+func GenerateNodeIntroductionIdentityClaims(name, pool, region string, ttl time.Duration) *IdentityClaims {
+
+	timeNow := time.Now().UTC()
+	timeJWTNow := jwt.NewNumericDate(timeNow)
+
+	claims := &IdentityClaims{
+		NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
+			NodeRegion: region,
+			NodePool:   pool,
+			NodeName:   name,
+		},
+		Claims: jwt.Claims{
+			ID:        uuid.Generate(),
+			IssuedAt:  timeJWTNow,
+			NotBefore: timeJWTNow,
+		},
+	}
+
+	claims.setAudience([]string{IdentityDefaultAud})
+	claims.setExpiry(timeNow, ttl)
+	claims.setNodeIntroductionSubject(name, pool, region)
+
+	return claims
+}

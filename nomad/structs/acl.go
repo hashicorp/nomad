@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -182,6 +183,14 @@ const (
 	// Args: ACLLoginRequest
 	// Reply: ACLLoginResponse
 	ACLLoginRPCMethod = "ACL.Login"
+
+	// ACLClientIntroductionTokenRPCMethod is the RPC method for generating a
+	// client introduction token. This token is used by Nomad clients as an
+	// authentication token when first registering with the cluster.
+	//
+	// Args: ACLClientIntroductionTokenRequest
+	// Reply: ACLClientIntroductionTokenResponse
+	ACLClientIntroductionTokenRPCMethod = "ACL.ClientIntroductionToken"
 )
 
 const (
@@ -1979,4 +1988,67 @@ func (a *ACLLoginRequest) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("missing login token"))
 	}
 	return mErr.ErrorOrNil()
+}
+
+// ACLClientIntroductionTokenRequest is the request object used within the ACL
+// client introduction RPC handler. This is used to generate a JWT token that
+// can be used to register a new client node into the cluster.
+type ACLClientIntroductionTokenRequest struct {
+
+	// TTL is the requested TTL for the identity token. This is an optional
+	// parameter and if not set, defaults to the server defined default TTL.
+	TTL time.Duration
+
+	// NodeName is the name of the node that is being introduced. This is added
+	// to the token as a claim when present, but is optional.
+	NodeName string
+
+	// NodePool is the name of the node pool that this node belongs to. This is
+	// an optional parameter, and if not set, defaults to "default".
+	NodePool string
+
+	WriteRequest
+}
+
+// Canonicalize performs basic canonicalization on the ACL client introduction
+// request object. This should be called within the RPC handler, to ensure a
+// consistent experience for the user across CLI and HTTP API calls.
+func (a *ACLClientIntroductionTokenRequest) Canonicalize() {
+	if a.NodePool == "" {
+		a.NodePool = NodePoolDefault
+	}
+}
+
+// IdentityTTL returns the TTL that should be used for the identity token based
+// on the request and server defaults.
+func (a *ACLClientIntroductionTokenRequest) IdentityTTL(
+	logger hclog.Logger,
+	serverDefault, serverMax time.Duration) time.Duration {
+
+	// If the user has not provided a TTL, we use the server default.
+	if a.TTL == 0 {
+		return serverDefault
+	}
+
+	// If the user has requested a TTL that is greater than the server defined
+	// maximum, we log a warning and use the server maximum instead. It is
+	// possible to return an error here, but providing a ceiling provides a
+	// smoother UX.
+	if a.TTL > serverMax {
+		logger.Warn(
+			"node introduction identity TTL request exceeds server maximum, using server maximum",
+			"requested_ttl", a.TTL, "server_max_ttl", serverMax,
+		)
+		return serverMax
+	}
+	return a.TTL
+}
+
+// ACLClientIntroductionTokenResponse is the response object used within the ACL
+// client introduction RPC handler.
+type ACLClientIntroductionTokenResponse struct {
+
+	// JWT is the signed identity token that can be used as an introduction
+	// token for a new client node to register with the Nomad cluster.
+	JWT string
 }

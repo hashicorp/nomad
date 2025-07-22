@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -2153,5 +2154,90 @@ func validClientAssertion() *OIDCClientAssertion {
 		KeyAlgorithm: "test-key-algo",
 		// clientSecret is ordinarily inherited from parent ACLAuthMethodConfig
 		ClientSecret: "test-client-secret",
+	}
+}
+
+func TestACLClientIntroductionTokenRequest_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                            string
+		inputClientIntroductionTokenReq *ACLClientIntroductionTokenRequest
+		expectedResult                  *ACLClientIntroductionTokenRequest
+	}{
+		{
+			name: "empty node pool",
+			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+				NodePool: "",
+			},
+			expectedResult: &ACLClientIntroductionTokenRequest{
+				NodePool: "default",
+			},
+		},
+		{
+			name: "node pool set",
+			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+				NodePool: "custom-pool",
+			},
+			expectedResult: &ACLClientIntroductionTokenRequest{
+				NodePool: "custom-pool",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputClientIntroductionTokenReq.Canonicalize()
+			must.Eq(t, tc.expectedResult, tc.inputClientIntroductionTokenReq)
+		})
+	}
+}
+
+func TestACLClientIntroductionTokenRequest_IdentityTTL(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                            string
+		inputClientIntroductionTokenReq *ACLClientIntroductionTokenRequest
+		inputDefault                    time.Duration
+		inputMax                        time.Duration
+		expectedOutput                  time.Duration
+	}{
+		{
+			name:                            "no ttl set",
+			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{},
+			inputDefault:                    5 * time.Minute,
+			inputMax:                        30 * time.Minute,
+			expectedOutput:                  5 * time.Minute,
+		},
+		{
+			name: "ttl set in bounds",
+			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+				TTL: 25 * time.Minute,
+			},
+			inputDefault:   5 * time.Minute,
+			inputMax:       30 * time.Minute,
+			expectedOutput: 25 * time.Minute,
+		},
+		{
+			name: "ttl set exceeds bounds",
+			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+				TTL: 35 * time.Minute,
+			},
+			inputDefault:   5 * time.Minute,
+			inputMax:       30 * time.Minute,
+			expectedOutput: 30 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputClientIntroductionTokenReq.IdentityTTL(
+				hclog.NewNullLogger(),
+				tc.inputDefault,
+				tc.inputMax,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -944,4 +945,53 @@ func (s *HTTPServer) ACLLoginRequest(resp http.ResponseWriter, req *http.Request
 	}
 	setIndex(resp, out.Index)
 	return out.ACLToken, nil
+}
+
+func (s *HTTPServer) ACLClientIntroductionTokenRequest(
+	_ http.ResponseWriter,
+	req *http.Request) (any, error) {
+
+	// The endpoint only supports PUT or POST requests.
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// We need to parse any TTL query parameter, so we know it is formatted in
+	// the correct way. If the caller did not specify a TTL, setting the zero
+	// value is fine, and the RPC handler will identify that and use a default.
+	var ttlDuration time.Duration
+
+	ttl := req.URL.Query().Get("ttl")
+	if ttl != "" {
+		parsedTTL, err := time.ParseDuration(ttl)
+		if err != nil {
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("invalid ttl: %s", err))
+		}
+		ttlDuration = parsedTTL
+	}
+
+	// Generate the RPC request arguments. The node name and pool are optional,
+	// so we can use the empty response from the URL getter if they were not
+	// set.
+	args := structs.ACLClientIntroductionTokenRequest{
+		NodeName: req.URL.Query().Get("node_name"),
+		NodePool: req.URL.Query().Get("node_pool"),
+		TTL:      ttlDuration,
+	}
+
+	// Perform the parsing of the write request. The parameters can be passed
+	// using just headers, or within the request body.
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	if req.Body != nil {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(http.StatusBadRequest, err.Error())
+		}
+	}
+
+	var out structs.ACLClientIntroductionTokenResponse
+	if err := s.agent.RPC(structs.ACLClientIntroductionTokenRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
