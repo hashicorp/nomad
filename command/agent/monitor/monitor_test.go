@@ -150,7 +150,7 @@ func TestMonitor_Export(t *testing.T) {
 			expected: expectedText,
 		},
 		{
-			name: "close context",
+			name: "close client context",
 			opts: MonitorExportOpts{
 				Context:      ctx,
 				Logger:       logger,
@@ -166,6 +166,7 @@ func TestMonitor_Export(t *testing.T) {
 			monitor, err := NewExportMonitor(tc.opts)
 			must.NoError(t, err)
 			logCh := monitor.Start()
+			defer monitor.Stop()
 			if tc.expectClose {
 				cancel()
 			}
@@ -184,7 +185,6 @@ func TestMonitor_Export(t *testing.T) {
 							break TEST
 						}
 						builder.Write(log)
-						time.Sleep(15 * time.Millisecond)
 					default:
 						continue
 					}
@@ -197,7 +197,6 @@ func TestMonitor_Export(t *testing.T) {
 			} else {
 				must.Eq(t, builder.String(), "")
 			}
-
 		})
 	}
 }

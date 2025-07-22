@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
@@ -213,10 +212,10 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.Monitor", &wg)
-	wg.Wait()
+	//wg := sync.WaitGroup{}
+	//wg.Add(1)
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.Monitor")
+	//wg.Wait()
 	return nil, codedErr
 }
 
@@ -308,15 +307,14 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.MonitorExport", &wg)
-	wg.Wait()
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.MonitorExport")
+
 	return nil, codedErr
 }
+
 func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
-	args any, nodeID string, endpoint string, wg *sync.WaitGroup) error {
-	defer wg.Done()
+	args any, nodeID string, endpoint string) error {
+
 	// Make the RPC
 	var handler structs.StreamingRpcHandler
 	var handlerErr error
@@ -362,7 +360,6 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
 	// stream response
 	go func() {
 		defer cancel()
-
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
 			errCh <- CodedError(500, err.Error())

@@ -81,7 +81,7 @@ Monitor Specific Options:
   -on-disk <bool>
     If set, the export command will retrieve the Nomad log file defined in the
     target agent's log_file configuration.
-    `
+`
 	return strings.TrimSpace(helpText)
 }
 
