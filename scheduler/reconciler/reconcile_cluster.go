@@ -372,9 +372,9 @@ func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.Desired
 	allocsToStop := []AllocStopResult{}
 
 	for group, as := range m {
-		as = filterByTerminal(as)
+		as = as.filterByTerminal()
 		desiredChanges := new(structs.DesiredUpdates)
-		desiredChanges.Stop, allocsToStop = filterAndStopAll(as, a.clusterState)
+		desiredChanges.Stop, allocsToStop = as.filterAndStopAll(a.clusterState)
 		result[group] = desiredChanges
 	}
 	return result, allocsToStop
@@ -447,25 +447,25 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// If the task group is nil or scaled-to-zero, then the task group has been
 	// removed so all we need to do is stop everything
 	if tg == nil || tg.Count == 0 {
-		all = filterServerTerminalAllocs(all)
-		result.DesiredTGUpdates[group].Stop, result.Stop = filterAndStopAll(all, a.clusterState)
+		all = all.filterServerTerminalAllocs()
+		result.DesiredTGUpdates[group].Stop, result.Stop = all.filterAndStopAll(a.clusterState)
 		return result, true
 	}
 
-	all = filterServerTerminalAllocs(all)
+	all = all.filterServerTerminalAllocs()
 
 	dstate, existingDeployment := a.initializeDeploymentState(group, tg)
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
-	all, ignore := filterOldTerminalAllocs(a.jobState, all)
+	all, ignore := all.filterOldTerminalAllocs(a.jobState)
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	var canaries allocSet
 	canaries, all, result.Stop = a.cancelUnneededCanaries(all, result.DesiredTGUpdates[group])
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := filterByTainted(all, a.clusterState)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.clusterState)
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
@@ -804,7 +804,7 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _, _, _ := filterByTainted(canaries, a.clusterState)
+		untainted, migrate, lost, _, _, _, _ := canaries.filterByTainted(a.clusterState)
 
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final
@@ -1161,7 +1161,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 	// Filter out any terminal allocations from the untainted set
 	// This is so that we don't try to mark them as stopped redundantly
-	untainted = filterByTerminal(untainted)
+	untainted = untainted.filterByTerminal()
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted
@@ -1399,7 +1399,7 @@ func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 	// followupEvals are created in the same way as for delayed lost allocs
 	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater)
 
-	var attributeUpdates = make(allocSet)
+	attributeUpdates := make(allocSet)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for _, laterAlloc := range rescheduleLater {
@@ -1592,8 +1592,8 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 // Create updates that will be applied to the allocs to mark the FollowupEvalID
 // and the unknown ClientStatus and AllocState.
 func appendUnknownDisconnectingUpdates(disconnecting allocSet,
-	allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) allocSet {
-	resultingDisconnectUpdates := make(allocSet)
+	allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) map[string]*structs.Allocation {
+	resultingDisconnectUpdates := map[string]*structs.Allocation{}
 	for id, alloc := range disconnecting {
 		updatedAlloc := alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown

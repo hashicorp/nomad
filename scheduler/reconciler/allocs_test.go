@@ -1307,7 +1307,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
 					// With tainted nodes
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := filterByTainted(tc.all, tc.state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.filterByTainted(tc.state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -1323,7 +1323,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// Now again with nodes nil
 					state := tc.state
 					state.TaintedNodes = nil
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = filterByTainted(tc.all, state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.filterByTainted(state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))

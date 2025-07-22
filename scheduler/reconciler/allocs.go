@@ -5,6 +5,7 @@ package reconciler
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -138,36 +139,38 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 }
 
 // allocSet is a set of allocations with a series of helper functions defined
-// that help reconcile state.
+// that help reconcile state. Methods on allocSet named "filter" defined in
+// filters.go never consume the allocSet but instead return one or more new
+// allocSets.
 type allocSet map[string]*structs.Allocation
 
 // GoString provides a human readable view of the set
-func (a allocSet) GoString() string {
-	if len(a) == 0 {
+func (set allocSet) GoString() string {
+	if len(set) == 0 {
 		return "[]"
 	}
 
-	start := fmt.Sprintf("len(%d) [\n", len(a))
+	start := fmt.Sprintf("len(%d) [\n", len(set))
 	var s []string
-	for k, v := range a {
+	for k, v := range set {
 		s = append(s, fmt.Sprintf("%q: %v", k, v.Name))
 	}
 	return start + strings.Join(s, "\n") + "]"
 }
 
 // nameSet returns the set of allocation names
-func (a allocSet) nameSet() map[string]struct{} {
-	names := make(map[string]struct{}, len(a))
-	for _, alloc := range a {
+func (set allocSet) nameSet() map[string]struct{} {
+	names := make(map[string]struct{}, len(set))
+	for _, alloc := range set {
 		names[alloc.Name] = struct{}{}
 	}
 	return names
 }
 
 // nameOrder returns the set of allocation names in sorted order
-func (a allocSet) nameOrder() []*structs.Allocation {
-	allocs := make([]*structs.Allocation, 0, len(a))
-	for _, alloc := range a {
+func (set allocSet) nameOrder() []*structs.Allocation {
+	allocs := make([]*structs.Allocation, 0, len(set))
+	for _, alloc := range set {
 		allocs = append(allocs, alloc)
 	}
 	sort.Slice(allocs, func(i, j int) bool {
@@ -176,12 +179,12 @@ func (a allocSet) nameOrder() []*structs.Allocation {
 	return allocs
 }
 
-// difference returns a new allocSet that has all the existing item except those
-// contained within the other allocation sets
-func (a allocSet) difference(others ...allocSet) allocSet {
+// difference returns a new allocSet that has all the existing allocations
+// except those contained within the other allocation sets
+func (set allocSet) difference(others ...allocSet) allocSet {
 	diff := make(allocSet)
 OUTER:
-	for k, v := range a {
+	for k, v := range set {
 		for _, other := range others {
 			if _, ok := other[k]; ok {
 				continue OUTER
@@ -193,29 +196,23 @@ OUTER:
 }
 
 // union returns a new allocSet that has the union of the two allocSets.
-// Conflicts prefer the last passed allocSet containing the value
-func (a allocSet) union(others ...allocSet) allocSet {
-	union := make(allocSet, len(a))
-	order := []allocSet{a}
-	order = append(order, others...)
-
-	for _, set := range order {
-		for k, v := range set {
-			union[k] = v
-		}
+// Conflicts prefer the last passed allocSet containing the allocation.
+func (set allocSet) union(others ...allocSet) allocSet {
+	union := make(allocSet, len(set))
+	maps.Copy(union, set)
+	for _, other := range others {
+		maps.Copy(union, other)
 	}
 
 	return union
 }
 
-// fromKeys returns an alloc set matching the passed keys
-func (a allocSet) fromKeys(keys ...[]string) allocSet {
+// fromKeys returns an new alloc set matching the passed keys
+func (set allocSet) fromKeys(keys []string) allocSet {
 	from := make(allocSet)
-	for _, set := range keys {
-		for _, k := range set {
-			if alloc, ok := a[k]; ok {
-				from[k] = alloc
-			}
+	for _, k := range keys {
+		if alloc, ok := set[k]; ok {
+			from[k] = alloc
 		}
 	}
 	return from
