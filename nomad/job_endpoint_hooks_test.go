@@ -1280,6 +1280,51 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
 		},
+		{
+			name: "task with secret",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "test",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "test",
+									},
+								},
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.plugins.secrets.test.version}",
+								Operand: structs.ConstraintAttributeIsSet,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
