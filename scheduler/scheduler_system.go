@@ -49,6 +49,8 @@ type SystemScheduler struct {
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
+	deployment *structs.Deployment
+
 	limitReached bool
 	nextEval     *structs.Evaluation
 
@@ -148,6 +150,14 @@ func (s *SystemScheduler) process() (bool, error) {
 			s.state, s.job.Datacenters, s.job.NodePool)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
+		}
+	}
+
+	if !s.sysbatch {
+		// Get any existing deployment
+		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
 		}
 	}
 
@@ -265,11 +275,15 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	r := reconciler.Node(s.job, s.deployment, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
 	}
+
+	// Add the deployment changes to the plan
+	s.plan.Deployment = r.Deployment
+	s.plan.DeploymentUpdates = r.DeploymentUpdates
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
