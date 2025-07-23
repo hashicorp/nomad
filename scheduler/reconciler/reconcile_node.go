@@ -15,6 +15,7 @@ import (
 // diffResult contain the specific nodeID they should be allocated on.
 func Node(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
+	deployment *structs.Deployment, // existing deployment (if any)
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
@@ -42,7 +43,7 @@ func Node(
 
 	result := new(NodeReconcileResult)
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
+		diff := diffSystemAllocsForNode(job, deployment, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
 		result.Append(diff)
 	}
 
@@ -60,6 +61,7 @@ func Node(
 // a node that has resumed reconnected.
 func diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
+	deployment *structs.Deployment, // existing deployment (if any)
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
@@ -327,6 +329,8 @@ type AllocTuple struct {
 
 // NodeReconcileResult is used to return the sets that result from the diff
 type NodeReconcileResult struct {
+	Deployment                                                              *structs.Deployment
+	DeploymentUpdates                                                       []*structs.DeploymentStatusUpdate
 	Place, Update, Migrate, Stop, Ignore, Lost, Disconnecting, Reconnecting []AllocTuple
 }
 
