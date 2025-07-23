@@ -1112,7 +1112,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 				},
 			}
 
-			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s)
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s, time.After(3*time.Second))
 			if !tc.expectErr {
 				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 			} else {

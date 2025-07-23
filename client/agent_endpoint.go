@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -173,7 +172,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 }
 
-// Host collects data about the host evironment running the agent
+// Host collects data about the host environment running the agent
 func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
 	aclObj, err := a.c.ResolveToken(args.AuthToken)
 	if err != nil {
@@ -234,8 +233,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
-
 	defer framer.Destroy()
+
 	// goroutine to detect remote side closing
 	go func() {
 		if _, err := conn.Read(nil); err != nil {
@@ -262,11 +261,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	eofCancel = !opts.Follow
 
 	// receive logs and build frames
-	wg := sync.WaitGroup{}
 	streamReader := monitor.NewStreamReader(streamCh, framer)
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		defer framer.Destroy()
 		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {
 			select {
@@ -277,7 +273,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
 	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
-	wg.Wait()
+
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return

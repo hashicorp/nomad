@@ -270,10 +270,11 @@ type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
 }
 
-func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient) (*strings.Builder, error) {
+func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient, userTimeout <-chan time.Time) (*strings.Builder, error) {
 	var (
 		builder     strings.Builder
 		returnedErr error
+		timeout     <-chan time.Time
 	)
 	handler, err := c.StreamingRpcHandler("Agent.MonitorExport")
 	if err != nil {
@@ -310,7 +311,9 @@ func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c Streami
 	if err := encoder.Encode(req); err != nil {
 		return nil, err
 	}
-	timeout := time.After(3 * time.Second)
+	if userTimeout != nil {
+		timeout = userTimeout
+	}
 
 OUTER:
 	for {
