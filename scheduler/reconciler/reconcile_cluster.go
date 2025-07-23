@@ -524,10 +524,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
 		// reschedulable later and mark the allocations for in place updating
-		var followups []*structs.Evaluation
-		followups, result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
-		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followups...)
-		result.DesiredTGUpdates[tg.Name].RescheduleLater = uint64(len(rescheduleLater))
+		a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name, result)
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -1391,11 +1388,15 @@ func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// createRescheduleLaterEvals creates batched followup evaluations with the WaitUntil field
-// set for allocations that are eligible to be rescheduled later, and marks the alloc with
-// the followupEvalID. this function modifies disconnectUpdates in place.
-func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet,
-	disconnectUpdates allocSet) ([]*structs.Evaluation, allocSet) {
+// createRescheduleLaterEvals creates batched followup evaluations with the
+// WaitUntil field set for allocations that are eligible to be rescheduled
+// later, and marks the alloc with the FollowupEvalID in the result.
+// TODO(tgross): this needs a better name?
+func (a *AllocReconciler) createRescheduleLaterEvals(
+	rescheduleLater []*delayedRescheduleInfo,
+	all allocSet,
+	group string,
+	result *ReconcileResults) {
 
 	// followupEvals are created in the same way as for delayed lost allocs
 	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater)
@@ -1409,14 +1410,17 @@ func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
 
 		// Can't updated an allocation that is disconnected
-		if _, ok := disconnectUpdates[laterAlloc.allocID]; !ok {
+		if d, ok := result.DisconnectUpdates[laterAlloc.allocID]; !ok {
 			attributeUpdates[laterAlloc.allocID] = updatedAlloc
 		} else {
-			disconnectUpdates[laterAlloc.allocID].FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+			d.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
 		}
 	}
 
-	return followupEvals, attributeUpdates
+	result.AttributeUpdates = attributeUpdates
+	result.DesiredFollowupEvals[group] = append(
+		result.DesiredFollowupEvals[group], followupEvals...)
+	result.DesiredTGUpdates[group].RescheduleLater = uint64(len(rescheduleLater))
 }
 
 // appendReconnectingUpdates copies existing allocations in the unknown state,
