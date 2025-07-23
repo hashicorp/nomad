@@ -561,8 +561,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 	requiresCanaries := requiresCanaries(tg, dstate, destructive, canaries)
 	if requiresCanaries {
-		placeCanaries := a.computeCanaries(tg, dstate, destructive, canaries, result.DesiredTGUpdates[group], nameIndex)
-		result.Place = append(result.Place, placeCanaries...)
+		a.computeCanaries(tg, dstate, destructive, canaries, nameIndex, group, result)
 	}
 
 	// Determine how many non-canary allocs we can place
@@ -702,15 +701,23 @@ func requiresCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState, de
 
 // computeCanaries returns the set of new canaries to place. It mutates the
 // Canary field on the DesiredUpdates and the DesiredCanaries on the dstate
-func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
-	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *AllocNameIndex) []AllocPlaceResult {
+func (a *AllocReconciler) computeCanaries(
+	tg *structs.TaskGroup, dstate *structs.DeploymentState,
+	destructive, canaries allocSet,
+	nameIndex *AllocNameIndex,
+	group string,
+	result *ReconcileResults,
+) {
+
 	dstate.DesiredCanaries = tg.Update.Canary
 
 	placementResult := []AllocPlaceResult{}
 
 	if !a.jobState.DeploymentPaused && !a.jobState.DeploymentFailed {
-		desiredChanges.Canary += uint64(tg.Update.Canary - len(canaries))
-		for _, name := range nameIndex.NextCanaries(uint(desiredChanges.Canary), canaries, destructive) {
+		result.DesiredTGUpdates[group].Canary += uint64(tg.Update.Canary - len(canaries))
+		total := uint(result.DesiredTGUpdates[group].Canary)
+
+		for _, name := range nameIndex.NextCanaries(total, canaries, destructive) {
 			placementResult = append(placementResult, AllocPlaceResult{
 				name:      name,
 				canary:    true,
@@ -719,7 +726,7 @@ func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 		}
 	}
 
-	return placementResult
+	result.Place = append(result.Place, placementResult...)
 }
 
 // cancelUnneededCanaries handles the canaries for the group by stopping the
