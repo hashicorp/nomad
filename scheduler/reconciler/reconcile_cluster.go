@@ -460,8 +460,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	all, ignore := all.filterOldTerminalAllocs(a.jobState)
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
-	var canaries allocSet
-	canaries, all, result.Stop = a.cancelUnneededCanaries(all, result.DesiredTGUpdates[group])
+	canaries := a.cancelUnneededCanaries(&all, group, result)
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.clusterState)
@@ -728,12 +727,11 @@ func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 // cancelUnneededCanaries handles the canaries for the group by stopping the
 // unneeded ones and returning the current set of canaries and the updated total
 // set of allocs for the group
-func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChanges *structs.DesiredUpdates) (
-	canaries, all allocSet, allocsToStop []AllocStopResult) {
+func (a *AllocReconciler) cancelUnneededCanaries(all *allocSet, group string, result *ReconcileResults) (
+	canaries allocSet) {
+
 	// Stop any canary from an older deployment or from a failed one
 	var stop []string
-
-	all = original
 
 	// Cancel any non-promoted canaries from the older deployment
 	if a.jobState.DeploymentOld != nil {
@@ -756,9 +754,9 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 	// stopSet is the allocSet that contains the canaries we desire to stop from
 	// above.
 	stopSet := all.fromKeys(stop)
-	allocsToStop = markStop(stopSet, "", sstructs.StatusAllocNotNeeded)
-	desiredChanges.Stop += uint64(len(stopSet))
-	all = all.difference(stopSet)
+	allocsToStop := markStop(stopSet, "", sstructs.StatusAllocNotNeeded)
+	result.DesiredTGUpdates[group].Stop += uint64(len(stopSet))
+	*all = all.difference(stopSet)
 
 	// Capture our current set of canaries and handle any migrations that are
 	// needed by just stopping them.
@@ -780,10 +778,11 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 		)
 
 		canaries = untainted
-		all = all.difference(migrate, lost)
+		*all = all.difference(migrate, lost)
 	}
 
-	return
+	result.Stop = allocsToStop
+	return canaries
 }
 
 // computeUnderProvisionedBy returns the number of allocs that still need to be
