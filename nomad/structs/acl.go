@@ -184,13 +184,14 @@ const (
 	// Reply: ACLLoginResponse
 	ACLLoginRPCMethod = "ACL.Login"
 
-	// ACLClientIntroductionTokenRPCMethod is the RPC method for generating a
-	// client introduction token. This token is used by Nomad clients as an
-	// authentication token when first registering with the cluster.
+	// ACLCreateClientIntroductionTokenRPCMethod is the RPC method for
+	// generating a client introduction token. This token is used by Nomad
+	// clients as an authentication token when first registering with the
+	// cluster.
 	//
-	// Args: ACLClientIntroductionTokenRequest
-	// Reply: ACLClientIntroductionTokenResponse
-	ACLClientIntroductionTokenRPCMethod = "ACL.ClientIntroductionToken"
+	// Args: ACLCreateClientIntroductionTokenRequest
+	// Reply: ACLCreateClientIntroductionTokenResponse
+	ACLCreateClientIntroductionTokenRPCMethod = "ACL.CreateClientIntroductionToken"
 )
 
 const (
@@ -1990,10 +1991,10 @@ func (a *ACLLoginRequest) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// ACLClientIntroductionTokenRequest is the request object used within the ACL
+// ACLCreateClientIntroductionTokenRequest is the request object used within the ACL
 // client introduction RPC handler. This is used to generate a JWT token that
 // can be used to register a new client node into the cluster.
-type ACLClientIntroductionTokenRequest struct {
+type ACLCreateClientIntroductionTokenRequest struct {
 
 	// TTL is the requested TTL for the identity token. This is an optional
 	// parameter and if not set, defaults to the server defined default TTL.
@@ -2013,7 +2014,7 @@ type ACLClientIntroductionTokenRequest struct {
 // Canonicalize performs basic canonicalization on the ACL client introduction
 // request object. This should be called within the RPC handler, to ensure a
 // consistent experience for the user across CLI and HTTP API calls.
-func (a *ACLClientIntroductionTokenRequest) Canonicalize() {
+func (a *ACLCreateClientIntroductionTokenRequest) Canonicalize() {
 	if a.NodePool == "" {
 		a.NodePool = NodePoolDefault
 	}
@@ -2021,7 +2022,7 @@ func (a *ACLClientIntroductionTokenRequest) Canonicalize() {
 
 // IdentityTTL returns the TTL that should be used for the identity token based
 // on the request and server defaults.
-func (a *ACLClientIntroductionTokenRequest) IdentityTTL(
+func (a *ACLCreateClientIntroductionTokenRequest) IdentityTTL(
 	logger hclog.Logger,
 	serverDefault, serverMax time.Duration) time.Duration {
 
@@ -2044,9 +2045,9 @@ func (a *ACLClientIntroductionTokenRequest) IdentityTTL(
 	return a.TTL
 }
 
-// ACLClientIntroductionTokenResponse is the response object used within the ACL
+// ACLCreateClientIntroductionTokenResponse is the response object used within the ACL
 // client introduction RPC handler.
-type ACLClientIntroductionTokenResponse struct {
+type ACLCreateClientIntroductionTokenResponse struct {
 
 	// JWT is the signed identity token that can be used as an introduction
 	// token for a new client node to register with the Nomad cluster.

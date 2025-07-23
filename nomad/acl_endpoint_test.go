@@ -4235,7 +4235,7 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 	// Perform a test without setting an auth token, so that the RPC uses the
 	// anonymous token. This should fail with a permission denied error.
 	t.Run("acl_server_anonymous", func(t *testing.T) {
-		anonymousReq := structs.ACLClientIntroductionTokenRequest{
+		anonymousReq := structs.ACLCreateClientIntroductionTokenRequest{
 			WriteRequest: structs.WriteRequest{
 				Region: testACLServer.Region(),
 			},
@@ -4243,9 +4243,9 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 
 		must.EqError(t, msgpackrpc.CallWithCodec(
 			aclCodec,
-			structs.ACLClientIntroductionTokenRPCMethod,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
 			&anonymousReq,
-			&structs.ACLClientIntroductionTokenResponse{},
+			&structs.ACLCreateClientIntroductionTokenResponse{},
 		), structs.ErrPermissionDenied.Error())
 
 	})
@@ -4261,7 +4261,7 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 			`node{policy = "read"}`,
 		)
 
-		nodeReadReq := structs.ACLClientIntroductionTokenRequest{
+		nodeReadReq := structs.ACLCreateClientIntroductionTokenRequest{
 			WriteRequest: structs.WriteRequest{
 				AuthToken: nodeReadToken.SecretID,
 				Region:    testACLServer.Region(),
@@ -4270,9 +4270,9 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 
 		must.EqError(t, msgpackrpc.CallWithCodec(
 			aclCodec,
-			structs.ACLClientIntroductionTokenRPCMethod,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
 			&nodeReadReq,
-			&structs.ACLClientIntroductionTokenResponse{},
+			&structs.ACLCreateClientIntroductionTokenResponse{},
 		), structs.ErrPermissionDenied.Error())
 	})
 
@@ -4287,7 +4287,7 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 			`node{policy = "write"}`,
 		)
 
-		nodeWriteReq := structs.ACLClientIntroductionTokenRequest{
+		nodeWriteReq := structs.ACLCreateClientIntroductionTokenRequest{
 			NodeName: "test-node",
 			NodePool: "test-pool",
 			TTL:      15 * time.Minute,
@@ -4298,11 +4298,11 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 		}
 
 		timeNow := time.Now()
-		nodeWriteResp := structs.ACLClientIntroductionTokenResponse{}
+		nodeWriteResp := structs.ACLCreateClientIntroductionTokenResponse{}
 
 		must.NoError(t, msgpackrpc.CallWithCodec(
 			aclCodec,
-			structs.ACLClientIntroductionTokenRPCMethod,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
 			&nodeWriteReq,
 			&nodeWriteResp,
 		))
@@ -4335,7 +4335,7 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 	// requested claims.
 	t.Run("non_acl_server", func(t *testing.T) {
 
-		req := structs.ACLClientIntroductionTokenRequest{
+		req := structs.ACLCreateClientIntroductionTokenRequest{
 			NodeName: "test-node",
 			NodePool: "test-pool",
 			TTL:      15 * time.Minute,
@@ -4345,11 +4345,11 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 		}
 
 		timeNow := time.Now()
-		resp := structs.ACLClientIntroductionTokenResponse{}
+		resp := structs.ACLCreateClientIntroductionTokenResponse{}
 
 		must.NoError(t, msgpackrpc.CallWithCodec(
 			codec,
-			structs.ACLClientIntroductionTokenRPCMethod,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
 			&req,
 			&resp,
 		))

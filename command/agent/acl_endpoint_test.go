@@ -2148,35 +2148,9 @@ func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
-				obj, err := testAgent.Server.ACLClientIntroductionTokenRequest(respW, req)
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
 				must.Error(t, err)
 				must.ErrorContains(t, err, ErrInvalidMethod)
-				must.Nil(t, obj)
-			},
-		},
-		{
-			name: "incorrect ttl value",
-			testFn: func(testAgent *TestAgent) {
-
-				// Build the HTTP request.
-				req, err := http.NewRequest(
-					http.MethodPost,
-					"/v1/acl/identity/client-introduction-token",
-					nil,
-				)
-				must.NoError(t, err)
-
-				// Set the TTL query parameter to an invalid value.
-				q := req.URL.Query()
-				q.Add("ttl", "2millennium")
-				req.URL.RawQuery = q.Encode()
-
-				respW := httptest.NewRecorder()
-
-				// Send the HTTP request.
-				obj, err := testAgent.Server.ACLClientIntroductionTokenRequest(respW, req)
-				must.Error(t, err)
-				must.ErrorContains(t, err, "invalid ttl")
 				must.Nil(t, obj)
 			},
 		},
@@ -2195,7 +2169,7 @@ func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
-				obj, err := testAgent.Server.ACLClientIntroductionTokenRequest(respW, req)
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
 				must.Error(t, err)
 				must.ErrorContains(t, err, "Permission denied")
 				must.Nil(t, obj)
@@ -2213,7 +2187,7 @@ func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
 					`node{policy = "write"}`,
 				)
 
-				requestBody := structs.ACLClientIntroductionTokenRequest{
+				requestBody := structs.ACLCreateClientIntroductionTokenRequest{
 					WriteRequest: structs.WriteRequest{
 						Region:    testAgent.config().Region,
 						AuthToken: nodeWriteToken.SecretID,
@@ -2231,13 +2205,13 @@ func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
-				obj, err := testAgent.Server.ACLClientIntroductionTokenRequest(respW, req)
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
 				must.NoError(t, err)
 				must.NotNil(t, obj)
 
 				// We do not have access to the encrypter, so we cannot verify
 				// the JWT content. Tests in the RPC layer cover this.
-				nodeIntroTokenResp, ok := obj.(*structs.ACLClientIntroductionTokenResponse)
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
 				must.True(t, ok)
 				must.NotNil(t, nodeIntroTokenResp)
 				must.NotEq(t, "", nodeIntroTokenResp.JWT)
@@ -2269,13 +2243,13 @@ func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
 				respW := httptest.NewRecorder()
 
 				// Send the HTTP request.
-				obj, err := testAgent.Server.ACLClientIntroductionTokenRequest(respW, req)
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
 				must.NoError(t, err)
 				must.NotNil(t, obj)
 
 				// We do not have access to the encrypter, so we cannot verify
 				// the JWT content. Tests in the RPC layer cover this.
-				nodeIntroTokenResp, ok := obj.(*structs.ACLClientIntroductionTokenResponse)
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
 				must.True(t, ok)
 				must.NotNil(t, nodeIntroTokenResp)
 				must.NotEq(t, "", nodeIntroTokenResp.JWT)

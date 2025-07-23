@@ -43,11 +43,10 @@ type IdentityClaims struct {
 func (i *IdentityClaims) MarshalJSON() ([]byte, error) {
 	type Alias IdentityClaims
 	exported := &struct {
-		NomadNodePool string `json:"nomad_node_pool"`
+		NomadNodePool string `json:"nomad_node_pool,omitempty"`
 		*Alias
 	}{
-		NomadNodePool: "",
-		Alias:         (*Alias)(i),
+		Alias: (*Alias)(i),
 	}
 	if i.IsNodeIntroduction() {
 		exported.NomadNodePool = i.NodeIntroductionIdentityClaims.NodePool
@@ -63,7 +62,7 @@ func (i *IdentityClaims) MarshalJSON() ([]byte, error) {
 func (i *IdentityClaims) UnmarshalJSON(data []byte) (err error) {
 	type Alias IdentityClaims
 	aux := &struct {
-		NomadNodePool string `json:"nomad_node_pool"`
+		NomadNodePool string `json:"nomad_node_pool,omitempty"`
 		*Alias
 	}{
 		Alias: (*Alias)(i),
@@ -74,8 +73,10 @@ func (i *IdentityClaims) UnmarshalJSON(data []byte) (err error) {
 
 	if i.IsNodeIntroduction() {
 		i.NodeIntroductionIdentityClaims.NodePool = aux.NomadNodePool
+		aux.NomadNodePool = ""
 	} else if i.IsNode() {
 		i.NodeIdentityClaims.NodePool = aux.NomadNodePool
+		aux.NomadNodePool = ""
 	}
 
 	return nil
@@ -157,21 +158,13 @@ func (i *IdentityClaims) setNodeSubject(node *Node, region string) {
 // greater control of node access.If the operator does not provide a node name,
 // this is omitted from the subject.
 func (i *IdentityClaims) setNodeIntroductionSubject(name, pool, region string) {
-
-	// Build our initial subject with the node introduction type, region, and
-	// pool.
-	sub := []string{"node-introduction", region, pool}
-
-	// Optionally, add the node name if it is provided. Operators set this when
-	// they want to identify the node that is being introduced and limit the
-	// identity use to a single node.
-	if name != "" {
-		sub = append(sub, name)
-	}
-
-	sub = append(sub, "default")
-
-	i.Subject = strings.Join(sub, ":")
+	i.Subject = strings.Join([]string{
+		"node-introduction",
+		region,
+		pool,
+		name,
+		"default",
+	}, ":")
 }
 
 // setWorkloadSubject sets the "subject" or "sub" claim for the workload

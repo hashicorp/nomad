@@ -365,7 +365,7 @@ func TestIdentityClaims_setNodeIntroductionSubject(t *testing.T) {
 			inputName:       "",
 			inputPool:       "nlp",
 			inputRegion:     "eu1",
-			expectedSubject: "node-introduction:eu1:nlp:default",
+			expectedSubject: "node-introduction:eu1:nlp::default",
 		},
 	}
 

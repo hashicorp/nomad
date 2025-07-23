@@ -2162,24 +2162,24 @@ func TestACLClientIntroductionTokenRequest_Canonicalize(t *testing.T) {
 
 	testCases := []struct {
 		name                            string
-		inputClientIntroductionTokenReq *ACLClientIntroductionTokenRequest
-		expectedResult                  *ACLClientIntroductionTokenRequest
+		inputClientIntroductionTokenReq *ACLCreateClientIntroductionTokenRequest
+		expectedResult                  *ACLCreateClientIntroductionTokenRequest
 	}{
 		{
 			name: "empty node pool",
-			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
 				NodePool: "",
 			},
-			expectedResult: &ACLClientIntroductionTokenRequest{
+			expectedResult: &ACLCreateClientIntroductionTokenRequest{
 				NodePool: "default",
 			},
 		},
 		{
 			name: "node pool set",
-			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
 				NodePool: "custom-pool",
 			},
-			expectedResult: &ACLClientIntroductionTokenRequest{
+			expectedResult: &ACLCreateClientIntroductionTokenRequest{
 				NodePool: "custom-pool",
 			},
 		},
@@ -2198,21 +2198,21 @@ func TestACLClientIntroductionTokenRequest_IdentityTTL(t *testing.T) {
 
 	testCases := []struct {
 		name                            string
-		inputClientIntroductionTokenReq *ACLClientIntroductionTokenRequest
+		inputClientIntroductionTokenReq *ACLCreateClientIntroductionTokenRequest
 		inputDefault                    time.Duration
 		inputMax                        time.Duration
 		expectedOutput                  time.Duration
 	}{
 		{
 			name:                            "no ttl set",
-			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{},
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{},
 			inputDefault:                    5 * time.Minute,
 			inputMax:                        30 * time.Minute,
 			expectedOutput:                  5 * time.Minute,
 		},
 		{
 			name: "ttl set in bounds",
-			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
 				TTL: 25 * time.Minute,
 			},
 			inputDefault:   5 * time.Minute,
@@ -2221,7 +2221,7 @@ func TestACLClientIntroductionTokenRequest_IdentityTTL(t *testing.T) {
 		},
 		{
 			name: "ttl set exceeds bounds",
-			inputClientIntroductionTokenReq: &ACLClientIntroductionTokenRequest{
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
 				TTL: 35 * time.Minute,
 			},
 			inputDefault:   5 * time.Minute,

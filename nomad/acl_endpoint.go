@@ -3123,20 +3123,21 @@ func (a *ACL) oidcClientAssertion(config *structs.ACLAuthMethodConfig) (*cass.JW
 	return j, nil
 }
 
-func (a *ACL) ClientIntroductionToken(
-	args *structs.ACLClientIntroductionTokenRequest,
-	reply *structs.ACLClientIntroductionTokenResponse) error {
+func (a *ACL) CreateClientIntroductionToken(
+	args *structs.ACLCreateClientIntroductionTokenRequest,
+	reply *structs.ACLCreateClientIntroductionTokenResponse) error {
 
 	authErr := a.srv.Authenticate(a.ctx, args)
 
-	if done, err := a.srv.forward(structs.ACLClientIntroductionTokenRPCMethod, args, args, reply); done {
+	if done, err := a.srv.forward(structs.ACLCreateClientIntroductionTokenRPCMethod, args, args, reply); done {
 		return err
 	}
 	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "acl", "node_introduction_identity"}, time.Now())
+	defer metrics.MeasureSince([]string{
+		"nomad", "acl", "create_node_introduction_identity"}, time.Now())
 
 	// Unlike the other ACL RPCs, this accepts node write permissions rather
 	// than management. This allows cluster administrators to delegate node
