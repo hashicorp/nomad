@@ -598,9 +598,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredTGUpdates[group].Ignore += uint64(len(destructive))
 	}
 
-	stopMigrations, placeMigrations := a.computeMigrations(result.DesiredTGUpdates[group], migrate, tg, isCanarying)
-	result.Stop = append(result.Stop, stopMigrations...)
-	result.Place = append(result.Place, placeMigrations...)
+	a.computeMigrations(result, migrate, tg, isCanarying)
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -997,21 +995,19 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	return destructiveResult
 }
 
-// computeMigrations returns the stops and placements for the allocs marked for
-// migration. It mutates the Migrate field on the DesiredUpdates counts
-func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet,
-	tg *structs.TaskGroup, isCanarying bool) ([]AllocStopResult, []AllocPlaceResult) {
+// computeMigrations updates the result with the stops and placements required
+// for migration.
+func (a *AllocReconciler) computeMigrations(result *ReconcileResults, migrate allocSet,
+	tg *structs.TaskGroup, isCanarying bool) {
 
-	allocsToStop := []AllocStopResult{}
-	allocsToPlace := []AllocPlaceResult{}
+	result.DesiredTGUpdates[tg.Name].Migrate += uint64(len(migrate))
 
-	desiredChanges.Migrate += uint64(len(migrate))
 	for _, alloc := range migrate.nameOrder() {
-		allocsToStop = append(allocsToStop, AllocStopResult{
+		result.Stop = append(result.Stop, AllocStopResult{
 			Alloc:             alloc,
 			StatusDescription: sstructs.StatusAllocMigrating,
 		})
-		allocsToPlace = append(allocsToPlace, AllocPlaceResult{
+		result.Place = append(result.Place, AllocPlaceResult{
 			name:          alloc.Name,
 			canary:        alloc.DeploymentStatus.IsCanary(),
 			taskGroup:     tg,
@@ -1021,8 +1017,6 @@ func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 			minJobVersion:      alloc.Job.Version,
 		})
 	}
-
-	return allocsToStop, allocsToPlace
 }
 
 // createDeployment creates a new deployment if necessary.
