@@ -142,11 +142,11 @@ These parameters should only be defined in the configuration file of Nomad
 agents with [`client.enabled`][] set to `true`.
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should
-  automatically discover servers in the same region by searching for the Consul
-  service name defined in the `server_service_name` option. The search occurs if
-  the client is not registered with any servers or it is unable to heartbeat to
-  the leader of the region, in which case it may be partitioned and searches for
-  other servers.
+  automatically discover Nomad servers in the same region by searching for the
+  Consul service name defined in the `server_service_name` option. The search
+  occurs if the client is not registered with any Nomad servers or it is unable
+  to heartbeat to the leader of the region, in which case it may be partitioned
+  and searches for other Nomad servers.
 
 - `client_service_name` `(string: "nomad-client")` - Specifies the name of the
   service in Consul for the Nomad clients.
