@@ -15,6 +15,7 @@ import (
 // diffResult contain the specific nodeID they should be allocated on.
 func Node(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
+	evalPriority int,
 	deployment *structs.Deployment, // existing deployment (if any)
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
@@ -43,7 +44,8 @@ func Node(
 
 	result := new(NodeReconcileResult)
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffSystemAllocsForNode(job, deployment, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
+		diff := diffSystemAllocsForNode(job, evalPriority, deployment, nodeID, eligibleNodes,
+			notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
 		result.Append(diff)
 	}
 
@@ -61,7 +63,8 @@ func Node(
 // a node that has resumed reconnected.
 func diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
-	deployment *structs.Deployment, // existing deployment (if any)
+	evalPriority int,
+	deploymentCurrent *structs.Deployment, // existing deployment (if any)
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
@@ -72,6 +75,23 @@ func diffSystemAllocsForNode(
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
+
+	_, deploymentCurrent, result.DeploymentUpdates = cancelUnneededDeployments(job, deploymentCurrent)
+
+	// set deployment paused and failed fields, if we currently have a
+	// deployment
+	if deploymentCurrent != nil {
+		// deployment is paused when it's manually paused by a user, or if the
+		// deployment is pending or initializing, which are the initial states
+		// for multi-region job deployments.
+		result.DeploymentPaused = deploymentCurrent.Status == structs.DeploymentStatusPaused ||
+			deploymentCurrent.Status == structs.DeploymentStatusPending ||
+			deploymentCurrent.Status == structs.DeploymentStatusInitializing
+		result.DeploymentFailed = deploymentCurrent.Status == structs.DeploymentStatusFailed
+	}
+
+	// TODO: canarying check once we support canary updates
+	deploymentPlaceReady := !result.DeploymentPaused && !result.DeploymentFailed // && !isCanarying
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -238,6 +258,7 @@ func diffSystemAllocsForNode(
 			TaskGroup: tg,
 			Alloc:     exist,
 		})
+
 	}
 
 	// Scan the required groups
@@ -298,6 +319,54 @@ func diffSystemAllocsForNode(
 			}
 
 			result.Place = append(result.Place, allocTuple)
+
+			// initialize the deployment
+			var dstate *structs.DeploymentState
+			existingDeployment := false
+
+			if deploymentCurrent != nil {
+				dstate, existingDeployment = deploymentCurrent.TaskGroups[tg.Name]
+			}
+
+			if !existingDeployment {
+				dstate = &structs.DeploymentState{}
+				if !tg.Update.IsEmpty() {
+					dstate.AutoRevert = tg.Update.AutoRevert
+					dstate.AutoPromote = tg.Update.AutoPromote
+					dstate.ProgressDeadline = tg.Update.ProgressDeadline
+				}
+			}
+
+			// check if perhaps there's nothing more to do
+			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
+				continue
+			}
+
+			if !deploymentPlaceReady {
+				continue
+			}
+
+			updatingSpec := len(result.Update) != 0
+
+			hadRunning := false
+			if allocTuple.Alloc.Job.Version == job.Version && allocTuple.Alloc.Job.CreateIndex == job.CreateIndex {
+				hadRunning = true
+			}
+
+			// Don't create a deployment if it's not the first time running the job
+			// and there are no updates to the spec.
+			if hadRunning && !updatingSpec {
+				continue
+			}
+
+			// A previous group may have made the deployment already. If not create one.
+			if deploymentCurrent == nil {
+				deploymentCurrent = structs.NewDeployment(job, job.Priority, time.Now().UnixNano())
+				result.Deployment = deploymentCurrent
+			}
+
+			// Attach the groups deployment state to the deployment
+			deploymentCurrent.TaskGroups[name] = dstate
 		}
 	}
 	return result
@@ -331,6 +400,7 @@ type AllocTuple struct {
 type NodeReconcileResult struct {
 	Deployment                                                              *structs.Deployment
 	DeploymentUpdates                                                       []*structs.DeploymentStatusUpdate
+	DeploymentPaused, DeploymentFailed                                      bool
 	Place, Update, Migrate, Stop, Ignore, Lost, Disconnecting, Reconnecting []AllocTuple
 }
 
