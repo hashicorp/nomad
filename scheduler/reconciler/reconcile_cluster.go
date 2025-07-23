@@ -18,7 +18,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
@@ -469,11 +468,13 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.jobState.JobIsBatch, false, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(
+		a.jobState.JobIsBatch, false, a.clusterState.Now,
+		a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
-	// If there are allocations reconnecting we need to reconcile them and
-	// their replacements first because there is specific logic when deciding
-	// which ones to keep that can only be applied when the client reconnects.
+	// If there are allocations reconnecting we need to reconcile them and their
+	// replacements first because there is specific logic when deciding which
+	// ones to keep that can only be applied when the client reconnects.
 	if len(reconnecting) > 0 {
 		a.computeReconnecting(&untainted, &migrate, &lost, &disconnecting,
 			reconnecting, all, tg, result)
@@ -490,8 +491,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	result.DesiredFollowupEvals = map[string][]*structs.Evaluation{}
 	result.DisconnectUpdates = make(allocSet)
 
-	// Determine what set of disconnecting allocations need to be rescheduled now,
-	// which ones later and which ones can't be rescheduled at all.
+	// Determine what set of disconnecting allocations need to be rescheduled
+	// now, which ones later and which ones can't be rescheduled at all.
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
 		timeoutLaterEvals = a.computeDisconnecting(
@@ -506,7 +507,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// Find delays for any lost allocs that have disconnect.stop_on_client_after
 	lostLaterEvals := map[string]string{}
-	lostLater := []*delayedRescheduleInfo{}
+	lostLater := []*delayedRescheduleInfo{} // guards computePlacements
 
 	if len(lost) > 0 {
 		lostLater = lost.delayByStopAfter()
@@ -515,9 +516,10 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 	}
 
-	// Merge disconnecting with the disconnect.stop_on_client_after set into the
-	// lostLaterEvals so that computeStop can add them to the stop set.
-	lostLaterEvals = helper.MergeMapStringString(lostLaterEvals, timeoutLaterEvals)
+	// Merge evals for disconnecting with the disconnect.stop_on_client_after
+	// set into the lostLaterEvals so that computeStop can add them to the stop
+	// set.
+	maps.Copy(lostLaterEvals, timeoutLaterEvals)
 
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
@@ -1457,9 +1459,9 @@ func (a *AllocReconciler) appendReconnectingUpdates(reconnecting allocSet) alloc
 	return reconnectingUpdates
 }
 
-// handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
-// lost allocations. followupEvals are appended to a.result as a side effect, we return a
-// map of alloc IDs to their followupEval IDs.
+// createLostLaterEvals creates batched followup evaluations with the WaitUntil
+// field set for lost allocations. followupEvals are appended to a.result as a
+// side effect, we return a map of alloc IDs to their followupEval IDs.
 func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo) (map[string]string, []*structs.Evaluation) {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}, nil
