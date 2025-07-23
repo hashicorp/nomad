@@ -5125,22 +5125,26 @@ func (j *Job) Vault() map[string]map[string]*Vault {
 }
 
 // Secrets returns the set of secrets per task group, per task
-func (j *Job) Secrets() map[string]map[string][]*Secret {
-	blocks := make(map[string]map[string][]*Secret, len(j.TaskGroups))
+func (j *Job) Secrets() map[string][]string {
+	blocks := make(map[string][]string, len(j.TaskGroups))
 
 	for _, tg := range j.TaskGroups {
-		tgBlocks := make(map[string][]*Secret, len(tg.Tasks))
+		secrets := []string{}
 
 		for _, task := range tg.Tasks {
 			if len(task.Secrets) == 0 {
 				continue
 			}
 
-			tgBlocks[task.Name] = task.Secrets
+			for _, s := range task.Secrets {
+				if !slices.Contains(secrets, s.Provider) {
+					secrets = append(secrets, s.Provider)
+				}
+			}
 		}
 
-		if len(tgBlocks) != 0 {
-			blocks[tg.Name] = tgBlocks
+		if len(secrets) != 0 {
+			blocks[tg.Name] = secrets
 		}
 	}
 

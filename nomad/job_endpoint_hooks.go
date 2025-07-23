@@ -305,11 +305,9 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
 		}
 
-		secretTasks := lang.MapKeys(secretBlocks[tg.Name])
-		for _, secretTask := range secretTasks {
-			secretBlock := secretBlocks[tg.Name][secretTask]
-			for _, secret := range secretBlock {
-				mutateConstraint(constraintMatcherLeft, tg, secretsConstraintFn(secret))
+		for _, secretProviders := range secretBlocks {
+			for _, provider := range secretProviders {
+				mutateConstraint(constraintMatcherLeft, tg, secretsConstraintFn(provider))
 			}
 		}
 
@@ -397,9 +395,9 @@ func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 // fingerprinted secrets plugin. This is to support upgrades to 1.11 where a nomad
 // server follower may not be upgraded yet and attempt to place a job on a client
 // that has not been upgraded. This should be removed in Nomad 1.14.
-func secretsConstraintFn(secret *structs.Secret) *structs.Constraint {
+func secretsConstraintFn(provider string) *structs.Constraint {
 	return &structs.Constraint{
-		LTarget: fmt.Sprintf("${attr.plugins.secrets.%s.version}", secret.Provider),
+		LTarget: fmt.Sprintf("${attr.plugins.secrets.%s.version}", provider),
 		Operand: structs.ConstraintAttributeIsSet,
 	}
 }
