@@ -475,31 +475,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// their replacements first because there is specific logic when deciding
 	// which ones to keep that can only be applied when the client reconnects.
 	if len(reconnecting) > 0 {
-
-		// Pass all allocations because the replacements we need to find may be
-		// in any state, including themselves being reconnected.
-		reconnect, stopAllocSet, stopAllocResult := a.reconcileReconnecting(reconnecting, all, tg)
-		result.Stop = append(result.Stop, stopAllocResult...)
-
-		// Stop the reconciled allocations and remove them from untainted, migrate, lost
-		// and disconnecting sets, since they have been already handled.
-		result.DesiredTGUpdates[group].Stop += uint64(len(stopAllocSet))
-
-		untainted = untainted.difference(stopAllocSet)
-		migrate = migrate.difference(stopAllocSet)
-		lost = lost.difference(stopAllocSet)
-		disconnecting = disconnecting.difference(stopAllocSet)
-
-		// Validate and add reconnecting allocations to the plan so they are
-		// logged.
-		if len(reconnect) > 0 {
-			result.ReconnectUpdates = a.computeReconnecting(reconnect)
-			result.DesiredTGUpdates[tg.Name].Reconnect = uint64(len(result.ReconnectUpdates))
-
-			// The rest of the reconnecting allocations is now untainted and will
-			// be further reconciled below.
-			untainted = untainted.union(reconnect)
-		}
+		a.computeReconnecting(&untainted, &migrate, &lost, &disconnecting,
+			reconnecting, all, tg, result)
 	}
 
 	if len(expiring) > 0 {
@@ -1233,6 +1210,39 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 	return stopAllocSet, stopAllocResult
 }
 
+// If there are allocations reconnecting we need to reconcile them and their
+// replacements first because there is specific logic when deciding which ones
+// to keep that can only be applied when the client reconnects.
+func (a *AllocReconciler) computeReconnecting(
+	untainted, migrate, lost, disconnecting *allocSet, reconnecting, all allocSet,
+	tg *structs.TaskGroup, result *ReconcileResults) {
+
+	// Pass all allocations because the replacements we need to find may be in
+	// any state, including themselves being reconnected.
+	reconnect, stopAllocSet, stopAllocResult := a.reconcileReconnecting(reconnecting, all, tg)
+	result.Stop = append(result.Stop, stopAllocResult...)
+
+	// Stop the reconciled allocations and remove them from untainted, migrate,
+	// lost and disconnecting sets, since they have been already handled.
+	result.DesiredTGUpdates[tg.Name].Stop += uint64(len(stopAllocSet))
+
+	*untainted = untainted.difference(stopAllocSet)
+	*migrate = migrate.difference(stopAllocSet)
+	*lost = lost.difference(stopAllocSet)
+	*disconnecting = disconnecting.difference(stopAllocSet)
+
+	// Validate and add reconnecting allocations to the plan so they are
+	// logged.
+	if len(reconnect) > 0 {
+		result.ReconnectUpdates = a.appendReconnectingUpdates(reconnect)
+		result.DesiredTGUpdates[tg.Name].Reconnect = uint64(len(result.ReconnectUpdates))
+
+		// The rest of the reconnecting allocations are now untainted and will
+		// be further reconciled below.
+		*untainted = untainted.union(reconnect)
+	}
+}
+
 // reconcileReconnecting receives the set of allocations that are reconnecting
 // and all other allocations for the same group and determines which ones to
 // reconnect, which ones to stop, and the stop results for the latter.
@@ -1407,12 +1417,12 @@ func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 	return followupEvals, attributeUpdates
 }
 
-// computeReconnecting copies existing allocations in the unknown state, but
-// whose nodes have been identified as ready. The Allocations DesiredStatus is
-// set to running, and these allocs are appended to the Plan as non-destructive
-// updates. Clients are responsible for reconciling the DesiredState with the
-// actual state as the node comes back online.
-func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) allocSet {
+// appendReconnectingUpdates copies existing allocations in the unknown state,
+// but whose nodes have been identified as ready. The Allocations DesiredStatus
+// is set to running, and these allocs are appended to the Plan as
+// non-destructive updates. Clients are responsible for reconciling the
+// DesiredState with the actual state as the node comes back online.
+func (a *AllocReconciler) appendReconnectingUpdates(reconnecting allocSet) allocSet {
 
 	reconnectingUpdates := make(allocSet)
 
