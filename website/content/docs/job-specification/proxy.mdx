@@ -3,7 +3,7 @@ layout: docs
 page_title: proxy block in the job specification
 description: |-
   The "proxy" block allows specifying options for configuring
-  sidecar proxies used in Consul Connect integration
+  sidecar proxies used in Consul service mesh integration
 ---
 
 # `proxy` block in the job specification
@@ -13,7 +13,7 @@ description: |-
 />
 
 The `proxy` block allows configuring various options for the sidecar proxy
-managed by Nomad for [Consul Connect][]. It is valid only within the context of
+managed by Nomad for [Consul service mesh][]. It is valid only within the context of
 a `sidecar_service` block.
 
 ```hcl
@@ -50,7 +50,7 @@ job "countdash" {
 ## Parameters
 
 - `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and passed
-  directly to Consul. See [Consul Connect documentation][envoy_dynamic_config]
+  directly to Consul. See [Consul service mesh documentation][envoy_dynamic_config]
   for details. Keys and values support [runtime variable interpolation][].
 - `expose` <code>([expose]: nil)</code> - Used to configure expose path
   configuration for Envoy. See Consul's [Expose Paths Configuration
@@ -97,7 +97,7 @@ sidecar_service {
 }
 ```
 
-[Consul Connect]: /nomad/docs/networking/consul
+[Consul service mesh]: /nomad/docs/networking/consul
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'

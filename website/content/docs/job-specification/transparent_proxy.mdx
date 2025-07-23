@@ -3,7 +3,7 @@ layout: docs
 page_title: transparent_proxy block in the job specification
 description: |-
   The `transparent_proxy` block allows specifying options for configuring Envoy
-  in Consul Connect transparent proxy mode.
+  in Consul service mesh transparent proxy mode.
 ---
 
 # `transparent_proxy` block in the job specification
@@ -21,8 +21,8 @@ description: |-
 />
 
 The `transparent_proxy` block configures the Envoy sidecar proxy to act as a
-Consul Connect [transparent proxy][tproxy]. This simplifies the configuration of
-Consul Connect by eliminating the need to configure [`upstreams`][] blocks in
+Consul service mesh [transparent proxy][tproxy]. This simplifies the configuration of
+Consul service mesh by eliminating the need to configure [`upstreams`][] blocks in
 Nomad. Instead, the Envoy proxy will determines its configuration entirely from
 Consul [service intentions][].
 
