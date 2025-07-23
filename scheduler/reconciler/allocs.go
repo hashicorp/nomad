@@ -4,12 +4,10 @@
 package reconciler
 
 import (
-	"errors"
 	"fmt"
-	"slices"
+	"maps"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -124,7 +122,7 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 	for _, a := range allocs {
 		s, ok := m[a.TaskGroup]
 		if !ok {
-			s = make(map[string]*structs.Allocation)
+			s = make(allocSet)
 			m[a.TaskGroup] = s
 		}
 		s[a.ID] = a
@@ -133,7 +131,7 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 	if job != nil {
 		for _, tg := range job.TaskGroups {
 			if _, ok := m[tg.Name]; !ok {
-				m[tg.Name] = make(map[string]*structs.Allocation)
+				m[tg.Name] = make(allocSet)
 			}
 		}
 	}
@@ -141,36 +139,38 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 }
 
 // allocSet is a set of allocations with a series of helper functions defined
-// that help reconcile state.
+// that help reconcile state. Methods on allocSet named "filter" defined in
+// filters.go never consume the allocSet but instead return one or more new
+// allocSets.
 type allocSet map[string]*structs.Allocation
 
 // GoString provides a human readable view of the set
-func (a allocSet) GoString() string {
-	if len(a) == 0 {
+func (set allocSet) GoString() string {
+	if len(set) == 0 {
 		return "[]"
 	}
 
-	start := fmt.Sprintf("len(%d) [\n", len(a))
+	start := fmt.Sprintf("len(%d) [\n", len(set))
 	var s []string
-	for k, v := range a {
+	for k, v := range set {
 		s = append(s, fmt.Sprintf("%q: %v", k, v.Name))
 	}
 	return start + strings.Join(s, "\n") + "]"
 }
 
 // nameSet returns the set of allocation names
-func (a allocSet) nameSet() map[string]struct{} {
-	names := make(map[string]struct{}, len(a))
-	for _, alloc := range a {
+func (set allocSet) nameSet() map[string]struct{} {
+	names := make(map[string]struct{}, len(set))
+	for _, alloc := range set {
 		names[alloc.Name] = struct{}{}
 	}
 	return names
 }
 
 // nameOrder returns the set of allocation names in sorted order
-func (a allocSet) nameOrder() []*structs.Allocation {
-	allocs := make([]*structs.Allocation, 0, len(a))
-	for _, alloc := range a {
+func (set allocSet) nameOrder() []*structs.Allocation {
+	allocs := make([]*structs.Allocation, 0, len(set))
+	for _, alloc := range set {
 		allocs = append(allocs, alloc)
 	}
 	sort.Slice(allocs, func(i, j int) bool {
@@ -179,12 +179,12 @@ func (a allocSet) nameOrder() []*structs.Allocation {
 	return allocs
 }
 
-// difference returns a new allocSet that has all the existing item except those
-// contained within the other allocation sets
-func (a allocSet) difference(others ...allocSet) allocSet {
-	diff := make(map[string]*structs.Allocation)
+// difference returns a new allocSet that has all the existing allocations
+// except those contained within the other allocation sets
+func (set allocSet) difference(others ...allocSet) allocSet {
+	diff := make(allocSet)
 OUTER:
-	for k, v := range a {
+	for k, v := range set {
 		for _, other := range others {
 			if _, ok := other[k]; ok {
 				continue OUTER
@@ -196,196 +196,26 @@ OUTER:
 }
 
 // union returns a new allocSet that has the union of the two allocSets.
-// Conflicts prefer the last passed allocSet containing the value
-func (a allocSet) union(others ...allocSet) allocSet {
-	union := make(map[string]*structs.Allocation, len(a))
-	order := []allocSet{a}
-	order = append(order, others...)
-
-	for _, set := range order {
-		for k, v := range set {
-			union[k] = v
-		}
+// Conflicts prefer the last passed allocSet containing the allocation.
+func (set allocSet) union(others ...allocSet) allocSet {
+	union := make(allocSet, len(set))
+	maps.Copy(union, set)
+	for _, other := range others {
+		maps.Copy(union, other)
 	}
 
 	return union
 }
 
-// fromKeys returns an alloc set matching the passed keys
-func (a allocSet) fromKeys(keys ...[]string) allocSet {
-	from := make(map[string]*structs.Allocation)
-	for _, set := range keys {
-		for _, k := range set {
-			if alloc, ok := a[k]; ok {
-				from[k] = alloc
-			}
+// fromKeys returns an new alloc set matching the passed keys
+func (set allocSet) fromKeys(keys []string) allocSet {
+	from := make(allocSet)
+	for _, k := range keys {
+		if alloc, ok := set[k]; ok {
+			from[k] = alloc
 		}
 	}
 	return from
-}
-
-// shouldFilter returns whether the alloc should be ignored or considered untainted.
-//
-// Ignored allocs are filtered out.
-// Untainted allocs count against the desired total.
-// Filtering logic for batch jobs:
-// If complete, and ran successfully - untainted
-// If desired state is stop - ignore
-//
-// Filtering logic for service jobs:
-// Never untainted
-// If desired state is stop/evict - ignore
-// If client status is complete/lost - ignore
-func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
-	// Allocs from batch jobs should be filtered when the desired status
-	// is terminal and the client did not finish or when the client
-	// status is failed so that they will be replaced. If they are
-	// complete but not failed, they shouldn't be replaced.
-	if isBatch {
-		switch alloc.DesiredStatus {
-		case structs.AllocDesiredStatusStop:
-			if alloc.RanSuccessfully() {
-				return true, false
-			}
-			if alloc.LastRescheduleFailed() {
-				return false, false
-			}
-			return false, true
-		case structs.AllocDesiredStatusEvict:
-			return false, true
-		}
-
-		switch alloc.ClientStatus {
-		case structs.AllocClientStatusFailed:
-			return false, false
-		}
-
-		return true, false
-	}
-
-	// Handle service jobs
-	switch alloc.DesiredStatus {
-	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-		if alloc.LastRescheduleFailed() {
-			return false, false
-		}
-
-		return false, true
-	}
-
-	switch alloc.ClientStatus {
-	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
-		return false, true
-	}
-
-	return false, false
-}
-
-// updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
-// should be rescheduled now, later or left in the untainted set
-func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
-	// if it has been marked eligible
-	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
-		return
-	}
-
-	// Check if the allocation is marked as it should be force rescheduled
-	if alloc.DesiredTransition.ShouldForceReschedule() {
-		rescheduleNow = true
-	}
-
-	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
-	var eligible bool
-	switch {
-	case isDisconnecting:
-		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
-
-	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
-		lastDisconnectTime := alloc.LastUnknown()
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
-
-	default:
-		rescheduleTime, eligible = alloc.NextRescheduleTime()
-	}
-
-	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
-		rescheduleNow = true
-		return
-	}
-
-	if eligible && (alloc.FollowupEvalID == "" || isDisconnecting) {
-		rescheduleLater = true
-	}
-
-	return
-}
-
-// delayByStopAfter returns a delay for any lost allocation that's got a
-// disconnect.stop_on_client_after configured
-func (a allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
-	now := time.Now().UTC()
-	for _, a := range a {
-		if !a.ShouldClientStop() {
-			continue
-		}
-
-		t := a.WaitClientStop()
-
-		if t.After(now) {
-			later = append(later, &delayedRescheduleInfo{
-				allocID:        a.ID,
-				alloc:          a,
-				rescheduleTime: t,
-			})
-		}
-	}
-	return later
-}
-
-// delayByLostAfter returns a delay for any unknown allocation
-// that has disconnect.lost_after configured
-func (a allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, error) {
-	var later []*delayedRescheduleInfo
-
-	for _, alloc := range a {
-		timeout := alloc.DisconnectTimeout(now)
-		if !timeout.After(now) {
-			return nil, errors.New("unable to computing disconnecting timeouts")
-		}
-
-		later = append(later, &delayedRescheduleInfo{
-			allocID:        alloc.ID,
-			alloc:          alloc,
-			rescheduleTime: timeout,
-		})
-	}
-
-	return later, nil
-}
-
-// filterOutByClientStatus returns all allocs from the set without the specified client status.
-func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
-	allocs := make(allocSet)
-	for _, alloc := range a {
-		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
-			allocs[alloc.ID] = alloc
-		}
-	}
-
-	return allocs
-}
-
-// filterByClientStatus returns allocs from the set with the specified client status.
-func (a allocSet) filterByClientStatus(clientStatus string) allocSet {
-	allocs := make(allocSet)
-	for _, alloc := range a {
-		if alloc.ClientStatus == clientStatus {
-			allocs[alloc.ID] = alloc
-		}
-	}
-
-	return allocs
 }
 
 // AllocNameIndex is used to select allocation names for placement or removal
