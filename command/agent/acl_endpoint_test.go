@@ -2126,3 +2126,140 @@ func requestAuthState(t *testing.T, server *HTTPServer, authMethod *structs.ACLA
 	must.NoError(t, err)
 	return u.Query().Get("state")
 }
+
+func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "incorrect method",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodConnect,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.Error(t, err)
+				must.ErrorContains(t, err, ErrInvalidMethod)
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "incorrect permissions",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.Error(t, err)
+				must.ErrorContains(t, err, "Permission denied")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "valid request with body",
+			testFn: func(testAgent *TestAgent) {
+
+				nodeWriteToken := mock.CreatePolicyAndToken(
+					t,
+					testAgent.Agent.Server().State(),
+					10,
+					fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+					`node{policy = "write"}`,
+				)
+
+				requestBody := structs.ACLCreateClientIntroductionTokenRequest{
+					WriteRequest: structs.WriteRequest{
+						Region:    testAgent.config().Region,
+						AuthToken: nodeWriteToken.SecretID,
+					},
+				}
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					encodeReq(&requestBody),
+				)
+				must.NoError(t, err)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.NoError(t, err)
+				must.NotNil(t, obj)
+
+				// We do not have access to the encrypter, so we cannot verify
+				// the JWT content. Tests in the RPC layer cover this.
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
+				must.True(t, ok)
+				must.NotNil(t, nodeIntroTokenResp)
+				must.NotEq(t, "", nodeIntroTokenResp.JWT)
+			},
+		},
+		{
+			name: "valid request with headers",
+			testFn: func(testAgent *TestAgent) {
+
+				nodeWriteToken := mock.CreatePolicyAndToken(
+					t,
+					testAgent.Agent.Server().State(),
+					10,
+					fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+					`node{policy = "write"}`,
+				)
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+
+				req.Header.Add("X-Nomad-Token", nodeWriteToken.SecretID)
+				req.Header.Add("X-Nomad-Region", testAgent.config().Region)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.NoError(t, err)
+				must.NotNil(t, obj)
+
+				// We do not have access to the encrypter, so we cannot verify
+				// the JWT content. Tests in the RPC layer cover this.
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
+				must.True(t, ok)
+				must.NotNil(t, nodeIntroTokenResp)
+				must.NotEq(t, "", nodeIntroTokenResp.JWT)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}

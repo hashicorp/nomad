@@ -750,3 +750,20 @@ func TestNodeIntroductionConfig_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateNodeIntroductionIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := GenerateNodeIntroductionIdentityClaims(
+		"node-name-1", "custom-pool", "euw", 10*time.Minute)
+
+	must.Eq(t, "node-name-1", claims.NodeIntroductionIdentityClaims.NodeName)
+	must.Eq(t, "custom-pool", claims.NodeIntroductionIdentityClaims.NodePool)
+	must.Eq(t, "euw", claims.NodeIntroductionIdentityClaims.NodeRegion)
+	must.StrEqFold(t, "node-introduction:euw:custom-pool:node-name-1:default", claims.Subject)
+	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
+	must.NotNil(t, claims.ID)
+	must.NotNil(t, claims.IssuedAt)
+	must.NotNil(t, claims.NotBefore)
+	must.NotNil(t, claims.Expiry)
+}
