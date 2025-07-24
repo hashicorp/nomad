@@ -544,12 +544,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	var inplaceUpdateResult []*structs.Allocation
-	ignoreUpdates, inplace, inplaceUpdateResult, destructive := a.computeUpdates(tg, untainted)
-	result.InplaceUpdate = inplaceUpdateResult
-
-	result.DesiredTGUpdates[group].Ignore += uint64(len(ignoreUpdates))
-	result.DesiredTGUpdates[group].InPlaceUpdate += uint64(len(inplace))
+	inplace, destructive := a.computeUpdates(untainted, tg, result)
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
@@ -1361,17 +1356,16 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 }
 
 // computeUpdates determines which allocations for the passed group require
-// updates. Three groups are returned:
-// 1. Those that require no upgrades
-// 2. Those that can be upgraded in-place. These are added to the results
-// automatically since the function contains the correct state to do so,
-// 3. Those that require destructive updates
-func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted allocSet) (
-	ignore, inplaceUpdateMap allocSet, inplaceUpdateSlice []*structs.Allocation, destructive allocSet) {
-	// Determine the set of allocations that need to be updated
-	ignore = make(allocSet)
-	inplaceUpdateMap = make(allocSet)
-	inplaceUpdateSlice = make([]*structs.Allocation, 0)
+// updates. This method updates the results with allocs to ignore and/or
+// update. And two groups are returned:
+// 1. Those that can be upgraded in-place
+// 2. Those that require destructive updates
+func (a *AllocReconciler) computeUpdates(
+	untainted allocSet, group *structs.TaskGroup, result *ReconcileResults,
+) (inplace, destructive allocSet) {
+
+	ignore := make(allocSet)
+	inplace = make(allocSet)
 	destructive = make(allocSet)
 
 	for _, alloc := range untainted {
@@ -1381,10 +1375,14 @@ func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 		} else if destructiveChange {
 			destructive[alloc.ID] = alloc
 		} else {
-			inplaceUpdateMap[alloc.ID] = alloc
-			inplaceUpdateSlice = append(inplaceUpdateSlice, inplaceAlloc)
+			inplace[alloc.ID] = inplaceAlloc
 		}
 	}
+
+	result.InplaceUpdate = slices.Collect(maps.Values(inplace))
+	result.DesiredTGUpdates[group.Name].Ignore += uint64(len(ignore))
+	result.DesiredTGUpdates[group.Name].InPlaceUpdate += uint64(len(inplace))
+
 	return
 }
 
