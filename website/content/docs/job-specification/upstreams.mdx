@@ -21,10 +21,10 @@ description: |-
 />
 
 The `upstreams` block allows configuring various options for managing upstream
-services that a [Consul Connect][] proxy routes to. It is valid only within the
+services that a [Consul service mesh][] proxy routes to. It is valid only within the
 context of a `proxy` block.
 
-For Consul-specific details see the [Consul Connect Guide][]. Note that using
+For Consul-specific details see the [Consul service mesh Guide][]. Note that using
 `upstream` may not be necessary if you have configured the proxy with the
 [`transparent_proxy`][] block.
 
@@ -82,7 +82,7 @@ job "countdash" {
 ## Parameters
 
 - `config` `(map: nil)` - Upstream configuration that is opaque to Nomad and passed
-  directly to Consul. See [Consul Connect documentation][consul_expose_path_ref]
+  directly to Consul. See [Consul service mesh documentation][consul_expose_path_ref]
   for details. Keys and values support [runtime variable interpolation][interpolation].
 - `destination_name` `(string: <required>)` - Name of the upstream service.
 - `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
@@ -119,7 +119,7 @@ The `NOMAD_UPSTREAM_ADDR_<destination_name>` environment variables may be used
 to interpolate the upstream's `host:port` address.
 
 Applications are encouraged to connect to `127.0.0.1` and a well defined port
-(eg 6379 for Redis) by default. Then when using Consul Connect the application
+(eg 6379 for Redis) by default. Then when using Consul service mesh the application
 can be deployed with the Redis upstream's `local_bind_port = 6379` and require
 no explicit configuration.
 
@@ -135,8 +135,8 @@ and a local bind port.
     }
 ```
 
-[Consul Connect]: /nomad/docs/networking/consul
-[Consul Connect Guide]: /consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery
+[Consul service mesh]: /nomad/docs/networking/consul
+[Consul service mesh Guide]: /consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery
 [`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
