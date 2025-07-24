@@ -46,17 +46,17 @@ autopilot {
   cluster. Only takes effect if all servers are running Raft protocol version 3
   or higher. Must be a duration value such as `30s`.
 
-- `enable_redundancy_zones` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Controls whether
+- `enable_redundancy_zones` `(bool: false)` - <EnterpriseAlert inline/> Controls whether
   Autopilot separates servers into zones for redundancy, in conjunction with the
   [redundancy_zone](/nomad/docs/configuration/server#redundancy_zone) parameter.
   Only one server in each zone can be a voting member at one time.
 
-- `disable_upgrade_migration` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Disables Autopilot's
+- `disable_upgrade_migration` `(bool: false)` - <EnterpriseAlert inline/> Disables Autopilot's
   upgrade migration strategy in Nomad Enterprise of waiting until enough
   newer-versioned servers have been added to the cluster before promoting any of
   them to voters.
 
-- `enable_custom_upgrades` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Specifies whether to
+- `enable_custom_upgrades` `(bool: false)` - <EnterpriseAlert inline/> Specifies whether to
   enable using custom upgrade versions when performing migrations, in conjunction with
   the [upgrade_version](/nomad/docs/configuration/server#upgrade_version)
   parameter.

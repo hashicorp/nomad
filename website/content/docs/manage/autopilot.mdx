@@ -154,12 +154,7 @@ must be healthy and stable for a certain amount of time before being promoted to
 a full, voting member. This can be configured via the `ServerStabilizationTime`
 setting.
 
----
-
-~> The following Autopilot features are available only in [Nomad Enterprise]
-version 0.8.0 and later.
-
-## Server read and scheduling scaling
+## Server read and scheduling scaling <EnterpriseAlert inline />
 
 With the [`non_voting_server`] option, a server can be explicitly marked as a
 non-voter and will never be promoted to a voting member. This can be useful when
@@ -168,7 +163,7 @@ have data replicated to it, but it will not be part of the quorum that the
 leader must wait for before committing log entries. Non voting servers can also
 act as scheduling workers to increase scheduling throughput in large clusters.
 
-## Redundancy zones
+## Redundancy zones <EnterpriseAlert inline />
 
 Prior to Autopilot, it was difficult to deploy servers in a way that took
 advantage of isolated failure domains such as AWS Availability Zones; users
@@ -196,7 +191,7 @@ Nomad will then use these values to partition the servers by redundancy zone,
 and will aim to keep one voting server per zone. Extra servers in each zone will
 stay as non-voters on standby to be promoted if the active voter leaves or dies.
 
-## Upgrade migrations
+## Upgrade migrations <EnterpriseAlert inline />
 
 Autopilot in Nomad Enterprise supports upgrade migrations by default. To disable
 this functionality, set `DisableUpgradeMigration` to true.

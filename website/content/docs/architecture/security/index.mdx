@@ -31,7 +31,7 @@ but the general mechanisms for a secure Nomad deployment revolve around:
   internal abuse by preventing unauthenticated access to network components
   within the cluster.
 
-- **[ACLs](/nomad/tutorials/access-control)** Enables authorization for
+- **[ACLs](/nomad/docs/secure/acl)** Enables authorization for
   authenticated connections by granting capabilities to ACL tokens.
 
 - **[Namespaces](/nomad/docs/govern/namespaces)** Access to read
@@ -50,7 +50,7 @@ granularity may change depending on your team's use case where rigorous roles
 can be accurately defined and managed using the [Nomad backend secret engine for
 Vault](/vault/docs/secrets/nomad). This is
 described further with getting started steps using a development server
-[here](/nomad/tutorials/access-control).
+[here](/nomad/docs/secure/acl).
 
 It's important to note that there's no traditional concept of a user
 within Nomad itself.
@@ -135,7 +135,7 @@ recommendations accordingly.
     when using `tls.verify_https_client=false`. You can use a reverse proxy or
     other external means to restrict access to them.
 
-- [ACLs enabled](/nomad/tutorials/access-control) The
+- [ACLs enabled](/nomad/docs/secure/acl) The
   access control list (ACL) system provides a capability-based control
   mechanism for Nomad administrators allowing for custom roles (typically
   within Vault) to be tied to an individual human or machine operator

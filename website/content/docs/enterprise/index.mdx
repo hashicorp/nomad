@@ -21,13 +21,11 @@ source version of Nomad. Servers running the open source version of Nomad will
 panic if they are joined to a Nomad Enterprise cluster, due to raft entries
 relating to Enterprise features not being parseable by open source Nomad.
 
-## Nomad Enterprise Platform
-
 Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
 enhances performance and availability through Advanced Autopilot features such
 as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
 
-### Long Term Support (LTS) Releases
+## Long Term Support (LTS) Releases
 
 Nomad Enterprise initiated the Long-Term Support (LTS) release program with
 Nomad 1.8. Going forward, the first major release of each calendar year will be
@@ -49,7 +47,7 @@ upgrade to the next LTS major release when it's available. For more
 information, refer to HashiCorp’s multi-product LTS statement.
 
 
-### Automated Upgrades
+## Automated Upgrades
 
 Automated Upgrades allows operators to deploy a complete cluster of new
 servers and then simply wait for the upgrade to complete. As the new servers
@@ -64,7 +62,7 @@ See the [Autopilot - Upgrade
 Migrations](/nomad/docs/manage/autopilot#upgrade-migrations)
 documentation for a thorough overview.
 
-### Automated Backups
+## Automated Backups
 
 Automated Backups allows operators to run the snapshot agent as a long-running
 daemon process or in a one-shot mode from a batch job. The agent takes
@@ -78,7 +76,7 @@ snapshots are atomic and point-in-time.
 See the [Operator Snapshot agent](/nomad/commands/operator/snapshot/agent)
 documentation for a thorough overview.
 
-### Enhanced Read Scalability
+## Enhanced Read Scalability
 
 This feature enables an operator to introduce non-voting server nodes to a
 Nomad cluster. Non-voting servers will receive the replication stream but will
@@ -90,7 +88,7 @@ See the [Autopilot - Read
 Scalability](/nomad/docs/manage/autopilot#server-read-and-scheduling-scaling)
 documentation for a thorough overview.
 
-### Redundancy Zones
+## Redundancy Zones
 
 Redundancy Zones enables an operator to deploy a non-voting server as a hot
 standby server on a per availability zone basis. For example, in an
@@ -105,7 +103,7 @@ See the [Autopilot - Redundancy
 Zones](/nomad/docs/manage/autopilot#redundancy-zones)
 documentation for a thorough overview.
 
-### Multiple Vault Namespaces
+## Multiple Vault Namespaces
 
 Multi-Vault Namespaces enables an operator to configure a single Nomad cluster
 to support multiple Vault Namespaces for topology simplicity and fleet
@@ -115,7 +113,7 @@ available for the specified Nomad task at hand.
 
 Refer to the [Vault Integration documentation](/nomad/docs/secure/vault/acl#vault-namespaces)) for more information.
 
-### Multiple Vault and Consul Clusters
+## Multiple Vault and Consul Clusters
 
 Nomad Enteprise allows sepcifying multiple integrations for Consul and Vault in
 the [vault](/nomad/docs/configuration/vault) and
@@ -125,6 +123,9 @@ which Consul or Vault cluster to use in their job. Nomad administrators may
 also set default clusters for each in Nomad namespace configuration, as well as
 deny access to certain clusters by namespace.
 
+## NUMA Awareness for Device Resources
+
+Nomad is able to correlate CPU cores with memory nodes and assign tasks to run  on specific CPU cores so as to minimize any cross-memory node access patterns.  With Nomad 1.9, we are expanding this functionality to also correlate devices  to memory nodes and enable NUMA-aware scheduling to take device associativity  into account when making scheduling decisions.
 
 ## Governance & Policy
 
