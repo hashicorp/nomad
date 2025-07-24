@@ -54,6 +54,10 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 	plugins := map[string]string{}
 	for name := range files {
 		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginsDir, name)
+		if err != nil {
+			return err
+		}
+
 		fprint, err := plug.Fingerprint(context.Background())
 		if err != nil {
 			s.logger.Error("secrets plugin failed fingerprint", "plugin", name, "error", err)
