@@ -30,17 +30,8 @@ type ExportMonitor struct {
 	// ExportReader can read from the cli or the NomadFilePath
 	ExportReader ExportReader
 
-	// droppedCount is the current count of messages
-	// that were dropped from the logCh buffer.
-	// only access under lock
-	droppedCount int
-	bufSize      int
-	// droppedDuration is the amount of time we should
-	// wait to check for dropped messages. Defaults
-	// to 3 seconds
-	droppedDuration time.Duration
+	bufSize int
 }
-
 type MonitorExportOpts struct {
 	Logger hclog.Logger
 
@@ -168,11 +159,9 @@ func (d *ExportMonitor) Start() <-chan []byte {
 					return
 				}
 
-				sN := d.Write(logChunk[:n])
-				if sN != n {
-					d.droppedCount++
-				}
-				if readErr == io.EOF && n == 0 && !d.ExportReader.Follow {
+				d.Write(logChunk[:n])
+
+				if readErr == io.EOF && !d.ExportReader.Follow {
 					break OUTER
 				}
 
