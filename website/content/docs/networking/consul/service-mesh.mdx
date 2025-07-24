@@ -62,8 +62,7 @@ guide.
 ## Nomad Consul service mesh example
 
 The following section walks through an example to enable secure communication
-between a web dashboard and a backend counting service. Nomad and Consul are
-running in the same datacenter. The web dashboard and the counting service are
+between a web dashboard and a backend counting service. The web dashboard and the counting service are
 managed by Nomad. Nomad additionally configures Envoy proxies to run along side
 these applications. The dashboard is configured to connect to the counting
 service via localhost on port 9001. The proxy is managed by Nomad, and handles
