@@ -192,6 +192,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	return nil
 }
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
+	a.c.logger.Error("entered monitorExport")
 	defer conn.Close()
 
 	// Decode arguments

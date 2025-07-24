@@ -259,6 +259,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 }
 
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
+	a.srv.logger.Error("entered monitor export")
 	defer conn.Close()
 	// Decode args
 	var args cstructs.MonitorExportRequest
