@@ -122,7 +122,7 @@ func setupTestPlugin(t *testing.T, b []byte) (string, string) {
 	plugin := "test-plugin"
 
 	// NewExternalSecretsPlugin expects the subdir "secrets" to be present
-	secretDir := filepath.Join(dir, SecretsDir)
+	secretDir := filepath.Join(dir, SECRETS_DIR)
 	must.NoError(t, os.Mkdir(secretDir, 0755))
 
 	path := filepath.Join(secretDir, plugin)

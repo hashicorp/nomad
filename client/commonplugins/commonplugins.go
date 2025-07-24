@@ -14,11 +14,6 @@ import (
 	"github.com/hashicorp/go-version"
 )
 
-const (
-	CPI_TIMEOUT_SOFT time.Duration = 2 * time.Second
-	CPI_TIMEOUT_HARD time.Duration = 1 * time.Second
-)
-
 var (
 	ErrPluginNotExists     error = errors.New("plugin not found")
 	ErrPluginNotExecutable error = errors.New("plugin not executable")
@@ -38,7 +33,7 @@ type PluginFingerprint struct {
 // runPlugin is a helper for executing the provided Cmd and capturing stdout/stderr.
 // This helper implements both the soft and hard timeouts defined by the common
 // plugins interface.
-func runPlugin(cmd *exec.Cmd) (stdout, stderr []byte, err error) {
+func runPlugin(ctx context.Context, cmd *exec.Cmd, softTimeout, hardTimeout time.Duration) (stdout, stderr []byte, err error) {
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
 
@@ -52,20 +47,18 @@ func runPlugin(cmd *exec.Cmd) (stdout, stderr []byte, err error) {
 		done <- cmd.Wait()
 	}()
 
-	timer := time.NewTimer(CPI_TIMEOUT_SOFT)
-	defer timer.Stop()
+	plugCtx, cancel := context.WithTimeout(ctx, softTimeout)
+	defer cancel()
 
 	select {
-	case <-timer.C:
-		// Soft timeout
-		_ = cmd.Process.Signal(syscall.SIGTERM)
-		killTimer := time.NewTimer(CPI_TIMEOUT_HARD)
+	case <-plugCtx.Done():
+		err = cmd.Process.Signal(syscall.SIGTERM)
+		killTimer := time.NewTimer(hardTimeout)
 		defer killTimer.Stop()
 
 		select {
 		case <-killTimer.C:
 			// Hard timeout
-			// TODO: should we wait until this process has exited?
 			err = cmd.Process.Kill()
 		case err = <-done:
 		}

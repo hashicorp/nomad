@@ -10,12 +10,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
 )
 
-const SecretsDir = "secrets"
+const (
+	SECRETS_DIR          = "secrets"
+	SECRETS_TIMEOUT_SOFT = 2 * time.Second
+	SECRETS_TIMEOUT_HARD = 1 * time.Second
+)
 
 type SecretsPlugin interface {
 	CommonPlugin
@@ -35,7 +40,7 @@ type externalSecretsPlugin struct {
 }
 
 func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
-	executable := filepath.Join(commonPluginDir, SecretsDir, name)
+	executable := filepath.Join(commonPluginDir, SECRETS_DIR, name)
 	f, err := os.Stat(executable)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -53,12 +58,12 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSec
 }
 
 func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
-	cmd := exec.CommandContext(ctx, e.pluginPath, "fingerprint")
+	cmd := exec.Command(e.pluginPath, "fingerprint")
 	cmd.Env = []string{
 		"CPI_OPERATION=fingerprint",
 	}
 
-	stdout, stderr, err := runPlugin(cmd)
+	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_TIMEOUT_SOFT, SECRETS_TIMEOUT_HARD)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +81,12 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 }
 
 func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*SecretResponse, error) {
-	cmd := exec.CommandContext(ctx, e.pluginPath, "fetch", path)
+	cmd := exec.Command(e.pluginPath, "fetch", path)
 	cmd.Env = []string{
 		"CPI_OPERATION=fetch",
 	}
 
-	stdout, stderr, err := runPlugin(cmd)
+	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_TIMEOUT_SOFT, SECRETS_TIMEOUT_HARD)
 	if err != nil {
 		return nil, err
 	}

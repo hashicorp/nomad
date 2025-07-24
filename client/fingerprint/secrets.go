@@ -38,7 +38,7 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 		return nil
 	}
 
-	secretsDir := filepath.Join(pluginDir, commonplugins.SecretsDir)
+	secretsDir := filepath.Join(pluginDir, commonplugins.SECRETS_DIR)
 
 	files, err := helper.FindExecutableFiles(secretsDir)
 	if err != nil {
