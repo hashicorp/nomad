@@ -5124,6 +5124,33 @@ func (j *Job) Vault() map[string]map[string]*Vault {
 	return blocks
 }
 
+// Secrets returns the set of secrets per task group, per task
+func (j *Job) Secrets() map[string][]string {
+	blocks := make(map[string][]string, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		secrets := []string{}
+
+		for _, task := range tg.Tasks {
+			if len(task.Secrets) == 0 {
+				continue
+			}
+
+			for _, s := range task.Secrets {
+				if !slices.Contains(secrets, s.Provider) {
+					secrets = append(secrets, s.Provider)
+				}
+			}
+		}
+
+		if len(secrets) != 0 {
+			blocks[tg.Name] = secrets
+		}
+	}
+
+	return blocks
+}
+
 // ConnectTasks returns the set of Consul Connect enabled tasks defined on the
 // job that will require a Service Identity token in the case that Consul ACLs
 // are enabled. The TaskKind.Value is the name of the Consul service.
