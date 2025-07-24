@@ -6,78 +6,32 @@ package monitor
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
-	"net"
-	"regexp"
-	"slices"
 	"strings"
+	"sync"
 	"syscall"
-	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// ScanServiceName checks that the length, prefix and suffix conform to
-// systemd conventions and ensures the service name includes the word 'nomad'
-func ScanServiceName(input string) error {
-	prefix := ""
-	// invalid if prefix and suffix together are < 255 char
-	if len(input) > 255 {
-		return errors.New("service name too long")
-	}
-
-	if isNomad := strings.Contains(input, "nomad"); !isNomad {
-		return errors.New(`service name must include 'nomad`)
-	}
-
-	// if there is a suffix, check against list of valid suffixes
-	// and set prefix to exclude suffix index, else set prefix
-	splitInput := strings.Split(input, ".")
-	if len(splitInput) < 2 {
-		prefix = input
-	} else {
-		suffix := splitInput[len(splitInput)-1]
-		validSuffix := []string{
-			"service",
-			"socket",
-			"device",
-			"mount",
-			"automount",
-			"swap",
-			"target",
-			"path",
-			"timer",
-			"slice",
-			"scope",
-		}
-		if valid := slices.Contains(validSuffix, suffix); !valid {
-			return errors.New("invalid suffix")
-		}
-		prefix = strings.Join(splitInput[:len(splitInput)-1], "")
-	}
-
-	safe, _ := regexp.MatchString(`^[\w\\._-]*(@[\w\\._-]+)?$`, prefix)
-	if !safe {
-		return fmt.Errorf("%s does not meet systemd conventions", prefix)
-	}
-	return nil
-}
-
 // Stream Helpers
 type StreamReader struct {
-	framer *sframer.StreamFramer
-	ch     <-chan []byte
-	buf    []byte
+	sync.Mutex
+	logger     log.Logger
+	emptyCount int
+	framer     *sframer.StreamFramer
+	ch         <-chan []byte
+	buf        []byte
 }
 
 func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamReader {
+	logger := log.Default().Named("streamReader-debug") //TODO: put a logger on the monitor and pass it in
 	return &StreamReader{
+		logger: logger,
 		ch:     ch,
 		framer: framer,
 	}
@@ -85,19 +39,21 @@ func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamRead
 }
 
 func (r *StreamReader) Read(p []byte) (n int, err error) {
+
 	select {
 	case data, ok := <-r.ch:
 		if !ok && len(data) == 0 {
 			return 0, io.EOF
 		}
+		r.Lock()
 		r.buf = data
-
 	default:
 		return 0, nil
 	}
 
 	n = copy(p, r.buf)
 	r.buf = r.buf[n:]
+	r.Unlock()
 	return n, nil
 }
 
@@ -127,7 +83,7 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 		return err
 	}
 	// streamFrameSize is the maximum number of bytes to send in a single frame
-	streamFrameSize := int64(1024)
+	streamFrameSize := int64(512)
 
 	bufSize := streamFrameSize
 	if limit > 0 && limit < streamFrameSize {
@@ -144,7 +100,9 @@ OUTER:
 	for {
 
 		// Read up to the max frame size
+
 		n, readErr := r.Read(streamBuffer)
+
 		// Update the offset
 		offset += int64(n)
 
@@ -169,6 +127,8 @@ OUTER:
 		// avoid setting up a file event watcher.
 		if readErr == nil {
 			continue
+		} else {
+			r.logger.Error(readErr.Error())
 		}
 
 		// At this point we can stop without waiting for more changes,
@@ -182,13 +142,17 @@ OUTER:
 		for {
 			select {
 			case <-r.framer.ExitCh():
+				r.logger.Error("framer.ExitCh")
 				return nil
 			case <-ctx.Done():
+				r.logger.Error("streamFixed ctx.Done()")
 				return nil
 			case _, ok := <-eofCancelCh:
 				if !ok {
+					r.logger.Error("eofCancelCh closed")
 					return nil
 				}
+				r.logger.Error("eofCancelCh received")
 				cancelReceived = true
 				continue OUTER
 			}
@@ -268,77 +232,4 @@ OUTER:
 // Test Helpers
 type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
-}
-
-func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient, userTimeout <-chan time.Time) (*strings.Builder, error) {
-	var (
-		builder     strings.Builder
-		returnedErr error
-		timeout     <-chan time.Time
-	)
-	handler, err := c.StreamingRpcHandler("Agent.MonitorExport")
-	if err != nil {
-		return nil, err
-	}
-
-	// create pipe
-	p1, p2 := net.Pipe()
-	defer p1.Close()
-	defer p2.Close()
-
-	errCh := make(chan error)
-	streamMsg := make(chan *cstructs.StreamErrWrapper)
-
-	go handler(p2)
-
-	// Start decoder
-	go func() {
-		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
-		for {
-			var msg cstructs.StreamErrWrapper
-			err := decoder.Decode(&msg)
-			streamMsg <- &msg
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-		}
-	}()
-
-	// send request
-	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	if err := encoder.Encode(req); err != nil {
-		return nil, err
-	}
-	if userTimeout != nil {
-		timeout = userTimeout
-	}
-
-OUTER:
-	for {
-		select {
-		case <-timeout:
-			return nil, errors.New("expected to be unreachable")
-		case err := <-errCh:
-			if err != nil && err != io.EOF {
-				return nil, err
-			}
-		case message := <-streamMsg:
-			var frame sframer.StreamFrame
-
-			if message.Error != nil {
-				returnedErr = message.Error
-			}
-
-			if len(message.Payload) != 0 {
-				err = json.Unmarshal(message.Payload, &frame)
-				returnedErr = err
-				builder.Write(frame.Data)
-			} else {
-				break OUTER
-			}
-		}
-	}
-	return &builder, returnedErr
 }

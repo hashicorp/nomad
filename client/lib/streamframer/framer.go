@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -68,6 +70,7 @@ func (s *StreamFrame) Copy() *StreamFrame {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
+	logger hclog.Logger
 	// out is where frames are sent and is closed when no more frames will
 	// be sent.
 	out chan<- *StreamFrame
@@ -107,8 +110,9 @@ func NewStreamFramer(out chan<- *StreamFrame,
 	// Create the heartbeat and flush ticker
 	heartbeat := time.NewTicker(heartbeatRate)
 	flusher := time.NewTicker(batchWindow)
-
+	log := hclog.Default().Named("StreamFramer")
 	return &StreamFramer{
+		logger:     log,
 		out:        out,
 		frameSize:  frameSize,
 		heartbeat:  heartbeat,
@@ -123,7 +127,7 @@ func NewStreamFramer(out chan<- *StreamFrame,
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-
+	s.logger.Error("Destroy entered")
 	wasShutdown := s.shutdown
 	s.shutdown = true
 
@@ -133,6 +137,7 @@ func (s *StreamFramer) Destroy() {
 
 	s.heartbeat.Stop()
 	s.flusher.Stop()
+	s.logger.Error("flusher stopped")
 	running := s.running
 	s.l.Unlock()
 
@@ -181,9 +186,11 @@ OUTER:
 		case <-s.shutdownCh:
 			break OUTER
 		case <-s.flusher.C:
+			s.logger.Error("checking flusher")
 			// Skip if there is nothing to flush
 			s.l.Lock()
 			if s.f.IsCleared() {
+				s.logger.Error("flusher is cleared")
 				s.l.Unlock()
 				continue
 			}
@@ -203,6 +210,7 @@ OUTER:
 	s.l.Lock()
 	// Send() may have left a partial frame. Send it now.
 	if !s.f.IsCleared() {
+		s.logger.Error("checking for partial frame")
 		s.f.Data = s.readData()
 
 		// Only send if there's actually data left
@@ -210,6 +218,7 @@ OUTER:
 			// Cannot select on shutdownCh as it's already closed
 			// Cannot select on exitCh as it's only closed after this exits
 			s.out <- s.f.Copy()
+			s.logger.Error("sent partial frame", fmt.Sprintf("length: %d", len(s.f.Data)))
 		}
 	}
 	s.l.Unlock()
@@ -220,6 +229,7 @@ func (s *StreamFramer) send() {
 	// Ensure s.out has not already been closd by Destroy
 	select {
 	case <-s.exitCh:
+		s.logger.Error("send reads from exitCh, destroy has been called")
 		return
 	default:
 	}
@@ -281,6 +291,7 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize || force {
+		s.logger.Error("data.Len is greater than frame size, we're creating a new frame")
 		// Clear since are flushing the frame and capturing the file event.
 		// Subsequent data frames will be flushed based on the data size alone
 		// since they share the same fileevent.

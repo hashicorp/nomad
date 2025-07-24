@@ -227,7 +227,6 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}()
 
 	logCh := m.Start()
-	defer m.Stop()
 
 	initialOffset := int64(0)
 
@@ -259,6 +258,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 }
 
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
+	a.srv.logger.Error("entered monitor export")
 	defer conn.Close()
 	// Decode args
 	var args cstructs.MonitorExportRequest
@@ -337,7 +337,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
-	defer framer.Destroy()
+	//defer framer.Destroy()
 
 	// goroutine to detect remote side closing
 	go func() {
@@ -354,7 +354,6 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		return
 	}
 	streamCh := m.Start()
-	defer m.Stop()
 
 	initialOffset := int64(0)
 	var (

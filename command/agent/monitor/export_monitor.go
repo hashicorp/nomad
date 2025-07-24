@@ -10,7 +10,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,8 +33,17 @@ type ExportMonitor struct {
 	// ExportReader can read from the cli or the NomadFilePath
 	ExportReader ExportReader
 
-	bufSize int
+	// droppedCount is the current count of messages
+	// that were dropped from the logCh buffer.
+	// only access under lock
+	droppedCount int
+	bufSize      int
+	// droppedDuration is the amount of time we should
+	// wait to check for dropped messages. Defaults
+	// to 3 seconds
+	droppedDuration time.Duration
 }
+
 type MonitorExportOpts struct {
 	Logger hclog.Logger
 
@@ -85,7 +97,7 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		return nil, errors.New("journald log monitoring only available on linux")
 	}
 
-	if opts.OnDisk {
+	if opts.OnDisk && opts.ServiceName == "" {
 		multiReader, prepErr = fileReader(opts.NomadLogPath)
 		if prepErr != nil {
 			return nil, prepErr
@@ -110,7 +122,7 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		bufSize = opts.bufSize
 	}
 	sw := ExportMonitor{
-		logger:       opts.Logger,
+		logger:       hclog.Default().Named("export"),
 		doneCh:       make(chan struct{}, 1),
 		logCh:        make(chan []byte, bufSize),
 		bufSize:      bufSize,
@@ -120,77 +132,52 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 	return &sw, nil
 }
 
-// Stop stops the monitoring process
-func (d *ExportMonitor) Stop() {
-	close(d.doneCh)
-}
-
-// Start registers a sink on the monitor's logger and starts sending
-// received log messages over the returned channel.
-func (d *ExportMonitor) Start() <-chan []byte {
-	var (
-		cmd    *exec.Cmd
-		useCli bool
-	)
-
-	if d.ExportReader.UseCli {
-		useCli = true
-		cmd = d.ExportReader.Cmd
-		//	cmd.Start()
-	}
-	// Read, copy, and send to channel until we hit EOF or error
-	//streamCh := make(chan []byte, 1)
-	go func() {
-		defer close(d.logCh)
-		if useCli {
-			defer cmd.Wait()
-		}
-
-		logChunk := make([]byte, d.bufSize)
-	OUTER:
-		for {
-			select {
-			case <-d.doneCh:
-				break OUTER
-			default:
-				n, readErr := d.ExportReader.Read(logChunk)
-				if readErr != nil && readErr != io.EOF {
-					d.logger.Error("unable to read logs into channel", readErr.Error())
-					return
-				}
-
-				d.Write(logChunk[:n])
-
-				if readErr == io.EOF && !d.ExportReader.Follow {
-					break OUTER
-				}
-
-			}
-		}
-	}()
-	return d.logCh
-}
-
-// Write attempts to send latest log to logCh
-// it drops the log if channel is unavailable to receive
-func (d *ExportMonitor) Write(p []byte) (n int) {
-	d.Lock()
-	defer d.Unlock()
-
-	// ensure logCh is still open
-	select {
-	case <-d.doneCh:
-		return
-	default:
+// ScanServiceName checks that the length, prefix and suffix conform to
+// systemd conventions and ensures the service name includes the word 'nomad'
+func ScanServiceName(input string) error {
+	prefix := ""
+	// invalid if prefix and suffix together are < 255 char
+	if len(input) > 255 {
+		return errors.New("service name too long")
 	}
 
-	bytes := make([]byte, len(p))
-	copy(bytes, p)
+	if isNomad := strings.Contains(input, "nomad"); !isNomad {
+		return errors.New(`service name must include 'nomad`)
+	}
 
-	d.logCh <- bytes
+	// if there is a suffix, check against list of valid suffixes
+	// and set prefix to exclude suffix index, else set prefix
+	splitInput := strings.Split(input, ".")
+	if len(splitInput) < 2 {
+		prefix = input
+	} else {
+		suffix := splitInput[len(splitInput)-1]
+		validSuffix := []string{
+			"service",
+			"socket",
+			"device",
+			"mount",
+			"automount",
+			"swap",
+			"target",
+			"path",
+			"timer",
+			"slice",
+			"scope",
+		}
+		if valid := slices.Contains(validSuffix, suffix); !valid {
+			return errors.New("invalid suffix")
+		}
+		prefix = strings.Join(splitInput[:len(splitInput)-1], "")
+	}
 
-	return len(p)
+	safe, _ := regexp.MatchString(`^[\w\\._-]*(@[\w\\._-]+)?$`, prefix)
+	if !safe {
+		return fmt.Errorf("%s does not meet systemd conventions", prefix)
+	}
+	return nil
 }
+
 func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 	// Vet servicename again
 	if err := ScanServiceName(opts.ServiceName); err != nil {
@@ -222,7 +209,7 @@ func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 		return nil, nil, err
 	}
 	multiReader := io.MultiReader(stdOut, stdErr)
-
+	cmd.Start()
 	return cmd, multiReader, nil
 }
 
@@ -233,4 +220,72 @@ func fileReader(logPath string) (io.Reader, error) {
 	}
 
 	return file, nil
+}
+
+// // Stop stops the monitoring process
+func (d *ExportMonitor) Stop() {
+	select {
+	case _, ok := <-d.doneCh:
+		if !ok {
+			d.ExportReader.Cmd.Wait()
+			close(d.logCh)
+			return
+		}
+	default:
+		d.logger.Error("stop called, but doneCh not closed")
+	}
+}
+
+// Start reads data from the monitor's ExportReader into it's logCh
+func (d *ExportMonitor) Start() <-chan []byte {
+	// Read, copy, and send to channel until we hit EOF or error
+	go func() {
+		defer d.Stop()
+		d.logger.Error("entered Start")
+		logChunk := make([]byte, d.bufSize)
+
+	OUTER:
+		for {
+			select {
+			case <-d.doneCh:
+				break OUTER
+			default:
+				n, readErr := d.ExportReader.Read(logChunk)
+				if readErr != nil && readErr != io.EOF {
+					d.logger.Error("unable to read logs into channel", readErr.Error())
+					return
+				}
+
+				d.Write(logChunk[:n])
+
+				if readErr == io.EOF {
+					break OUTER
+				}
+
+			}
+		}
+		close(d.doneCh)
+	}()
+	return d.logCh
+}
+
+// Write attempts to send latest log to logCh
+// it drops the log if channel is unavailable to receive
+func (d *ExportMonitor) Write(p []byte) (n int) {
+	d.Lock()
+	defer d.Unlock()
+
+	// ensure logCh is still open
+	select {
+	case <-d.doneCh:
+		return
+	default:
+	}
+
+	bytes := make([]byte, len(p))
+	copy(bytes, p)
+
+	d.logCh <- bytes
+
+	return len(p)
 }
