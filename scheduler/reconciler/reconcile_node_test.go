@@ -72,7 +72,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff := diffSystemAllocsForNode(job, job.Priority, nil, "node1", eligible, nil, tainted, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
 		if len(diff.Ignore) > 0 {
@@ -94,7 +94,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff := diffSystemAllocsForNode(job, job.Priority, nil, "node1", eligible, nil, tainted, required, live, terminal, true)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
 
@@ -156,7 +156,7 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			diff := diffSystemAllocsForNode(
-				job, tc.nodeID, eligible, nil,
+				job, job.Priority, nil, tc.nodeID, eligible, nil,
 				tainted, required, allocsForNode, terminal, true)
 
 			assertDiffCount(t, tc.expected, diff)
@@ -214,7 +214,7 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 	terminal := structs.TerminalByNodeByName{}
 
 	diff := diffSystemAllocsForNode(
-		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
+		job, job.Priority, nil, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
 	if len(diff.Update) > 0 {
@@ -283,7 +283,7 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 			}
 
 			diff := diffSystemAllocsForNode(
-				job, tc.nodeID, eligible, ineligible, tainted,
+				job, job.Priority, nil, tc.nodeID, eligible, ineligible, tainted,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, diff)
@@ -339,7 +339,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 	}
 
 	diff := diffSystemAllocsForNode(
-		job, drainNode.ID, map[string]*structs.Node{}, nil,
+		job, job.Priority, nil, drainNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{migrate: 1, ignore: 1}, diff)
@@ -390,7 +390,7 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 	}
 
 	diff := diffSystemAllocsForNode(
-		job, deadNode.ID, map[string]*structs.Node{}, nil,
+		job, job.Priority, nil, deadNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{lost: 2}, diff)
@@ -515,7 +515,7 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 			}
 
 			got := diffSystemAllocsForNode(
-				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
+				job, job.Priority, nil, tc.node.ID, eligibleNodes, nil, taintedNodes,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, got)
@@ -602,7 +602,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := Node(job, nodes, nil, tainted, allocs, terminal, true)
+	diff := Node(job, job.Priority, nil, nodes, nil, tainted, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{
 		update: 1, ignore: 1, migrate: 1, lost: 1, place: 6}, diff)
