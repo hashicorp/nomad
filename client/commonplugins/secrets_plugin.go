@@ -17,9 +17,13 @@ import (
 )
 
 const (
-	SECRETS_DIR          = "secrets"
-	SECRETS_TIMEOUT_SOFT = 2 * time.Second
-	SECRETS_TIMEOUT_HARD = 1 * time.Second
+	SECRETS_DIR = "secrets"
+
+	// The timeout for the plugin command before it is send SIGTERM
+	SECRETS_COMMAND_TIMEOUT = 5 * time.Second
+
+	// The timeout before the command is sent SIGKILL after being SIGTERM'd
+	SECRETS_KILL_TIMEOUT = 1 * time.Second
 )
 
 type SecretsPlugin interface {
@@ -63,7 +67,7 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 		"CPI_OPERATION=fingerprint",
 	}
 
-	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_TIMEOUT_SOFT, SECRETS_TIMEOUT_HARD)
+	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_COMMAND_TIMEOUT, SECRETS_KILL_TIMEOUT)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +90,7 @@ func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*Secret
 		"CPI_OPERATION=fetch",
 	}
 
-	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_TIMEOUT_SOFT, SECRETS_TIMEOUT_HARD)
+	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_COMMAND_TIMEOUT, SECRETS_KILL_TIMEOUT)
 	if err != nil {
 		return nil, err
 	}

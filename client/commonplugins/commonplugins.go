@@ -33,7 +33,7 @@ type PluginFingerprint struct {
 // runPlugin is a helper for executing the provided Cmd and capturing stdout/stderr.
 // This helper implements both the soft and hard timeouts defined by the common
 // plugins interface.
-func runPlugin(ctx context.Context, cmd *exec.Cmd, softTimeout, hardTimeout time.Duration) (stdout, stderr []byte, err error) {
+func runPlugin(ctx context.Context, cmd *exec.Cmd, cmdTimeout, killTimeout time.Duration) (stdout, stderr []byte, err error) {
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
 
@@ -47,13 +47,13 @@ func runPlugin(ctx context.Context, cmd *exec.Cmd, softTimeout, hardTimeout time
 		done <- cmd.Wait()
 	}()
 
-	plugCtx, cancel := context.WithTimeout(ctx, softTimeout)
+	plugCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
 	select {
 	case <-plugCtx.Done():
 		err = cmd.Process.Signal(syscall.SIGTERM)
-		killTimer := time.NewTimer(hardTimeout)
+		killTimer := time.NewTimer(killTimeout)
 		defer killTimer.Stop()
 
 		select {
