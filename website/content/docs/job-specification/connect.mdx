@@ -9,11 +9,11 @@ description: |-
 
 <Placement groups={['job', 'group', 'service', 'connect']} />
 
-Use the `connect` block to configure various options for Consul service mesh. It
-is valid only within the context of a service definition at the task group
-level.
+Use the `connect` block to configure various options for Consul service mesh
+(formerly Consul Connect). The `connect` block is valid only within the context
+of a service definition at the task group level.
 
-Refer to the following resources for details on using Consul service mesh:
+Refer to the following resources for details on using Consul service mesh with Nomad:
 
 - The [Consul service mesh](/nomad/docs/networking/consul/service-mesh) overview
   for an introduction and how to configure Consul service mesh in your job.
@@ -22,7 +22,7 @@ Refer to the following resources for details on using Consul service mesh:
   `connect` when Consul ACLs are enabled.
 
 All the examples on this page assume Consul and Nomad are in the same
-datacenter. 
+datacenter.
 
 ```hcl
 job "countdash" {
