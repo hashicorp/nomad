@@ -48,20 +48,20 @@ type ContentSecurityPolicy struct {
 }
 
 // Copy returns a copy of this Vault UI config.
-func (old *ContentSecurityPolicy) Copy() *ContentSecurityPolicy {
-	if old == nil {
+func (csp *ContentSecurityPolicy) Copy() *ContentSecurityPolicy {
+	if csp == nil {
 		return nil
 	}
 
 	nc := new(ContentSecurityPolicy)
-	*nc = *old
-	nc.ConnectSrc = slices.Clone(old.ConnectSrc)
-	nc.DefaultSrc = slices.Clone(old.DefaultSrc)
-	nc.FormAction = slices.Clone(old.FormAction)
-	nc.FrameAncestors = slices.Clone(old.FrameAncestors)
-	nc.ImgSrc = slices.Clone(old.ImgSrc)
-	nc.ScriptSrc = slices.Clone(old.ScriptSrc)
-	nc.StyleSrc = slices.Clone(old.StyleSrc)
+	*nc = *csp
+	nc.ConnectSrc = slices.Clone(csp.ConnectSrc)
+	nc.DefaultSrc = slices.Clone(csp.DefaultSrc)
+	nc.FormAction = slices.Clone(csp.FormAction)
+	nc.FrameAncestors = slices.Clone(csp.FrameAncestors)
+	nc.ImgSrc = slices.Clone(csp.ImgSrc)
+	nc.ScriptSrc = slices.Clone(csp.ScriptSrc)
+	nc.StyleSrc = slices.Clone(csp.StyleSrc)
 	return nc
 }
 

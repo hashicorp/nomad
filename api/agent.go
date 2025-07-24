@@ -156,7 +156,7 @@ func (a *Agent) Members() (*ServerMembers, error) {
 	return resp, nil
 }
 
-// Members is used to query all of the known server members
+// MembersOpts is used to query all of the known server members
 // with the ability to set QueryOptions
 func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
 	var resp *ServerMembers

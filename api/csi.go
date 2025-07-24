@@ -102,10 +102,11 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 	return resp.Volumes, meta, err
 }
 
-// DEPRECATED: will be removed in Nomad 1.4.0
 // Delete deletes a CSI volume from an external storage provider. The ID
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
+//
+// Deprecated: will be removed in Nomad 1.4.0
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, nil, w)
 	return err
@@ -184,8 +185,9 @@ func (v *CSIVolumes) ListSnapshotsOpts(req *CSISnapshotListRequest) (*CSISnapsho
 	return resp, qm, nil
 }
 
-// DEPRECATED: will be removed in Nomad 1.4.0
 // ListSnapshots lists external storage volume snapshots.
+//
+// Deprecated: will be removed in Nomad 1.4.0
 func (v *CSIVolumes) ListSnapshots(pluginID string, secrets string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
 	var resp *CSISnapshotListResponse
 
@@ -269,26 +271,26 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 // API or in Nomad's logs.
 type CSISecrets map[string]string
 
-func (q *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+func (o *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	pairs := []string{}
 	for k, v := range secrets {
 		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
 	}
-	if q.Headers == nil {
-		q.Headers = map[string]string{}
+	if o.Headers == nil {
+		o.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+	o.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
-func (w *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+func (o *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	pairs := []string{}
 	for k, v := range secrets {
 		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
 	}
-	if w.Headers == nil {
-		w.Headers = map[string]string{}
+	if o.Headers == nil {
+		o.Headers = map[string]string{}
 	}
-	w.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+	o.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
