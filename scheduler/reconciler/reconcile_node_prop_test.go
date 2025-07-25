@@ -101,7 +101,8 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.evalPriority, nr.deployment, nr.readyNodes,
+		n := NewNodeReconciler()
+		results := n.Node(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
@@ -112,7 +113,8 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.evalPriority, nr.deployment, nr.readyNodes,
+		n := NewNodeReconciler()
+		results := n.Node(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
@@ -125,8 +127,6 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 type nodeReconcilerInput struct {
 	job                               *structs.Job
-	evalPriority                      int
-	deployment                        *structs.Deployment
 	readyNodes                        []*structs.Node
 	notReadyNodes                     map[string]struct{}
 	taintedNodes                      map[string]*structs.Node
@@ -194,12 +194,8 @@ func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeR
 			}
 		}
 
-		deployment := genDeployment(idg, job, live).Draw(t, "deployment")
-
 		return &nodeReconcilerInput{
 			job:                               job,
-			evalPriority:                      rapid.Int().Draw(t, "eval_priority"),
-			deployment:                        deployment,
 			readyNodes:                        readyNodes,
 			notReadyNodes:                     notReadyNodes,
 			taintedNodes:                      taintedNodes,
