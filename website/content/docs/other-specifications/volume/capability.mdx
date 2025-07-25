@@ -52,7 +52,7 @@ for each capability you intend to use in a job's [`volume`] block.
       or read-only access, but the scheduler only allows one allocation to have
       read/write access. Multiple nodes can mount the volume simultaneously.
     - `"multi-node-multi-writer"`: Jobs can request the volume with read/write
-      or read-only access, and the scheduler only multiple allocations to have
+      or read-only access, and the scheduler allows multiple allocations to have
       read/write access. Multiple nodes can mount the volume simultaneously.
 
     Most CSI plugins support only single-node modes. Consult the documentation
@@ -67,7 +67,7 @@ for each capability you intend to use in a job's [`volume`] block.
       read/write access.
     - `"single-node-multi-writer"`: Jobs can request either read/write or
       read-only access, and the scheduler allows multiple allocations to have
-      write access.
+      read/write access.
 
     In the job specification, the default is `single-node-writer` unless
     `read_only = true`, which translates to `single-node-reader-only`.
