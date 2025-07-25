@@ -87,7 +87,7 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	// Check that we got no arguments.
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		o.Ui.Error("This command takes no arguments")
+		o.Ui.Error(uiMessageNoArguments)
 		o.Ui.Error(commandErrorText(o))
 		return 1
 	}

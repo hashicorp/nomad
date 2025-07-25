@@ -78,7 +78,7 @@ func (a *ACLBindingRuleListCommand) Run(args []string) int {
 
 	// Check that we got no arguments
 	if len(flags.Args()) != 0 {
-		a.Ui.Error("This command takes no arguments")
+		a.Ui.Error(uiMessageNoArguments)
 		a.Ui.Error(commandErrorText(a))
 		return 1
 	}
