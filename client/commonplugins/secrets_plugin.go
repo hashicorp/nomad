@@ -73,7 +73,7 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 	}
 
 	if len(stderr) > 0 {
-		e.logger.Debug("secrets plugin logged to stderr", "msg", string(stderr))
+		e.logger.Info("fingerprint command stderr output", "msg", string(stderr))
 	}
 
 	res := &PluginFingerprint{}
@@ -96,7 +96,7 @@ func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*Secret
 	}
 
 	if len(stderr) > 0 {
-		e.logger.Debug("secrets plugin logged to stderr", "msg", string(stderr))
+		e.logger.Info("fetch command stderr output", "msg", string(stderr))
 	}
 
 	res := &SecretResponse{}

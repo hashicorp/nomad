@@ -52,7 +52,7 @@ func runPlugin(ctx context.Context, cmd *exec.Cmd, cmdTimeout, killTimeout time.
 
 	select {
 	case <-plugCtx.Done():
-		err = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Process.Signal(syscall.SIGTERM)
 		killTimer := time.NewTimer(killTimeout)
 		defer killTimer.Stop()
 
