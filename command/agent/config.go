@@ -240,6 +240,10 @@ type ClientConfig struct {
 	// HostVolumePluginDir directory contains dynamic host volume plugins
 	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
 
+	// CommonPluginsDir is the root directory for plugins that implement
+	// the common plugins interface
+	CommonPluginsDir string `hcl:"common_plugins_dir"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
