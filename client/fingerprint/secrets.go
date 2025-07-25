@@ -43,7 +43,7 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 	files, err := helper.FindExecutableFiles(secretsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			s.logger.Debug("secrets plugin dir does not exist", "dir", secretsDir)
+			s.logger.Trace("secrets plugin dir does not exist", "dir", secretsDir)
 		} else {
 			s.logger.Warn("error finding secrets plugins", "dir", secretsDir, "error", err)
 		}
