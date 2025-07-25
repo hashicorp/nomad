@@ -29,6 +29,7 @@ func TestClient_SelfDrainConfig(t *testing.T) {
 	srv, _, cleanupSRV := testServer(t, nil)
 	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = srv
@@ -81,6 +82,7 @@ func TestClient_SelfDrain_FailLocal(t *testing.T) {
 	srv, _, cleanupSRV := testServer(t, nil)
 	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = srv

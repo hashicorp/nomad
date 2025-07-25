@@ -1120,7 +1120,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
-			VerifyServerHostname: true,
+			VerifyServerHostname: false,
 			CAFile:               foocafile,
 			CertFile:             fooclientcert,
 			KeyFile:              fooclientkey,

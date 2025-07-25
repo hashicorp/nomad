@@ -132,8 +132,18 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 			Tasks:        tasks,
 		}
 	}
+
+	// Get the node identity state, which is useful when debugging to see the
+	// real and current identity the node is using.
+	nodeIdentity, err := db.GetNodeIdentity()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("failed to get node identity state: %v", err))
+		return 1
+	}
+
 	output := debugOutput{
-		Allocations: data,
+		Allocations:  data,
+		NodeIdentity: nodeIdentity,
 	}
 	bytes, err := json.Marshal(output)
 	if err != nil {
@@ -146,7 +156,8 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 }
 
 type debugOutput struct {
-	Allocations map[string]*clientStateAlloc
+	Allocations  map[string]*clientStateAlloc
+	NodeIdentity string
 }
 
 type clientStateAlloc struct {
