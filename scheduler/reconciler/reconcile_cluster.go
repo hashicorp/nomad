@@ -588,7 +588,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredTGUpdates[group].Ignore += uint64(len(destructive))
 	}
 
-	a.computeMigrations(result, migrate, tg, isCanarying)
+	a.computeMigrations(migrate, isCanarying, tg, result)
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -995,8 +995,8 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 
 // computeMigrations updates the result with the stops and placements required
 // for migration.
-func (a *AllocReconciler) computeMigrations(result *ReconcileResults, migrate allocSet,
-	tg *structs.TaskGroup, isCanarying bool) {
+func (a *AllocReconciler) computeMigrations(migrate allocSet, isCanarying bool,
+	tg *structs.TaskGroup, result *ReconcileResults) {
 
 	result.DesiredTGUpdates[tg.Name].Migrate += uint64(len(migrate))
 
