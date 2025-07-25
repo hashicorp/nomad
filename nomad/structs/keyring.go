@@ -88,7 +88,7 @@ func (k *UnwrappedRootKey) Copy() *UnwrappedRootKey {
 	}
 }
 
-// MakeInactive returns a copy of the RootKey with the meta state set to active
+// MakeActive returns a copy of the RootKey with the meta state set to active
 func (k *UnwrappedRootKey) MakeActive() *UnwrappedRootKey {
 	meta := k.Meta.Copy()
 	meta.State = RootKeyStateActive

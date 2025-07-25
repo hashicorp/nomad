@@ -35,7 +35,7 @@ func (h jobVaultHook) validateClustersForNamespace(_ *structs.Job, blocks map[st
 	return nil
 }
 
-func (j jobVaultHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (h jobVaultHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
 			if task.Vault == nil || task.Vault.Cluster != "" {

@@ -71,38 +71,38 @@ func GetVersion() *VersionInfo {
 	}
 }
 
-func (c *VersionInfo) VersionNumber() string {
-	version := c.Version
+func (v *VersionInfo) VersionNumber() string {
+	version := v.Version
 
-	if c.VersionPrerelease != "" {
-		version = fmt.Sprintf("%s-%s", version, c.VersionPrerelease)
+	if v.VersionPrerelease != "" {
+		version = fmt.Sprintf("%s-%s", version, v.VersionPrerelease)
 	}
 
-	if c.VersionMetadata != "" {
-		version = fmt.Sprintf("%s+%s", version, c.VersionMetadata)
+	if v.VersionMetadata != "" {
+		version = fmt.Sprintf("%s+%s", version, v.VersionMetadata)
 	}
 
 	return version
 }
 
-func (c *VersionInfo) FullVersionNumber(rev bool) string {
+func (v *VersionInfo) FullVersionNumber(rev bool) string {
 	var versionString bytes.Buffer
 
-	fmt.Fprintf(&versionString, "Nomad v%s", c.Version)
-	if c.VersionPrerelease != "" {
-		fmt.Fprintf(&versionString, "-%s", c.VersionPrerelease)
+	fmt.Fprintf(&versionString, "Nomad v%s", v.Version)
+	if v.VersionPrerelease != "" {
+		fmt.Fprintf(&versionString, "-%s", v.VersionPrerelease)
 	}
 
-	if c.VersionMetadata != "" {
-		fmt.Fprintf(&versionString, "+%s", c.VersionMetadata)
+	if v.VersionMetadata != "" {
+		fmt.Fprintf(&versionString, "+%s", v.VersionMetadata)
 	}
 
-	if !c.BuildDate.IsZero() {
-		fmt.Fprintf(&versionString, "\nBuildDate %s", c.BuildDate.Format(time.RFC3339))
+	if !v.BuildDate.IsZero() {
+		fmt.Fprintf(&versionString, "\nBuildDate %s", v.BuildDate.Format(time.RFC3339))
 	}
 
-	if rev && c.Revision != "" {
-		fmt.Fprintf(&versionString, "\nRevision %s", c.Revision)
+	if rev && v.Revision != "" {
+		fmt.Fprintf(&versionString, "\nRevision %s", v.Revision)
 	}
 
 	return versionString.String()
