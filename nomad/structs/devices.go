@@ -24,7 +24,8 @@ type DeviceAccounterInstance struct {
 	Instances map[string]int
 }
 
-// Locality returns the NodeDeviceLocality of the instance of the specific deviceID.
+// GetLocality returns the NodeDeviceLocality of the instance of the specific
+// deviceID.
 //
 // If no instance matching the deviceID is found, nil is returned.
 func (dai *DeviceAccounterInstance) GetLocality(instanceID string) *NodeDeviceLocality {
@@ -163,9 +164,9 @@ func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision b
 }
 
 // FreeCount returns the number of free device instances
-func (i *DeviceAccounterInstance) FreeCount() int {
+func (dai *DeviceAccounterInstance) FreeCount() int {
 	count := 0
-	for _, c := range i.Instances {
+	for _, c := range dai.Instances {
 		if c == 0 {
 			count++
 		}

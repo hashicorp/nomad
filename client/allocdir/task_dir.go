@@ -98,28 +98,28 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func (d *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
-	taskDir := filepath.Join(d.AllocDir, taskName)
-	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
+func (a *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
+	taskDir := filepath.Join(a.AllocDir, taskName)
+	taskUnique := filepath.Base(a.AllocDir) + "-" + taskName
 
 	if secretsInMB == 0 {
 		secretsInMB = defaultSecretDirTmpfsSize
 	}
 
 	return &TaskDir{
-		AllocDir:         d.AllocDir,
+		AllocDir:         a.AllocDir,
 		Dir:              taskDir,
-		SharedAllocDir:   filepath.Join(d.AllocDir, SharedAllocName),
-		LogDir:           filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
+		SharedAllocDir:   filepath.Join(a.AllocDir, SharedAllocName),
+		LogDir:           filepath.Join(a.AllocDir, SharedAllocName, LogDirName),
 		SharedTaskDir:    filepath.Join(taskDir, SharedAllocName),
 		LocalDir:         filepath.Join(taskDir, TaskLocal),
 		SecretsDir:       filepath.Join(taskDir, TaskSecrets),
 		PrivateDir:       filepath.Join(taskDir, TaskPrivate),
-		MountsAllocDir:   filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
-		MountsTaskDir:    filepath.Join(d.clientAllocMountsDir, taskUnique),
-		MountsSecretsDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "secrets"),
-		skip:             set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
-		logger:           d.logger.Named("task_dir").With("task_name", taskName),
+		MountsAllocDir:   filepath.Join(a.clientAllocMountsDir, taskUnique, "alloc"),
+		MountsTaskDir:    filepath.Join(a.clientAllocMountsDir, taskUnique),
+		MountsSecretsDir: filepath.Join(a.clientAllocMountsDir, taskUnique, "secrets"),
+		skip:             set.From[string]([]string{a.clientAllocDir, a.clientAllocMountsDir}),
+		logger:           a.logger.Named("task_dir").With("task_name", taskName),
 		secretsInMB:      secretsInMB,
 	}
 }

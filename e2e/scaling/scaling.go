@@ -166,8 +166,8 @@ func (tc *ScalingE2ETest) TestScalingNamespaces(f *framework.F) {
 	f.NoError(err)
 }
 
-// TestScalingBasic performs basic scaling e2e tests within a single namespace using
-// using a SystemScheduler.
+// TestScalingBasicWithSystemSchedule performs basic scaling e2e tests within a
+// single namespace using a SystemScheduler.
 func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	t := f.T()
 	nomadClient := tc.Nomad()

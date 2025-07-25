@@ -2827,23 +2827,23 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 
 }
 
-func (r *NUMA) Diff(other *NUMA, contextual bool) *ObjectDiff {
-	if r.Equal(other) {
+func (n *NUMA) Diff(other *NUMA, contextual bool) *ObjectDiff {
+	if n.Equal(other) {
 		return nil
 	}
 
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "NUMA"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
-	if r == nil {
+	if n == nil {
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
 	} else if other == nil {
 		diff.Type = DiffTypeDeleted
-		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+		oldPrimitiveFlat = flatmap.Flatten(n, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
-		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+		oldPrimitiveFlat = flatmap.Flatten(n, nil, true)
 		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
 	}
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)

@@ -84,16 +84,16 @@ type ClientDriverConfig struct {
 	Topology *numalib.Topology
 }
 
-func (c *AgentConfig) toProto() *proto.NomadConfig {
-	if c == nil {
+func (ac *AgentConfig) toProto() *proto.NomadConfig {
+	if ac == nil {
 		return nil
 	}
 	cfg := &proto.NomadConfig{}
-	if c.Driver != nil {
+	if ac.Driver != nil {
 		cfg.Driver = &proto.NomadDriverConfig{
-			ClientMaxPort: uint32(c.Driver.ClientMaxPort),
-			ClientMinPort: uint32(c.Driver.ClientMinPort),
-			Topology:      nomadTopologyToProto(c.Driver.Topology),
+			ClientMaxPort: uint32(ac.Driver.ClientMaxPort),
+			ClientMinPort: uint32(ac.Driver.ClientMinPort),
+			Topology:      nomadTopologyToProto(ac.Driver.Topology),
 		}
 	}
 	return cfg

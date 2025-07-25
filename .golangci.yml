@@ -1,8 +1,8 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+version: "2"
 run:
-  # Timeout for analysis.
   timeout: 10m
 
   # Modules download mode (do not modify go.mod)
@@ -11,82 +11,71 @@ run:
   # Exclude test files
   tests: false
 
-  # Skip ui and generated files
-  issues:
-    exclude-files:
-    - ".*\\.generated\\.go$"
-    - ".*bindata_assetfs\\.go$"
-    skip-dirs:
-      - ui
-
-# Output configuration options
 output:
   formats:
-    - format: colored-line-number
+    text:
       path: stdout
-
-  # print lines of code with issue, default is true
-  print-issued-lines: true
-
-  # print linter name in the end of issue text, default is true
-  print-linter-name: true
-
-# all available settings of specific linters
-linters-settings:
-  errcheck:
-    # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
-    # default is false: such cases aren't reported by default.
-    check-type-assertions: false
-
-    exclude-functions:
-      - io.*
-      - fmt.*
-
-    # path to a file containing a list of functions to exclude from checking
-    # see https://github.com/kisielk/errcheck#excluding-functions for details
-    # exclude: /path/to/file.txt
-  govet:
-    # report about shadowed variables
-    disable:
-      - shadow
-  gofmt:
-    # simplify code: gofmt with `-s` option, true by default
-    simplify: true
-  gocritic:
-    disabled-checks:
-      - commentFormatting
-      - deprecatedComment
-  staticcheck:
-    # I(jrasell) will work on enabling additional checks when possible.
-    checks: ["ST1020", "ST1016"]
-
-issues:
-  exclude:
-  - ifElseChain
-  - singleCaseSwitch
-  - assignOp
-  - unlambda
+      print-linter-name: true
+      print-issued-lines: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
-    - goimports
-    - gocritic
-    - misspell
-    - govet
-    - ineffassign
-    - unconvert
-    - gofmt
-    - gosimple
-    - staticcheck
     - asasalint
     - asciicheck
     - bidichk
     - bodyclose
+    - copyloopvar
     - dogsled
     - durationcheck
-    # - errchkjson (todo)
-    # - errorlint (todo)
-    - copyloopvar
+    - gocritic
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unconvert
     - usestdlibvars
-  fast: false
+  settings:
+    errcheck:
+      # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
+      # default is false: such cases aren't reported by default.
+      check-type-assertions: false
+      exclude-functions:
+        - io.*
+        - fmt.*
+    gocritic:
+      disabled-checks:
+        - commentFormatting
+        - deprecatedComment
+    govet:
+      disable:
+        - shadow
+    staticcheck:
+      checks:
+        - ST1016
+        - ST1020
+  exclusions:
+    rules:
+      - path: (.+)\.go$
+        text: ifElseChain
+      - path: (.+)\.go$
+        text: singleCaseSwitch
+      - path: (.+)\.go$
+        text: assignOp
+      - path: (.+)\.go$
+        text: unlambda
+    paths:
+      - ".*\\.generated\\.go$"
+      - ".*bindata_assetfs\\.go$"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    paths:
+      - ".*\\.generated\\.go$"
+      - ".*bindata_assetfs\\.go$"

@@ -87,18 +87,18 @@ type Topology struct {
 	OverrideWitholdCompute hw.MHz
 }
 
-func (t *Topology) SetNodes(nodes *idset.Set[hw.NodeID]) {
-	t.nodeIDs = nodes
+func (st *Topology) SetNodes(nodes *idset.Set[hw.NodeID]) {
+	st.nodeIDs = nodes
 	if !nodes.Empty() {
-		t.Nodes = nodes.Slice()
+		st.Nodes = nodes.Slice()
 	} else {
-		t.Nodes = []uint8{}
+		st.Nodes = []uint8{}
 	}
 }
 
-func (t *Topology) SetNodesFrom(nodes []uint8) {
-	t.nodeIDs = idset.From[hw.NodeID](nodes)
-	t.Nodes = nodes
+func (st *Topology) SetNodesFrom(nodes []uint8) {
+	st.nodeIDs = idset.From[hw.NodeID](nodes)
+	st.Nodes = nodes
 }
 
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
