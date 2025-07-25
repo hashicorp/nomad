@@ -24,12 +24,12 @@ func NewNodeReconciler() *NodeReconciler {
 // Node is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 func (nr *NodeReconciler) Node(
-	job *structs.Job, // jobs whose allocations are going to be diff-ed
-	readyNodes []*structs.Node, // list of nodes in the ready state
-	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
-	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
-	live []*structs.Allocation, // non-terminal allocations
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
+	job *structs.Job,                       // jobs whose allocations are going to be diff-ed
+	readyNodes []*structs.Node,             // list of nodes in the ready state
+	notReadyNodes map[string]struct{},      // list of nodes in DC but not ready, e.g. draining
+	taintedNodes map[string]*structs.Node,  // nodes which are down or drain mode (by node id)
+	live []*structs.Allocation,             // non-terminal allocations
+	terminal structs.TerminalByNodeByName,  // latest terminal allocations (by node id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
@@ -74,11 +74,11 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
-	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
-	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
+	notReadyNodes map[string]struct{},      // nodes that are not ready, e.g. draining
+	taintedNodes map[string]*structs.Node,  // nodes which are down (by node id)
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
-	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
+	liveAllocs []*structs.Allocation,       // non-terminal allocations that exist
+	terminal structs.TerminalByNodeByName,  // latest terminal allocations (by node, id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
@@ -336,7 +336,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			result.Place = append(result.Place, allocTuple)
 
 			// populate deployment state for this task group
-			var dstate *structs.DeploymentState
+			var dstate = new(structs.DeploymentState)
 			var existingDeployment bool
 			if nr.DeploymentCurrent != nil {
 				dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
@@ -374,8 +374,10 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 	updatingSpec := updates != 0
 
 	hadRunning := false
-	if alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
-		hadRunning = true
+	if alloc != nil && alloc.Job != nil {
+		if alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
+			hadRunning = true
+		}
 	}
 
 	// Don't create a deployment if it's not the first time running the job
