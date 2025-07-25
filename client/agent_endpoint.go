@@ -191,6 +191,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	reply.HostData = data
 	return nil
 }
+
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	a.c.logger.Error("entered monitorExport")
 	defer conn.Close()
@@ -252,7 +253,6 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		return
 	}
 	streamCh := m.Start()
-	defer m.Stop()
 
 	initialOffset := int64(0)
 	var (

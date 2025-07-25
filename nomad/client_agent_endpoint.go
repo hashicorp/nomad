@@ -227,7 +227,6 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}()
 
 	logCh := m.Start()
-	defer m.Stop()
 
 	initialOffset := int64(0)
 
@@ -355,7 +354,6 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		return
 	}
 	streamCh := m.Start()
-	defer m.Stop()
 
 	initialOffset := int64(0)
 	var (

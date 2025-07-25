@@ -370,6 +370,7 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
 		for {
 			select {
 			case <-ctx.Done():
+				s.logger.Error("hit streamMonitor ctx.Done()")
 				errCh <- nil
 				return
 			default:
@@ -397,7 +398,8 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
 	}()
 
 	handler(handlerPipe)
-	cancel()
+	cancel() //this seems like it should be wrong to me but removing it didn't
+	// affect either truncation or short returns
 	codedErr := <-errCh
 
 	if codedErr != nil &&
