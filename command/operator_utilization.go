@@ -77,7 +77,7 @@ func (c *OperatorUtilizationCommand) Run(args []string) int {
 
 	args = flags.Args()
 	if len(args) != 0 {
-		c.Ui.Error("This command requires no arguments.")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

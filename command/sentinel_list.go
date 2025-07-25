@@ -54,7 +54,7 @@ func (c *SentinelListCommand) Run(args []string) int {
 	}
 
 	if args = flags.Args(); len(args) > 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 	}
 	// Get the HTTP client

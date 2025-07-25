@@ -122,7 +122,7 @@ prod-1  <none>`,
 		{
 			name:         "fail because of arg",
 			args:         []string{"invalid"},
-			expectedErr:  "This command takes no arguments",
+			expectedErr:  uiMessageNoArguments,
 			expectedCode: 1,
 		},
 		{

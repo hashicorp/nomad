@@ -326,7 +326,7 @@ func TestDebug_Failures(t *testing.T) {
 			name:          "fails incorrect args",
 			args:          []string{"some", "bad", "args"},
 			expectedCode:  1,
-			expectedError: "This command takes no arguments",
+			expectedError: uiMessageNoArguments,
 		},
 		{
 			name:          "Fails illegal node ids",

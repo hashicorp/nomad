@@ -91,7 +91,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Check for extra arguments
 	args = flags.Args()
 	if len(args) != 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
