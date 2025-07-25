@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	SECRETS_DIR = "secrets"
+	SecretsPluginDir = "secrets"
 
 	// The timeout for the plugin command before it is send SIGTERM
-	SECRETS_COMMAND_TIMEOUT = 5 * time.Second
+	SecretsCmdTimeout = 10 * time.Second
 
 	// The timeout before the command is sent SIGKILL after being SIGTERM'd
-	SECRETS_KILL_TIMEOUT = 1 * time.Second
+	SecretsKillTimeout = 2 * time.Second
 )
 
 type SecretsPlugin interface {
@@ -44,7 +44,7 @@ type externalSecretsPlugin struct {
 }
 
 func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
-	executable := filepath.Join(commonPluginDir, SECRETS_DIR, name)
+	executable := filepath.Join(commonPluginDir, SecretsPluginDir, name)
 	f, err := os.Stat(executable)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -62,12 +62,15 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSec
 }
 
 func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
-	cmd := exec.Command(e.pluginPath, "fingerprint")
+	plugCtx, cancel := context.WithTimeout(ctx, SecretsCmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fingerprint")
 	cmd.Env = []string{
 		"CPI_OPERATION=fingerprint",
 	}
 
-	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_COMMAND_TIMEOUT, SECRETS_KILL_TIMEOUT)
+	stdout, stderr, err := runPlugin(cmd, SecretsKillTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +88,15 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 }
 
 func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*SecretResponse, error) {
-	cmd := exec.Command(e.pluginPath, "fetch", path)
+	plugCtx, cancel := context.WithTimeout(ctx, SecretsCmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fetch", path)
 	cmd.Env = []string{
 		"CPI_OPERATION=fetch",
 	}
 
-	stdout, stderr, err := runPlugin(ctx, cmd, SECRETS_COMMAND_TIMEOUT, SECRETS_KILL_TIMEOUT)
+	stdout, stderr, err := runPlugin(cmd, SecretsKillTimeout)
 	if err != nil {
 		return nil, err
 	}
