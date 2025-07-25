@@ -68,8 +68,9 @@ func (n *NodeIntroCreateCommand) Synopsis() string {
 func (n *NodeIntroCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(n.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-node-pool": nodePoolPredictor(n.Client, nil),
+			"-json":      complete.PredictNothing,
+			"-t":         complete.PredictAnything,
 		})
 }
 
@@ -94,7 +95,7 @@ func (n *NodeIntroCreateCommand) Run(args []string) int {
 
 	args = flags.Args()
 	if len(args) != 0 {
-		n.Ui.Error("This command takes no arguments")
+		n.Ui.Error(uiMessageNoArguments)
 		n.Ui.Error(commandErrorText(n))
 		return 1
 	}

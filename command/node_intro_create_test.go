@@ -5,7 +5,6 @@ package command
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -23,25 +22,16 @@ func TestNodeIntroCreateCommand_Implements(t *testing.T) {
 func TestNodeIntroCreateCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	// Wait until our test node is ready.
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		if len(nodes) == 0 {
-			return false, fmt.Errorf("missing node")
-		}
-		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
-			return false, fmt.Errorf("mock_driver not ready")
-		}
-		return true, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+	testutil.WaitForClient(
+		t,
+		srv.Agent.Client().RPC,
+		srv.Agent.Client().NodeID(),
+		srv.Agent.Client().Region(),
+	)
 
 	ui := cli.NewMockUi()
 
