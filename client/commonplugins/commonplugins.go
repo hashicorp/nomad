@@ -39,7 +39,7 @@ func runPlugin(cmd *exec.Cmd, killTimeout time.Duration) (stdout, stderr []byte,
 
 	done := make(chan error, 1)
 	cmd.Cancel = func() error {
-		var err error
+		var cancelErr error
 
 		_ = cmd.Process.Signal(syscall.SIGTERM)
 		killTimer := time.NewTimer(killTimeout)
@@ -47,11 +47,11 @@ func runPlugin(cmd *exec.Cmd, killTimeout time.Duration) (stdout, stderr []byte,
 
 		select {
 		case <-killTimer.C:
-			err = cmd.Process.Kill()
-		case err = <-done:
+			cancelErr = cmd.Process.Kill()
+		case <-done:
 		}
 
-		return err
+		return cancelErr
 	}
 
 	// start the command
