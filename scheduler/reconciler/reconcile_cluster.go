@@ -532,15 +532,11 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	allocNameIndexForGroup := nameIndex
 	result.TaskGroupAllocNameIndexes = map[string]*AllocNameIndex{group: allocNameIndexForGroup}
 
-	// Stop any unneeded allocations and update the untainted set to not
-	// include stopped allocations.
+	// Stop any unneeded allocations and update the untainted set to not include
+	// stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-
-	stop, stopAllocs := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
-	result.Stop = append(result.Stop, stopAllocs...)
-
-	result.DesiredTGUpdates[group].Stop += uint64(len(stop))
-	untainted = untainted.difference(stop)
+	a.computeStop(tg, nameIndex, &untainted, migrate, lost, canaries,
+		isCanarying, lostLaterEvals, result)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
@@ -592,7 +588,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.DesiredTGUpdates[group].Ignore += uint64(len(destructive))
 	}
 
-	a.computeMigrations(result, migrate, tg, isCanarying)
+	a.computeMigrations(migrate, isCanarying, tg, result)
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -999,8 +995,8 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 
 // computeMigrations updates the result with the stops and placements required
 // for migration.
-func (a *AllocReconciler) computeMigrations(result *ReconcileResults, migrate allocSet,
-	tg *structs.TaskGroup, isCanarying bool) {
+func (a *AllocReconciler) computeMigrations(migrate allocSet, isCanarying bool,
+	tg *structs.TaskGroup, result *ReconcileResults) {
 
 	result.DesiredTGUpdates[tg.Name].Migrate += uint64(len(migrate))
 
@@ -1083,28 +1079,38 @@ func (a *AllocReconciler) isDeploymentComplete(groupName string, destructive, in
 	return complete
 }
 
-// computeStop returns the set of allocations that are marked for stopping given
-// the group definition, the set of allocations in various states and whether we
-// are canarying.
+// computeStop updates the result with the set of allocations we want to stop
+// given the group definition, the set of allocations in various states and
+// whether we are canarying. It mutates the untainted set with the remaining
+// allocations.
 func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *AllocNameIndex,
-	untainted, migrate, lost, canaries allocSet, isCanarying bool, followupEvals map[string]string) (allocSet, []AllocStopResult) {
+	untainted *allocSet, migrate, lost, canaries allocSet,
+	isCanarying bool, followupEvals map[string]string, result *ReconcileResults) {
 
-	// Mark all lost allocations for stopAllocSet.
-	var stopAllocSet allocSet
-	stopAllocSet = stopAllocSet.union(lost)
+	// Mark all lost allocations for stop and copy the original untainted set as
+	// our working set (so that we only mutate the untainted set at the end)
+	var stop, working allocSet
+	stop = stop.union(lost)
+	working = working.union(*untainted)
 
 	var stopAllocResult []AllocStopResult
+
+	defer func() {
+		result.Stop = append(result.Stop, stopAllocResult...)
+		result.DesiredTGUpdates[group.Name].Stop += uint64(len(stop))
+		*untainted = untainted.difference(stop)
+	}()
 
 	delayedResult := markDelayed(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost, followupEvals)
 	stopAllocResult = append(stopAllocResult, delayedResult...)
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
-		untainted = untainted.difference(canaries)
+		working = working.difference(canaries)
 	}
 
 	// Remove disconnected allocations so they won't be stopped
-	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
+	knownUntainted := working.filterOutByClientStatus(structs.AllocClientStatusUnknown)
 
 	// Hot path the nothing to do case
 	//
@@ -1116,29 +1122,29 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 	// corrected in `computePlacements`
 	remove := len(knownUntainted) + len(migrate) - group.Count
 	if remove <= 0 {
-		return stopAllocSet, stopAllocResult
+		return
 	}
 
 	// Filter out any terminal allocations from the untainted set
 	// This is so that we don't try to mark them as stopped redundantly
-	untainted = untainted.filterByTerminal()
+	working = working.filterByTerminal()
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted
 	if !isCanarying && len(canaries) != 0 {
 		canaryNames := canaries.nameSet()
-		for id, alloc := range untainted.difference(canaries) {
+		for id, alloc := range working.difference(canaries) {
 			if _, match := canaryNames[alloc.Name]; match {
-				stopAllocSet[id] = alloc
+				stop[id] = alloc
 				stopAllocResult = append(stopAllocResult, AllocStopResult{
 					Alloc:             alloc,
 					StatusDescription: sstructs.StatusAllocNotNeeded,
 				})
-				delete(untainted, id)
+				delete(working, id)
 
 				remove--
 				if remove == 0 {
-					return stopAllocSet, stopAllocResult
+					return
 				}
 			}
 		}
@@ -1157,51 +1163,49 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 				StatusDescription: sstructs.StatusAllocNotNeeded,
 			})
 			delete(migrate, id)
-			stopAllocSet[id] = alloc
+			stop[id] = alloc
 			nameIndex.UnsetIndex(alloc.Index())
 
 			remove--
 			if remove == 0 {
-				return stopAllocSet, stopAllocResult
+				return
 			}
 		}
 	}
 
 	// Select the allocs with the highest count to remove
 	removeNames := nameIndex.Highest(uint(remove))
-	for id, alloc := range untainted {
+	for id, alloc := range working {
 		if _, ok := removeNames[alloc.Name]; ok {
-			stopAllocSet[id] = alloc
+			stop[id] = alloc
 			stopAllocResult = append(stopAllocResult, AllocStopResult{
 				Alloc:             alloc,
 				StatusDescription: sstructs.StatusAllocNotNeeded,
 			})
-			delete(untainted, id)
+			delete(working, id)
 
 			remove--
 			if remove == 0 {
-				return stopAllocSet, stopAllocResult
+				return
 			}
 		}
 	}
 
 	// It is possible that we didn't stop as many as we should have if there
 	// were allocations with duplicate names.
-	for id, alloc := range untainted {
-		stopAllocSet[id] = alloc
+	for id, alloc := range working {
+		stop[id] = alloc
 		stopAllocResult = append(stopAllocResult, AllocStopResult{
 			Alloc:             alloc,
 			StatusDescription: sstructs.StatusAllocNotNeeded,
 		})
-		delete(untainted, id)
+		delete(working, id)
 
 		remove--
 		if remove == 0 {
-			return stopAllocSet, stopAllocResult
+			return
 		}
 	}
-
-	return stopAllocSet, stopAllocResult
 }
 
 // If there are allocations reconnecting we need to reconcile them and their
