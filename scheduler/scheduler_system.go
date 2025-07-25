@@ -275,15 +275,16 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	r := reconciler.Node(s.job, s.eval.Priority, s.deployment, s.nodes, s.notReadyNodes, tainted, live, term,
+	nr := reconciler.NewNodeReconciler()
+	r := nr.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
 	}
 
 	// Add the deployment changes to the plan
-	s.plan.Deployment = r.Deployment
-	s.plan.DeploymentUpdates = r.DeploymentUpdates
+	s.plan.Deployment = nr.DeploymentCurrent
+	s.plan.DeploymentUpdates = nr.DeploymentUpdates
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
