@@ -101,8 +101,10 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
-			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
+		n := NewNodeReconciler()
+		results := n.Node(nr.job, nr.readyNodes,
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
@@ -111,8 +113,10 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
-			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
+		n := NewNodeReconciler()
+		results := n.Node(nr.job, nr.readyNodes,
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
