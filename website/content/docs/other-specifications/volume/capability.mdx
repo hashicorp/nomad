@@ -42,21 +42,32 @@ for each capability you intend to use in a job's [`volume`] block.
 
   - For CSI volumes the `access_mode` is required. Can be one of the following:
 
-    - `"single-node-reader-only"`
-    - `"single-node-writer"`
-    - `"multi-node-reader-only"`
-    - `"multi-node-single-writer"`
-    - `"multi-node-multi-writer"`
+    - `"single-node-reader-only"`: Jobs can only request the volume with
+      read-only access, and only one node can mount the volume at a time.
+    - `"single-node-writer"`: Jobs can request the volume with read/write or
+      read-only access, and only one node can mount the volume at a time.
+    - `"multi-node-reader-only"`: Jobs can only request the volume with
+      read-only access, but multiple nodes can mount the volume simultaneously.
+    - `"multi-node-single-writer"`: Jobs can request the volume with read/write
+      or read-only access, but the scheduler only allows one allocation to have
+      read/write access. Multiple nodes can mount the volume simultaneously.
+    - `"multi-node-multi-writer"`: Jobs can request the volume with read/write
+      or read-only access, and the scheduler allows multiple allocations to have
+      read/write access. Multiple nodes can mount the volume simultaneously.
 
-    Most CSI plugins support only single-node modes.
-    Consult the documentation of the storage provider and CSI plugin.
+    Most CSI plugins support only single-node modes. Consult the documentation
+    of the storage provider and CSI plugin.
 
   - For dynamic host volumes the `access_mode` is optional. Can be one of the following:
 
-    - `"single-node-writer"`
-    - `"single-node-reader-only"`
-    - `"single-node-single-writer"`
-    - `"single-node-multi-writer"`
+    - `"single-node-writer"`: Jobs can only request the volume with read/write access.
+    - `"single-node-reader-only"`: Jobs can only request the volume with read-only access.
+    - `"single-node-single-writer"`: Jobs can request either read/write or
+      read-only access, but the scheduler only allows one allocation to have
+      read/write access.
+    - `"single-node-multi-writer"`: Jobs can request either read/write or
+      read-only access, and the scheduler allows multiple allocations to have
+      read/write access.
 
     In the job specification, the default is `single-node-writer` unless
     `read_only = true`, which translates to `single-node-reader-only`.
