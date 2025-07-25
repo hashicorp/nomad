@@ -67,6 +67,6 @@ func (h jobConsulHook) validateCluster(name string) error {
 
 // Mutate ensures that the job's Consul cluster has been configured to be the
 // default Consul cluster if unset
-func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	return j.mutateImpl(job, structs.ConsulDefaultCluster), nil, nil
+func (h jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	return h.mutateImpl(job, structs.ConsulDefaultCluster), nil, nil
 }

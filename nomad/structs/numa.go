@@ -118,7 +118,7 @@ func (r LegacyNodeCpuResources) empty() bool {
 	return r.CpuShares == 0 || r.TotalCpuCores == 0
 }
 
-// NomadProcessorResources captures the CPU hardware resources of the Nomad node.
+// NodeProcessorResources captures the CPU hardware resources of the Nomad node.
 //
 // In Nomad enterprise this structure is used to map tasks to NUMA nodes.
 type NodeProcessorResources struct {
@@ -126,8 +126,9 @@ type NodeProcessorResources struct {
 	Topology *numalib.Topology // do not modify
 }
 
-// partial struct serialization / copy / merge sadness means this struct can
-// exist with no data, which is a condition we must detect during the upgrade path
+// Empty handles partial struct serialization / copy / merge sadness that means
+// this struct can exist with no data, which is a condition we must detect
+// during the upgrade path.
 func (r NodeProcessorResources) Empty() bool {
 	return r.Topology == nil || len(r.Topology.Cores) == 0
 }

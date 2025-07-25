@@ -35,8 +35,8 @@ func (g *Group) Wait() {
 	g.wg.Wait()
 }
 
-// Wait for all goroutines to exit, or for the context to finish.
-// Must be called after all calls to Go complete.
+// WaitWithContext waits for all goroutines to exit, or for the context to
+// finish. Must be called after all calls to Go complete.
 func (g *Group) WaitWithContext(ctx context.Context) {
 	doneCh := make(chan struct{})
 	go func() {

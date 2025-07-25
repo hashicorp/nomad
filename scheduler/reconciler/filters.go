@@ -267,9 +267,9 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 
 // filterOutByClientStatus returns a new allocSet containing allocs that don't
 // have the specified client status
-func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
+func (set allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
 	allocs := make(allocSet)
-	for _, alloc := range a {
+	for _, alloc := range set {
 		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
 			allocs[alloc.ID] = alloc
 		}
@@ -280,9 +280,9 @@ func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
 
 // filterByClientStatus returns a new allocSet containing allocs that have the
 // specified client status
-func (a allocSet) filterByClientStatus(clientStatus string) allocSet {
+func (set allocSet) filterByClientStatus(clientStatus string) allocSet {
 	allocs := make(allocSet)
-	for _, alloc := range a {
+	for _, alloc := range set {
 		if alloc.ClientStatus == clientStatus {
 			allocs[alloc.ID] = alloc
 		}
@@ -450,9 +450,9 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 
 // delayByStopAfter returns a delay for any lost allocation that's got a
 // disconnect.stop_on_client_after configured
-func (a allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
+func (set allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
 	now := time.Now().UTC()
-	for _, a := range a {
+	for _, a := range set {
 		if !a.ShouldClientStop() {
 			continue
 		}
@@ -472,10 +472,10 @@ func (a allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
 
 // delayByLostAfter returns a delay for any unknown allocation
 // that has disconnect.lost_after configured
-func (a allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, error) {
+func (set allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, error) {
 	var later []*delayedRescheduleInfo
 
-	for _, alloc := range a {
+	for _, alloc := range set {
 		timeout := alloc.DisconnectTimeout(now)
 		if !timeout.After(now) {
 			return nil, errors.New("unable to computing disconnecting timeouts")

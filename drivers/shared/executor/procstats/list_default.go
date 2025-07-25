@@ -14,7 +14,7 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// List the process tree starting at the given executorPID
+// ListByPid the process tree starting at the given executorPID
 func ListByPid(executorPID int) set.Collection[ProcessID] {
 	result := set.New[ProcessID](10)
 
