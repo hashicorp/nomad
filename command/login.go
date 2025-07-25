@@ -105,7 +105,7 @@ func (l *LoginCommand) Run(args []string) int {
 	args = flags.Args()
 
 	if len(args) != 0 {
-		l.Ui.Error("This command takes no arguments")
+		l.Ui.Error(uiMessageNoArguments)
 		l.Ui.Error(commandErrorText(l))
 		return 1
 	}
