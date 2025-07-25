@@ -9,12 +9,20 @@ description: |-
 
 <Placement groups={['job', 'group', 'service', 'connect']} />
 
-The `connect` block allows configuring various options for
-[Consul Connect](/nomad/docs/networking/consul). It is
-valid only within the context of a service definition at the task group
-level. For using `connect` when Consul ACLs are enabled, be sure to read through
-the [Secure Nomad Jobs with Consul Connect](/nomad/tutorials/integrate-consul/consul-service-mesh)
-guide.
+Use the `connect` block to configure various options for Consul service mesh
+(formerly Consul Connect). The `connect` block is valid only within the context
+of a service definition at the task group level.
+
+Refer to the following resources for details on using Consul service mesh with Nomad:
+
+- The [Consul service mesh](/nomad/docs/networking/consul/service-mesh) overview
+  for an introduction and how to configure Consul service mesh in your job.
+- [Secure Nomad jobs with Consul service
+  mesh](/nomad/tutorials/integrate-consul/consul-service-mesh) for using
+  `connect` when Consul ACLs are enabled.
+
+All the examples on this page assume Consul and Nomad are in the same
+datacenter.
 
 ```hcl
 job "countdash" {
@@ -50,25 +58,29 @@ job "countdash" {
 Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
-- `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Consul service mesh native](/consul/docs/connect/native) applications.
+- `native` - `(bool: false)` - This is used to configure the service as
+  supporting [Consul service mesh native][consul-service-mesh-native]
+  applications.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
-  configure the sidecar service created by Nomad for Consul Connect.
+  configure the sidecar service created by Nomad for Consul service mesh.
 
 - `sidecar_task` - <code>([sidecar_task][]:nil)</code> - This modifies the
   task configuration of the Envoy proxy created as a sidecar or gateway.
 
 - `gateway` - <code>([gateway][]:nil)</code> - This is used to configure the
-  gateway service created by Nomad for Consul Connect.
+  gateway service created by Nomad for Consul service mesh.
 
 ## Examples
 
 ### Using Consul service mesh native
 
 The following example is a minimal service block for a
-[Consul service mesh native](/consul/docs/connect/native)
-application implemented by a task named `generate`.
+[Consul service mesh native][consul-service-mesh-native]
+application implemented by a task named `generate`. Make sure to include the
+[service `name`](/nomad/docs/job-specification/service#name) and [service
+`port`](/nomad/docs/job-specification/service##port) fields so that Consul
+advertizes the service with your desired values.
 
 ```hcl
 service {
@@ -86,17 +98,29 @@ service {
 
 The following example is a minimal connect block with defaults and is
 sufficient to start an Envoy proxy sidecar for allowing incoming connections
-via Consul Connect.
+via Consul service mesh.  Make sure to include the
+[service `name`](/nomad/docs/job-specification/service#name) and [service
+`port`](/nomad/docs/job-specification/service##port) fields so that Consul
+advertizes the service with your desired values.
 
 ```hcl
+service {
+  name = "count-api"
+  port = "9001"
+
   connect {
     sidecar_service {}
   }
+}
 ```
 
 The following example includes specifying [`upstreams`][upstreams].
 
 ```hcl
+service {
+  name = "count-api"
+  port = "9001"
+
   connect {
      sidecar_service {
        proxy {
@@ -107,6 +131,7 @@ The following example includes specifying [`upstreams`][upstreams].
        }
      }
   }
+}
 ```
 
 The following is the complete `countdash` example. It includes an API service
@@ -192,10 +217,11 @@ job "countdash" {
 
 ### Using a gateway
 
-The following is an example service block for creating and using a connect ingress
-gateway. It includes a gateway service definition and an api service fronted by
-the gateway. Once running, the gateway can be used to reach the api service by first
-looking up the gateway Consul DNS address, e.g.
+The following is an example service block for creating and using a Consul
+service mesh ingress
+gateway. It includes a gateway service definition and an API service fronted by
+the gateway. Once running, the gateway can be used to reach the API service by first
+looking up the gateway Consul DNS address with `curl`.
 
 ```
 curl $(dig +short @127.0.0.1 -p 8600 uuid-api.ingress.dc1.consul. ANY):8080
@@ -241,23 +267,13 @@ job "ingress-demo" {
 
 
 [gateway]: /nomad/docs/job-specification/gateway
-
 [gh-7221]: https://github.com/hashicorp/nomad/issues/7221
-
-[group]: /nomad/docs/job-specification/group "Nomad group Job Specification"
-
-[interpolation]: /nomad/docs/reference/runtime-variable-interpolation "Nomad interpolation"
-
-[job]: /nomad/docs/job-specification/job "Nomad job Job Specification"
-
-[native]: /consul/docs/connect/native
-
-[service_task]: /nomad/docs/job-specification/service#task-1 "Nomad service task"
-
-[sidecar_service]: /nomad/docs/job-specification/sidecar_service "Nomad sidecar service Specification"
-
-[sidecar_task]: /nomad/docs/job-specification/sidecar_task "Nomad sidecar task config Specification"
-
-[task]: /nomad/docs/job-specification/task "Nomad task Job Specification"
-
-[upstreams]: /nomad/docs/job-specification/upstreams "Nomad sidecar service upstreams Specification"
+[group]: /nomad/docs/job-specification/group
+[interpolation]: /nomad/docs/reference/runtime-variable-interpolation
+[job]: /nomad/docs/job-specification/job
+[service_task]: /nomad/docs/job-specification/service#task-1
+[sidecar_service]: /nomad/docs/job-specification/sidecar_service
+[sidecar_task]: /nomad/docs/job-specification/sidecar_task
+[task]: /nomad/docs/job-specification/task
+[upstreams]: /nomad/docs/job-specification/upstreams
+[consul-service-mesh-native]: /consul/docs/automate/native

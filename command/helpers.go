@@ -32,6 +32,10 @@ const (
 	formatHCL2 = "hcl2"
 )
 
+// uiMessageNoArguments is the message to write to the UI when a command is
+// passed arguments, but it does not take any.
+const uiMessageNoArguments = "This command takes no arguments"
+
 // maxLineLength is the maximum width of any line.
 const maxLineLength int = 78
 

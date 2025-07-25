@@ -1307,7 +1307,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
 					// With tainted nodes
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := filterByTainted(tc.all, tc.state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.filterByTainted(tc.state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -1323,7 +1323,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// Now again with nodes nil
 					state := tc.state
 					state.TaintedNodes = nil
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = filterByTainted(tc.all, state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.filterByTainted(state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -1497,7 +1497,7 @@ func TestReconcile_shouldFilter(t *testing.T) {
 func TestBitmapFrom(t *testing.T) {
 	ci.Parallel(t)
 
-	input := map[string]*structs.Allocation{
+	input := allocSet{
 		"8": {
 			JobID:     "foo",
 			TaskGroup: "bar",
@@ -1525,7 +1525,7 @@ func Test_allocNameIndex_Highest(t *testing.T) {
 		{
 			name: "select 1",
 			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
+				"example", "cache", 3, allocSet{
 					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 						Name:      "example.cache[0]",
 						JobID:     "example",
@@ -1550,7 +1550,7 @@ func Test_allocNameIndex_Highest(t *testing.T) {
 		{
 			name: "select all",
 			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
+				"example", "cache", 3, allocSet{
 					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 						Name:      "example.cache[0]",
 						JobID:     "example",
@@ -1577,7 +1577,7 @@ func Test_allocNameIndex_Highest(t *testing.T) {
 		{
 			name: "select too many",
 			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
+				"example", "cache", 3, allocSet{
 					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 						Name:      "example.cache[0]",
 						JobID:     "example",
@@ -1624,7 +1624,7 @@ func Test_allocNameIndex_NextCanaries(t *testing.T) {
 		{
 			name: "single canary",
 			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
+				"example", "cache", 3, allocSet{
 					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 						Name:      "example.cache[0]",
 						JobID:     "example",
@@ -1643,7 +1643,7 @@ func Test_allocNameIndex_NextCanaries(t *testing.T) {
 				}),
 			inputN:        1,
 			inputExisting: nil,
-			inputDestructive: map[string]*structs.Allocation{
+			inputDestructive: allocSet{
 				"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 					Name:      "example.cache[0]",
 					JobID:     "example",
@@ -1695,7 +1695,7 @@ func Test_allocNameIndex_Next(t *testing.T) {
 		{
 			name: "non-empty existing bitmap simple",
 			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
+				"example", "cache", 3, allocSet{
 					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 						Name:      "example.cache[0]",
 						JobID:     "example",
@@ -1729,7 +1729,7 @@ func Test_allocNameIndex_Next(t *testing.T) {
 func Test_allocNameIndex_Duplicates(t *testing.T) {
 	ci.Parallel(t)
 
-	inputAllocSet := map[string]*structs.Allocation{
+	inputAllocSet := allocSet{
 		"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
 			Name:      "example.cache[0]",
 			JobID:     "example",

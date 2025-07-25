@@ -409,8 +409,8 @@ job "countdash-terminating" {
 
   datacenters = ["dc1"]
 
-  # This group provides the service that exists outside of the Consul Connect
-  # service mesh. It is using host networking and listening to a statically
+  # This group provides the service that exists outside of the Consul service mesh
+  # . It is using host networking and listening to a statically
   # allocated port.
   group "api" {
     network {
