@@ -94,7 +94,7 @@ func (r *RecommendationListCommand) Run(args []string) int {
 	}
 
 	if args = flags.Args(); len(args) > 0 {
-		r.Ui.Error("This command takes no arguments")
+		r.Ui.Error(uiMessageNoArguments)
 		r.Ui.Error(commandErrorText(r))
 	}
 
