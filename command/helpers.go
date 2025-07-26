@@ -11,9 +11,11 @@ import (
 	"io"
 	"maps"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/cli"
@@ -781,4 +783,36 @@ func getByPrefix[T any](
 		}
 		return nil, objs, nil
 	}
+}
+
+func streamFrames(frames <-chan *api.StreamFrame, errCh <-chan error,
+	numLines int64, cancel chan struct{}) (io.ReadCloser, error) {
+
+	select {
+	case err := <-errCh:
+		return nil, err
+	default:
+	}
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+
+	// Create a reader
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, errCh, cancel)
+	frameReader.SetUnblockTime(500 * time.Millisecond)
+	r = frameReader
+
+	// If numLines is set, wrap the reader
+	if numLines != -1 {
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
+	}
+
+	go func() {
+		<-signalCh
+
+		// End the streaming
+		r.Close()
+	}()
+
+	return r, nil
 }

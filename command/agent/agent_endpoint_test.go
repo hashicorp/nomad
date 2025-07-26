@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -444,6 +445,239 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestHTTP_AgentMonitorExport(t *testing.T) {
+	ci.Parallel(t)
+	const expectedText = "log log log log log"
+
+	testFile, err := os.CreateTemp("", "nomadtests")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+	config := func(c *Config) {
+		c.LogFile = inlineFilePath
+	}
+
+	invalidLogConfig := func(c *Config) {
+		c.LogFile = "inline]FilePath"
+	}
+	baseURL := "/v1/agent/monitor/export?"
+	cases := []struct {
+		name        string
+		follow      string
+		logSince    string
+		nodeID      string
+		onDisk      string
+		serviceName string
+		serverID    string
+
+		config        func(c *Config)
+		errCode       int
+		errString     string
+		expectErr     bool
+		nomadFilePath string
+		want          string
+	}{
+		{
+			name:     "happy_path",
+			follow:   "false",
+			onDisk:   "true",
+			logSince: "9s",
+
+			config:        config,
+			expectErr:     false,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:   "invalid_onDisk",
+			follow: "false",
+			onDisk: "green",
+
+			config:        config,
+			errCode:       400,
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:   "invalid_follow",
+			follow: "green",
+			onDisk: "false",
+
+			config:        config,
+			errCode:       400,
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:        "invalid_service_name",
+			follow:      "true",
+			onDisk:      "false",
+			serviceName: "nomad%",
+
+			config:        config,
+			errCode:       422,
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:        "invalid_logSince_duration",
+			follow:      "false",
+			onDisk:      "true",
+			serviceName: "nomad",
+			logSince:    "98seconds",
+
+			config:        config,
+			errCode:       400,
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:   "invalid_log_file",
+			follow: "true",
+			onDisk: "true",
+			nodeID: "doesn'tneedtobeuuid",
+
+			config:        invalidLogConfig,
+			errCode:       400,
+			errString:     "Cannot target journalctl and nomad log file simultaneously",
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:     "server_and_node",
+			follow:   "false",
+			onDisk:   "true",
+			nodeID:   "doesn'tneedtobeuuid",
+			serverID: "doesntneedtobeuuid",
+
+			config:        config,
+			errCode:       400,
+			errString:     "Cannot target node and server simultaneously",
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:        "onDisk_and_serviceName",
+			follow:      "false",
+			onDisk:      "true",
+			serviceName: "nomad",
+			nodeID:      "doesn'tneedtobeuuid",
+
+			config:        config,
+			errCode:       400,
+			errString:     "Cannot target journalctl and nomad log file simultaneously",
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:   "onDisk_and_follow",
+			follow: "true",
+			onDisk: "true",
+			nodeID: "doesn'tneedtobeuuid",
+
+			config:        config,
+			errCode:       400,
+			errString:     "Cannot target journalctl and nomad log file simultaneously",
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+		{
+			name:   "onDisk_and_no_log_file",
+			follow: "true",
+			onDisk: "true",
+			nodeID: "doesn'tneedtobeuuid",
+
+			config:        nil,
+			errCode:       400,
+			errString:     "Cannot target journalctl and nomad log file simultaneously",
+			expectErr:     true,
+			nomadFilePath: inlineFilePath,
+			want:          expectedText,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpTest(t, tc.config, func(s *TestAgent) {
+
+				// Prepare urlstring
+				urlVal := url.Values{}
+				urlParamPrep := func(k string, v string, failCase string, values *url.Values) {
+					if v != failCase {
+						values.Add(k, v)
+					}
+				}
+
+				urlParamPrep("follow", tc.follow, "false", &urlVal)
+				urlParamPrep("log_since", tc.logSince, "", &urlVal)
+				urlParamPrep("on_disk", tc.onDisk, "", &urlVal)
+				urlParamPrep("node_id", tc.nodeID, "", &urlVal)
+				urlParamPrep("server_id", tc.serverID, "", &urlVal)
+				urlParamPrep("service_name", tc.serviceName, "", &urlVal)
+				urlString := baseURL + urlVal.Encode()
+
+				req, err := http.NewRequest(http.MethodGet, urlString, nil)
+				must.NoError(t, err)
+
+				resp := newClosableRecorder()
+				defer resp.Close()
+				var (
+					builder strings.Builder
+					frame   sframer.StreamFrame
+					wg      sync.WaitGroup
+				)
+				errCh := make(chan error, 1)
+				wg.Add(1)
+				go func(errCh chan error) {
+					defer wg.Done()
+
+					_, err = s.Server.AgentMonitorExport(resp, req)
+					if err != nil {
+						errCh <- err
+					}
+
+				}(errCh)
+				wg.Wait()
+				select {
+				case err := <-errCh:
+					if tc.expectErr {
+						must.Eq(t, err.(HTTPCodedError).Code(), tc.errCode)
+						return
+					} else {
+						must.NoError(t, err)
+					}
+				default:
+				}
+
+				if tc.expectErr {
+					must.Eq(t, resp.Result().StatusCode, tc.errCode)
+					return
+				}
+
+				output, err := io.ReadAll(resp.Body)
+				must.NoError(t, err)
+
+				err = json.Unmarshal(output, &frame)
+				if err != nil && err != io.EOF {
+					must.NoError(t, err)
+				}
+
+				builder.WriteString(string(frame.Data))
+				must.Eq(t, builder.String(), tc.want)
+			})
+		})
+	}
 }
 
 // Scenarios when Pprof requests should be available
