@@ -4,13 +4,17 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,5 +92,111 @@ TEST:
 		case <-time.After(2 * time.Second):
 			require.Fail(t, "expected to see warn dropped messages")
 		}
+	}
+}
+
+func TestMonitor_Export(t *testing.T) {
+	ci.Parallel(t)
+	const (
+		expectedText = "log log log log log"
+	)
+
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	goldenFilePath := f.Name()
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	testFile, err := os.CreateTemp("", "nomadtest")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+
+	logger := log.NewInterceptLogger(&log.LoggerOptions{
+		Level: log.Error,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cases := []struct {
+		name        string
+		opts        MonitorExportOpts
+		expected    string
+		expectClose bool
+	}{
+		{
+			name: "happy_path_logpath_long_file",
+			opts: MonitorExportOpts{
+				Context:      ctx,
+				Logger:       logger,
+				OnDisk:       true,
+				NomadLogPath: goldenFilePath,
+			},
+			expected: string(goldenFileContents),
+		},
+		{
+			name: "happy_path_logpath_short_file",
+			opts: MonitorExportOpts{
+				Context:      ctx,
+				Logger:       logger,
+				OnDisk:       true,
+				NomadLogPath: inlineFilePath,
+			},
+			expected: expectedText,
+		},
+		{
+			name: "close client context",
+			opts: MonitorExportOpts{
+				Context:      ctx,
+				Logger:       logger,
+				OnDisk:       true,
+				NomadLogPath: inlineFilePath,
+			},
+			expected: expectedText,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			monitor, err := NewExportMonitor(tc.opts)
+			must.NoError(t, err)
+			logCh := monitor.Start()
+			defer monitor.Stop()
+			if tc.expectClose {
+				cancel()
+			}
+			var (
+				builder strings.Builder
+				wg      sync.WaitGroup
+			)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+			TEST:
+				for {
+					select {
+					case log, ok := <-logCh:
+						if !ok {
+							break TEST
+						}
+						builder.Write(log)
+					default:
+						continue
+					}
+
+				}
+			}()
+			wg.Wait()
+			if !tc.expectClose {
+				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+			} else {
+				must.Eq(t, builder.String(), "")
+			}
+		})
 	}
 }

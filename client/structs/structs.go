@@ -62,6 +62,37 @@ type MonitorRequest struct {
 	structs.QueryOptions
 }
 
+type MonitorExportRequest struct {
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with OnDisk
+	ServiceName string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt. Cannot be used with OnDisk
+	Follow bool
+
+	// LogsSince sets the lookback time for monitorExport logs in hours
+	LogsSince string
+
+	// OnDisk indicates that nomad should export logs written to the configured nomad log path
+	OnDisk bool
+
+	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
+	// is true
+	NomadLogPath string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	structs.QueryOptions
+}
+
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name        string
