@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -237,6 +238,134 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	if handlerErr != nil {
 		return nil, CodedError(500, handlerErr.Error())
 	}
+
+	codedErr := s.streamMonitor(resp, req, args, handler)
+	return nil, codedErr
+}
+
+func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Process and validate arguments
+	onDisk := false //default value
+	onDiskStr := req.URL.Query().Get("on_disk")
+	if onDiskStr != "" {
+		parsedonDisk, err := strconv.ParseBool(onDiskStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for on_disk: %v", err))
+		}
+		onDisk = parsedonDisk
+	}
+
+	follow := false //default value
+	followStr := req.URL.Query().Get("follow")
+	if followStr != "" {
+		parsedfollow, err := strconv.ParseBool(followStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for follow %v", err))
+		}
+		follow = parsedfollow
+	}
+
+	logSince := "72h" //default value
+	logSinceStr := req.URL.Query().Get("log_since")
+	if logSinceStr != "" {
+		_, err := time.ParseDuration(logSinceStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown value for log-since: %v", err))
+		}
+		logSince = logSinceStr
+	}
+
+	serviceName := req.URL.Query().Get("service_name")
+	nodeID := req.URL.Query().Get("node_id")
+
+	nomadLogPath := s.agent.GetConfig().LogFile
+	if onDisk && nomadLogPath == "" {
+		return nil, CodedError(400, "No nomad log file defined")
+	}
+
+	plainText := false
+	plainTextStr := req.URL.Query().Get("plain")
+	if plainTextStr != "" {
+		parsed, err := strconv.ParseBool(plainTextStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
+		}
+		plainText = parsed
+	}
+	// Build the request and parse the ACL token
+	args := cstructs.MonitorExportRequest{
+		NodeID:       nodeID,
+		ServerID:     req.URL.Query().Get("server_id"),
+		LogSince:     logSince,
+		ServiceName:  serviceName,
+		OnDisk:       onDisk,
+		NomadLogPath: nomadLogPath,
+		Follow:       follow,
+		PlainText:    plainText,
+	}
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	if args.OnDisk && args.ServiceName != "" {
+		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
+	}
+
+	if args.OnDisk && args.Follow {
+		return nil, CodedError(400, "Cannot follow log file")
+	}
+	if args.ServiceName != "" {
+		if err := monitor.ScanServiceName(args.ServiceName); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
+	}
+	if args.NomadLogPath != "" {
+		if err := monitor.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
+	}
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Make the RPC
+	var handler structs.StreamingRpcHandler
+	var handlerErr error
+	if nodeID != "" {
+		// Determine the handler to use
+		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
+		if useLocalClient {
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
+		} else if useClientRPC {
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExport")
+		} else if useServerRPC {
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExport")
+		} else {
+			handlerErr = CodedError(400, "No local Node and node_id not provided")
+		}
+		// No node id monitor current server/client
+	} else if srv := s.agent.Server(); srv != nil {
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExport")
+	} else {
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
+	}
+
+	if handlerErr != nil {
+		return nil, CodedError(500, handlerErr.Error())
+	}
+	codedErr := s.streamMonitor(resp, req, args, handler)
+
+	return nil, codedErr
+
+}
+func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request, args any, handler structs.StreamingRpcHandler) error {
+	// Make the RPC
 	httpPipe, handlerPipe := net.Pipe()
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
@@ -302,9 +431,8 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 			strings.Contains(codedErr.Error(), "EOF")) {
 		codedErr = nil
 	}
-	return nil, codedErr
+	return codedErr
 }
-
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
