@@ -128,7 +128,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
 
-	defer framer.Destroy()
+	//defer framer.Destroy()
 
 	// goroutine to detect remote side closing
 	go func() {
@@ -168,8 +168,10 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
+		a.c.logger.Error("exiting handler, with error")
 		return
 	}
+	a.c.logger.Error("exiting handler, no errors")
 }
 
 // Host collects data about the host environment running the agent

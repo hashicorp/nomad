@@ -337,7 +337,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
-	//defer framer.Destroy()
+	defer framer.Destroy()
 
 	// goroutine to detect remote side closing
 	go func() {
@@ -376,9 +376,11 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
 	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
 	if streamErr != nil {
+		a.srv.logger.Error("exiting handler, with error")
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
+	a.srv.logger.Error("exiting handler, no errors")
 }
 
 // forwardFor returns a serverParts for a request to be forwarded to.
