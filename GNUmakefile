@@ -163,7 +163,7 @@ check: ## Lint the source code
 	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
-	@hclogvet ./...
+	@hclogvet .
 
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/content/
