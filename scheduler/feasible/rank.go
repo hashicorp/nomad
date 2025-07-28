@@ -383,6 +383,13 @@ NEXTNODE:
 			if iter.memoryOversubscription {
 				taskResources.Memory.MemoryMaxMB = safemath.Add(
 					int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))
+
+				if taskResources.Memory.MemoryMaxMB > option.Node.NodeResources.Memory.MemoryMB {
+					iter.ctx.Metrics().FilterNode(option.Node,
+						"task memory_max exceeds maximum available memory")
+					netIdx.Release()
+					continue NEXTNODE
+				}
 			}
 
 			// Check if we need a network resource
