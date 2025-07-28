@@ -13,25 +13,22 @@ add operations, collaboration, and governance capabilities such as resource
 quotas, Sentinel policies, audit logging, multi-region deployments, and advanced
 server management using Nomad Autopilot.
 
-Nomad Enterprise is available as a base Platform package with an optional
-Governance & Policy add-on module.
+Nomad Enterprise is available as a base platform package with the following
+add-on modules:
 
-~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
-source version of Nomad. Servers running the open source version of Nomad will
-panic if they are joined to a Nomad Enterprise cluster, due to raft entries
-relating to Enterprise features not being parseable by open source Nomad.
+- Governance and policy
+- Multi-cluster and efficiency features
 
-Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
-enhances performance and availability through Advanced Autopilot features such
-as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
+For pricing details or to request a demo, visit [the HashiCorp Enterprise
+pricing page for Nomad](https://www.hashicorp.com/products/nomad/pricing).
 
-## Long Term Support (LTS) Releases
+## Releases
 
 Nomad Enterprise initiated the Long-Term Support (LTS) release program with
-Nomad 1.8. Going forward, the first major release of each calendar year will be
+Nomad 1.8. Going forward, the first major release of each calendar year is
 an LTS release.
 
-LTS releases have the following benefits for Nomad operators:
+LTS releases have the following benefits:
 
 - **Extended maintenance:** Two years of critical fixes provided through minor
 releases
@@ -41,16 +38,38 @@ efficiency.
 
 LTS releases reduce operational overhead and risk by letting organizations
 receive critical fixes in minor releases without having to upgrade their major
-version more than once a year. Once you’ve upgraded to Nomad Enterprise 1.8,
+version more than once a year. Once you have upgraded to Nomad Enterprise 1.8,
 you will be running on a maintained LTS release that will allow you to easily
 upgrade to the next LTS major release when it's available. For more
-information, refer to HashiCorp’s multi-product LTS statement.
+information, refer to HashiCorp's multi-product LTS statement.
+
+~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
+source version of Nomad. Servers running the open source version of Nomad
+panic if they are joined to a Nomad Enterprise cluster, due to Raft entries
+relating to Enterprise features not being parseable by open source Nomad.
 
 
-## Automated Upgrades
+## Platform Features
 
-Automated Upgrades allows operators to deploy a complete cluster of new
-servers and then simply wait for the upgrade to complete. As the new servers
+The Enterprise platform provides advanced Autopilot and scheduling features.
+
+### Advanced Autopilot features
+   - **Automated Upgrades**: Simplifies upgrading Nomad clusters with minimal disruption.[](https://developer.hashicorp.com/nomad/docs/enterprise)
+   - **Enhanced Read Scalability**: Introduces non-voting server nodes to scale
+     read operations and scheduling without impacting write
+     latency.[](https://developer.hashicorp.com/nomad/docs/enterprise)
+   - **Redundancy Zones**: Deploys non-voting servers as hot standbys per
+     availability zone to enhance availability (e.g., one voter and one
+     non-voter per zone in a multi-zone
+     setup).[](https://developer.hashicorp.com/nomad/docs/enterprise)
+2. **Snapshot Backup and Restore**: Provides atomic, point-in-time snapshots for
+   automated backup and restoration of Nomad server states, aiding disaster
+   recovery.[](https://developer.hashicorp.com/nomad/docs/enterprise)[](https://newreleases.io/project/github/hashicorp/nomad/release/v0.12.0)
+
+### Automated upgrades
+
+With automated upgrades, you may deploy a complete cluster of new
+servers with minimal disruption. As the new servers
 join the cluster, server logic checks the version of each Nomad server
 node. If the version is higher than the version on the current set of voters,
 it will avoid promoting the new servers to voters until the number of new
@@ -58,13 +77,38 @@ servers matches the number of existing servers at the previous version. Once
 the numbers match, Nomad will begin to promote new servers and demote old
 ones.
 
-See the [Autopilot - Upgrade
-Migrations](/nomad/docs/manage/autopilot#upgrade-migrations)
-documentation for a thorough overview.
+Refer to the [Autopilot upgrade
+migrations](/nomad/docs/manage/autopilot#upgrade-migrations) documentation for
+details.
 
-## Automated Backups
+### Enhanced read scalability
 
-Automated Backups allows operators to run the snapshot agent as a long-running
+This feature let you introduce non-voting server nodes to a Nomad
+cluster. Non-voting servers receive the replication stream but do not
+take part in quorum, which is required by the leader before log entries can be
+committed. Adding explicit non-voters scales reads and scheduling without
+impacting write latency.
+
+Refer to the [Autopilot server read and scheduling
+scaling](/nomad/docs/manage/autopilot#server-read-and-scheduling-scaling)
+documentation for details.
+
+### Redundancy zones
+
+Redundancy zones let you deploy a non-voting server as a hot standby server on a
+per availability zone basis. For example, in an environment with three
+availability zones an operator can run one voter and one non-voter in each
+availability zone, for a total of six servers. If an availability zone is
+completely lost, only one voter will be lost, so the cluster remains available.
+If a voter is lost in an availability zone, Nomad will promote the non-voter to
+a voter automatically, putting the hot standby server into service quickly.
+
+Refer to the [Autopilot redundancy
+zones](/nomad/docs/manage/autopilot#redundancy-zones) documentation for details.
+
+### Automated snapshot backup and restore
+
+Automated Backups let you run the snapshot agent as a long-running
 daemon process or in a one-shot mode from a batch job. The agent takes
 snapshots of the state of the Nomad servers and saves them locally, or pushes
 them to an optional remote storage service, such as Amazon S3.
@@ -73,35 +117,36 @@ This capability provides an enterprise solution for backup and restoring the
 state of Nomad servers within an environment in an automated manner. These
 snapshots are atomic and point-in-time.
 
-See the [Operator Snapshot agent](/nomad/commands/operator/snapshot/agent)
-documentation for a thorough overview.
+Refer to the [`nomad operator snapshot agent` command
+reference](/nomad/commands/operator/snapshot/agent) documentation for details.
 
-## Enhanced Read Scalability
+### Time-based task execution
 
-This feature enables an operator to introduce non-voting server nodes to a
-Nomad cluster. Non-voting servers will receive the replication stream but will
-not take part in quorum (required by the leader before log entries can be
-committed). Adding explicit non-voters will scale reads and scheduling without
-impacting write latency.
+Using a CRON-like syntax, you may schedule when tasks should execute and when they should stop. This provides governance for tasks executed from jobs, and allows operators to easily opt-in or opt-out of a schedule that governs when the task can run through the web based UI or through the CLI.
 
-See the [Autopilot - Read
-Scalability](/nomad/docs/manage/autopilot#server-read-and-scheduling-scaling)
-documentation for a thorough overview.
 
-## Redundancy Zones
 
-Redundancy Zones enables an operator to deploy a non-voting server as a hot
-standby server on a per availability zone basis. For example, in an
-environment with three availability zones an operator can run one voter and
-one non-voter in each availability zone, for a total of six servers. If an
-availability zone is completely lost, only one voter will be lost, so the
-cluster remains available. If a voter is lost in an availability zone, Nomad
-will promote the non-voter to a voter automatically, putting the hot standby
-server into service quickly.
 
-See the [Autopilot - Redundancy
-Zones](/nomad/docs/manage/autopilot#redundancy-zones)
-documentation for a thorough overview.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Multiple Vault Namespaces
 

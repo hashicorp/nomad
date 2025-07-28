@@ -88,11 +88,6 @@
   },
   {
     "title": "Namespaces",
-    "badge": {
-      "text": "CE/ENT",
-      "type": "outlined",
-      "color": "neutral"
-    },
     "path": "namespaces"
   },
   {
@@ -116,11 +111,6 @@
       },
       {
         "title": "Autopilot",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "operator/autopilot"
       },
       {
@@ -220,11 +210,6 @@
   },
   {
     "title": "UI",
-    "badge": {
-      "text": "CE/ENT",
-      "type": "outlined",
-      "color": "neutral"
-    },
     "path": "ui"
   },
   {

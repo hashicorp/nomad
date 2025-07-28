@@ -292,20 +292,10 @@
       },
       {
         "title": "Namespaces",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "govern/namespaces"
       },
       {
         "title": "Node pools",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "govern/use-node-pools"
       },
       {
@@ -337,11 +327,6 @@
       },
       {
         "title": "Autopilot",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "manage/autopilot"
       },
       {
@@ -949,11 +934,6 @@
       },
       {
         "title": "autopilot",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "configuration/autopilot"
       },
       {
@@ -962,11 +942,6 @@
       },
       {
         "title": "consul",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "configuration/consul"
       },
       {
@@ -974,11 +949,6 @@
         "routes": [
           {
             "title": "Overview",
-            "badge": {
-              "text": "CE/ENT",
-              "type": "outlined",
-              "color": "neutral"
-            },
             "path": "configuration/keyring"
           },
           {
@@ -1051,11 +1021,6 @@
       },
       {
         "title": "vault",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "configuration/vault"
       }
     ]
@@ -1101,11 +1066,6 @@
       },
       {
         "title": "consul",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "job-specification/consul"
       },
       {
@@ -1229,11 +1189,6 @@
       },
       {
         "title": "service",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "job-specification/service"
       },
       {
@@ -1274,11 +1229,6 @@
       },
       {
         "title": "vault",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "job-specification/vault"
       },
       {
@@ -1304,20 +1254,10 @@
       },
       {
         "title": "Namespace",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "other-specifications/namespace"
       },
       {
         "title": "Node pool",
-        "badge": {
-          "text": "CE/ENT",
-          "type": "outlined",
-          "color": "neutral"
-        },
         "path": "other-specifications/node-pool"
       },
       {
