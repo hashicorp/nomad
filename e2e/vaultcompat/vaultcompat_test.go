@@ -292,7 +292,7 @@ func downloadVaultBuild(t *testing.T, b build) {
 }
 
 func getMinimumVersion(t *testing.T) *version.Version {
-	v, err := version.NewVersion("1.11.0")
+	v, err := version.NewVersion("1.16.0") // oldest supported LTS
 	must.NoError(t, err)
 	return v
 }
