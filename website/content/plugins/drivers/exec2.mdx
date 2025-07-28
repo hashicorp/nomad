@@ -310,6 +310,69 @@ driver.exec2.unveil.defaults    = true
 driver.exec2.unveil.tasks       = true
 ```
 
+## Benefits of exec2 Over exec
+
+### Security Benefits
+
+#### Enhanced Filesystem Isolation with Landlock LSM
+- **Landlock LSM**: The `exec2` driver leverages the Landlock Linux Security
+  Module (LSM) for filesystem isolation, which is more secure than the
+  traditional `chroot` mechanism used by the `exec` driver.
+  - **Immutable Ruleset**: Once a process is isolated via Landlock, it cannot
+    access any part of the filesystem that was not explicitly allowed at the
+    time of being locked. This is immutable, even if the process runs as root.
+  - **Fine-Grained Control**: Landlock allows specifying read, write, execute,
+    and create permissions for specific files and directories, providing
+    fine-grained control over filesystem access.
+
+#### Anonymous Users
+- **Dynamic Workload Users**: `exec2` introduces the concept of anonymous users,
+  which are synthesized by the Nomad client and do not conflict with any
+  predefined users on the host system.
+  - **Isolation**: Each task can run as a unique anonymous user, preventing
+    unauthorized access to other tasks' directories and enhancing security.
+
+#### Improved Namespace Isolation
+- **Namespace Isolation**: `exec2` uses `nsenter` and `unshare` commands to
+  create isolated network, PID, and IPC namespaces for each task.
+  - **Network Namespace**: Ensures tasks have isolated network environments.
+  - **PID Namespace**: Tasks run in separate PID namespaces, preventing them
+    from seeing or interacting with processes outside their namespace.
+  - **IPC Namespace**: Isolates inter-process communication, preventing tasks
+    from sharing memory with other processes.
+
+#### Simplified and Secure Cgroup Management
+- **Cgroups v2**: `exec2` exclusively supports cgroups v2, which is more secure
+  and easier to manage compared to cgroups v1.
+  - **Direct Management**: Instead of relying on third-party libraries like
+    `libcontainer`, `exec2` directly manipulates cgroups using the
+    `/sys/fs/cgroup` interface, reducing dependencies and potential security
+    vulnerabilities.
+
+### Performance Benefits
+
+#### Reduced Disk Operations
+- **No Chroot Overhead**: Unlike `exec`, which relies on `chroot` and requires
+  copying or hardlinking files into a chroot environment, `exec2` uses Landlock
+  LSM for filesystem isolation.
+  - **Faster Task Launch**: Eliminates the need for extensive disk operations,
+    significantly reducing the time and IOPS required to launch tasks.
+
+#### Efficient Resource Utilization
+- **Minimal Overhead**: `exec2` is designed to have very low startup times and
+  minimal overhead in terms of CPU and memory utilization.
+  - **Lightweight Isolation**: By using native Linux tools like `nsenter` and
+    `unshare`, `exec2` avoids the overhead associated with container runtimes
+    and third-party libraries.
+
+#### Simplified Configuration and Management
+- **Unified Configuration**: `exec2` provides a unified and simplified
+  configuration for filesystem and resource isolation, reducing the complexity
+  and potential for misconfiguration.
+  - **Dynamic Defaults**: Automatically prunes default paths based on the
+    system's runtime environment, ensuring only necessary paths are unveiled,
+    further optimizing performance.
+
 [capabilities]: https://developer.hashicorp.com/nomad/docs/concepts/plugins/task-drivers#task-driver-plugin-api
 [github]: https://github.com/hashicorp/nomad-driver-exec2
 [landlock]: https://github.com/shoenig/go-landlock
