@@ -49,8 +49,9 @@ job "countdash" {
 Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
-- `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](/consul/docs/connect/native) applications.
+- `native` - `(bool: false)` - This is used to configure the service as
+  supporting [Consul service mesh native][consul-service-mesh-native]
+  applications.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
   configure the sidecar service created by Nomad for Consul Connect.
@@ -66,8 +67,11 @@ or `gateway` may be realized per `connect` block.
 ### Using Connect Native
 
 The following example is a minimal service block for a
-[Consul Connect Native](/consul/docs/connect/native)
-application implemented by a task named `generate`.
+[Consul service mesh native][consul-service-mesh-native]
+application implemented by a task named `generate`. Make sure to include the
+[service `name`](/nomad/docs/job-specification/service#name) and [service
+`port`](/nomad/docs/job-specification/service##port) fields so that Consul
+advertizes the service with your desired values.
 
 ```hcl
 service {
@@ -240,23 +244,13 @@ job "ingress-demo" {
 ### Limitations
 
 [gateway]: /nomad/docs/job-specification/gateway
-
 [gh-7221]: https://github.com/hashicorp/nomad/issues/7221
-
-[group]: /nomad/docs/job-specification/group "Nomad group Job Specification"
-
-[interpolation]: /nomad/docs/runtime/interpolation "Nomad interpolation"
-
-[job]: /nomad/docs/job-specification/job "Nomad job Job Specification"
-
-[native]: /consul/docs/connect/native
-
-[service_task]: /nomad/docs/job-specification/service#task-1 "Nomad service task"
-
-[sidecar_service]: /nomad/docs/job-specification/sidecar_service "Nomad sidecar service Specification"
-
-[sidecar_task]: /nomad/docs/job-specification/sidecar_task "Nomad sidecar task config Specification"
-
-[task]: /nomad/docs/job-specification/task "Nomad task Job Specification"
-
-[upstreams]: /nomad/docs/job-specification/upstreams "Nomad sidecar service upstreams Specification"
+[group]: /nomad/docs/job-specification/group
+[interpolation]: /nomad/docs/reference/runtime-variable-interpolation
+[job]: /nomad/docs/job-specification/job
+[service_task]: /nomad/docs/job-specification/service#task-1
+[sidecar_service]: /nomad/docs/job-specification/sidecar_service
+[sidecar_task]: /nomad/docs/job-specification/sidecar_task
+[task]: /nomad/docs/job-specification/task
+[upstreams]: /nomad/docs/job-specification/upstreams
+[consul-service-mesh-native]: /consul/docs/automate/native
