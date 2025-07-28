@@ -87,10 +87,11 @@ restricted only to nodes that meet the constraint's criteria.
   For a detailed explanation of these values and their behavior, please see
   the [operator values section](#operator-values).
 
-- `value` `(string: "")` - Specifies the value to compare the attribute against
-  using the specified operation. This can be a literal value, another attribute,
-  or any [Nomad interpolated
-  values](/nomad/docs/runtime/interpolation#interpreted_node_vars).
+- `value` `(string: <required>)` - Specifies the value to compare the attribute
+  against using the specified operation. This can be a literal value, another
+  attribute, or any [Nomad interpolated
+  values](/nomad/docs/runtime/interpolation#interpreted_node_vars).  The `value`
+  field is required.
 
 - `weight` `(integer: 50)` - Specifies a weight for the affinity. The weight is used
   during scoring and must be an integer between -100 to 100. Negative weights act as
