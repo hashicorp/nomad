@@ -69,6 +69,34 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 		}
 	}
 
+	for _, tg := range job.TaskGroups {
+		for _, t := range tg.Tasks {
+			if t.Driver != "docker" {
+				continue
+			}
+			val, ok := t.Config["network_mode"]
+			if !ok {
+				continue
+			}
+			network_mode, _ := val.(string)
+			if allowed, network_mode := taskValidateDockerNetworkMode(network_mode, ns); !allowed {
+				disallowedNetworkModes = append(disallowedNetworkModes, network_mode)
+			}
+		}
+	}
+	if len(disallowedNetworkModes) > 0 {
+		if len(disallowedNetworkModes) == 1 {
+			return nil, fmt.Errorf(
+				"used docker network mode %q is not allowed in namespace %q", disallowedNetworkModes[0], ns.Name,
+			)
+
+		} else {
+			return nil, fmt.Errorf(
+				"used docker network modes %q are not allowed in namespace %q", disallowedNetworkModes, ns.Name,
+			)
+		}
+	}
+
 	return nil, nil
 }
 
@@ -77,6 +105,26 @@ func taskValidateNetworkMode(network *structs.NetworkResource, ns *structs.Names
 	if len(network.Mode) > 0 {
 		network_mode = network.Mode
 	}
+	if ns.Capabilities == nil {
+		return true, network_mode
+	}
+	allow := len(ns.Capabilities.EnabledNetworkModes) == 0
+	for _, m := range ns.Capabilities.EnabledNetworkModes {
+		if network_mode == m {
+			allow = true
+			break
+		}
+	}
+	for _, m := range ns.Capabilities.DisabledNetworkModes {
+		if network_mode == m {
+			allow = false
+			break
+		}
+	}
+	return allow, network_mode
+}
+
+func taskValidateDockerNetworkMode(network_mode string, ns *structs.Namespace) (bool, string) {
 	if ns.Capabilities == nil {
 		return true, network_mode
 	}
