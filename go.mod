@@ -18,7 +18,7 @@ require (
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/aws/aws-sdk-go-v2/config v1.29.18
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.33
-	github.com/aws/smithy-go v1.22.4
+	github.com/aws/smithy-go v1.22.5
 	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/go-cni v1.1.12
