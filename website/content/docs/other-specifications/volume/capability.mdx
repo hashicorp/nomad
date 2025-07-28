@@ -40,7 +40,20 @@ available concurrently. Can be one of `"single-node-reader-only"`,
 `"single-node-writer"`, `"multi-node-reader-only"`,
 `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI plugins
 support only single-node modes. Consult the documentation of the storage
-provider and CSI plugin.
+provider and CSI plugin. Can be one of the following:
+
+    - `"single-node-reader-only"`: Jobs can only request the volume with
+      read-only access, and only one node can mount the volume at a time.
+    - `"single-node-writer"`: Jobs can request the volume with read/write or
+      read-only access, and only one node can mount the volume at a time.
+    - `"multi-node-reader-only"`: Jobs can only request the volume with
+      read-only access, but multiple nodes can mount the volume simultaneously.
+    - `"multi-node-single-writer"`: Jobs can request the volume with read/write
+      or read-only access, but the scheduler only allows one allocation to have
+      read/write access. Multiple nodes can mount the volume simultaneously.
+    - `"multi-node-multi-writer"`: Jobs can request the volume with read/write
+      or read-only access, and the scheduler allows multiple allocations to have
+      read/write access. Multiple nodes can mount the volume simultaneously.
 
 - `attachment_mode` `(string: <required>)` - The storage API that will be used
 by the volume. Most storage providers will support `"file-system"`, to mount
