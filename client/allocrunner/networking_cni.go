@@ -594,10 +594,10 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		// best effort cleanup ipv6
 		ipt, iptErr := c.newIPTables(structs.NodeNetworkAF_IPv6)
 		if iptErr != nil {
-			c.logger.Debug("failed to detect ip6tables: %v", iptErr)
+			c.logger.Debug("failed to detect ip6tables", "error", iptErr)
 		} else {
 			if err := c.forceCleanup(ipt, alloc.ID); err != nil {
-				c.logger.Warn("ip6tables: %v", err)
+				c.logger.Warn("failed to cleanup iptables", "error", err)
 			}
 		}
 
