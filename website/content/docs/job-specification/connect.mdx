@@ -49,14 +49,9 @@ job "countdash" {
 Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
-<<<<<<< HEAD
-- `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](/consul/docs/connect/native) applications.
-=======
 - `native` - `(bool: false)` - This is used to configure the service as
   supporting [Consul service mesh native][consul-service-mesh-native]
   applications.
->>>>>>> ccaa3b7325 (add table to service.port entry (#26344))
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
   configure the sidecar service created by Nomad for Consul Connect.
@@ -72,16 +67,11 @@ or `gateway` may be realized per `connect` block.
 ### Using Connect Native
 
 The following example is a minimal service block for a
-<<<<<<< HEAD
-[Consul Connect Native](/consul/docs/connect/native)
-application implemented by a task named `generate`.
-=======
 [Consul service mesh native][consul-service-mesh-native]
 application implemented by a task named `generate`. Make sure to include the
 [service `name`](/nomad/docs/job-specification/service#name) and [service
 `port`](/nomad/docs/job-specification/service##port) fields so that Consul
 advertizes the service with your desired values.
->>>>>>> ccaa3b7325 (add table to service.port entry (#26344))
 
 ```hcl
 service {
