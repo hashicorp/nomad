@@ -218,7 +218,6 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 }
 
 func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	s.logger.Error("are we here or do we have a problem?")
 	// Process and validate arguments
 	onDisk := false
 	onDiskBool, err := parseBool(req, "on_disk")

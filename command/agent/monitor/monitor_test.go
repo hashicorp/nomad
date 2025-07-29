@@ -31,7 +31,6 @@ func TestMonitor_Start(t *testing.T) {
 
 	logCh := m.Start()
 	defer m.Stop()
-
 	go func() {
 		logger.Debug("test log")
 		time.Sleep(10 * time.Millisecond)
@@ -166,7 +165,6 @@ func TestMonitor_Export(t *testing.T) {
 			monitor, err := NewExportMonitor(tc.opts)
 			must.NoError(t, err)
 			logCh := monitor.Start()
-			defer monitor.Stop()
 			if tc.expectClose {
 				cancel()
 			}

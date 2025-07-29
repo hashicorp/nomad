@@ -11,7 +11,6 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -21,7 +20,6 @@ import (
 // Stream Helpers
 type StreamReader struct {
 	sync.Mutex
-	logger     log.Logger
 	emptyCount int
 	framer     *sframer.StreamFramer
 	ch         <-chan []byte
@@ -29,9 +27,7 @@ type StreamReader struct {
 }
 
 func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamReader {
-	logger := log.Default().Named("streamReader-debug") //TODO: put a logger on the monitor and pass it in
 	return &StreamReader{
-		logger: logger,
 		ch:     ch,
 		framer: framer,
 	}
@@ -127,10 +123,7 @@ OUTER:
 		// avoid setting up a file event watcher.
 		if readErr == nil {
 			continue
-		} else {
-			r.logger.Error(readErr.Error())
 		}
-
 		// At this point we can stop without waiting for more changes,
 		// because we have EOF and either we're not following at all,
 		// or we received an event from the eofCancelCh channel
@@ -142,17 +135,13 @@ OUTER:
 		for {
 			select {
 			case <-r.framer.ExitCh():
-				r.logger.Error("framer.ExitCh")
 				return nil
 			case <-ctx.Done():
-				r.logger.Error("streamFixed ctx.Done()")
 				return nil
 			case _, ok := <-eofCancelCh:
 				if !ok {
-					r.logger.Error("eofCancelCh closed")
 					return nil
 				}
-				r.logger.Error("eofCancelCh received")
 				cancelReceived = true
 				continue OUTER
 			}
