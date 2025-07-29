@@ -214,7 +214,7 @@ func fileReader(logPath string) (io.Reader, error) {
 	return file, nil
 }
 
-// // Stop stops the monitoring process
+// Stop stops the monitoring process
 func (d *ExportMonitor) Stop() {
 	select {
 	case _, ok := <-d.doneCh:
@@ -227,6 +227,7 @@ func (d *ExportMonitor) Stop() {
 		}
 	default:
 	}
+	close(d.logCh)
 }
 
 // Start reads data from the monitor's ExportReader into it's logCh
@@ -234,7 +235,6 @@ func (d *ExportMonitor) Start() <-chan []byte {
 	// Read, copy, and send to channel until we hit EOF or error
 	go func() {
 		defer d.Stop()
-		d.logger.Error("entered Start")
 		logChunk := make([]byte, d.bufSize)
 
 		for {

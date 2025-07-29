@@ -21,7 +21,7 @@ pass `-service-name` with the name of the systemd unit to query.
 The `-logs-since` and `-follow` options are only valid for journald queries.
 You may pass a duration string to the `-logs-since` option to override the
 default 72h duration. Nomad will accept the following time units in the
-`-logs-since` duration string:"ns", "us" (or "µs"), "ms", "s", "m", "h".
+`-logs-since` duration string: "ns", "us" (or "µs"), "ms", "s", "m", "h".
 The `-follow=true` option causes the agent to continue to stream logs until
 interrupted or until the remote agent quits. Nomad only supports journald
 queries on Linux.

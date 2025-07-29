@@ -250,7 +250,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		}
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer)
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
@@ -337,7 +337,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
-	defer framer.Destroy()
+	//defer framer.Destroy()
 
 	// goroutine to detect remote side closing
 	go func() {
@@ -361,7 +361,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		eofCancel   bool
 	)
 	eofCancel = !opts.Follow
-
+	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
 	// receive logs and build frames
 	streamReader := monitor.NewStreamReader(streamCh, framer)
 	go func() {
@@ -373,8 +373,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 			}
 		}
 	}()
-	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx)
+
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer)
 	if streamErr != nil {
 		a.srv.logger.Error("exiting handler, with error")
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)

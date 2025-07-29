@@ -100,6 +100,9 @@ type StreamFramer struct {
 
 	// Captures whether the framer is running
 	running bool
+
+	// Confirms final flush sent
+	flushed bool
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -210,7 +213,6 @@ OUTER:
 	s.l.Lock()
 	// Send() may have left a partial frame. Send it now.
 	if !s.f.IsCleared() {
-		s.logger.Error("checking for partial frame")
 		s.f.Data = s.readData()
 
 		// Only send if there's actually data left
@@ -218,7 +220,6 @@ OUTER:
 			// Cannot select on shutdownCh as it's already closed
 			// Cannot select on exitCh as it's only closed after this exits
 			s.out <- s.f.Copy()
-			s.logger.Error("sent partial frame", fmt.Sprintf("length: %d", len(s.f.Data)))
 		}
 	}
 	s.l.Unlock()
@@ -319,4 +320,23 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	}
 
 	return nil
+}
+
+func (s *StreamFramer) IsFlushed() bool {
+	return s.flushed
+}
+
+func (s *StreamFramer) Flush() bool {
+	s.l.Lock()
+	// Send() may have left a partial frame. Send it now.
+	s.f.Data = s.readData()
+
+	// Only send if there's actually data left
+	if len(s.f.Data) > 0 {
+		s.out <- s.f.Copy()
+	}
+	s.flushed = true
+
+	s.l.Unlock()
+	return s.IsFlushed()
 }

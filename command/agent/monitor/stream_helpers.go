@@ -59,7 +59,7 @@ func (r *StreamReader) Read(p []byte) (n int, err error) {
 
 func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path string, limit int64,
 	eofCancelCh chan error, cancelAfterFirstEof bool) error {
-
+	defer r.framer.Flush()
 	parseFramerErr := func(err error) error {
 		if err == nil {
 			return nil
@@ -174,6 +174,7 @@ type StreamEncoder struct {
 	encoder    *codec.Encoder
 	frameCodec *codec.Encoder
 	plainText  bool
+	Flushed    bool
 }
 
 func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder, frameCodec *codec.Encoder,
@@ -187,8 +188,9 @@ func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec
 	}
 }
 
-func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context) (err error) {
+func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context, framer *sframer.StreamFramer) (err error) {
 	var streamErr error
+	localFlush := false
 OUTER:
 	for {
 		select {
@@ -201,10 +203,19 @@ OUTER:
 					return streamErr
 					// There was a pending error!
 				default:
-					// No error, continue on
+					// No error, continue on and let exitCh control breaking
 				}
-				break OUTER
+				_, ok := <-framer.ExitCh()
+				if !ok {
+					if framer.IsFlushed() && !localFlush {
+						localFlush = true
+						continue
+					} else if framer.IsFlushed() && localFlush {
+						break OUTER
+					}
+				}
 			}
+
 			var resp cstructs.StreamErrWrapper
 			if s.plainText {
 				resp.Payload = frame.Data
@@ -217,14 +228,15 @@ OUTER:
 				s.buf.Reset()
 			}
 			if err := s.encoder.Encode(resp); err != nil {
-
 				return err
 			}
 			s.encoder.Reset(s.conn)
-
+			if framer.IsFlushed() {
+			}
 		case <-ctx.Done():
 			break OUTER
 		}
+
 	}
 	return nil
 }

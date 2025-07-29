@@ -212,10 +212,8 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-	//wg := sync.WaitGroup{}
-	//wg.Add(1)
 	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.Monitor")
-	//wg.Wait()
+
 	return nil, codedErr
 }
 

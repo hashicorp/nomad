@@ -808,6 +808,7 @@ func streamFrames(frames <-chan *api.StreamFrame, errCh <-chan error,
 	} else {
 	}
 	go func() {
+		defer r.Close()
 		<-signalCh
 
 		// End the streaming
