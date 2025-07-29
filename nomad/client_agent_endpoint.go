@@ -250,7 +250,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		}
 	}()
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
-	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer, false)
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
@@ -374,7 +374,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 	}()
 
-	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer)
+	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer, true)
 	if streamErr != nil {
 		a.srv.logger.Error("exiting handler, with error")
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)

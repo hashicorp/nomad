@@ -163,7 +163,6 @@ type StreamEncoder struct {
 	encoder    *codec.Encoder
 	frameCodec *codec.Encoder
 	plainText  bool
-	Flushed    bool
 }
 
 func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder, frameCodec *codec.Encoder,
@@ -177,7 +176,8 @@ func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec
 	}
 }
 
-func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context, framer *sframer.StreamFramer) (err error) {
+func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context,
+	framer *sframer.StreamFramer, eofCancel bool) (err error) {
 	var streamErr error
 	localFlush := false
 OUTER:
@@ -194,14 +194,19 @@ OUTER:
 				default:
 					// No error, continue on and let exitCh control breaking
 				}
-				_, ok := <-framer.ExitCh()
-				if !ok {
-					if framer.IsFlushed() && !localFlush {
-						localFlush = true
-						continue
-					} else if framer.IsFlushed() && localFlush {
-						break OUTER
+				// Confirm framer.Flush and localFlush if we're expecting EOF
+				if eofCancel {
+					_, ok := <-framer.ExitCh()
+					if !ok {
+						if framer.IsFlushed() && !localFlush {
+							localFlush = true
+							continue
+						} else if framer.IsFlushed() && localFlush {
+							break OUTER
+						}
 					}
+				} else {
+					break OUTER
 				}
 			}
 
@@ -220,8 +225,6 @@ OUTER:
 				return err
 			}
 			s.encoder.Reset(s.conn)
-			if framer.IsFlushed() {
-			}
 		case <-ctx.Done():
 			break OUTER
 		}
