@@ -168,7 +168,7 @@ type ACLsAPI interface {
 //	sidecar - Consul's view (agent, not catalog) of the service definition of the sidecar
 //	         associated with existing that may or may not exist.
 //	         May be nil.
-func (s *ServiceClient) agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+func (c *ServiceClient) agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 	switch reason {
 	case syncPeriodic:
 		// In a periodic sync with Consul, we need to respect the value of
@@ -188,7 +188,7 @@ func (s *ServiceClient) agentServiceUpdateRequired(reason syncReason, wanted *ap
 		maybeTweakTaggedAddresses(wanted, existing)
 
 		// Okay now it is safe to compare.
-		return s.different(wanted, existing, sidecar)
+		return c.different(wanted, existing, sidecar)
 
 	default:
 		// A non-periodic sync with Consul indicates an operation has been set
@@ -200,7 +200,7 @@ func (s *ServiceClient) agentServiceUpdateRequired(reason syncReason, wanted *ap
 		maybeTweakTaggedAddresses(wanted, existing)
 
 		// Okay now it is safe to compare.
-		return s.different(wanted, existing, sidecar)
+		return c.different(wanted, existing, sidecar)
 	}
 }
 
@@ -245,9 +245,9 @@ func maybeTweakTaggedAddresses(wanted *api.AgentServiceRegistration, existing *a
 // different compares the wanted state of the service registration with the actual
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
-func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+func (c *ServiceClient) different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 	trace := func(field string, left, right any) {
-		s.logger.Trace("registrations different", "id", wanted.ID,
+		c.logger.Trace("registrations different", "id", wanted.ID,
 			"field", field, "wanted", fmt.Sprintf("%#v", left), "existing", fmt.Sprintf("%#v", right),
 		)
 	}

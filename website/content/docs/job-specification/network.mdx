@@ -39,7 +39,7 @@ job "docs" {
 
 When the `network` block is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/nomad/docs/networking/consul). Tasks running within a
+[Consul service mesh](/nomad/docs/networking/consul). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
@@ -366,5 +366,5 @@ network {
 [docs_networking_bridge]: /nomad/docs/networking#bridge-networking
 [docker-driver]: /nomad/docs/job-declare/task-driver/docker 'Nomad Docker Driver'
 [qemu-driver]: /nomad/docs/job-declare/task-driver/qemu 'Nomad QEMU Driver'
-[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[connect]: /nomad/docs/job-specification/connect 'Nomad Consul service mesh Integration'
 [`cni_path`]: /nomad/docs/configuration/client#cni_path

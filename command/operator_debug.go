@@ -462,7 +462,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Verify there are no extra arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

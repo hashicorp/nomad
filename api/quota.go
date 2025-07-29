@@ -51,7 +51,7 @@ func (q *Quotas) ListUsage(qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) 
 	return resp, qm, nil
 }
 
-// PrefixList is used to do a PrefixList search over quota usages
+// PrefixListUsage is used to do a PrefixList search over quota usages
 func (q *Quotas) PrefixListUsage(prefix string, qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) {
 	if qo == nil {
 		qo = &QueryOptions{Prefix: prefix}

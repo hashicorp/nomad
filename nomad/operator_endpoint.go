@@ -104,7 +104,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	return nil
 }
 
-// COMPAT(1.12.0): RaftRemovePeerByAddress was used to support Raft Protocol v2,
+// RaftRemovePeerByAddress COMPAT(1.12.0) was used to support Raft Protocol v2,
 // which was removed in Nomad 1.4.0 but the API was not removed. Remove this RPC
 // entirely in Nomad 1.12.0.
 func (op *Operator) RaftRemovePeerByAddress(_ *structs.RaftPeerByAddressRequest, _ *struct{}) error {

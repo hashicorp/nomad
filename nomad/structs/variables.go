@@ -391,8 +391,8 @@ func (vd VariableDecrypted) Validate() error {
 	return nil
 }
 
-// A new variable can be crated just to support a lock, it doesn't require to hold
-// any items and it will validate the lock.
+// ValidateForLock ensures a new variable can be created just to support a lock,
+// it doesn't require to hold any items and it will validate the lock.
 func (vd VariableDecrypted) ValidateForLock() error {
 	var mErr multierror.Error
 	if vd.Namespace == AllNamespacesSentinel {

@@ -227,10 +227,14 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 		m := newAllocMatrix(job, jobState.ExistingAllocs)
 		group := job.TaskGroups[0].Name
 		all := m[group] // <-- allocset of all allocs for tg
-		all, _ = filterOldTerminalAllocs(jobState, all)
+		all, _ = all.filterOldTerminalAllocs(jobState)
+		original := all
+
+		result := new(ReconcileResults)
+		result.DesiredTGUpdates = map[string]*structs.DesiredUpdates{group: {}}
 
 		// runs the method under test
-		canaries, _, stopAllocs := ar.cancelUnneededCanaries(all, new(structs.DesiredUpdates))
+		canaries := ar.cancelUnneededCanaries(&all, group, result)
 
 		expectedStopped := []string{}
 		if jobState.DeploymentOld != nil {
@@ -247,8 +251,8 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 				}
 			}
 		}
-		stopSet := all.fromKeys(expectedStopped)
-		all = all.difference(stopSet)
+		stopSet := original.fromKeys(expectedStopped)
+		all = original.difference(stopSet)
 
 		expectedCanaries := []string{}
 		if jobState.DeploymentCurrent != nil {
@@ -257,11 +261,11 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 			}
 		}
 		canarySet := all.fromKeys(expectedCanaries)
-		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := filterByTainted(canarySet, clusterState)
+		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.filterByTainted(clusterState)
 
 		stopSet = stopSet.union(migrate, lost)
 
-		must.Eq(t, len(stopAllocs), len(stopSet))
+		must.Eq(t, len(result.Stop), len(stopSet))
 		must.Eq(t, len(canaries), len(canariesOnUntaintedNodes))
 	})
 }

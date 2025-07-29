@@ -176,7 +176,7 @@ func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	return j.ListOptions(nil, q)
 }
 
-// List is used to list all of the existing jobs.
+// ListOptions is used to list all of the existing jobs.
 func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
 

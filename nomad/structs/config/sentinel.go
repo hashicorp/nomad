@@ -43,8 +43,8 @@ func (s *SentinelImport) Copy() *SentinelImport {
 }
 
 // Merge is used to merge two Sentinel configs together. The settings from the input always take precedence.
-func (a *SentinelConfig) Merge(b *SentinelConfig) *SentinelConfig {
-	result := *a
+func (s *SentinelConfig) Merge(b *SentinelConfig) *SentinelConfig {
+	result := *s
 	if len(b.Imports) > 0 {
 		result.Imports = append(result.Imports, b.Imports...)
 	}
