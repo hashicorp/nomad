@@ -219,12 +219,13 @@ func (d *ExportMonitor) Stop() {
 	select {
 	case _, ok := <-d.doneCh:
 		if !ok {
-			d.ExportReader.Cmd.Wait()
+			if d.ExportReader.UseCli {
+				d.ExportReader.Cmd.Wait()
+			}
 			close(d.logCh)
 			return
 		}
 	default:
-		d.logger.Error("stop called, but doneCh not closed")
 	}
 }
 
@@ -236,24 +237,17 @@ func (d *ExportMonitor) Start() <-chan []byte {
 		d.logger.Error("entered Start")
 		logChunk := make([]byte, d.bufSize)
 
-	OUTER:
 		for {
-			select {
-			case <-d.doneCh:
-				break OUTER
-			default:
-				n, readErr := d.ExportReader.Read(logChunk)
-				if readErr != nil && readErr != io.EOF {
-					d.logger.Error("unable to read logs into channel", readErr.Error())
-					return
-				}
+			n, readErr := d.ExportReader.Read(logChunk)
+			if readErr != nil && readErr != io.EOF {
+				d.logger.Error("unable to read logs into channel", readErr.Error())
+				return
+			}
 
-				d.Write(logChunk[:n])
+			d.Write(logChunk[:n])
 
-				if readErr == io.EOF {
-					break OUTER
-				}
-
+			if readErr == io.EOF {
+				break
 			}
 		}
 		close(d.doneCh)
