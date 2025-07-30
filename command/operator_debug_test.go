@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1069,4 +1070,59 @@ func extractArchiveName(captureOutput string) string {
 	}
 
 	return file
+}
+
+func TestDebug_MonitorExportFiles(t *testing.T) {
+	srv, _, url := testServer(t, true, nil)
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	serverNodeName := srv.Config.NodeName
+	region := srv.Config.Region
+	serverName := fmt.Sprintf("%s.%s", serverNodeName, region)
+	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
+
+	t.Logf("serverName: %s, clientID, %s", serverName, clientID)
+
+	clientFiles := []string{
+		"monitor.log",
+		"monitor_export.log",
+	}
+
+	serverFiles := []string{
+		"monitor.log",
+		"monitor_export.log",
+	}
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+	testDir := t.TempDir()
+	defer os.Remove(testDir)
+
+	duration := 2 * time.Second
+	interval := 750 * time.Millisecond
+	waitTime := 2 * duration
+
+	code := cmd.Run([]string{
+		"-address", url,
+		"-output", testDir,
+		"-server-id", serverName,
+		"-node-id", clientID,
+		"-duration", duration.String(),
+		"-interval", interval.String(),
+		"-log-file-export", "true",
+	})
+	// There should be no errors
+	t.Log(ui.ErrorWriter.String())
+	must.Eq(t, "", ui.ErrorWriter.String())
+	must.Eq(t, 0, code)
+
+	// Verify client files
+	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
+	t.Logf("Waiting for client files in path: %s", clientDir)
+	testutil.WaitForFilesUntil(t, clientPaths, waitTime)
+
+	// Verify server files
+	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
+	t.Logf("Waiting for server files in path: %s", serverDir)
+	testutil.WaitForFilesUntil(t, serverPaths, waitTime)
 }
