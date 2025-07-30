@@ -45,8 +45,10 @@ type OperatorDebugCommand struct {
 	interval           time.Duration
 	pprofInterval      time.Duration
 	pprofDuration      time.Duration
-	logLevel           string
+	logFileExport      bool
 	logIncludeLocation bool
+	logLevel           string
+	logLookback        time.Duration
 	maxNodes           int
 	nodeClass          string
 	nodeIDs            []string
@@ -176,8 +178,20 @@ Debug Options:
     The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
+  -log-file-export=bool
+    Include agents' Nomad logfiles in the debug capture. Historical log
+    export runs alongside the running log monitor and will ignore the
+    "log-level" or "log-include-location" flags used to configure it. 
+    Nomad will return an error if the agent does not have a "log_file"
+    configured.
   -log-level=<level>
     The log level to monitor. Defaults to TRACE.
+
+  -log-lookback=<duration>
+    Include historical journald logs in the debug capture. Historical log
+    export will ignore flags passed to "log-level" or "log-include-location"
+    and return logs as they are written to disk. Only available on Linux,
+    see the "log-file-export" flag to retrieve historical logs on non-Linux systems.
 
   -log-include-location
     Include file and line information in each log line monitored. The default
@@ -353,8 +367,7 @@ func (c *OperatorDebugCommand) Name() string { return "debug" }
 func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-
-	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
+	var duration, interval, pprofInterval, output, pprofDuration, eventTopic, logLookback, logFileExport, since string
 	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
@@ -363,8 +376,10 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.Int64Var(&eventIndex, "event-index", 0, "")
 	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
-	flags.StringVar(&c.logLevel, "log-level", "TRACE", "")
+	flags.StringVar(&logFileExport, "log-file-export", "false", "")
 	flags.BoolVar(&c.logIncludeLocation, "log-include-location", true, "")
+	flags.StringVar(&c.logLevel, "log-level", "TRACE", "")
+	flags.StringVar(&logLookback, "log-lookback", "", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "all", "")
@@ -400,6 +415,29 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Parse logLookback and logFileExport to set since string with whichever is set
+	if logLookback != "" && logFileExport != "" {
+		l, err := time.ParseDuration(logLookback)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing log-lookback: %s: %s", logLookback, err.Error()))
+			return 1
+		}
+		since = logLookback
+		c.logLookback = l
+	}
+	if logFileExport != "" && logLookback == "" {
+		l, err := strconv.ParseBool(logFileExport)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing log-file-export: %s: %s", logFileExport, err.Error()))
+			return 1
+		}
+		since = logFileExport
+		c.logFileExport = l
+	}
+
+	if logFileExport != "" && logLookback != "" {
+		c.Ui.Error("Error parsing inputs, -log-file-export and -log-lookback cannot be used together.")
+	}
 	// Parse the capture duration
 	d, err := time.ParseDuration(duration)
 	if err != nil {
@@ -663,7 +701,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.Ui.Output("Capturing cluster data...")
 
 	// Start collecting data
-	err = c.collect(client)
+	err = c.collect(client, since)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
@@ -692,9 +730,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 }
 
 // collect collects data from our endpoints and writes the archive bundle
-func (c *OperatorDebugCommand) collect(client *api.Client) error {
+func (c *OperatorDebugCommand) collect(client *api.Client, since string) error {
 	// Start background captures
-	c.startMonitors(client)
+	c.startMonitors(client, since)
 	c.startEventStream(client)
 
 	// Collect cluster data
@@ -752,7 +790,17 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 }
 
 // startMonitors starts go routines for each node and client
-func (c *OperatorDebugCommand) startMonitors(client *api.Client) {
+func (c *OperatorDebugCommand) startMonitors(client *api.Client, since string) {
+	// if requested, start monitor export first
+	if since != "" {
+		for _, id := range c.nodeIDs {
+			go c.startMonitorExport(clientDir, "node_id", id, since, client)
+		}
+
+		for _, id := range c.serverIDs {
+			go c.startMonitorExport(serverDir, "server_id", id, since, client)
+		}
+	}
 	for _, id := range c.nodeIDs {
 		go c.startMonitor(clientDir, "node_id", id, client)
 	}
@@ -783,6 +831,57 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 	}
 
 	outCh, errCh := client.Agent().Monitor(c.ctx.Done(), &qo)
+	for {
+		select {
+		case out := <-outCh:
+			if out == nil {
+				continue
+			}
+			fh.Write(out.Data)
+
+		case err := <-errCh:
+			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
+			return
+
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
+// startMonitor starts one monitor api request, writing to a file. It blocks and should be
+// called in a go routine. Errors are ignored, we want to build the archive even if a node
+// is unavailable
+func (c *OperatorDebugCommand) startMonitorExport(path, idKey, nodeID, since string, client *api.Client) {
+	var monitorSincePath string
+	qo := api.QueryOptions{
+		Params: map[string]string{
+			idKey: nodeID,
+		},
+		AllowStale: c.queryOpts().AllowStale,
+	}
+	// attempt to validate since as bool and set parameters accordingly
+	if _, err := strconv.ParseBool(since); err == nil {
+		monitorSincePath = "monitor_export.log"
+		qo.Params["on_disk"] = since
+	}
+
+	// attempt to validate since as duration and set parameters accordingly
+	if _, err := time.ParseDuration(since); err == nil {
+		monitorSincePath = "monitor_export_" + since + "_lookback.log"
+		qo.Params["service_name"] = "nomad"
+		qo.Params["logs_since"] = since
+	}
+
+	// prepare output location
+	c.mkdir(path, nodeID)
+	fh, err := os.Create(c.path(path, nodeID, monitorSincePath))
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+
+	outCh, errCh := client.Agent().MonitorExport(c.ctx.Done(), &qo)
 	for {
 		select {
 		case out := <-outCh:
