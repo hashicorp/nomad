@@ -33,7 +33,7 @@ type ExportMonitor struct {
 	doneCh chan struct{}
 
 	// ExportReader can read from the cli or the NomadFilePath
-	ExportReader ExportReader
+	ExportReader *ExportReader
 
 	bufSize int
 }
@@ -76,36 +76,13 @@ type ExportReader struct {
 // returning a new ExportMonitor or the appropriate error
 func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 	var (
-		multiReader io.Reader
-		cmd         *exec.Cmd
-		prepErr     error
-		bufSize     int
+		exportReader *ExportReader
+		bufSize      int
 	)
-
-	ExportReader := ExportReader{Follow: opts.Follow}
 
 	if runtime.GOOS != "linux" &&
 		opts.ServiceName != "" {
 		return nil, errors.New("journald log monitoring only available on linux")
-	}
-
-	if opts.OnDisk && opts.ServiceName == "" {
-		multiReader, prepErr = fileReader(opts.NomadLogPath)
-		if prepErr != nil {
-			return nil, prepErr
-		}
-
-		ExportReader.Reader = multiReader
-		ExportReader.UseCli = false
-	} else {
-		cmd, multiReader, prepErr = cliReader(opts)
-		if prepErr != nil {
-			return nil, prepErr
-		}
-
-		ExportReader.Reader = multiReader
-		ExportReader.Cmd = cmd
-		ExportReader.UseCli = true
 	}
 
 	if opts.bufSize == 0 {
@@ -113,12 +90,29 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 	} else {
 		bufSize = opts.bufSize
 	}
+
+	if opts.OnDisk && opts.ServiceName == "" {
+		e, prepErr := fileReader(opts)
+		if prepErr != nil {
+			return nil, prepErr
+		}
+		exportReader = e
+	}
+
+	if opts.ServiceName != "" && !opts.OnDisk {
+		e, prepErr := cliReader(opts)
+		if prepErr != nil {
+			return nil, prepErr
+		}
+		exportReader = e
+	}
+
 	sw := ExportMonitor{
 		logger:       hclog.Default().Named("export"),
 		doneCh:       make(chan struct{}, 1),
 		logCh:        make(chan []byte, bufSize),
 		bufSize:      bufSize,
-		ExportReader: ExportReader,
+		ExportReader: exportReader,
 	}
 
 	return &sw, nil
@@ -170,16 +164,17 @@ func ScanServiceName(input string) error {
 	return nil
 }
 
-func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
+func cliReader(opts MonitorExportOpts) (*ExportReader, error) {
+	isCli := true
 	// Vet servicename again
 	if err := ScanServiceName(opts.ServiceName); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	cmdDuration := "72 hours"
 	if opts.LogsSince != "" {
 		parsedDur, err := time.ParseDuration(opts.LogsSince)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		cmdDuration = parsedDur.String()
 	}
@@ -194,24 +189,26 @@ func cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 	// set up reader
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	stdErr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	multiReader := io.MultiReader(stdOut, stdErr)
 	cmd.Start()
-	return cmd, multiReader, nil
+
+	return &ExportReader{multiReader, cmd, isCli, opts.Follow}, nil
 }
 
-func fileReader(logPath string) (io.Reader, error) {
-	file, err := os.Open(logPath)
+func fileReader(opts MonitorExportOpts) (*ExportReader, error) {
+	notCli := false
+	file, err := os.Open(opts.NomadLogPath)
 	if err != nil {
 		return nil, err
 	}
+	return &ExportReader{file, nil, notCli, opts.Follow}, nil
 
-	return file, nil
 }
 
 // Stop stops the monitoring process

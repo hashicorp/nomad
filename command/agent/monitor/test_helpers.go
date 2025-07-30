@@ -113,7 +113,7 @@ func NewMockExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		doneCh:       make(chan struct{}, 1),
 		logCh:        make(chan []byte, bufSize),
 		bufSize:      bufSize,
-		ExportReader: ExportReader,
+		ExportReader: &ExportReader,
 	}
 	return &sw, nil
 }

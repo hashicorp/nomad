@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
+
 	"testing"
 	"time"
 
@@ -168,28 +168,23 @@ func TestMonitor_Export(t *testing.T) {
 			if tc.expectClose {
 				cancel()
 			}
-			var (
-				builder strings.Builder
-				wg      sync.WaitGroup
-			)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-			TEST:
-				for {
-					select {
-					case log, ok := <-logCh:
-						if !ok {
-							break TEST
-						}
-						builder.Write(log)
-					default:
-						continue
-					}
 
+			var builder strings.Builder
+
+		TEST:
+			for {
+				select {
+				case log, ok := <-logCh:
+					if !ok {
+						break TEST
+					}
+					builder.Write(log)
+				default:
+					continue
 				}
-			}()
-			wg.Wait()
+
+			}
+
 			if !tc.expectClose {
 				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 			} else {
