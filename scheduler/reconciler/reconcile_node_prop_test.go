@@ -101,7 +101,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		n := NewNodeReconciler()
+		n := NewNodeReconciler(nil)
 		results := n.Node(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
@@ -113,7 +113,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
-		n := NewNodeReconciler()
+		n := NewNodeReconciler(nil)
 		results := n.Node(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)

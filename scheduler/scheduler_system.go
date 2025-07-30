@@ -275,7 +275,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	nr := reconciler.NewNodeReconciler()
+	nr := reconciler.NewNodeReconciler(s.deployment)
 	r := nr.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
@@ -389,6 +389,11 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 
 	// track node filtering, to only report an error if all nodes have been filtered
 	var filteredMetrics map[string]*structs.AllocMetric
+
+	var deploymentID string
+	if s.deployment != nil && s.deployment.Active() {
+		deploymentID = s.deployment.ID
+	}
 
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
@@ -507,6 +512,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
+			DeploymentID:       deploymentID,
 			TaskResources:      resources.OldTaskResources(),
 			AllocatedResources: resources,
 			DesiredStatus:      structs.AllocDesiredStatusRun,

@@ -5,7 +5,6 @@ package reconciler
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -73,7 +72,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		nr := NewNodeReconciler()
+		nr := NewNodeReconciler(nil)
 		diff := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
@@ -96,7 +95,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		nr := NewNodeReconciler()
+		nr := NewNodeReconciler(nil)
 		diff := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
@@ -158,7 +157,7 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			nr := NewNodeReconciler()
+			nr := NewNodeReconciler(nil)
 			diff := nr.diffSystemAllocsForNode(
 				job, tc.nodeID, eligible, nil,
 				tainted, required, allocsForNode, terminal, true)
@@ -217,7 +216,7 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 	tainted := map[string]*structs.Node{}
 	terminal := structs.TerminalByNodeByName{}
 
-	nr := NewNodeReconciler()
+	nr := NewNodeReconciler(nil)
 	diff := nr.diffSystemAllocsForNode(
 		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
@@ -287,7 +286,7 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 				Job:    job,
 			}
 
-			nr := NewNodeReconciler()
+			nr := NewNodeReconciler(nil)
 			diff := nr.diffSystemAllocsForNode(
 				job, tc.nodeID, eligible, ineligible, tainted,
 				required, []*structs.Allocation{alloc}, terminal, true,
@@ -344,7 +343,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 		},
 	}
 
-	nr := NewNodeReconciler()
+	nr := NewNodeReconciler(nil)
 	diff := nr.diffSystemAllocsForNode(
 		job, drainNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
@@ -396,7 +395,7 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 		},
 	}
 
-	nr := NewNodeReconciler()
+	nr := NewNodeReconciler(nil)
 	diff := nr.diffSystemAllocsForNode(
 		job, deadNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
@@ -522,7 +521,7 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 				tc.allocFn(alloc)
 			}
 
-			nr := NewNodeReconciler()
+			nr := NewNodeReconciler(nil)
 			got := nr.diffSystemAllocsForNode(
 				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
 				required, []*structs.Allocation{alloc}, terminal, true,
@@ -611,7 +610,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	nr := NewNodeReconciler()
+	nr := NewNodeReconciler(nil)
 	diff := nr.Node(job, nodes, nil, tainted, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{
@@ -654,21 +653,8 @@ func TestNodeDeployments(t *testing.T) {
 	tg.Update = structs.DefaultUpdateStrategy
 	job.TaskGroups = append(job.TaskGroups, tg)
 
-	drainNode := mock.DrainNode()
-	drainNode.ID = "drain"
-
-	deadNode := mock.Node()
-	deadNode.ID = "dead"
-	deadNode.Status = structs.NodeStatusDown
-
-	tainted := map[string]*structs.Node{
-		deadNode.ID:  deadNode,
-		drainNode.ID: drainNode,
-	}
-
-	// Create four alive nodes.
-	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"},
-		{ID: "has-term"}, {ID: drainNode.ID}, {ID: deadNode.ID}}
+	// Create two alive nodes.
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}}
 
 	// The "old" job has a previous modify index
 	oldJob := new(structs.Job)
@@ -690,18 +676,6 @@ func TestNodeDeployments(t *testing.T) {
 		allocs = append(allocs, a)
 	}
 
-	// Have one terminal allocs
-	terminal := structs.TerminalByNodeByName{
-		"has-term": map[string]*structs.Allocation{
-			"my-job.web[0]": {
-				ID:     uuid.Generate(),
-				NodeID: "has-term",
-				Name:   "my-job.web[0]",
-				Job:    job,
-			},
-		},
-	}
-
 	deploymentID := uuid.Generate()
 
 	// Have an existing successful deployment for this
@@ -709,72 +683,82 @@ func TestNodeDeployments(t *testing.T) {
 		name                         string
 		job                          *structs.Job
 		existingDeployment           *structs.Deployment
-		expectedDeployment           *structs.Deployment
+		expectedDeploymentStatus     string
 		expectedStatusUpdateContains []string
+		sameDeployment               bool
 	}{
 		{
-			"existing successful deployment",
+			"existing successful deployment should return a running deployment",
 			job,
 			&structs.Deployment{
-				ID:             deploymentID,
 				JobCreateIndex: job.CreateIndex,
 				JobVersion:     job.Version,
 				Status:         structs.DeploymentStatusSuccessful,
 			},
-			&structs.Deployment{
-				ID:             deploymentID,
-				JobCreateIndex: job.CreateIndex,
-				JobVersion:     job.Version,
-				Status:         structs.DeploymentStatusSuccessful,
-			},
+			structs.DeploymentStatusRunning,
 			nil,
+			false,
 		},
 		{
-			"existing running deployment",
+			"existing running deployment should remain untouched",
 			job,
 			&structs.Deployment{
-				ID:             deploymentID,
-				JobCreateIndex: job.CreateIndex,
-				JobVersion:     job.Version,
-				Status:         structs.DeploymentStatusRunning,
+				ID:                deploymentID,
+				JobID:             job.ID,
+				JobCreateIndex:    job.CreateIndex,
+				JobVersion:        job.Version,
+				Status:            structs.DeploymentStatusRunning,
+				StatusDescription: structs.DeploymentStatusDescriptionRunning,
+				TaskGroups: map[string]*structs.DeploymentState{
+					job.TaskGroups[0].Name: {
+						AutoRevert:       true,
+						ProgressDeadline: time.Minute,
+					},
+					tg.Name: {
+						AutoPromote: true,
+					},
+				},
 			},
+			structs.DeploymentStatusRunning,
 			nil,
-			nil,
+			true,
 		},
 		{
-			"existing running deployment for a stopped job",
+			"existing running deployment for a stopped job should be cancelled",
 			stoppedJob,
 			&structs.Deployment{
-				ID:             uuid.Generate(),
 				JobCreateIndex: job.CreateIndex,
 				JobVersion:     job.Version,
 				Status:         structs.DeploymentStatusRunning,
 			},
-			nil,
-			[]string{structs.DeploymentStatusCancelled},
+			structs.DeploymentStatusRunning,
+			[]string{structs.DeploymentStatusDescriptionStoppedJob},
+			false,
 		},
 		{
-			"no existing deployment",
+			"no existing deployment for a job that needs one should result in a new deployment",
 			job,
 			nil,
-			nil,
-			[]string{structs.DeploymentStatusRunning},
+			structs.DeploymentStatusRunning,
+			[]string{structs.DeploymentStatusDescriptionRunning},
+			false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			nr := NewNodeReconciler()
-			nr.Node(tc.job, nodes, nil, tainted, allocs, terminal, true)
-			must.Eq(t, nr.DeploymentCurrent, tc.expectedDeployment)
+			nr := NewNodeReconciler(tc.existingDeployment)
+			nr.Node(tc.job, nodes, nil, nil, allocs, nil, true)
+			if tc.sameDeployment {
+				must.Eq(t, nr.DeploymentCurrent.ID, tc.existingDeployment.ID)
+			}
 			for _, s := range tc.expectedStatusUpdateContains {
 				must.SliceContainsFunc(t, nr.DeploymentUpdates, s,
 					func(a *structs.DeploymentStatusUpdate, status string) bool {
-						return strings.Contains(a.StatusDescription, status)
+						return a.StatusDescription == status
 					},
 				)
 			}
 		})
 	}
-
 }

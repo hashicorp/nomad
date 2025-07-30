@@ -17,19 +17,22 @@ type NodeReconciler struct {
 	DeploymentUpdates []*structs.DeploymentStatusUpdate
 }
 
-func NewNodeReconciler() *NodeReconciler {
-	return &NodeReconciler{DeploymentUpdates: make([]*structs.DeploymentStatusUpdate, 0)}
+func NewNodeReconciler(deployment *structs.Deployment) *NodeReconciler {
+	return &NodeReconciler{
+		DeploymentCurrent: deployment,
+		DeploymentUpdates: make([]*structs.DeploymentStatusUpdate, 0),
+	}
 }
 
 // Node is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 func (nr *NodeReconciler) Node(
-	job *structs.Job,                       // jobs whose allocations are going to be diff-ed
-	readyNodes []*structs.Node,             // list of nodes in the ready state
-	notReadyNodes map[string]struct{},      // list of nodes in DC but not ready, e.g. draining
-	taintedNodes map[string]*structs.Node,  // nodes which are down or drain mode (by node id)
-	live []*structs.Allocation,             // non-terminal allocations
-	terminal structs.TerminalByNodeByName,  // latest terminal allocations (by node id)
+	job *structs.Job, // jobs whose allocations are going to be diff-ed
+	readyNodes []*structs.Node, // list of nodes in the ready state
+	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
+	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
+	live []*structs.Allocation, // non-terminal allocations
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
@@ -74,11 +77,11 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
-	notReadyNodes map[string]struct{},      // nodes that are not ready, e.g. draining
-	taintedNodes map[string]*structs.Node,  // nodes which are down (by node id)
+	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
+	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
-	liveAllocs []*structs.Allocation,       // non-terminal allocations that exist
-	terminal structs.TerminalByNodeByName,  // latest terminal allocations (by node, id)
+	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
@@ -273,7 +276,6 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			TaskGroup: tg,
 			Alloc:     exist,
 		})
-
 	}
 
 	// Scan the required groups
@@ -342,7 +344,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
 			}
 
-			if !existingDeployment {
+			if !existingDeployment && dstate != nil {
 				if !tg.Update.IsEmpty() {
 					dstate.AutoRevert = tg.Update.AutoRevert
 					dstate.AutoPromote = tg.Update.AutoPromote
@@ -366,6 +368,10 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 		dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
 	}
 
+	if dstate == nil {
+		dstate = &structs.DeploymentState{}
+	}
+
 	// check if perhaps there's nothing more to do
 	if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
 		return
@@ -386,19 +392,74 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 		return
 	}
 
-	var deployment *structs.Deployment
-
 	// A previous group may have made the deployment already. If not create one.
 	if nr.DeploymentCurrent == nil {
-		deployment = structs.NewDeployment(job, job.Priority, time.Now().UnixNano())
+		nr.DeploymentCurrent = structs.NewDeployment(job, job.Priority, time.Now().UnixNano())
+		nr.DeploymentUpdates = append(
+			nr.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      nr.DeploymentCurrent.ID,
+				Status:            structs.DeploymentStatusRunning,
+				StatusDescription: structs.DeploymentStatusDescriptionRunning,
+			})
 	}
 
 	// Attach the groups deployment state to the deployment
-	if deployment.TaskGroups == nil {
-		deployment.TaskGroups = make(map[string]*structs.DeploymentState)
+	if nr.DeploymentCurrent.TaskGroups == nil {
+		nr.DeploymentCurrent.TaskGroups = make(map[string]*structs.DeploymentState)
 	}
 
-	deployment.TaskGroups[tg.Name] = dstate
+	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
+}
+
+func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
+	var updates []*structs.DeploymentStatusUpdate
+
+	/*
+		if a.jobState.DeploymentCurrent != nil {
+			// Mark the deployment as complete if possible
+			if deploymentComplete {
+				if a.jobState.Job.IsMultiregion() {
+					// the unblocking/successful states come after blocked, so we
+					// need to make sure we don't revert those states
+					if a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusUnblocking &&
+						a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusSuccessful {
+						updates = append(updates, &structs.DeploymentStatusUpdate{
+							DeploymentID:      a.jobState.DeploymentCurrent.ID,
+							Status:            structs.DeploymentStatusBlocked,
+							StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+						})
+					}
+				} else {
+					updates = append(updates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      a.jobState.DeploymentCurrent.ID,
+						Status:            structs.DeploymentStatusSuccessful,
+						StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+					})
+				}
+			}
+
+			// Mark the deployment as pending since its state is now computed.
+			if a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
+				updates = append(updates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      a.jobState.DeploymentCurrent.ID,
+					Status:            structs.DeploymentStatusPending,
+					StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+				})
+			}
+		}
+	*/
+
+	// Set the description of a created deployment
+	if createdDeployment != nil {
+		if createdDeployment.RequiresPromotion() {
+			if createdDeployment.HasAutoPromote() {
+				createdDeployment.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				createdDeployment.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+		}
+	}
+	return updates
 }
 
 // materializeSystemTaskGroups is used to materialize all the task groups
