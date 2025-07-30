@@ -74,6 +74,11 @@
           },
           {
             "title": "dynamic_application_sizing",
+            "badge": {
+              "text": "ENT",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "path": "autoscaling/agent/dynamic_application_sizing"
           },
           {
@@ -163,14 +168,29 @@
               },
               {
                 "title": "Dynamic Application Sizing Average",
+                "badge": {
+                  "text": "ENT",
+                  "type": "outlined",
+                  "color": "neutral"
+                },
                 "path": "autoscaling/plugins/strategy/app-sizing-avg"
               },
               {
                 "title": "Dynamic Application Sizing Max",
+                "badge": {
+                  "text": "ENT",
+                  "type": "outlined",
+                  "color": "neutral"
+                },
                 "path": "autoscaling/plugins/strategy/app-sizing-max"
               },
               {
                 "title": "Dynamic Application Sizing Percentile",
+                "badge": {
+                  "text": "ENT",
+                  "type": "outlined",
+                  "color": "neutral"
+                },
                 "path": "autoscaling/plugins/strategy/app-sizing-percentile"
               },
               {
@@ -208,6 +228,11 @@
               },
               {
                 "title": "Dynamic Application Sizing",
+                "badge": {
+                  "text": "ENT",
+                  "type": "outlined",
+                  "color": "neutral"
+                },
                 "path": "autoscaling/plugins/target/app-sizing-nomad"
               },
               {
