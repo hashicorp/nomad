@@ -1010,7 +1010,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/plugins/devices',
-    destination: '/nomad/plugins/author/device-driver',
+    destination: '/nomad/plugins/author/device',
     permanent: true,
   },
   {

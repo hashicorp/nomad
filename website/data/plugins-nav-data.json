@@ -92,7 +92,7 @@
     ]
   },
   {
-    "title": "Device plugins",
+    "title": "Devices",
     "routes": [
       {
         "title": "Overview",
@@ -121,8 +121,8 @@
         "path": "author"
       },
       {
-        "title": "Device driver",
-        "path": "author/device-driver"
+        "title": "Device",
+        "path": "author/device"
       },
       {
         "title": "Task driver",
