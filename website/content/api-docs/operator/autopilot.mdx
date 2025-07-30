@@ -106,15 +106,15 @@ The table below shows this endpoint's support for
   cluster. Only takes effect if all servers are running Raft protocol version 3
   or higher. Must be a duration value such as `30s`.
 
-- `EnableRedundancyZones` `(bool: false)` - (Enterprise-only) Specifies whether
+- `EnableRedundancyZones` `(bool: false)` - <EnterpriseAlert inline/> Specifies whether
   to enable redundancy zones.
 
-- `DisableUpgradeMigration` `(bool: false)` - (Enterprise-only) Disables Autopilot's
+- `DisableUpgradeMigration` `(bool: false)` - <EnterpriseAlert inline/> Disables Autopilot's
   upgrade migration strategy in Nomad Enterprise of waiting until enough
   newer-versioned servers have been added to the cluster before promoting any of
   them to voters.
 
-- `EnableCustomUpgrades` `(bool: false)` - (Enterprise-only) Specifies whether to
+- `EnableCustomUpgrades` `(bool: false)` - <EnterpriseAlert inline/> Specifies whether to
   enable using custom upgrade versions when performing migrations.
 
 ## Read Health
@@ -222,7 +222,7 @@ $ curl \
   status of 200 will be returned. If `Healthy` is false, then a status of 429 will be returned.
 
 <EnterpriseAlert>
-  This API endpoint return with more information in Nomad Enterprise. This is
+  This API endpoint returns with more information in Nomad Enterprise. This is
   not present in Nomad Community Edition.
 </EnterpriseAlert>
 

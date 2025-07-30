@@ -94,8 +94,11 @@ passed in via CLI arguments. The `agent` command accepts the following arguments
 
 - `-policy-eval-workers=<key:value>`: The number of workers to initialize for each
   queue, formatted as `<queue1>:<num>,<queue2>:<num>`. Nomad Autoscaler supports
-  `cluster` and `horizontal` queues. Nomad Autoscaler Enterprise supports additional
-  `vertical_mem` and `vertical_cpu` queues.
+  the following queues:
+   - `cluster`
+   - `horizontal`
+   - `vertical_mem` <EnterpriseAlert inline/>
+   - `vertical_cpu` <EnterpriseAlert inline/>
 
 - `-policy-source-disable-file`: Disable the sourcing of policies from disk.
 
