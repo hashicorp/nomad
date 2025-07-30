@@ -169,10 +169,8 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	if streamErr != nil {
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
-		a.c.logger.Error("exiting handler, with error")
 		return
 	}
-	a.c.logger.Error("exiting handler, no errors")
 }
 
 // Host collects data about the host environment running the agent
@@ -196,7 +194,6 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 }
 
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
-	a.c.logger.Error("entered monitorExport")
 	defer conn.Close()
 
 	// Decode arguments
@@ -255,14 +252,11 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
-	streamCh := m.Start()
+	var eofCancelCh chan error
 
+	streamCh := m.Start()
 	initialOffset := int64(0)
-	var (
-		eofCancelCh chan error
-		eofCancel   bool
-	)
-	eofCancel = !opts.Follow
+	eofCancel := !opts.Follow
 
 	// receive logs and build frames
 	streamReader := monitor.NewStreamReader(streamCh, framer)

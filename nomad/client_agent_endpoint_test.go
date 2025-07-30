@@ -1113,12 +1113,13 @@ func TestMonitor_MonitorExport(t *testing.T) {
 			}
 
 			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s, time.After(3*time.Second))
-			if !tc.expectErr {
-				must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
-			} else {
-				must.NotNil(t, finalError)
-				t.Log(finalError.Error())
+			if tc.expectErr {
+				must.Error(t, finalError)
+				return
 			}
+			must.NoError(t, err)
+			must.NotNil(t, builder)
+			must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
 		})
 	}
 }

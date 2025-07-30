@@ -121,7 +121,7 @@ func (c *MonitorExportCommand) Run(args []string) int {
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
 	flags.DurationVar(&c.logsSince, "logs-since", defaultDur,
-		`sets the journald	log period.  Defaults to 72h, valid unit strings are
+		`sets the journald log period. Defaults to 72h, valid unit strings are
 		 "ns", "us" (or "µs"), "ms", "s", "m", or "h".`)
 	flags.StringVar(&c.serviceName, "service-name", "",
 		"the name of the systemdervice unit to collect logs for, cannot be used with on-disk=true")
@@ -150,6 +150,10 @@ func (c *MonitorExportCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Invalid value: -service-name=%s does not include 'nomad'", c.serviceName))
 			c.Ui.Error(commandErrorText(c))
 		}
+	}
+
+	if c.serviceName == "" && !c.onDisk {
+		c.Ui.Error("One of -service-name or -on-disk must be set")
 	}
 	client, err := c.Meta.Client()
 	if err != nil {

@@ -122,7 +122,7 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 // systemd conventions and ensures the service name includes the word 'nomad'
 func ScanServiceName(input string) error {
 	prefix := ""
-	// invalid if prefix and suffix together are < 255 char
+	// invalid if prefix and suffix together are > 255 char
 	if len(input) > 255 {
 		return errors.New("service name too long")
 	}
@@ -227,7 +227,7 @@ func (d *ExportMonitor) Stop() {
 	close(d.logCh)
 }
 
-// Start reads data from the monitor's ExportReader into it's logCh
+// Start reads data from the monitor's ExportReader into its' logCh
 func (d *ExportMonitor) Start() <-chan []byte {
 	// Read, copy, and send to channel until we hit EOF or error
 	go func() {

@@ -63,6 +63,11 @@ func TestMonitorExportCommand_Fails(t *testing.T) {
 			errString: "journald and nomad log file simultaneously",
 		},
 		{
+			name:      "setting neither on-disk nor service-name",
+			cmdArgs:   []string{"-address=" + url},
+			errString: "One of -service-name or -on-disk must be set",
+		},
+		{
 			name:      "requires nomad in service name",
 			cmdArgs:   []string{"-address=" + url, "-service-name=docker.path"},
 			errString: "does not include 'nomad'",

@@ -274,6 +274,9 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, "Cannot target journald and nomad log file simultaneously")
 	}
 
+	if !onDisk && serviceName == "" {
+		return nil, CodedError(400, "Either -service-name or -on-disk must be set")
+	}
 	if onDisk && follow {
 		return nil, CodedError(400, "Cannot follow log file")
 	}
@@ -367,7 +370,6 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
 		for {
 			select {
 			case <-ctx.Done():
-				s.logger.Error("hit streamMonitor ctx.Done()")
 				errCh <- nil
 				return
 			default:

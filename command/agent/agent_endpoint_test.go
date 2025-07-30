@@ -463,7 +463,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 	}
 
 	invalidLogConfig := func(c *Config) {
-		c.LogFile = "inline]FilePath"
+		c.LogFile = inlineFilePath
 	}
 	baseURL := "/v1/agent/monitor/export?"
 	cases := []struct {
@@ -498,22 +498,20 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			follow: "false",
 			onDisk: "green",
 
-			config:        config,
-			errCode:       400,
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			expectErr: true,
+			errString: "Unknown value for on-disk",
 		},
 		{
 			name:   "invalid_follow",
 			follow: "green",
 			onDisk: "false",
 
-			config:        config,
-			errCode:       400,
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			expectErr: true,
+			errString: "Unknown value for follow",
 		},
 		{
 			name:        "invalid_service_name",
@@ -521,11 +519,10 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			onDisk:      "false",
 			serviceName: "nomad%",
 
-			config:        config,
-			errCode:       422,
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   422,
+			expectErr: true,
+			errString: "does not meet systemd conventions",
 		},
 		{
 			name:        "invalid_logsSince_duration",
@@ -534,24 +531,11 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			serviceName: "nomad",
 			logsSince:   "98seconds",
 
-			config:        config,
-			errCode:       400,
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
-		},
-		{
-			name:   "invalid_log_file",
-			follow: "true",
-			onDisk: "true",
-			nodeID: "doesn'tneedtobeuuid",
-
-			config:        invalidLogConfig,
-			errCode:       400,
-			errString:     "Cannot target journald and nomad log file simultaneously",
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			expectErr: true,
+			errString: `unknown unit "seconds" in duration`,
+			want:      expectedText,
 		},
 		{
 			name:     "server_and_node",
@@ -574,12 +558,22 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			serviceName: "nomad",
 			nodeID:      "doesn'tneedtobeuuid",
 
-			config:        config,
-			errCode:       400,
-			errString:     "Cannot target journalctl and nomad log file simultaneously",
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			errString: "Cannot target journald and nomad log file simultaneously",
+			expectErr: true,
+			want:      expectedText,
+		},
+		{
+			name:   "neither_onDisk_nor_serviceName",
+			follow: "false",
+			nodeID: "doesn'tneedtobeuuid",
+
+			config:    config,
+			errCode:   400,
+			errString: "Either -service-name or -on-disk must be set",
+			expectErr: true,
+			want:      expectedText,
 		},
 		{
 			name:   "onDisk_and_follow",
@@ -587,31 +581,26 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			onDisk: "true",
 			nodeID: "doesn'tneedtobeuuid",
 
-			config:        config,
-			errCode:       400,
-			errString:     "Cannot target journalctl and nomad log file simultaneously",
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			errString: "Cannot follow log file",
+			expectErr: true,
+			want:      expectedText,
 		},
 		{
 			name:   "onDisk_and_no_log_file",
-			follow: "true",
 			onDisk: "true",
-			nodeID: "doesn'tneedtobeuuid",
 
-			config:        nil,
-			errCode:       400,
-			errString:     "Cannot target journalctl and nomad log file simultaneously",
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    nil,
+			errCode:   400,
+			errString: "No nomad log file defined",
+			expectErr: true,
+			want:      expectedText,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			httpTest(t, tc.config, func(s *TestAgent) {
-
 				// Prepare urlstring
 				urlVal := url.Values{}
 				urlParamPrep := func(k string, v string, failCase string, values *url.Values) {
@@ -636,34 +625,17 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 				var (
 					builder strings.Builder
 					frame   sframer.StreamFrame
-					wg      sync.WaitGroup
 				)
-				wg.Add(1)
-				errCh := make(chan error, 1)
-				go func(errCh chan error) {
-					defer wg.Done()
-					_, err = s.Server.AgentMonitorExport(resp, req)
-					if err != nil {
-						errCh <- err
-					}
-				}(errCh)
-				wg.Wait()
-				select {
-				case err := <-errCh:
-					if tc.expectErr {
-						must.Eq(t, tc.errCode, err.(HTTPCodedError).Code())
-						return
-					} else {
-						must.NoError(t, err)
-					}
-				default:
-				}
 
+				_, err = s.Server.AgentMonitorExport(resp, req)
 				if tc.expectErr {
-					must.Eq(t, resp.Result().StatusCode, tc.errCode)
+					t.Log(err.Error())
+					must.Eq(t, tc.errCode, err.(HTTPCodedError).Code())
+					must.StrContains(t, err.Error(), tc.errString)
 					return
 				}
 
+				must.NoError(t, err)
 				output, err := io.ReadAll(resp.Body)
 				must.NoError(t, err)
 

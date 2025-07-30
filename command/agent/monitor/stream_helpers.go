@@ -20,10 +20,9 @@ import (
 // Stream Helpers
 type StreamReader struct {
 	sync.Mutex
-	emptyCount int
-	framer     *sframer.StreamFramer
-	ch         <-chan []byte
-	buf        []byte
+	framer *sframer.StreamFramer
+	ch     <-chan []byte
+	buf    []byte
 }
 
 func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamReader {
@@ -94,9 +93,7 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 
 OUTER:
 	for {
-
 		// Read up to the max frame size
-
 		n, readErr := r.Read(streamBuffer)
 
 		// Update the offset
@@ -231,9 +228,4 @@ OUTER:
 
 	}
 	return nil
-}
-
-// Test Helpers
-type StreamingClient interface {
-	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
 }

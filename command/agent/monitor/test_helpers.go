@@ -6,10 +6,8 @@ package monitor
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -19,7 +17,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient, userTimeout <-chan time.Time) (*strings.Builder, error) {
+// StreamingClient is an interface that implements the StreamingRpcHandler function
+type StreamingClient interface {
+	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
+}
+
+// ExportMonitorClient_TestHelper consolidates streaming test setup for use in
+// client and server RPChandler tests
+func ExportMonitorClient_TestHelper(req cstructs.MonitorExportRequest, c StreamingClient,
+	userTimeout <-chan time.Time) (*strings.Builder, error) {
 	var (
 		builder     strings.Builder
 		returnedErr error
@@ -90,61 +96,4 @@ OUTER:
 		}
 	}
 	return &builder, returnedErr
-}
-
-// NewMockExportMonitor returns an ExportMonitor configured to read
-// from the user namespace instead
-func NewMockExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
-	var bufSize int
-
-	cmd, multiReader, prepErr := mockCliReader(opts)
-	if prepErr != nil {
-		return nil, prepErr
-	}
-	ExportReader := ExportReader{multiReader, cmd, true, opts.Follow}
-
-	if opts.bufSize == 0 {
-		bufSize = defaultBufSize
-	} else {
-		bufSize = opts.bufSize
-	}
-	sw := ExportMonitor{
-		logger:       opts.Logger,
-		doneCh:       make(chan struct{}, 1),
-		logCh:        make(chan []byte, bufSize),
-		bufSize:      bufSize,
-		ExportReader: &ExportReader,
-	}
-	return &sw, nil
-}
-
-func mockCliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
-	cmdDuration := "72 hours"
-	if opts.LogsSince != "" {
-		parsedDur, err := time.ParseDuration(opts.LogsSince)
-		if err != nil {
-			return nil, nil, err
-		}
-		cmdDuration = parsedDur.String()
-	}
-	// Mock
-	cmdArgs := []string{"--user --no-pager", "--since", fmt.Sprintf("%s ago", cmdDuration)}
-
-	if opts.Follow {
-		cmdArgs = append(cmdArgs, "-f")
-	}
-	cmd := exec.CommandContext(opts.Context, "journalctl", cmdArgs...)
-
-	// set up reader
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	multiReader := io.MultiReader(stdOut, stdErr)
-
-	return cmd, multiReader, nil
 }

@@ -174,7 +174,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 
 	region := args.RequestRegion()
 	if region == "" {
-		handleStreamResultError(fmt.Errorf("missing target RPC"), pointer.Of(int64(400)), encoder)
+		handleStreamResultError(fmt.Errorf("missing target region"), pointer.Of(int64(400)), encoder)
 		return
 	}
 	if region != a.srv.config.Region {
@@ -227,7 +227,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	}()
 
 	logCh := m.Start()
-
+	defer m.Stop()
 	initialOffset := int64(0)
 
 	// receive logs and build frames
@@ -258,7 +258,6 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 }
 
 func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
-	a.srv.logger.Error("entered monitor export")
 	defer conn.Close()
 	// Decode args
 	var args cstructs.MonitorExportRequest
@@ -294,7 +293,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	region := args.RequestRegion()
 	if region == "" {
-		handleStreamResultError(fmt.Errorf("missing target RPC"), pointer.Of(int64(400)), encoder)
+		handleStreamResultError(fmt.Errorf("missing target region"), pointer.Of(int64(400)), encoder)
 		return
 	}
 	if region != a.srv.config.Region {
@@ -337,7 +336,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
-	//defer framer.Destroy()
+	defer framer.Destroy()
 
 	// goroutine to detect remote side closing
 	go func() {
@@ -353,14 +352,13 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
-	streamCh := m.Start()
 
+	var eofCancelCh chan error
+
+	streamCh := m.Start()
 	initialOffset := int64(0)
-	var (
-		eofCancelCh chan error
-		eofCancel   bool
-	)
-	eofCancel = !opts.Follow
+	eofCancel := !opts.Follow
+
 	streamEncoder := monitor.NewStreamEncoder(&buf, conn, encoder, frameCodec, args.PlainText)
 	// receive logs and build frames
 	streamReader := monitor.NewStreamReader(streamCh, framer)
@@ -376,11 +374,9 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 
 	streamErr := streamEncoder.EncodeStream(frames, errCh, ctx, framer, true)
 	if streamErr != nil {
-		a.srv.logger.Error("exiting handler, with error")
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
-	a.srv.logger.Error("exiting handler, no errors")
 }
 
 // forwardFor returns a serverParts for a request to be forwarded to.
