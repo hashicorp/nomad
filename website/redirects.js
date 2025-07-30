@@ -1015,7 +1015,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/plugins/cni',
-    destination: '/nomad/docs/networking',
+    destination: '/nomad/docs/networking/cni',
     permanent: true,
   },
 ]
