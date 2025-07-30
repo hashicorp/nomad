@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Improved acl policy self output for management and client tokens
+```
