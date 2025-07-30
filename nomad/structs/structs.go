@@ -2411,16 +2411,17 @@ type NodeStubFields struct {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU         int
-	Cores       int
-	MemoryMB    int
-	MemoryMaxMB int
-	DiskMB      int
-	IOPS        int // COMPAT(0.10): Only being used to issue warnings
-	Networks    Networks
-	Devices     ResourceDevices
-	NUMA        *NUMA
-	SecretsMB   int
+	CPU           int
+	Cores         int
+	MemoryMB      int
+	MemoryMaxMB   int
+	DiskMB        int
+	DiskThrottles DiskThrottles
+	IOPS          int // COMPAT(0.10): Only being used to issue warnings
+	Networks      Networks
+	Devices       ResourceDevices
+	NUMA          *NUMA
+	SecretsMB     int
 }
 
 const (
@@ -2655,16 +2656,17 @@ func (r *Resources) Copy() *Resources {
 		return nil
 	}
 	return &Resources{
-		CPU:         r.CPU,
-		Cores:       r.Cores,
-		MemoryMB:    r.MemoryMB,
-		MemoryMaxMB: r.MemoryMaxMB,
-		DiskMB:      r.DiskMB,
-		IOPS:        r.IOPS,
-		Networks:    r.Networks.Copy(),
-		Devices:     r.Devices.Copy(),
-		NUMA:        r.NUMA.Copy(),
-		SecretsMB:   r.SecretsMB,
+		CPU:           r.CPU,
+		Cores:         r.Cores,
+		MemoryMB:      r.MemoryMB,
+		MemoryMaxMB:   r.MemoryMaxMB,
+		DiskMB:        r.DiskMB,
+		DiskThrottles: r.DiskThrottles.Copy(),
+		IOPS:          r.IOPS,
+		Networks:      r.Networks.Copy(),
+		Devices:       r.Devices.Copy(),
+		NUMA:          r.NUMA.Copy(),
+		SecretsMB:     r.SecretsMB,
 	}
 }
 
@@ -3925,6 +3927,7 @@ func (a *AllocatedResources) Canonicalize() {
 type AllocatedTaskResources struct {
 	Cpu      AllocatedCpuResources
 	Memory   AllocatedMemoryResources
+	DiskThrottles DiskThrottles
 	Networks Networks
 	Devices  []*AllocatedDeviceResource
 }
@@ -3938,6 +3941,14 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 
 	// Copy the networks
 	newA.Networks = a.Networks.Copy()
+
+	// Copy the disk throttles
+	if a.DiskThrottles != nil {
+		newA.DiskThrottles = make(DiskThrottles, len(a.DiskThrottles))
+		for k, v := range a.DiskThrottles {
+			newA.DiskThrottles[k] = v.Copy()
+		}
+	}
 
 	// Copy the devices
 	if newA.Devices != nil {
@@ -4152,6 +4163,65 @@ func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
 	if len(other.ReservedCores) > len(a.ReservedCores) {
 		a.ReservedCores = other.ReservedCores
 	}
+}
+
+type DiskThrottle struct {
+	Major     int64
+	Minor     int64
+	ReadBps   uint64
+	ReadIops  uint64
+	WriteBps  uint64
+	WriteIops uint64
+}
+
+func (d *DiskThrottle) Copy() *DiskThrottle {
+	if d == nil {
+		return nil
+	}
+	copy := *d
+	return &copy
+}
+
+func (d * DiskThrottle) Equal(other *DiskThrottle) bool {
+	if d == nil && other == nil {
+		return true
+	} else if d == nil || other == nil {
+		return false
+	}
+	return d.Major == other.Major &&
+        d.Minor == other.Minor &&
+        d.ReadBps == other.ReadBps &&
+        d.ReadIops == other.ReadIops &&
+        d.WriteBps == other.WriteBps &&
+        d.WriteIops == other.WriteIops
+}
+
+type DiskThrottles []*DiskThrottle
+
+func (d *DiskThrottles) Copy() DiskThrottles {
+	if d == nil {
+		return nil
+	}
+	copy := make(DiskThrottles, len(*d))
+	for i, v := range *d {
+		copy[i] = v.Copy()
+	}
+	return copy
+}
+
+func (d *DiskThrottles) Equal(other *DiskThrottles) bool {
+	if other == nil {
+		return false
+	}
+	if len(*d) != len(*other) {
+		return false
+	}
+	for i := range *d {
+		if !(*d)[i].Equal((*other)[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // AllocatedMemoryResources captures the allocated memory resources.

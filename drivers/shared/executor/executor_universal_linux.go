@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/hashicorp/go-set/v3"
@@ -213,6 +214,39 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) er
 		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
 	}
 
+	// write disk Throttles
+	for _, throttle := range command.Resources.NomadResources.DiskThrottles {
+		if throttle.Major == 0 && throttle.Minor == 0 {
+			continue
+		}
+		// write the throttle limits
+		if command.Resources.NomadResources != nil && len(command.Resources.NomadResources.DiskThrottles) > 0 {
+			ed = cgroupslib.OpenFromFreezerCG1(cgroup, "blkio")
+			for _, throttle := range command.Resources.NomadResources.DiskThrottles {
+				if throttle.Major == 0 && throttle.Minor == 0 {
+					continue
+				}
+
+				throttleRules := []struct {
+					Filename string
+					Value    uint64
+				}{
+					{"blkio.throttle.read_bps_device", throttle.ReadBps},
+					{"blkio.throttle.write_bps_device", throttle.WriteBps},
+					{"blkio.throttle.read_iops_device", throttle.ReadIops},
+					{"blkio.throttle.write_iops_device", throttle.WriteIops},
+				}
+
+				for _, rule := range throttleRules {
+					if rule.Value > 0 {
+						line := fmt.Sprintf("%d:%d %d", throttle.Major, throttle.Minor, rule.Value)
+						_ = ed.Write(rule.Filename, line)
+					}
+				}
+			}
+		}
+	}
+
 	// write cpu shares
 	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
 	ed = cgroupslib.OpenFromFreezerCG1(cgroup, "cpu")
@@ -253,6 +287,41 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 		ed := cgroupslib.OpenPath(cgroup)
 		value := int64(*swappiness)
 		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
+	}
+
+	// write disk Throttles
+	var throttle_lines []string
+	for _, throttle := range command.Resources.NomadResources.DiskThrottles {
+		if throttle.Major == 0 && throttle.Minor == 0 {
+			continue
+		}
+
+		throttleRules := []struct {
+			Name  string
+			Value uint64
+		}{
+			{"rbps", throttle.ReadBps},
+			{"wbps", throttle.WriteBps},
+			{"riops", throttle.ReadIops},
+			{"wiops", throttle.WriteIops},
+		}
+
+		var rules []string
+		for _, rule := range throttleRules {
+			if rule.Value > 0 {
+				rules = append(rules, fmt.Sprintf("%s=%d", rule.Name, rule.Value))
+			}
+		}
+
+		if len(rules) > 0 {
+			deviceKey := fmt.Sprintf("%d:%d", throttle.Major, throttle.Minor)
+			throttle_lines = append(throttle_lines, fmt.Sprintf("%s %s", deviceKey, strings.Join(rules, " ")))
+		}
+	}
+
+	if len(throttle_lines) > 0 {
+		content := strings.Join(throttle_lines, "\n")
+		_ = ed.Write("io.max", content)
 	}
 
 	// write cpu weight cgroup file

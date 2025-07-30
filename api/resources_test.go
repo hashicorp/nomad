@@ -46,6 +46,46 @@ func TestResources_Canonicalize(t *testing.T) {
 				MemoryMB: pointerOf(1024),
 			},
 		},
+		{
+			name: "disk throttles",
+			input: &Resources{
+				CPU:      pointerOf(500),
+				MemoryMB: pointerOf(1024),
+				DiskThrottles: []*DiskThrottle{
+					{
+						Major:    pointerOf(8),
+						Minor:    pointerOf(0),
+						ReadBps:  pointerOf(uint64(1000)),
+						WriteBps: pointerOf(uint64(1000)),
+					},
+					{
+						Major:    pointerOf(8),
+						Minor:    pointerOf(1),
+						ReadBps:  pointerOf(uint64(1000)),
+						WriteBps: pointerOf(uint64(1000)),
+					},
+				},
+			},
+			expected: &Resources{
+				CPU:      pointerOf(500),
+				Cores:    pointerOf(0),
+				MemoryMB: pointerOf(1024),
+				DiskThrottles: []*DiskThrottle{
+					{
+						Major:    pointerOf(8),
+						Minor:    pointerOf(0),
+						ReadBps:  pointerOf(uint64(1000)),
+						WriteBps: pointerOf(uint64(1000)),
+					},
+					{
+						Major:    pointerOf(8),
+						Minor:    pointerOf(1),
+						ReadBps:  pointerOf(uint64(1000)),
+						WriteBps: pointerOf(uint64(1000)),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

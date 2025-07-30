@@ -1601,6 +1601,10 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.MemoryMaxMB = *in.MemoryMaxMB
 	}
 
+	if in.DiskThrottles != nil {
+		out.DiskThrottles= ApiDiskThrottleToStructs(in.DiskThrottles)
+	}
+
 	// COMPAT(0.10): Only being used to issue warnings
 	if in.IOPS != nil {
 		out.IOPS = *in.IOPS
@@ -1632,6 +1636,44 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.SecretsMB = *in.SecretsMB
 	}
 
+	return out
+}
+
+
+func ApiDiskThrottleToStructs(in []*api.DiskThrottle) []*structs.DiskThrottle {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]*structs.DiskThrottle, len(in))
+	for i, d := range in {
+		out[i] = convertDiskThrottle(d)
+	}
+	return out
+}
+func convertDiskThrottle(in *api.DiskThrottle) *structs.DiskThrottle {
+	if in == nil {
+		return nil
+	}
+	out := &structs.DiskThrottle{}
+	if in.Major != nil {
+		out.Major = int64(*in.Major)
+	}
+	if in.Minor != nil {
+		out.Minor = int64(*in.Minor)
+	}
+	if in.ReadBps != nil {
+		out.ReadBps = *in.ReadBps
+	}
+	if in.ReadIops != nil {
+		out.ReadIops = *in.ReadIops
+	}
+	if in.WriteBps != nil {
+		out.WriteBps = *in.WriteBps
+	}
+	if in.WriteIops != nil {
+		out.WriteIops = *in.WriteIops
+	}
 	return out
 }
 

@@ -124,6 +124,20 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 			r.NomadResources.Memory.MemoryMaxMB = pb.AllocatedResources.Memory.MemoryMaxMb
 		}
 
+		if pb.AllocatedResources.DiskThrottles != nil {
+			r.NomadResources.DiskThrottles = make(structs.DiskThrottles, len(pb.AllocatedResources.DiskThrottles))
+			for i, dt := range pb.AllocatedResources.DiskThrottles {
+				r.NomadResources.DiskThrottles[i] = &structs.DiskThrottle{
+					Major:     dt.Major,
+					Minor:     dt.Minor,
+					ReadBps:   dt.ReadBps,
+					ReadIops:  dt.ReadIops,
+					WriteBps:  dt.WriteBps,
+					WriteIops: dt.WriteIops, 
+				}
+			}
+		}
+
 		for _, network := range pb.AllocatedResources.Networks {
 			var n structs.NetworkResource
 			n.Device = network.Device
@@ -190,9 +204,21 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 				MemoryMb:    r.NomadResources.Memory.MemoryMB,
 				MemoryMaxMb: r.NomadResources.Memory.MemoryMaxMB,
 			},
+			DiskThrottles: make([]*proto.DiskThrottle, len(r.NomadResources.DiskThrottles)),
 			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
 
+		for i, dt := range r.NomadResources.DiskThrottles {
+			pb.AllocatedResources.DiskThrottles[i] = &proto.DiskThrottle{
+				Major:     dt.Major,
+				Minor:     dt.Minor,
+				ReadBps:   dt.ReadBps,
+				ReadIops:  dt.ReadIops,
+				WriteBps:  dt.WriteBps,
+				WriteIops: dt.WriteIops,
+			}
+		}
+		
 		for i, network := range r.NomadResources.Networks {
 			var n proto.NetworkResource
 			n.Device = network.Device
