@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -70,7 +68,6 @@ func (s *StreamFrame) Copy() *StreamFrame {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
-	logger hclog.Logger
 	// out is where frames are sent and is closed when no more frames will
 	// be sent.
 	out chan<- *StreamFrame
@@ -113,9 +110,7 @@ func NewStreamFramer(out chan<- *StreamFrame,
 	// Create the heartbeat and flush ticker
 	heartbeat := time.NewTicker(heartbeatRate)
 	flusher := time.NewTicker(batchWindow)
-	log := hclog.Default().Named("StreamFramer")
 	return &StreamFramer{
-		logger:     log,
 		out:        out,
 		frameSize:  frameSize,
 		heartbeat:  heartbeat,
@@ -187,11 +182,9 @@ OUTER:
 		case <-s.shutdownCh:
 			break OUTER
 		case <-s.flusher.C:
-
 			// Skip if there is nothing to flush
 			s.l.Lock()
 			if s.f.IsCleared() {
-
 				s.l.Unlock()
 				continue
 			}
@@ -212,7 +205,6 @@ OUTER:
 	// Send() may have left a partial frame. Send it now.
 	if !s.f.IsCleared() {
 		s.f.Data = s.readData()
-
 		// Only send if there's actually data left
 		if len(s.f.Data) > 0 {
 			// Cannot select on shutdownCh as it's already closed
@@ -228,7 +220,6 @@ func (s *StreamFramer) send() {
 	// Ensure s.out has not already been closd by Destroy
 	select {
 	case <-s.exitCh:
-
 		return
 	default:
 	}
