@@ -411,57 +411,6 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
 }
 
-func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
-	var updates []*structs.DeploymentStatusUpdate
-
-	/*
-		if a.jobState.DeploymentCurrent != nil {
-			// Mark the deployment as complete if possible
-			if deploymentComplete {
-				if a.jobState.Job.IsMultiregion() {
-					// the unblocking/successful states come after blocked, so we
-					// need to make sure we don't revert those states
-					if a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusUnblocking &&
-						a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusSuccessful {
-						updates = append(updates, &structs.DeploymentStatusUpdate{
-							DeploymentID:      a.jobState.DeploymentCurrent.ID,
-							Status:            structs.DeploymentStatusBlocked,
-							StatusDescription: structs.DeploymentStatusDescriptionBlocked,
-						})
-					}
-				} else {
-					updates = append(updates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      a.jobState.DeploymentCurrent.ID,
-						Status:            structs.DeploymentStatusSuccessful,
-						StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
-					})
-				}
-			}
-
-			// Mark the deployment as pending since its state is now computed.
-			if a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
-				updates = append(updates, &structs.DeploymentStatusUpdate{
-					DeploymentID:      a.jobState.DeploymentCurrent.ID,
-					Status:            structs.DeploymentStatusPending,
-					StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
-				})
-			}
-		}
-	*/
-
-	// Set the description of a created deployment
-	if createdDeployment != nil {
-		if createdDeployment.RequiresPromotion() {
-			if createdDeployment.HasAutoPromote() {
-				createdDeployment.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
-			} else {
-				createdDeployment.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-			}
-		}
-	}
-	return updates
-}
-
 // materializeSystemTaskGroups is used to materialize all the task groups
 // a system or sysbatch job requires.
 func materializeSystemTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
