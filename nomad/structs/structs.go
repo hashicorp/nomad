@@ -3925,11 +3925,11 @@ func (a *AllocatedResources) Canonicalize() {
 
 // AllocatedTaskResources are the set of resources allocated to a task.
 type AllocatedTaskResources struct {
-	Cpu      AllocatedCpuResources
-	Memory   AllocatedMemoryResources
+	Cpu           AllocatedCpuResources
+	Memory        AllocatedMemoryResources
 	DiskThrottles DiskThrottles
-	Networks Networks
-	Devices  []*AllocatedDeviceResource
+	Networks      Networks
+	Devices       []*AllocatedDeviceResource
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -4182,18 +4182,18 @@ func (d *DiskThrottle) Copy() *DiskThrottle {
 	return &copy
 }
 
-func (d * DiskThrottle) Equal(other *DiskThrottle) bool {
+func (d *DiskThrottle) Equal(other *DiskThrottle) bool {
 	if d == nil && other == nil {
 		return true
 	} else if d == nil || other == nil {
 		return false
 	}
 	return d.Major == other.Major &&
-        d.Minor == other.Minor &&
-        d.ReadBps == other.ReadBps &&
-        d.ReadIops == other.ReadIops &&
-        d.WriteBps == other.WriteBps &&
-        d.WriteIops == other.WriteIops
+		d.Minor == other.Minor &&
+		d.ReadBps == other.ReadBps &&
+		d.ReadIops == other.ReadIops &&
+		d.WriteBps == other.WriteBps &&
+		d.WriteIops == other.WriteIops
 }
 
 type DiskThrottles []*DiskThrottle

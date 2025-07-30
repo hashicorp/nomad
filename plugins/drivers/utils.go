@@ -133,7 +133,7 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 					ReadBps:   dt.ReadBps,
 					ReadIops:  dt.ReadIops,
 					WriteBps:  dt.WriteBps,
-					WriteIops: dt.WriteIops, 
+					WriteIops: dt.WriteIops,
 				}
 			}
 		}
@@ -205,7 +205,7 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 				MemoryMaxMb: r.NomadResources.Memory.MemoryMaxMB,
 			},
 			DiskThrottles: make([]*proto.DiskThrottle, len(r.NomadResources.DiskThrottles)),
-			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
+			Networks:      make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
 
 		for i, dt := range r.NomadResources.DiskThrottles {
@@ -218,7 +218,7 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 				WriteIops: dt.WriteIops,
 			}
 		}
-		
+
 		for i, network := range r.NomadResources.Networks {
 			var n proto.NetworkResource
 			n.Device = network.Device

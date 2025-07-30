@@ -1602,7 +1602,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	}
 
 	if in.DiskThrottles != nil {
-		out.DiskThrottles= ApiDiskThrottleToStructs(in.DiskThrottles)
+		out.DiskThrottles = ApiDiskThrottleToStructs(in.DiskThrottles)
 	}
 
 	// COMPAT(0.10): Only being used to issue warnings
@@ -1638,7 +1638,6 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 
 	return out
 }
-
 
 func ApiDiskThrottleToStructs(in []*api.DiskThrottle) []*structs.DiskThrottle {
 	if len(in) == 0 {
