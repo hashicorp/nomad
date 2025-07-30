@@ -81,6 +81,18 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Read the self token to check its type
+	token, _, err := client.ACLTokens().Self(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error fetching token: %s", err))
+		return 1
+	}
+
+	if token.Type == "management" {
+		c.Ui.Output("This is a management token with global access. No individual policies are assigned.")
+		return 0
+	}
+
 	policies, _, err := client.ACLPolicies().Self(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error fetching WI policies: %s", err))
