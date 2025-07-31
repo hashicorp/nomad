@@ -5,6 +5,7 @@ package reconciler
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -113,9 +114,9 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
-	for _, exist := range liveAllocs {
+	for _, alloc := range liveAllocs {
 		// Index the existing node
-		name := exist.Name
+		name := alloc.Name
 		existing[name] = struct{}{}
 
 		// Check for the definition in the required set
@@ -126,12 +127,12 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			result.Stop = append(result.Stop, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
 
-		supportsDisconnectedClients := exist.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
+		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
 		reconnect := false
 		expired := false
@@ -139,20 +140,20 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
 		if supportsDisconnectedClients &&
-			(exist.ClientStatus == structs.AllocClientStatusUnknown ||
-				exist.ClientStatus == structs.AllocClientStatusRunning) {
-			reconnect = exist.NeedsToReconnect()
+			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
+				alloc.ClientStatus == structs.AllocClientStatusRunning) {
+			reconnect = alloc.NeedsToReconnect()
 			if reconnect {
-				expired = exist.Expired(time.Now())
+				expired = alloc.Expired(time.Now())
 			}
 		}
 
 		// If we have been marked for migration and aren't terminal, migrate
-		if exist.DesiredTransition.ShouldMigrate() {
+		if alloc.DesiredTransition.ShouldMigrate() {
 			result.Migrate = append(result.Migrate, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
@@ -162,25 +163,25 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			result.Lost = append(result.Lost, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
 
 		// Ignore unknown allocs that we want to reconnect eventually.
 		if supportsDisconnectedClients &&
-			exist.ClientStatus == structs.AllocClientStatusUnknown &&
-			exist.DesiredStatus == structs.AllocDesiredStatusRun {
+			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
+			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 			result.Ignore = append(result.Ignore, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
 
 		// note: the node can be both tainted and nil
-		node, nodeIsTainted := taintedNodes[exist.NodeID]
+		node, nodeIsTainted := taintedNodes[alloc.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
 		if supportsDisconnectedClients &&
@@ -189,8 +190,8 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 
 			// Record the new ClientStatus to indicate to future evals that the
 			// alloc has already reconnected.
-			reconnecting := exist.Copy()
-			reconnecting.AppendState(structs.AllocStateFieldClientStatus, exist.ClientStatus)
+			reconnecting := alloc.Copy()
+			reconnecting.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
 			result.Reconnecting = append(result.Reconnecting, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -207,7 +208,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			// lost as the work was already successfully finished. However for
 			// service/system jobs, tasks should never complete. The check of
 			// batch type, defends against client bugs.
-			if exist.Job.Type == structs.JobTypeSysBatch && exist.RanSuccessfully() {
+			if alloc.Job.Type == structs.JobTypeSysBatch && alloc.RanSuccessfully() {
 				goto IGNORE
 			}
 
@@ -215,9 +216,9 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			if node != nil &&
 				supportsDisconnectedClients &&
 				node.Status == structs.NodeStatusDisconnected &&
-				exist.ClientStatus == structs.AllocClientStatusRunning {
+				alloc.ClientStatus == structs.AllocClientStatusRunning {
 
-				disconnect := exist.Copy()
+				disconnect := alloc.Copy()
 				disconnect.ClientStatus = structs.AllocClientStatusUnknown
 				disconnect.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
 				disconnect.ClientDescription = sstructs.StatusAllocUnknown
@@ -233,7 +234,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				result.Lost = append(result.Lost, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,
-					Alloc:     exist,
+					Alloc:     alloc,
 				})
 			} else {
 				goto IGNORE
@@ -254,17 +255,17 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			result.Stop = append(result.Stop, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
 
 		// If the definition is updated we need to update
-		if job.JobModifyIndex != exist.Job.JobModifyIndex {
+		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
 			result.Update = append(result.Update, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
-				Alloc:     exist,
+				Alloc:     alloc,
 			})
 			continue
 		}
@@ -274,7 +275,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 		result.Ignore = append(result.Ignore, AllocTuple{
 			Name:      name,
 			TaskGroup: tg,
-			Alloc:     exist,
+			Alloc:     alloc,
 		})
 	}
 
@@ -352,37 +353,44 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				}
 				dstate.DesiredTotal += len(result.Place)
 			}
-			nr.createDeployment(job, tg, dstate, len(result.Update), len(result.Place), allocTuple.Alloc)
+
+			if dstate == nil {
+				dstate = new(structs.DeploymentState)
+			}
+
+			// in this case there's nothing to do
+			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
+				continue
+			}
+
+			// allocs that are in the Place, Update and Migrate buckets are the ones we
+			// consider for deployment
+			allocsForDeployment := []*structs.Allocation{}
+			for _, r := range slices.Concat(result.Place, result.Update, result.Migrate) {
+				allocsForDeployment = append(allocsForDeployment, r.Alloc)
+			}
+			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
 		}
 	}
+
 	return result
 }
 
 func (nr *NodeReconciler) createDeployment(job *structs.Job,
-	tg *structs.TaskGroup, dstate *structs.DeploymentState, updates, place int,
-	alloc *structs.Allocation) {
-	// initialize the deployment
-	existingDeployment := false
-
-	if nr.DeploymentCurrent != nil {
-		dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-	}
+	tg *structs.TaskGroup, dstate *structs.DeploymentState, updates int,
+	allocs []*structs.Allocation) {
 
 	if dstate == nil {
 		dstate = &structs.DeploymentState{}
 	}
 
-	// check if perhaps there's nothing more to do
-	if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
-		return
-	}
-
 	updatingSpec := updates != 0
 
 	hadRunning := false
-	if alloc != nil && alloc.Job != nil {
+	for _, alloc := range allocs {
 		if alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
 			hadRunning = true
+			break
 		}
 	}
 

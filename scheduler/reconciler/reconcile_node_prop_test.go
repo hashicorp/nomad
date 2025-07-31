@@ -101,7 +101,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		n := NewNodeReconciler(nil)
+		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
@@ -113,7 +113,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
-		n := NewNodeReconciler(nil)
+		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
@@ -132,6 +132,7 @@ type nodeReconcilerInput struct {
 	taintedNodes                      map[string]*structs.Node
 	allocs                            []*structs.Allocation
 	terminal                          structs.TerminalByNodeByName
+	deployment                        *structs.Deployment
 	serverSupportsDisconnectedClients bool
 }
 
@@ -194,12 +195,15 @@ func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeR
 			}
 		}
 
+		deployment := genDeployment(idg, job, live).Draw(t, "deployment")
+
 		return &nodeReconcilerInput{
 			job:                               job,
 			readyNodes:                        readyNodes,
 			notReadyNodes:                     notReadyNodes,
 			taintedNodes:                      taintedNodes,
 			allocs:                            live,
+			deployment:                        deployment,
 			serverSupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected"),
 		}
 	})

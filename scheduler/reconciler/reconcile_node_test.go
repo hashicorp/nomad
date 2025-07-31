@@ -670,34 +670,35 @@ func TestNodeDeployments(t *testing.T) {
 		allocs = append(allocs, a)
 	}
 
-	deploymentID := uuid.Generate()
+	newJobWithNoAllocs := job.Copy()
+	newJobWithNoAllocs.Name = "new-job"
+	newJobWithNoAllocs.Version = 100
+	newJobWithNoAllocs.CreateIndex = 1000
 
-	// Have an existing successful deployment for this
 	testCases := []struct {
-		name                         string
-		job                          *structs.Job
-		existingDeployment           *structs.Deployment
-		expectedDeploymentStatus     string
-		expectedStatusUpdateContains []string
-		sameDeployment               bool
+		name                                  string
+		job                                   *structs.Job
+		existingDeployment                    *structs.Deployment
+		newDeployment                         bool
+		expectedNewDeploymentStatus           string
+		expectedDeploymenStatusUpdateContains string
 	}{
 		{
-			"existing successful deployment should return a running deployment",
+			"existing successful deployment for the current job version should not return a deployment",
 			job,
 			&structs.Deployment{
 				JobCreateIndex: job.CreateIndex,
 				JobVersion:     job.Version,
 				Status:         structs.DeploymentStatusSuccessful,
 			},
-			structs.DeploymentStatusRunning,
-			nil,
 			false,
+			"",
+			"",
 		},
 		{
 			"existing running deployment should remain untouched",
 			job,
 			&structs.Deployment{
-				ID:                deploymentID,
 				JobID:             job.ID,
 				JobCreateIndex:    job.CreateIndex,
 				JobVersion:        job.Version,
@@ -713,9 +714,9 @@ func TestNodeDeployments(t *testing.T) {
 					},
 				},
 			},
-			structs.DeploymentStatusRunning,
-			nil,
-			true,
+			false,
+			"",
+			"",
 		},
 		{
 			"existing running deployment for a stopped job should be cancelled",
@@ -725,17 +726,17 @@ func TestNodeDeployments(t *testing.T) {
 				JobVersion:     job.Version,
 				Status:         structs.DeploymentStatusRunning,
 			},
-			structs.DeploymentStatusRunning,
-			[]string{structs.DeploymentStatusDescriptionStoppedJob},
 			false,
+			structs.DeploymentStatusCancelled,
+			structs.DeploymentStatusDescriptionStoppedJob,
 		},
 		{
-			"no existing deployment for a job that needs one should result in a new deployment",
-			job,
+			"no existing deployment for a new job that needs one should result in a new deployment",
+			newJobWithNoAllocs,
 			nil,
+			true,
 			structs.DeploymentStatusRunning,
-			[]string{structs.DeploymentStatusDescriptionRunning},
-			false,
+			structs.DeploymentStatusDescriptionRunning,
 		},
 	}
 
@@ -743,11 +744,12 @@ func TestNodeDeployments(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(tc.existingDeployment)
 			nr.Compute(tc.job, nodes, nil, nil, allocs, nil, true)
-			if tc.sameDeployment {
-				must.Eq(t, nr.DeploymentCurrent.ID, tc.existingDeployment.ID)
+			if tc.newDeployment {
+				must.NotNil(t, nr.DeploymentCurrent, must.Sprintf("expected a non-nil deployment"))
+				must.Eq(t, nr.DeploymentCurrent.Status, tc.expectedNewDeploymentStatus)
 			}
-			for _, s := range tc.expectedStatusUpdateContains {
-				must.SliceContainsFunc(t, nr.DeploymentUpdates, s,
+			if tc.expectedDeploymenStatusUpdateContains != "" {
+				must.SliceContainsFunc(t, nr.DeploymentUpdates, tc.expectedDeploymenStatusUpdateContains,
 					func(a *structs.DeploymentStatusUpdate, status string) bool {
 						return a.StatusDescription == status
 					},
