@@ -216,7 +216,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		return
 	}
 
-	nomadLogPath := a.c.config.LogFile
+	nomadLogPath := a.c.GetConfig().LogFile
 	if args.OnDisk && nomadLogPath == "" {
 		handleStreamResultError(errors.New("No nomad log file defined"), pointer.Of(int64(400)), encoder)
 	}

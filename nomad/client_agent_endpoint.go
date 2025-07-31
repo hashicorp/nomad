@@ -63,7 +63,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 		return fmt.Errorf("missing target RPC")
 	}
 
-	if region != a.srv.config.Region {
+	if region != a.srv.Region() {
 		// Mark that we are forwarding
 		args.SetForwarded()
 		return a.srv.forwardRegion(region, "Agent.Profile", args, reply)
@@ -86,7 +86,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// This server is the target, so now we can check for AllowAgentDebug
-	if !aclObj.AllowAgentDebug(a.srv.config.EnableDebug) {
+	if !aclObj.AllowAgentDebug(a.srv.GetConfig().EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -177,7 +177,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		handleStreamResultError(fmt.Errorf("missing target region"), pointer.Of(int64(400)), encoder)
 		return
 	}
-	if region != a.srv.config.Region {
+	if region != a.srv.Region() {
 		// Mark that we are forwarding
 		args.SetForwarded()
 	}
@@ -296,7 +296,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		handleStreamResultError(fmt.Errorf("missing target region"), pointer.Of(int64(400)), encoder)
 		return
 	}
-	if region != a.srv.config.Region {
+	if region != a.srv.Region() {
 		// Mark that we are forwarding
 		args.SetForwarded()
 	}
@@ -316,7 +316,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 	}
 
-	nomadLogPath := a.srv.config.LogFile
+	nomadLogPath := a.srv.GetConfig().LogFile
 	if args.OnDisk && nomadLogPath == "" {
 		handleStreamResultError(errors.New("No nomad log file defined"), pointer.Of(int64(400)), encoder)
 	}
@@ -523,7 +523,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 		return fmt.Errorf("missing target RPC")
 	}
 
-	if region != a.srv.config.Region {
+	if region != a.srv.Region() {
 		// Mark that we are forwarding
 		args.SetForwarded()
 		return a.srv.forwardRegion(region, "Agent.Host", args, reply)
