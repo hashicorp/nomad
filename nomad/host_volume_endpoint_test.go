@@ -38,6 +38,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	})
 	t.Cleanup(cleanupSrv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.config.Region)
 	store := srv.fsm.State()
 
 	c1, node1 := newMockHostVolumeClient(t, srv, "prod")
@@ -434,6 +435,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	})
 	t.Cleanup(cleanupSrv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.config.Region)
 	store := srv.fsm.State()
 	codec := rpcClient(t, srv)
 
@@ -809,6 +811,7 @@ func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	srv, cleanup := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.config.Region)
 
 	c, node := newMockHostVolumeClient(t, srv, "default")
 

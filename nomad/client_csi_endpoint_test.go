@@ -474,6 +474,7 @@ func setupLocal(t *testing.T) rpc.ClientCodec {
 	t.Cleanup(cleanupS1)
 
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
 	codec := rpcClient(t, s1)
 
 	mockCSI := newMockClientCSI()

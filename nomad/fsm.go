@@ -498,7 +498,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(msgType, index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeStatus(msgType, index, &req); err != nil {
 		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}
@@ -584,6 +584,15 @@ func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, 
 	var req structs.NodePoolUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Nomad 1.11 added the NodeIdentityTTL field to NodePool. When the
+	// cluster is upgraded, we need to ensure that the field is set with
+	// its default value. The hash also needs to be recalculated since it would
+	// have changed.
+	for _, pool := range req.NodePools {
+		pool.Canonicalize()
+		_ = pool.SetHash()
 	}
 
 	if err := n.state.UpsertNodePools(msgType, index, req.NodePools); err != nil {
@@ -1899,6 +1908,13 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(pool); err != nil {
 				return err
 			}
+
+			// Nomad 1.11 added the NodeIdentityTTL field to NodePool. When the
+			// cluster is upgraded, we need to ensure that the field is set with
+			// its default value. The hash also needs to be recalculated since
+			// it would have changed.
+			pool.Canonicalize()
+			_ = pool.SetHash()
 
 			// Perform the restoration.
 			if err := restore.NodePoolRestore(pool); err != nil {

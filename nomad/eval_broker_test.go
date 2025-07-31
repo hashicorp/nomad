@@ -1535,6 +1535,7 @@ func TestEvalBroker_IntegrationTest(t *testing.T) {
 
 	defer cleanupS1()
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 
 	codec := rpcClient(t, srv)
 	store := srv.fsm.State()

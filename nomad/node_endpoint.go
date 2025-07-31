@@ -4,12 +4,14 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
@@ -91,9 +93,10 @@ func NewNodeEndpoint(srv *Server, ctx *RPCContext) *Node {
 
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
-	// note that we trust-on-first use and the identity will be anonymous for
-	// that initial request; we lean on mTLS for handling that safely
-	authErr := n.srv.Authenticate(n.ctx, args)
+
+	// The node register RPC is responsible for generating node identities, so
+	// we use the custom authentication method shared with UpdateStatus.
+	authErr := n.srv.AuthenticateNodeIdentityGenerator(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
@@ -108,7 +111,15 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+
+	// The authentication error can be because the identity is expired. If we
+	// stopped the handler execution here, the node would never be able to
+	// register after being disconnected.
+	//
+	// Further within the RPC we check the supplied SecretID against the stored
+	// value in state. This acts as a secondary check and can be seen as a
+	// refresh token, in the event the identity is expired.
+	if authErr != nil && !errors.Is(authErr, jwt.ErrExpired) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -161,8 +172,13 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		args.Node.NodePool = structs.NodePoolDefault
 	}
 
+	// The current time is used at a number of places in the registration
+	// workflow. Generating it once avoids multiple calls to time.Now() and also
+	// means the same time is used across all checks and sets.
+	timeNow := time.Now()
+
 	// Set the timestamp when the node is registered
-	args.Node.StatusUpdatedAt = time.Now().Unix()
+	args.Node.StatusUpdatedAt = timeNow.Unix()
 
 	// Compute the node class
 	if err := args.Node.ComputeClass(); err != nil {
@@ -214,6 +230,42 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if n.srv.Region() == n.srv.config.AuthoritativeRegion {
 		args.CreateNodePool = true
 	}
+
+	// Track the TTL that will be used for the node identity.
+	var identityTTL time.Duration
+
+	// The identity TTL is determined by the node pool the node is registered
+	// in. In the event the node registration is triggering creation of a new
+	// node pool, it will be created with the default TTL, so we use this for
+	// the identity.
+	nodePool, err := snap.NodePoolByName(ws, args.Node.NodePool)
+	if err != nil {
+		return fmt.Errorf("failed to query node pool: %v", err)
+	}
+	if nodePool == nil {
+		identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+	} else {
+		identityTTL = nodePool.NodeIdentityTTL
+	}
+
+	// Check if we need to generate a node identity. This must happen before we
+	// send the Raft message, as the signing key ID is set on the node if we
+	// generate one.
+	if args.ShouldGenerateNodeIdentity(authErr, timeNow.UTC(), identityTTL) {
+
+		claims := structs.GenerateNodeIdentityClaims(args.Node, n.srv.Region(), identityTTL)
+
+		signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+		if err != nil {
+			return fmt.Errorf("failed to sign node identity claims: %v", err)
+		}
+
+		reply.SignedIdentity = &signedJWT
+		args.Node.IdentitySigningKeyID = signingKeyID
+	} else if originalNode != nil {
+		args.Node.IdentitySigningKeyID = originalNode.IdentitySigningKeyID
+	}
+
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {
 		n.logger.Error("register failed", "error", err)
@@ -509,9 +561,13 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 //	                                             │                │
 //	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
-	// UpdateStatus receives requests from client and servers that mark failed
-	// heartbeats, so we can't use AuthenticateClientOnly
-	authErr := n.srv.Authenticate(n.ctx, args)
+
+	// The node update status RPC is responsible for generating node identities,
+	// so we use the custom authentication method shared with Register.
+	//
+	// Note; UpdateStatus receives requests from clients and servers that mark
+	// failed heartbeats.
+	authErr := n.srv.AuthenticateNodeIdentityGenerator(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
@@ -573,14 +629,62 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// to track SecretIDs.
 
 	// Update the timestamp of when the node status was updated
-	args.UpdatedAt = time.Now().Unix()
+	timeNow := time.Now()
+	args.UpdatedAt = timeNow.Unix()
+
+	// Track the TTL that will be used for the node identity.
+	var identityTTL time.Duration
+
+	// The identity TTL is determined by the node pool the node is registered
+	// in. The pool should already exist, as the node is already registered. If
+	// it does not, we use the default TTL as we have no better value to use.
+	//
+	// Once the node pool is created, the node's identity will have the TTL set
+	// by the node pool on its renewal.
+	nodePool, err := snap.NodePoolByName(ws, node.NodePool)
+	if err != nil {
+		return fmt.Errorf("failed to query node pool: %v", err)
+	}
+	if nodePool == nil {
+		identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+	} else {
+		identityTTL = nodePool.NodeIdentityTTL
+	}
+
+	// Check and generate a node identity if needed.
+	if args.ShouldGenerateNodeIdentity(timeNow.UTC(), identityTTL) {
+
+		claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
+
+		// Sign the claims with the encrypter and conditionally handle the
+		// error. The IdentitySigningErrorTerminal method has a description of
+		// why we do this.
+		signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+		if err != nil {
+			if args.IdentitySigningErrorIsTerminal(timeNow) {
+				return fmt.Errorf("failed to sign node identity claims: %v", err)
+			} else {
+				n.logger.Warn(
+					"failed to sign node identity claims, will retry on next heartbeat",
+					"error", err, "node_id", node.ID)
+			}
+		}
+
+		reply.SignedIdentity = &signedJWT
+		args.IdentitySigningKeyID = signingKeyID
+	} else {
+		// Ensure the IdentitySigningKeyID is cleared if we are not generating a
+		// new identity. This is important to ensure that we do not cause Raft
+		// updates unless we need to.
+		args.IdentitySigningKeyID = ""
+	}
 
 	// Compute next status.
 	switch node.Status {
 	case structs.NodeStatusInit:
 		if args.Status == structs.NodeStatusReady {
-			// Keep node in the initializing status if it has allocations but
-			// they are not updated.
+			// Keep the node in the initializing status if it has allocations,
+			// but they are not updated.
 			allocs, err := snap.AllocsByNodeTerminal(ws, args.NodeID, false)
 			if err != nil {
 				return fmt.Errorf("failed to query node allocs: %v", err)
@@ -592,13 +696,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 				args.Status = structs.NodeStatusInit
 			}
 
-			// Keep node in the initialing status if it's in a node pool that
-			// doesn't exist.
-			pool, err := snap.NodePoolByName(ws, node.NodePool)
-			if err != nil {
-				return fmt.Errorf("failed to query node pool: %v", err)
-			}
-			if pool == nil {
+			// Keep the node in the initialing status if it's in a node pool
+			// that doesn't exist.
+			if nodePool == nil {
 				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 				if !node.HasEvent(NodeWaitingForNodePool) {
@@ -617,7 +717,19 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Commit this update via Raft
 	var index uint64
-	if node.Status != args.Status || args.NodeEvent != nil {
+
+	// Only perform a Raft apply if we really have to, so we avoid unnecessary
+	// cluster traffic and CPU load.
+	//
+	// We must update state if:
+	// - The node informed us of a new status.
+	// - The node informed us of a new event.
+	// - We have generated an identity which has been signed with a different
+	//   key ID compared to the last identity generated for the node.
+	if node.Status != args.Status ||
+		args.NodeEvent != nil ||
+		node.IdentitySigningKeyID != args.IdentitySigningKeyID && args.IdentitySigningKeyID != "" {
+
 		// Attach an event if we are updating the node status to ready when it
 		// is down via a heartbeat
 		if node.Status == structs.NodeStatusDown && args.NodeEvent == nil {

@@ -16,6 +16,7 @@ const (
 	tableIndex = "index"
 
 	TableNamespaces               = "namespaces"
+	TableNodes                    = "nodes"
 	TableNodePools                = "node_pools"
 	TableServiceRegistrations     = "service_registrations"
 	TableVariables                = "variables"
@@ -147,7 +148,7 @@ func indexTableSchema() *memdb.TableSchema {
 // This table is used to store all the client nodes that are registered.
 func nodeTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "nodes",
+		Name: TableNodes,
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is used for node management
 			// and simple direct lookup. ID is required to be
@@ -174,6 +175,14 @@ func nodeTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "NodePool",
+				},
+			},
+			indexSigningKey: {
+				Name:         indexSigningKey,
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "IdentitySigningKeyID",
 				},
 			},
 		},
