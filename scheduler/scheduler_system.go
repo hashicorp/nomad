@@ -157,7 +157,7 @@ func (s *SystemScheduler) process() (bool, error) {
 		// Get any existing deployment
 		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
-			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
+			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
 		}
 	}
 
@@ -276,7 +276,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
-	r := nr.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)

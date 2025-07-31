@@ -102,7 +102,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nil)
-		results := n.Node(nr.job, nr.readyNodes,
+		results := n.Compute(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
@@ -114,7 +114,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nil)
-		results := n.Node(nr.job, nr.readyNodes,
+		results := n.Compute(nr.job, nr.readyNodes,
 			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))

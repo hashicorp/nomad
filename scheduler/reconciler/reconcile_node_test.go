@@ -611,8 +611,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff := nr.Node(job, nodes, nil, tainted, allocs, terminal, true)
-
+	diff := nr.Compute(job, nodes, nil, tainted, allocs, terminal, true)
 	assertDiffCount(t, diffResultCount{
 		update: 1, ignore: 1, migrate: 1, lost: 1, place: 6}, diff)
 
@@ -655,11 +654,6 @@ func TestNodeDeployments(t *testing.T) {
 
 	// Create two alive nodes.
 	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}}
-
-	// The "old" job has a previous modify index
-	oldJob := new(structs.Job)
-	*oldJob = *job
-	oldJob.JobModifyIndex -= 1
 
 	// Stopped job to make sure we handle these correctly
 	stoppedJob := job.Copy()
@@ -748,7 +742,7 @@ func TestNodeDeployments(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(tc.existingDeployment)
-			nr.Node(tc.job, nodes, nil, nil, allocs, nil, true)
+			nr.Compute(tc.job, nodes, nil, nil, allocs, nil, true)
 			if tc.sameDeployment {
 				must.Eq(t, nr.DeploymentCurrent.ID, tc.existingDeployment.ID)
 			}

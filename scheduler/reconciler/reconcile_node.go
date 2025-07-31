@@ -24,9 +24,9 @@ func NewNodeReconciler(deployment *structs.Deployment) *NodeReconciler {
 	}
 }
 
-// Node is like diffSystemAllocsForNode however, the allocations in the
+// Compute is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
-func (nr *NodeReconciler) Node(
+func (nr *NodeReconciler) Compute(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
