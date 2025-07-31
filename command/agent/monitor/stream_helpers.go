@@ -14,10 +14,10 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Stream Helpers
+// StreamReader is used to process fixed length streams for consumers
+// that rely on terminating the stream after hitting an EOF
 type StreamReader struct {
 	sync.Mutex
 	framer *sframer.StreamFramer
@@ -25,16 +25,18 @@ type StreamReader struct {
 	buf    []byte
 }
 
+// NewStreamReader takes a <-chan[]byte and *sframer.StreamFramer and returns
+// a ready to use StreamReader
 func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamReader {
 	return &StreamReader{
 		ch:     ch,
 		framer: framer,
 	}
-
 }
 
+// Read reads stream data into the StreamReader's buffer and copies that
+// data into p
 func (r *StreamReader) Read(p []byte) (n int, err error) {
-
 	select {
 	case data, ok := <-r.ch:
 		if !ok && len(data) == 0 {
@@ -52,6 +54,10 @@ func (r *StreamReader) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
+// StreamFixed streams any fixed length data stream. If limit is greater than
+// zero, the stream will end once that many bytes have been read. If eofCancelCh
+// is triggered while at EOF, read one more frame and cancel the stream on the
+// next EOF. If the connection is broken an EPIPE error is returned.
 func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path string, limit int64,
 	eofCancelCh chan error, cancelAfterFirstEof bool) error {
 	defer r.framer.Flush()
@@ -146,14 +152,18 @@ OUTER:
 	}
 }
 
+// Destroy wraps the underlying framer's Destroy() call
 func (r *StreamReader) Destroy() {
 	r.framer.Destroy()
 }
 
+// Run wraps the underlying framer's Run() call
 func (r *StreamReader) Run() {
 	r.framer.Run()
 }
 
+// StreamEncoder consolidates logic used by monitor RPC handlers to encode and
+// return stream data
 type StreamEncoder struct {
 	buf        *bytes.Buffer
 	conn       io.ReadWriteCloser
@@ -162,8 +172,10 @@ type StreamEncoder struct {
 	plainText  bool
 }
 
-func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder, frameCodec *codec.Encoder,
-	plainText bool) StreamEncoder {
+// NewStreamEncoder takes buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder
+// frameCodec *codec.Encoder,and plainText bool and returns a NewStreamEncoder
+func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec.Encoder,
+	frameCodec *codec.Encoder, plainText bool) StreamEncoder {
 	return StreamEncoder{
 		buf:        buf,
 		conn:       conn,
@@ -173,8 +185,12 @@ func NewStreamEncoder(buf *bytes.Buffer, conn io.ReadWriteCloser, encoder *codec
 	}
 }
 
-func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame, errCh chan error, ctx context.Context,
-	framer *sframer.StreamFramer, eofCancel bool) (err error) {
+// EncodeStream reads and encodes data from a chan *sframer.Streamframe until the
+// channel is closed. If eofCancel is true,EncodeStream continues to read from the closed
+// channel until the underlying framer reports it has flushed it's final frame
+func (s *StreamEncoder) EncodeStream(frames chan *sframer.StreamFrame,
+	errCh chan error, ctx context.Context, framer *sframer.StreamFramer,
+	eofCancel bool) (err error) {
 	var streamErr error
 	localFlush := false
 OUTER:
