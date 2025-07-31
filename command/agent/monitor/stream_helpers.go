@@ -17,20 +17,23 @@ import (
 )
 
 // StreamReader is used to process fixed length streams for consumers
-// that rely on terminating the stream after hitting an EOF
+// that rely on terminating the stream after hitting an EOF. The lock
+// protects the buffer during reads
 type StreamReader struct {
 	sync.Mutex
-	framer *sframer.StreamFramer
-	ch     <-chan []byte
-	buf    []byte
+	framer    *sframer.StreamFramer
+	ch        <-chan []byte
+	buf       []byte
+	frameSize int64
 }
 
 // NewStreamReader takes a <-chan[]byte and *sframer.StreamFramer and returns
-// a ready to use StreamReader
-func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer) *StreamReader {
+// a ready to use StreamReader that will allocate its buffer on first read
+func NewStreamReader(ch <-chan []byte, framer *sframer.StreamFramer, frameSize int64) *StreamReader {
 	return &StreamReader{
-		ch:     ch,
-		framer: framer,
+		ch:        ch,
+		framer:    framer,
+		frameSize: frameSize,
 	}
 }
 
@@ -84,7 +87,7 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 		return err
 	}
 	// streamFrameSize is the maximum number of bytes to send in a single frame
-	streamFrameSize := int64(512)
+	streamFrameSize := r.frameSize
 
 	bufSize := streamFrameSize
 	if limit > 0 && limit < streamFrameSize {

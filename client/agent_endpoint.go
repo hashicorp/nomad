@@ -236,9 +236,10 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
 	var buf bytes.Buffer
+	frameSize := 1024
 	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
 
-	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
+	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, frameSize)
 	framer.Run()
 	defer framer.Destroy()
 
@@ -264,7 +265,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	eofCancel := !opts.Follow
 
 	// receive logs and build frames
-	streamReader := monitor.NewStreamReader(streamCh, framer)
+	streamReader := monitor.NewStreamReader(streamCh, framer, int64(frameSize))
 	go func() {
 		defer framer.Destroy()
 		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, eofCancelCh, eofCancel); err != nil {

@@ -91,6 +91,7 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 			wg.Wait()
 
 			frames := make(chan *sframer.StreamFrame, 32)
+			frameSize := 1024
 			errCh := make(chan error, 1)
 			framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, frameSize)
 			streamReader := NewStreamReader(streamMsg, framer, int64(frameSize))
