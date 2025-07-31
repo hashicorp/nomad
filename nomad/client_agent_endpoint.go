@@ -316,6 +316,10 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		}
 	}
 
+	nomadLogPath := a.srv.config.LogFile
+	if args.OnDisk && nomadLogPath == "" {
+		handleStreamResultError(errors.New("No nomad log file defined"), pointer.Of(int64(400)), encoder)
+	}
 	// NodeID was empty, ServerID was equal to this server,  monitor this server
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -323,7 +327,7 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		Logger:       a.srv.logger,
 		LogsSince:    args.LogsSince,
 		ServiceName:  args.ServiceName,
-		NomadLogPath: args.NomadLogPath,
+		NomadLogPath: nomadLogPath,
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
 		Context:      ctx,

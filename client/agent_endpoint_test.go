@@ -474,6 +474,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+		c.LogFile = testFilePath
 	})
 
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
@@ -482,36 +483,31 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
-		name         string
-		expected     string
-		nomadLogPath string
-		serviceName  string
-		token        string
-		onDisk       bool
-		expectErr    bool
+		name        string
+		expected    string
+		serviceName string
+		token       string
+		onDisk      bool
+		expectErr   bool
 	}{
 		{
-			name:         "happy_path_golden_file",
-			onDisk:       true,
-			nomadLogPath: testFilePath,
-			expected:     string(testFileContents),
-			token:        root.SecretID,
+			name:     "happy_path_golden_file",
+			onDisk:   true,
+			expected: string(testFileContents),
+			token:    root.SecretID,
 		},
 		{
-			name:         "token_error",
-			onDisk:       true,
-			nomadLogPath: testFilePath,
-			expected:     string(testFileContents),
-			token:        tokenBad.SecretID,
-			expectErr:    true,
+			name:      "token_error",
+			onDisk:    true,
+			expected:  string(testFileContents),
+			token:     tokenBad.SecretID,
+			expectErr: true,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := cstructs.MonitorExportRequest{
-				NodeID:       "this is checked in the CLI",
-				NomadLogPath: tc.nomadLogPath,
-
+				NodeID: "this is checked in the CLI",
 				OnDisk: tc.onDisk,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",

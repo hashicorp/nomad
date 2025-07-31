@@ -257,14 +257,9 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 	}
 
 	serviceName := req.URL.Query().Get("service_name")
-	nomadLogPath := s.agent.GetConfig().LogFile
 
 	nodeID := req.URL.Query().Get("node_id")
 	serverID := req.URL.Query().Get("server_id")
-
-	if onDisk && nomadLogPath == "" {
-		return nil, CodedError(400, "No nomad log file defined")
-	}
 
 	if nodeID != "" && serverID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
@@ -289,14 +284,13 @@ func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Requ
 
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExportRequest{
-		NodeID:       nodeID,
-		ServerID:     serverID,
-		LogsSince:    logsSince,
-		ServiceName:  serviceName,
-		OnDisk:       onDisk,
-		NomadLogPath: nomadLogPath,
-		Follow:       follow,
-		PlainText:    plainText,
+		NodeID:      nodeID,
+		ServerID:    serverID,
+		LogsSince:   logsSince,
+		ServiceName: serviceName,
+		OnDisk:      onDisk,
+		Follow:      follow,
+		PlainText:   plainText,
 	}
 
 	// Force the Content-Type to avoid Go's http.ResponseWriter from

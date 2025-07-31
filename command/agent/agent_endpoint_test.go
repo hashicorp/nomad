@@ -462,9 +462,6 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 		c.LogFile = inlineFilePath
 	}
 
-	invalidLogConfig := func(c *Config) {
-		c.LogFile = inlineFilePath
-	}
 	baseURL := "/v1/agent/monitor/export?"
 	cases := []struct {
 		name        string
@@ -475,12 +472,11 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 		serviceName string
 		serverID    string
 
-		config        func(c *Config)
-		errCode       int
-		errString     string
-		expectErr     bool
-		nomadFilePath string
-		want          string
+		config    func(c *Config)
+		errCode   int
+		errString string
+		expectErr bool
+		want      string
 	}{
 		{
 			name:      "happy_path",
@@ -488,10 +484,9 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			onDisk:    "true",
 			logsSince: "9s",
 
-			config:        config,
-			expectErr:     false,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			expectErr: false,
+			want:      expectedText,
 		},
 		{
 			name:   "invalid_onDisk",
@@ -544,12 +539,11 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 			nodeID:   "doesn'tneedtobeuuid",
 			serverID: "doesntneedtobeuuid",
 
-			config:        config,
-			errCode:       400,
-			errString:     "Cannot target node and server simultaneously",
-			expectErr:     true,
-			nomadFilePath: inlineFilePath,
-			want:          expectedText,
+			config:    config,
+			errCode:   400,
+			errString: "Cannot target node and server simultaneously",
+			expectErr: true,
+			want:      expectedText,
 		},
 		{
 			name:        "onDisk_and_serviceName",

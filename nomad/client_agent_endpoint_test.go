@@ -1043,17 +1043,12 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	longFileContents, err := os.ReadFile(longFilePath)
 	must.NoError(t, err)
 
-	testFile, err := os.CreateTemp("", "nomadtests")
-	must.NoError(t, err)
-
-	_, err = testFile.Write([]byte(shortText))
-	must.NoError(t, err)
-	shortFilePath := testFile.Name()
-
 	// start server
-	s, root, cleanupS := TestACLServer(t, nil)
+	s, root, cleanupS := TestACLServer(t, func(c *Config) {
+		c.LogFile = longFilePath
+	})
 	defer cleanupS()
-	defer os.Remove(shortFilePath)
+	defer os.Remove(longFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
@@ -1066,34 +1061,24 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		expectErr    bool
 	}{
 		{
-			name:         "happy_path_long_file",
-			onDisk:       true,
-			nomadLogPath: longFilePath,
-			expected:     string(longFileContents),
-			token:        root,
+			name:     "happy_path_long_file",
+			onDisk:   true,
+			expected: string(longFileContents),
+			token:    root,
 		},
 		{
-			name:         "happy_path_short_file",
-			onDisk:       true,
-			nomadLogPath: shortFilePath,
-			expected:     shortText,
-			token:        root,
+			name:      "token_error",
+			onDisk:    true,
+			expected:  string(longFileContents),
+			token:     &structs.ACLToken{},
+			expectErr: true,
 		},
 		{
-			name:         "token_error",
-			onDisk:       true,
-			nomadLogPath: shortFilePath,
-			expected:     shortText,
-			token:        &structs.ACLToken{},
-			expectErr:    true,
-		},
-		{
-			name:         "invalid_service_name",
-			serviceName:  "nomad$",
-			nomadLogPath: shortFilePath,
-			expected:     shortText,
-			token:        &structs.ACLToken{},
-			expectErr:    true,
+			name:        "invalid_service_name",
+			serviceName: "nomad$",
+			expected:    string(longFileContents),
+			token:       &structs.ACLToken{},
+			expectErr:   true,
 		},
 	}
 	for _, tc := range cases {

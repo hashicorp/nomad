@@ -216,13 +216,18 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 		return
 	}
 
+	nomadLogPath := a.c.config.LogFile
+	if args.OnDisk && nomadLogPath == "" {
+		handleStreamResultError(errors.New("No nomad log file defined"), pointer.Of(int64(400)), encoder)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	opts := monitor.MonitorExportOpts{
 		Logger:       a.c.logger,
 		LogsSince:    args.LogsSince,
 		ServiceName:  args.ServiceName,
-		NomadLogPath: args.NomadLogPath,
+		NomadLogPath: nomadLogPath,
 		OnDisk:       args.OnDisk,
 		Follow:       args.Follow,
 		Context:      ctx,

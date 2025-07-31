@@ -424,6 +424,9 @@ type ClientConfig struct {
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int `hcl:"node_max_allocs"`
+
+	// LogFile is used by MonitorExport to stream a client's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -756,6 +759,9 @@ type ServerConfig struct {
 	// expected to complete before the server is considered healthy. Without
 	// this, the server can hang indefinitely waiting for these.
 	StartTimeout string `hcl:"start_timeout"`
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
