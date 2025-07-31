@@ -11,6 +11,7 @@
     "client/allocdir/...",
     "client/allochealth/...",
     "client/allocwatcher/...",
+    "client/commonplugins/...",
     "client/config/...",
     "client/consul/...",
     "client/devicemanager/...",
