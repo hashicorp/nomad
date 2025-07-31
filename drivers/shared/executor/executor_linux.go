@@ -7,7 +7,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -766,7 +765,7 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 
 	cg := command.StatsCgroup()
 	if cg == "" {
-		return errors.New("cgroup must be set")
+		return fmt.Errorf("configureCgroups: %w", ErrCgroupMustBeSet)
 	}
 
 	// // set the libcontainer hook for writing the PID to cgroup.procs file

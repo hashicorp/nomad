@@ -5,6 +5,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -49,6 +50,9 @@ var (
 	// The statistics the basic executor exposes
 	ExecutorBasicMeasuredMemStats = []string{"RSS", "Swap"}
 	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
+
+	// ErrCgroupMustBeSet occurs if a cgroup is not provided when expected
+	ErrCgroupMustBeSet = errors.New("cgroup must be set")
 )
 
 // Executor is the interface which allows a driver to launch and supervise
@@ -441,7 +445,11 @@ func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string)
 	defer cancel()
 
 	if cleanup, err := e.setSubCmdCgroup(&e.childCmd, e.command.StatsCgroup()); err != nil {
-		return nil, 0, err
+		// do not error if we're non-root and failed to set cgroup,
+		// because a non-root Nomad can still run raw_exec tasks.
+		if !(os.Geteuid() != 0 && errors.Is(err, ErrCgroupMustBeSet)) {
+			return nil, 0, fmt.Errorf("Exec: %w", err)
+		}
 	} else {
 		defer cleanup()
 	}
@@ -533,7 +541,11 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			}
 			cgroup := e.command.StatsCgroup()
 			if cleanup, err := e.setSubCmdCgroup(cmd, cgroup); err != nil {
-				return err
+				// do not error if we're non-root and failed to set cgroup,
+				// because a non-root Nomad can still run raw_exec tasks.
+				if !(os.Geteuid() != 0 && errors.Is(err, ErrCgroupMustBeSet)) {
+					return fmt.Errorf("ExecStreaming: %w", err)
+				}
 			} else {
 				defer cleanup()
 			}
