@@ -125,6 +125,10 @@
         "path": "author/device"
       },
       {
+        "title": "Host volume",
+        "path": "author/host-volume"
+      },
+      {
         "title": "Task driver",
         "path": "author/task-driver"
       }

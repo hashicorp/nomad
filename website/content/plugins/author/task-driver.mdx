@@ -27,7 +27,7 @@ boilerplate necessary for a task driver plugin, along with detailed comments.
 
 A task driver plugin is long-lived and its lifetime is not bound to the Nomad
 client. This means that the Nomad client can restart without restarting the
-driver. Nomad ensure that one instance of the task driver is running. If
+driver. Nomad ensures that one instance of the task driver is running. If
 the task driver crashes or otherwise terminates, Nomad launches another instance
 of it.
 
