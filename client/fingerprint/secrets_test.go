@@ -19,7 +19,7 @@ func TestPluginsSecretsFingerprint(t *testing.T) {
 	fp := NewPluginsSecretsFingerprint(testlog.HCLogger(t))
 
 	node := &structs.Node{Attributes: map[string]string{}}
-	cfg := &config.Config{CommonPluginsDir: ""}
+	cfg := &config.Config{CommonPluginDir: ""}
 	req := &FingerprintRequest{Config: cfg, Node: node}
 
 	for name, path := range map[string]string{
@@ -29,7 +29,7 @@ func TestPluginsSecretsFingerprint(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			resp := FingerprintResponse{}
-			cfg.CommonPluginsDir = path
+			cfg.CommonPluginDir = path
 			err := fp.Fingerprint(req, &resp)
 			must.NoError(t, err)
 			must.True(t, resp.Detected) // always true due to "mkdir" built-in
@@ -44,7 +44,7 @@ func TestPluginsSecretsFingerprint(t *testing.T) {
 	tmp := t.TempDir()
 	secretsDir := filepath.Join(tmp, "secrets")
 	os.Mkdir(secretsDir, 0777)
-	cfg.CommonPluginsDir = tmp
+	cfg.CommonPluginDir = tmp
 
 	files := []struct {
 		name     string
