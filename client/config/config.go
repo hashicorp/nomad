@@ -336,6 +336,10 @@ type Config struct {
 	// HostNetworks is a map of the conigured host networks by name.
 	HostNetworks map[string]*structs.ClientHostNetworkConfig
 
+	// CommonPluginDir is the root directory for plugins that implement
+	// the common plugin interface
+	CommonPluginDir string
+
 	// BindWildcardDefaultHostNetwork toggles if the default host network should accept all
 	// destinations (true) or only filter on the IP of the default host network (false) when
 	// port mapping. This allows Nomad clients with no defined host networks to accept and
