@@ -89,7 +89,7 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 	}
 
 	if token.Type == "management" {
-		c.Ui.Output("This is a management token with global access. No individual policies are assigned.")
+		c.Ui.Output("This is a management token. No individual policies are assigned.")
 		return 0
 	}
 

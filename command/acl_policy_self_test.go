@@ -16,14 +16,11 @@ import (
 func TestACLPolicySelfCommand_ViaEnvVar(t *testing.T) {
 	const policyName = "nw"
 
-	setupServer := func(t *testing.T) (*agent.TestAgent, string, *structs.ACLToken) {
-		config := func(c *agent.Config) {
-			c.ACL.Enabled = true
-		}
-		srv, _, url := testServer(t, true, config)
-		t.Cleanup(srv.Shutdown)
-		return srv, url, srv.RootToken
+	config := func(c *agent.Config) {
+		c.ACL.Enabled = true
 	}
+	srv, _, url := testServer(t, true, config)
+	t.Cleanup(srv.Shutdown)
 
 	createPolicy := func(t *testing.T, srv *agent.TestAgent, token *structs.ACLToken, job *structs.Job) {
 		args := structs.ACLPolicyUpsertRequest{
@@ -56,16 +53,16 @@ func TestACLPolicySelfCommand_ViaEnvVar(t *testing.T) {
 		return ui.OutputWriter.String()
 	}
 
+	rootToken := srv.RootToken
+
 	t.Run("SelfPolicy returns correct output for management token", func(t *testing.T) {
-		srv, url, rootToken := setupServer(t)
 		createPolicy(t, srv, rootToken, mock.MinJob())
 
 		out := runCommand(t, url, rootToken.SecretID)
-		must.StrContains(t, out, "management token with global access")
+		must.StrContains(t, out, "This is a management token. No individual policies are assigned.")
 	})
 
 	t.Run("SelfPolicy returns correct output for client token", func(t *testing.T) {
-		srv, url, rootToken := setupServer(t)
 		job := mock.MinJob()
 		createPolicy(t, srv, rootToken, job)
 
