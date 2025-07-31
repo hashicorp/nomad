@@ -62,7 +62,8 @@ type MonitorExportOpts struct {
 	// Context passed from client to close the cmd and exit the function
 	Context context.Context
 
-	bufSize int
+	// ExportMonitor's buffer size, defaults to 512 if unset by caller
+	BufSize int
 }
 
 type ExportReader struct {
@@ -85,10 +86,10 @@ func NewExportMonitor(opts MonitorExportOpts) (*ExportMonitor, error) {
 		return nil, errors.New("journald log monitoring only available on linux")
 	}
 
-	if opts.bufSize == 0 {
+	if opts.BufSize == 0 {
 		bufSize = defaultBufSize
 	} else {
-		bufSize = opts.bufSize
+		bufSize = opts.BufSize
 	}
 
 	if opts.OnDisk && opts.ServiceName == "" {
@@ -227,7 +228,7 @@ func (d *ExportMonitor) Stop() {
 	close(d.logCh)
 }
 
-// Start reads data from the monitor's ExportReader into its' logCh
+// Start reads data from the monitor's ExportReader into its logCh
 func (d *ExportMonitor) Start() <-chan []byte {
 	// Read, copy, and send to channel until we hit EOF or error
 	go func() {
