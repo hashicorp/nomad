@@ -197,6 +197,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
+	// If the node has an entry in the state store, we perform a check to ensure
+	// the secret ID matches the one stored. If there is no entry, we perform a
+	// check to ensure the node is allowed to register given the request and the
+	// server introduction enforcement configuration.
 	if originalNode != nil {
 		// Check if the SecretID has been tampered with
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
@@ -208,6 +212,14 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if originalNode.Status != "" {
 			args.Node.Status = originalNode.Status
 		}
+		// The called function performs all the required logging and metric
+		// emitting, so we only need to check the return value.
+	} else if !args.NewRegistrationAllowed(
+		n.logger,
+		authErr,
+		n.srv.config.NodeIntroductionConfig.Enforcement,
+	) {
+		return structs.ErrPermissionDenied
 	}
 
 	// We have a valid node connection, so add the mapping to cache the

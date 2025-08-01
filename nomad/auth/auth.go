@@ -335,7 +335,7 @@ func (s *Authenticator) AuthenticateNodeIdentityGenerator(ctx RPCContext, args s
 		if err != nil {
 			return err
 		}
-		if !claims.IsNode() {
+		if !claims.IsNode() && !claims.IsNodeIntroduction() {
 			return structs.ErrPermissionDenied
 		}
 		identity.Claims = claims
@@ -538,6 +538,13 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 		if err := s.verifyNodeIdentityClaim(claims); err != nil {
 			return nil, err
 		}
+		return claims, nil
+	}
+
+	// Node introduction claims are a special case where we don't verify them
+	// against the state store, since they are used to introduce a node that
+	// does not yet exist.
+	if claims.IsNodeIntroduction() {
 		return claims, nil
 	}
 

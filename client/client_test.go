@@ -27,6 +27,7 @@ import (
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -1451,6 +1452,79 @@ func TestClient_ServerList(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("expected 2 servers but received: %+q", s)
 	}
+}
+
+func TestClient_getRegistrationToken(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("no intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "", testClient.getRegistrationToken())
+	})
+
+	t.Run("intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.IntroToken = "my-intro-token"
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "my-intro-token", testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		testClient.identity.Store("mylovelylovelyidentity")
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.identity.Load().(string), testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.NoError(t, testClient.stateDB.PutNodeIdentity("my-identity-token"))
+
+		must.Eq(t, "my-identity-token", testClient.getRegistrationToken())
+	})
 }
 
 func TestClient_handleNodeUpdateResponse(t *testing.T) {

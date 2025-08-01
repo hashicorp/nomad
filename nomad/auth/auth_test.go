@@ -746,6 +746,34 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.True(t, aclObj.AllowClientOp())
 			},
 		},
+		{
+			name: "mTLS acl with node introduction",
+			testFn: func(t *testing.T, store *state.StateStore) {
+
+				claims := structs.GenerateNodeIntroductionIdentityClaims(
+					"",
+					"default",
+					"global",
+					1*time.Hour,
+				)
+
+				auth := testAuthenticator(t, store, true, true)
+				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
+				must.NoError(t, err)
+
+				ctx := newTestContext(t, "client.global.nomad", "192.168.1.1")
+
+				args := structs.GenericRequest{
+					QueryOptions: structs.QueryOptions{
+						AuthToken: token,
+					},
+				}
+
+				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
+				must.NotNil(t, args.GetIdentity().GetClaims())
+				must.True(t, args.GetIdentity().GetClaims().IsNodeIntroduction())
+			},
+		},
 	}
 
 	for _, tc := range testCases {

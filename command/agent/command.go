@@ -118,6 +118,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
 	flags.StringVar((*string)(&cmdConfig.Client.PreferredAddressFamily), "preferred-address-family", "", "ipv4 or ipv6")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
+	flags.StringVar(&cmdConfig.Client.IntroToken, "client-intro-token", "", "")
 
 	// General options
 	flags.Var((*flaghelper.StringFlag)(&configPath), "config", "config")
@@ -218,6 +219,12 @@ func (c *Command) readConfig() *Config {
 			}
 			cmdConfig.Client.Meta[parts[0]] = parts[1]
 		}
+	}
+
+	// Perform an environment look for the client bootstrap token. If this is
+	// present, it will override the CLI flag.
+	if envToken, found := os.LookupEnv("NOMAD_CLIENT_INTRO_TOKEN"); found {
+		cmdConfig.Client.IntroToken = envToken
 	}
 
 	// Load the configuration
