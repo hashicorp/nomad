@@ -448,6 +448,9 @@ type Config struct {
 	// considered healthy. Without this, the server can hang indefinitely
 	// waiting for these.
 	StartTimeout time.Duration
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (c *Config) Copy() *Config {

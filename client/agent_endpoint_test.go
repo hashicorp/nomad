@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,11 +19,13 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -444,5 +447,83 @@ func TestAgentHost_ACL(t *testing.T) {
 				require.NotEmpty(t, resp.HostData)
 			}
 		})
+	}
+}
+
+func TestMonitor_MonitorExport(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create test file
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	testFilePath := f.Name()
+	testFileContents, err := os.ReadFile(testFilePath)
+	must.NoError(t, err)
+
+	// start server
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+	defer cleanupS()
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+		c.LogFile = testFilePath
+	})
+
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
+	defer cleanupC()
+
+	testutil.WaitForLeader(t, s.RPC)
+
+	cases := []struct {
+		name        string
+		expected    string
+		serviceName string
+		token       string
+		onDisk      bool
+		expectErr   bool
+	}{
+		{
+			name:     "happy_path_golden_file",
+			onDisk:   true,
+			expected: string(testFileContents),
+			token:    root.SecretID,
+		},
+		{
+			name:      "token_error",
+			onDisk:    true,
+			expected:  string(testFileContents),
+			token:     tokenBad.SecretID,
+			expectErr: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := cstructs.MonitorExportRequest{
+				NodeID: "this is checked in the CLI",
+				OnDisk: tc.onDisk,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, c, time.After(3*time.Second))
+			if tc.expectErr {
+				must.Error(t, finalError)
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, builder)
+			must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+		})
+
 	}
 }
