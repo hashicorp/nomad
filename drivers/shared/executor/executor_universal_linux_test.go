@@ -6,12 +6,14 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
@@ -161,4 +163,49 @@ func TestUniversalExecutor_cg1_no_executor_pid(t *testing.T) {
 		must.SliceLen(t, 1, pids)
 		must.Eq(t, pids[0], strconv.Itoa(p.Pid))
 	}
+}
+
+func TestUniversalExecutor_CgroupV2_DiskThrottle(t *testing.T) {
+	testutil.CgroupsCompatibleV2(t)
+	ci.Parallel(t)
+
+	factory := universalFactory
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "sleep"
+	execCmd.Args = []string{"3"}
+
+	execCmd.Resources.NomadResources.DiskThrottles = []*structs.DiskThrottle{
+		{
+			Major:     8,
+			Minor:     0,
+			ReadBps:   2097152,
+			WriteIops: 150,
+		},
+	}
+	factory.configureExecCmd(t, execCmd)
+	defer allocDir.Destroy()
+	executor := factory.new(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("", 0)
+
+	_, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	time.Sleep(1000 * time.Millisecond)
+
+	alloc := filepath.Base(allocDir.AllocDirPath())
+	cgroupPath := execCmd.OverrideCgroupV2
+	if cgroupPath == "" {
+		cgroupPath = filepath.Join("nomad.slice", "share.slice", alloc+".web.scope")
+	}
+	ioMaxFile := filepath.Join(cgroupslib.GetDefaultRoot(), cgroupPath, "io.max")
+	content, err := os.ReadFile(ioMaxFile)
+	must.NoError(t, err)
+
+	stringContent := strings.TrimSpace(string(content))
+	must.True(t, strings.Contains(stringContent, "8:0"))
+	must.True(t, strings.Contains(stringContent, "rbps=2097152"))
+	must.True(t, strings.Contains(stringContent, "wiops=150"))
+
+	_, err = executor.Wait(context.Background())
+	must.NoError(t, err)
 }

@@ -50,6 +50,10 @@ job "docs" {
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
 
+- `disk_throttle` <code>([Disk_Throttle][]: &lt;optional&gt;)</code> - Specifies disk I/O throttling policies. 
+  This field may be repeated to set throttling for multiple disks or multiple policies. 
+  Each entry allows you to set limits such as read/write bytes per second (bps) or IOPS for a specific device. 
+
 - `secrets` <code>(`int`: &lt;optional&gt;)</code> - Specifies the size of the
   [`secrets/`][] directory in MB, on platforms where the directory is a
   tmpfs. If set, the scheduler adds the `secrets` value to the `memory` value
@@ -109,6 +113,22 @@ resources {
   }
 }
 ```
+
+### DiskThrottles
+This example shows how to specify disk I/O throttling constraints using the [disk_throttle][] block. 
+The task is limited to a read bandwidth of 2 MB/s and 150 write IOPS on a specific device:
+
+```hcl
+resources {
+  disk_throttles {
+    major     = 8
+    minor     = 0
+    read_bps  = 2097152   # 2 MB/s
+    write_iops = 150
+  }
+}
+```
+
 ## Memory oversubscription
 
 Setting task memory limits requires balancing the risk of interrupting tasks
@@ -167,3 +187,4 @@ resource utilization and considering the following suggestions:
 [numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
 [`secrets/`]: /nomad/docs/reference/runtime-environment-settings#secrets
 [concepts-cpu]: /nomad/docs/architecture/cpu
+[disk_throttle]: /nomad/docs/job-specification/disk_throttle 'Nomad Disk_Throttle Job Specification'

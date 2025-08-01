@@ -379,6 +379,7 @@ NEXTNODE:
 					MemoryMB: safemath.Add(
 						int64(task.Resources.MemoryMB), int64(task.Resources.SecretsMB)),
 				},
+				DiskThrottles: task.Resources.DiskThrottles,
 			}
 			if iter.memoryOversubscription {
 				taskResources.Memory.MemoryMaxMB = safemath.Add(
