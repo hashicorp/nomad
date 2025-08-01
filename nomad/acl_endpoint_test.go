@@ -4313,7 +4313,6 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 		must.True(t, nodeWriteClaims.IsNodeIntroduction())
 		must.Eq(t, nodeWriteReq.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
 		must.Eq(t, nodeWriteReq.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
-		must.Eq(t, nodeWriteReq.Region, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeRegion)
 
 		// The JWT creation happens asynchronously in the RPC handler, so we
 		// need to verify the TTL is set using a bound check.
@@ -4360,7 +4359,6 @@ func TestACL_ClientIntroductionToken(t *testing.T) {
 		must.True(t, nodeWriteClaims.IsNodeIntroduction())
 		must.Eq(t, req.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
 		must.Eq(t, req.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
-		must.Eq(t, req.Region, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeRegion)
 
 		// The JWT creation happens asynchronously in the RPC handler, so we
 		// need to verify the TTL is set using a bound check.

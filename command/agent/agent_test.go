@@ -1401,6 +1401,40 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	must.NoError(t, agent.server.Reload(sconf))
 }
 
+func TestAgent_readIntroTokenFile(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("no file", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		testAgent.readIntroTokenFile(&clientConfig)
+		must.Eq(t, "", clientConfig.IntroToken)
+	})
+
+	t.Run("file", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		must.NoError(
+			t,
+			os.WriteFile(
+				filepath.Join(tmpDir, "intro_token.jwt"),
+				[]byte("my-intro-token"),
+				0600,
+			),
+		)
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		testAgent.readIntroTokenFile(&clientConfig)
+		must.Eq(t, "my-intro-token", clientConfig.IntroToken)
+	})
+}
+
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
