@@ -97,6 +97,9 @@ type StreamFramer struct {
 
 	// Captures whether the framer is running
 	running bool
+
+	// Confirms final flush sent
+	flushed bool
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -107,7 +110,6 @@ func NewStreamFramer(out chan<- *StreamFrame,
 	// Create the heartbeat and flush ticker
 	heartbeat := time.NewTicker(heartbeatRate)
 	flusher := time.NewTicker(batchWindow)
-
 	return &StreamFramer{
 		out:        out,
 		frameSize:  frameSize,
@@ -123,7 +125,6 @@ func NewStreamFramer(out chan<- *StreamFrame,
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-
 	wasShutdown := s.shutdown
 	s.shutdown = true
 
@@ -204,7 +205,6 @@ OUTER:
 	// Send() may have left a partial frame. Send it now.
 	if !s.f.IsCleared() {
 		s.f.Data = s.readData()
-
 		// Only send if there's actually data left
 		if len(s.f.Data) > 0 {
 			// Cannot select on shutdownCh as it's already closed
@@ -281,6 +281,7 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize || force {
+
 		// Clear since are flushing the frame and capturing the file event.
 		// Subsequent data frames will be flushed based on the data size alone
 		// since they share the same fileevent.
@@ -308,4 +309,23 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	}
 
 	return nil
+}
+
+func (s *StreamFramer) IsFlushed() bool {
+	return s.flushed
+}
+
+func (s *StreamFramer) Flush() bool {
+	s.l.Lock()
+	// Send() may have left a partial frame. Send it now.
+	s.f.Data = s.readData()
+
+	// Only send if there's actually data left
+	if len(s.f.Data) > 0 {
+		s.out <- s.f.Copy()
+	}
+	s.flushed = true
+
+	s.l.Unlock()
+	return s.IsFlushed()
 }
