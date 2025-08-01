@@ -1,0 +1,8 @@
+packages:
+  github.com/hashicorp/nomad/helper/winsvc:
+    config:
+      filename: "mocks.go"
+    interfaces:
+      Eventlog:
+      WindowsService:
+      WindowsServiceManager:

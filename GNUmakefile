@@ -139,6 +139,7 @@ deps:  ## Install build and development dependencies
 	go install golang.org/x/tools/cmd/stringer@v0.30.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.0
 	go install github.com/shoenig/go-modtool@v0.2.0
+	go install github.com/vektra/mockery/v3@v3.5.1
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -461,3 +462,8 @@ cni: ## Install CNI plugins. Run this as root.
 	mkdir -p /opt/cni/bin
 	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
 	tar -C /opt/cni/bin -xf cni-plugins-linux-amd64-v1.3.0.tgz
+
+.PHONY: mocks
+mocks: ## Generate mocks
+	@echo "==> Generating mocks"
+	@mockery
