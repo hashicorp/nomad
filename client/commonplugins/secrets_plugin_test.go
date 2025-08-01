@@ -21,7 +21,7 @@ func TestExternalSecretsPlugin_Fingerprint(t *testing.T) {
 	t.Run("runs successfully", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\ncat <<EOF\n%s\nEOF\n", `{"type": "secrets", "version": "1.0.0"}`))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		res, err := plugin.Fingerprint(context.Background())
@@ -34,7 +34,7 @@ func TestExternalSecretsPlugin_Fingerprint(t *testing.T) {
 	t.Run("errors on non-zero exit code", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Append([]byte{}, "#!/bin/sh\nexit 1\n"))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		res, err := plugin.Fingerprint(context.Background())
@@ -45,7 +45,7 @@ func TestExternalSecretsPlugin_Fingerprint(t *testing.T) {
 	t.Run("errors on timeout", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\nleep .5\n"))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -58,7 +58,7 @@ func TestExternalSecretsPlugin_Fingerprint(t *testing.T) {
 	t.Run("errors on invalid json", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Append([]byte{}, "#!/bin/sh\ncat <<EOF\ninvalid\nEOF\n"))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		res, err := plugin.Fingerprint(context.Background())
@@ -73,7 +73,7 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 	t.Run("runs successfully", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\ncat <<EOF\n%s\nEOF\n", `{"result": {"key": "value"}}`))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		res, err := plugin.Fetch(context.Background(), "test-path")
@@ -86,7 +86,7 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 	t.Run("errors on non-zero exit code", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Append([]byte{}, "#!/bin/sh\nexit 1\n"))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		_, err = plugin.Fetch(context.Background(), "test-path")
@@ -96,7 +96,7 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 	t.Run("errors on timeout", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Append([]byte{}, "#!/bin/sh\nsleep .5\n"))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -109,7 +109,7 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 	t.Run("errors on timeout", func(t *testing.T) {
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\ncat <<EOF\n%s\nEOF\n", `invalid`))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, "")
 		must.NoError(t, err)
 
 		_, err = plugin.Fetch(context.Background(), "dummy-path")
