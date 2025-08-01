@@ -384,6 +384,9 @@ type Config struct {
 	// NodeMaxAllocs is an optional field that sets the maximum number of
 	// allocations a node can be assigned. Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 type APIListenerRegistrar interface {

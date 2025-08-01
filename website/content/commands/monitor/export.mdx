@@ -1,0 +1,79 @@
+---
+layout: docs
+page_title: 'nomad monitor export command reference'
+description: |
+  The `nomad monitor export` command returns logs written to disk or journald by a nomad agent.
+---
+
+# `nomad monitor export` command reference
+
+The `nomad monitor export` command returns logs written to disk or journald by a nomad agent.
+
+## Usage
+
+```plaintext
+nomad monitor export [options]
+```
+
+Use the `nomad monitor export` command to export an agent's historic data
+from journald or its Nomad log file. If exporting journald logs, you must
+pass `-service-name` with the name of the systemd unit to query.
+The `-logs-since` and `-follow` options are only valid for journald queries.
+You may pass a duration string to the `-logs-since` option to override the
+default 72h duration. Nomad will accept the following time units in the
+`-logs-since` duration string: "ns", "us" (or "µs"), "ms", "s", "m", "h".
+The `-follow=true` option causes the agent to continue to stream logs until
+interrupted or until the remote agent quits. Nomad only supports journald
+queries on Linux.
+
+If you do not use Linux or you do not run Nomad as a systemd unit, pass the
+`-on-disk=true` option to export the entirety of a given agent's nomad log file.
+
+When ACLs are enabled, this command requires a token with the `agent:read`
+capability.
+
+## Options
+
+- `-node-id`: Specifies the client node-id to stream logs from. If no
+  node-id is given, the Nomad server from the `-address` flag is used.
+
+- `-server-id`: Specifies the Nomad server id to stream logs from. Accepts
+  server names from `nomad server members` and also a special `leader` option
+  which will target the current leader.
+
+- `-service-name`: Specifies the the name of the systemd unit for export.
+  Do not use with `-on-disk`. Must include 'nomad' and conform to systemd
+  naming conventions. You may provide the full systemd file name
+  or omit the suffix. If your service name includes a '.', you must include
+  a valid suffix (e.g. nomad.client.service).
+  
+- `-logs-since`: Duration used to determine how far back to return logs from
+  journald. Ignored if used with `-on-disk` and defaults to `72h` if  not set.
+
+- `-follow`: Boolean that, if true, continues streaming journald logs until
+  interrupted. Do not use with `-on-disk`
+  
+- `-on-disk`: Boolean that, if true, returns the contents of the Nomad log file
+  defined in the agent config.
+
+## Examples
+
+This example returns journald log entries with a specific node ID and service name.
+
+```shell-session
+$ nomad monitor export -node-id=$(nomad node status --quiet) -service-name="nomad"
+Jun 04 20:09:29 nomad-client01 systemd[1]: Starting Nomad...
+Subject: A start job for unit nomad_client.service has begun execution
+```
+
+This example returns the contents of the nomad log file for a specific server.
+
+```shell-session
+$ nomad monitor export -server-id=a57b2adb-1a30-2dda-8df0-25abb0881952 -on-disk=true
+2025-06-20T12:22:08.528-0500 [DEBUG] http: request complete: method=GET path=/v1/agent/health?type=server duration=1.445739ms
+2025-06-20T12:22:09.892-0500 [DEBUG] nomad: memberlist: Stream connection from=127.0.0.1:53628
+```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
