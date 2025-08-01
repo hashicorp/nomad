@@ -4,8 +4,10 @@
 package command
 
 import (
+	"os"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -202,4 +204,60 @@ topology_request {
 			must.Eq(t, c.expected, vol)
 		})
 	}
+}
+
+func TestVolumeRegisterCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup mock client
+	srv, client, url := testServer(t, true, nil)
+	t.Cleanup(srv.Shutdown)
+
+	waitForNodes(t, client)
+
+	_, err := client.Namespaces().Register(&api.Namespace{Name: "prod"}, nil)
+	must.NoError(t, err)
+
+	// Setup UI to capture output
+	ui := cli.NewMockUi()
+	cmd := &VolumeRegisterCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	// Sample CSI volume HCL
+	volumeHCL := `
+type = "csi"
+id = "test-volume"
+name = "test-volume"
+external_id = "external-test-volume"
+plugin_id = "test-plugin"
+capacity_min = "1GiB"
+capacity_max = "10GiB"
+
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "block-device"
+}
+`
+
+	file, err := os.CreateTemp(t.TempDir(), "csi-volume-test-*.hcl")
+	must.NoError(t, err)
+	_, err = file.WriteString(volumeHCL)
+	must.NoError(t, err)
+
+	// Since we can't easily mock the API client to fake a CSI plugin running,
+	// we expect this to fail with a plugin-related error. The flow and parsing
+	// can still be tested.
+	args := []string{"-address", url, file.Name()}
+
+	code := cmd.Run(args)
+
+	// The command should return 1 due to no CSI plugin, but we can verify
+	// the error handling and output formatting
+	must.Eq(t, 1, code)
+
+	// Verify error output contains expected message about volume creation
+	output := ui.ErrorWriter.String()
+	must.StrContains(t, output, "Error registering volume")
+	must.StrContains(t, output, "no CSI plugin named: test-plugin could be found")
 }
