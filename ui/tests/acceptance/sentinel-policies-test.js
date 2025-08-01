@@ -128,6 +128,25 @@ module('Acceptance | sentinel policies', function (hooks) {
     assert
       .dom(policyRow.querySelector('[data-test-sentinel-policy-scope]'))
       .hasText('submit-host-volume');
+
+    await click('[data-test-sentinel-policy-name="host-volume-policy"]');
+    assert.equal(
+      currentURL(),
+      `/administration/sentinel-policies/${policy.id}`
+    );
+
+    await click('[data-test-scope="submit-csi-volume"]');
+    await click('button[data-test-save-policy]');
+    assert.dom('.flash-message.alert-success').exists();
+
+    await Administration.visitSentinelPolicies();
+    const policyRowCsi = find(
+      '[data-test-sentinel-policy-name="csi-volume-policy"]'
+    ).closest('[data-test-sentinel-policy-row]');
+    assert.dom(policyRowCsi).exists();
+    assert
+      .dom(policyRowCsi.querySelector('[data-test-sentinel-policy-scope]'))
+      .hasText('submit-csi-volume');
   });
 
   test('New Sentinel Policy from Scratch', async function (assert) {

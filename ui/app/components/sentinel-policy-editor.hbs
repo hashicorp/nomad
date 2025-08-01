@@ -86,6 +86,9 @@
       <G.RadioField @id="submit-host-volume" checked={{eq @policy.scope "submit-host-volume"}} data-test-scope="submit-host-volume" as |F|>
         <F.Label>Submit Host Volume</F.Label>
       </G.RadioField>
+	  <G.RadioField @id="submit-csi-volume" checked={{eq @policy.scope "submit-csi-volume"}} data-test-scope="submit-csi-volume" as |F|>
+        <F.Label>Submit CSI Volume</F.Label>
+      </G.RadioField>
     </Hds::Form::Radio::Group>
   </div>
 
