@@ -31,7 +31,9 @@ const (
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
 	if cgroup == "" {
-		return nil, fmt.Errorf("setSubCmdCgroup: %w", ErrCgroupMustBeSet)
+		// do not error, because a non-root Nomad can still run raw_exec tasks.
+		e.logger.Warn("got empty cgroup, so not setting cgroup on subcommand")
+		return func() {}, nil
 	}
 
 	// make sure attrs struct has been set

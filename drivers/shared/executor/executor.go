@@ -445,11 +445,7 @@ func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string)
 	defer cancel()
 
 	if cleanup, err := e.setSubCmdCgroup(&e.childCmd, e.command.StatsCgroup()); err != nil {
-		// do not error if we're non-root and failed to set cgroup,
-		// because a non-root Nomad can still run raw_exec tasks.
-		if !(os.Geteuid() != 0 && errors.Is(err, ErrCgroupMustBeSet)) {
-			return nil, 0, fmt.Errorf("Exec: %w", err)
-		}
+		return nil, 0, fmt.Errorf("Exec: %w", err)
 	} else {
 		defer cleanup()
 	}
@@ -541,11 +537,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			}
 			cgroup := e.command.StatsCgroup()
 			if cleanup, err := e.setSubCmdCgroup(cmd, cgroup); err != nil {
-				// do not error if we're non-root and failed to set cgroup,
-				// because a non-root Nomad can still run raw_exec tasks.
-				if !(os.Geteuid() != 0 && errors.Is(err, ErrCgroupMustBeSet)) {
-					return fmt.Errorf("ExecStreaming: %w", err)
-				}
+				return fmt.Errorf("ExecStreaming: %w", err)
 			} else {
 				defer cleanup()
 			}
