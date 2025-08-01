@@ -100,14 +100,7 @@ func TestMonitor_Export(t *testing.T) {
 		expectedText = "log log log log log"
 	)
 
-	dir := t.TempDir()
-	f, err := os.CreateTemp(dir, "log")
-	must.NoError(t, err)
-	for range 1000 {
-		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
-	}
-	f.Close()
-	goldenFilePath := f.Name()
+	goldenFilePath := PrepFile(t).Name()
 	goldenFileContents, err := os.ReadFile(goldenFilePath)
 	must.NoError(t, err)
 
