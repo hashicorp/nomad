@@ -17,27 +17,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var writeLine = []byte("[INFO] log log log made of wood you are heavy but so good\n")
-
-func prepFile(t *testing.T) *os.File {
-	const loopCount = 10
-	// Create test file to read from
-	dir := t.TempDir()
-	f, err := os.CreateTemp(dir, "log")
-	must.NoError(t, err)
-
-	for range loopCount {
-		_, _ = f.Write(writeLine)
-	}
-	f.Close()
-
-	// Create test file reader for stream set up
-	goldenFilePath := f.Name()
-	fileReader, err := os.Open(goldenFilePath)
-	must.NoError(t, err)
-	return fileReader
-}
-
 func TestClientStreamReader_StreamFixed(t *testing.T) {
 	ci.Parallel(t)
 
@@ -80,7 +59,7 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			file := prepFile(t)
+			file := PrepFile(t)
 			goldenFileContents, err := os.ReadFile(file.Name())
 			must.NoError(t, err)
 
