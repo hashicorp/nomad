@@ -110,15 +110,14 @@ Linux clients support a network
 like a virtual network switch, allowing processes connected to the bridge to
 reach each other while isolating them from others.
 
-### Container Network Interface (CNI) reference plugins
-
-Nomad's bridge network leverages [CNI reference
-plugins](https://github.com/containernetworking/plugins) to provide an
-operating-system agnostic interface to configure workload networking. Nomad's
-network plugin support extends Nomad's built-in compute resource scheduling to
-allow scheduling tasks with specialty network configurations, which Nomad
-implements with a combination of CNI reference plugins and CNI configuration
-files.
+Nomad's bridge network leverages [Container Network Interface (CNI) reference
+plugins](https://www.cni.dev/) to provide an operating-system agnostic interface
+to configure workload networking. Nomad's network plugin support extends Nomad's
+built-in compute resource scheduling to allow scheduling tasks with specialty
+network configurations, which Nomad implements with a combination of CNI
+reference plugins and CNI configuration files. Nomad supports any network plugin
+that complies with the CNI specification, but you should verify plugin
+compatibility with your Nomad version before deploying in production.
 
 ### How bridge networking works
 
@@ -328,12 +327,14 @@ and are assigned random port numbers. Nomad service discovery with DNS uses
 
 ## Next topics
 
-- [Service Discovery](/nomad/docs/networking/service-discovery)
-- [Service Mesh](/nomad/docs/networking/consul/service-mesh)
-- [Container Network Interface](/nomad/docs/networking/cni) plugins guide
+- [CConfigure bridge networking](/nomad/docs/networking/cni)
+- [Service discovery](/nomad/docs/networking/service-discovery)
+- [Consul service mesh](/nomad/docs/networking/consul/service-mesh)
 
 ## Additional resources
 
+- [Nomad Networking Demystified](https://www.hashicorp.com/en/resources/nomad-networking-demystified)
+- [Multi-Interface Networking and CNI Plugins](https://www.hashicorp.com/en/blog/multi-interface-networking-and-cni-plugins-in-nomad-0-12)
 - [Understanding Networking in Nomad - Karan
   Sharma](https://mrkaran.dev/posts/nomad-networking-explained/)
 - [Understanding Nomad Networking Patterns - Luiz Aoqui, HashiTalks: Canada

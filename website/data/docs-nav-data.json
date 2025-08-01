@@ -95,32 +95,6 @@
         "path": "concepts/variables"
       },
       {
-        "title": "Plugins",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "concepts/plugins"
-          },
-          {
-            "title": "Base",
-            "path": "concepts/plugins/base"
-          },
-          {
-            "title": "Task drivers",
-            "path": "concepts/plugins/task-drivers"
-          },
-          {
-            "title": "Devices",
-            "path": "concepts/plugins/devices"
-          },
-
-          {
-            "title": "Networking",
-            "path": "concepts/plugins/cni"
-          }
-        ]
-      },
-      {
         "title": "Scheduling",
         "routes": [
           {
