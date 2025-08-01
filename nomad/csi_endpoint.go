@@ -354,6 +354,15 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
 		}
+
+		warn, err := v.enforceEnterprisePolicy(snap, vol, existingVol, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+		if warn != nil {
+			reply.Warnings = warn.Error()
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
@@ -1093,6 +1102,15 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 
 		validatedVols = append(validatedVols,
 			validated{vol, plugin, current})
+
+		warn, err := v.enforceEnterprisePolicy(snap, vol, current, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+		if warn != nil {
+			reply.Warnings = warn.Error()
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	// Attempt to create all the validated volumes and write only successfully

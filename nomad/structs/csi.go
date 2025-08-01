@@ -852,10 +852,18 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 type CSIVolumeRegisterRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeRegisterResponse struct {
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
+
 	QueryMeta
 }
 
@@ -872,11 +880,19 @@ type CSIVolumeDeregisterResponse struct {
 type CSIVolumeCreateRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
 	Volumes []*CSIVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	QueryMeta
 }
 
