@@ -178,24 +178,27 @@ Debug Options:
     The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
-  -log-file-export=bool
-    Include agents' Nomad logfiles in the debug capture. Historical log
-    export runs alongside the running log monitor and will ignore the
-    "log-level" or "log-include-location" flags used to configure it. 
-    Nomad will return an error if the agent does not have a "log_file"
-    configured.
   -log-level=<level>
     The log level to monitor. Defaults to TRACE.
-
-  -log-lookback=<duration>
-    Include historical journald logs in the debug capture. Historical log
-    export will ignore flags passed to "log-level" or "log-include-location"
-    and return logs as they are written to disk. Only available on Linux,
-    see the "log-file-export" flag to retrieve historical logs on non-Linux systems.
 
   -log-include-location
     Include file and line information in each log line monitored. The default
     is true.
+
+  -log-file-export=bool
+    Include the contents of agents' Nomad logfile in the debug capture. The
+    log export monitor runs alongside the running log monitor and ignores the
+    "log-level" and "log-include-location" flags used to configure that
+    monitor. Nomad will return an error if the agent does not have a
+    file logging configured. Cannot be used with -log-lookback.
+
+  -log-lookback=<duration>
+    Include historical journald logs in the debug capture.  The journald
+    export monitor runs alongside the running log monitor and ignores the
+    -log-level and -log-include-location flags used to configure that monitor
+    This flag is only available on Linux, see the -log-file-export flag to
+    retrieve historical logs on non-Linux systems. Cannot be used with
+    -log-file-export.
 
   -max-nodes=<count>
     Cap the maximum number of client nodes included in the capture. Defaults
@@ -414,30 +417,35 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
 		return 1
 	}
-
 	// Parse logLookback and logFileExport to set since string with whichever is set
-	if logLookback != "" && logFileExport != "" {
+	if logLookback != "" && logFileExport == "" {
 		l, err := time.ParseDuration(logLookback)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error parsing log-lookback: %s: %s", logLookback, err.Error()))
+			c.Ui.Error(fmt.Sprintf("Error parsing log-lookback value: %s: %s", logLookback, err.Error()))
 			return 1
 		}
 		since = logLookback
 		c.logLookback = l
 	}
+
 	if logFileExport != "" && logLookback == "" {
-		l, err := strconv.ParseBool(logFileExport)
+
+		true, err := strconv.ParseBool(logFileExport)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error parsing log-file-export: %s: %s", logFileExport, err.Error()))
+			c.Ui.Error(fmt.Sprintf("Error parsing log-file-export value: %s: %s", logFileExport, err.Error()))
 			return 1
 		}
-		since = logFileExport
-		c.logFileExport = l
+		if true {
+			since = logFileExport
+			c.logFileExport = true
+		}
 	}
 
 	if logFileExport != "" && logLookback != "" {
 		c.Ui.Error("Error parsing inputs, -log-file-export and -log-lookback cannot be used together.")
+		return 1
 	}
+
 	// Parse the capture duration
 	d, err := time.ParseDuration(duration)
 	if err != nil {

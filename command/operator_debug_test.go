@@ -1088,19 +1088,6 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 	clientID := srv.Agent.Client().NodeID()
 	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
 
-	t.Logf("serverName: %s, clientID, %s", serverName, clientID)
-
-	clientFiles := []string{
-		"monitor.log",
-		"monitor_export.log",
-	}
-
-	serverFiles := []string{
-		"monitor.log",
-		"monitor_export.log",
-	}
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 	testDir := t.TempDir()
 	defer os.Remove(testDir)
 
@@ -1108,36 +1095,110 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 	interval := 750 * time.Millisecond
 	waitTime := 2 * duration
 
-	code := cmd.Run([]string{
+	baseArgs := []string{
 		"-address", url,
 		"-output", testDir,
 		"-server-id", serverName,
 		"-node-id", clientID,
 		"-duration", duration.String(),
 		"-interval", interval.String(),
-		"-log-file-export", "true",
-	})
+	}
 
-	// There should be no errors
-	t.Log(ui.ErrorWriter.String())
-	must.Eq(t, "", ui.ErrorWriter.String())
-	must.Eq(t, 0, code)
+	cases := []struct {
+		name         string
+		cmdArgs      []string
+		errString    string
+		runErr       bool
+		wantExporter bool
+	}{
+		{
+			name:         "exporter",
+			cmdArgs:      []string{"-log-file-export", "true"},
+			wantExporter: true,
+		},
+		{
+			name:         "no_exporter",
+			wantExporter: false,
+		},
+		{
+			name:         "bad_value_for_log_export_file",
+			cmdArgs:      []string{"-log-file-export", "blue"},
+			errString:    "Error parsing log-file-export value",
+			runErr:       true,
+			wantExporter: false,
+		},
+		{
+			name:         "bad_value_for_log_lookback",
+			cmdArgs:      []string{"-log-lookback", "blue"},
+			errString:    "Error parsing log-lookback value",
+			runErr:       true,
+			wantExporter: false,
+		},
+		{
+			name: "set_both_flags",
+			cmdArgs: []string{
+				"-log-lookback", "5h",
+				"-log-file-export", "true",
+			},
+			errString:    "Error parsing inputs, -log-file-export and -log-lookback cannot be used together.",
+			runErr:       true,
+			wantExporter: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clientFiles := []string{
+				"monitor.log",
+				"monitor_export.log",
+			}
+			args := baseArgs
+			if len(tc.cmdArgs) > 0 {
+				args = append(args, tc.cmdArgs...)
+			}
 
-	// Verify client monitor files
-	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
-	t.Logf("Waiting for client files in path: %s", clientDir)
-	testutil.WaitForFilesUntil(t, clientPaths, waitTime)
+			serverFiles := []string{
+				"monitor.log",
+				"monitor_export.log",
+			}
+			ui := cli.NewMockUi()
+			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Verify server monitor files
-	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
-	t.Logf("Waiting for server files in path: %s", serverDir)
-	testutil.WaitForFilesUntil(t, serverPaths, waitTime)
-	clientLog, err := os.ReadFile(clientPaths[1])
-	must.NoError(t, err)
-	serverLog, err := os.ReadFile(serverPaths[1])
-	must.NoError(t, err)
+			code := cmd.Run(args)
+			if tc.runErr {
+				must.One(t, code)
+				return
+			} else {
+				must.Zero(t, code)
+			}
 
-	// Verify monitor export file contents as expected
-	must.Eq(t, logFileContents, serverLog)
-	must.Eq(t, logFileContents, clientLog)
+			// Wait until client's monitor.log file is written
+			clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
+			t.Logf("Waiting for client files in path: %s", clientDir)
+			testutil.WaitForFilesUntil(t, clientPaths[:0], waitTime)
+
+			// Wait until server's monitor.log file is written
+			serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
+			t.Logf("Waiting for server files in path: %s", serverDir)
+			testutil.WaitForFilesUntil(t, serverPaths[:0], waitTime)
+
+			// Validate historical log files match expected value
+			clientLog, clientReadErr := os.ReadFile(clientPaths[1])
+			serverLog, serverReadErr := os.ReadFile(serverPaths[1])
+			if !tc.wantExporter {
+				must.NotNil(t, clientReadErr)
+				must.NotNil(t, serverReadErr)
+
+				if tc.errString != "" {
+					must.StrContains(t, ui.ErrorWriter.String(), tc.errString)
+				}
+				return
+			}
+			must.NoError(t, clientReadErr)
+			must.NoError(t, serverReadErr)
+			// Verify monitor export file contents as expected
+			must.Eq(t, logFileContents, serverLog)
+			must.Eq(t, logFileContents, clientLog)
+
+		})
+	}
 }
