@@ -49,6 +49,8 @@ type SystemScheduler struct {
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
+	deployment *structs.Deployment
+
 	limitReached bool
 	nextEval     *structs.Evaluation
 
@@ -148,6 +150,14 @@ func (s *SystemScheduler) process() (bool, error) {
 			s.state, s.job.Datacenters, s.job.NodePool)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
+		}
+	}
+
+	if !s.sysbatch {
+		// Get any existing deployment
+		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
 		}
 	}
 
@@ -265,11 +275,16 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	nr := reconciler.NewNodeReconciler(s.deployment)
+	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
 	}
+
+	// Add the deployment changes to the plan
+	s.plan.Deployment = nr.DeploymentCurrent
+	s.plan.DeploymentUpdates = nr.DeploymentUpdates
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
@@ -374,6 +389,11 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 
 	// track node filtering, to only report an error if all nodes have been filtered
 	var filteredMetrics map[string]*structs.AllocMetric
+
+	var deploymentID string
+	if s.deployment != nil && s.deployment.Active() {
+		deploymentID = s.deployment.ID
+	}
 
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
@@ -492,6 +512,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
+			DeploymentID:       deploymentID,
 			TaskResources:      resources.OldTaskResources(),
 			AllocatedResources: resources,
 			DesiredStatus:      structs.AllocDesiredStatusRun,
