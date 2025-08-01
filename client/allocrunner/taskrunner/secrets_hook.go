@@ -99,7 +99,7 @@ func (h *secretsHook) Name() string {
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	templates := []*structs.Template{}
 
-	providers, err := h.buildSecretProviders(req.TaskDir.SecretsDir, req.NomadToken)
+	providers, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	return nil
 }
 
-func (h *secretsHook) buildSecretProviders(secretDir string, nomadToken string) ([]SecretProvider, error) {
+func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, error) {
 	// Any configuration errors will be found when calling the secret providers constructor,
 	// so use a multierror to collect all errors and return them to the user at the same time.
 	providers, mErr := []SecretProvider{}, new(multierror.Error)
@@ -190,7 +190,7 @@ func (h *secretsHook) buildSecretProviders(secretDir string, nomadToken string) 
 				providers = append(providers, p)
 			}
 		default:
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, nomadToken)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue

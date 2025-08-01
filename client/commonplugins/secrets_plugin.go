@@ -41,13 +41,9 @@ type externalSecretsPlugin struct {
 
 	// pluginPath is the path on the host to the plugin executable
 	pluginPath string
-
-	// nomadToken is the nomad workload identity token passed
-	// to the plugin for optional authentication
-	nomadToken string
 }
 
-func NewExternalSecretsPlugin(commonPluginDir string, name string, nomadToken string) (*externalSecretsPlugin, error) {
+func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
 	executable := filepath.Join(commonPluginDir, SecretsPluginDir, name)
 	f, err := os.Stat(executable)
 	if err != nil {
@@ -62,7 +58,6 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string, nomadToken st
 
 	return &externalSecretsPlugin{
 		pluginPath: executable,
-		nomadToken: nomadToken,
 	}, nil
 }
 
@@ -98,9 +93,6 @@ func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*Secret
 
 	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fetch", path)
 	cmd.Env = []string{
-		// set the task's workload identity token
-		fmt.Sprintf("NOMAD_TOKEN=%s", e.nomadToken),
-
 		"CPI_OPERATION=fetch",
 	}
 
