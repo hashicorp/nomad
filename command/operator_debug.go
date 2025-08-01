@@ -891,9 +891,10 @@ func (c *OperatorDebugCommand) startMonitorExport(path, idKey, nodeID, since str
 			fh.Write(out.Data)
 
 		case err := <-errCh:
-			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
-			return
-
+			if err != io.EOF {
+				fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
+				return
+			}
 		case <-c.ctx.Done():
 			return
 		}
