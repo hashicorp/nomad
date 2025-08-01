@@ -39,7 +39,7 @@ Apply Options:
 
   -scope
     Sets the scope of the policy and when it should be enforced. One of
-    "submit-job" or "submit-host-volume".
+    "submit-job", "submit-host-volume" or "submit-csi-volume".
 
   -level (default: advisory)
     Sets the enforcement level of the policy. Must be one of advisory,
@@ -109,7 +109,7 @@ func (c *SentinelApplyCommand) Run(args []string) int {
 	}
 
 	switch scope {
-	case api.SentinelScopeSubmitJob, api.SentinelScopeSubmitHostVolume:
+	case api.SentinelScopeSubmitJob, api.SentinelScopeSubmitHostVolume, api.SentinelScopeSubmitCSIVolume:
 	case "":
 		c.Ui.Error("-scope flag is required")
 		return 1
