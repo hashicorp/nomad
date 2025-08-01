@@ -75,12 +75,14 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 
 // Register registers a single CSIVolume with Nomad. The volume must already
 // exist in the external storage provider.
-func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
+func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions, override bool) (*WriteMeta, string, error) {
 	req := CSIVolumeRegisterRequest{
-		Volumes: []*CSIVolume{vol},
+		Volumes:        []*CSIVolume{vol},
+		PolicyOverride: override,
 	}
-	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, nil, w)
-	return meta, err
+	resp := &CSIVolumeRegisterResponse{}
+	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, resp, w)
+	return meta, resp.Warnings, err
 }
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
@@ -92,14 +94,15 @@ func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 // Create creates a single CSIVolume in an external storage provider and
 // registers it with Nomad. You do not need to call Register if this call is
 // successful.
-func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *WriteMeta, error) {
+func (v *CSIVolumes) Create(vol *CSIVolume, override bool, w *WriteOptions) (*CSIVolumeCreateResponse, *WriteMeta, error) {
 	req := CSIVolumeCreateRequest{
-		Volumes: []*CSIVolume{vol},
+		Volumes:        []*CSIVolume{vol},
+		PolicyOverride: override,
 	}
 
 	resp := &CSIVolumeCreateResponse{}
 	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
-	return resp.Volumes, meta, err
+	return resp, meta, err
 }
 
 // Delete deletes a CSI volume from an external storage provider. The ID
@@ -452,17 +455,31 @@ func (v CSIVolumeExternalStubSort) Swap(i, j int) {
 
 type CSIVolumeCreateRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
-	Volumes []*CSIVolume
+	Volumes  []*CSIVolume
+	Warnings string
 	QueryMeta
 }
 
 type CSIVolumeRegisterRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
+}
+
+type CSIVolumeRegisterResponse struct {
+	Volumes  []*CSIVolume
+	Warnings string
 }
 
 type CSIVolumeDeregisterRequest struct {
