@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
+	mon "github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -1073,9 +1074,14 @@ func extractArchiveName(captureOutput string) string {
 }
 
 func TestDebug_MonitorExportFiles(t *testing.T) {
-	srv, _, url := testServer(t, true, nil)
+	f := mon.PrepFile(t).Name()
+	setLogFile := func(c *agent.Config) {
+		c.LogFile = f
+	}
+	srv, _, url := testServer(t, true, setLogFile)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
-
+	logFileContents, err := os.ReadFile(f)
+	must.NoError(t, err)
 	serverNodeName := srv.Config.NodeName
 	region := srv.Config.Region
 	serverName := fmt.Sprintf("%s.%s", serverNodeName, region)
@@ -1111,18 +1117,27 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 		"-interval", interval.String(),
 		"-log-file-export", "true",
 	})
+
 	// There should be no errors
 	t.Log(ui.ErrorWriter.String())
 	must.Eq(t, "", ui.ErrorWriter.String())
 	must.Eq(t, 0, code)
 
-	// Verify client files
+	// Verify client monitor files
 	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
 	t.Logf("Waiting for client files in path: %s", clientDir)
 	testutil.WaitForFilesUntil(t, clientPaths, waitTime)
 
-	// Verify server files
+	// Verify server monitor files
 	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
 	t.Logf("Waiting for server files in path: %s", serverDir)
 	testutil.WaitForFilesUntil(t, serverPaths, waitTime)
+	clientLog, err := os.ReadFile(clientPaths[1])
+	must.NoError(t, err)
+	serverLog, err := os.ReadFile(serverPaths[1])
+	must.NoError(t, err)
+
+	// Verify monitor export file contents as expected
+	must.Eq(t, logFileContents, serverLog)
+	must.Eq(t, logFileContents, clientLog)
 }
