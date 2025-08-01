@@ -30,29 +30,32 @@ const (
 // setSubCmdCgroup sets the cgroup for non-Task child processes of the
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
-	if cgroup == "" {
-		// do not error, because a non-root Nomad can still run raw_exec tasks.
-		e.logger.Warn("got empty cgroup, so not setting cgroup on subcommand")
+
+	// no extra setup needed for cg v1 or when cgroups are "off"
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF, cgroupslib.CG1:
 		return func() {}, nil
+	default:
+		// continue for cg v2
+	}
+
+	if cgroup == "" {
+		return nil, fmt.Errorf("error setting up exec subcommand: %w", ErrCgroupMustBeSet)
+	}
+
+	fd, cleanup, err := e.statCG(cgroup)
+	if err != nil {
+		return nil, err
 	}
 
 	// make sure attrs struct has been set
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = new(syscall.SysProcAttr)
 	}
+	cmd.SysProcAttr.UseCgroupFD = true
+	cmd.SysProcAttr.CgroupFD = fd
 
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG2:
-		fd, cleanup, err := e.statCG(cgroup)
-		if err != nil {
-			return nil, err
-		}
-		cmd.SysProcAttr.UseCgroupFD = true
-		cmd.SysProcAttr.CgroupFD = fd
-		return cleanup, nil
-	default:
-		return func() {}, nil
-	}
+	return cleanup, nil
 }
 
 func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
