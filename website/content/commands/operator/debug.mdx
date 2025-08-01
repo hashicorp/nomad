@@ -54,17 +54,18 @@ true.
 - `-log-include-location`: Include file and line information in each log line
   monitored. The default is `true`.
 
-- `log-file-export`:Include agents' Nomad logfiles in the debug capture.
-  Historical log export runs alongside the running log monitor and will ignore
-  the `log-level` and `log-include-location` flags passed to that monitor.
-  Nomad will return an error if the agent does not have a log_file configured.
-  Cannot be used with `log-lookback`.
+- `log-file-export`: Include agents' Nomad logfiles in the debug capture.
+   The historical log export monitor runs alongside the running log monitor
+   and ignores the `log-level` and `log-include-location` flags used to configure
+   that monitor. Nomad will return an error if the agent does not have a log_file
+   configured. Cannot be used with `log-lookback`.
 
-- `log-file-export`: Include historical journald logs in the debug capture.
-  Historical log export runs alongside the running log monitor and will ignore
+- `log-lookback`: Include historical journald logs in the debug capture.
+  Historical log export runs alongside the running log monitor ignores
   the `log-level` and `log-include-location` flags passed to that monitor.
   This flag is only available on Linux systems, see the `log-file-export`
-  flag to retrieve historical logs from non-Linux systems.
+  flag to retrieve historical logs from non-Linux systems. Cannot be used
+  with `log-file-export`.
 
 - `-max-nodes=<count>`: Cap the maximum number of client nodes included
   in the capture. Defaults to 10, set to 0 for unlimited.
@@ -85,10 +86,6 @@ true.
 - `-server-id=<server1>,<server2>`: Comma separated list of Nomad server names to
   monitor for logs, API outputs, and pprof profiles. Accepts server names, "leader", or
   "all". Defaults to `all`.
-
-- `-since=<duration>`: Duration that, if set, includes historical journald logs in
-  the debug capture. Historical log export will ignore flags passed to `log-level`
-  or `log-include-location` and return logs as they are written to disk.
 
 - `-stale=<true|false>`: If "false", the default, get membership data from the
   cluster leader. If the cluster is in an outage unable to establish
