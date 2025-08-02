@@ -45,10 +45,8 @@ type OperatorDebugCommand struct {
 	interval           time.Duration
 	pprofInterval      time.Duration
 	pprofDuration      time.Duration
-	logFileExport      bool
-	logIncludeLocation bool
 	logLevel           string
-	logLookback        time.Duration
+	logIncludeLocation bool
 	maxNodes           int
 	nodeClass          string
 	nodeIDs            []string
@@ -419,13 +417,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	// Parse logLookback and logFileExport to set export string with whichever is set
 	if logLookback != "" && logFileExport == "" {
-		l, err := time.ParseDuration(logLookback)
+		_, err := time.ParseDuration(logLookback)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error parsing log-lookback value: %s: %s", logLookback, err.Error()))
 			return 1
 		}
 		export = logLookback
-		c.logLookback = l
 	}
 
 	if logFileExport != "" && logLookback == "" {
@@ -436,7 +433,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		}
 		if t {
 			export = logFileExport
-			c.logFileExport = t
 		}
 	}
 

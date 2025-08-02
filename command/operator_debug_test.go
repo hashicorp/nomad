@@ -1094,7 +1094,6 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 	duration := 2 * time.Second
 	interval := 750 * time.Millisecond
 	waitTime := 2 * duration
-	var emptyDur time.Duration
 
 	baseArgs := []string{
 		"-address", url,
