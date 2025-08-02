@@ -183,6 +183,21 @@ Debug Options:
     Include file and line information in each log line monitored. The default
     is true.
 
+  -log-file-export=bool
+    Include the contents of agents' Nomad logfiles in the debug capture. The
+    log export monitor runs concurrently with the log monitor and ignores the
+    -log-level and -log-include-location flags used to configure that monitor.
+    Nomad will return an error if the agent does not have file logging configured.
+    Cannot be used with -log-lookback.
+
+  -log-lookback=<duration>
+    Include historical journald logs in the debug capture.  The journald
+    export monitor runs concurrently with the log monitor and ignores the
+    -log-level and -log-include-location flags used to configure that monitor.
+    This flag is only available on Linux systems, see the -log-file-export flag
+    to retrieve historical logs on non-Linux systems. Cannot be used with
+    -log-file-export.
+
   -max-nodes=<count>
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
@@ -353,8 +368,7 @@ func (c *OperatorDebugCommand) Name() string { return "debug" }
 func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-
-	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
+	var duration, interval, pprofInterval, output, pprofDuration, eventTopic, logLookback, logFileExport, export string
 	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
@@ -365,6 +379,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "TRACE", "")
 	flags.BoolVar(&c.logIncludeLocation, "log-include-location", true, "")
+	flags.StringVar(&logLookback, "log-lookback", "", "")
+	flags.StringVar(&logFileExport, "log-file-export", "", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "all", "")
@@ -397,6 +413,31 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
+		return 1
+	}
+	// Parse logLookback and logFileExport to set export string with whichever is set
+	if logLookback != "" && logFileExport == "" {
+		_, err := time.ParseDuration(logLookback)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing log-lookback value: %s: %s", logLookback, err.Error()))
+			return 1
+		}
+		export = logLookback
+	}
+
+	if logFileExport != "" && logLookback == "" {
+		t, err := strconv.ParseBool(logFileExport)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing log-file-export value: %s: %s", logFileExport, err.Error()))
+			return 1
+		}
+		if t {
+			export = logFileExport
+		}
+	}
+
+	if logFileExport != "" && logLookback != "" {
+		c.Ui.Error("Error parsing inputs, -log-file-export and -log-lookback cannot be used together.")
 		return 1
 	}
 
@@ -663,7 +704,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.Ui.Output("Capturing cluster data...")
 
 	// Start collecting data
-	err = c.collect(client)
+	err = c.collect(client, export)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
@@ -692,9 +733,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 }
 
 // collect collects data from our endpoints and writes the archive bundle
-func (c *OperatorDebugCommand) collect(client *api.Client) error {
+func (c *OperatorDebugCommand) collect(client *api.Client, export string) error {
 	// Start background captures
-	c.startMonitors(client)
+	c.startMonitors(client, export)
 	c.startEventStream(client)
 
 	// Collect cluster data
@@ -752,7 +793,17 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 }
 
 // startMonitors starts go routines for each node and client
-func (c *OperatorDebugCommand) startMonitors(client *api.Client) {
+func (c *OperatorDebugCommand) startMonitors(client *api.Client, export string) {
+	// if requested, start monitor export first
+	if export != "" {
+		for _, id := range c.nodeIDs {
+			go c.startMonitorExport(clientDir, "node_id", id, export, client)
+		}
+
+		for _, id := range c.serverIDs {
+			go c.startMonitorExport(serverDir, "server_id", id, export, client)
+		}
+	}
 	for _, id := range c.nodeIDs {
 		go c.startMonitor(clientDir, "node_id", id, client)
 	}
@@ -795,6 +846,58 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
 			return
 
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
+// startMonitor starts one monitor api request, writing to a file. It blocks and should be
+// called in a go routine. Errors are ignored, we want to build the archive even if a node
+// is unavailable
+func (c *OperatorDebugCommand) startMonitorExport(path, idKey, nodeID, export string, client *api.Client) {
+	var monitorExportPath string
+	qo := api.QueryOptions{
+		Params: map[string]string{
+			idKey: nodeID,
+		},
+		AllowStale: c.queryOpts().AllowStale,
+	}
+	// attempt to validate export as bool and set parameters accordingly
+	if _, err := strconv.ParseBool(export); err == nil {
+		monitorExportPath = "monitor_export.log"
+		qo.Params["on_disk"] = export
+	}
+
+	// attempt to validate export as duration and set parameters accordingly
+	if _, err := time.ParseDuration(export); err == nil {
+		monitorExportPath = "monitor_export_" + export + "_lookback.log"
+		qo.Params["service_name"] = "nomad"
+		qo.Params["logs_since"] = export
+	}
+
+	// prepare output location
+	c.mkdir(path, nodeID)
+	fh, err := os.Create(c.path(path, nodeID, monitorExportPath))
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+
+	outCh, errCh := client.Agent().MonitorExport(c.ctx.Done(), &qo)
+	for {
+		select {
+		case out := <-outCh:
+			if out == nil {
+				continue
+			}
+			fh.Write(out.Data)
+
+		case err := <-errCh:
+			if err != io.EOF {
+				fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
+				return
+			}
 		case <-c.ctx.Done():
 			return
 		}
