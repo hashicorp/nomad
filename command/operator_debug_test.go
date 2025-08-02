@@ -1094,6 +1094,7 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 	duration := 2 * time.Second
 	interval := 750 * time.Millisecond
 	waitTime := 2 * duration
+	var emptyDur time.Duration
 
 	baseArgs := []string{
 		"-address", url,
@@ -1166,6 +1167,7 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 			code := cmd.Run(args)
 			if tc.runErr {
 				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.errString)
 				return
 			} else {
 				must.Zero(t, code)
@@ -1181,23 +1183,19 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 			t.Logf("Waiting for server files in path: %s", serverDir)
 			testutil.WaitForFilesUntil(t, serverPaths[:0], waitTime)
 
-			// Validate historical log files match expected value
+			// Validate historical log files exist and match expected value
 			clientLog, clientReadErr := os.ReadFile(clientPaths[1])
 			serverLog, serverReadErr := os.ReadFile(serverPaths[1])
-			if !tc.wantExporter {
+			if tc.wantExporter {
+				must.NoError(t, clientReadErr)
+				must.NoError(t, serverReadErr)
+				// Verify monitor export file contents as expected
+				must.Eq(t, logFileContents, serverLog)
+				must.Eq(t, logFileContents, clientLog)
+			} else {
 				must.NotNil(t, clientReadErr)
 				must.NotNil(t, serverReadErr)
-
-				if tc.errString != "" {
-					must.StrContains(t, ui.ErrorWriter.String(), tc.errString)
-				}
-				return
 			}
-			must.NoError(t, clientReadErr)
-			must.NoError(t, serverReadErr)
-			// Verify monitor export file contents as expected
-			must.Eq(t, logFileContents, serverLog)
-			must.Eq(t, logFileContents, clientLog)
 
 		})
 	}
