@@ -187,17 +187,17 @@ Debug Options:
 
   -log-file-export=bool
     Include the contents of agents' Nomad logfile in the debug capture. The
-    log export monitor runs alongside the running log monitor and ignores the
-    "log-level" and "log-include-location" flags used to configure that
-    monitor. Nomad will return an error if the agent does not have a
-    file logging configured. Cannot be used with -log-lookback.
+    log export monitor runs concurrently with the log monitor and ignores the
+    -log-level and -log-include-location flags used to configure that monitor.
+    Nomad will return an error if the agent does not have file logging configured.
+    Cannot be used with -log-lookback.
 
   -log-lookback=<duration>
     Include historical journald logs in the debug capture.  The journald
-    export monitor runs alongside the running log monitor and ignores the
-    -log-level and -log-include-location flags used to configure that monitor
-    This flag is only available on Linux, see the -log-file-export flag to
-    retrieve historical logs on non-Linux systems. Cannot be used with
+    export monitor runs concurrently with the log monitor and ignores the
+    -log-level and -log-include-location flags used to configure that monitor.
+    This flag is only available on Linux systems, see the -log-file-export flag
+    to retrieve historical logs on non-Linux systems. Cannot be used with
     -log-file-export.
 
   -max-nodes=<count>
