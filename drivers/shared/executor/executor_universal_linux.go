@@ -79,27 +79,32 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 // setSubCmdCgroup sets the cgroup for non-Task child processes of the
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
+
+	// no extra setup needed for cg v1 or when cgroups are "off"
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF, cgroupslib.CG1:
+		return func() {}, nil
+	default:
+		// continue for cg v2
+	}
+
 	if cgroup == "" {
-		panic("cgroup must be set")
+		return nil, fmt.Errorf("error setting up exec subcommand: %w", ErrCgroupMustBeSet)
+	}
+
+	fd, cleanup, err := e.statCG(cgroup)
+	if err != nil {
+		return nil, err
 	}
 
 	// make sure attrs struct has been set
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = new(syscall.SysProcAttr)
 	}
+	cmd.SysProcAttr.UseCgroupFD = true
+	cmd.SysProcAttr.CgroupFD = fd
 
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG2:
-		fd, cleanup, err := e.statCG(cgroup)
-		if err != nil {
-			return nil, err
-		}
-		cmd.SysProcAttr.UseCgroupFD = true
-		cmd.SysProcAttr.CgroupFD = fd
-		return cleanup, nil
-	default:
-		return func() {}, nil
-	}
+	return cleanup, nil
 }
 
 func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
@@ -142,11 +147,8 @@ func (e *UniversalExecutor) configureResourceContainer(
 ) (runningFunc, cleanupFunc, error) {
 	cgroup := command.StatsCgroup()
 
-	// ensure tasks get the desired oom_score_adj value set
-	if err := e.setOomAdj(command.OOMScoreAdj); err != nil {
-		return nil, nil, err
-	}
-
+	// we specify these return funcs as empty but non-nil,
+	// because callers may call them even if this function errors.
 	// deleteCgroup will be called after the task has been launched
 	// v1: remove the executor process from the task's cgroups
 	// v2: let go of the file descriptor of the task's cgroup
@@ -155,6 +157,11 @@ func (e *UniversalExecutor) configureResourceContainer(
 		moveProcess  = func() error { return nil }
 	)
 
+	// ensure tasks get the desired oom_score_adj value set
+	if err := e.setOomAdj(command.OOMScoreAdj); err != nil {
+		return moveProcess, deleteCgroup, err
+	}
+
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
@@ -162,9 +169,10 @@ func (e *UniversalExecutor) configureResourceContainer(
 			return moveProcess, deleteCgroup, err
 		}
 		moveProcess, deleteCgroup = e.enterCG1(cgroup, command.CpusetCgroup())
+
 	case cgroupslib.OFF:
-		deleteCgroup = func() {}
-		moveProcess = func() error { return nil }
+		// do nothing
+
 	default:
 		e.configureCG2(cgroup, command)
 		// configure child process to spawn in the cgroup
