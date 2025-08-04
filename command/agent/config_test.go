@@ -48,6 +48,7 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Sentinel:       &config.SentinelConfig{},
 		Autopilot:      &config.AutopilotConfig{},
+		Eventlog:       &Eventlog{},
 	}
 
 	c2 := &Config{
@@ -235,6 +236,10 @@ func TestConfig_Merge(t *testing.T) {
 					"bar": 1,
 				},
 			},
+		},
+		Eventlog: &Eventlog{
+			Logging: true,
+			Level:   "INFO",
 		},
 	}
 
@@ -488,6 +493,10 @@ func TestConfig_Merge(t *testing.T) {
 			License: &config.LicenseReportingConfig{
 				Enabled: pointer.Of(true),
 			},
+		},
+		Eventlog: &Eventlog{
+			Logging: true,
+			Level:   "ERROR",
 		},
 	}
 
@@ -1895,4 +1904,70 @@ func TestConfig_LoadClientNodeMaxAllocs(t *testing.T) {
 		})
 	}
 
+}
+
+func TestEventlog_Merge(t *testing.T) {
+	t.Run("nil rhs merge", func(t *testing.T) {
+		var c1, c2 *Eventlog
+		c1 = &Eventlog{
+			Logging: true,
+			Level:   "info",
+		}
+		result := c1.Merge(c2)
+		must.Eq(t, result, c1)
+	})
+
+	t.Run("nil lhs merge", func(t *testing.T) {
+		var c1, c2 *Eventlog
+		c2 = &Eventlog{
+			Logging: true,
+			Level:   "info",
+		}
+		result := c1.Merge(c2)
+		must.Eq(t, result, c2)
+	})
+
+	t.Run("full merge", func(t *testing.T) {
+		c1 := &Eventlog{
+			Logging: false,
+			Level:   "info",
+		}
+		c2 := &Eventlog{
+			Logging: true,
+			Level:   "error",
+		}
+		result := c1.Merge(c2)
+		must.Eq(t, result.Logging, true)
+		must.Eq(t, result.Level, "error")
+	})
+
+	t.Run("enabled merge", func(t *testing.T) {
+		c1 := &Eventlog{
+			Logging: true,
+		}
+		c2 := &Eventlog{
+			Logging: false,
+		}
+		result := c1.Merge(c2)
+		// NOTE: Logging can only be turned on
+		// during merges, not turned off
+		must.Eq(t, result.Logging, true)
+
+	})
+}
+
+func TestEventlog_Validate(t *testing.T) {
+	t.Run("valid level", func(t *testing.T) {
+		c := &Eventlog{
+			Level: "info",
+		}
+		must.NoError(t, c.Validate())
+	})
+
+	t.Run("invalid level", func(t *testing.T) {
+		c := &Eventlog{
+			Level: "debug",
+		}
+		must.Error(t, c.Validate())
+	})
 }

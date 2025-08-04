@@ -75,6 +75,7 @@ func (c *Command) readConfig() *Config {
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
+		Eventlog:  &Eventlog{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -130,6 +131,10 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// Eventlog options
+	flags.BoolVar(&cmdConfig.Eventlog.Logging, "eventlog-logging", false, "")
+	flags.StringVar(&cmdConfig.Eventlog.Level, "eventlog-level", "", "")
 
 	// Consul options
 	defaultConsul := cmdConfig.defaultConsul()
@@ -482,7 +487,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 	if err := config.RPC.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v)", err))
+		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v", err))
+		return false
+	}
+
+	if err := config.Eventlog.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("eventlog block invalid: %v", err))
 		return false
 	}
 
@@ -573,6 +583,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
+
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
@@ -582,6 +593,17 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 			return nil, nil
 		}
 		writers = append(writers, newSyslogWriter(l, config.LogJson))
+	}
+
+	// Check if eventlog is enabled
+	if config.Eventlog != nil && config.Eventlog.Logging {
+		l, err := winsvc.NewEventLogger(config.Eventlog.Level)
+		if err != nil {
+			ui.Error(fmt.Sprintf("Windows event logger setup failed: %s", err))
+			return nil, nil
+		}
+
+		writers = append(writers, l)
 	}
 
 	// Check if file logging is enabled
@@ -905,6 +927,10 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
+
+	// Add events for the eventlog
+	winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceStarted))
+	defer func() { winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceStopped)) }()
 
 	// Wait for exit
 	return c.handleSignals()

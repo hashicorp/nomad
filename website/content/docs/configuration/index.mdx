@@ -176,6 +176,16 @@ testing.
   This option only works on Unix based systems. The log level inherits from
   the Nomad agent log set in `log_level`
 
+- `eventlog` - This is a nested object that configures the behavior with
+  with Windows Eventlog. The following parameters are available:
+
+  - `level` -  `(string: "ERROR")` - Specifies the verbosity of logs the Nomad
+    agent will output. Valid log levels include `ERROR`, `WARN`, or `INFO` in
+    increasing order of verbosity. Level must be of equal or less verbosity as
+    defined for the [`log_level`](#log_level) parameter.
+
+  - `logging` - Enable sending logs to the Windows Eventlog
+
 - `http_api_response_headers` `(map<string|string>: nil)` - Specifies
   user-defined headers to add to the HTTP API responses.
 

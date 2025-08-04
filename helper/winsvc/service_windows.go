@@ -47,7 +47,6 @@ LOOP:
 				srv.evtLog.Info(uint32(EventLogMessage), "service stop requested")
 				s <- svc.Status{State: svc.StopPending}
 				chanGraceExit <- 1
-				break LOOP // TODO(chrisroberts): Remove on agent command update
 			}
 		case e := <-chanEvents:
 			switch e.Level() {
