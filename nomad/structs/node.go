@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -601,89 +599,6 @@ func (n *NodeRegisterRequest) ShouldGenerateNodeIdentity(
 	return claims.IsExpiring(now, ttl)
 }
 
-// NewRegistrationAllowed determines whether the node registration is allowed to
-// proceed based on the node introduction enforcement level and the
-// authenticated identity of the request.
-//
-// The function handles logging and emitting metrics based on the enforcement
-// level, so the caller only needs to check the return value.
-func (n *NodeRegisterRequest) NewRegistrationAllowed(
-	logger hclog.Logger,
-	authErr error,
-	enforcementLvl string,
-) bool {
-
-	// If the enforcement level is set to "none", we allow the registration to
-	// proceed without any checks. This is the pre-1.11 workflow that won't emit
-	// any metrics or logs for node registrations.
-	if enforcementLvl == NodeIntroductionEnforcementNone {
-		return true
-	}
-
-	claims := n.GetIdentity().GetClaims()
-
-	// If the request was made with a node introduction identity, check whether
-	// the claims match the node's claims.
-	var claimsMatch bool
-
-	if claims.IsNodeIntroduction() {
-		claimsMatch = claims.NodeIntroductionIdentityClaims.NodePool == n.Node.NodePool &&
-			(claims.NodeIntroductionIdentityClaims.NodeName == "" ||
-				claims.NodeIntroductionIdentityClaims.NodeName == n.Node.Name)
-	}
-
-	// If there was no authentication error and the identity claims match the
-	// node's claims, the registration is allowed to proceed.
-	if authErr == nil && claimsMatch {
-		return true
-	}
-
-	// If we have reached this point, we know that the registration is dependent
-	// on the enforcement level and that this request does not have suitable
-	// claims. Emit our metric to indicate a node registration not using a valid
-	// introduction token.
-	metrics.IncrCounter([]string{"nomad", "client", "introduction_violation_num"}, 1)
-
-	// Build a base set of logging pairs that will be used for the logging
-	// message. This provides operators with information about the node that is
-	// attempting to register without a valid introduction token.
-	loggingPairs := []any{
-		"enforcement_level", enforcementLvl,
-		"node_id", n.Node.ID,
-		"node_pool", n.Node.NodePool,
-		"node_name", n.Node.Name,
-	}
-
-	// If the node used a node introduction identity, add the claims for
-	// comparison to the logging pairs.
-	if claims.IsNodeIntroduction() {
-		loggingPairs = append(loggingPairs, claims.NodeIntroductionIdentityClaims.loggingPairs()...)
-	}
-
-	// Make some effort to log a message that indicates why the node is failing
-	// to introduce itself properly.
-	msg := "node registration introduction claims mismatch"
-
-	if authErr != nil {
-		msg = "node registration introduction authentication failure"
-		loggingPairs = append(loggingPairs, "error", authErr)
-	} else if n.identity.ACLToken == AnonymousACLToken {
-		msg = "node registration without introduction token"
-	}
-
-	// Based on the enforcement level, log the message and return whether the
-	// handler should allow the registration to proceed. The default is a
-	// catchall that includes the strict enforcement level.
-	switch enforcementLvl {
-	case NodeIntroductionEnforcementWarn:
-		logger.Warn(msg, loggingPairs...)
-		return true
-	default:
-		logger.Error(msg, loggingPairs...)
-		return false
-	}
-}
-
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
@@ -958,9 +873,9 @@ func GenerateNodeIntroductionIdentityClaims(name, pool, region string, ttl time.
 	return claims
 }
 
-// loggingPairs returns a set of key-value pairs that can be used for logging
+// LoggingPairs returns a set of key-value pairs that can be used for logging
 // purposes.
-func (n *NodeIntroductionIdentityClaims) loggingPairs() []any {
+func (n *NodeIntroductionIdentityClaims) LoggingPairs() []any {
 
 	// The node pool is a required field on the node introduction identity, so
 	// we can always include it in the logging pairs.

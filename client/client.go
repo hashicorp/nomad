@@ -2181,7 +2181,7 @@ func (c *Client) getRegistrationToken() string {
 	// client configuration has a bootstrap token, we can use that to perform
 	// the initial registration. If this was not supplied, the parameter will be
 	// an empty string, which is fine and the backwards compatible behavior.
-	return c.config.IntroToken
+	return c.GetConfig().IntroToken
 }
 
 // registerNode is used to register the node or update the registration

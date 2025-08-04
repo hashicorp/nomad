@@ -4,14 +4,12 @@
 package structs
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -473,210 +471,6 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 	}
 }
 
-func TestNodeRegisterRequest_NewRegistrationAllowed(t *testing.T) {
-	ci.Parallel(t)
-
-	// Generate a stable mock node for testing that includes a populated node
-	// pool field.
-	mockNode := MockNode()
-	mockNode.NodePool = "monitoring"
-
-	testCases := []struct {
-		name                     string
-		inputNodeRegisterRequest *NodeRegisterRequest
-		inputAuthErr             error
-		inputEnforcementLevel    string
-		expectedOutput           bool
-	}{
-		{
-			name: "enforcement none",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementNone,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement warn anonymous",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						ACLToken: AnonymousACLToken,
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementWarn,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement strict anonymous",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						ACLToken: AnonymousACLToken,
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementStrict,
-			expectedOutput:        false,
-		},
-		{
-			name: "enforcement warn auth error",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{},
-				},
-			},
-			inputAuthErr:          errors.New("jwt: token is expired"),
-			inputEnforcementLevel: NodeIntroductionEnforcementWarn,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement strict auth error",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{},
-				},
-			},
-			inputAuthErr:          errors.New("jwt: token is expired"),
-			inputEnforcementLevel: NodeIntroductionEnforcementStrict,
-			expectedOutput:        false,
-		},
-		{
-			name: "enforcement warn claims pool mismatch",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: "nlp",
-								NodeName: mockNode.Name,
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementWarn,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement strict claims pool mismatch",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: "nlp",
-								NodeName: mockNode.Name,
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementStrict,
-			expectedOutput:        false,
-		},
-		{
-			name: "enforcement warn claims name mismatch",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: mockNode.NodePool,
-								NodeName: "node-name",
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementWarn,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement strict claims name mismatch",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: mockNode.NodePool,
-								NodeName: "node-name",
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementStrict,
-			expectedOutput:        false,
-		},
-		{
-			name: "enforcement warn claims match",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: mockNode.NodePool,
-								NodeName: mockNode.Name,
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementWarn,
-			expectedOutput:        true,
-		},
-		{
-			name: "enforcement strict claims match",
-			inputNodeRegisterRequest: &NodeRegisterRequest{
-				Node: mockNode,
-				WriteRequest: WriteRequest{
-					identity: &AuthenticatedIdentity{
-						Claims: &IdentityClaims{
-							NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-								NodePool: mockNode.NodePool,
-								NodeName: mockNode.Name,
-							},
-						},
-					},
-				},
-			},
-			inputAuthErr:          nil,
-			inputEnforcementLevel: NodeIntroductionEnforcementStrict,
-			expectedOutput:        true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.inputNodeRegisterRequest.NewRegistrationAllowed(
-				testlog.HCLogger(t),
-				tc.inputAuthErr,
-				tc.inputEnforcementLevel,
-			)
-			must.Eq(t, tc.expectedOutput, actualOutput)
-		})
-	}
-}
-
 func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 	ci.Parallel(t)
 
@@ -973,7 +767,7 @@ func TestGenerateNodeIntroductionIdentityClaims(t *testing.T) {
 	must.NotNil(t, claims.Expiry)
 }
 
-func TestNodeIntroductionIdentityClaims_loggingPairs(t *testing.T) {
+func TestNodeIntroductionIdentityClaims_LoggingPairs(t *testing.T) {
 	ci.Parallel(t)
 
 	claims := &NodeIntroductionIdentityClaims{
@@ -984,5 +778,5 @@ func TestNodeIntroductionIdentityClaims_loggingPairs(t *testing.T) {
 	must.SliceContainsAll(t, []any{
 		"claim_node_name", "node-name-1",
 		"claim_node_pool", "custom-pool",
-	}, claims.loggingPairs())
+	}, claims.LoggingPairs())
 }

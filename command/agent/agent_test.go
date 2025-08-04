@@ -1411,7 +1411,7 @@ func TestAgent_readIntroTokenFile(t *testing.T) {
 
 		clientConfig := clientconfig.Config{StateDir: tmpDir}
 
-		testAgent.readIntroTokenFile(&clientConfig)
+		must.NoError(t, testAgent.readIntroTokenFile(&clientConfig))
 		must.Eq(t, "", clientConfig.IntroToken)
 	})
 
@@ -1430,8 +1430,20 @@ func TestAgent_readIntroTokenFile(t *testing.T) {
 
 		clientConfig := clientconfig.Config{StateDir: tmpDir}
 
-		testAgent.readIntroTokenFile(&clientConfig)
+		must.NoError(t, testAgent.readIntroTokenFile(&clientConfig))
 		must.Eq(t, "my-intro-token", clientConfig.IntroToken)
+	})
+
+	t.Run("directory", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		must.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "intro_token.jwt"), os.ModeDir))
+
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		must.Error(t, testAgent.readIntroTokenFile(&clientConfig))
 	})
 }
 
