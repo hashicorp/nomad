@@ -1032,14 +1032,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 		shortText = "log log log log log"
 	)
 	// Create test file
-	dir := t.TempDir()
-	f, err := os.CreateTemp(dir, "log")
-	must.NoError(t, err)
-	for range 1000 {
-		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
-	}
-	f.Close()
-	longFilePath := f.Name()
+	longFilePath := monitor.PrepFile(t).Name()
 	longFileContents, err := os.ReadFile(longFilePath)
 	must.NoError(t, err)
 
