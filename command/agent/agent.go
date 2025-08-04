@@ -794,7 +794,7 @@ func (a *Agent) readIntroTokenFile(cfg *clientconfig.Config) error {
 		return fmt.Errorf("intro token file is a directory")
 	}
 
-	content, err := os.ReadFile(rootFile.Name())
+	content, err := helper.ReadFileContent(rootFile)
 	if err != nil {
 		return fmt.Errorf("failed to read intro token file: %w", err)
 	}
