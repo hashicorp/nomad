@@ -1113,7 +1113,7 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 	}{
 		{
 			name:         "exporter",
-			cmdArgs:      []string{"-log-file-export", "true"},
+			cmdArgs:      []string{"-log-file-export"},
 			wantExporter: true,
 		},
 		{
@@ -1121,16 +1121,9 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 			wantExporter: false,
 		},
 		{
-			name:         "bad_value_for_log_export_file",
-			cmdArgs:      []string{"-log-file-export", "blue"},
-			errString:    "Error parsing log-file-export value",
-			runErr:       true,
-			wantExporter: false,
-		},
-		{
 			name:         "bad_value_for_log_lookback",
 			cmdArgs:      []string{"-log-lookback", "blue"},
-			errString:    "Error parsing log-lookback value",
+			errString:    "Error parsing -log-lookback",
 			runErr:       true,
 			wantExporter: false,
 		},
@@ -1138,9 +1131,9 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 			name: "set_both_flags",
 			cmdArgs: []string{
 				"-log-lookback", "5h",
-				"-log-file-export", "true",
+				"-log-file-export",
 			},
-			errString:    "Error parsing inputs, -log-file-export and -log-lookback cannot be used together.",
+			errString:    "Error parsing inputs, -log-file-export and -log-lookback cannot be used together",
 			runErr:       true,
 			wantExporter: false,
 		},
@@ -1175,6 +1168,7 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 			// Wait until client's monitor.log file is written
 			clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
 			t.Logf("Waiting for client files in path: %s", clientDir)
+
 			testutil.WaitForFilesUntil(t, clientPaths[:0], waitTime)
 
 			// Wait until server's monitor.log file is written

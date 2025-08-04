@@ -63,9 +63,9 @@ true.
 - `log-lookback`: Include historical journald logs in the debug capture. The
   journald export monitor runs concurrently with the log monitor and ignores
   the `-log-level` and `-log-include-location` flags passed to that monitor.
-  This flag is only available on Linux systems, see the `-log-file-export`
-  flag to retrieve historical logs from non-Linux systems. Cannot be used
-  with `-log-file-export`.
+  This flag is only available on Linux systems using systemd, see the 
+  `-log-file-export` flag to retrieve historical logs from non-Linux systems,
+  or those without systemd. Cannot be used with `-log-file-export`.
 
 - `-max-nodes=<count>`: Cap the maximum number of client nodes included
   in the capture. Defaults to 10, set to 0 for unlimited.
