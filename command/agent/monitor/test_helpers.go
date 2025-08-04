@@ -6,20 +6,45 @@ package monitor
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
 // StreamingClient is an interface that implements the StreamingRpcHandler function
 type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
+}
+
+var writeLine = []byte(fmt.Sprintf("[INFO] log log log made of wood you are heavy but so good, %v\n", time.Now()))
+
+func PrepFile(t *testing.T) *os.File {
+	const loopCount = 100
+	// Create test file to read from
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+
+	for range loopCount {
+		_, _ = f.Write(writeLine)
+	}
+	f.Close()
+
+	// Create test file reader for stream set up
+	goldenFilePath := f.Name()
+	fileReader, err := os.Open(goldenFilePath)
+	must.NoError(t, err)
+	return fileReader
 }
 
 // ExportMonitorClient_TestHelper consolidates streaming test setup for use in
