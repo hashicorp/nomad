@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -165,8 +164,12 @@ func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
-		if err := groupConnectValidate(g); err != nil {
-			return nil, err
+		warn, err := groupConnectValidate(g)
+		if warn != nil {
+			warnings = append(warnings, warn)
+		}
+		if err != nil {
+			return warnings, err
 		}
 	}
 
@@ -441,7 +444,7 @@ func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGa
 		proxy.ConnectTimeout = pointer.Of(defaultConnectTimeout)
 	}
 
-	if mode == "bridge" {
+	if mode == "bridge" || strings.HasPrefix(mode, "cni/") {
 		// magically configure bind address(es) for bridge networking, per gateway type
 		// non-default configuration is gated above
 		switch {
@@ -543,29 +546,30 @@ func newConnectSidecarTask(service, driver, cluster string) *structs.Task {
 	}
 }
 
-func groupConnectValidate(g *structs.TaskGroup) error {
+func groupConnectValidate(g *structs.TaskGroup) (warn, err error) {
 	for _, s := range g.Services {
 		switch {
 		case s.Connect.HasSidecar():
-			if err := groupConnectSidecarValidate(g, s); err != nil {
-				return err
+			warn, err = groupConnectSidecarValidate(g, s)
+			if err != nil {
+				return warn, err
 			}
 		case s.Connect.IsNative():
-			if err := groupConnectNativeValidate(g, s); err != nil {
-				return err
+			if err = groupConnectNativeValidate(g, s); err != nil {
+				return warn, err
 			}
 		case s.Connect.IsGateway():
-			if err := groupConnectGatewayValidate(g); err != nil {
-				return err
+			if err = groupConnectGatewayValidate(g); err != nil {
+				return warn, err
 			}
 		}
 	}
 
-	if err := groupConnectUpstreamsValidate(g, g.Services); err != nil {
-		return err
+	if err = groupConnectUpstreamsValidate(g, g.Services); err != nil {
+		return warn, err
 	}
 
-	return nil
+	return warn, err
 }
 
 func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Service) error {
@@ -634,13 +638,18 @@ func transparentProxyPortLabelValidate(g *structs.TaskGroup, portLabel string) b
 	return false
 }
 
-func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error {
+func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn, err error) {
 	if n := len(g.Networks); n != 1 {
-		return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
+		return nil, fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
 	}
-
-	if g.Networks[0].Mode != "bridge" {
-		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
+	mode := g.Networks[0].Mode
+	if strings.HasPrefix(mode, "cni/") {
+		warn = fmt.Errorf("group %q uses network mode %q with Consul Connect, instead of Nomad's bridge; use at your own risk", g.Name, mode)
+	} else if mode != "bridge" {
+		err = fmt.Errorf("group %q must use bridge or CNI network for Consul Connect", g.Name)
+	}
+	if err != nil {
+		return warn, err
 	}
 
 	// We must enforce lowercase characters on group and service names for connect
@@ -648,14 +657,14 @@ func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error
 	// https://github.com/hashicorp/consul/blob/v1.9.5/command/connect/proxy/proxy.go#L235
 
 	if s.Name != strings.ToLower(s.Name) {
-		return fmt.Errorf("Consul Connect service name %q in group %q must not contain uppercase characters", s.Name, g.Name)
+		return warn, fmt.Errorf("Consul Connect service name %q in group %q must not contain uppercase characters", s.Name, g.Name)
 	}
 
 	if g.Name != strings.ToLower(g.Name) {
-		return fmt.Errorf("Consul Connect group %q with service %q must not contain uppercase characters", g.Name, s.Name)
+		return warn, fmt.Errorf("Consul Connect group %q with service %q must not contain uppercase characters", g.Name, s.Name)
 	}
 
-	return nil
+	return warn, nil
 }
 
 func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error {
@@ -668,16 +677,16 @@ func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error 
 }
 
 func groupConnectGatewayValidate(g *structs.TaskGroup) error {
-	// the group needs to be either bridge or host mode so we know how to configure
-	// the docker driver config
+	// the group needs to be either host, bridge, or cni/* mode so we know how to
+	// configure the docker driver config
 
 	if n := len(g.Networks); n != 1 {
 		return fmt.Errorf("Consul Connect gateways require exactly 1 network, found %d in group %q", n, g.Name)
 	}
 
-	modes := []string{"bridge", "host"}
-	if !slices.Contains(modes, g.Networks[0].Mode) {
-		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
+	mode := g.Networks[0].Mode
+	if !(mode == "host" || mode == "bridge" || strings.HasPrefix(mode, "cni/")) {
+		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge", "host", or "cni/*"; got: %q`, mode)
 	}
 
 	return nil
