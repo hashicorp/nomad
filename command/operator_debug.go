@@ -183,7 +183,7 @@ Debug Options:
     Include file and line information in each log line monitored. The default
     is true.
 
-  -log-file-export=bool
+  -log-file-export=<bool>
     Include the contents of agents' Nomad logfiles in the debug capture. The
     log export monitor runs concurrently with the log monitor and ignores the
     -log-level and -log-include-location flags used to configure that monitor.
