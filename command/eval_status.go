@@ -382,8 +382,16 @@ func formatPlanAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates, verb
 		}
 	}
 
+	taskGroups := []string{}
+	for tg := range desiredTGUpdates {
+		taskGroups = append(taskGroups, tg)
+	}
+	sort.StringSlice(taskGroups).Sort()
+
 	i := 1
-	for tg, updates := range desiredTGUpdates {
+	for _, tg := range taskGroups {
+		updates := desiredTGUpdates[tg]
+
 		// we always show the first 5 columns
 		annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d",
 			tg,
