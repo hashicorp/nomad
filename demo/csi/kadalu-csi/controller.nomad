@@ -113,7 +113,7 @@ job "kadalu-csi-controller" {
         image = "docker.io/kadalu/kadalu-csi:${var.kadalu_version}"
 
         # Nomad client config for docker plugin should have privileged set to 'true'
-        # refer https://developer.hashicorp.com/nomad/docs/drivers/docker#privileged
+        # refer https://developer.hashicorp.com/nomad/docs/deploy/task-driver/docker#allow_privileged
         # Need to access '/dev/fuse' for mounting external gluster volume
         privileged = true
 

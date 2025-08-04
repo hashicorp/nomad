@@ -9,7 +9,7 @@ Nomad
   </a>
 </p>
 
-Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://developer.hashicorp.com/nomad/docs/drivers/docker), [podman](https://developer.hashicorp.com/nomad/plugins/drivers/podman)), non-containerized applications ([executable](https://developer.hashicorp.com/nomad/docs/drivers/exec), [Java](https://developer.hashicorp.com/nomad/docs/drivers/java)), and virtual machines ([qemu](https://developer.hashicorp.com/nomad/docs/drivers/qemu)) across on-prem and clouds at scale.
+Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/docker), [podman](https://developer.hashicorp.com/nomad/plugins/drivers/podman)), non-containerized applications ([executable](hhttps://developer.hashicorp.com/nomad/docs/deploy/task-driver/exec), [Java](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/java)), and virtual machines ([qemu](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)) across on-prem and clouds at scale.
 
 Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://developer.hashicorp.com/nomad/docs/enterprise), is also available.
 

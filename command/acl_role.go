@@ -28,7 +28,7 @@ Usage: nomad acl role <subcommand> [options] [args]
   This command groups subcommands for interacting with ACL roles. Nomad's ACL
   system can be used to control access to data and APIs. ACL roles are
   associated with one or more ACL policies which grant specific capabilities.
-  For a full guide see: https://developer.hashicorp.com/nomad/tutorials/access-control
+  For a full guide see: https://developer.hashicorp.com/nomad/docs/secure/acl
 
   Create an ACL role:
 

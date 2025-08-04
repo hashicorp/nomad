@@ -20,7 +20,7 @@ region = RegionOne
 
 ### Docker Privileged Mode
 
-The Cinder CSI Node task requires that [`privileged = true`](https://developer.hashicorp.com/nomad/docs/drivers/docker#privileged) be set. This is not needed for the Controller task.
+The Cinder CSI Node task requires that [`privileged = true`](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/docker#allow_privileged) be set. This is not needed for the Controller task.
 
 ## Container Arguments
 

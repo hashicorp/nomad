@@ -26,7 +26,7 @@ Usage: nomad acl binding-rule <subcommand> [options] [args]
 
   This command groups subcommands for interacting with ACL binding rules.
   Nomad's ACL system can be used to control access to data and APIs. For a full
-  guide see: https://developer.hashicorp.com/nomad/tutorials/access-control
+  guide see: https://developer.hashicorp.com/nomad/docs/secure/acl
 
   Create an ACL binding rule:
 
