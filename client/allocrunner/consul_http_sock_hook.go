@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,8 +24,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-func tgFirstNetworkIsBridge(tg *structs.TaskGroup) bool {
-	if len(tg.Networks) < 1 || tg.Networks[0].Mode != "bridge" {
+func tgFirstNetworkCanConsulConnect(tg *structs.TaskGroup) bool {
+	if len(tg.Networks) < 1 {
+		return false
+	}
+	mode := tg.Networks[0].Mode
+	if !(mode == "bridge" || strings.HasPrefix(mode, "cni/")) {
 		return false
 	}
 	return true
@@ -88,13 +93,11 @@ func (*consulHTTPSockHook) Name() string {
 
 // shouldRun returns true if the alloc contains at least one connect native
 // task and has a network configured in bridge mode
-//
-// todo(shoenig): what about CNI networks?
 func (h *consulHTTPSockHook) shouldRun() bool {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 
-	// we must be in bridge networking and at least one connect native task
-	if !tgFirstNetworkIsBridge(tg) {
+	// we must be in bridge/cni networking and at least one connect native task
+	if !tgFirstNetworkCanConsulConnect(tg) {
 		return false
 	}
 

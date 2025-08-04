@@ -55,18 +55,23 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 
 // Validate will ensure:
 //   - The job contains valid network configuration for each task group in which
-//     an expose path is configured. The network must be of type bridge mode.
+//     an expose path is configured. The network must be bridge or "cni/" mode.
 //   - The check Expose field is configured only for connect-enabled group-services.
 func (jobExposeCheckHook) Validate(job *structs.Job) (warnings []error, err error) {
 	for _, tg := range job.TaskGroups {
 		// Make sure any group that contains a group-service that enables expose
-		// is configured with one network that is in "bridge" mode. This check
-		// is being done independently of the preceding Connect task injection
-		// hook, because at some point in the future Connect will not require the
-		// use of network namespaces, whereas the use of "expose" does not make
-		// sense without the use of network namespace.
-		if err := tgValidateUseOfBridgeMode(tg); err != nil {
+		// is configured with one network that is in "bridge" mode, or warn
+		// if the network is a "cni/*" mode.
+		// This check is being done independently of the preceding Connect task
+		// injection hook, because at some point in the future Connect will not
+		// require the use of network namespaces, whereas the use of "expose"
+		// does not make sense without the use of network namespace.
+		warn, err := tgValidateExposeNetworkMode(tg)
+		if err != nil {
 			return nil, err
+		}
+		if warn != nil {
+			warnings = append(warnings, warn)
 		}
 		// Make sure any group-service that contains a check that enables expose
 		// is connect-enabled and does not specify a custom sidecar task. We only
@@ -75,7 +80,7 @@ func (jobExposeCheckHook) Validate(job *structs.Job) (warnings []error, err erro
 			return nil, err
 		}
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // serviceExposeConfig digs through s to extract the connect sidecar service proxy
@@ -137,19 +142,22 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 	return nil
 }
 
-// tgValidateUseOfBridgeMode ensures there is exactly 1 network configured for
-// the task group, and that it makes use of "bridge" mode (i.e. enables network
+// tgValidateExposeNetworkMode ensures there is exactly 1 network configured for
+// the task group, and that it uses "bridge" or "cni/*" mode (i.e. enables network
 // namespaces).
-func tgValidateUseOfBridgeMode(tg *structs.TaskGroup) error {
+func tgValidateExposeNetworkMode(tg *structs.TaskGroup) (warn, err error) {
 	if tgUsesExposeCheck(tg) {
 		if len(tg.Networks) != 1 {
-			return fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
+			return nil, fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
 		}
-		if tg.Networks[0].Mode != "bridge" {
-			return fmt.Errorf("group %q must use bridge network for exposing service check(s)", tg.Name)
+		mode := tg.Networks[0].Mode
+		if strings.HasPrefix(mode, "cni/") {
+			warn = fmt.Errorf("group %q uses network mode %q for Consul Connect, instead of Nomad's bridge; use at your own risk", tg.Name, mode)
+		} else if mode != "bridge" {
+			err = fmt.Errorf("group %q must use bridge or CNI network for exposing service check(s)", tg.Name)
 		}
 	}
-	return nil
+	return warn, err
 }
 
 // tgUsesExposeCheck returns true if any group service in the task group makes
@@ -188,7 +196,7 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 
 	// Borrow some of the validation before we start manipulating the group
 	// network, which needs to exist once.
-	if err := tgValidateUseOfBridgeMode(tg); err != nil {
+	if _, err := tgValidateExposeNetworkMode(tg); err != nil {
 		return nil, err
 	}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,37 +58,57 @@ func TestJobExposeCheckHook_tgValidateUseOfBridgeMode(t *testing.T) {
 	}
 
 	t.Run("no networks but no use of expose", func(t *testing.T) {
-		require.Nil(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Networks: make(structs.Networks, 0),
-		}))
+		})
+		must.NoError(t, warn)
+		must.NoError(t, err)
 	})
 
 	t.Run("no networks and uses expose", func(t *testing.T) {
-		require.EqualError(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: make(structs.Networks, 0),
 			Services: []*structs.Service{s1},
-		}), `group "g1" must specify one bridge network for exposing service check(s)`)
+		})
+		must.NoError(t, warn)
+		must.EqError(t, err, `group "g1" must specify one bridge network for exposing service check(s)`)
 	})
 
 	t.Run("non-bridge network and uses expose", func(t *testing.T) {
-		require.EqualError(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "host",
 			}},
 			Services: []*structs.Service{s1},
-		}), `group "g1" must use bridge network for exposing service check(s)`)
+		})
+		must.NoError(t, warn)
+		must.EqError(t, err, `group "g1" must use bridge or CNI network for exposing service check(s)`)
 	})
 
 	t.Run("bridge network uses expose", func(t *testing.T) {
-		require.Nil(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "bridge",
 			}},
 			Services: []*structs.Service{s1},
-		}))
+		})
+		must.NoError(t, warn)
+		must.NoError(t, err)
+	})
+
+	t.Run("cni network uses expose", func(t *testing.T) {
+		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+			Name: "g1",
+			Networks: structs.Networks{{
+				Mode: "cni/test-net",
+			}},
+			Services: []*structs.Service{s1},
+		})
+		must.EqError(t, warn, `group "g1" uses network mode "cni/test-net" for Consul Connect, instead of Nomad's bridge; use at your own risk`)
+		must.NoError(t, err)
 	})
 }
 

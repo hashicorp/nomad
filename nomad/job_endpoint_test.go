@@ -6317,7 +6317,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 		err := validateJob(j)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), `Consul Connect sidecar requires bridge network, found "host" in group "web"`)
+		require.Contains(t, err.Error(), `group "web" must use bridge or CNI network for Consul Connect`)
 	})
 
 }
