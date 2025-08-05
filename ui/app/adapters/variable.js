@@ -146,7 +146,7 @@ export default class VariableAdapter extends ApplicationAdapter {
       return new InvalidError([
         {
           detail:
-            'Invalid name. Name must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.',
+            'Invalid definition. Name must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length and value should be be under 64KiB',
           status: 400,
         },
       ]);
