@@ -15,10 +15,10 @@ const (
 	WINDOWS_SERVICE_STATE_TIMEOUT = "1m"
 )
 
-var chanGraceExit = make(chan int)
+var chanGraceExit = make(chan struct{})
 
 // ShutdownChannel returns a channel that sends a message that a shutdown
 // signal has been received for the service.
-func ShutdownChannel() <-chan int {
+func ShutdownChannel() <-chan struct{} {
 	return chanGraceExit
 }
