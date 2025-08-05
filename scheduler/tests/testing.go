@@ -316,12 +316,14 @@ func (h *Harness) SetNoSubmit() {
 	h.noSubmit = true
 }
 
-// helper method to create allocations with given jobs and resources
+// CreateAlloc is helper method to create allocations with given jobs and
+// resources
 func CreateAlloc(id string, job *structs.Job, resource *structs.Resources) *structs.Allocation {
 	return CreateAllocInner(id, job, resource, nil, nil)
 }
 
-// helper method to create allocation with network at the task group level
+// CreateAllocWithTaskgroupNetwork is is helper method to create allocation with
+// network at the task group level
 func CreateAllocWithTaskgroupNetwork(id string, job *structs.Job, resource *structs.Resources, tgNet *structs.NetworkResource) *structs.Allocation {
 	return CreateAllocInner(id, job, resource, nil, tgNet)
 }

@@ -453,6 +453,9 @@ type Config struct {
 	// feature. This feature allows servers to validate node registration
 	// requests and perform the appropriate enforcement actions.
 	NodeIntroductionConfig *structs.NodeIntroductionConfig
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (c *Config) Copy() *Config {

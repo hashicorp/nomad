@@ -33,9 +33,9 @@ func newDeviceAllocator(ctx Context, n *structs.Node) *deviceAllocator {
 	}
 }
 
-func (da *deviceAllocator) Copy() *deviceAllocator {
-	accounter := da.DeviceAccounter.Copy()
-	allocator := &deviceAllocator{accounter, da.ctx}
+func (d *deviceAllocator) Copy() *deviceAllocator {
+	accounter := d.DeviceAccounter.Copy()
+	allocator := &deviceAllocator{accounter, d.ctx}
 	return allocator
 }
 

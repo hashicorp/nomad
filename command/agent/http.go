@@ -474,6 +474,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	// "application/json" Content-Type depending on the ?plain= query
 	// parameter.
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+	s.mux.HandleFunc("/v1/agent/monitor/export", s.wrap(s.AgentMonitorExport))
 
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 

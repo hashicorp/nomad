@@ -140,6 +140,9 @@ const (
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
+	//
+	// NOTE: Adding a new MessageType above? You need to have a version check
+	// for the feature to avoid panics during upgrades.
 )
 
 const (

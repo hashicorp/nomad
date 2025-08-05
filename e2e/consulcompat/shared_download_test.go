@@ -21,7 +21,7 @@ import (
 
 const (
 	binDir           = "consul-bins"
-	minConsulVersion = "1.16.0"
+	minConsulVersion = "1.18.0" // oldest supported LTS
 
 	// environment variable to pick only one Consul version for testing
 	exactConsulVersionEnv = "NOMAD_E2E_CONSULCOMPAT_CONSUL_VERSION"

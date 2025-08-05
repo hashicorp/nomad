@@ -432,6 +432,9 @@ type ClientConfig struct {
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int `hcl:"node_max_allocs"`
+
+	// LogFile is used by MonitorExport to stream a client's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -769,6 +772,9 @@ type ServerConfig struct {
 	// expected to complete before the server is considered healthy. Without
 	// this, the server can hang indefinitely waiting for these.
 	StartTimeout string `hcl:"start_timeout"`
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -2596,8 +2602,8 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 }
 
 // Merge is used to merge two client configs together
-func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
-	result := *a
+func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
+	result := *c
 
 	if b.Enabled {
 		result.Enabled = true
@@ -2738,10 +2744,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
-	if len(a.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
+	if len(c.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
 		result.HostVolumes = structs.CopySliceClientHostVolumeConfig(b.HostVolumes)
 	} else if len(b.HostVolumes) != 0 {
-		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
+		result.HostVolumes = structs.HostVolumeSliceMerge(c.HostVolumes, b.HostVolumes)
 	}
 
 	if b.CNIPath != "" {
@@ -2763,7 +2769,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.BridgeNetworkHairpinMode = true
 	}
 
-	result.HostNetworks = a.HostNetworks
+	result.HostNetworks = c.HostNetworks
 
 	if len(b.HostNetworks) != 0 {
 		result.HostNetworks = append(result.HostNetworks, b.HostNetworks...)
@@ -2783,9 +2789,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.CgroupParent = b.CgroupParent
 	}
 
-	result.Artifact = a.Artifact.Merge(b.Artifact)
-	result.Drain = a.Drain.Merge(b.Drain)
-	result.Users = a.Users.Merge(b.Users)
+	result.Artifact = c.Artifact.Merge(b.Artifact)
+	result.Drain = c.Drain.Merge(b.Drain)
+	result.Users = c.Users.Merge(b.Users)
 
 	if b.NodeMaxAllocs != 0 {
 		result.NodeMaxAllocs = b.NodeMaxAllocs
@@ -2916,8 +2922,8 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 }
 
 // Merge is used to merge two port configurations.
-func (a *Ports) Merge(b *Ports) *Ports {
-	result := *a
+func (p *Ports) Merge(b *Ports) *Ports {
+	result := *p
 
 	if b.HTTP != 0 {
 		result.HTTP = b.HTTP

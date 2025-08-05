@@ -272,7 +272,7 @@ func (c *MockAgent) CheckRegs() []*api.AgentCheckRegistration {
 	return regs
 }
 
-// CheckRegister implements AgentAPI
+// CheckRegisterOpts implements AgentAPI
 func (c *MockAgent) CheckRegisterOpts(check *api.AgentCheckRegistration, _ *api.QueryOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()

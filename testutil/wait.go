@@ -335,7 +335,7 @@ func WaitForRunning(t testing.TB, rpc rpcFn, job *structs.Job) []*structs.AllocL
 	return WaitForRunningWithToken(t, rpc, job, "")
 }
 
-// WaitforJobAllocStatus blocks until the ClientStatus of allocations for a job
+// WaitForJobAllocStatus blocks until the ClientStatus of allocations for a job
 // match the expected map of <ClientStatus>: <count>.
 func WaitForJobAllocStatus(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int) {
 	t.Helper()
@@ -387,7 +387,7 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 	return allocs
 }
 
-// WaitforJobEvalStatus blocks until the job's evals match the status described
+// WaitForJobEvalStatus blocks until the job's evals match the status described
 // in the map of <Eval.Status>: <count>.
 func WaitForJobEvalStatus(t testing.TB, rpc rpcFn, job *structs.Job, evalStatus map[string]int) []*structs.Evaluation {
 	return WaitForJobEvalStatusWithToken(t, rpc, job, evalStatus, "")

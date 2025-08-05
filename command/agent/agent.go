@@ -674,6 +674,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("invalid server.client_introduction configuration: %w", err)
 	}
 
+	// Copy LogFile config value
+	conf.LogFile = agentConfig.LogFile
+
 	return conf, nil
 }
 
@@ -812,7 +815,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
 	}
-
 	conf.Servers = agentConfig.Client.Servers
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
@@ -1076,6 +1078,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
+	conf.LogFile = agentConfig.LogFile
 	return conf, nil
 }
 

@@ -579,7 +579,7 @@ func Verbose(on bool) Option {
 	}
 }
 
-// Set an HCL variable.
+// Var sets a HCL variable.
 func Var(key, value string) Option {
 	return func(sub *Submission) {
 		sub.vars[key] = value
