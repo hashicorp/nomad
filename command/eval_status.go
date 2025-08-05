@@ -5,6 +5,7 @@ package command
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -386,7 +387,7 @@ func formatPlanAnnotations(desiredTGUpdates map[string]*api.DesiredUpdates, verb
 	for tg := range desiredTGUpdates {
 		taskGroups = append(taskGroups, tg)
 	}
-	sort.StringSlice(taskGroups).Sort()
+	slices.Sort(taskGroups)
 
 	i := 1
 	for _, tg := range taskGroups {
