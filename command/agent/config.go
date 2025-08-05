@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/helper/ipaddr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/helper/winsvc"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -199,6 +200,9 @@ type Config struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// Configure logging to Windows eventlog
+	Eventlog *Eventlog `hcl:"eventlog"`
 }
 
 func (c *Config) defaultConsul() *config.ConsulConfig {
@@ -1399,6 +1403,60 @@ func (t *Telemetry) Validate() error {
 	return nil
 }
 
+// Eventlog is the configuration for the Windows Eventlog
+type Eventlog struct {
+	// Enabled controls if Nomad agent logs are sent to the
+	// Windows eventlog.
+	Enabled bool `hcl:"enabled"`
+	// Level of logs to send to eventlog. May be set to higher
+	// severity than LogLevel but lower level will be ignored.
+	Level string `hcl:"level"`
+}
+
+// Copy is used to copy the Eventlog configuration
+func (e *Eventlog) Copy() *Eventlog {
+	return &Eventlog{
+		Enabled: e.Enabled,
+		Level:   e.Level,
+	}
+}
+
+// Merge is used to merge Eventlog configurations
+func (e *Eventlog) Merge(b *Eventlog) *Eventlog {
+	if e == nil {
+		return b
+	}
+
+	result := *e
+
+	if b == nil {
+		return &result
+	}
+
+	if b.Enabled {
+		result.Enabled = b.Enabled
+	}
+
+	if b.Level != "" {
+		result.Level = b.Level
+	}
+
+	return &result
+}
+
+// Validate validates the eventlog configuration
+func (e *Eventlog) Validate() error {
+	if e == nil {
+		return nil
+	}
+
+	if winsvc.EventlogLevelFromString(e.Level) == winsvc.EVENTLOG_LEVEL_UNKNOWN {
+		return errors.New("eventlog.level must be one of INFO, WARN, or ERROR")
+	}
+
+	return nil
+}
+
 // Ports encapsulates the various ports we bind to for network services. If any
 // are not specified then the defaults are used instead.
 type Ports struct {
@@ -1732,6 +1790,10 @@ func DefaultConfig() *Config {
 			collectionInterval:           1 * time.Second,
 			DisableAllocationHookMetrics: pointer.Of(false),
 		},
+		Eventlog: &Eventlog{
+			Enabled: false,
+			Level:   "error",
+		},
 		TLSConfig:          &config.TLSConfig{},
 		Sentinel:           &config.SentinelConfig{},
 		Version:            version.GetVersion(),
@@ -1842,6 +1904,13 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Telemetry = &telemetry
 	} else if b.Telemetry != nil {
 		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
+	}
+
+	// Apply the eventlog config
+	if result.Eventlog == nil && b.Eventlog != nil {
+		result.Eventlog = b.Eventlog.Copy()
+	} else if b.Eventlog != nil {
+		result.Eventlog = result.Eventlog.Merge(b.Eventlog)
 	}
 
 	// Apply the Reporting Config

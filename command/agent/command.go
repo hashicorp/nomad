@@ -75,6 +75,7 @@ func (c *Command) readConfig() *Config {
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
+		Eventlog:  &Eventlog{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -131,6 +132,10 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// Eventlog options
+	flags.BoolVar(&cmdConfig.Eventlog.Enabled, "eventlog", false, "")
+	flags.StringVar(&cmdConfig.Eventlog.Level, "eventlog-level", "", "")
 
 	// Consul options
 	defaultConsul := cmdConfig.defaultConsul()
@@ -489,7 +494,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 	if err := config.RPC.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v)", err))
+		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v", err))
+		return false
+	}
+
+	if err := config.Eventlog.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("eventlog block invalid: %v", err))
 		return false
 	}
 
@@ -580,6 +590,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
+
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
@@ -589,6 +600,17 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 			return nil, nil
 		}
 		writers = append(writers, newSyslogWriter(l, config.LogJson))
+	}
+
+	// Check if eventlog is enabled
+	if config.Eventlog != nil && config.Eventlog.Enabled {
+		l, err := winsvc.NewEventLogger(config.Eventlog.Level)
+		if err != nil {
+			ui.Error(fmt.Sprintf("Windows event logger setup failed: %s", err))
+			return nil, nil
+		}
+
+		writers = append(writers, l)
 	}
 
 	// Check if file logging is enabled
@@ -766,6 +788,8 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-vault-tls-server-name":                  complete.PredictAnything,
 		"-acl-enabled":                            complete.PredictNothing,
 		"-acl-replication-token":                  complete.PredictAnything,
+		"-eventlog":                               complete.PredictNothing,
+		"-eventlog-level":                         complete.PredictSet("INFO", "WARN", "ERROR"),
 	}
 }
 
@@ -912,6 +936,10 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
+
+	// Add events for the eventlog
+	winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceReady))
+	defer func() { winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceStopped)) }()
 
 	// Wait for exit
 	return c.handleSignals()
@@ -1473,6 +1501,14 @@ General Options (clients and servers):
 
   -log-include-location
     Include file and line information in each log line. The default is false.
+
+  -eventlog
+   Enable sending Nomad agent logs to the Windows Event Log.
+
+  -eventlog-level
+	Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
+	include ERROR, WARN, or INFO in  order of verbosity. Level must be
+    of equal or less verbosity as defined for the -log-level parameter.
 
   -node=<name>
     The name of the local agent. This name is used to identify the node
