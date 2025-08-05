@@ -546,11 +546,14 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai.ACLToken != nil && ai.ACLToken != AnonymousACLToken {
 		return "token:" + ai.ACLToken.AccessorID
 	}
-	if ai.Claims != nil {
+	if ai.Claims != nil && ai.Claims.IsWorkload() {
 		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
 		return "client:" + ai.ClientID
+	}
+	if ai.Claims != nil && ai.Claims.IsNode() {
+		return "client:" + ai.Claims.NodeID
 	}
 	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
@@ -598,19 +601,6 @@ type WriteMeta struct {
 	Index uint64
 }
 
-// NodeRegisterRequest is used for Node.Register endpoint
-// to register a node as being a schedulable entity.
-type NodeRegisterRequest struct {
-	Node      *Node
-	NodeEvent *NodeEvent
-
-	// CreateNodePool is used to indicate that the node's node pool should be
-	// create along with the node registration if it doesn't exist.
-	CreateNodePool bool
-
-	WriteRequest
-}
-
 // NodeDeregisterRequest is used for Node.Deregister endpoint
 // to deregister a node as being a schedulable entity.
 type NodeDeregisterRequest struct {
@@ -642,16 +632,6 @@ type NodeServerInfo struct {
 
 	// Datacenter is the datacenter that a Nomad server belongs to
 	Datacenter string
-}
-
-// NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
-// to update the status of a node.
-type NodeUpdateStatusRequest struct {
-	NodeID    string
-	Status    string
-	NodeEvent *NodeEvent
-	UpdatedAt int64
-	WriteRequest
 }
 
 // NodeUpdateDrainRequest is used for updating the drain strategy
@@ -1497,36 +1477,6 @@ type JobValidateResponse struct {
 	Warnings string
 }
 
-// NodeUpdateResponse is used to respond to a node update
-type NodeUpdateResponse struct {
-	HeartbeatTTL    time.Duration
-	EvalIDs         []string
-	EvalCreateIndex uint64
-	NodeModifyIndex uint64
-
-	// Features informs clients what enterprise features are allowed
-	Features uint64
-
-	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
-	// empty, the current Nomad Server is in the minority of a partition.
-	LeaderRPCAddr string
-
-	// NumNodes is the number of Nomad nodes attached to this quorum of
-	// Nomad Servers at the time of the response.  This value can
-	// fluctuate based on the health of the cluster between heartbeats.
-	NumNodes int32
-
-	// Servers is the full list of known Nomad servers in the local
-	// region.
-	Servers []*NodeServerInfo
-
-	// SchedulingEligibility is used to inform clients what the server-side
-	// has for their scheduling status during heartbeats.
-	SchedulingEligibility string
-
-	QueryMeta
-}
-
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
 	NodeModifyIndex uint64
@@ -2141,6 +2091,15 @@ type Node struct {
 
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
+
+	// IdentitySigningKeyID is the ID of the root key used to sign the identity
+	// of the node. This is primarily used to ensure Nomad does not delete a
+	// root keyring that still has nodes with identities signed by it.
+	//
+	// This field is only set if the node has a workload identity and will be
+	// modified by the server when the node is registered or updated, and the
+	// signing key ID has changed from what is stored in state.
+	IdentitySigningKeyID string
 
 	// StatusUpdatedAt is the time stamp at which the state of the node was
 	// updated, stored as Unix (no nano seconds!)

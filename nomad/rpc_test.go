@@ -254,6 +254,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
+		c.Region = "regionFoo"
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -264,18 +265,19 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 		}
 	})
 	defer cleanupS1()
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
-	codec := rpcClient(t, s1)
+	tlsCodec := rpcClientWithTLS(t, s1, s1.config.TLSConfig)
 
 	// Create the register request
 	node := mock.Node()
 	req := &structs.NodeRegisterRequest{
 		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{Region: s1.Region()},
 	}
 
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	err := msgpackrpc.CallWithCodec(tlsCodec, "Node.Register", req, &resp)
 	assert.Nil(err)
 
 	// Check that heartbeatTimers has the heartbeat ID

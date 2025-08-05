@@ -454,14 +454,7 @@ func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create test file
-	dir := t.TempDir()
-	f, err := os.CreateTemp(dir, "log")
-	must.NoError(t, err)
-	for range 1000 {
-		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
-	}
-	f.Close()
-	testFilePath := f.Name()
+	testFilePath := monitor.PrepFile(t).Name()
 	testFileContents, err := os.ReadFile(testFilePath)
 	must.NoError(t, err)
 

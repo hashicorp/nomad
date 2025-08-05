@@ -73,15 +73,17 @@ func (m *MockWIDSigner) JSONWebKeySet() *jose.JSONWebKeySet {
 	}
 }
 
-func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
+func (m *MockWIDSigner) SignIdentities(_ uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
 	for _, idReq := range req {
 		// Set test values for default claims
 		claims := &structs.IdentityClaims{
-			Namespace:    "default",
-			JobID:        "test",
-			AllocationID: idReq.AllocID,
-			TaskName:     idReq.WorkloadIdentifier,
+			WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+				Namespace:    "default",
+				JobID:        "test",
+				AllocationID: idReq.AllocID,
+				TaskName:     idReq.WorkloadIdentifier,
+			},
 		}
 		claims.ID = uuid.Generate()
 		// If test has set workload identities. Lookup claims or reject unknown
