@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	golog "log"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
@@ -310,6 +312,63 @@ func TestRetryJoin_RetryMaxAttempts(t *testing.T) {
 	}
 }
 
+func TestRetryJoin_joinFuncFailure(t *testing.T) {
+	// Create an error channel to pass to the retry joiner. When the retry
+	// attempts have been exhausted, this channel is closed and our only way
+	// to test this apart from inspecting log entries.
+	errCh := make(chan struct{})
+
+	// Create an output for logging that can be inspected
+	logOutput := bytes.NewBufferString("")
+
+	// Create a timeout to protect against problems within the test blocking
+	// for arbitrary long times.
+	timeout, timeoutStop := helper.NewSafeTimer(2 * time.Second)
+	defer timeoutStop()
+
+	var output []string
+
+	l := testlog.HCLogger(t)
+	s := hclog.NewSinkAdapter(&hclog.LoggerOptions{
+		Output: logOutput,
+		Level:  hclog.Warn,
+	})
+	l.RegisterSink(s)
+
+	joiner := retryJoiner{
+		autoDiscover: autoDiscover{goDiscover: &MockDiscover{}},
+		joinCfg:      &ServerJoin{RetryMaxAttempts: 1, RetryJoin: []string{"provider=foo"}},
+		joinFunc: func(_ []string) (int, error) {
+			return 0, fmt.Errorf("joinFunc testing error")
+		},
+		logger: l,
+		errCh:  errCh,
+	}
+
+	// Execute the retry join function in a routine, so we can track whether
+	// this returns and exits without close the error channel and thus
+	// indicating retry failure.
+	doneCh := make(chan struct{})
+
+	go func(doneCh chan struct{}) {
+		joiner.RetryJoin()
+		close(doneCh)
+	}(doneCh)
+
+	// The main test; ensure error channel is closed, indicating the retry
+	// limit has been reached.
+	select {
+	case <-errCh:
+		must.Len(t, 0, output)
+	case <-doneCh:
+		t.Fatal("retry join completed without closing error channel")
+	case <-timeout.C:
+		t.Fatal("timeout reached without error channel close")
+	}
+
+	must.StrContains(t, logOutput.String(), "joinFunc testing error")
+}
+
 func TestRetryJoin_Validate(t *testing.T) {
 	ci.Parallel(t)
 	type validateExpect struct {
@@ -453,9 +512,9 @@ func TestRetryJoin_Validate(t *testing.T) {
 		t.Run(scenario.reason, func(t *testing.T) {
 			err := joiner.Validate(scenario.config)
 			if scenario.isValid {
-				must.NoError(t, err)
+				must.NoError(t, err, must.Sprint(scenario.reason))
 			} else {
-				must.Error(t, err)
+				must.Error(t, err, must.Sprint(scenario.reason))
 			}
 		})
 	}
