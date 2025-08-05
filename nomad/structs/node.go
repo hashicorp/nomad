@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 // CSITopology is a map of topological domains to topological segments.
@@ -492,3 +494,245 @@ type NodeMetaResponse struct {
 	// Static is the static Node metadata (set via agent configuration)
 	Static map[string]string
 }
+
+// NodeIdentityClaims represents the claims for a Nomad node identity JWT.
+type NodeIdentityClaims struct {
+	NodeID         string `json:"nomad_node_id"`
+	NodePool       string `json:"nomad_node_pool"`
+	NodeClass      string `json:"nomad_node_class"`
+	NodeDatacenter string `json:"nomad_node_datacenter"`
+}
+
+// GenerateNodeIdentityClaims creates a new NodeIdentityClaims for the given
+// node and region. The returned claims will be ready for signing and returning
+// to the node.
+//
+// The caller is responsible for ensuring that the passed arguments are valid.
+func GenerateNodeIdentityClaims(node *Node, region string, ttl time.Duration) *IdentityClaims {
+
+	// The time does not need to be passed into the function as an argument, as
+	// we only create a single identity per node at a time. This explains the
+	// difference with the workload identity claims, as each allocation can have
+	// multiple identities.
+	timeNow := time.Now().UTC()
+	timeJWTNow := jwt.NewNumericDate(timeNow)
+
+	claims := &IdentityClaims{
+		NodeIdentityClaims: &NodeIdentityClaims{
+			NodeID:         node.ID,
+			NodePool:       node.NodePool,
+			NodeClass:      node.NodeClass,
+			NodeDatacenter: node.Datacenter,
+		},
+		Claims: jwt.Claims{
+			ID:        uuid.Generate(),
+			IssuedAt:  timeJWTNow,
+			NotBefore: timeJWTNow,
+		},
+	}
+
+	claims.setAudience([]string{IdentityDefaultAud})
+	claims.setExpiry(timeNow, ttl)
+	claims.setNodeSubject(node, region)
+
+	return claims
+}
+
+// NodeRegisterRequest is used by the Node.Register RPC endpoint to register a
+// node as being a schedulable entity.
+type NodeRegisterRequest struct {
+	Node      *Node
+	NodeEvent *NodeEvent
+
+	// CreateNodePool is used to indicate that the node's node pool should be
+	// created along with the node registration if it doesn't exist.
+	CreateNodePool bool
+
+	WriteRequest
+}
+
+// ShouldGenerateNodeIdentity compliments the functionality within
+// AuthenticateNodeIdentityGenerator to determine whether a new node identity
+// should be generated within the RPC handler.
+func (n *NodeRegisterRequest) ShouldGenerateNodeIdentity(
+	authErr error,
+	now time.Time,
+	ttl time.Duration,
+) bool {
+
+	// In the event the error is because the node identity is expired, we should
+	// generate a new identity. Without this, a disconnected node would never be
+	// able to re-register. Any other error is not a reason to generate a new
+	// identity.
+	if authErr != nil {
+		return errors.Is(authErr, jwt.ErrExpired)
+	}
+
+	// If an ACL token or client ID is set, a node is attempting to register for
+	// the first time, or is re-registering using its secret ID. In either case,
+	// we should generate a new identity.
+	if n.identity.ACLToken != nil || n.identity.ClientID != "" {
+		return true
+	}
+
+	// If we have reached this point, we can assume that the request is using a
+	// node identity.
+	claims := n.GetIdentity().GetClaims()
+
+	// It is possible that the node has been restarted and had its configuration
+	// updated. In this case, we should generate a new identity for the node, so
+	// it reflects its new claims.
+	if n.Node.NodePool != claims.NodeIdentityClaims.NodePool ||
+		n.Node.NodeClass != claims.NodeIdentityClaims.NodeClass ||
+		n.Node.Datacenter != claims.NodeIdentityClaims.NodeDatacenter {
+		return true
+	}
+
+	// The final check is to see if the node identity is expiring.
+	return claims.IsExpiring(now, ttl)
+}
+
+// NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
+// to update the status of a node.
+type NodeUpdateStatusRequest struct {
+	NodeID string
+	Status string
+
+	// IdentitySigningKeyID is the ID of the root key used to sign the node's
+	// identity. This is not provided by the client, but is set by the server,
+	// so that the value can be propagated through Raft.
+	IdentitySigningKeyID string
+
+	// ForceIdentityRenewal is used to force the Nomad server to generate a new
+	// identity for the node.
+	ForceIdentityRenewal bool
+
+	NodeEvent *NodeEvent
+	UpdatedAt int64
+	WriteRequest
+}
+
+// ShouldGenerateNodeIdentity determines whether the handler should generate a
+// new node identity based on the caller identity information.
+func (n *NodeUpdateStatusRequest) ShouldGenerateNodeIdentity(
+	now time.Time,
+	ttl time.Duration,
+) bool {
+
+	identity := n.GetIdentity()
+
+	// If the client ID is set, we should generate a new identity as the node
+	// has authenticated using its secret ID.
+	if identity.ClientID != "" {
+		return true
+	}
+
+	// Confirm we have a node identity and then check for forced renewal or
+	// expiration.
+	if identity.GetClaims().IsNode() {
+		if n.ForceIdentityRenewal {
+			return true
+		}
+		return n.GetIdentity().GetClaims().IsExpiring(now, ttl)
+	}
+
+	// No other conditions should generate a new identity. In the case of the
+	// update status endpoint, this will likely be a Nomad server propagating
+	// that a node has missed its heartbeat.
+	return false
+}
+
+// IdentitySigningErrorIsTerminal determines if the RPC handler should return an
+// error because it failed to sign a newly generated node identity.
+//
+// This is because a client might be connected to a follower at the point the
+// root keyring is rotated. If the client heartbeats right at that moment and
+// before the follower decrypts the key (e.g., network latency to external KMS),
+// we will mark the node as down. This is despite identity being valid and the
+// likelihood it will get a new identity signed on the next heartbeat.
+func (n *NodeUpdateStatusRequest) IdentitySigningErrorIsTerminal(now time.Time) bool {
+
+	identity := n.GetIdentity()
+
+	// If the client has authenticated using a secret ID, we can continue to let
+	// it do that, until we successfully generate a new identity.
+	if identity.ClientID != "" {
+		return false
+	}
+
+	// If the identity is a node identity, we can check if it is expiring. This
+	// check is used to determine if the RPC handler should return an error, so
+	// we use a short threshold of 10 minutes. This is to ensure we don't return
+	// errors unless we absolutely have to.
+	//
+	// A threshold of 10 minutes more than covers another heartbeat on the
+	// largest Nomad clusters, which can reach ~5 minutes.
+	if identity.GetClaims().IsNode() {
+		return n.GetIdentity().GetClaims().IsExpiringInThreshold(now.Add(10 * time.Minute))
+	}
+
+	// No other condition should result in the RPC handler returning an error
+	// because we failed to sign the node identity. No caller should be able to
+	// reach this point, as identity generation should be gated by
+	// ShouldGenerateNodeIdentity.
+	return false
+}
+
+// NodeUpdateResponse is used to respond to a node update. The object is a
+// shared response used by the Node.Register, Node.Deregister,
+// Node.BatchDeregister, Node.UpdateStatus, and Node.Evaluate RPCs.
+type NodeUpdateResponse struct {
+	HeartbeatTTL    time.Duration
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	NodeModifyIndex uint64
+
+	// Features informs clients what enterprise features are allowed
+	Features uint64
+
+	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
+	// empty, the current Nomad Server is in the minority of a partition.
+	LeaderRPCAddr string
+
+	// NumNodes is the number of Nomad nodes attached to this quorum of
+	// Nomad Servers at the time of the response.  This value can
+	// fluctuate based on the health of the cluster between heartbeats.
+	NumNodes int32
+
+	// Servers is the full list of known Nomad servers in the local
+	// region.
+	Servers []*NodeServerInfo
+
+	// SchedulingEligibility is used to inform clients what the server-side
+	// has for their scheduling status during heartbeats.
+	SchedulingEligibility string
+
+	// SignedIdentity is the newly signed node identity that the server has
+	// generated. The node should check if this is set, and if so, update its
+	// state with the new identity.
+	SignedIdentity *string
+
+	QueryMeta
+}
+
+const (
+	// NodeIdentityRenewRPCMethod is the RPC method for instructing a client to
+	// forcibly request a renewal of its node identity at the next heartbeat.
+	//
+	// Args: NodeIdentityRenewReq
+	// Reply: NodeIdentityRenewResp
+	NodeIdentityRenewRPCMethod = "NodeIdentity.Renew"
+)
+
+// NodeIdentityRenewReq is used to instruct the Nomad server to renew the client
+// identity at its next heartbeat regardless of whether it is close to
+// expiration.
+type NodeIdentityRenewReq struct {
+	NodeID string
+
+	// This is a client RPC, so we must use query options which allow us to set
+	// AllowStale=true.
+	QueryOptions
+}
+
+type NodeIdentityRenewResp struct{}

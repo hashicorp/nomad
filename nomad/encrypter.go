@@ -45,8 +45,6 @@ type claimSigner interface {
 	SignClaims(*structs.IdentityClaims) (string, string, error)
 }
 
-var _ claimSigner = &Encrypter{}
-
 // Encrypter is the keyring for encrypting variables and signing workload
 // identities.
 type Encrypter struct {
@@ -305,11 +303,12 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 // header name.
 const keyIDHeader = "kid"
 
-// SignClaims signs the identity claim for the task and returns an encoded JWT
-// (including both the claim and its signature) and the key ID of the key used
-// to sign it, or an error.
+// SignClaims signs the identity claim and returns an encoded JWT (including
+// both the claim and its signature) and the key ID of the key used to sign it,
+// or an error.
 //
-// SignClaims adds the Issuer claim prior to signing.
+// SignClaims adds the Issuer claim prior to signing if it is unset by the
+// caller.
 func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
 
 	if claims == nil {
@@ -326,7 +325,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", cs.rootKey.Meta.KeyID).WithType("JWT")
+	opts := (&jose.SignerOptions{}).WithHeader(keyIDHeader, cs.rootKey.Meta.KeyID).WithType("JWT")
 
 	var sig jose.Signer
 	if cs.rsaPrivateKey != nil {
@@ -351,8 +350,8 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 	return raw, cs.rootKey.Meta.KeyID, nil
 }
 
-// VerifyClaim accepts a previously-signed encoded claim and validates
-// it before returning the claim
+// VerifyClaim accepts a previously signed encoded claim and validates
+// it before returning the claim.
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
 
 	token, err := jwt.ParseSigned(tokenString)
@@ -377,21 +376,21 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 		return nil, err
 	}
 
+	claims := structs.IdentityClaims{}
+
 	// Validate the claims.
-	claims := &structs.IdentityClaims{}
-	if err := token.Claims(typedPubKey, claims); err != nil {
+	if err := token.Claims(typedPubKey, &claims); err != nil {
 		return nil, fmt.Errorf("invalid signature: %w", err)
 	}
 
-	//COMPAT Until we can guarantee there are no pre-1.7 JWTs in use we can only
-	//       validate the signature and have no further expectations of the
-	//       claims.
-	expect := jwt.Expected{}
-	if err := claims.Validate(expect); err != nil {
+	// COMPAT: Until we can guarantee there are no pre-1.7 JWTs in use, we can
+	// only validate the signature and have no further expectations of the
+	// claims.
+	if err := claims.Validate(jwt.Expected{}); err != nil {
 		return nil, fmt.Errorf("invalid claims: %w", err)
 	}
 
-	return claims, nil
+	return &claims, nil
 }
 
 // AddUnwrappedKey stores the key in the keystore and creates a new cipher for

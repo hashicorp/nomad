@@ -654,8 +654,9 @@ func TestNodePoolEndpoint_UpsertNodePools(t *testing.T) {
 			name: "update pool",
 			pools: []*structs.NodePool{
 				{
-					Name:        existing.Name,
-					Description: "updated pool",
+					Name:            existing.Name,
+					Description:     "updated pool",
+					NodeIdentityTTL: 24 * time.Hour,
 					Meta: map[string]string{
 						"updated": "true",
 					},
@@ -774,38 +775,38 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 			name:  "management token has full access",
 			token: root.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},
-				{Name: "prod-1"},
-				{Name: "qa-1"},
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},
+				{Name: "prod-1", NodeIdentityTTL: 24 * time.Minute},
+				{Name: "qa-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 		},
 		{
 			name:  "allowed by policy",
 			token: devToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 		},
 		{
 			name:  "allowed by capability",
 			token: prodToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "prod-1"},
+				{Name: "prod-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 		},
 		{
 			name:  "allowed by exact match",
 			token: devSpecificToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 		},
 		{
 			name:  "token restricted to wildcard",
 			token: devToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},  // ok
-				{Name: "prod-1"}, // not ok
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},  // ok
+				{Name: "prod-1", NodeIdentityTTL: 24 * time.Minute}, // not ok
 			},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -813,7 +814,7 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 			name:  "token restricted if not exact match",
 			token: devSpecificToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-2"},
+				{Name: "dev-2", NodeIdentityTTL: 24 * time.Minute},
 			},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -821,7 +822,7 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 			name:  "no token",
 			token: "",
 			pools: []*structs.NodePool{
-				{Name: "dev-2"},
+				{Name: "dev-2", NodeIdentityTTL: 24 * time.Minute},
 			},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -829,7 +830,7 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 			name:  "no policy",
 			token: noPolicyToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -837,7 +838,7 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 			name:  "no write",
 			token: readOnlyToken.SecretID,
 			pools: []*structs.NodePool{
-				{Name: "dev-1"},
+				{Name: "dev-1", NodeIdentityTTL: 24 * time.Minute},
 			},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},

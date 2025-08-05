@@ -258,7 +258,9 @@ func TestAuthenticatedIdentity_String(t *testing.T) {
 			name: "alloc claim",
 			inputAuthenticatedIdentity: &AuthenticatedIdentity{
 				Claims: &IdentityClaims{
-					AllocationID: "my-testing-alloc-id",
+					WorkloadIdentityClaims: &WorkloadIdentityClaims{
+						AllocationID: "my-testing-alloc-id",
+					},
 				},
 			},
 			expectedOutput: "alloc:my-testing-alloc-id",
@@ -8291,7 +8293,7 @@ func TestTaskIdentity_Canonicalize(t *testing.T) {
 	// to the original field.
 	must.NotNil(t, task.Identity)
 	must.Eq(t, WorkloadIdentityDefaultName, task.Identity.Name)
-	must.Eq(t, []string{WorkloadIdentityDefaultAud}, task.Identity.Audience)
+	must.Eq(t, []string{IdentityDefaultAud}, task.Identity.Audience)
 	must.False(t, task.Identity.Env)
 	must.False(t, task.Identity.File)
 

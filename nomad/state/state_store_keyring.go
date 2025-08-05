@@ -190,5 +190,14 @@ func (s *StateStore) IsRootKeyInUse(keyID string) (bool, error) {
 		return true, nil
 	}
 
+	iter, err = txn.Get(TableNodes, indexSigningKey, keyID)
+	if err != nil {
+		return false, err
+	}
+	node := iter.Next()
+	if node != nil {
+		return true, nil
+	}
+
 	return false, nil
 }

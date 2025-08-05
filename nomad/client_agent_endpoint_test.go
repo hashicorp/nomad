@@ -856,7 +856,10 @@ func TestAgentHost_Server(t *testing.T) {
 	}
 
 	c, cleanupC := client.TestClient(t, func(c *config.Config) {
-		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
+		c.Servers = []string{
+			s1.GetConfig().RPCAddr.String(),
+			s2.GetConfig().RPCAddr.String(),
+		}
 		c.EnableDebug = true
 	})
 	defer cleanupC()

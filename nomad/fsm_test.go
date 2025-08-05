@@ -245,7 +245,7 @@ func TestFSM_UpsertNode_NodePool(t *testing.T) {
 		validateFn func(*testing.T, *structs.Node, *structs.NodePool)
 	}{
 		{
-			name: "node with empty node pool is placed in defualt",
+			name: "node with empty node pool is placed in default",
 			setupReqFn: func(req *structs.NodeRegisterRequest) {
 				req.Node.NodePool = ""
 			},
@@ -724,7 +724,31 @@ func TestFSM_NodePoolUpsert(t *testing.T) {
 		structs.NodePool{},
 		"CreateIndex",
 		"ModifyIndex",
+		"NodeIdentityTTL",
+		"Hash",
 	)))
+
+	// Nomad 1.11 introduced the NodeIdentityTTL field for node pools. To test
+	// the upgrade path, we upsert a node pool without the TTL set which mimics
+	// a server applying a pre-1.11 object.
+	preTTLNodePool := mock.NodePool()
+	preTTLNodePool.NodeIdentityTTL = 0
+	preTTLNodePool.SetHash()
+
+	req = structs.NodePoolUpsertRequest{
+		NodePools: []*structs.NodePool{preTTLNodePool},
+	}
+	buf, err = structs.Encode(structs.NodePoolUpsertRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify the apply function set the NodeIdentityTTL to the default value
+	// and recalculated the hash.
+	ws = memdb.NewWatchSet()
+	preTTLNodePoolResp, err := fsm.State().NodePoolByName(ws, preTTLNodePool.Name)
+	must.NoError(t, err)
+	must.NonZero(t, preTTLNodePoolResp.NodeIdentityTTL)
+	must.NotEq(t, preTTLNodePool.Hash, preTTLNodePoolResp.Hash)
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
@@ -2273,16 +2297,50 @@ func TestFSM_SnapshotRestore_NodePools(t *testing.T) {
 	ci.Parallel(t)
 
 	// Add some state
-	fsm := testFSM(t)
-	state := fsm.State()
+	testFSM := testFSM(t)
+	testState := testFSM.State()
 	pool := mock.NodePool()
-	state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t,
+		testState.UpsertNodePools(
+			structs.MsgTypeTestSetup,
+			1000, []*structs.NodePool{pool},
+		))
 
 	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	out, _ := state2.NodePoolByName(nil, pool.Name)
+	testFSM2 := testSnapshotRestore(t, testFSM)
+	testState2 := testFSM2.State()
+	out, err := testState2.NodePoolByName(nil, pool.Name)
+	must.NoError(t, err)
 	must.Eq(t, pool, out)
+}
+
+func TestFSM_SnapshotRestore_NodePoolsPreTTL(t *testing.T) {
+	ci.Parallel(t)
+
+	testFSM := testFSM(t)
+	testState := testFSM.State()
+
+	// Nomad 1.11 introduced the NodeIdentityTTL field for node pools. To test
+	// the upgrade path, we upsert a node pool without the TTL set which mimics
+	// a server restoring a pre-1.11 snapshot.
+	pool := mock.NodePool()
+	pool.NodeIdentityTTL = 0
+	pool.SetHash()
+
+	must.NoError(t,
+		testState.UpsertNodePools(
+			structs.MsgTypeTestSetup,
+			1000, []*structs.NodePool{pool},
+		))
+
+	// Verify the apply function set the NodeIdentityTTL to the default value
+	// and recalculated the hash.
+	testFSM2 := testSnapshotRestore(t, testFSM)
+	testState2 := testFSM2.State()
+	out, err := testState2.NodePoolByName(nil, pool.Name)
+	must.NoError(t, err)
+	must.NonZero(t, out.NodeIdentityTTL)
+	must.NotEq(t, pool.Hash, out.Hash)
 }
 
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
