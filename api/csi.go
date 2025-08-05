@@ -75,14 +75,26 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 
 // Register registers a single CSIVolume with Nomad. The volume must already
 // exist in the external storage provider.
-func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions, override bool) (*WriteMeta, string, error) {
-	req := CSIVolumeRegisterRequest{
-		Volumes:        []*CSIVolume{vol},
-		PolicyOverride: override,
+func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
+	req := &CSIVolumeRegisterRequest{
+		Volumes: []*CSIVolume{vol},
 	}
+	_, meta, err := v.RegisterOpts(req, w)
+	return meta, err
+}
+
+// RegisterOpts registers a single CSIVolume with Nomad. The volume must already
+// exist in the external storage provider. It expects a single volume in the
+// request.
+func (v *CSIVolumes) RegisterOpts(req *CSIVolumeRegisterRequest, w *WriteOptions) (*CSIVolumeRegisterResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
 	resp := &CSIVolumeRegisterResponse{}
 	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, resp, w)
-	return meta, resp.Warnings, err
+
+	return resp, meta, err
 }
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
@@ -94,12 +106,23 @@ func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 // Create creates a single CSIVolume in an external storage provider and
 // registers it with Nomad. You do not need to call Register if this call is
 // successful.
-func (v *CSIVolumes) Create(vol *CSIVolume, override bool, w *WriteOptions) (*CSIVolumeCreateResponse, *WriteMeta, error) {
+func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *WriteMeta, error) {
 	req := CSIVolumeCreateRequest{
-		Volumes:        []*CSIVolume{vol},
-		PolicyOverride: override,
+		Volumes: []*CSIVolume{vol},
 	}
 
+	resp, meta, err := v.CreateOpts(&req, w)
+	return resp.Volumes, meta, err
+}
+
+// CreateOpts creates a single CSIVolume in an external storage provider and
+// registers it with Nomad. You do not need to call Register if this call is
+// successful. It expects a single volume in the request.
+func (v *CSIVolumes) CreateOpts(req *CSIVolumeCreateRequest, w *WriteOptions) (*CSIVolumeCreateResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
 	resp := &CSIVolumeCreateResponse{}
 	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
 	return resp, meta, err

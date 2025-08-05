@@ -17,7 +17,10 @@ func (c *VolumeCreateCommand) csiCreate(client *api.Client, ast *ast.File, overr
 		return 1
 	}
 
-	resp, _, err := client.CSIVolumes().Create(vol, override, nil)
+	resp, _, err := client.CSIVolumes().CreateOpts(&api.CSIVolumeCreateRequest{
+		Volumes:        []*api.CSIVolume{vol},
+		PolicyOverride: override,
+	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
@@ -28,6 +31,7 @@ func (c *VolumeCreateCommand) csiCreate(client *api.Client, ast *ast.File, overr
 			c.Colorize().Color(
 				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
+
 	for _, vol := range resp.Volumes {
 		// note: the command only ever returns 1 volume from the API
 		c.Ui.Output(fmt.Sprintf(
