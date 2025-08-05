@@ -759,6 +759,47 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		to configure Nomad to work with Consul.`)
 	}
 
+	// If the operator has not set an intro token via the CLI or an environment
+	// variable, attempt to read the intro token from the file system. This
+	// cannot be used as a CLI override.
+	if c.IntroToken == "" {
+		if err := a.readIntroTokenFile(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// readIntroTokenFile attempts to read the intro token from the file system.
+func (a *Agent) readIntroTokenFile(cfg *clientconfig.Config) error {
+
+	rootFile, err := os.OpenInRoot(cfg.StateDir, "intro_token.jwt")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	fileStat, err := rootFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat intro token file: %w", err)
+	}
+
+	// If the file exists and is a file, attempt to read the contents and set
+	// the intro token. Any error is logged for the operator to investigate but
+	// does not block the agent from starting.
+	if fileStat.IsDir() {
+		return fmt.Errorf("intro token file is a directory")
+	}
+
+	content, err := helper.ReadFileContent(rootFile)
+	if err != nil {
+		return fmt.Errorf("failed to read intro token file: %w", err)
+	}
+
+	cfg.IntroToken = strings.TrimSpace(string(content))
 	return nil
 }
 
@@ -775,6 +816,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Servers = agentConfig.Client.Servers
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
+	conf.IntroToken = agentConfig.Client.IntroToken
 
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region

@@ -580,6 +580,12 @@ func (n *NodeRegisterRequest) ShouldGenerateNodeIdentity(
 	// node identity.
 	claims := n.GetIdentity().GetClaims()
 
+	// If the request was made with a node introduction identity, this is an
+	// initial registration and we should generate a new identity.
+	if claims.IsNodeIntroduction() {
+		return true
+	}
+
 	// It is possible that the node has been restarted and had its configuration
 	// updated. In this case, we should generate a new identity for the node, so
 	// it reflects its new claims.
@@ -835,9 +841,8 @@ func (n *NodeIntroductionConfig) Validate() error {
 
 // NodeIntroductionIdentityClaims contains the claims for node introduction.
 type NodeIntroductionIdentityClaims struct {
-	NodeRegion string `json:"nomad_region"`
-	NodePool   string `json:"nomad_node_pool"`
-	NodeName   string `json:"nomad_node_name"`
+	NodePool string `json:"nomad_node_pool"`
+	NodeName string `json:"nomad_node_name"`
 }
 
 // GenerateNodeIntroductionIdentityClaims generates a new identity JWT for node
@@ -851,9 +856,8 @@ func GenerateNodeIntroductionIdentityClaims(name, pool, region string, ttl time.
 
 	claims := &IdentityClaims{
 		NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
-			NodeRegion: region,
-			NodePool:   pool,
-			NodeName:   name,
+			NodePool: pool,
+			NodeName: name,
 		},
 		Claims: jwt.Claims{
 			ID:        uuid.Generate(),
@@ -867,4 +871,20 @@ func GenerateNodeIntroductionIdentityClaims(name, pool, region string, ttl time.
 	claims.setNodeIntroductionSubject(name, pool, region)
 
 	return claims
+}
+
+// LoggingPairs returns a set of key-value pairs that can be used for logging
+// purposes.
+func (n *NodeIntroductionIdentityClaims) LoggingPairs() []any {
+
+	// The node pool is a required field on the node introduction identity, so
+	// we can always include it in the logging pairs.
+	pairs := []any{"claim_node_pool", n.NodePool}
+
+	// The node name is optional, so we only include it if it is set.
+	if n.NodeName != "" {
+		pairs = append(pairs, "claim_node_name", n.NodeName)
+	}
+
+	return pairs
 }

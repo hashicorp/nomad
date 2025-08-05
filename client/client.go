@@ -2108,14 +2108,15 @@ func (c *Client) retryRegisterNode() {
 		}
 
 		retryIntv := registerRetryIntv
-		if err == noServersErr || structs.IsErrNoRegionPath(err) {
+		if errors.Is(err, noServersErr) || structs.IsErrNoRegionPath(err) {
 			c.logger.Debug("registration waiting on servers")
 			c.triggerDiscovery()
 			retryIntv = noServerRetryIntv
-		} else if structs.IsErrPermissionDenied(err) {
-			// any previous cluster state we have here is invalid (ex. client
+		} else if structs.IsErrPermissionDenied(err) && c.config.IntroToken == "" {
+			// Any previous cluster state we have here is invalid (ex. client
 			// has been assigned to a new region), so clear the token and local
-			// state for next pass.
+			// state for next pass. This is unless the operator has provided an
+			// intro token, in which case we will retry with that.
 			authToken = ""
 			c.stateDB.PutNodeRegistration(&cstructs.NodeRegistration{HasRegistered: false})
 			c.logger.Error("error registering", "error", err)
@@ -2131,10 +2132,14 @@ func (c *Client) retryRegisterNode() {
 	}
 }
 
-// getRegistrationToken gets the node secret to use for the Node.Register call.
-// Registration is trust-on-first-use so we can't send the auth token with the
-// initial request, but we want to add the auth token after that so that we can
-// capture metrics.
+// getRegistrationToken gets the appropriate authentication token to use for the
+// Node.Register call. When a client first register, it may optionally use an
+// intro token to bootstrap the registration. If this is not set, the existing
+// behavior of no auth token is used.
+//
+// If the client has already registered, it will use either the nodes secret ID
+// or its identity. This detail depends on whether the client is talking to
+// upgraded servers that support the new identity system or not.
 func (c *Client) getRegistrationToken() string {
 
 	select {
@@ -2149,12 +2154,34 @@ func (c *Client) getRegistrationToken() string {
 		if err != nil {
 			c.logger.Error("could not determine previous node registration", "error", err)
 		}
-		if registration != nil && registration.HasRegistered {
-			c.registeredOnce.Do(func() { close(c.registeredCh) })
-			return c.nodeAuthToken()
+
+		// If the state call indicates that we have not registered yet,
+		// fall-through to the end logic of this function to return any intro
+		// token.
+		if registration == nil || !registration.HasRegistered {
+			break
 		}
+
+		// Attempt to pull and use the node's identity from the state store. The
+		// state store restore happens asynchronously to this function, so we
+		// can't rely on it being populated in the client object at this time.
+		clientIdentity, err := c.stateDB.GetNodeIdentity()
+		if err != nil {
+			c.logger.Error("could not determine node identity", "error", err)
+		}
+		if clientIdentity != "" {
+			c.setNodeIdentityToken(clientIdentity)
+		}
+
+		c.registeredOnce.Do(func() { close(c.registeredCh) })
+		return c.nodeAuthToken()
 	}
-	return ""
+
+	// Reaching this point means we are registering for the first time. If the
+	// client configuration has a bootstrap token, we can use that to perform
+	// the initial registration. If this was not supplied, the parameter will be
+	// an empty string, which is fine and the backwards compatible behavior.
+	return c.GetConfig().IntroToken
 }
 
 // registerNode is used to register the node or update the registration

@@ -240,6 +240,14 @@ type ClientConfig struct {
 	// HostVolumePluginDir directory contains dynamic host volume plugins
 	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
 
+	// IntroToken is used to introduce the client to the servers. It is an
+	// optional parameter that cannot be passed within the configuration file
+	// object.
+	//
+	// It can be passed as a command line argument to the agent, set via an
+	// environment variable, or placed in a file at "${data_dir}/intro_token".
+	IntroToken string `hcl:"-"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
@@ -2782,6 +2790,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NodeMaxAllocs != 0 {
 		result.NodeMaxAllocs = b.NodeMaxAllocs
 	}
+	if b.IntroToken != "" {
+		result.IntroToken = b.IntroToken
+	}
+
 	return &result
 }
 

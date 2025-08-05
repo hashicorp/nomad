@@ -759,11 +759,24 @@ func TestGenerateNodeIntroductionIdentityClaims(t *testing.T) {
 
 	must.Eq(t, "node-name-1", claims.NodeIntroductionIdentityClaims.NodeName)
 	must.Eq(t, "custom-pool", claims.NodeIntroductionIdentityClaims.NodePool)
-	must.Eq(t, "euw", claims.NodeIntroductionIdentityClaims.NodeRegion)
 	must.StrEqFold(t, "node-introduction:euw:custom-pool:node-name-1:default", claims.Subject)
 	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
 	must.NotNil(t, claims.ID)
 	must.NotNil(t, claims.IssuedAt)
 	must.NotNil(t, claims.NotBefore)
 	must.NotNil(t, claims.Expiry)
+}
+
+func TestNodeIntroductionIdentityClaims_LoggingPairs(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := &NodeIntroductionIdentityClaims{
+		NodeName: "node-name-1",
+		NodePool: "custom-pool",
+	}
+
+	must.SliceContainsAll(t, []any{
+		"claim_node_name", "node-name-1",
+		"claim_node_pool", "custom-pool",
+	}, claims.LoggingPairs())
 }
