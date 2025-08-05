@@ -74,6 +74,9 @@ const (
 	// JobParentID is the environment variable for passing the ID of the parnt of the job
 	JobParentID = "NOMAD_JOB_PARENT_ID"
 
+	// CronSpec is the environment variable for passing the cron spec that launched the job.
+	CronSpec = "NOMAD_CRON_SPEC"
+
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 

@@ -927,26 +927,29 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
-func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
+func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, string, error) {
 	// Single spec parsing
 	if p != nil && *p.SpecType == PeriodicSpecCron {
 		if p.Spec != nil && *p.Spec != "" {
-			return cronParseNext(fromTime, *p.Spec)
+			t, err := cronParseNext(fromTime, *p.Spec)
+			return t, *p.Spec, err
 		}
 	}
 
 	// multiple specs parsing
 	var nextTime time.Time
+	var winningSpec string
 	for _, spec := range p.Specs {
 		t, err := cronParseNext(fromTime, spec)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
+			return time.Time{}, "", fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 		}
 		if nextTime.IsZero() || t.Before(nextTime) {
 			nextTime = t
+			winningSpec = spec
 		}
 	}
-	return nextTime, nil
+	return nextTime, winningSpec, nil
 }
 
 // cronParseNext is a helper that parses the next time for the given expression

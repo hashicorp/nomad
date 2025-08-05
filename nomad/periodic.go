@@ -214,17 +214,17 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 	// Add or update the job.
 	p.tracked[tuple] = job
-	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	next, spec, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
 	if err != nil {
 		return fmt.Errorf("failed adding job %s: %v", job.NamespacedID(), err)
 	}
 	if tracked {
-		if err := p.heap.Update(job, next); err != nil {
+		if err := p.heap.Update(job, next, spec); err != nil {
 			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
 		}
 		p.logger.Debug("updated periodic job", "job", job.NamespacedID())
 	} else {
-		if err := p.heap.Push(job, next); err != nil {
+		if err := p.heap.Push(job, next, spec); err != nil {
 			return fmt.Errorf("failed to add job %v: %v", job.ID, err)
 		}
 		p.logger.Debug("registered periodic job", "job", job.NamespacedID())
@@ -300,7 +300,7 @@ func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluati
 	}
 
 	p.l.Unlock()
-	return p.createEval(job, time.Now().In(job.Periodic.GetLocation()))
+	return p.createEval(job, time.Now().In(job.Periodic.GetLocation()), "")
 }
 
 // shouldRun returns whether the long lived run function should run.
@@ -315,7 +315,7 @@ func (p *PeriodicDispatch) shouldRun() bool {
 func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 	var launchCh <-chan time.Time
 	for p.shouldRun() {
-		job, launch := p.nextLaunch()
+		job, launch, launchSpec := p.nextLaunch()
 		if launch.IsZero() {
 			launchCh = nil
 		} else {
@@ -330,20 +330,20 @@ func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 		case <-updateCh:
 			continue
 		case <-launchCh:
-			p.dispatch(job, launch)
+			p.dispatch(job, launch, launchSpec)
 		}
 	}
 }
 
 // dispatch creates an evaluation for the job and updates its next launchtime
 // based on the passed launch time.
-func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
+func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time, launchSpec string) {
 	p.l.Lock()
 
-	nextLaunch, err := job.Periodic.Next(launchTime)
+	nextLaunch, nextSpec, err := job.Periodic.Next(launchTime)
 	if err != nil {
 		p.logger.Error("failed to parse next periodic launch", "job", job.NamespacedID(), "error", err)
-	} else if err := p.heap.Update(job, nextLaunch); err != nil {
+	} else if err := p.heap.Update(job, nextLaunch, nextSpec); err != nil {
 		p.logger.Error("failed to update next launch of periodic job", "job", job.NamespacedID(), "error", err)
 	}
 
@@ -366,32 +366,32 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 
 	p.logger.Debug(" launching job", "job", job.NamespacedID(), "launch_time", launchTime)
 	p.l.Unlock()
-	p.createEval(job, launchTime)
+	p.createEval(job, launchTime, launchSpec)
 }
 
 // nextLaunch returns the next job to launch and when it should be launched. If
 // the next job can't be determined, an error is returned. If the dispatcher is
 // stopped, a nil job will be returned.
-func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time) {
+func (p *PeriodicDispatch) nextLaunch() (*structs.Job, time.Time, string) {
 	// If there is nothing wait for an update.
 	p.l.RLock()
 	defer p.l.RUnlock()
 	if p.heap.Length() == 0 {
-		return nil, time.Time{}
+		return nil, time.Time{}, ""
 	}
 
 	nextJob := p.heap.Peek()
 	if nextJob == nil {
-		return nil, time.Time{}
+		return nil, time.Time{}, ""
 	}
 
-	return nextJob.job, nextJob.next
+	return nextJob.job, nextJob.next, nextJob.launchSpec
 }
 
 // createEval instantiates a job based on the passed periodic job and submits an
 // evaluation for it. This should not be called with the lock held.
-func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) (*structs.Evaluation, error) {
-	derived, err := p.deriveJob(periodicJob, time)
+func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time, launchSpec string) (*structs.Evaluation, error) {
+	derived, err := p.deriveJob(periodicJob, time, launchSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +407,7 @@ func (p *PeriodicDispatch) createEval(periodicJob *structs.Job, time time.Time) 
 
 // deriveJob instantiates a new job based on the passed periodic job and the
 // launch time.
-func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
+func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time, launchSpec string) (
 	derived *structs.Job, err error) {
 
 	// Have to recover in case the job copy panics.
@@ -432,6 +432,15 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	derived.Periodic = nil
 	derived.Status = ""
 	derived.StatusDescription = ""
+
+	for _, taskGroup := range derived.TaskGroups {
+		for _, task := range taskGroup.Tasks {
+			if task.Env == nil {
+				task.Env = make(map[string]string)
+			}
+			task.Env[taskenv.CronSpec] = launchSpec
+		}
+	}
 	return
 }
 
@@ -472,9 +481,10 @@ type periodicHeap struct {
 }
 
 type periodicJob struct {
-	job   *structs.Job
-	next  time.Time
-	index int
+	job        *structs.Job
+	next       time.Time
+	launchSpec string
+	index      int
 }
 
 func NewPeriodicHeap() *periodicHeap {
@@ -484,7 +494,7 @@ func NewPeriodicHeap() *periodicHeap {
 	}
 }
 
-func (p *periodicHeap) Push(job *structs.Job, next time.Time) error {
+func (p *periodicHeap) Push(job *structs.Job, next time.Time, spec string) error {
 	tuple := structs.NamespacedID{
 		ID:        job.ID,
 		Namespace: job.Namespace,
@@ -493,7 +503,7 @@ func (p *periodicHeap) Push(job *structs.Job, next time.Time) error {
 		return fmt.Errorf("job %q (%s) already exists", job.ID, job.Namespace)
 	}
 
-	pJob := &periodicJob{job, next, 0}
+	pJob := &periodicJob{job, next, spec, 0}
 	p.index[tuple] = pJob
 	heap.Push(&p.heap, pJob)
 	return nil
@@ -530,7 +540,7 @@ func (p *periodicHeap) Contains(job *structs.Job) bool {
 	return ok
 }
 
-func (p *periodicHeap) Update(job *structs.Job, next time.Time) error {
+func (p *periodicHeap) Update(job *structs.Job, next time.Time, spec string) error {
 	tuple := structs.NamespacedID{
 		ID:        job.ID,
 		Namespace: job.Namespace,
@@ -539,6 +549,7 @@ func (p *periodicHeap) Update(job *structs.Job, next time.Time) error {
 		// Need to update the job as well because its spec can change.
 		pJob.job = job
 		pJob.next = next
+		pJob.launchSpec = spec
 		heap.Fix(&p.heap, pJob.index)
 		return nil
 	}
