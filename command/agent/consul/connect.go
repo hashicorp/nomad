@@ -264,8 +264,7 @@ func connectProxyConfig(cfg map[string]interface{}, port int, info structs.Alloc
 
 func connectProxyBindAddress(networks structs.Networks) string {
 	for _, n := range networks {
-		//if n.Mode == "bridge" && n.IsIPv6() {
-		if n.IsIPv6() {
+		if n.IsIPv6() && (n.Mode == "bridge" || strings.Startswith(n.Mode, "cni/")) {
 			return "::"
 		}
 	}

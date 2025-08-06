@@ -704,8 +704,8 @@ func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error 
 }
 
 func groupConnectGatewayValidate(g *structs.TaskGroup) (warn, err error) {
-	// the group needs to be either host, bridge, or cni/* mode so we know how to
-	// configure the docker driver config
+	// the group needs to be either host, bridge, or cni/* mode,
+	// so we know how to configure the docker driver config
 	warn, err = groupConnectNetworkModeValidate(g, true)
 	if err != nil {
 		return warn, fmt.Errorf("connect gateway: %w", err)
