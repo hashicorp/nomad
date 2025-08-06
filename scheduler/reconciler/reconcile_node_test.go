@@ -682,6 +682,7 @@ func TestNodeDeployments(t *testing.T) {
 		newDeployment                         bool
 		expectedNewDeploymentStatus           string
 		expectedDeploymenStatusUpdateContains string
+		deploymentComplete                    bool
 	}{
 		{
 			"existing successful deployment for the current job version should not return a deployment",
@@ -694,6 +695,7 @@ func TestNodeDeployments(t *testing.T) {
 			false,
 			"",
 			"",
+			false,
 		},
 		{
 			"existing running deployment should remain untouched",
@@ -729,6 +731,7 @@ func TestNodeDeployments(t *testing.T) {
 			false,
 			structs.DeploymentStatusCancelled,
 			structs.DeploymentStatusDescriptionStoppedJob,
+			false,
 		},
 		{
 			"no existing deployment for a new job that needs one should result in a new deployment",
@@ -737,6 +740,7 @@ func TestNodeDeployments(t *testing.T) {
 			true,
 			structs.DeploymentStatusRunning,
 			structs.DeploymentStatusDescriptionRunning,
+			false,
 		},
 	}
 
@@ -755,6 +759,7 @@ func TestNodeDeployments(t *testing.T) {
 					},
 				)
 			}
+			// must.Eq(t,
 		})
 	}
 }
