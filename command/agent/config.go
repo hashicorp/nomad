@@ -242,7 +242,7 @@ type ClientConfig struct {
 
 	// CommonPluginDir is the root directory for plugins that implement
 	// the common plugin interface
-	CommonPluginDir string `hcl:"common_plugins_dir"`
+	CommonPluginDir string `hcl:"common_plugin_dir"`
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
