@@ -129,10 +129,13 @@ module('Acceptance | sentinel policies', function (hooks) {
       .dom(policyRow.querySelector('[data-test-sentinel-policy-scope]'))
       .hasText('submit-host-volume');
 
-    await click('[data-test-sentinel-policy-name="host-volume-policy"]');
+    const policyCsi = server.db.sentinelPolicies.findBy(
+      (sp) => sp.name === 'csi-volume-policy'
+    );
+    await click('[data-test-sentinel-policy-name="csi-volume-policy"]');
     assert.equal(
       currentURL(),
-      `/administration/sentinel-policies/${policy.id}`
+      `/administration/sentinel-policies/${policyCsi.id}`
     );
 
     await click('[data-test-scope="submit-csi-volume"]');
