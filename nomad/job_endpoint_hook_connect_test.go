@@ -476,7 +476,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 			Networks: nil,
 		}, makeService("connect-service"))
 		must.NoError(t, warn)
-		must.EqError(t, err, `Consul Connect sidecars require exactly 1 network, found 0 in group "g1"`)
+		must.EqError(t, err, `connect sidecar: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("sidecar non bridge", func(t *testing.T) {
@@ -487,7 +487,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 			}},
 		}, makeService("connect-service"))
 		must.NoError(t, warn)
-		must.EqError(t, err, `group "g2" must use bridge or CNI network for Consul Connect`)
+		must.EqError(t, err, `connect sidecar: invalid network mode for Consul Connect: group "g2" uses network mode "host"; must be "bridge" or "cni/*"`)
 	})
 
 	t.Run("sidecar okay bridge", func(t *testing.T) {
@@ -508,7 +508,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Mode: "cni/test-net",
 			}},
 		}, makeService("connect-service"))
-		must.EqError(t, warn, `group "g4" uses network mode "cni/test-net" with Consul Connect, instead of Nomad's bridge; use at your own risk`)
+		must.EqError(t, warn, `connect sidecar: use CNI networks with Consul Connect at your own risk: group "g4" uses network mode "cni/test-net"`)
 		must.NoError(t, err)
 	})
 
@@ -800,21 +800,47 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("no group network", func(t *testing.T) {
-		err := groupConnectGatewayValidate(&structs.TaskGroup{
+		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: nil,
 		})
-		require.EqualError(t, err, `Consul Connect gateways require exactly 1 network, found 0 in group "g1"`)
+		must.NoError(t, warn)
+		must.EqError(t, err, `connect gateway: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("bad network mode", func(t *testing.T) {
-		err := groupConnectGatewayValidate(&structs.TaskGroup{
+		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "",
 			}},
 		})
-		require.EqualError(t, err, `Consul Connect Gateway service requires Task Group with network mode of type "bridge", "host", or "cni/*"; got: ""`)
+		must.NoError(t, warn)
+		must.EqError(t, err, `connect gateway: invalid network mode for Consul Connect: group "g1" uses network mode ""; must be "bridge", "host", or "cni/*"`)
+	})
+
+	for _, good := range []string{"bridge", "host"} {
+		t.Run("good network mode "+good, func(t *testing.T) {
+			warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+				Name: "g1",
+				Networks: structs.Networks{{
+					Mode: good,
+				}},
+			})
+			must.NoError(t, warn)
+			must.NoError(t, err)
+		})
+	}
+
+	t.Run("good network mode cni", func(t *testing.T) {
+		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+			Name: "g1",
+			Networks: structs.Networks{{
+				Mode: "cni/test-net",
+			}},
+		})
+		must.EqError(t, warn, `connect gateway: use CNI networks with Consul Connect at your own risk: group "g1" uses network mode "cni/test-net"`)
+		must.NoError(t, err)
 	})
 }
 

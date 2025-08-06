@@ -6293,6 +6293,18 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("valid consul connect with cni", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+		tg.Networks[0].Mode = "cni/test-net"
+
+		err := validateJob(j)
+		must.ErrorContains(t, err, "1 warning:")
+		must.ErrorContains(t, err, ErrConnectWithCNIWarning.Error())
+	})
+
 	t.Run("consul connect but missing network", func(t *testing.T) {
 		j := mock.Job()
 
@@ -6301,8 +6313,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 		tg.Networks = nil
 
 		err := validateJob(j)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), `Consul Connect sidecars require exactly 1 network`)
+		must.ErrorContains(t, err, ErrConnectRequireOneNetwork.Error())
 	})
 
 	t.Run("consul connect but non bridge network", func(t *testing.T) {
@@ -6316,8 +6327,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 		}
 
 		err := validateJob(j)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), `group "web" must use bridge or CNI network for Consul Connect`)
+		must.ErrorContains(t, err, ErrConnectInvalidNetworkMode.Error())
 	})
 
 }

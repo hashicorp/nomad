@@ -147,14 +147,12 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 // namespaces).
 func tgValidateExposeNetworkMode(tg *structs.TaskGroup) (warn, err error) {
 	if tgUsesExposeCheck(tg) {
-		if len(tg.Networks) != 1 {
-			return nil, fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
+		warn, err = groupConnectNetworkModeValidate(tg, false)
+		if warn != nil {
+			warn = fmt.Errorf("connect expose check: %w", warn)
 		}
-		mode := tg.Networks[0].Mode
-		if strings.HasPrefix(mode, "cni/") {
-			warn = fmt.Errorf("group %q uses network mode %q for Consul Connect, instead of Nomad's bridge; use at your own risk", tg.Name, mode)
-		} else if mode != "bridge" {
-			err = fmt.Errorf("group %q must use bridge or CNI network for exposing service check(s)", tg.Name)
+		if err != nil {
+			err = fmt.Errorf("connect expose check: %w", err)
 		}
 	}
 	return warn, err

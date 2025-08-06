@@ -25,6 +25,12 @@ const (
 	defaultConnectTimeout = 5 * time.Second
 )
 
+var (
+	ErrConnectRequireOneNetwork  = errors.New("must have exactly one network for Consul Connect")
+	ErrConnectInvalidNetworkMode = errors.New("invalid network mode for Consul Connect")
+	ErrConnectWithCNIWarning     = errors.New("use CNI networks with Consul Connect at your own risk")
+)
+
 // connectSidecarResources returns the set of resources used by default for
 // the Consul Connect sidecar task
 func connectSidecarResources() *structs.Resources {
@@ -559,7 +565,8 @@ func groupConnectValidate(g *structs.TaskGroup) (warn, err error) {
 				return warn, err
 			}
 		case s.Connect.IsGateway():
-			if err = groupConnectGatewayValidate(g); err != nil {
+			warn, err = groupConnectGatewayValidate(g)
+			if err != nil {
 				return warn, err
 			}
 		}
@@ -638,18 +645,38 @@ func transparentProxyPortLabelValidate(g *structs.TaskGroup, portLabel string) b
 	return false
 }
 
-func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn, err error) {
-	if n := len(g.Networks); n != 1 {
-		return nil, fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
+func groupConnectNetworkModeValidate(g *structs.TaskGroup, allowHost bool) (warn, err error) {
+	if nn := len(g.Networks); nn != 1 {
+		return nil, fmt.Errorf("%w: group %q has %d networks", ErrConnectRequireOneNetwork, g.Name, nn)
 	}
+
 	mode := g.Networks[0].Mode
-	if strings.HasPrefix(mode, "cni/") {
-		warn = fmt.Errorf("group %q uses network mode %q with Consul Connect, instead of Nomad's bridge; use at your own risk", g.Name, mode)
-	} else if mode != "bridge" {
-		err = fmt.Errorf("group %q must use bridge or CNI network for Consul Connect", g.Name)
+
+	if mode == "bridge" || (allowHost && mode == "host") {
+		return nil, nil
 	}
+
+	if strings.HasPrefix(mode, "cni/") {
+		warn = fmt.Errorf("%w: group %q uses network mode %q", ErrConnectWithCNIWarning, g.Name, mode)
+		return warn, nil
+	}
+
+	// helpful error message
+	allowed := `"bridge" or "cni/*"`
+	if allowHost {
+		allowed = `"bridge", "host", or "cni/*"`
+	}
+	return nil, fmt.Errorf("%w: group %q uses network mode %q; must be %s",
+		ErrConnectInvalidNetworkMode, g.Name, mode, allowed)
+}
+
+func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn, err error) {
+	warn, err = groupConnectNetworkModeValidate(g, false)
 	if err != nil {
-		return warn, err
+		return warn, fmt.Errorf("connect sidecar: %w", err)
+	}
+	if warn != nil {
+		warn = fmt.Errorf("connect sidecar: %w", warn)
 	}
 
 	// We must enforce lowercase characters on group and service names for connect
@@ -676,18 +703,15 @@ func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error 
 	return nil
 }
 
-func groupConnectGatewayValidate(g *structs.TaskGroup) error {
+func groupConnectGatewayValidate(g *structs.TaskGroup) (warn, err error) {
 	// the group needs to be either host, bridge, or cni/* mode so we know how to
 	// configure the docker driver config
-
-	if n := len(g.Networks); n != 1 {
-		return fmt.Errorf("Consul Connect gateways require exactly 1 network, found %d in group %q", n, g.Name)
+	warn, err = groupConnectNetworkModeValidate(g, true)
+	if err != nil {
+		return warn, fmt.Errorf("connect gateway: %w", err)
 	}
-
-	mode := g.Networks[0].Mode
-	if !(mode == "host" || mode == "bridge" || strings.HasPrefix(mode, "cni/")) {
-		return fmt.Errorf(`Consul Connect Gateway service requires Task Group with network mode of type "bridge", "host", or "cni/*"; got: %q`, mode)
+	if warn != nil {
+		warn = fmt.Errorf("connect gateway: %w", warn)
 	}
-
-	return nil
+	return warn, err
 }
