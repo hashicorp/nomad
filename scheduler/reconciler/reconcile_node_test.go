@@ -760,7 +760,6 @@ func TestNodeDeployments(t *testing.T) {
 					},
 				)
 			}
-			// must.Eq(t,
 		})
 	}
 }
