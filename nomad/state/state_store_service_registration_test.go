@@ -639,3 +639,69 @@ func TestStateStore_GetServiceRegistrationsByNodeID(t *testing.T) {
 	must.NoError(t, err)
 	must.Len(t, 1, serviceRegs)
 }
+
+func TestAlloc_ServiceRegistrationLifecycle(t *testing.T) {
+	ci.Parallel(t)
+	store := testStateStore(t)
+	index, _ := store.LatestIndex()
+
+	alloc0 := mock.Alloc()
+	alloc1 := mock.Alloc()
+
+	services := mock.ServiceRegistrations()
+	services[0].AllocID = alloc0.ID
+	services[1].AllocID = alloc1.ID
+
+	node := mock.Node()
+	node.ID = services[0].NodeID
+	alloc0.NodeID = node.ID
+
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	index++
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index,
+		[]*structs.Allocation{alloc0, alloc1}))
+
+	index++
+	must.NoError(t, store.UpsertServiceRegistrations(
+		structs.MsgTypeTestSetup, index, services))
+
+	// node gets marked lost, but this doesn't delete services
+	node = node.Copy()
+	node.Status = structs.NodeStatusDown
+	services, err := store.GetServiceRegistrationsByNodeID(nil, node.ID)
+	must.NoError(t, err)
+	must.Len(t, 1, services)
+
+	// client marks alloc complete, so we clear the service
+	alloc0 = alloc0.Copy()
+	alloc0.ClientStatus = structs.AllocClientStatusComplete
+	index++
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index,
+		[]*structs.Allocation{alloc0}))
+
+	iter, err := store.GetServiceRegistrationsByAllocID(nil, alloc0.ID)
+	must.NoError(t, err)
+	must.Nil(t, iter.Next())
+
+	// scheduler/plan marks alloc lost, so we clear the service
+	planAlloc := new(structs.Allocation)
+	*planAlloc = *alloc1
+	planAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	planAlloc.ClientStatus = structs.AllocClientStatusLost
+	diff := structs.AllocationDiff(*planAlloc)
+
+	index++
+	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
+		&structs.ApplyPlanResultsRequest{
+			AllocUpdateRequest: structs.AllocUpdateRequest{
+				AllocsStopped: []*structs.AllocationDiff{&diff},
+			},
+		}))
+
+	iter, err = store.GetServiceRegistrationsByAllocID(nil, alloc1.ID)
+	must.NoError(t, err)
+	must.Nil(t, iter.Next())
+
+}
