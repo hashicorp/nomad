@@ -1,0 +1,3 @@
+```release-note:bug
+services: Fixed a bug where Nomad services were deleted if a node missed heartbeats and recovered before allocs were migrated
+```

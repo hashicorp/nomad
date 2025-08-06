@@ -1525,62 +1525,6 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
-func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
-	ci.Parallel(t)
-
-	testServer, serverCleanup := TestServer(t, nil)
-	defer serverCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
-	testutil.WaitForKeyring(t, testServer.RPC, testServer.config.Region)
-
-	// Create a node and upsert this into state.
-	node := mock.Node()
-	must.NoError(t, testServer.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
-
-	// Generate service registrations, ensuring the nodeID is set to the
-	// generated node from above.
-	services := mock.ServiceRegistrations()
-
-	for _, s := range services {
-		s.NodeID = node.ID
-	}
-
-	// Upsert the service registrations into state.
-	must.NoError(t, testServer.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
-
-	// Check the service registrations are in state as we expect, so we can
-	// have confidence in the rest of the test.
-	ws := memdb.NewWatchSet()
-	nodeRegs, err := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
-	must.NoError(t, err)
-	must.Len(t, 2, nodeRegs)
-	must.Eq(t, nodeRegs[0].NodeID, node.ID)
-	must.Eq(t, nodeRegs[1].NodeID, node.ID)
-
-	// Generate and trigger a node down status update. This mimics what happens
-	// when the node fails its heart-beating.
-	args := structs.NodeUpdateStatusRequest{
-		NodeID:       node.ID,
-		Status:       structs.NodeStatusDown,
-		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: node.SecretID},
-	}
-
-	var reply structs.NodeUpdateResponse
-
-	nodeEndpoint := NewNodeEndpoint(testServer, nil)
-	must.NoError(t, nodeEndpoint.UpdateStatus(&args, &reply))
-
-	// Query our state, to ensure the node service registrations have been
-	// removed.
-	nodeRegs, err = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
-	must.NoError(t, err)
-	must.Len(t, 0, nodeRegs)
-
-	// Re-send the status update, to ensure we get no error if service
-	// registrations have already been removed
-	must.NoError(t, nodeEndpoint.UpdateStatus(&args, &reply))
-}
-
 func TestNode_UpdateStatus_Identity(t *testing.T) {
 	ci.Parallel(t)
 
