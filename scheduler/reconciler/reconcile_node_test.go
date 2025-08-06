@@ -73,7 +73,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff, _ := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
 		if len(diff.Ignore) > 0 {
@@ -96,7 +96,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff, _ := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
 
@@ -158,7 +158,7 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(nil)
-			diff := nr.diffSystemAllocsForNode(
+			diff, _ := nr.diffSystemAllocsForNode(
 				job, tc.nodeID, eligible, nil,
 				tainted, required, allocsForNode, terminal, true)
 
@@ -217,7 +217,7 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 	terminal := structs.TerminalByNodeByName{}
 
 	nr := NewNodeReconciler(nil)
-	diff := nr.diffSystemAllocsForNode(
+	diff, _ := nr.diffSystemAllocsForNode(
 		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
@@ -287,7 +287,7 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 			}
 
 			nr := NewNodeReconciler(nil)
-			diff := nr.diffSystemAllocsForNode(
+			diff, _ := nr.diffSystemAllocsForNode(
 				job, tc.nodeID, eligible, ineligible, tainted,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
@@ -344,7 +344,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff := nr.diffSystemAllocsForNode(
+	diff, _ := nr.diffSystemAllocsForNode(
 		job, drainNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
 
@@ -396,7 +396,7 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff := nr.diffSystemAllocsForNode(
+	diff, _ := nr.diffSystemAllocsForNode(
 		job, deadNode.ID, map[string]*structs.Node{}, nil,
 		tainted, required, allocs, terminal, true)
 
@@ -522,7 +522,7 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 			}
 
 			nr := NewNodeReconciler(nil)
-			got := nr.diffSystemAllocsForNode(
+			got, _ := nr.diffSystemAllocsForNode(
 				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
@@ -682,6 +682,7 @@ func TestNodeDeployments(t *testing.T) {
 		newDeployment                         bool
 		expectedNewDeploymentStatus           string
 		expectedDeploymenStatusUpdateContains string
+		deploymentComplete                    bool
 	}{
 		{
 			"existing successful deployment for the current job version should not return a deployment",
@@ -694,6 +695,7 @@ func TestNodeDeployments(t *testing.T) {
 			false,
 			"",
 			"",
+			false,
 		},
 		{
 			"existing running deployment should remain untouched",
@@ -715,8 +717,9 @@ func TestNodeDeployments(t *testing.T) {
 				},
 			},
 			false,
-			"",
-			"",
+			structs.DeploymentStatusSuccessful,
+			structs.DeploymentStatusDescriptionSuccessful,
+			true,
 		},
 		{
 			"existing running deployment for a stopped job should be cancelled",
@@ -729,6 +732,7 @@ func TestNodeDeployments(t *testing.T) {
 			false,
 			structs.DeploymentStatusCancelled,
 			structs.DeploymentStatusDescriptionStoppedJob,
+			false,
 		},
 		{
 			"no existing deployment for a new job that needs one should result in a new deployment",
@@ -737,6 +741,7 @@ func TestNodeDeployments(t *testing.T) {
 			true,
 			structs.DeploymentStatusRunning,
 			structs.DeploymentStatusDescriptionRunning,
+			false,
 		},
 	}
 
@@ -755,6 +760,7 @@ func TestNodeDeployments(t *testing.T) {
 					},
 				)
 			}
+			// must.Eq(t,
 		})
 	}
 }
