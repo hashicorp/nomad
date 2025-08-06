@@ -6,7 +6,7 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
-const INITIAL_POLICY_RULES = `# See https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies for ACL Policy details
+const INITIAL_POLICY_RULES = `# See https://developer.hashicorp.com/nomad/docs/secure/acl/policies for ACL Policy details
 
 # Example policy structure:
 

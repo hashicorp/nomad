@@ -198,4 +198,4 @@ flowchart LR
 ```
 
 
-[Scheduling in Nomad]: https://developer.hashicorp.com/nomad/docs/internals/scheduling/scheduling
+[Scheduling in Nomad]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/how-scheduling-works

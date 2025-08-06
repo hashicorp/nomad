@@ -66,7 +66,7 @@
         {{on "change" this.updateTokenExpirationTime}}>
       </Hds::Form::TextInput::Field>
     {{/if}}
-    
+
   {{else}}
     <Hds::Form::Label>
       {{#if @token.expirationTime}}
@@ -99,7 +99,7 @@
     {{#if this.system.shouldShowRegions}}
       <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
         <G.Legend>Token Region</G.Legend>
-        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
+        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
         <G.RadioField
           @id={{this.system.activeRegion}}
           checked={{eq this.tokenRegion this.system.activeRegion}}
@@ -133,7 +133,7 @@
   <div>
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
       <G.Legend>Client or Management token?</G.Legend>
-      <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
+      <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
       <G.RadioField
         @id="client"
         checked={{eq @token.type "client"}}

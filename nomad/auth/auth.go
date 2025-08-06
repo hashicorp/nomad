@@ -273,7 +273,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	// verify them here and only return the server ACL for actual servers even
 	// if mTLS was disabled. Without mTLS, any request can spoof server RPCs.
 	// This is known and documented in the Security Model:
-	// https://developer.hashicorp.com/nomad/docs/concepts/security#requirements
+	// https://developer.hashicorp.com/nomad/docs/secure/acl
 	if err := verifyTLS(s.verifyTLS.Load(), ctx, s.validServerCertNames, identity); err != nil {
 		return nil, err
 	}

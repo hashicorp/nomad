@@ -102,7 +102,7 @@ EOT
         # /var/nomad/alloc/:alloc_id/:task_name
         # which is the same as the root directory for exec tasks.
         # we just need to make sure this doesn't collide with the
-        # chroot: https://developer.hashicorp.com/nomad/docs/drivers/exec#chroot
+        # chroot: https://developer.hashicorp.com/nomad/docs/deploy/task-driver/exec#chroot
         destination = "usr/local/bin/myapplication.sh"
       }
 
