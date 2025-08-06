@@ -649,6 +649,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"node intro": func() (cli.Command, error) {
+			return &NodeIntroCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node intro create": func() (cli.Command, error) {
+			return &NodeIntroCreateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"node meta": func() (cli.Command, error) {
 			return &NodeMetaCommand{
 				Meta: meta,

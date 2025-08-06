@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -4593,6 +4594,556 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 		})
 	}
 
+}
+
+func TestNode_Register_Introduction(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, _, testServerCleanup := TestACLServer(t, nil)
+	t.Cleanup(testServerCleanup)
+	rpcCodec := rpcClient(t, testServer)
+
+	testutil.WaitForLeader(t, testServer.RPC)
+	testutil.WaitForKeyring(t, testServer.RPC, testServer.config.Region)
+
+	t.Run("empty auth enforcement none", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementNone
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mock.Node(),
+			WriteRequest: structs.WriteRequest{
+				Region: testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("empty auth enforcement warn", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mock.Node(),
+			WriteRequest: structs.WriteRequest{
+				Region: testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("empty auth enforcement strict", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mock.Node(),
+			WriteRequest: structs.WriteRequest{
+				Region: testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.ErrorContains(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+			"Permission denied",
+		)
+	})
+
+	t.Run("valid jwt enforcement none", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementNone
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("valid jwt enforcement warn", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("valid jwt enforcement strict", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("invalid jwt enforcement none", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementNone
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		mockNode.Name = "changed-name"
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.NoError(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+		)
+
+		nodeResp, err := testServer.State().NodeByID(nil, registerReq.Node.ID)
+		must.NoError(t, err)
+		must.NotNil(t, nodeResp)
+		must.Eq(t, registerReq.Node.SecretID, nodeResp.SecretID)
+	})
+
+	t.Run("invalid jwt enforcement warn", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		mockNode.Name = "changed-name"
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.ErrorContains(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+			"Permission denied",
+		)
+	})
+
+	t.Run("invalid jwt enforcement strict", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		mockNode := mock.Node()
+
+		introClaims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			testServer.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(introClaims)
+		must.NoError(t, err)
+
+		mockNode.Name = "changed-name"
+
+		registerReq := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+				Region:    testServer.Region(),
+			},
+		}
+
+		var resp structs.NodeUpdateResponse
+		must.ErrorContains(
+			t,
+			msgpackrpc.CallWithCodec(rpcCodec, "Node.Register", &registerReq, &resp),
+			"Permission denied",
+		)
+	})
+}
+
+func TestNode_newRegistrationAllowed(t *testing.T) {
+	ci.Parallel(t)
+
+	// Generate a stable mock node for testing that includes a populated node
+	// pool field.
+	mockNode := structs.MockNode()
+	mockNode.NodePool = "monitoring"
+
+	// Create a test server, so we can sign JWTs.
+	testServer, _, testServerCleanup := TestACLServer(t, nil)
+	t.Cleanup(testServerCleanup)
+	testutil.WaitForLeader(t, testServer.RPC)
+	testutil.WaitForKeyring(t, testServer.RPC, testServer.config.Region)
+
+	nodeEndpoint := &Node{
+		ctx:    &RPCContext{},
+		logger: testServer.logger,
+		srv:    testServer,
+	}
+
+	t.Run("enforcement none anonymous", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementNone
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node:         mockNode,
+			WriteRequest: structs.WriteRequest{},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement warn anonymous", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: structs.AnonymousACLToken.SecretID,
+			},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement strict anonymous", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node:         mockNode,
+			WriteRequest: structs.WriteRequest{},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement warn auth error", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node:         mockNode,
+			WriteRequest: structs.WriteRequest{},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			errors.New("jwt: token is expired"),
+		))
+	})
+
+	t.Run("enforcement strict auth error", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node:         mockNode,
+			WriteRequest: structs.WriteRequest{},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			errors.New("jwt: token is expired"),
+		))
+	})
+
+	t.Run("enforcement warn claims pool mismatch", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			"wrong-node-pool",
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement strict claims pool mismatch", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			"wrong-node-pool",
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement warn claims name mismatch", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			"wrong-node-name",
+			mockNode.NodePool,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement strict claims name mismatch", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			"wrong-node-name",
+			mockNode.NodePool,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.False(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement warn claims match", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement strict claims match", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		claims := structs.GenerateNodeIntroductionIdentityClaims(
+			mockNode.Name,
+			mockNode.NodePool,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
 }
 
 // TestNode_List_PaginationFiltering asserts that API pagination and filtering

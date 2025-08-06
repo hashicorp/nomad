@@ -197,6 +197,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
+	// If the node has an entry in the state store, we perform a check to ensure
+	// the secret ID matches the one stored. If there is no entry, we perform a
+	// check to ensure the node is allowed to register given the request and the
+	// server introduction enforcement configuration.
 	if originalNode != nil {
 		// Check if the SecretID has been tampered with
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
@@ -208,6 +212,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if originalNode.Status != "" {
 			args.Node.Status = originalNode.Status
 		}
+		// The called function performs all the required logging and metric
+		// emitting, so we only need to check the return value.
+	} else if !n.newRegistrationAllowed(args, authErr) {
+		return structs.ErrPermissionDenied
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
@@ -309,6 +317,98 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	return nil
+}
+
+// newRegistrationAllowed determines whether the node registration is allowed to
+// proceed based on the node introduction enforcement level and the
+// authenticated identity of the request.
+//
+// The function handles logging and emitting metrics based on the enforcement
+// level, so the caller only needs to check the return value.
+func (n *Node) newRegistrationAllowed(
+	args *structs.NodeRegisterRequest,
+	authErr error,
+) bool {
+
+	enforcementLvl := n.srv.config.NodeIntroductionConfig.Enforcement
+
+	// If the enforcement level is set to "none", we allow the registration to
+	// proceed without any checks. This is the pre-1.11 workflow that won't emit
+	// any metrics or logs for node registrations.
+	if enforcementLvl == structs.NodeIntroductionEnforcementNone {
+		return true
+	}
+
+	claims := args.GetIdentity().GetClaims()
+
+	// If the request was made with a node introduction identity, check whether
+	// the claims match the node's claims.
+	var claimsMatch bool
+
+	if claims.IsNodeIntroduction() {
+		claimsMatch = claims.NodeIntroductionIdentityClaims.NodePool == args.Node.NodePool &&
+			(claims.NodeIntroductionIdentityClaims.NodeName == "" ||
+				claims.NodeIntroductionIdentityClaims.NodeName == args.Node.Name)
+	}
+
+	// If there was no authentication error and the identity claims match the
+	// node's claims, the registration is allowed to proceed.
+	if authErr == nil && claimsMatch {
+		return true
+	}
+
+	// If we have reached this point, we know that the registration is dependent
+	// on the enforcement level and that this request does not have suitable
+	// claims. Emit our metric to indicate a node registration not using a valid
+	// introduction token.
+	metrics.IncrCounter([]string{"nomad", "client", "introduction_violation_num"}, 1)
+
+	// Build a base set of logging pairs that will be used for the logging
+	// message. This provides operators with information about the node that is
+	// attempting to register without a valid introduction token.
+	loggingPairs := []any{
+		"enforcement_level", enforcementLvl,
+		"node_id", args.Node.ID,
+		"node_pool", args.Node.NodePool,
+		"node_name", args.Node.Name,
+	}
+
+	// If the node used a node introduction identity, add the claims for
+	// comparison to the logging pairs.
+	if claims.IsNodeIntroduction() {
+		loggingPairs = append(loggingPairs, claims.NodeIntroductionIdentityClaims.LoggingPairs()...)
+	}
+
+	// Make some effort to log a message that indicates why the node is failing
+	// to introduce itself properly.
+	msg := "node registration introduction claims mismatch"
+
+	if authErr != nil {
+		msg = "node registration introduction authentication failure"
+		loggingPairs = append(loggingPairs, "error", authErr)
+	} else if args.GetIdentity().ACLToken == structs.AnonymousACLToken {
+		msg = "node registration without introduction token"
+	}
+
+	// If there was an authentication error or the claims do not match, the node
+	// registration is not allowed to proceed. This is considered an invalid
+	// request and does not take into account the enforcement level.
+	if authErr != nil || (!claimsMatch && claims.IsNodeIntroduction()) {
+		n.logger.Error(msg, loggingPairs...)
+		return false
+	}
+
+	// Based on the enforcement level, log the message and return whether the
+	// handler should allow the registration to proceed. The default is a
+	// catchall that includes the strict enforcement level.
+	switch enforcementLvl {
+	case structs.NodeIntroductionEnforcementWarn:
+		n.logger.Warn(msg, loggingPairs...)
+		return true
+	default:
+		n.logger.Error(msg, loggingPairs...)
+		return false
+	}
 }
 
 // shouldCreateNodeEval returns true if the node update may result into
