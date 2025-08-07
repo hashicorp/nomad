@@ -1092,3 +1092,34 @@ func TestTaskCSIPluginConfig_Equal(t *testing.T) {
 		Apply: func(c *TaskCSIPluginConfig) { c.HealthTimeout = 1 * time.Second },
 	}})
 }
+
+func TestCSISecretsSanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	orig := &CSISecrets{
+		"foo": "bar",
+		"baz": "qux",
+	}
+
+	sanitized := orig.Sanitize()
+	must.NotEq(t, orig, sanitized)
+
+	for _, v := range *sanitized {
+		must.Eq(t, v, "[REDACTED]")
+	}
+}
+
+func TestCSIMountOptionsSanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	orig := &CSIMountOptions{
+		FSType:     "ext4",
+		MountFlags: []string{"ro", "noatime"},
+	}
+
+	sanitized := orig.Sanitize()
+	must.NotEq(t, orig, sanitized)
+
+	must.Eq(t, sanitized.FSType, orig.FSType)
+	must.Eq(t, sanitized.MountFlags, []string{"[REDACTED]"})
+}
