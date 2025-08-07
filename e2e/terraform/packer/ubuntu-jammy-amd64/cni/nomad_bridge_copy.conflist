@@ -15,10 +15,12 @@
       "ipam": {
         "type": "host-local",
         "ranges": [
-          [{"subnet": "172.26.64.0/20"}]
+          [{"subnet": "172.26.64.0/20"}],
+          [{"subnet": "a110:c8::/112"}]
         ],
         "routes": [
-          {"dst": "0.0.0.0/0"}
+          {"dst": "0.0.0.0/0"},
+          {"dst": "::/0"}
         ],
         "dataDir": "/var/run/cni"
       }
