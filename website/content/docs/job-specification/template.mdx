@@ -789,12 +789,13 @@ access it by index. This secret was set using
 The `template` block has the following [client configuration
 options](/nomad/docs/configuration/client#options):
 
-- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
-  rendering functions that should be disallowed in job specs. By default, the
-  `plugin` function is disallowed as it allows running arbitrary commands on the
-  host as root (unless Nomad is configured to run as a non-root user),
-  `executeTemplate` is disallowed to prevent accidental or malicious infinitely
-  recursive execution, and `writeToFile` is disallowed.
+- `function_denylist` `([]string: ["plugin", "executeTemplate",
+  "writeToFile"])` - Specifies a list of template rendering functions that
+  should be disallowed in job specs. By default, the `plugin` function is
+  disallowed as it allows running arbitrary commands on the host as root (unless
+  Nomad is configured to run as a non-root user), `executeTemplate` is
+  disallowed to prevent accidental or malicious infinitely recursive execution,
+  and `writeToFile` is disallowed.
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
   files on the client host via the `file` function. By default, templates can
