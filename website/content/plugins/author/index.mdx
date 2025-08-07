@@ -7,7 +7,7 @@ description: |-
 
 # Nomad plugin authoring guide
 
-Nomad implements a plugin framework which lets you extend the functionality of
+Nomad implements a plugin framework that lets you extend the functionality of
 some components within Nomad. The design of the plugin system is inspired by the
 lessons learned from plugin systems implemented in other HashiCorp products such
 as Terraform and Vault.
@@ -24,11 +24,11 @@ The following components are currently pluggable within Nomad:
 ## Architecture
 
 The Nomad task driver and device plugin framework uses the [go-plugin][goplugin]
-project to expose a language independent plugin interface. Plugins implement a
-set of gRPC services and methods which Nomad manages by running the plugin and
-calling the implemented RPCs. This means that plugins are free to be implemented
+project to expose a language-independent plugin interface. Plugins implement a
+set of gRPC services and methods that Nomad manages by running the plugin and
+calling the implemented RPCs. As a result, plugins are free to be implemented
 in the author's language of choice. To facilitate plugin development, a set of
-go interfaces and structs exist for each plugin type that abstract away
+go interfaces and structs exist for each plugin type that abstracts away
 go-plugin and the gRPC interface. The guides in this documentation reference
 these abstractions for ease of use.
 

@@ -18,9 +18,9 @@ PluginInfoResponse{
 ### `SetConfig(config *Config) error`
 
 The `SetConfig` function is called when starting the plugin for the first
-time. The `Config` given has two different configuration fields. The first
+time. The `Config` given has two different configuration fields. The first,
 `PluginConfig`, is an encoded configuration from the `plugin` block of the
-client config. The second, `AgentConfig`, is the Nomad agent's configuration
+client config. The second, `AgentConfig`, is the Nomad agent's configuration,
 which is given to all plugins.
 
 ### `ConfigSchema() (*hclspec.Spec, error)`

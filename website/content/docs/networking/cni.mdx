@@ -7,7 +7,7 @@ description: |-
 
 # Container Network Interface plugins and custom bridge networking
 
-This page shows you how to install the [Container Network Interface (CNI)
+This page describes the process to install the [Container Network Interface (CNI)
 reference plugins][cni-plugin-docs] on your Linux distribution and configure
 custom CNI bridge networking on your Nomad clients.
 
@@ -27,11 +27,11 @@ networking.
 
 Nomad reads the following extensions from the [`cni_config_dir`][] (`/opt/cni/config` by default):
 
-* `.conflist` files are loaded as [network
+- `.conflist` files load as [network
   configurations][cni_spec_net_config] that contain a list of plugin
   configurations.
 
-* `.conf` and `.json` files are loaded as individual [plugin
+- `.conf` and `.json` files load as individual [plugin
   configurations][cni_spec_plugin_config] for a specific network.
 
 ## Requirements

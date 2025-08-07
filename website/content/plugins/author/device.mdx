@@ -55,8 +55,8 @@ workloads using devices. The channel returned should immediately send an initial
 appropriate interval until the context is canceled.
 
 Each fingerprint response consists of either an error or a list of device
-groups. A device group is a list of detected devices that are identical for the
-purpose of scheduling; that is, they have identical attributes.
+groups. A _device group_ is a list of detected devices that are identical for the
+purpose of scheduling, which means they have identical attributes.
 
 ### `Stats(context.Context, time.Duration) (<-chan *StatsResponse, error)`
 
