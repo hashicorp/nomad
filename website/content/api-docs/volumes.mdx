@@ -321,9 +321,10 @@ The following table shows this endpoint's support for [blocking queries][] and
   volume. This must be the full ID. Specify this as part of the
   path.
 
-- `Volume` `(Volume: <required>)` - Specifies the JSON definition of the csi
-  volume. You should include the ID field if you are updating an existing
-  volume. Note that you must include the `NodeID` field for the register API.
+- `Volumes` <code>([Volumes][csi-volume-spec]:</code> `<required>`) - Specifies
+  the JSON definition of the CSI volume. You should include the ID field if you
+  are updating an existing volume. Note that you must include the `NodeID` field
+  for the register API.
 
 - `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
   Sentinel policies. This field allows creating a volume when it would be denied
@@ -396,9 +397,9 @@ The following table shows this endpoint's support for [blocking queries][] and
   volume. This must be the full ID. Specify this as part of the
   path.
 
-- `Volume` `(Volume: <required>)` - Specifies the JSON definition of the csi
-  volume. You should include the ID field if you are updating an existing
-  volume. 
+- `Volumes` <code>([Volumes][csi-volume-spec]:</code> `<required>`) - Specifies
+  the JSON definition of the CSI volume. You should include the ID field if you
+  are updating an existing volume. 
 
 - `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
   Sentinel policies. This field allows creating a volume when it would be denied
@@ -1238,3 +1239,4 @@ $ curl \
 [csi_plugins_internals]: /nomad/docs/architecture/storage/csi
 [Create CSI Volume]: #create-csi-volume
 [Volume Expansion]: /nomad/docs/other-specifications/volume/csi#volume-expansion
+[csi-volume-spec]: /nomad/docs/other-specifications/volume/csi  

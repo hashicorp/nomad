@@ -79,15 +79,16 @@ The following top-level objects are available to policies in the
 The following top-level objects are available to policies in the
 `submit-csi-volume` scope automatically, without an explicit import.
 
-* `volume`: the submitted volume. This is a [Sentinel CSI Host Volume
-  Object](#sentinel-csi-host-volume-objects).
-* `existing_volume`: the previous version of the volume. If `volume_exists` is
-  true, this is always non-nil. This is also a [Sentinel CSI Host
-  Volume Object](#sentinel-csi-host-volume-objects). `volume_exists`: a
-  boolean field that indicates that a previous version of the volume exists.
-* `nomad_acl_token`: the ACL token the job was submitted with. This is a
+- `volume`: the submitted volume. This is a [Sentinel CSI Volume
+  Object](#sentinel-csi-volume-objects).
+- `existing_volume`: the previous version of the volume. If `volume_exists` is
+  true, this is always non-nil. This is also a [Sentinel CSI Volume
+  Object](#sentinel-csi-volume-objects). 
+- `volume_exists`: a boolean field that indicates that a previous version of the
+  volume exists.
+- `nomad_acl_token`: the ACL token the job was submitted with. This is a
   [Sentinel Nomad ACL Token Object](#sentinel-acl-token-objects).
-* `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
+- `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
   Object](#sentinel-namespace-objects).
 
 Sentinel convention for identifiers is lower case and separated by underscores.
