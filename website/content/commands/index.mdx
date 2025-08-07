@@ -64,9 +64,10 @@ exposed to the public internet it is highly recommended to configure TLS.
 
 ### Environment Variables
 
-Nomad can use environment variables to configure command-line tool options.
-These environment variables can be overridden as needed using individual
-flags.
+Nomad can use environment variables to configure command-line tool options. You
+may override these environment variables with individual flags. Except where
+noted, these variables influence the behavior of the Nomad CLI and should not be
+set for Nomad agents.
 
 #### Connection Environment Variables
 
@@ -94,7 +95,7 @@ flags.
 
 - `NOMAD_CLI_NO_COLOR` - Disables colored command output.
 
-#### mTLS Environment Variables
+#### Mutual TLS (mTLS) environment variables
 
 - `NOMAD_CLIENT_CERT` - Path to a PEM encoded client certificate for TLS
   authentication to the Nomad server. Must also specify `NOMAD_CLIENT_KEY`.
@@ -116,6 +117,10 @@ flags.
   connecting via TLS.
 
 #### Nomad Enterprise Licensing Environment Variables
+
+These environment variables influence the Nomad Enterprise license
+configuration. These values are only used for Nomad Enterprise agents, not the
+Nomad CLI.
 
 - `NOMAD_LICENSE_PATH` - An absolute path to a Nomad Enterprise license file,
   for example `/etc/nomad.d/license.hclic`.
