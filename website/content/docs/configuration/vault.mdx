@@ -96,7 +96,7 @@ agents with [`client.enabled`] set to `true`.
   [tls_require_and_verify_client_cert](/vault/docs/configuration/listener/tcp#tls_require_and_verify_client_cert)
   is enabled in Vault.
 
-  - `create_from_role` `(string: "")` - Specifies the role to create tokens
+- `create_from_role` `(string: "")` - Specifies the role to create tokens
   from. This field defines the role used to derive task tokens when the job does
   not define a value for [`vault.role`][jobspec_vault_role]. If empty, the
   default Vault cluster role is used.
