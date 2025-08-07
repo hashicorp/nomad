@@ -45,7 +45,7 @@ external services are called upstreams and are declared using the
 
 You must set the group's `network` [`mode`][] to `bridge`, or an appropriately
 configured `cni/*` network, for network isolation. Using a `cni/*` network
-with Consul Connect requires extra care. You may model your network
+with Consul service mesh requires extra care. You may model your network
 configuration on Nomad's [`bridge` network][].
 
 ~> **Warning:** To fully isolate your workloads make sure to bind them only to
