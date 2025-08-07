@@ -49,7 +49,7 @@ type externalSecretsPlugin struct {
 
 // NewExternalSecretsPlugin creates an instance of a secrets plugin by validating the plugin
 // binary exists and is executable, and parsing any string key/value pairs out of the config
-// which will be used as environemtn variables for Fetch.
+// which will be used as environment variables for Fetch.
 func NewExternalSecretsPlugin(commonPluginDir string, name string, config map[string]any) (*externalSecretsPlugin, error) {
 	// validate plugin
 	executable := filepath.Join(commonPluginDir, SecretsPluginDir, name)
