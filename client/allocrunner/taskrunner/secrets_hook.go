@@ -190,7 +190,7 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 				providers = append(providers, p)
 			}
 		default:
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Config)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue
