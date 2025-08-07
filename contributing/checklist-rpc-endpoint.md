@@ -55,5 +55,5 @@ Prefer adding a new message to changing any existing RPC messages.
 ## Docs
 
 * [ ] Changelog
-* [ ] [Metrics](https://developer.hashicorp.com/nomad/docs/operations/metrics#server-metrics)
+* [ ] [Metrics](https://developer.hashicorp.com/nomad/docs/reference/metrics#server-metrics)
 * [ ] [API docs](https://developer.hashicorp.com/nomad/api-docs) for RPCs with an HTTP endpoint, include ACLs, params, and example response body.

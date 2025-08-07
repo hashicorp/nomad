@@ -23,7 +23,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 		c.ACL.PolicyTTL = 0
 	}
 
-	srv, _, url := testServer(t, true, config)
+	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)
@@ -101,7 +101,7 @@ func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 	err := os.WriteFile(file, []byte(mockToken.SecretID), 0700)
 	must.NoError(t, err)
 
-	srv, _, url := testServer(t, true, config)
+	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)
@@ -139,7 +139,7 @@ func TestACLBootstrapCommand_WithBadOperatorFileBootstrapToken(t *testing.T) {
 	err := os.WriteFile(file, []byte(invalidToken), 0700)
 	must.NoError(t, err)
 
-	srv, _, url := testServer(t, true, config)
+	srv, _, url := testServer(t, false, config)
 	defer srv.Shutdown()
 
 	must.Nil(t, srv.RootToken)

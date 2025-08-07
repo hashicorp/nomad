@@ -38,6 +38,6 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 
 * [ ] Changelog
 * [ ] API docs https://developer.hashicorp.com/nomad/api
-* [ ] CLI docs https://developer.hashicorp.com/nomad/docs/commands
+* [ ] CLI docs https://developer.hashicorp.com/nomad/commands
 * [ ] If adding new docs see [website README](../website/README.md#editing-navigation-sidebars)
 * [ ] Consider if it needs a guide https://developer.hashicorp.com/nomad/guides/index.html

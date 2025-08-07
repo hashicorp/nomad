@@ -742,3 +742,38 @@ func TestACLBindingRules(t *testing.T) {
 	must.Len(t, 0, aclBindingRulesListResp)
 	assertQueryMeta(t, queryMeta)
 }
+
+// TestACLIdentity_CreateClientIntroductionToken perform some basic tests of the
+// CreateClientIntroductionToken method. It does not test that the response
+// contains a valid JWT, as that would require bringing in the JWT library into
+// the API. Instead, we rely on HTTP and RPC tests to ensure that.
+func TestACLIdentity_CreateClientIntroductionToken(t *testing.T) {
+	testutil.Parallel(t)
+
+	testClient, testServer, _ := makeACLClient(t, nil, nil)
+	defer testServer.Stop()
+
+	t.Run("empty_req_params", func(t *testing.T) {
+
+		req := ACLIdentityClientIntroductionTokenRequest{}
+
+		resp, _, err := testClient.ACLIdentity().CreateClientIntroductionToken(&req, nil)
+		must.NoError(t, err)
+		must.NotNil(t, resp)
+		must.NotEq(t, "", resp.JWT)
+	})
+
+	t.Run("full_req_params", func(t *testing.T) {
+
+		req := ACLIdentityClientIntroductionTokenRequest{
+			TTL:      time.Second,
+			NodePool: NodePoolDefault,
+			NodeName: "test-node",
+		}
+
+		resp, _, err := testClient.ACLIdentity().CreateClientIntroductionToken(&req, nil)
+		must.NoError(t, err)
+		must.NotNil(t, resp)
+		must.NotEq(t, "", resp.JWT)
+	})
+}

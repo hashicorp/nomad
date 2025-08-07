@@ -1246,3 +1246,54 @@ type ACLLoginRequest struct {
 	// LoginToken is the token used to login. This is a required parameter.
 	LoginToken string
 }
+
+// ACLIdentity is used to query the ACL identity endpoints.
+type ACLIdentity struct {
+	client *Client
+}
+
+// ACLIdentity returns a new handle on the ACL identity API client.
+func (c *Client) ACLIdentity() *ACLIdentity {
+	return &ACLIdentity{client: c}
+}
+
+// CreateClientIntroductionToken is the API endpoint used to generate a JWT
+// token to be used for introducing a new client node into the cluster.
+func (a *ACLIdentity) CreateClientIntroductionToken(
+	req *ACLIdentityClientIntroductionTokenRequest,
+	writeOpts *WriteOptions) (*ACLIdentityClientIntroductionTokenResponse, *WriteMeta, error) {
+
+	var resp ACLIdentityClientIntroductionTokenResponse
+	wm, err := a.client.put("/v1/acl/identity/client-introduction-token", req, &resp, writeOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// ACLIdentityClientIntroductionTokenRequest is the request object used within
+// the ACL client introduction API request. This is used to generate a JWT token
+// that can be used to register a new client node into the cluster.
+type ACLIdentityClientIntroductionTokenRequest struct {
+
+	// TTL is the requested TTL for the identity token. This is an optional
+	// parameter and if not set, defaults to the server defined default TTL.
+	TTL time.Duration
+
+	// NodeName is the name of the node that is being introduced. This is added
+	// to the token as a claim when present, but is optional.
+	NodeName string
+
+	// NodePool is the name of the node pool that this node belongs to. This is
+	// an optional parameter, and if not set, defaults to "default".
+	NodePool string
+}
+
+// ACLIdentityClientIntroductionTokenResponse is the response object used within
+// the ACL client introduction HTTP endpoint.
+type ACLIdentityClientIntroductionTokenResponse struct {
+
+	// JWT is the signed identity token that can be used as an introduction
+	// token for a new client node to register with the Nomad cluster.
+	JWT string
+}

@@ -54,6 +54,7 @@ func ParseConfigFile(path string) (*Config, error) {
 			},
 		},
 		Server: &ServerConfig{
+			ClientIntroduction:   &ClientIntroduction{},
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
@@ -189,6 +190,18 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"rpc.connection_write_timeout", &c.RPC.ConnectionWriteTimeout, &c.RPC.ConnectionWriteTimeoutHCL, nil},
 		{"rpc.stream_open_timeout", &c.RPC.StreamOpenTimeout, &c.RPC.StreamOpenTimeoutHCL, nil},
 		{"rpc.stream_close_timeout", &c.RPC.StreamCloseTimeout, &c.RPC.StreamCloseTimeoutHCL, nil},
+		{
+			"server.client_introduction.default_identity_ttl",
+			&c.Server.ClientIntroduction.DefaultIdentityTTL,
+			&c.Server.ClientIntroduction.DefaultIdentityTTLHCL,
+			nil,
+		},
+		{
+			"server.client_introduction.max_identity_ttl",
+			&c.Server.ClientIntroduction.MaxIdentityTTL,
+			&c.Server.ClientIntroduction.MaxIdentityTTLHCL,
+			nil,
+		},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.

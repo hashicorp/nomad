@@ -1,0 +1,3 @@
+```release-note:improvement
+sentinel (Enterprise): Added policy scope for csi-volumes
+```

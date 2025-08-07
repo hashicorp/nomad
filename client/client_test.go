@@ -23,13 +23,16 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/servers"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -703,6 +706,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	s1, _, cleanupS1 := testServer(t, nil)
 	t.Cleanup(cleanupS1)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
@@ -1392,6 +1396,38 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	}
 }
 
+func TestClient_nodeAuthToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.Node.ID = uuid.Generate()
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	must.Eq(t, testClient.GetConfig().Node.SecretID, testClient.nodeAuthToken())
+
+	testClient.setNodeIdentityToken("my-identity-token")
+	must.Eq(t, "my-identity-token", testClient.nodeAuthToken())
+}
+
+func TestClient_setNodeIdentityToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.Node.ID = uuid.Generate()
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	must.Eq(t, "", testClient.nodeIdentityToken())
+
+	testClient.setNodeIdentityToken("my-identity-token")
+	must.Eq(t, "my-identity-token", testClient.nodeIdentityToken())
+}
+
 // TestClient_ServerList tests client methods that interact with the internal
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
@@ -1416,6 +1452,129 @@ func TestClient_ServerList(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("expected 2 servers but received: %+q", s)
 	}
+}
+
+func TestClient_getRegistrationToken(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("no intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "", testClient.getRegistrationToken())
+	})
+
+	t.Run("intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.IntroToken = "my-intro-token"
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "my-intro-token", testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		testClient.identity.Store("mylovelylovelyidentity")
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.identity.Load().(string), testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.NoError(t, testClient.stateDB.PutNodeIdentity("my-identity-token"))
+
+		must.Eq(t, "my-identity-token", testClient.getRegistrationToken())
+	})
+}
+
+func TestClient_handleNodeUpdateResponse(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+			return cstate.NewMemDB(logger), nil
+		}
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	// Assert our starting state, so we can ensure we are not testing for values
+	// that already exist.
+	must.Eq(t, 0, testClient.servers.NumNodes())
+	must.Eq(t, 0, testClient.servers.NumServers())
+	must.Eq(t, []*servers.Server{}, testClient.servers.GetServers())
+	must.Eq(t, "", testClient.nodeIdentityToken())
+
+	stateIdentity, err := testClient.stateDB.GetNodeIdentity()
+	must.NoError(t, err)
+	must.Eq(t, "", stateIdentity)
+
+	updateResp := structs.NodeUpdateResponse{
+		NumNodes: 1010,
+		Servers: []*structs.NodeServerInfo{
+			{RPCAdvertiseAddr: "10.0.0.1:4647", Datacenter: "dc1"},
+			{RPCAdvertiseAddr: "10.0.0.2:4647", Datacenter: "dc1"},
+			{RPCAdvertiseAddr: "10.0.0.3:4647", Datacenter: "dc1"},
+		},
+		SignedIdentity: pointer.Of("node-identity"),
+	}
+
+	// Perform the update and test the outcome.
+	must.NoError(t, testClient.handleNodeUpdateResponse(updateResp))
+
+	must.Eq(t, 1010, testClient.servers.NumNodes())
+	must.Eq(t, 3, testClient.servers.NumServers())
+	must.SliceContainsAllEqual(t, []*servers.Server{
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 4647}},
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.2"), Port: 4647}},
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.3"), Port: 4647}},
+	}, testClient.servers.GetServers())
+	must.Eq(t, "node-identity", testClient.nodeIdentityToken())
+
+	stateIdentity, err = testClient.stateDB.GetNodeIdentity()
+	must.NoError(t, err)
+	must.Eq(t, "node-identity", stateIdentity)
 }
 
 func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {

@@ -4220,3 +4220,150 @@ func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOID
 	cache.LoadAndDelete(req.ClientNonce)
 	must.NoError(t, cache.Store(oidcReq))
 }
+
+func TestACL_ClientIntroductionToken(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set up a test ACL server with a keyring and encrypter that are ready for
+	// use.
+	testACLServer, _, testACLServerCleanupFn := TestACLServer(t, nil)
+	t.Cleanup(testACLServerCleanupFn)
+	testutil.WaitForKeyring(t, testACLServer.RPC, testACLServer.Region())
+
+	aclCodec := rpcClient(t, testACLServer)
+
+	// Perform a test without setting an auth token, so that the RPC uses the
+	// anonymous token. This should fail with a permission denied error.
+	t.Run("acl_server_anonymous", func(t *testing.T) {
+		anonymousReq := structs.ACLCreateClientIntroductionTokenRequest{
+			WriteRequest: structs.WriteRequest{
+				Region: testACLServer.Region(),
+			},
+		}
+
+		must.EqError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&anonymousReq,
+			&structs.ACLCreateClientIntroductionTokenResponse{},
+		), structs.ErrPermissionDenied.Error())
+
+	})
+
+	// Perform a test with token that only has node read permissions. This
+	// should fail with a permission denied error.
+	t.Run("acl_server_node_read", func(t *testing.T) {
+		nodeReadToken := mock.CreatePolicyAndToken(
+			t,
+			testACLServer.fsm.State(),
+			testACLServer.raft.LastIndex(),
+			fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+			`node{policy = "read"}`,
+		)
+
+		nodeReadReq := structs.ACLCreateClientIntroductionTokenRequest{
+			WriteRequest: structs.WriteRequest{
+				AuthToken: nodeReadToken.SecretID,
+				Region:    testACLServer.Region(),
+			},
+		}
+
+		must.EqError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&nodeReadReq,
+			&structs.ACLCreateClientIntroductionTokenResponse{},
+		), structs.ErrPermissionDenied.Error())
+	})
+
+	// Perform a test with token that has node write permissions. This should
+	// succeed and return a valid JWT that matches the requested claims.
+	t.Run("acl_server_node_write", func(t *testing.T) {
+		nodeWriteToken := mock.CreatePolicyAndToken(
+			t,
+			testACLServer.fsm.State(),
+			testACLServer.raft.LastIndex(),
+			fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+			`node{policy = "write"}`,
+		)
+
+		nodeWriteReq := structs.ACLCreateClientIntroductionTokenRequest{
+			NodeName: "test-node",
+			NodePool: "test-pool",
+			TTL:      15 * time.Minute,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: nodeWriteToken.SecretID,
+				Region:    testACLServer.Region(),
+			},
+		}
+
+		timeNow := time.Now()
+		nodeWriteResp := structs.ACLCreateClientIntroductionTokenResponse{}
+
+		must.NoError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&nodeWriteReq,
+			&nodeWriteResp,
+		))
+		must.NotEq(t, "", nodeWriteResp.JWT)
+
+		nodeWriteClaims, err := testACLServer.encrypter.VerifyClaim(nodeWriteResp.JWT)
+		must.NoError(t, err)
+		must.True(t, nodeWriteClaims.IsNodeIntroduction())
+		must.Eq(t, nodeWriteReq.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
+		must.Eq(t, nodeWriteReq.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
+
+		// The JWT creation happens asynchronously in the RPC handler, so we
+		// need to verify the TTL is set using a bound check.
+		nodeWriteExpiry := nodeWriteClaims.Expiry.Time()
+		must.True(t, nodeWriteExpiry.Before(timeNow.Add(nodeWriteReq.TTL)))
+		must.True(t, nodeWriteExpiry.After(timeNow.Add(nodeWriteReq.TTL).Add(-10*time.Second)))
+	})
+
+	// Set up a test server without ACLs with a keyring and encrypter that are
+	// ready for use.
+	testServer, testServerCleanupFn := TestServer(t, nil)
+	t.Cleanup(testServerCleanupFn)
+	testutil.WaitForKeyring(t, testServer.RPC, testServer.Region())
+
+	codec := rpcClient(t, testServer)
+
+	// Perform a test without setting an auth token on a server not running
+	// ACLs. This should succeed and return a valid JWT that matches the
+	// requested claims.
+	t.Run("non_acl_server", func(t *testing.T) {
+
+		req := structs.ACLCreateClientIntroductionTokenRequest{
+			NodeName: "test-node",
+			NodePool: "test-pool",
+			TTL:      15 * time.Minute,
+			WriteRequest: structs.WriteRequest{
+				Region: testServer.Region(),
+			},
+		}
+
+		timeNow := time.Now()
+		resp := structs.ACLCreateClientIntroductionTokenResponse{}
+
+		must.NoError(t, msgpackrpc.CallWithCodec(
+			codec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&req,
+			&resp,
+		))
+		must.NotEq(t, "", resp.JWT)
+
+		nodeWriteClaims, err := testServer.encrypter.VerifyClaim(resp.JWT)
+		must.NoError(t, err)
+		must.True(t, nodeWriteClaims.IsNodeIntroduction())
+		must.Eq(t, req.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
+		must.Eq(t, req.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
+
+		// The JWT creation happens asynchronously in the RPC handler, so we
+		// need to verify the TTL is set using a bound check.
+		nodeWriteExpiry := nodeWriteClaims.Expiry.Time()
+		must.True(t, nodeWriteExpiry.Before(timeNow.Add(req.TTL)))
+		must.True(t, nodeWriteExpiry.After(timeNow.Add(req.TTL).Add(-10*time.Second)))
+	})
+}

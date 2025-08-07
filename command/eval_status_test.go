@@ -236,6 +236,6 @@ func TestEvalStatus_FormatPlanAnnotations(t *testing.T) {
 
 	out := formatPlanAnnotations(updates, false)
 	must.Eq(t, `Task Group  Ignore  Place  Stop  InPlace  Destructive  Canary  Reconnect
-foo         2       1      0     0        0            1       0
-bar         0       1      3     0        0            0       2`, out)
+bar         0       1      3     0        0            0       2
+foo         2       1      0     0        0            1       0`, out)
 }

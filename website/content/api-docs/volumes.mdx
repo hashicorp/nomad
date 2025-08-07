@@ -313,7 +313,7 @@ The following table shows this endpoint's support for [blocking queries][] and
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
-| `NO`             | `namespace:csi-write-volume` |
+| `NO`             | `namespace:csi-write-volume`. <br/>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -321,13 +321,20 @@ The following table shows this endpoint's support for [blocking queries][] and
   volume. This must be the full ID. Specify this as part of the
   path.
 
-### Sample Payload
+- `Volumes` <code>([Volumes][csi-volume-spec]:</code> `<required>`) - Specifies
+  the JSON definition of the CSI volume. You should include the ID field if you
+  are updating an existing volume. Note that you must include the `NodeID` field
+  for the register API.
 
-The payload must include a JSON document that describes the volume's
-parameters. Note that the `NodeID` field is required for the register API.
+- `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
+  Sentinel policies. This field allows creating a volume when it would be denied
+  by policy.
+
+### Sample Payload
 
 ```json
 {
+  "PolicyOverride": false,
   "Volumes": [
     {
       "ExternalID": "vol-abcdef",
@@ -382,7 +389,7 @@ The following table shows this endpoint's support for [blocking queries][] and
 
 | Blocking Queries | ACL Required                 |
 | ---------------- | ---------------------------- |
-| `NO`             | `namespace:csi-write-volume` |
+| `NO`             | `namespace:csi-write-volume`. <br/>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -390,13 +397,19 @@ The following table shows this endpoint's support for [blocking queries][] and
   volume. This must be the full ID. Specify this as part of the
   path.
 
-### Sample Payload
+- `Volumes` <code>([Volumes][csi-volume-spec]:</code> `<required>`) - Specifies
+  the JSON definition of the CSI volume. You should include the ID field if you
+  are updating an existing volume. 
 
-The payload must include a JSON document that describes the volume's
-parameters.
+- `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
+  Sentinel policies. This field allows creating a volume when it would be denied
+  by policy.
+
+### Sample Payload
 
 ```json
 {
+  "PolicyOverride": false,
   "Volumes": [
     {
       "ID": "volume-id1",
@@ -1226,3 +1239,4 @@ $ curl \
 [csi_plugins_internals]: /nomad/docs/architecture/storage/csi
 [Create CSI Volume]: #create-csi-volume
 [Volume Expansion]: /nomad/docs/other-specifications/volume/csi#volume-expansion
+[csi-volume-spec]: /nomad/docs/other-specifications/volume/csi  

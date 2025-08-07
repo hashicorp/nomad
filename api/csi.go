@@ -76,11 +76,25 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 // Register registers a single CSIVolume with Nomad. The volume must already
 // exist in the external storage provider.
 func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
-	req := CSIVolumeRegisterRequest{
+	req := &CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, nil, w)
+	_, meta, err := v.RegisterOpts(req, w)
 	return meta, err
+}
+
+// RegisterOpts registers a single CSIVolume with Nomad. The volume must already
+// exist in the external storage provider. It expects a single volume in the
+// request.
+func (v *CSIVolumes) RegisterOpts(req *CSIVolumeRegisterRequest, w *WriteOptions) (*CSIVolumeRegisterResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
+	resp := &CSIVolumeRegisterResponse{}
+	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, resp, w)
+
+	return resp, meta, err
 }
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
@@ -97,9 +111,21 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 		Volumes: []*CSIVolume{vol},
 	}
 
+	resp, meta, err := v.CreateOpts(&req, w)
+	return resp.Volumes, meta, err
+}
+
+// CreateOpts creates a single CSIVolume in an external storage provider and
+// registers it with Nomad. You do not need to call Register if this call is
+// successful. It expects a single volume in the request.
+func (v *CSIVolumes) CreateOpts(req *CSIVolumeCreateRequest, w *WriteOptions) (*CSIVolumeCreateResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
 	resp := &CSIVolumeCreateResponse{}
 	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
-	return resp.Volumes, meta, err
+	return resp, meta, err
 }
 
 // Delete deletes a CSI volume from an external storage provider. The ID
@@ -452,17 +478,31 @@ func (v CSIVolumeExternalStubSort) Swap(i, j int) {
 
 type CSIVolumeCreateRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
-	Volumes []*CSIVolume
+	Volumes  []*CSIVolume
+	Warnings string
 	QueryMeta
 }
 
 type CSIVolumeRegisterRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
+}
+
+type CSIVolumeRegisterResponse struct {
+	Volumes  []*CSIVolume
+	Warnings string
 }
 
 type CSIVolumeDeregisterRequest struct {

@@ -671,19 +671,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
@@ -720,6 +720,11 @@
       },
       {
         "title": "Configure multi-region deployments",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-declare/multiregion"
       },
       {
@@ -920,6 +925,11 @@
       },
       {
         "title": "audit",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/audit"
       },
       {
@@ -965,6 +975,11 @@
       },
       {
         "title": "reporting",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/reporting"
       },
       {
@@ -977,6 +992,11 @@
       },
       {
         "title": "sentinel",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "configuration/sentinel"
       },
       {
@@ -1110,6 +1130,11 @@
       },
       {
         "title": "multiregion",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/multiregion"
       },
       {
@@ -1118,6 +1143,11 @@
       },
       {
         "title": "numa",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/numa"
       },
       {
@@ -1150,6 +1180,11 @@
       },
       {
         "title": "schedule",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "job-specification/schedule"
       },
       {
@@ -1227,6 +1262,11 @@
       },
       {
         "title": "Resource quota",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "other-specifications/quota"
       },
       {
@@ -1281,6 +1321,11 @@
       },
       {
         "title": "Sentinel policy",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "reference/sentinel-policy"
       },
       {

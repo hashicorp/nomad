@@ -656,6 +656,27 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			runtime.NumCPU())
 	}
 
+	// If the operator has specified a client introduction server config block,
+	// translate this into the internal server configuration object.
+	if agentConfig.Server.ClientIntroduction != nil {
+		if agentConfig.Server.ClientIntroduction.Enforcement != "" {
+			conf.NodeIntroductionConfig.Enforcement = agentConfig.Server.ClientIntroduction.Enforcement
+		}
+		if agentConfig.Server.ClientIntroduction.DefaultIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.DefaultIdentityTTL = agentConfig.Server.ClientIntroduction.DefaultIdentityTTL
+		}
+		if agentConfig.Server.ClientIntroduction.MaxIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.MaxIdentityTTL = agentConfig.Server.ClientIntroduction.MaxIdentityTTL
+		}
+	}
+
+	if err := conf.NodeIntroductionConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid server.client_introduction configuration: %w", err)
+	}
+
+	// Copy LogFile config value
+	conf.LogFile = agentConfig.LogFile
+
 	return conf, nil
 }
 
@@ -741,6 +762,47 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		to configure Nomad to work with Consul.`)
 	}
 
+	// If the operator has not set an intro token via the CLI or an environment
+	// variable, attempt to read the intro token from the file system. This
+	// cannot be used as a CLI override.
+	if c.IntroToken == "" {
+		if err := a.readIntroTokenFile(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// readIntroTokenFile attempts to read the intro token from the file system.
+func (a *Agent) readIntroTokenFile(cfg *clientconfig.Config) error {
+
+	rootFile, err := os.OpenInRoot(cfg.StateDir, "intro_token.jwt")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	fileStat, err := rootFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat intro token file: %w", err)
+	}
+
+	// If the file exists and is a file, attempt to read the contents and set
+	// the intro token. Any error is logged for the operator to investigate but
+	// does not block the agent from starting.
+	if fileStat.IsDir() {
+		return fmt.Errorf("intro token file is a directory")
+	}
+
+	content, err := helper.ReadFileContent(rootFile)
+	if err != nil {
+		return fmt.Errorf("failed to read intro token file: %w", err)
+	}
+
+	cfg.IntroToken = strings.TrimSpace(string(content))
 	return nil
 }
 
@@ -753,10 +815,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
 	}
-
 	conf.Servers = agentConfig.Client.Servers
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
+	conf.IntroToken = agentConfig.Client.IntroToken
 
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
@@ -1016,6 +1078,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
+	conf.LogFile = agentConfig.LogFile
 	return conf, nil
 }
 

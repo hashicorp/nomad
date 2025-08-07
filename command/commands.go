@@ -579,6 +579,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"monitor export": func() (cli.Command, error) {
+			return &MonitorExportCommand{
+				Meta: meta,
+			}, nil
+		},
 		"namespace": func() (cli.Command, error) {
 			return &NamespaceCommand{
 				Meta: meta,
@@ -631,6 +636,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"node eligibility": func() (cli.Command, error) {
 			return &NodeEligibilityCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity": func() (cli.Command, error) {
+			return &NodeIdentityCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity renew": func() (cli.Command, error) {
+			return &NodeIdentityRenewCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node intro": func() (cli.Command, error) {
+			return &NodeIntroCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node intro create": func() (cli.Command, error) {
+			return &NodeIntroCreateCommand{
 				Meta: meta,
 			}, nil
 		},
