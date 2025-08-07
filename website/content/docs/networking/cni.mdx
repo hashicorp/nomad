@@ -70,9 +70,12 @@ the external [configuration
 format](https://www.cni.dev/docs/spec/#example-configuration) for a complete
 explanation of the fields.
 
-You can use this template as a basis for your own CNI-based bridge network
-configuration in cases where you need access to an unsupported option in the
-default configuration, like hairpin mode.
+You can use the following template as a basis for your own CNI-based bridge
+network configuration in cases where you need access to an unsupported option
+in the default configuration.
+
+<Tabs>
+  <Tab heading="Default">
 
 This example uses two default values from Nomad client configuration.
 
@@ -87,7 +90,7 @@ The `NOMAD-ADMIN` internal constant provides the value for
 `iptablesAdminChainName`. In your own configuration, ensure that you change the
 `iptablesAdminChainName` to a unique value.
 
-<CodeBlockConfig highlight="10,20,32">
+<CodeBlockConfig highlight="10,18,29">
 
 ```json
 {
@@ -107,15 +110,12 @@ The `NOMAD-ADMIN` internal constant provides the value for
       "ipam": {
         "type": "host-local",
         "ranges": [
-          [
-            {
-              "subnet": "172.26.64.0/20"
-            }
-          ]
+          [{"subnet": "172.26.64.0/20"}]
         ],
         "routes": [
-          { "dst": "0.0.0.0/0" }
-        ]
+          {"dst": "0.0.0.0/0"}
+        ],
+        "dataDir": "/var/run/cni"
       }
     },
     {
@@ -133,6 +133,61 @@ The `NOMAD-ADMIN` internal constant provides the value for
 ```
 
 </CodeBlockConfig>
+
+  </Tab>
+  <Tab heading="IPv6">
+
+If you [configure IPv6][] to use the example range of `2001:db8::/112`,
+Nomad adds two more lines to the configuration.
+
+<CodeBlockConfig highlight="19,23">
+
+```json
+{
+  "cniVersion": "1.0.0",
+  "name": "nomad",
+  "plugins": [
+    {
+      "type": "loopback"
+    },
+    {
+      "type": "bridge",
+      "bridge": "nomad",
+      "ipMasq": true,
+      "isGateway": true,
+      "forceAddress": true,
+      "hairpinMode": false,
+      "ipam": {
+        "type": "host-local",
+        "ranges": [
+          [{"subnet": "172.26.64.0/20"}],
+          [{"subnet": "2001:db8::/112"}]
+        ],
+        "routes": [
+          {"dst": "0.0.0.0/0"},
+          {"dst": "::/0"}
+        ],
+        "dataDir": "/var/run/cni"
+      }
+    },
+    {
+      "type": "firewall",
+      "backend": "iptables",
+      "iptablesAdminChainName": "NOMAD-ADMIN"
+    },
+    {
+      "type": "portmap",
+      "capabilities": {"portMappings": true},
+      "snat": true
+    }
+  ]
+}
+```
+
+</CodeBlockConfig>
+
+  </Tab>
+</Tabs>
 
 This configuration uses the following CNI reference plugins:
 
@@ -252,3 +307,4 @@ client {
 [firewall]: https://www.cni.dev/plugins/current/meta/firewall/
 [portmap]: https://www.cni.dev/plugins/current/meta/portmap/
 [Use a CNI network with a job]: /nomad/docs/job-networking/cni
+[configure IPv6]: /nomad/docs/configuration/client#bridge_network_subnet_ipv6
