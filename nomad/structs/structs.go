@@ -10504,8 +10504,6 @@ func (s *Secret) Validate() error {
 		_ = multierror.Append(&mErr, errors.New("secret path cannot be empty"))
 	}
 
-	// TODO: add tests
-	// and can these not be hardcoded?
 	if s.Provider == "nomad" || s.Provider == "vault" {
 		if len(s.Env) > 0 {
 			_ = multierror.Append(&mErr, fmt.Errorf("%s provider cannot use the env block", s.Provider))
