@@ -1,18 +1,19 @@
 ---
 layout: docs
-page_title: CNI plugins and bridge networking
+page_title: Container Network Interface plugins and custom bridge networking
 description: |-
-  Learn how to install Container Network Interface (CNI) reference plugins, configure Nomad's bridge networking, and use CNI networks with Nomad jobs.
+  Install Container Network Interface (CNI) reference plugins. Learn how to configure Nomad's bridge networking. Use CNI networks with Nomad jobs.
 ---
 
-# Container Network Interface (CNI)
+# Container Network Interface plugins and custom bridge networking
 
-This page shows you how to install the [CNI reference plugins][cni-plugin-docs]
-on your Linux distribution and configure bridge networking on your Nomad
-clients. You can apply this guide's workflow to installing any plugin that
-complies with the [Container Network Interface (CNI) Specification][cni-spec],
-but you should verify plugin compatibility with Nomad before deploying in
-production.
+This page describes the process to install the [Container Network Interface (CNI)
+reference plugins][cni-plugin-docs] on your Linux distribution and configure
+custom CNI bridge networking on your Nomad clients.
+
+You may apply this guide's workflow to installing any network plugin that
+complies with the [CNI Specification][cni-spec], but you should verify plugin
+compatibility with Nomad before deploying in production.
 
 ## Background
 
@@ -24,6 +25,15 @@ bridge network mode and Consul service mesh, leverage the CNI reference plugins
 to provide an operating-system agnostic interface to configure workload
 networking.
 
+Nomad reads the following extensions from the [`cni_config_dir`][] (`/opt/cni/config` by default):
+
+- `.conflist` files load as [network
+  configurations][cni_spec_net_config] that contain a list of plugin
+  configurations.
+
+- `.conf` and `.json` files load as individual [plugin
+  configurations][cni_spec_plugin_config] for a specific network.
+
 ## Requirements
 
 - You are familiar with [CNI reference plugins][cni-plugin-docs].
@@ -31,6 +41,9 @@ networking.
 - You are running Nomad on Linux.
 
 ## CNI plugins and bridge networking workflow
+
+Install and configure CNI plugins on a per-client basis. Nomad consults
+the path given in the client's [`cni_path`][] to find CNI plugin executables.
 
 Perform the following on each Nomad client:
 
@@ -50,7 +63,7 @@ with a job][] for job configuration.
 
 @include 'install/bridge-iptables.mdx'
 
-## Create a CNI bridge mode configuration
+## Create a custom bridge mode configuration with CNI plugins
 
 Nomad itself uses CNI plugins and configuration as the underlying implementation
 for the `bridge` network mode, using the loopback, [bridge][], [firewall][], and
@@ -307,4 +320,8 @@ client {
 [firewall]: https://www.cni.dev/plugins/current/meta/firewall/
 [portmap]: https://www.cni.dev/plugins/current/meta/portmap/
 [Use a CNI network with a job]: /nomad/docs/job-networking/cni
+[`cni_config_dir`]: /nomad/docs/configuration/client#cni_config_dir
+[`cni_path`]: /nomad/docs/configuration/client#cni_path
+[cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format
+[cni_spec_plugin_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects
 [configure IPv6]: /nomad/docs/configuration/client#bridge_network_subnet_ipv6

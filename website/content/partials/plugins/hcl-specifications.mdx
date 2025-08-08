@@ -1,0 +1,32 @@
+## HCL specifications
+
+`*hclspec.Spec` is a struct that defines the schema to validate an HCL entity
+against. Find the full documentation of the different HCL attribute types in the [hclspec godoc][hclspec].
+
+For a basic example, review the driver configuration for the raw_exec
+driver.
+
+```hcl
+job "example" {
+...
+      driver = "raw_exec"
+      config {
+        command = "/bin/sleep"
+        args = ["100"]
+      }
+}
+```
+
+The `config` block is what is validated against the `hclspec.Spec`. The
+`command` key takes a string attribute, and the `args` key takes an array
+attribute. The corresponding `*hclspec.Spec` would be:
+
+```go
+    spec :=  hclspec.NewObject(map[string]*hclspec.Spec{
+		"command": hclspec.NewAttr("command", "string", true),
+		"args":    hclspec.NewAttr("args", "list(string)", false),
+	})
+```
+
+[hclspec]: https://godoc.org/github.com/hashicorp/nomad/plugins/shared/hclspec
+[pluginblock]: /nomad/docs/configuration/plugin
