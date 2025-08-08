@@ -224,6 +224,9 @@ const (
 var (
 	// validNamespaceName is used to validate a namespace name
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// validSecretName is used to validate a secret name
+	validSecretName = regexp.MustCompile("^[a-zA-Z0-9_]{1,128}$")
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -10482,15 +10485,19 @@ func (s *Secret) Validate() error {
 	var mErr multierror.Error
 
 	if s.Name == "" {
-		_ = multierror.Append(&mErr, fmt.Errorf("Secret name cannot be empty"))
+		_ = multierror.Append(&mErr, errors.New("secret name cannot be empty"))
+	}
+
+	if !validSecretName.MatchString(s.Name) {
+		_ = multierror.Append(&mErr, fmt.Errorf("secret name must match regex %s", validSecretName))
 	}
 
 	if s.Provider == "" {
-		_ = multierror.Append(&mErr, fmt.Errorf("Secret provider cannot be empty"))
+		_ = multierror.Append(&mErr, errors.New("secret provider cannot be empty"))
 	}
 
 	if s.Path == "" {
-		_ = multierror.Append(&mErr, fmt.Errorf("Secret path cannot be empty"))
+		_ = multierror.Append(&mErr, errors.New("secret path cannot be empty"))
 	}
 
 	return mErr.ErrorOrNil()

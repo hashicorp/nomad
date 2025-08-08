@@ -247,6 +247,9 @@ type ClientConfig struct {
 	// It can be passed as a command line argument to the agent, set via an
 	// environment variable, or placed in a file at "${data_dir}/intro_token".
 	IntroToken string `hcl:"-"`
+	// CommonPluginDir is the root directory for plugins that implement
+	// the common plugin interface
+	CommonPluginDir string `hcl:"common_plugin_dir"`
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
