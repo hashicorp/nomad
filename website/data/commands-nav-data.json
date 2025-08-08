@@ -417,9 +417,7 @@
         "title": "Overview",
         "path": "monitor"
       },
-      { "title": "export",
-        "path": "monitor/export"
-      }
+      { "title": "export", "path": "monitor/export" }
     ]
   },
   {

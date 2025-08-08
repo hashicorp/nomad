@@ -1,0 +1,433 @@
+---
+layout: docs
+page_title: Create a host volume plugin
+description: |-
+  Use Nomad's dynamic host volume plugins specification to create a host volume plugin so that you can dynamically configure persistent storage on your client nodes. Review examples that create a directory and a Linux filesystem. Reference plugin arguments and environment variables.
+---
+
+# Create a host volume plugin
+
+This page describes the plugin specification for
+[dynamic host volumes][stateful-workloads], with examples, so you can write
+your own plugin to dynamically configure persistent storage on your Nomad
+client nodes.
+
+If you do not need to write your own plugin, consider Nomad's built-in
+[`mkdir` plugin][mkdir_plugin], which creates a directory on the host.
+
+If you have more complex needs, review the following examples to get a
+sense of the specification in action. A plugin can be as basic as a short shell
+script.
+
+The full [specification](#specification) follows the examples,
+and is followed by a list of [general considerations](#considerations).
+
+## Examples
+
+The specification is lean enough to be readily fulfilled in any language.
+The following examples are written in `bash`.
+
+The `custom-mkdir` plugin creates a directory, and `mkfs-ext4` creates a Linux
+filesystem. You may imagine others, such as an NFS mount or another
+storage infrastructure API.
+
+Each example includes a minimal [volume specification][], which assumes that
+you have placed the plugin in the [host volume plugin directory][plugin_dir]
+and made it executable.
+
+<Tabs>
+<Tab heading="custom-mkdir">
+
+`custom-mkdir` only creates a directory. There is a plugin built into Nomad that
+does this called "mkdir", but this serves as a minimal example.
+
+Volume specification:
+
+```hcl
+type      = "host"
+name      = "mkdir-vol"
+plugin_id = "custom-mkdir" # plugin filename
+```
+
+Plugin code:
+
+```bash
+#!/usr/bin/env bash
+
+# set -u to error by name if an env var is not set
+set -eu
+
+# echo to stderr, because Nomad expects stdout to match the spec.
+# this (and stdout) show up in Nomad agent debug logs.
+stderr() {
+  1>&2 echo "$@"
+}
+
+get_path() {
+  # since delete runs `rm -rf` (frightening), check to make sure
+  # the path is something sensible.
+  if [ -z "$DHV_VOLUMES_DIR" ]; then
+    stderr "DHV_VOLUMES_DIR must not be empty"
+    exit 1
+  fi
+  if [ -z "$DHV_VOLUME_ID" ]; then
+    stderr "DHV_VOLUME_ID must not be empty"
+    exit 1
+  fi
+  # create and delete assign this echo output to a variable
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_ID"
+}
+
+case "$DHV_OPERATION" in
+  "fingerprint")
+    echo '{"version": "0.0.1"}'
+    ;;
+  "create")
+    path="$(get_path)"
+    stderr "creating directory: $path"
+    # `mkdir -p` may be run repeatedly with the same result;
+    # it is idempotent.
+    mkdir -p "$path"
+    # 0 bytes because plain directories are not any particular size.
+    printf '{"path": "%s", "bytes": 0}' "$path"
+    ;;
+  "delete")
+    path="$(get_path)"
+    stderr "deleting directory: $path"
+    rm -rf "$path" # `rm -f` is also idempotent.
+    ;;
+  *)
+    echo "unknown operation: '$DHV_OPERATION'"
+    exit 1
+    ;;
+esac
+```
+
+</Tab>
+<Tab heading="mkfs-ext4">
+
+`mkfs-ext4` creates a Linux ext4 filesystem with the `mkfs.ext4` command and
+mounts it  as a loopback device. Unlike `mkdir`, `mkfs` can restrict the size
+of the volume.
+
+Volume specification:
+
+```hcl
+type         = "host"
+name         = "mkfs-vol"
+plugin_id    = "mkfs-ext4" # plugin filename
+capacity_min = "50MB" # capacity values are required by this plugin
+capacity_max = "50MB"
+```
+
+Plugin code:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+version='0.0.1'
+
+stderr() {
+  1>&2 echo "$@"
+}
+
+get_path() {
+  if [ -z "$DHV_VOLUMES_DIR" ]; then
+    stderr "DHV_VOLUMES_DIR must not be empty"
+    exit 1
+  fi
+  if [ -z "$DHV_VOLUME_ID" ]; then
+    stderr "DHV_VOLUME_ID must not be empty"
+    exit 1
+  fi
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_ID"
+}
+
+is_mounted() {
+  mount | grep -q " $1 "
+}
+
+create_volume() {
+    local path="$1"
+    local bytes="$2"
+
+    # translate to mb for dd block size
+    local megs=$((bytes / 1024 / 1024)) # lazy, approximate
+    if [ $megs -le 0 ]; then
+      stderr "minimum capacity must be greater than zero."
+      exit 2
+    fi
+
+    mkdir -p "$path"
+    # the if statements ensure idempotency
+    if [ ! -f "$path.ext4" ]; then
+      # dd only writes to stderr, so safe to run without redirection
+      dd if=/dev/zero of="$path.ext4" bs=1M count="$megs"
+      # mkfs includes stdout, so we need to redirect that to stderr
+      mkfs.ext4 "$path.ext4" 1>&2
+    fi
+    if ! is_mounted "$path"; then
+      mount "$path.ext4" "$path"
+    fi
+}
+
+delete_volume() {
+  local path="$1"
+  is_mounted "$path" && umount "$path"
+  rm -rf "$path"
+  rm -f "$path.ext4"
+}
+
+case "$1" in
+  "fingerprint")
+    printf '{"version": "%s"}' "$version"
+    ;;
+  "create")
+    path="$(get_path)"
+    stderr "creating volume at $path"
+    create_volume "$path" "$DHV_CAPACITY_MIN_BYTES"
+    # output what Nomad expects
+    bytes="$(stat --format='%s' "$path.ext4")"
+    printf '{"path": "%s", "bytes": %s}' "$path" "$bytes"
+    ;;
+  "delete")
+    path="$(get_path)"
+    stderr "deleting volume at $path"
+    delete_volume "$path" ;;
+  *)
+    echo "unknown operation: $1"
+    exit 1 ;;
+esac
+```
+
+</Tab>
+</Tabs>
+
+## Specification
+
+A host volume plugin is registered with Nomad if it:
+
+- Is an executable file, such as a script or binary
+- Is located in the [`client.host_volume_plugin_dir`][plugin_dir] directory
+  on Nomad client nodes
+- Responds appropriately to a `fingerprint` call
+
+### Operations
+
+To fully manage the lifecycle of a volume, plugins must fulfill all of the
+following operations:
+
+- [fingerprint](#fingerprint)
+- [create](#create)
+- [delete](#delete)
+
+Nomad passes the operation as the first positional argument to the plugin.
+That and other information are passed as environment variables. Environment
+variables are prefixed with `"DHV_"`, which stands for "Dynamic Host Volume."
+
+Some variables may be required for certain plugins, such as `DHV_CAPACITY_*`
+for plugins that can restrict size. Most variables are for plugin author convenience.
+
+#### fingerprint
+
+<blockquote style={{borderLeft: "solid 1px #00ca8e"}}>
+
+Nomad calls `fingerprint` to discover valid plugins when the client agent 
+starts or is reloaded with a SIGHUP. The version it returns is used to register
+the plugin on the Nomad node for volume scheduling.
+
+**CLI arguments:** `$1=fingerprint`
+
+**Environment variables:**
+
+```
+DHV_OPERATION=fingerprint
+```
+
+**Expected stdout:**
+
+```
+{"version": "0.0.1"}
+```
+
+**Requirements:**
+
+- Must complete within 5 seconds, or Nomad will kill it. It should be much
+  faster, as no actual work should be done.
+- "version" value must be valid per the [hashicorp/go-version][go-version]
+  golang package.
+
+</blockquote>
+
+#### create
+
+<blockquote style={{borderLeft: "solid 1px #00ca8e"}}>
+
+Nomad calls `create` when you run [`nomad volume create`][cli-create] CLI or
+use the [create API][api-create]).
+
+You can run `create` again for the same volume if you include the volume
+`id` in the volume specification.
+
+When the agent starts, Nomad also calls `create` for each volume that was
+previously created on the node so that plugins can ensure the volumes are available
+after an agent restart or host reboot.
+
+**CLI Arguments:** `$1=create`
+
+**Environment variables:**
+
+```
+DHV_OPERATION=create
+DHV_VOLUMES_DIR={directory to put the volume in}
+DHV_PLUGIN_DIR={path to directory containing plugins}
+DHV_NAMESPACE={volume namespace}
+DHV_VOLUME_NAME={name from the volume specification}
+DHV_VOLUME_ID={volume ID generated by Nomad}
+DHV_NODE_ID={Nomad node ID}
+DHV_NODE_POOL={Nomad node pool}
+DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec, expressed in bytes}
+DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec, expressed in bytes}
+DHV_PARAMETERS={stringified json of parameters from the volume spec}
+```
+
+**Expected stdout:**
+
+```
+{"path": "/path/to/created/volume", "bytes": 50000000}
+```
+
+**Expected stdout on error:**
+
+```
+{"error": "error message"}
+```
+
+Returning an error message is optional. Nomad returns the error message in any
+error returned to the user.
+
+**Requirements:**
+
+- Must complete within 60 seconds, or Nomad will kill it.
+- Must create a path on disk, within `DHV_VOLUMES_DIR` or otherwise, and return
+  it as `"path"`. Nomad will mount this path into workloads that request the
+  volume, and it will also be sent to `delete` later as `DHV_CREATED_PATH`.
+- Must be idempotent - running create with the same inputs should produce the
+  same result.
+- Must be safe to run concurrently, per volume name per node.
+- If the plugin fails partway through create, it must clean up after itself
+  and exit non-0. Nomad will not attempt to delete partial creates.
+- However, if during an _initial_ create, Nomad fails to save the volume in its
+  own state, it will issue `delete` automatically to avoid leaving any
+  stray volumes on disk.
+
+</blockquote>
+
+#### delete
+
+<blockquote style={{borderLeft: "solid 1px #00ca8e"}}>
+
+Nomad calls `delete` when you run [`nomad volume delete`][cli-delete] CLI or
+use the [delete API][api-delete].
+
+**CLI Arguments:** `$1=delete`
+
+**Environment variables:**
+
+```
+DHV_OPERATION=delete
+DHV_CREATED_PATH={path that `create` returned}
+DHV_VOLUMES_DIR={directory that volumes should be put in}
+DHV_PLUGIN_DIR={path to directory containing plugins}
+DHV_NAMESPACE={volume namespace}
+DHV_VOLUME_NAME={name from the volume specification}
+DHV_VOLUME_ID={volume ID generated by Nomad}
+DHV_NODE_ID={Nomad node ID}
+DHV_NODE_POOL={Nomad node pool}
+DHV_PARAMETERS={stringified json of parameters from the volume spec}
+```
+
+**Expected stdout:** none (stdout is discarded)
+
+**Expected stdout on error:**
+
+```
+{"error": "error message"}
+```
+
+Returning an error message is optional. Nomad returns the error message in any
+error returned to the user.
+
+**Requirements:**
+
+- Must complete within 60 seconds, or Nomad will kill it.
+- Must remove the `DHV_CREATED_PATH` that was returned by `create`,
+  or derive the path from other variables the same way that `create` did.
+- Must be idempotent - calling delete on an already deleted volume must not
+  return an error.
+- Must be safe to run concurrently, per volume name per node.
+- Will be run after a failed `create` operation during initial volume creation.
+
+</blockquote>
+
+## Considerations
+
+Plugin authors should consider these details when writing plugins.
+
+### Execution
+
+- The plugin is executed as the same user as the `nomad` agent (likely root).
+- Plugin `stdout` and `stderr` are exposed as client agent debug logs,
+  so plugins should not output sensitive information.
+- Nomad does not retry automatically on error. The caller of create/delete
+  must retry manually. The plugin may do so internally with its own retry
+  logic, provided it still completes within the deadline.
+- Errors from `create` while restoring a volume during Nomad agent start
+  do not halt the client. The error will be in client logs, and the volume
+  is not registered as available on the node.
+- Be aware that the `DHV_VOLUME_NAME` and `DHV_PARAMETERS` fields are controlled
+  by the volume author. If the expected volume authors are not the Nomad
+  administrators, you should ensure your plugin handles these fields safely or
+  ignores them.
+
+### Uniqueness
+
+- Volume `name` is unique per _node_, and volume `ID` is unique per _region_.
+- Only one create/delete operation at a time is executed per volume `name`
+  per node, and similarly by `id` on Nomad servers, but many create/delete
+  operations for different volume IDs may run concurrently, even on the same
+  node.
+- We suggest placing volumes in `DHV_VOLUMES_DIR` for consistency, but it is not
+  required. The built-in `mkdir` plugin uses `$DHV_VOLUMES_DIR/$DHV_VOLUME_ID`
+  to ensure uniqueness across the cluster. We recommend against using
+  `DHV_VOLUME_NAME` in the path unless the plugin guards against path
+  traversal.
+- Plugins that write into network storage need to take care not to delete
+  remote/shared state by `name`, unless they know that there are no other
+  volumes with workloads using that name.
+
+### Configuration
+
+- Per-_volume_ configuration should be set in the volume specification file's
+  `parameters`. Per-_node_ configuration should be put in config file(s) as
+  described next.
+- There is no mechanism built into Nomad for plugin configuration. As a
+  convention, we suggest placing any necessary configuration file(s) next to
+  the executable plugin in the plugin directory. You may use `DHV_PLUGIN_DIR`
+  to refer to the directory.
+- If a plugin needs to retain state across operations (e.g. delete needs
+  some value that was generated during create), then you may store that on
+  the host filesystem, or some external data store of your choosing, perhaps
+  even Nomad variables.
+
+[stateful-workloads]: /nomad/docs/architecture/storage/host-volumes
+[plugin_dir]: /nomad/docs/configuration/client#host_volume_plugin_dir
+[volume specification]: /nomad/docs/other-specifications/volume/host
+[go-version]: https://pkg.go.dev/github.com/hashicorp/go-version#pkg-constants
+[cli-create]: /nomad/commands/volume/create
+[api-create]: /nomad/api-docs/volumes#create-dynamic-host-volume
+[cli-delete]: /nomad/commands/volume/delete
+[api-delete]: /nomad/api-docs/volumes#delete-dynamic-host-volume
+[mkdir_plugin]: /nomad/docs/other-specifications/volume/host#mkdir-plugin
+[host_volumes_dir]: /nomad/docs/configuration/client#host_volumes_dir
