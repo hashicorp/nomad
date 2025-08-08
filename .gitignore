@@ -91,7 +91,6 @@ rkt-*
 /ui/tmp
 
 # dependencies
-/node_modules/
 /ui/node_modules
 /ui/bower_components
 
