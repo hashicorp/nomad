@@ -9,110 +9,131 @@ description: |-
 
 # Configure SSO with Auth0
 
-OIDC authentication is useful when you want to deploy SSO widely in your organization and do not
-want to manage access solely with Nomad access control list (ACL) tokens.
+OIDC authentication is useful when you want to deploy SSO widely in your
+organization and do not want to manage access solely with Nomad access control
+list (ACL) tokens.
 
-Once implemented, SSO enables an interactive login procedure that can be initiated from either the
-Nomad UI or a command line interface.
+Once implemented, SSO enables an interactive login procedure that users may
+initiate from either the Nomad UI or CLI.
 
-In this guide you will configure [Auth0](https://auth0.com/) as an identity provider. Your
-configuration will use the [user metadata](https://auth0.com/docs/manage-users/user-accounts/metadata)
-in Auth0 to automatically grant permissions in Nomad ACL.
+In this guide, you configure [Auth0](https://auth0.com/) as an identity
+provider. Your configuration uses the user metadata in Auth0 to automatically
+grant permissions in Nomad ACL.
 
-This is a multi-step process that includes:
+This is a multi-step process that includes the following:
 
-- configuring an application in Auth0 for Nomad integration;
-- setting up Nomad ACL policies and roles to provide permissions to users
-- configuring user metadata and use binding rules to automatically assign permissions to users based
-on their metadata values.
+- Configuring an application in Auth0 for Nomad integration
+- Creating a role and user in Auth0
+- Setting up Nomad ACL policies and roles to provide permissions to users
+- Using Nomad binding rules to automatically assign permissions to users based on their metadata values
 
-This approach unifies the user permissions grant without the need to create individual user tokens
-or to define permissions individually for the different users.
+You should be familiar with Auth0 and the following Auth0 documentation:
+
+- [Understand How Metadata Works in User
+  Profiles](https://auth0.com/docs/manage-users/user-accounts/metadata)
+- [Manage User Metadata with the post-login Action
+  Trigger](https://auth0.com/docs/manage-users/user-accounts/metadata/manage-user-metadata)
+- [Login Trigger - Add user roles to ID and Access
+  tokens](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger#add-user-roles-to-id-and-access-tokens)
 
 ## Prerequisites
 
-In order to complete this guide, you will need:
+In order to complete this guide, you need:
 
-- A Nomad local dev agent or cluster with ACLs enabled and bootstrapped and the [management token](/nomad/docs/secure/acl/tokens#token-types) saved in an environment variable named `NOMAD_TOKEN`. For instructions on creating a cluster, check the [getting started tutorial](/nomad/tutorials/get-started) for a local development cluster or the [cluster setup tutorials](/nomad/tutorials/cluster-setup) for a cluster on one of the major cloud providers.
-
+- A Nomad cluster with ACLs enabled and bootstrapped. Refer to [Bootstrap the
+  ACL system](/nomad/docs/secure/acl/bootstrap) for instructions.
+- The [Nomad ACL management token](/nomad/docs/secure/acl/tokens#token-types)
+  for your cluster. Assign the value to an environment variable named
+  `NOMAD_TOKEN` in your local terminal session.
 - A valid [Auth0](https://auth0.com/) account.
 
-## Configure Auth0 application
+Refer to the [Nomad Quick Start tutorial](/nomad/tutorials/get-started) if you
+need to set up a cluster.
 
-In the [Auth0](https://manage.auth0.com/#/) dashboard, select **Applications** and click
-**+ Create Application** using the type **Native**. Once complete, click on the **Settings** tab of the new page.
+## Set up Auth0
 
-![Auth0 UI configure application to set callback URLs](/img/secure/auth0-configure-callback-urls.png)
+1. Create a native application. Refer to the Auth0 [Create Applications
+   guide](https://auth0.com/docs/get-started/auth0-overview/create-applications)
+   for instructions.
 
-In the Application configuration, set the callback URLs that the user will be redirected to
-after the authentication process is completed. The first address will be used by the CLI when you login via
-the `nomad login -type=oidc` command and the second one by the Nomad UI when you login with an OIDC auth method.
+   1. Note the **Domain**, **Client ID**, and **Client Secret** values. You use
+   these to configure an auth method in Nomad.
+   1. Set the callback URLs that Auth0 uses to redirect the user after the
+      authentication process is complete. In the **Allowed Callback URLs**
+      field, enter the following:
 
-In this example with a local development cluster, enter the following In the **Allowed Callback URLs** field.
+      - `<NOMAD_ADDRESS>/ui/settings/tokens`: This is the callback
+     address when you perform OIDC login with the Nomad web UI. If you are
+     running Nomad with a modified [HTTP
+     port](/nomad/docs/configuration#http-2), ensure that the UI address uses
+     this value.
+      - `http://localhost:4649/oidc/callback`: This is the callback address that
+     the Nomad CLI uses when you perform [OIDC login using the
+     CLI](https://developer.hashicorp.com/nomad/commands/login#examples).
 
--> **Note:** The callback URLs must be comma-separated.
+     In this example, the Nomad address is `http://3.145.29.13:4646`.
 
-```plaintext
-http://localhost:4649/oidc/callback,
-http://localhost:4646/ui/settings/tokens
-```
+      ```plaintext
+      http://3.145.29.13:4646/ui/settings/tokens,
+      http://localhost:4649/oidc/callback
+      ```
 
-For non-local clusters, replace `localhost` with your Nomad cluster's address.
+1. Create a role called `engineering`. Refer to the the Auth0 [Create Roles guide](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/roles/create-roles) for instructions.
+1. Create a user and assign the `engineering` role to that user. Refer to these
+   Auth0 guides for instructions:
 
--> **Note:** If you are running Nomad with a modified
-[HTTP port](/nomad/docs/configuration#http-2), ensure that the UI address uses this value.
+   - [Create Users](https://auth0.com/docs/manage-users/user-accounts/create-users)
+   - [Assign Roles to Users](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/rbac-users/assign-roles-to-users).
 
-## Create Auth0 users and metadata
+1. Create a [login
+   trigger](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger)
+   that adds user roles to the token that Auth0 sends back to Nomad.
 
-In the Auth0 dashboard for your app, on the sidebar, select **Users & Roles** > **Users** and click
-on **Create User**.
+   1. Create a custom action to add custom claims to the token. Refer to the
+      Auth0 [Create an Action
+      section](https://auth0.com/docs/customize/actions/write-your-first-action#create-an-action)
+      for instructions.
 
-![Auth0 UI create user form](/img/secure/auth0-create-user.png)
+      Give your action these values:
 
-Create a user with username/password authentication, edit the user's record, and
-add the following to the **app_metadata** section.
+      - **Name**: `Nomad OIDC`
+      - **Trigger**: `Login/Post Login`
 
-```json
-{
-  "roles": ["engineering"]
-}
-```
+      After you create the action, replace the `exports.onExecutePostLogin`
+      method with the method that sets a custom claim to [add user roles to the
+      tokens](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger#add-user-roles-to-id-and-access-tokens):
 
-![Auth0 UI configure user metadata](/img/secure/auth0-configure-user-metadata.png)
+      ```javascript
+      exports.onExecutePostLogin = async (event, api) => {
+        const namespace = 'http://nomad.internal';
+        if (event.authorization) {
+          api.idToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
+          api.accessToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
+        }
+      }
+      ```
 
-## Configure claims in the ID tokens using Auth0 Actions
+      You use the `http://nomad.internal` namespace to separate the claims that
+      are not part of the [JWT RFC](https://tools.ietf.org/html/rfc7519). The
+      namespace is arbitrary but must be unique. Auth0 enforces the presence of
+      a unique namespace by discarding claims that are not namespaced and not in
+      the RFC.
 
-In the Auth0 dashboard for your application, on the sidebar, select **Actions** > **Library**.
+      Click **Deploy** to deploy your Nomad OIDC action.
 
-Create a new action with the following content.
+   1. Create a [post-login
+      trigger](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger#login-post-login).
 
-```javascript
-exports.onExecutePostLogin = async (event, api) => {
-	const namespace = "http://nomad.internal/roles"
-	api.idToken.setCustomClaim(
-		`${namespace}`, event.user.app_metadata.roles
-	);
-	api.accessToken.setCustomClaim(
-		`${namespace}`,	event.user.app_metadata.roles
-	);
-	return;
-};
-```
+      1. From the Auth0 dashboard for your Nomad application, click on
+      **Actions** and then **Triggers**.
+      1. Select **post-login**.
+      1. In the **Add Action** pane, **Custom** tab, select **Nomad OIDC** and
+      drag it to the **Post Login** canvas so that the flow is **Start** ->
+      **Nomad OIDC** -> **Complete**.
+      1. Apply your changes.
 
-![Auth0 UI configure callback action](/img/secure/auth0-configure-callback-action.png)
+      ![Auth0 UI configure callback flow](/img/secure/auth0-configure-callback-flow.png)
 
--> **Note**: In this guide, `http://nomad.internal` is used to namespace the claims that are not part of
-the [JWT RFC](https://tools.ietf.org/html/rfc7519). The namespace is arbitrary but must be unique.
-Auth0 enforces the presence of a unique namespace by discarding claims that are not name-spaced and
-not in the RFC.
-
-Now that action library configuration is complete, you can create a [flow](https://auth0.com/docs/get-started/authentication-and-authorization-flow).
-
-In the Auth0 dashboard for your application, click on **Actions** and then **Flows** from the sidebar.
-
-Click on the **Login** section and choose the custom build library for your flow.
-
-![Auth0 UI configure callback flow](/img/secure/auth0-configure-callback-flow.png)
 
 ## Create Nomad ACL policies and roles
 
@@ -171,13 +192,8 @@ Modify Index = 18
 
 ## Enable the OIDC auth method for Nomad
 
-In the [Auth0 dashboard](https://manage.auth0.com/#/), select **Applications**, the application you created earlier, and open the **Settings** tab. Note the **Domain**, **Client ID**, and **Client Secret** values. You will use these to create a configuration file for the OIDC auth method config for Nomad.
-
-![Auth0 UI get application parameters](/img/secure/auth0-get-application-params.png)
-
-
-
-Create a configuration file named `auth-method-config.json` for the new auth method, add the following contents to it, replace `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET` with the values for **Domain**, **Client ID**, and **Client Secret** from the Auth0 dashboard, and save the file.
+Create a configuration file named `auth-method-config.json` for the new auth
+method and add the following contents to it.
 
 <CodeBlockConfig filename="auth-method-config.json">
 
@@ -188,8 +204,8 @@ Create a configuration file named `auth-method-config.json` for the new auth met
   "OIDCClientSecret": "<AUTH0_CLIENT_SECRET>",
   "BoundAudiences": ["<AUTH0_CLIENT_ID>"],
   "AllowedRedirectURIs": [
-    "http://localhost:4649/oidc/callback",
-    "http://localhost:4646/ui/settings/tokens"
+     "<NOMAD_ADDRESS>/ui/settings/tokens",
+     "http://localhost:4649/oidc/callback",
   ],
   "ListClaimMappings": {
     "http://nomad.internal/roles": "roles"
@@ -199,9 +215,23 @@ Create a configuration file named `auth-method-config.json` for the new auth met
 
 </CodeBlockConfig>
 
+Replace `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET` with the
+values for **Domain**, **Client ID**, and **Client Secret** that you noted in
+the [Set up your Auth0 application, role, and user
+section](#set-up-auth0).
+
+Make sure the `AllowedRedirectURIs` entries match the callback URLs you
+configured in Auth0.
+
+Create the auth method with the Nomad CLI or API.
+
 <Tabs>
-<Tab heading="CLI command">
-Apply the configuration.
+<Tab heading="CLI">
+
+Use the `nomad acl auth-method create` command to create the auth method. Note
+that the token time-to-live is set to five minutes. Refer to the [`nomad acl
+auth-method create` command reference](/nomad/commands/acl/auth-method/create)
+for a complete explanation of the options.
 
 ```shell-session
 $ nomad acl auth-method create -type=OIDC \
@@ -213,22 +243,32 @@ $ nomad acl auth-method create -type=OIDC \
 ```
 
 </Tab>
-<Tab heading="API call using cURL">
+<Tab heading="API">
+
+Use the [ACL auth methods
+API](http://localhost:3000/nomad/api-docs/acl/auth-methods#create-auth-method)
+to create the auth method. The payload is the `auth-method-config.json` file.
 
 ```shell-session
-$ curl -sL --header 'x-nomad-token: <ROOT_TOKEN>' --request PUT \
-    http://localhost:4646/v1/acl/auth-method \
+$ curl -sL --header 'x-nomad-token: <MANAGEMENT_TOKEN>' --request POST \
+    <NOMAD_ADDRESS>/v1/acl/auth-method \
     --data @auth-method-config.json
 ```
+
+Replace the following placeholders:
+
+- `<MANAGEMENT_TOKEN>` with the value of your Nomad management token
+- `<NOMAD_ADDRESS>` with the address of your Nomad cluster, such as
+  `http://3.145.29.13:4646`
 
 </Tab>
 </Tabs>
 
-Once you have configured the auth method, you can automate permissions grants to users using the
-metadata you defined earlier. This means that once auth method trust is established, Nomad can be
-configured to bind attested identities to roles or services with no additional work beyond what is
-required to link the identity and the auth method. This can be configured using Nomad binding
-rules.
+Once you have configured the auth method, you can automate permissions grants to
+users using the metadata you defined earlier. This means that once auth method
+trust is established, you can configure Nomad to bind attested identities to
+roles or services with no additional work beyond what is required to link the
+identity and the auth method. Configure this with Nomad binding rules.
 
 ### Grant ACL role permissions with Auth0 app metadata
 
@@ -255,10 +295,10 @@ Create Index = 22
 Modify Index = 22
 ```
 
-This will automatically associate every user with `engineering` in their `app_metadata` to the
-Nomad `engineering-read` ACL Role associated with an ACL policy.
+This automatically associates every user with an `engineering` role in their
+Auth0 tokens to the Nomad `engineering-read` ACL Role associated with an ACL policy.
 
-## Login with OIDC
+## Log in with OIDC
 
 Now that the configuration is complete, log in to Nomad using Auth0.
 
@@ -269,15 +309,13 @@ Now that the configuration is complete, log in to Nomad using Auth0.
 $ nomad login -method=auth0 -oidc-callback-addr=localhost:4649
 ```
 
-The command will redirect you to a browser page from which you can use the user credentials to
-login in Nomad with SSO.
-
-When prompted, accept and authorize the Nomad access to your Auth0 App. Then login to Auth0 using
+The command redirects you to a browser page. When prompted, accept and authorize
+the Nomad access to your Auth0 App. Then log in to Auth0 using
 the username and password created earlier.
 
 ![Nomad UI post login page showing Signed in via OIDC](/img/secure/nomad-ui-oidc-signed-in.png)
 
-Your ACL Token will be written to the console.
+The CLI writes your ACL token to the console.
 
 ```plaintext hideClipboard
 Successfully logged in via OIDC and auth0
