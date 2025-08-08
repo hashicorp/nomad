@@ -254,10 +254,10 @@ func (s *GenericScheduler) process() (bool, error) {
 	// current evaluation is already a blocked eval, we reuse it. If not, submit
 	// a new eval to the planner in createBlockedEval. If rescheduling should
 	// be delayed, do that instead.
-	delayInstead := len(s.followUpEvals) > 0 && s.eval.WaitUntil.IsZero()
-
-	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil &&
-		!delayInstead {
+	if s.eval.Status != structs.EvalStatusBlocked &&
+		len(s.failedTGAllocs) != 0 &&
+		s.blocked == nil &&
+		(len(s.followUpEvals) == 0 || time.Now().After(s.eval.WaitUntil)) {
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
@@ -273,7 +273,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// Create follow up evals for any delayed reschedule eligible allocations, except in
 	// the case that this evaluation was already delayed.
-	if delayInstead {
+	if len(s.followUpEvals) > 0 && s.eval.WaitUntil.IsZero() {
 		for _, eval := range s.followUpEvals {
 			eval.PreviousEval = s.eval.ID
 			// TODO(preetha) this should be batching evals before inserting them
