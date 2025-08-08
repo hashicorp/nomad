@@ -254,3 +254,152 @@ func TestCSITopology_Contains(t *testing.T) {
 	}
 
 }
+
+func TestNodeRegisterRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name          string
+		request       *NodeRegisterRequest
+		errorContains string
+	}{
+		{
+			name: "valid",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "",
+		},
+		{
+			name: "nil node",
+			request: &NodeRegisterRequest{
+				Node: nil,
+			},
+			errorContains: "missing node for client registration",
+		},
+		{
+			name: "missing ID",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node ID for client registration",
+		},
+		{
+			name: "missing datacenter",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing datacenter for client registration",
+		},
+		{
+			name: "missing name",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node name for client registration",
+		},
+		{
+			name: "missing attributes",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{},
+				},
+			},
+			errorContains: "missing attributes for client registration",
+		},
+		{
+			name: "missing secret ID",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node secret ID for client registration",
+		},
+		{
+			name: "invalid node pool name",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "****",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: `invalid node pool: invalid name "****"`,
+		},
+		{
+			name: "invalid node pool all use",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   NodePoolAll,
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: `node is not allowed to register in node pool "all"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.request.Validate()
+			if tc.errorContains != "" {
+				must.ErrorContains(t, actualError, tc.errorContains)
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
+	}
+}
