@@ -54,8 +54,8 @@ func Logger(t LogPrinter) *log.Logger {
 // HCLogger returns a new test hc-logger.
 //
 // Default log level is TRACE. Set NOMAD_TEST_LOG_LEVEL for custom log level.
-func HCLogger(t LogPrinter) hclog.InterceptLogger {
-	logger, _ := HCLoggerNode(t, -1)
+func HCLogger(t LogPrinter, options ...Option) hclog.InterceptLogger {
+	logger, _ := HCLoggerNode(t, -1, options...)
 	return logger
 }
 
@@ -75,7 +75,7 @@ func HCLoggerTestLevel() hclog.Level {
 // on each log line. Useful for TestServer in tests with more than one server.
 //
 // Default log level is TRACE. Set NOMAD_TEST_LOG_LEVEL for custom log level.
-func HCLoggerNode(t LogPrinter, node int32) (hclog.InterceptLogger, io.Writer) {
+func HCLoggerNode(t LogPrinter, node int32, options ...Option) (hclog.InterceptLogger, io.Writer) {
 	var output io.Writer = os.Stderr
 	if node > -1 {
 		output = NewPrefixWriter(t, fmt.Sprintf("node-%03d ", node))
@@ -85,6 +85,10 @@ func HCLoggerNode(t LogPrinter, node int32) (hclog.InterceptLogger, io.Writer) {
 		Output:          output,
 		IncludeLocation: true,
 	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	return hclog.NewInterceptLogger(opts), output
 }
 
@@ -114,4 +118,30 @@ func (w *prefixStderr) Write(p []byte) (int, error) {
 	buf = append(buf, p...)
 
 	return os.Stderr.Write(buf)
+}
+
+// Option allows modifications to hclog.LoggerOptions when creating
+// a new hclog.Logger.
+type Option func(*hclog.LoggerOptions)
+
+// WithOutput will add the provided writer to the loggers outputs.
+func WithOutput(w io.Writer) Option {
+	return func(opts *hclog.LoggerOptions) {
+		if opts.Output != nil {
+			opts.Output = io.MultiWriter(opts.Output, w)
+		} else {
+			opts.Output = w
+		}
+	}
+}
+
+// WithLogging sets the NOMAD_TEST_LOG_LEVEL to the provided level.
+// After executing the provided function, NOMAD_TEST_LOG_LEVEL is
+// set back to its original value.
+func WithLogging(level string, fn func()) {
+	lvl := os.Getenv("NOMAD_TEST_LOG_LEVEL")
+	os.Setenv("NOMAD_TEST_LOG_LEVEL", level)
+	defer os.Setenv("NOMAD_TEST_LOG_LEVEL", lvl)
+
+	fn()
 }

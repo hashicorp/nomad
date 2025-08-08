@@ -187,7 +187,8 @@ func (r *retryJoiner) RetryJoin() {
 		}
 
 		if len(addrs) > 0 && r.joinFunc != nil {
-			numJoined, err := r.joinFunc(addrs)
+			var numJoined int
+			numJoined, err = r.joinFunc(addrs)
 			if err == nil {
 				r.logger.Info("retry join completed", "initial_servers", numJoined)
 				return
