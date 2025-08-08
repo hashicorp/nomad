@@ -539,6 +539,17 @@ func GenerateNodeIdentityClaims(node *Node, region string, ttl time.Duration) *I
 	return claims
 }
 
+// LoggingPairs returns a set of key-value pairs that can be used for logging
+// purposes.
+func (n *NodeIdentityClaims) LoggingPairs() []any {
+	return []any{
+		"claim_node_id", n.NodeID,
+		"claim_node_pool", n.NodePool,
+		"claim_node_class", n.NodeClass,
+		"claim_node_datacenter", n.NodeDatacenter,
+	}
+}
+
 // NodeRegisterRequest is used by the Node.Register RPC endpoint to register a
 // node as being a schedulable entity.
 type NodeRegisterRequest struct {

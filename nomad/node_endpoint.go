@@ -351,6 +351,19 @@ func (n *Node) newRegistrationAllowed(
 				claims.NodeIntroductionIdentityClaims.NodeName == args.Node.Name)
 	}
 
+	// In a less happy path, a node could be making a registration request after
+	// its state object has been removed via garbage collection. In this case,
+	// it will be using its existing node identity, and we can perform a check
+	// on the claim here.
+	//
+	// It's possible while it was down, the nodes configuration changed, so we
+	// only check the node ID in this case. Later in the RPC handler, we will
+	// check if a new identity needs to be generated based on change
+	// configuration.
+	if claims.IsNode() {
+		claimsMatch = claims.NodeIdentityClaims.NodeID == args.Node.ID
+	}
+
 	// If there was no authentication error and the identity claims match the
 	// node's claims, the registration is allowed to proceed.
 	if authErr == nil && claimsMatch {
@@ -373,10 +386,12 @@ func (n *Node) newRegistrationAllowed(
 		"node_name", args.Node.Name,
 	}
 
-	// If the node used a node introduction identity, add the claims for
-	// comparison to the logging pairs.
+	// If the node used a node introduction identity or node identity, add the
+	// claims for comparison to the logging pairs.
 	if claims.IsNodeIntroduction() {
 		loggingPairs = append(loggingPairs, claims.NodeIntroductionIdentityClaims.LoggingPairs()...)
+	} else if claims.IsNode() {
+		loggingPairs = append(loggingPairs, claims.NodeIdentityClaims.LoggingPairs()...)
 	}
 
 	// Make some effort to log a message that indicates why the node is failing

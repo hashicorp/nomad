@@ -385,7 +385,7 @@ func TestAuthenticateDefault(t *testing.T) {
 			},
 		},
 		{
-			name: "mTLS and ACLs with invalid node identity",
+			name: "mTLS and ACLs with node identity no state",
 			testFn: func(t *testing.T, store *state.StateStore) {
 
 				node := mock.Node()
@@ -400,7 +400,7 @@ func TestAuthenticateDefault(t *testing.T) {
 				args.AuthToken = token
 				var ctx *testContext
 
-				must.ErrorContains(t, auth.Authenticate(ctx, args), "node does not exist")
+				must.NoError(t, auth.Authenticate(ctx, args))
 			},
 		},
 	}
@@ -981,7 +981,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "with mTLS and ACLs with server cert and invalid node identity",
+			name: "with mTLS and ACLs with server cert and node identity no state",
 			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
 				ctx := newTestContext(t, "server.global.nomad", "192.168.1.1")
 
@@ -999,8 +999,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				args.AuthToken = token
 
 				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
-				must.Error(t, err)
-				must.Nil(t, aclObj)
+				must.NoError(t, err)
+				must.NotNil(t, aclObj)
 			},
 		},
 	}
@@ -1564,45 +1564,6 @@ func TestResolveClaims(t *testing.T) {
 	must.Len(t, 4, dispatchPolicies)
 	must.SliceContainsAll(t, dispatchPolicies, []*structs.ACLPolicy{policy1, policy2, policy3, policy8})
 
-}
-
-func TestAuthenticator_verifyNodeIdentityClaim(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create our base test objects including a node that can be used in the
-	// tests.
-	testAuthenticator := testDefaultAuthenticator(t)
-
-	mockNode := mock.Node()
-	must.NoError(t, testAuthenticator.getState().UpsertNode(structs.MsgTypeTestSetup, 100, mockNode))
-
-	testCases := []struct {
-		name           string
-		inputClaims    *structs.IdentityClaims
-		expectedOutput error
-	}{
-		{
-			name:           "node does not exist",
-			inputClaims:    structs.GenerateNodeIdentityClaims(mock.Node(), "global", 1*time.Hour),
-			expectedOutput: errors.New("node does not exist"),
-		},
-		{
-			name:           "verified node claims",
-			inputClaims:    structs.GenerateNodeIdentityClaims(mockNode, "global", 1*time.Hour),
-			expectedOutput: nil,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := testAuthenticator.verifyNodeIdentityClaim(tc.inputClaims)
-			if tc.expectedOutput == nil {
-				must.NoError(t, actualOutput)
-			} else {
-				must.EqError(t, actualOutput, tc.expectedOutput.Error())
-			}
-		})
-	}
 }
 
 func testStateStore(t *testing.T) *state.StateStore {
