@@ -6494,7 +6494,7 @@ func TestSecrets_Validate(t *testing.T) {
 		{
 			name: "valid secret",
 			secret: &Secret{
-				Name:     "test-secret",
+				Name:     "testsecret",
 				Provider: "test-provier",
 				Path:     "test-path",
 			},
@@ -6506,23 +6506,32 @@ func TestSecrets_Validate(t *testing.T) {
 				Path:     "test-path",
 				Provider: "test-provider",
 			},
-			expectErr: fmt.Errorf("Secret name cannot be empty"),
+			expectErr: fmt.Errorf("secret name cannot be empty"),
+		},
+		{
+			name: "invalid name",
+			secret: &Secret{
+				Name:     "bad-name@",
+				Path:     "test-path",
+				Provider: "test-provider",
+			},
+			expectErr: fmt.Errorf("secret name must match regex %s", validSecretName),
 		},
 		{
 			name: "missing provider",
 			secret: &Secret{
-				Name: "test-secret",
+				Name: "testsecret",
 				Path: "test-path",
 			},
-			expectErr: fmt.Errorf("Secret provider cannot be empty"),
+			expectErr: fmt.Errorf("secret provider cannot be empty"),
 		},
 		{
 			name: "missing path",
 			secret: &Secret{
-				Name:     "test-secret",
+				Name:     "testsecret",
 				Provider: "test-provier",
 			},
-			expectErr: fmt.Errorf("Secret path cannot be empty"),
+			expectErr: fmt.Errorf("secret path cannot be empty"),
 		},
 	}
 

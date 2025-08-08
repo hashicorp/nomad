@@ -68,6 +68,10 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 			continue
 		}
 
+		if *fprint.Type != "secrets" {
+			continue
+		}
+
 		plugins[name] = fprint.Version.Original()
 	}
 
