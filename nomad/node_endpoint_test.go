@@ -5088,6 +5088,58 @@ func TestNode_newRegistrationAllowed(t *testing.T) {
 			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
 		))
 	})
+
+	t.Run("enforcement warn node identity claims match", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementWarn
+
+		claims := structs.GenerateNodeIdentityClaims(
+			mockNode,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
+
+	t.Run("enforcement strict node identity claims match", func(t *testing.T) {
+
+		testServer.config.NodeIntroductionConfig.Enforcement = structs.NodeIntroductionEnforcementStrict
+
+		claims := structs.GenerateNodeIdentityClaims(
+			mockNode,
+			testServer.Region(),
+			10*time.Minute,
+		)
+
+		signedJWT, _, err := testServer.encrypter.SignClaims(claims)
+		must.NoError(t, err)
+
+		nodeRegisterRequest := structs.NodeRegisterRequest{
+			Node: mockNode,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: signedJWT,
+			},
+		}
+
+		require.True(t, nodeEndpoint.newRegistrationAllowed(
+			&nodeRegisterRequest,
+			testServer.auth.AuthenticateNodeIdentityGenerator(nodeEndpoint.ctx, &nodeRegisterRequest),
+		))
+	})
 }
 
 // TestNode_List_PaginationFiltering asserts that API pagination and filtering

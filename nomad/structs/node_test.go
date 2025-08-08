@@ -282,6 +282,31 @@ func TestGenerateNodeIdentityClaims(t *testing.T) {
 	must.NotNil(t, claims.Expiry)
 }
 
+func TestNodeIdentityClaims_LoggingPairs(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := GenerateNodeIdentityClaims(
+		&Node{
+			ID:         "node-id-1",
+			NodePool:   "custom-pool",
+			NodeClass:  "custom-class",
+			Datacenter: "euw2",
+		},
+		"euw",
+		10*time.Minute,
+	)
+	must.Eq(
+		t,
+		[]any{
+			"claim_node_id", "node-id-1",
+			"claim_node_pool", "custom-pool",
+			"claim_node_class", "custom-class",
+			"claim_node_datacenter", "euw2",
+		},
+		claims.NodeIdentityClaims.LoggingPairs(),
+	)
+}
+  
 func TestNodeRegisterRequest_Validate(t *testing.T) {
 	ci.Parallel(t)
 

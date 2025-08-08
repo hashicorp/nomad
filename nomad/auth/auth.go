@@ -534,16 +534,18 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 		return claims, nil
 	}
 
+	// If the claims are for a node identity, we can return them directly once
+	// we have verified the claim. In the happy path, we could read the node out
+	// of state and verify that it is found. However, it is possible the node
+	// has been garbage collected, and if we failed on that check, the node
+	// would not be able to register again without manual intervention.
 	if claims.IsNode() {
-		if err := s.verifyNodeIdentityClaim(claims); err != nil {
-			return nil, err
-		}
 		return claims, nil
 	}
 
-	// Node introduction claims are a special case where we don't verify them
-	// against the state store, since they are used to introduce a node that
-	// does not yet exist.
+	// Node introduction claims are a case where we don't verify them against
+	// the state store, since they are used to introduce a node that does not
+	// yet exist.
 	if claims.IsNodeIntroduction() {
 		return claims, nil
 	}
@@ -567,23 +569,6 @@ func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClai
 	// the claims for terminal allocs are always treated as expired
 	if alloc.ClientTerminalStatus() {
 		return fmt.Errorf("allocation is terminal")
-	}
-
-	return nil
-}
-
-func (s *Authenticator) verifyNodeIdentityClaim(claims *structs.IdentityClaims) error {
-
-	snap, err := s.getState().Snapshot()
-	if err != nil {
-		return err
-	}
-	node, err := snap.NodeByID(nil, claims.NodeIdentityClaims.NodeID)
-	if err != nil {
-		return err
-	}
-	if node == nil {
-		return errors.New("node does not exist")
 	}
 
 	return nil
