@@ -488,6 +488,7 @@ func TestTask_Canonicalize_Secret(t *testing.T) {
 		Provider: "test-provider",
 		Path:     "/test/path",
 		Config:   make(map[string]any),
+		Env:      make(map[string]string),
 	}
 
 	expected := &Secret{
@@ -495,6 +496,7 @@ func TestTask_Canonicalize_Secret(t *testing.T) {
 		Provider: "test-provider",
 		Path:     "/test/path",
 		Config:   nil,
+		Env:      nil,
 	}
 
 	testSecret.Canonicalize()
