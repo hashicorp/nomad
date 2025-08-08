@@ -147,25 +147,17 @@ func GetAddress(
 
 		// If no port label is specified just return the IP
 		if portLabel == "" {
-			if addressMode == structs.AddressModeAllocIPv6 {
-				return netStatus.AddressIPv6, 0, nil
-			}
-			return netStatus.Address, 0, nil
+			return getAddressPort(addressMode, netStatus, 0)
 		}
 
 		// If port is a label and is found then return it
 		if port, ok := ports.Get(portLabel); ok {
 			// Use port.To value unless not set
 			if port.To > 0 {
-				if addressMode == structs.AddressModeAllocIPv6 {
-					return netStatus.AddressIPv6, port.To, nil
-				}
-				return netStatus.Address, port.To, nil
+				return getAddressPort(addressMode, netStatus, port.To)
 			}
-			if addressMode == structs.AddressModeAllocIPv6 {
-				return netStatus.AddressIPv6, port.Value, nil
-			}
-			return netStatus.Address, port.Value, nil
+
+			return getAddressPort(addressMode, netStatus, port.Value)
 		}
 
 		// Check if port is a literal number
@@ -177,13 +169,19 @@ func GetAddress(
 		if port <= 0 {
 			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
 		}
-		if addressMode == structs.AddressModeAllocIPv6 {
-			return netStatus.AddressIPv6, port, nil
-		}
-		return netStatus.Address, port, nil
 
+		return getAddressPort(addressMode, netStatus, port)
 	default:
 		// Shouldn't happen due to validation, but enforce invariants
 		return "", 0, fmt.Errorf("invalid address mode %q", addressMode)
 	}
+}
+
+// getAddressPort is a helper function to return the IPv6 or IPv4 address based on the addressMode
+func getAddressPort(addressMode string, netStatus *structs.AllocNetworkStatus, port int) (string, int, error) {
+	if addressMode == structs.AddressModeAllocIPv6 {
+		return netStatus.AddressIPv6, port, nil
+	}
+
+	return netStatus.Address, port, nil
 }
