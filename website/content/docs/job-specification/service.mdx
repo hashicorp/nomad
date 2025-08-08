@@ -202,8 +202,7 @@ service mesh][connect] integration.
     where no port mapping is necessary. This mode can only be set for services which
     are defined in a "group" block.
 
-  - `alloc_ipv6` - Identical as `alloc` but will pick the IPv6 address in case of
-    dual-stack or IPv6 only.
+  - `alloc_ipv6` - Same as `alloc` but use the IPv6 address in case of dual-stack or IPv6-only.
 
   - `auto` - Allows the driver to determine whether the host or driver address
     should be used. Defaults to `host` and only implemented by Docker. If you
