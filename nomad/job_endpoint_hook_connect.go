@@ -561,7 +561,8 @@ func groupConnectValidate(g *structs.TaskGroup) (warn, err error) {
 				return warn, err
 			}
 		case s.Connect.IsNative():
-			if err = groupConnectNativeValidate(g, s); err != nil {
+			err = groupConnectNativeValidate(g, s)
+			if err != nil {
 				return warn, err
 			}
 		case s.Connect.IsGateway():
@@ -571,11 +572,7 @@ func groupConnectValidate(g *structs.TaskGroup) (warn, err error) {
 			}
 		}
 	}
-
-	if err = groupConnectUpstreamsValidate(g, g.Services); err != nil {
-		return warn, err
-	}
-
+	err = groupConnectUpstreamsValidate(g, g.Services)
 	return warn, err
 }
 
@@ -645,9 +642,10 @@ func transparentProxyPortLabelValidate(g *structs.TaskGroup, portLabel string) b
 	return false
 }
 
-func groupConnectNetworkModeValidate(g *structs.TaskGroup, allowHost bool) (warn, err error) {
+func groupConnectNetworkModeValidate(g *structs.TaskGroup, errorPrefix string, allowHost bool) (warn, err error) {
 	if nn := len(g.Networks); nn != 1 {
-		return nil, fmt.Errorf("%w: group %q has %d networks", ErrConnectRequireOneNetwork, g.Name, nn)
+		return nil, fmt.Errorf("%s: %w: group %q has %d networks",
+			errorPrefix, ErrConnectRequireOneNetwork, g.Name, nn)
 	}
 
 	mode := g.Networks[0].Mode
@@ -657,7 +655,8 @@ func groupConnectNetworkModeValidate(g *structs.TaskGroup, allowHost bool) (warn
 	}
 
 	if strings.HasPrefix(mode, "cni/") {
-		warn = fmt.Errorf("%w: group %q uses network mode %q", ErrConnectWithCNIWarning, g.Name, mode)
+		warn = fmt.Errorf("%s: %w: group %q uses network mode %q",
+			errorPrefix, ErrConnectWithCNIWarning, g.Name, mode)
 		return warn, nil
 	}
 
@@ -666,17 +665,14 @@ func groupConnectNetworkModeValidate(g *structs.TaskGroup, allowHost bool) (warn
 	if allowHost {
 		allowed = `"bridge", "host", or "cni/*"`
 	}
-	return nil, fmt.Errorf("%w: group %q uses network mode %q; must be %s",
-		ErrConnectInvalidNetworkMode, g.Name, mode, allowed)
+	return nil, fmt.Errorf("%s: %w: group %q uses network mode %q; must be %s",
+		errorPrefix, ErrConnectInvalidNetworkMode, g.Name, mode, allowed)
 }
 
 func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn, err error) {
-	warn, err = groupConnectNetworkModeValidate(g, false)
+	warn, err = groupConnectNetworkModeValidate(g, "connect sidecar", false)
 	if err != nil {
-		return warn, fmt.Errorf("connect sidecar: %w", err)
-	}
-	if warn != nil {
-		warn = fmt.Errorf("connect sidecar: %w", warn)
+		return warn, err
 	}
 
 	// We must enforce lowercase characters on group and service names for connect
@@ -704,14 +700,6 @@ func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error 
 }
 
 func groupConnectGatewayValidate(g *structs.TaskGroup) (warn, err error) {
-	// the group needs to be either host, bridge, or cni/* mode,
-	// so we know how to configure the docker driver config
-	warn, err = groupConnectNetworkModeValidate(g, true)
-	if err != nil {
-		return warn, fmt.Errorf("connect gateway: %w", err)
-	}
-	if warn != nil {
-		warn = fmt.Errorf("connect gateway: %w", warn)
-	}
-	return warn, err
+	// note that gateways can run in host network mode
+	return groupConnectNetworkModeValidate(g, "connect gateway", true)
 }

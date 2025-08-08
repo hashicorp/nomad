@@ -147,15 +147,9 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 // namespaces).
 func tgValidateExposeNetworkMode(tg *structs.TaskGroup) (warn, err error) {
 	if tgUsesExposeCheck(tg) {
-		warn, err = groupConnectNetworkModeValidate(tg, false)
-		if warn != nil {
-			warn = fmt.Errorf("connect expose check: %w", warn)
-		}
-		if err != nil {
-			err = fmt.Errorf("connect expose check: %w", err)
-		}
+		return groupConnectNetworkModeValidate(tg, "connect expose check", false)
 	}
-	return warn, err
+	return nil, nil
 }
 
 // tgUsesExposeCheck returns true if any group service in the task group makes

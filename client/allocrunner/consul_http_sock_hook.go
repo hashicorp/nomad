@@ -29,10 +29,7 @@ func tgFirstNetworkCanConsulConnect(tg *structs.TaskGroup) bool {
 		return false
 	}
 	mode := tg.Networks[0].Mode
-	if !(mode == "bridge" || strings.HasPrefix(mode, "cni/")) {
-		return false
-	}
-	return true
+	return mode == "bridge" || strings.HasPrefix(mode, "cni/")
 }
 
 const (
