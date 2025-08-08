@@ -1,6 +1,6 @@
 [
   {
-    "title": "Task Drivers",
+    "title": "Task drivers",
     "routes": [
       {
         "title": "Overview",
@@ -31,7 +31,7 @@
             "path": "drivers/virt/install"
           },
           {
-            "title": "Task Config",
+            "title": "Task config",
             "path": "drivers/virt/task-config"
           }
         ]
@@ -92,7 +92,7 @@
     ]
   },
   {
-    "title": "Device Plugins",
+    "title": "Devices",
     "routes": [
       {
         "title": "Overview",
@@ -110,6 +110,27 @@
           "color": "neutral"
         },
         "path": "devices/usb"
+      }
+    ]
+  },
+  {
+    "title": "Plugin authoring guide",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "author"
+      },
+      {
+        "title": "Device",
+        "path": "author/device"
+      },
+      {
+        "title": "Host volume",
+        "path": "author/host-volume"
+      },
+      {
+        "title": "Task driver",
+        "path": "author/task-driver"
       }
     ]
   }
