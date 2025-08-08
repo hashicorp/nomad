@@ -56,9 +56,9 @@ need to set up a cluster.
    guide](https://auth0.com/docs/get-started/auth0-overview/create-applications)
    for instructions.
 
-   1. Note the **Domain**, **Client ID**, and **Client Secret** values. You use
+   - Note the **Domain**, **Client ID**, and **Client Secret** values. You use
    these to configure an auth method in Nomad.
-   1. Set the callback URLs that Auth0 uses to redirect the user after the
+   - Set the callback URLs that Auth0 uses to redirect the user after the
       authentication process is complete. In the **Allowed Callback URLs**
       field, enter the following:
 
@@ -78,12 +78,15 @@ need to set up a cluster.
       http://localhost:4649/oidc/callback
       ```
 
-1. Create a role called `engineering`. Refer to the the Auth0 [Create Roles guide](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/roles/create-roles) for instructions.
-1. Create a user and assign the `engineering` role to that user. Refer to these
-   Auth0 guides for instructions:
+1. Create a role called `engineering`. Refer to the the Auth0 [Create Roles
+   guide](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/roles/create-roles)
+   for instructions.
+1. Create a user with a connection type of `Username-Password-Authentication`.
+   Assign the `engineering` role to that user. Refer to these Auth0 guides for
+   instructions:
 
    - [Create Users](https://auth0.com/docs/manage-users/user-accounts/create-users)
-   - [Assign Roles to Users](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/rbac-users/assign-roles-to-users).
+   - [Assign Roles to Users](https://auth0.com/docs/manage-users/access-control/configure-core-rbac/rbac-users/assign-roles-to-users)
 
 1. Create a [login
    trigger](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger)
@@ -101,7 +104,7 @@ need to set up a cluster.
 
       After you create the action, replace the `exports.onExecutePostLogin`
       method with the method that sets a custom claim to [add user roles to the
-      tokens](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger#add-user-roles-to-id-and-access-tokens):
+      tokens](https://auth0.com/docs/customize/actions/explore-triggers/signup-and-login-triggers/login-trigger#add-user-roles-to-id-and-access-tokens).
 
       ```javascript
       exports.onExecutePostLogin = async (event, api) => {
@@ -127,7 +130,7 @@ need to set up a cluster.
       1. From the Auth0 dashboard for your Nomad application, click on
       **Actions** and then **Triggers**.
       1. Select **post-login**.
-      1. In the **Add Action** pane, **Custom** tab, select **Nomad OIDC** and
+      1. In the **Add Action** pane's **Custom** tab, select **Nomad OIDC** and
       drag it to the **Post Login** canvas so that the flow is **Start** ->
       **Nomad OIDC** -> **Complete**.
       1. Apply your changes.
@@ -137,14 +140,14 @@ need to set up a cluster.
 
 ## Create Nomad ACL policies and roles
 
-After the login procedure confirms the user identity, it has to then give them privileges when
-creating their ACL token. Auth methods in Nomad use binding rules to control that.
+After the login procedure confirms the user's identity, it has to then give that
+user privileges when creating their ACL token. Auth methods in Nomad use binding
+rules, which enable Nomad's ACL system to assign privilege to a new token
+through ACL policies and roles.
 
-Binding rules allow for privilege to be assigned to a new token via ACL policies and/or ACL roles.
-
-In order to assign some privilege to a token via an auth method, you will first define the
-privilege in a policy and then assign that policy to a role. In this way, the binding rule can
-reference the role by name.
+In order to assign a privilege to a token with an auth method, first
+define the privilege in a policy and then assign that policy to a role. In this
+way, the binding rule can reference the role by name.
 
 ### Define policy for Auth0 users
 
@@ -190,7 +193,7 @@ Modify Index = 18
 ```
 
 
-## Enable the OIDC auth method for Nomad
+## Create the OIDC auth method for Nomad
 
 Create a configuration file named `auth-method-config.json` for the new auth
 method and add the following contents to it.
@@ -305,13 +308,16 @@ Now that the configuration is complete, log in to Nomad using Auth0.
 <Tabs>
 <Tab heading="CLI">
 
+Use the [`nomad login -method=auth0` CLI command](/nomad/commands/login) to log
+into Nomad. The `-oidc-callback-addr` parameter is optional and defaults to `locahost:4649`.
+
 ```shell-session
 $ nomad login -method=auth0 -oidc-callback-addr=localhost:4649
 ```
 
 The command redirects you to a browser page. When prompted, accept and authorize
-the Nomad access to your Auth0 App. Then log in to Auth0 using
-the username and password created earlier.
+the Nomad access to your Auth0 App. Then log into Auth0 with
+the username and password that you created in the [Set up Auth0 section](#set-up-auth0).
 
 ![Nomad UI post login page showing Signed in via OIDC](/img/secure/nomad-ui-oidc-signed-in.png)
 
@@ -340,8 +346,8 @@ db1b4129-3b7b-f2f5-5118-b885a1ff226e  engineering-read
 
 <Tab heading="Nomad UI">
 
-Navigate to your Nomad UI and click on the **Sign In** button. Then click the
-**Sign in with auth0** button to start the flow.
+Navigate to your Nomad web UI and click on the **Sign In** button. Then click
+the **Sign in with auth0** button to start the flow.
 
 ![Nomad UI login page sso Auth0](/img/secure/nomad-ui-oidc-login-button.png)
 
@@ -349,16 +355,3 @@ Navigate to your Nomad UI and click on the **Sign In** button. Then click the
 
 </Tab>
 </Tabs>
-
-Once login is successful, you can browse the Nomad UI.
-
-![Nomad UI post login jobs page](/img/secure/nomad-ui-jobs-signed-in.png)
-
-## Next steps
-
-In this guide you learned how to enable SSO for Nomad, and how to use Auth0 as the OIDC
-provider.
-
-You configured Auth0 and created a user to test the SSO feature.
-
-Finally, you tested the SSO login using both the CLI and the UI.
