@@ -8313,8 +8313,8 @@ func validateServices(t *Task, tgNetworks Networks) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc\", only services defined in a \"group\" block can use this mode", service.Name))
 		}
 
-		if service.AddressMode == AddressModeAllocAdvertiseIPv6 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc_advertise_ipv6\", only services defined in a \"group\" block can use this mode", service.Name))
+		if service.AddressMode == AddressModeAllocIPv6 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc_ipv6\", only services defined in a \"group\" block can use this mode", service.Name))
 		}
 
 		// Ensure that services with the same name are not being registered for
@@ -8354,8 +8354,8 @@ func validateServices(t *Task, tgNetworks Networks) error {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc\", only checks defined in a \"group\" service block can use this mode", service.Name))
 			}
 
-			if check.AddressMode == AddressModeAllocAdvertiseIPv6 {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc_advertise_ipv6\", only checks defined in a \"group\" service block can use this mode", service.Name))
+			if check.AddressMode == AddressModeAllocIPv6 {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc_ipv6\", only checks defined in a \"group\" service block can use this mode", service.Name))
 			}
 
 			if !check.RequiresPort() {
