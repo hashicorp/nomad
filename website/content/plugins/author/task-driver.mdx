@@ -15,9 +15,9 @@ real world example of a Nomad task driver plugin implementation, refer to the
 
 ## Authoring a task driver plugin
 
-Authoring a task driver consists of implementing the
-[DriverPlugin][driverplugin] interface and adding a main package to launch the
-plugin.
+Authoring a task driver consists of implementing the [BasePlugin][base-plugin]
+and [DriverPlugin][driverplugin] interfaces and adding a main package to launch
+the plugin.
 
 The [nomad-skeleton-driver-plugin project][skeletonproject] exists to help
 bootstrap the development of new task driver plugins. It provides most of the
@@ -36,9 +36,11 @@ stored by the Nomad client on task creation. This enables a pattern where the
 task driver can maintain an in-memory state of the running tasks, and if
 necessary the Nomad client can recover tasks into the task driver state.
 
-## Task driver plugin API
+## Base plugin API
 
 @include 'plugins/base.mdx'
+
+## Task driver plugin API
 
 ### `TaskConfigSchema() (*hclspec.Spec, error)`
 
@@ -244,8 +246,8 @@ inside the running container. `ExecTask` is called for Consul script checks.
 
 @include 'plugins/hcl-specifications.mdx'
 
-
 [exec2 driver]: https://github.com/hashicorp/nomad-driver-exec2
+[base-plugin]: https://github.com/hashicorp/nomad/blob/main/plugins/base/base.go#L17
 [driverplugin]: https://github.com/hashicorp/nomad/blob/main/plugins/drivers/driver.go#L51
 [skeletonproject]: https://github.com/hashicorp/nomad-skeleton-driver-plugin
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig

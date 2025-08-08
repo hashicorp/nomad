@@ -21,8 +21,8 @@ For a real world example of a Nomad device plugin implementation, refer to the
 ## Authoring a device plugin
 
 Authoring a device plugin in Nomad consists of implementing the
-[DevicePlugin][deviceplugin] interface alongside a main package to launch the
-plugin.
+[BasePlugin][base-plugin] and [DevicePlugin][deviceplugin] interfaces alongside
+a main package to launch the plugin.
 
 The [nomad-skeleton-device-plugin][skeletonproject] exists to help bootstrap
 the development of new device plugins. It provides most of the boilerplate
@@ -41,9 +41,11 @@ reporting their status. After helping to provision a task with a scheduled
 device, a device plugin does not have any responsibility, or ability, to monitor
 the task.
 
-## Device driver plugin API
+## Base plugin API
 
 @include 'plugins/base.mdx'
+
+## Device driver plugin API
 
 ### `Fingerprint(context.Context) (<-chan *FingerprintResponse, error)`
 
@@ -76,6 +78,7 @@ the device for use should also be performed in this function.
 
 @include 'plugins/hcl-specifications.mdx'
 
+[base-plugin]: https://github.com/hashicorp/nomad/blob/main/plugins/base/base.go#L17
 [deviceplugin]: https://github.com/hashicorp/nomad/blob/main/plugins/device/device.go#L28
 [skeletonproject]: https://github.com/hashicorp/nomad-skeleton-device-plugin
 [fingerprintresponse]:https://github.com/hashicorp/nomad/blob/main/plugins/device/device.go#L45
