@@ -129,6 +129,10 @@ You may, however, may pass the following configuration options as CLI arguments:
 - `-encrypt`: Set the Serf encryption key. See the [Encryption Overview][] for
   more details.
 
+- `-eventlog-logging`: Equivalent to the Event Log [logging][] config option.
+
+- `-eventlog-level`: Equivalent to the Event Log [level][] config option.
+
 - `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
 
@@ -232,9 +236,11 @@ You may, however, may pass the following configuration options as CLI arguments:
 [enabled]: /nomad/docs/configuration/acl#enabled
 [encryption overview]: /nomad/docs/secure/traffic/gossip-encryption
 [key_file]: /nomad/docs/configuration/consul#key_file
+[level]: /nomad/docs/configuration#eventlog_level
 [log_include_location]: /nomad/docs/configuration#log_include_location
 [log_json]: /nomad/docs/configuration#log_json
 [log_level]: /nomad/docs/configuration#log_level
+[logging]: /nomad/docs/configuration#eventlog_logging
 [meta]: /nomad/docs/configuration/client#meta
 [name]: /nomad/docs/configuration#name
 [network_interface]: /nomad/docs/configuration/client#network_interface

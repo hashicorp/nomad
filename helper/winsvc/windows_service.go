@@ -25,7 +25,12 @@ type WindowsPaths interface {
 	//   - SystemRoot
 	//   - ProgramData
 	//   - ProgramFiles
-	Expand(string) (string, error)
+	Expand(path string) (string, error)
+
+	// Creates a new directory if it does not exist. If directory
+	// is created and restrict_on_create is true, a restrictive
+	// ACL is applied.
+	CreateDirectory(path string, restrict_on_create bool) error
 }
 
 type WindowsService interface {
