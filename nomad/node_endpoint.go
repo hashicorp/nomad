@@ -125,33 +125,9 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
 
-	// Validate the arguments
-	if args.Node == nil {
-		return fmt.Errorf("missing node for client registration")
-	}
-	if args.Node.ID == "" {
-		return fmt.Errorf("missing node ID for client registration")
-	}
-	if args.Node.Datacenter == "" {
-		return fmt.Errorf("missing datacenter for client registration")
-	}
-	if args.Node.Name == "" {
-		return fmt.Errorf("missing node name for client registration")
-	}
-	if len(args.Node.Attributes) == 0 {
-		return fmt.Errorf("missing attributes for client registration")
-	}
-	if args.Node.SecretID == "" {
-		return fmt.Errorf("missing node secret ID for client registration")
-	}
-	if args.Node.NodePool != "" {
-		err := structs.ValidateNodePoolName(args.Node.NodePool)
-		if err != nil {
-			return fmt.Errorf("invalid node pool: %v", err)
-		}
-		if args.Node.NodePool == structs.NodePoolAll {
-			return fmt.Errorf("node is not allowed to register in node pool %q", structs.NodePoolAll)
-		}
+	// Perform validation of the base provided request.
+	if err := args.Validate(); err != nil {
+		return err
 	}
 
 	// Default the status if none is given
