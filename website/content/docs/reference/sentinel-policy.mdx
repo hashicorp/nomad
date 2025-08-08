@@ -74,6 +74,23 @@ The following top-level objects are available to policies in the
 * `node_pool`: the node pool of the node the volume has been placed on. This is
   a [Sentinel Node Pool Object](#sentinel-node-pool-objects).
 
+### submit-csi-volume scope
+
+The following top-level objects are available to policies in the
+`submit-csi-volume` scope automatically, without an explicit import.
+
+- `volume`: the submitted volume. This is a [Sentinel CSI Volume
+  Object](#sentinel-csi-volume-objects).
+- `existing_volume`: the previous version of the volume. If `volume_exists` is
+  true, this is always non-nil. This is also a [Sentinel CSI Volume
+  Object](#sentinel-csi-volume-objects). 
+- `volume_exists`: a boolean field that indicates that a previous version of the
+  volume exists.
+- `nomad_acl_token`: the ACL token the job was submitted with. This is a
+  [Sentinel Nomad ACL Token Object](#sentinel-acl-token-objects).
+- `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
+  Object](#sentinel-namespace-objects).
+
 Sentinel convention for identifiers is lower case and separated by underscores.
 All fields on an object are accessed by the same name, converted to lower case
 and separating camel case to underscores.
@@ -143,6 +160,18 @@ converted to the Sentinel convention. Here are some examples:
 | `volume.Name`                                | `volume.name`                                  |
 | `volume.RequestedCapabilities[0].AccessMode` | `volume.requested_capabilities[0].access_mode` |
 
+## Sentinel CSI Volume Objects
+
+The `volume` object maps to the [CSI Volume][], with the fields
+converted to the Sentinel convention. Here are some examples:
+
+| CSI Volume Field                             | Sentinel Accessor                              |
+|----------------------------------------------|------------------------------------------------|
+| `volume.Name`                                | `volume.name`                                  |
+| `volume.RequestedCapabilities[0].AccessMode` | `volume.requested_capabilities[0].access_mode` |
+
+Note that the `volume.Secrets` values and `volume.MountOptions.MountFlags` are always redacted to prevent credential leaks.
+
 
 [Nomad Sentinel Tutorial]: /nomad/docs/govern/sentinel
 [`nomad sentinel`]: /nomad/commands/sentinel
@@ -153,3 +182,4 @@ converted to the Sentinel convention. Here are some examples:
 [Node]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/structs.go#L2086-L2210
 [Node Pool]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/node_pool.go#L46-L68
 [Dynamic Host Volume]: https://github.com/hashicorp/nomad/blob/main/nomad/structs/host_volumes.go#L18-L87
+[CSI Volume]: https://github.com/hashicorp/nomad/blob/main/nomad/structs/csi.go#L249-L312 

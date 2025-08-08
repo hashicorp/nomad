@@ -204,6 +204,15 @@ func (o *CSIMountOptions) GoString() string {
 	return o.String()
 }
 
+// Sanitize returns a copy of the CSIMountOptions with sensitive data redacted
+func (o *CSIMountOptions) Sanitize() *CSIMountOptions {
+	redacted := *o
+	if len(o.MountFlags) != 0 {
+		redacted.MountFlags = []string{"[REDACTED]"}
+	}
+	return &redacted
+}
+
 // CSISecrets contain optional additional configuration that can be used
 // when specifying that a Volume should be used with VolumeAccessTypeMount.
 type CSISecrets map[string]string
@@ -223,6 +232,15 @@ func (s *CSISecrets) String() string {
 
 func (s *CSISecrets) GoString() string {
 	return s.String()
+}
+
+// Sanitize returns a copy of the CSISecrets with sensitive data redacted
+func (s *CSISecrets) Sanitize() *CSISecrets {
+	redacted := CSISecrets{}
+	for k := range *s {
+		redacted[k] = "[REDACTED]"
+	}
+	return &redacted
 }
 
 type CSIVolumeClaim struct {
@@ -852,10 +870,18 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 type CSIVolumeRegisterRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeRegisterResponse struct {
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
+
 	QueryMeta
 }
 
@@ -872,11 +898,19 @@ type CSIVolumeDeregisterResponse struct {
 type CSIVolumeCreateRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
 	Volumes []*CSIVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	QueryMeta
 }
 

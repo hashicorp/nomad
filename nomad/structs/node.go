@@ -563,6 +563,40 @@ type NodeRegisterRequest struct {
 	WriteRequest
 }
 
+// Validate checks that the NodeRegisterRequest is valid. Any returned error can
+// be sent back to the client as a response to the RPC call.
+func (n *NodeRegisterRequest) Validate() error {
+
+	if n.Node == nil {
+		return errors.New("missing node for client registration")
+	}
+	if n.Node.ID == "" {
+		return errors.New("missing node ID for client registration")
+	}
+	if n.Node.Datacenter == "" {
+		return errors.New("missing datacenter for client registration")
+	}
+	if n.Node.Name == "" {
+		return errors.New("missing node name for client registration")
+	}
+	if len(n.Node.Attributes) == 0 {
+		return errors.New("missing attributes for client registration")
+	}
+	if n.Node.SecretID == "" {
+		return errors.New("missing node secret ID for client registration")
+	}
+	if n.Node.NodePool != "" {
+		if err := ValidateNodePoolName(n.Node.NodePool); err != nil {
+			return fmt.Errorf("invalid node pool: %v", err)
+		}
+		if n.Node.NodePool == NodePoolAll {
+			return fmt.Errorf("node is not allowed to register in node pool %q", NodePoolAll)
+		}
+	}
+
+	return nil
+}
+
 // ShouldGenerateNodeIdentity compliments the functionality within
 // AuthenticateNodeIdentityGenerator to determine whether a new node identity
 // should be generated within the RPC handler.

@@ -15,17 +15,27 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File) int {
+func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File, override bool) int {
 	vol, err := csiDecodeVolume(ast)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error decoding the volume definition: %s", err))
 		return 1
 	}
-	_, err = client.CSIVolumes().Register(vol, nil)
+	resp, _, err := client.CSIVolumes().RegisterOpts(&api.CSIVolumeRegisterRequest{
+		Volumes:        []*api.CSIVolume{vol},
+		PolicyOverride: override,
+	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error registering volume: %s", err))
 		return 1
 	}
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(
+				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
+	}
+
+	vol = resp.Volumes[0] // note: the command only ever returns 1 volume from the API
 
 	c.Ui.Output(fmt.Sprintf("Volume %q registered", vol.ID))
 	return 0
