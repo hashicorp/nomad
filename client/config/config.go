@@ -108,6 +108,10 @@ type Config struct {
 	// should be owned  by root with file mode 0o755.
 	AllocMountsDir string
 
+	// IntroToken is the signed JWT token that should be used to introduce this
+	// client to the servers on first registration.
+	IntroToken string
+
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
 
@@ -384,6 +388,9 @@ type Config struct {
 	// NodeMaxAllocs is an optional field that sets the maximum number of
 	// allocations a node can be assigned. Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
 }
 
 type APIListenerRegistrar interface {

@@ -4,7 +4,6 @@
 package state
 
 import (
-	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -735,22 +734,6 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 	must.Eq(t, 5, count)
 }
 
-func printVariable(tsv *structs.VariableEncrypted) string {
-	b, _ := json.Marshal(tsv)
-	return string(b)
-}
-
-func printVariables(tsvs []*structs.VariableEncrypted) string {
-	if len(tsvs) == 0 {
-		return ""
-	}
-	var out strings.Builder
-	for _, tsv := range tsvs {
-		out.WriteString(printVariable(tsv) + "\n")
-	}
-	return out.String()
-}
-
 // TestStateStore_Variables_DeleteCAS
 func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 	ci.Parallel(t)
@@ -822,7 +805,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 	t.Run("real_locked_var-cas_0", func(t *testing.T) {
 		ci.Parallel(t)
 		sv := mock.VariableEncrypted()
-		sv.Path = "real_var/cas_0"
+		sv.Path = "real_locked_var/cas_0"
 		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,

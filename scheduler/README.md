@@ -198,4 +198,4 @@ This part of scheduling sits in the `scheduler/feasible/rank.go` file. The
 `RankIterator` interface, which is implemented by e.g., `SpreadIterator` and
 `BinPackIterator`, captures the ranking logic in its `Next()` methods.
 
-[0]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/scheduling
+[0]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/how-scheduling-works

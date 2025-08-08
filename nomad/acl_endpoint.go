@@ -3122,3 +3122,57 @@ func (a *ACL) oidcClientAssertion(config *structs.ACLAuthMethodConfig) (*cass.JW
 	}
 	return j, nil
 }
+
+func (a *ACL) CreateClientIntroductionToken(
+	args *structs.ACLCreateClientIntroductionTokenRequest,
+	reply *structs.ACLCreateClientIntroductionTokenResponse) error {
+
+	authErr := a.srv.Authenticate(a.ctx, args)
+
+	if done, err := a.srv.forward(structs.ACLCreateClientIntroductionTokenRPCMethod, args, args, reply); done {
+		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{
+		"nomad", "acl", "create_node_introduction_identity"}, time.Now())
+
+	// Unlike the other ACL RPCs, this accepts node write permissions rather
+	// than management. This allows cluster administrators to delegate node
+	// introduction identity operations to other users who can bring their own
+	// nodes to join the cluster.
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Ensure the request is canonicalized, so we have a consistent experience
+	// on requests that use the CLI or HTTP API directly.
+	args.Canonicalize()
+
+	// Generate the node introduction identity TTL based on the server config
+	// and any possible user provided TTL.
+	identityTTL := args.IdentityTTL(
+		a.logger,
+		a.srv.config.NodeIntroductionConfig.DefaultIdentityTTL,
+		a.srv.config.NodeIntroductionConfig.MaxIdentityTTL,
+	)
+
+	introIdentity := structs.GenerateNodeIntroductionIdentityClaims(
+		args.NodeName,
+		args.NodePool,
+		args.Region,
+		identityTTL,
+	)
+
+	signedIdentity, _, err := a.srv.encrypter.SignClaims(introIdentity)
+	if err != nil {
+		return fmt.Errorf("failed to sign node introduction identity claims: %w", err)
+	}
+
+	reply.JWT = signedIdentity
+	return nil
+}

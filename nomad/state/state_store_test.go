@@ -1497,7 +1497,17 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	must.NoError(t, state.UpdateNodeStatus(structs.MsgTypeTestSetup, 801, node.ID, structs.NodeStatusReady, 70, event))
+	signingKeyID := uuid.Generate()
+
+	stateReq := structs.NodeUpdateStatusRequest{
+		NodeID:               node.ID,
+		Status:               structs.NodeStatusReady,
+		IdentitySigningKeyID: signingKeyID,
+		NodeEvent:            event,
+		UpdatedAt:            70,
+	}
+
+	must.NoError(t, state.UpdateNodeStatus(structs.MsgTypeTestSetup, 801, &stateReq))
 	must.True(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1508,11 +1518,31 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	must.Eq(t, 70, out.StatusUpdatedAt)
 	must.Len(t, 2, out.Events)
 	must.Eq(t, event.Message, out.Events[1].Message)
+	must.Eq(t, signingKeyID, out.IdentitySigningKeyID)
 
-	index, err := state.Index("nodes")
+	index, err := state.Index(TableNodes)
 	must.NoError(t, err)
 	must.Eq(t, 801, index)
 	must.False(t, watchFired(ws))
+
+	// Send another update, but the signing key ID is empty, this should not
+	// overwrite the existing signing key ID.
+	stateReq = structs.NodeUpdateStatusRequest{
+		NodeID:               node.ID,
+		Status:               structs.NodeStatusReady,
+		IdentitySigningKeyID: "",
+		NodeEvent: &structs.NodeEvent{
+			Message:   "Node even more ready foo",
+			Subsystem: structs.NodeEventSubsystemCluster,
+			Timestamp: time.Now(),
+		},
+		UpdatedAt: 80,
+	}
+
+	must.NoError(t, state.UpdateNodeStatus(structs.MsgTypeTestSetup, 802, &stateReq))
+	out, err = state.NodeByID(ws, node.ID)
+	must.NoError(t, err)
+	must.Eq(t, signingKeyID, out.IdentitySigningKeyID)
 }
 
 func TestStatStore_UpdateNodeStatus_LastMissedHeartbeatIndex(t *testing.T) {
@@ -1598,7 +1628,12 @@ func TestStatStore_UpdateNodeStatus_LastMissedHeartbeatIndex(t *testing.T) {
 
 			for i, status := range tc.transitions {
 				now := time.Now().UnixNano()
-				err := state.UpdateNodeStatus(structs.MsgTypeTestSetup, uint64(1000+i), node.ID, status, now, nil)
+				req := structs.NodeUpdateStatusRequest{
+					NodeID:    node.ID,
+					Status:    status,
+					UpdatedAt: now,
+				}
+				err := state.UpdateNodeStatus(structs.MsgTypeTestSetup, uint64(1000+i), &req)
 				must.NoError(t, err)
 
 				ws := memdb.NewWatchSet()

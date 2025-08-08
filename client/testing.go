@@ -107,6 +107,7 @@ func TestRPCOnlyClient(t testing.TB, cb func(c *config.Config), srvAddr net.Addr
 	client := &Client{
 		config:           conf,
 		logger:           testLogger,
+		rpcLogger:        testLogger.Named("rpc"),
 		shutdownCh:       make(chan struct{}),
 		EnterpriseClient: newEnterpriseClient(testLogger),
 	}

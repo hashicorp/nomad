@@ -285,6 +285,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	must.NoError(t, err)
 	must.NotEq(t, uint64(0), resp1.Index)
+	must.Eq(t, "", resp1.Warnings)
 
 	// Get the volume back out
 	req2 := &structs.CSIVolumeGetRequest{
@@ -1136,12 +1137,13 @@ func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	ci.Parallel(t)
 	var err error
-	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
 
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 
 	fake := newMockClientCSI()
 	fake.NextValidateError = nil
@@ -1158,6 +1160,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	client, cleanup := client.TestClientWithRPCs(t,
 		func(c *cconfig.Config) {
 			c.Servers = []string{srv.config.RPCAddr.String()}
+			c.TLSConfig = srv.config.TLSConfig
 		},
 		map[string]interface{}{"CSI": fake},
 	)
@@ -1169,8 +1172,11 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: rootToken.SecretID},
+		Node: node,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
@@ -1277,25 +1283,11 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	must.NoError(t, err)
 	must.NotEq(t, uint64(0), resp1.Index)
 
-	// Get the volume back out
-	req2 := &structs.CSIVolumeGetRequest{
-		ID: volID,
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: ns,
-			AuthToken: validToken,
-		},
-	}
-	resp2 := &structs.CSIVolumeGetResponse{}
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	must.NoError(t, err)
-	must.Eq(t, resp1.Index, resp2.Index)
+	// Check the new volume in the response
+	must.Eq(t, 1, len(resp1.Volumes))
+	must.Eq(t, "", resp1.Warnings)
+	vol := resp1.Volumes[0]
 
-	vol := resp2.Volume
-	must.NotNil(t, vol)
-	must.Eq(t, volID, vol.ID)
-
-	// these fields are set from the args
 	must.Eq(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
 		vol.Secrets.String())
 	must.Eq(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",

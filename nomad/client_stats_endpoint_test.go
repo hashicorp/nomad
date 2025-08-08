@@ -29,6 +29,7 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
+	testutil.WaitForKeyring(t, s.RPC, s.Region())
 
 	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}

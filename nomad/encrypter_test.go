@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -40,6 +41,13 @@ var (
 		WorkloadIdentifier: "web",
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
+)
+
+// Assert that the Encrypter implements the claimSigner and auth.Encrypter
+// interfaces.
+var (
+	_ claimSigner    = &Encrypter{}
+	_ auth.Encrypter = &Encrypter{}
 )
 
 type mockSigner struct {
@@ -697,10 +705,12 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 
 	// Create a 1.6 style workload identity
 	claims := &structs.IdentityClaims{
-		Namespace:    "default",
-		JobID:        "fakejob",
-		AllocationID: uuid.Generate(),
-		TaskName:     "faketask",
+		WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+			Namespace:    "default",
+			JobID:        "fakejob",
+			AllocationID: uuid.Generate(),
+			TaskName:     "faketask",
+		},
 	}
 
 	// Sign the claims and assert they were signed with EdDSA (the 1.6 signing

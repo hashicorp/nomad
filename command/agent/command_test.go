@@ -618,6 +618,34 @@ vault {
 	}
 }
 
+func TestCommand_readConfig_clientIntroToken(t *testing.T) {
+
+	t.Run("env var", func(t *testing.T) {
+		t.Setenv("NOMAD_CLIENT_INTRO_TOKEN", "test-intro-token")
+
+		cmd := &Command{Ui: cli.NewMockUi(), args: []string{"-dev"}}
+		outputConfig := cmd.readConfig()
+		must.Eq(t, "test-intro-token", outputConfig.Client.IntroToken)
+	})
+
+	t.Run("cli flag", func(t *testing.T) {
+		cmd := &Command{Ui: cli.NewMockUi(), args: []string{
+			"-dev",
+			"-client-intro-token=test-intro-token",
+		}}
+		outputConfig := cmd.readConfig()
+		must.Eq(t, "test-intro-token", outputConfig.Client.IntroToken)
+	})
+
+	t.Run("none", func(t *testing.T) {
+		cmd := &Command{Ui: cli.NewMockUi(), args: []string{
+			"-dev",
+		}}
+		outputConfig := cmd.readConfig()
+		must.Eq(t, "", outputConfig.Client.IntroToken)
+	})
+}
+
 func Test_setupLoggers_logFile(t *testing.T) {
 
 	// Generate a mock UI and temporary log file location to write to.

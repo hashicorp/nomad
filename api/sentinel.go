@@ -87,4 +87,5 @@ type SentinelPolicyListStub struct {
 const (
 	SentinelScopeSubmitJob        = "submit-job"
 	SentinelScopeSubmitHostVolume = "submit-host-volume"
+	SentinelScopeSubmitCSIVolume  = "submit-csi-volume"
 )

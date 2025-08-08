@@ -444,12 +444,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/oidc/auth-url", s.wrap(s.ACLOIDCAuthURLRequest))
 	s.mux.HandleFunc("/v1/acl/oidc/complete-auth", s.wrap(s.ACLOIDCCompleteAuthRequest))
 	s.mux.HandleFunc("/v1/acl/login", s.wrap(s.ACLLoginRequest))
+	s.mux.HandleFunc("/v1/acl/identity/client-introduction-token", s.wrap(s.ACLCreateClientIntroductionTokenRequest))
 
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
 	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
 	s.mux.Handle("/v1/client/metadata", wrapCORS(s.wrap(s.NodeMetaRequest)))
+	s.mux.Handle("/v1/client/identity/renew", wrapCORS(s.wrap(s.NodeIdentityRenewRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -472,6 +474,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	// "application/json" Content-Type depending on the ?plain= query
 	// parameter.
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+	s.mux.HandleFunc("/v1/agent/monitor/export", s.wrap(s.AgentMonitorExport))
 
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 

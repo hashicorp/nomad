@@ -43,8 +43,7 @@ Register Options:
     host volumes only.
 
   -policy-override
-    Sets the flag to force override any soft mandatory Sentinel policies. Used
-    for dynamic host volumes only.
+    Sets the flag to force override any soft mandatory Sentinel policies.
 `
 
 	return strings.TrimSpace(helpText)
@@ -123,7 +122,7 @@ func (c *VolumeRegisterCommand) Run(args []string) int {
 
 	switch volType {
 	case "csi":
-		return c.csiRegister(client, ast)
+		return c.csiRegister(client, ast, override)
 	case "host":
 		return c.hostVolumeRegister(client, ast, override, volID)
 	default:
