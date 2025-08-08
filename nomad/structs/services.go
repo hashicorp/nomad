@@ -562,10 +562,10 @@ func hashHeader(h hash.Hash, m map[string][]string) {
 }
 
 const (
-	AddressModeAuto               = "auto"
-	AddressModeHost               = "host"
-	AddressModeDriver             = "driver"
-	AddressModeAlloc              = "alloc"
+	AddressModeAuto      = "auto"
+	AddressModeHost      = "host"
+	AddressModeDriver    = "driver"
+	AddressModeAlloc     = "alloc"
 	AddressModeAllocIPv6 = "alloc_ipv6"
 
 	// ServiceProviderConsul is the default service provider and the way Nomad
