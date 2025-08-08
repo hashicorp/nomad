@@ -10436,6 +10436,7 @@ type Secret struct {
 	Provider string
 	Path     string
 	Config   map[string]any
+	Env      map[string]string
 }
 
 func (s *Secret) Equal(o *Secret) bool {
@@ -10451,6 +10452,8 @@ func (s *Secret) Equal(o *Secret) bool {
 	case s.Path != o.Path:
 		return false
 	case !maps.Equal(s.Config, o.Config):
+		return false
+	case !maps.Equal(s.Env, o.Env):
 		return false
 	}
 
@@ -10474,6 +10477,7 @@ func (s *Secret) Copy() *Secret {
 		Provider: s.Provider,
 		Path:     s.Path,
 		Config:   confCopy.(map[string]any),
+		Env:      maps.Clone(s.Env),
 	}
 }
 
@@ -10498,6 +10502,18 @@ func (s *Secret) Validate() error {
 
 	if s.Path == "" {
 		_ = multierror.Append(&mErr, errors.New("secret path cannot be empty"))
+	}
+
+	// TODO: add tests
+	// and can these not be hardcoded?
+	if s.Provider == "nomad" || s.Provider == "vault" {
+		if len(s.Env) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("%s provider cannot use the env block", s.Provider))
+		}
+	} else {
+		if len(s.Config) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("custom plugin provider %s cannot use the config block", s.Provider))
+		}
 	}
 
 	return mErr.ErrorOrNil()

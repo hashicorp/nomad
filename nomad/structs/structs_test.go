@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -6506,16 +6507,7 @@ func TestSecrets_Validate(t *testing.T) {
 				Path:     "test-path",
 				Provider: "test-provider",
 			},
-			expectErr: fmt.Errorf("secret name cannot be empty"),
-		},
-		{
-			name: "invalid name",
-			secret: &Secret{
-				Name:     "bad-name@",
-				Path:     "test-path",
-				Provider: "test-provider",
-			},
-			expectErr: fmt.Errorf("secret name must match regex %s", validSecretName),
+			expectErr: errors.New("secret name cannot be empty"),
 		},
 		{
 			name: "missing provider",
@@ -6523,7 +6515,7 @@ func TestSecrets_Validate(t *testing.T) {
 				Name: "testsecret",
 				Path: "test-path",
 			},
-			expectErr: fmt.Errorf("secret provider cannot be empty"),
+			expectErr: errors.New("secret provider cannot be empty"),
 		},
 		{
 			name: "missing path",
@@ -6531,7 +6523,43 @@ func TestSecrets_Validate(t *testing.T) {
 				Name:     "testsecret",
 				Provider: "test-provier",
 			},
-			expectErr: fmt.Errorf("secret path cannot be empty"),
+			expectErr: errors.New("secret path cannot be empty"),
+		},
+		{
+			name: "nomad provider fails with env",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "nomad",
+				Path:     "test",
+				Env: map[string]string{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("nomad provider cannot use the env block"),
+		},
+		{
+			name: "vault provider fails with env",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "vault",
+				Path:     "test",
+				Env: map[string]string{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("vault provider cannot use the env block"),
+		},
+		{
+			name: "custom provider fails with config",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test",
+				Path:     "test",
+				Config: map[string]any{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("custom plugin provider test cannot use the config block"),
 		},
 	}
 

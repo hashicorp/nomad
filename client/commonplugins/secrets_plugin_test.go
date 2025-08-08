@@ -120,7 +120,7 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 		// test the passed envVar is parsed and set correctly by printing it as part of the SecretResponse
 		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\ncat <<EOF\n%s\nEOF\n", `{"result": {"foo": "$TEST_KEY"}}`))
 
-		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, map[string]any{"TEST_KEY": "TEST_VALUE"})
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, map[string]string{"TEST_KEY": "TEST_VALUE"})
 		must.NoError(t, err)
 
 		res, err := plugin.Fetch(context.Background(), "dummy-path")
