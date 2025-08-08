@@ -299,6 +299,26 @@ func Test_GetAddress(t *testing.T) {
 			expPort: 6379,
 		},
 		{
+			name:      "Alloc",
+			mode:      structs.AddressModeAllocIPv6,
+			portLabel: "db",
+			ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+				AddressIPv6:   "2001:db8::8a2e:370:7334",
+			},
+			expIP:   "2001:db8::8a2e:370:7334",
+			expPort: 6379,
+		},
+		{
 			name:      "Alloc no to value",
 			mode:      structs.AddressModeAlloc,
 			portLabel: "db",
@@ -380,6 +400,12 @@ func Test_GetAddress(t *testing.T) {
 		{
 			name:      "Address with alloc mode",
 			mode:      structs.AddressModeAlloc,
+			advertise: "example.com",
+			expErr:    `cannot use custom advertise address with "alloc" address mode`,
+		},
+		{
+			name:      "Address with alloc IPv6 mode",
+			mode:      structs.AddressModeAllocIPv6,
 			advertise: "example.com",
 			expErr:    `cannot use custom advertise address with "alloc" address mode`,
 		},

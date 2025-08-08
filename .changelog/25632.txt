@@ -1,0 +1,3 @@
+```release-note:bug
+consul: Add AllocIPv6 option to allow IPv6 address being used for service registration
+```

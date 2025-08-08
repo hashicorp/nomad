@@ -305,7 +305,7 @@ func (sc *ServiceCheck) validateCommon(allowableTypes []string) error {
 
 	// validate address_mode
 	switch sc.AddressMode {
-	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc:
+	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc, AddressModeAllocIPv6:
 		// Ok
 	case AddressModeAuto:
 		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)
@@ -562,10 +562,11 @@ func hashHeader(h hash.Hash, m map[string][]string) {
 }
 
 const (
-	AddressModeAuto   = "auto"
-	AddressModeHost   = "host"
-	AddressModeDriver = "driver"
-	AddressModeAlloc  = "alloc"
+	AddressModeAuto      = "auto"
+	AddressModeHost      = "host"
+	AddressModeDriver    = "driver"
+	AddressModeAlloc     = "alloc"
+	AddressModeAllocIPv6 = "alloc_ipv6"
 
 	// ServiceProviderConsul is the default service provider and the way Nomad
 	// worked before native service discovery.
@@ -597,7 +598,8 @@ type Service struct {
 	PortLabel string
 
 	// AddressMode specifies how the address in service registration is
-	// determined. Must be "auto" (default), "host", "driver", or "alloc".
+	// determined. Must be "auto" (default), "host", "driver", "alloc" or
+	// "alloc_ipv6".
 	AddressMode string
 
 	// Address enables explicitly setting a custom address to use in service
@@ -768,7 +770,7 @@ func (s *Service) Validate() error {
 
 	switch s.AddressMode {
 	case "", AddressModeAuto:
-	case AddressModeHost, AddressModeDriver, AddressModeAlloc:
+	case AddressModeHost, AddressModeDriver, AddressModeAlloc, AddressModeAllocIPv6:
 		if s.Address != "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q if address is set", AddressModeAuto))
 		}
