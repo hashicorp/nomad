@@ -287,7 +287,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 	testCases := []struct {
 		name          string
 		request       *NodeRegisterRequest
-		expectedError bool
+		errorContains string
 	}{
 		{
 			name: "valid",
@@ -302,14 +302,14 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: false,
+			errorContains: "",
 		},
 		{
 			name: "nil node",
 			request: &NodeRegisterRequest{
 				Node: nil,
 			},
-			expectedError: true,
+			errorContains: "missing node for client registration",
 		},
 		{
 			name: "missing ID",
@@ -324,7 +324,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: "missing node ID for client registration",
 		},
 		{
 			name: "missing datacenter",
@@ -339,7 +339,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: "missing datacenter for client registration",
 		},
 		{
 			name: "missing name",
@@ -354,7 +354,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: "missing node name for client registration",
 		},
 		{
 			name: "missing attributes",
@@ -369,7 +369,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{},
 				},
 			},
-			expectedError: true,
+			errorContains: "missing attributes for client registration",
 		},
 		{
 			name: "missing secret ID",
@@ -384,7 +384,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: "missing node secret ID for client registration",
 		},
 		{
 			name: "invalid node pool name",
@@ -399,7 +399,7 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: `invalid node pool: invalid name "****"`,
 		},
 		{
 			name: "invalid node pool all use",
@@ -414,15 +414,15 @@ func TestNodeRegisterRequest_Validate(t *testing.T) {
 					Attributes: map[string]string{"key1": "value1"},
 				},
 			},
-			expectedError: true,
+			errorContains: `node is not allowed to register in node pool "all"`,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualError := tc.request.Validate()
-			if tc.expectedError {
-				must.Error(t, actualError)
+			if tc.errorContains != "" {
+				must.ErrorContains(t, actualError, tc.errorContains)
 			} else {
 				must.NoError(t, actualError)
 			}
