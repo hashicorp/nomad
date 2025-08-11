@@ -555,6 +555,9 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai.Claims != nil && ai.Claims.IsNode() {
 		return "client:" + ai.Claims.NodeID
 	}
+	if ai.Claims != nil && ai.Claims.IsNodeIntroduction() {
+		return "client-introduction:" + ai.Claims.NodeIntroductionIdentityClaims.String()
+	}
 	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
 

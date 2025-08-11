@@ -933,3 +933,12 @@ func (n *NodeIntroductionIdentityClaims) LoggingPairs() []any {
 
 	return pairs
 }
+
+// String returns a string representation of the node introduction identity
+// claims.
+func (n *NodeIntroductionIdentityClaims) String() string {
+	if n.NodeName == "" {
+		return n.NodePool
+	}
+	return n.NodePool + ":" + n.NodeName
+}

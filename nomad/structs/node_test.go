@@ -306,7 +306,7 @@ func TestNodeIdentityClaims_LoggingPairs(t *testing.T) {
 		claims.NodeIdentityClaims.LoggingPairs(),
 	)
 }
-  
+
 func TestNodeRegisterRequest_Validate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -953,4 +953,28 @@ func TestNodeIntroductionIdentityClaims_LoggingPairs(t *testing.T) {
 		"claim_node_name", "node-name-1",
 		"claim_node_pool", "custom-pool",
 	}, claims.LoggingPairs())
+}
+
+func TestNodeIntroductionIdentityClaims_string(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("empty node name", func(t *testing.T) {
+
+		claims := &NodeIntroductionIdentityClaims{
+			NodeName: "",
+			NodePool: "custom-pool",
+		}
+
+		must.Eq(t, "custom-pool", claims.String())
+	})
+
+	t.Run("non-empty node name", func(t *testing.T) {
+
+		claims := &NodeIntroductionIdentityClaims{
+			NodeName: "node-name-1",
+			NodePool: "custom-pool",
+		}
+
+		must.Eq(t, "custom-pool:node-name-1", claims.String())
+	})
 }
