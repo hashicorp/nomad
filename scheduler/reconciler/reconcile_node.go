@@ -54,11 +54,34 @@ func (nr *NodeReconciler) Compute(
 	// Create the required task groups.
 	required := materializeSystemTaskGroups(job)
 
+	// Canary deployments deploy to the TaskGroup.UpdateStrategy.Canary
+	// percentage of eligible nodes, so we create a mapping of task group name
+	// to a list of nodes that canaries should be placed on.
+	canaryNodes := make(map[string][]*structs.Node, 0)
+	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
+	for _, tg := range required {
+		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
+			continue
+		}
+
+		for i, n := range eligibleNodesList {
+			if i > tg.Update.Canary*len(eligibleNodes) {
+				break
+			}
+
+			if canaryNodes[tg.Name] == nil {
+				canaryNodes[tg.Name] = []*structs.Node{}
+			}
+
+			canaryNodes[tg.Name] = append(canaryNodes[tg.Name], n)
+		}
+	}
+
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
 	for nodeID, allocs := range nodeAllocs {
 		diff, deploymentCompleteForNode := nr.diffSystemAllocsForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, required, allocs, terminal,
+			notReadyNodes, taintedNodes, canaryNodes, required, allocs, terminal,
 			serverSupportsDisconnectedClients)
 		deploymentComplete = deploymentComplete && deploymentCompleteForNode
 		result.Append(diff)
@@ -69,21 +92,51 @@ func (nr *NodeReconciler) Compute(
 	return result
 }
 
-// diffSystemAllocsForNode is used to do a set difference between the target allocations
-// and the existing allocations for a particular node. This returns 8 sets of results,
-// the list of named task groups that need to be placed (no existing allocation), the
-// allocations that need to be updated (job definition is newer), allocs that
-// need to be migrated (node is draining), the allocs that need to be evicted
-// (no longer required), those that should be ignored, those that are lost
-// that need to be replaced (running on a lost node), those that are running on
-// a disconnected node but may resume, and those that may still be running on
-// a node that has resumed reconnected.
+// computeCanaryNodes is a helper function that, given a set of task groups and
+// eligible nodes, outputs a map of arrays of nodes, indexed by task group name.
+func computeCanaryNodes(required []*structs.TaskGroup, eligibleNodes map[string]*structs.Node) map[string][]*structs.Node {
+	canaryNodes := map[string][]*structs.Node{}
+	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
+	for _, tg := range required {
+		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
+			continue
+		}
+
+		for i, n := range eligibleNodesList {
+			if i > (tg.Update.Canary*len(eligibleNodes))/100 {
+				break
+			}
+
+			if canaryNodes[tg.Name] == nil {
+				canaryNodes[tg.Name] = []*structs.Node{}
+			}
+
+			canaryNodes[tg.Name] = append(canaryNodes[tg.Name], n)
+		}
+	}
+
+	return canaryNodes
+}
+
+// diffSystemAllocsForNode is used to do a set difference between the target
+// allocations and the existing allocations for a particular node. This returns
+// 8 sets of results:
+// 1. the list of named task groups that need to be placed (no existing
+// allocation),
+// 2. the allocations that need to be updated (job definition is newer),
+// 3. allocs that need to be migrated (node is draining),
+// 4. allocs that need to be evicted (no longer required),
+// 5. those that should be ignored,
+// 6. those that are lost that need to be replaced (running on a lost node),
+// 7. those that are running on a disconnected node but may resume, and
+// 8. those that may still be running on a node that has resumed reconnected.
 func (nr *NodeReconciler) diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
+	canaryNodes map[string][]*structs.Node, // nodes which should get canaries deployed, per task group
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
