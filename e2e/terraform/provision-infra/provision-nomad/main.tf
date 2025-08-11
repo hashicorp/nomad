@@ -156,7 +156,7 @@ resource "null_resource" "upload_nomad_configs" {
     destination = "/tmp/self_signed.crt"
   }
   provisioner "file" {
-    source = "${path.module}/common-plugins/test_secret_plugin.sh"
+    source      = "${path.module}/common-plugins/test_secret_plugin.sh"
     destination = "/tmp/test_secret_plugin"
   }
 }
