@@ -280,6 +280,29 @@ func TestAuthenticatedIdentity_String(t *testing.T) {
 			},
 			expectedOutput: "my-testing-tls-name:192.168.135.232",
 		},
+		{
+			name: "client introduction node pool",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				Claims: &IdentityClaims{
+					NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
+						NodePool: "my-testing-node-pool",
+					},
+				},
+			},
+			expectedOutput: "client-introduction:my-testing-node-pool",
+		},
+		{
+			name: "client introduction node pool and name",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				Claims: &IdentityClaims{
+					NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
+						NodeName: "my-testing-node-name",
+						NodePool: "my-testing-node-pool",
+					},
+				},
+			},
+			expectedOutput: "client-introduction:my-testing-node-pool:my-testing-node-name",
+		},
 	}
 
 	for _, tc := range testCases {
