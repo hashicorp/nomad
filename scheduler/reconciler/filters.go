@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -408,11 +409,12 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	return false, false
 }
 
-// updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
-// should be rescheduled now, later or left in the untainted set
+// updateByReschedulable is a helper method that encapsulates logic for whether
+// a failed allocation should be rescheduled now, later or left in the untainted
+// set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
-	// if it has been marked eligible
+	// If the allocation is part of an ongoing active deployment, we only allow
+	// it to reschedule if it has been marked eligible
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
@@ -422,20 +424,32 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		rescheduleNow = true
 	}
 
-	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	var eligible bool
 	switch {
 	case isDisconnecting:
 		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
 
-	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
+	case alloc.ClientStatus == structs.AllocClientStatusUnknown:
+
+		// unknown alloc with disconnect.replace=true never got its replacement
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		if alloc.NextAllocation == "" && tg.Disconnect != nil &&
+			pointer.Eq(pointer.Of(true), tg.Disconnect.Replace) {
+			rescheduleNow = true
+			return
+		}
+
+		// unknown alloc is close to lost_after time
 		lastDisconnectTime := alloc.LastUnknown()
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
 
 	default:
+		// close to reschedule time
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
 
+	// Reschedule if the eval ID matches the alloc's followup eval ID or if its
+	// close to its reschedule time
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return

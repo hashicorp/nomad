@@ -185,7 +185,8 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			must.GreaterEq(t, tgUpdates.Migrate, tgUpdates.Stop,
 				tprintf("migrated allocs should be stopped"))
 
-			must.GreaterEq(t, tgUpdates.RescheduleLater, tgUpdates.Ignore,
+			must.GreaterEq(t, int(tgUpdates.RescheduleLater),
+				int(tgUpdates.Ignore)+counts["exist_unknown"],
 				tprintf("reschedule-later allocs should be ignored"))
 		}
 

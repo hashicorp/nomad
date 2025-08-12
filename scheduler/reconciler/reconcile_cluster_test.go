@@ -6541,6 +6541,77 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 	})
 }
 
+// TestReconciler_UnblockDisconnectedCanary that when we unblock an eval for disconnected
+// canary that we can replace it
+func TestReconciler_UnblockDisconnectedCanary(t *testing.T) {
+
+	now := time.Now().UTC()
+
+	node := mock.Node()
+	node.Status = structs.NodeStatusDisconnected
+
+	job := mock.MinJob()
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: time.Hour,
+		Replace:   pointer.Of(true),
+	}
+
+	// alloc was previously disconnected but we couldn't find a placement
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusUnknown
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc.NodeID = node.ID
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.AllocStates = []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  now.Add(-5 * time.Minute),
+	}}
+	alloc.FollowupEvalID = uuid.Generate()
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    []*structs.Allocation{alloc},
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes:                map[string]*structs.Node{node.ID: node},
+			SupportsDisconnectedClients: true,
+			Now:                         now,
+		})
+
+	results := reconciler.Compute()
+
+	must.Len(t, 0, results.DesiredFollowupEvals[alloc.TaskGroup])
+
+	assertResults(t, results, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		stop:              0,
+		inplace:           0,
+		disconnectUpdates: 0,
+
+		// 2 to place and 1 to ignore
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         1,
+				Stop:          0,
+				Ignore:        0,
+				InPlaceUpdate: 0,
+				Disconnect:    0,
+				RescheduleNow: 0,
+			},
+		},
+	})
+
+}
+
 func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
 	ci.Parallel(t)
 
