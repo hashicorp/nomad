@@ -4,9 +4,12 @@
 package taskrunner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/consul-template/renderer"
+	"github.com/hashicorp/go-envparse"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -19,22 +22,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// SecretProvider currently only supports Vault and Nomad which use CT. Future
-// work can modify this interface to include custom providers using a plugin
-// interface.
-type SecretProvider interface {
-	// Parse allows each provider implementation to parse its "response" object.
-	Parse() (map[string]string, error)
-}
-
 type TemplateProvider interface {
-	SecretProvider
 	BuildTemplate() *structs.Template
 }
 
 type PluginProvider interface {
-	SecretProvider
-	Fetch(context.Context) error
+	Fetch(context.Context) (map[string]string, error)
 }
 
 type secretsHookConfig struct {
@@ -97,27 +90,20 @@ func (h *secretsHook) Name() string {
 }
 
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	templates := []*structs.Template{}
-
-	providers, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
+	tmplProvider, pluginProvider, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
 	}
 
-	for _, p := range providers {
-		switch v := p.(type) {
-		case TemplateProvider:
-			templates = append(templates, v.BuildTemplate())
-		case PluginProvider:
-			if err := v.Fetch(ctx); err != nil {
-				return err
-			}
-		}
+	templates := []*structs.Template{}
+	for _, p := range tmplProvider {
+		templates = append(templates, p.BuildTemplate())
 	}
 
 	vaultCluster := req.Task.GetVaultClusterName()
 	vaultConfig := h.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
+	contents := []byte{}
 	unblock := make(chan struct{})
 	tm, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
@@ -135,12 +121,24 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		NomadToken:           req.NomadToken,
 		TaskID:               req.Alloc.ID + "-" + req.Task.Name,
 		Logger:               h.logger,
+
+		// This RenderFunc is used to keep any secret data from being written to disk.
+		RenderFunc: func(ri *renderer.RenderInput) (*renderer.RenderResult, error) {
+			// This append is not thread safe but during the initial render this
+			// func is called by the tm.Run() goroutine synchronously. We may want
+			// to lock this behind a mutex just in case that behavior changes.
+			contents = append(contents, ri.Contents...)
+			return &renderer.RenderResult{
+				DidRender:   true,
+				WouldRender: true,
+				Contents:    ri.Contents,
+			}, nil
+		},
 	})
 	if err != nil {
 		return err
 	}
 
-	// Run the template manager to render templates.
 	go tm.Run()
 
 	// Safeguard against the template manager continuing to run.
@@ -152,9 +150,16 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	case <-unblock:
 	}
 
-	// parse and copy variables to envBuilder secrets
-	for _, p := range providers {
-		vars, err := p.Parse()
+	// Set secrets from templates
+	m, err := envparse.Parse(bytes.NewBuffer(contents))
+	if err != nil {
+		return err
+	}
+	h.envBuilder.SetSecrets(m)
+
+	// Set secrets from plugin providers
+	for _, p := range pluginProvider {
+		vars, err := p.Fetch(ctx)
 		if err != nil {
 			return err
 		}
@@ -165,10 +170,10 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	return nil
 }
 
-func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, error) {
+func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider, []PluginProvider, error) {
 	// Any configuration errors will be found when calling the secret providers constructor,
 	// so use a multierror to collect all errors and return them to the user at the same time.
-	providers, mErr := []SecretProvider{}, new(multierror.Error)
+	tmplProvider, pluginProvider, mErr := []TemplateProvider{}, []PluginProvider{}, new(multierror.Error)
 
 	for idx, s := range h.secrets {
 		if s == nil {
@@ -181,13 +186,13 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 			if p, err := secrets.NewNomadProvider(s, secretDir, tmplFile, h.nomadNamespace); err != nil {
 				multierror.Append(mErr, err)
 			} else {
-				providers = append(providers, p)
+				tmplProvider = append(tmplProvider, p)
 			}
 		case "vault":
 			if p, err := secrets.NewVaultProvider(s, secretDir, tmplFile); err != nil {
 				multierror.Append(mErr, err)
 			} else {
-				providers = append(providers, p)
+				tmplProvider = append(tmplProvider, p)
 			}
 		default:
 			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
@@ -195,9 +200,9 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, 
 				multierror.Append(mErr, err)
 				continue
 			}
-			providers = append(providers, secrets.NewExternalPluginProvider(plug, s.Name, s.Path))
+			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Name, s.Path))
 		}
 	}
 
-	return providers, mErr.ErrorOrNil()
+	return tmplProvider, pluginProvider, mErr.ErrorOrNil()
 }

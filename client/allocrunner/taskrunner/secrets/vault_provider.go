@@ -6,11 +6,9 @@ package secrets
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -77,23 +75,4 @@ func (v *VaultProvider) BuildTemplate() *structs.Template {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Once:         true,
 	}
-}
-
-func (v *VaultProvider) Parse() (map[string]string, error) {
-	r, err := os.OpenRoot(v.secretDir)
-	if err != nil {
-		return nil, fmt.Errorf("error opening task secrets directory: %v", err)
-	}
-	defer r.Close()
-
-	f, err := r.Open(v.tmplFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening env template: %v", err)
-	}
-	defer func() {
-		f.Close()
-		r.Remove(v.tmplFile)
-	}()
-
-	return envparse.Parse(f)
 }
