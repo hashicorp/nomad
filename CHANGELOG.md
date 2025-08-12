@@ -1,5 +1,8 @@
 ## 1.10.4 (August 12, 2025)
 
+
+## 1.10.4 (August 12, 2025)
+
 SECURITY:
 
 * build: Update Go to 1.24.3 to address CVE-2025-47906 [[GH-26451](https://github.com/hashicorp/nomad/issues/26451)]
