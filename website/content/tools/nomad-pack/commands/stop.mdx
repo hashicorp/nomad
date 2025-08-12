@@ -1,0 +1,109 @@
+---
+layout: commands
+page_title: "Commands: Stop"
+sidebar_title: "stop"
+description: "Stop a running pack"
+---
+
+# Nomad-Pack Stop
+
+Command: `nomad-pack stop`
+
+Stop a running pack
+
+@include "tools/nomad-pack/commands/stop_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack stop <pack name> [options]`
+
+
+	Stop the specified Nomad Pack in the configured Nomad cluster. To delete the
+	pack from the cluster, specify "--purge", or use the "nomad-pack destroy"
+	command.
+
+	By default, the stop command will stop ALL jobs in the pack deployment. If a
+	pack was run using variable overrides to specify the job name(s), the same
+	variable overrides MUST be provided when stopping the pack to guarantee that
+	nomad-pack targets the correct job(s) in the pack deployment.
+
+Examples:
+	# Stop an example pack in deployment "dev"
+	nomad-pack stop example --name=dev
+
+	# Stop an example pack in deployment "dev" and purge it from the system
+	nomad-pack stop example --name=dev --purge
+
+	# Stop an example pack in deployment "dev" that has a job named "test"
+	# If the same pack has been installed in deployment "dev" but overriding the
+	# job name to "hello", only "test" will be stopped
+	nomad-pack stop example --name=dev --var=job_name=test
+
+#### Operation Options
+
+- `-var-file=<string>` - Specifies the path to a variable override file. This can
+						be provided multiple times on a single command to result
+						in a list of files.
+- `-allow-unset-vars` - Suppress errors from unset variables without default values.
+					Equivalent of setting the NOMAD_PACK_ALLOW_UNSET_VARS environment variable to "1" or "true".
+- `-ignore-missing-vars` - Determines whether override variables not present in the
+					pack should be ignored or produce an error.
+- `-var=<key=value>` - Specifies single override variables in the form of HCL
+					syntax and can be specified multiple times per command.
+- `-name=<string>` - If set, this will be the unique identifier of this deployed
+					instance of the specified pack. If not set, the pack name
+					will be used. This is useful for running more than one
+					instance of a pack within the same cluster. Note that this
+					name must be globally unique within a cluster. Running the
+					run command multiple times with the same name, will just
+					re-submit the same pack, and apply changes if you have made
+					any to the underlying pack. Be mindful that, whether you
+					have made changes or not, the underlying Allocations will be
+					replaced. When managing packs, the name specified here is
+					the name that should be passed to nomad-pack's plan and
+					destroy commands.
+- `-parser-v1` - Use the legacy syntax parser to parse your job. This
+			enables pack to run packs for earlier versions while you are
+			migrating them to the new syntax
+
+#### Nomad Cluster Options
+
+- `-address=<string>` - The address of the Nomad server.
+					Overrides the NOMAD_ADDR environment variable if set.
+- `-namespace=<string>` - The target namespace for queries and actions bound to a namespace.
+					Overrides the NOMAD_NAMESPACE environment variable if set.
+- `-region=<string>` - The region of the Nomad servers to forward commands to.
+					Overrides the NOMAD_REGION environment variable if set.
+- `-ca-cert=<string>` - Path to a PEM encoded CA cert file to use to verify the
+					Nomad server SSL certificate. Overrides the NOMAD_CACERT
+					environment variable if set.
+- `-client-cert=<string>` - Path to a PEM encoded client certificate for TLS authentication
+					to the Nomad server. Must also specify --client-key. Overrides
+					the NOMAD_CLIENT_CERT environment variable if set.
+- `-client-key=<string>` - Path to an unencrypted PEM encoded private key matching the
+					client certificate from --client-cert. Overrides the
+					NOMAD_CLIENT_KEY environment variable if set.
+- `-tls-server-name=<string>` - The server name to use as the SNI host when connecting via
+					TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable
+					if set.
+- `-token=<string>` - The SecretID of an ACL token to use to authenticate API requests with.
+					Overrides the NOMAD_TOKEN environment variable if set.
+- `-tls-skip-verify` - Do not verify TLS certificate. This is highly not recommended.
+						Verification will also be skipped if NOMAD_SKIP_VERIFY is set.
+
+#### Stop Options
+
+- `-registry=<string>` - Specific registry name containing the pack to be stopped.
+- `-ref=<string>` - Specific git ref of the pack to be stopped.
+					Supports tags, SHA, and latest. If no ref is specified,
+					defaults to latest.
+
+					Using ref with a file path is not supported.
+- `-purge` - Purge is used to stop packs and purge them from the system.
+					If not set, packs will still be queryable and will be purged
+					by the garbage collector.
+- `-global` - Stop multi-region pack in all its regions. By default, pack
+					stop will stop only a single region at a time. Ignored for
+					single-region jobs.
+
+@include "tools/nomad-pack/commands/stop_more.mdx"
