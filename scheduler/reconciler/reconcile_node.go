@@ -5,6 +5,7 @@ package reconciler
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -160,11 +161,10 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
-	// TODO: will be needed for canaries
-	deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
 
 	// Scan the existing updates
-	existing := make(map[string]struct{}) // set of alloc names
+	existing := make(map[string]struct{})   // set of alloc names
+	canaryAllocs := []*structs.Allocation{} // set of canary allocs
 	for _, alloc := range liveAllocs {
 		// Index the existing node
 		name := alloc.Name
@@ -321,6 +321,11 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			continue
 		}
 
+		// If it's a canary, set it aside
+		if nr.DeploymentCurrent != nil && slices.Contains(nr.DeploymentCurrent.TaskGroups[tg.Name].PlacedCanaries, alloc.ID) {
+			canaryAllocs = append(canaryAllocs, alloc)
+		}
+
 		// Everything is up-to-date
 	IGNORE:
 		result.Ignore = append(result.Ignore, AllocTuple{
@@ -413,8 +418,14 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				dstate = new(structs.DeploymentState)
 			}
 
+			isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+			deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
+
+			canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
+			result.Stop = append(result.Stop, canariesToStop...)
+
 			// in this case there's nothing to do
-			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
+			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
 				continue
 			}
 
@@ -424,6 +435,46 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 	}
 
 	return result, deploymentComplete
+}
+
+func (nr *NodeReconciler) cancelUnneededCanaries(allocs []*structs.Allocation, required map[string]*structs.TaskGroup) []AllocTuple {
+	stop := []AllocTuple{}
+
+	// Cancel non-promoted canaries from previous deployments
+	if nr.DeploymentOld != nil {
+		for oldDeployTGName, dstate := range nr.DeploymentOld.TaskGroups {
+			if !dstate.Promoted {
+				for _, a := range allocs {
+					if slices.Contains(dstate.PlacedCanaries, a.Name) {
+						stop = append(stop, AllocTuple{
+							Name:      a.Name,
+							TaskGroup: required[oldDeployTGName],
+							Alloc:     a,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	// Cancel any non-promoted canaries from a failed deployment
+	if nr.DeploymentCurrent != nil && nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
+		for tg, dstate := range nr.DeploymentCurrent.TaskGroups {
+			if !dstate.Promoted {
+				for _, a := range allocs {
+					if slices.Contains(dstate.PlacedCanaries, a.Name) {
+						stop = append(stop, AllocTuple{
+							Name:      a.Name,
+							TaskGroup: required[tg],
+							Alloc:     a,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return stop
 }
 
 func (nr *NodeReconciler) createDeployment(job *structs.Job,
@@ -470,7 +521,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 }
 
 func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult) bool {
-	complete := len(buckets.Place)+len(buckets.Migrate) == 0 // && !requiresCanaries   // TODO: additional condition for canaries
+	complete := len(buckets.Place)+len(buckets.Migrate) == 0
 
 	if !complete || nr.DeploymentCurrent == nil {
 		return false
@@ -536,64 +587,6 @@ func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool,
 	}
 
 	return statusUpdates
-}
-
-func (nr *NodeReconciler) cancelUnneededCanaries(all *allocSet, group string, result *ReconcileResults) (
-	canaries allocSet) {
-
-	// Stop any canary from an older deployment or from a failed one
-	var stop []string
-
-	// Cancel any non-promoted canaries from the older deployment
-	if a.jobState.DeploymentOld != nil {
-		for _, dstate := range a.jobState.DeploymentOld.TaskGroups {
-			if !dstate.Promoted {
-				stop = append(stop, dstate.PlacedCanaries...)
-			}
-		}
-	}
-
-	// Cancel any non-promoted canaries from a failed deployment
-	if a.jobState.DeploymentCurrent != nil && a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
-		for _, dstate := range a.jobState.DeploymentCurrent.TaskGroups {
-			if !dstate.Promoted {
-				stop = append(stop, dstate.PlacedCanaries...)
-			}
-		}
-	}
-
-	// stopSet is the allocSet that contains the canaries we desire to stop from
-	// above.
-	stopSet := all.fromKeys(stop)
-	allocsToStop := markStop(stopSet, "", sstructs.StatusAllocNotNeeded)
-	result.DesiredTGUpdates[group].Stop += uint64(len(stopSet))
-	*all = all.difference(stopSet)
-
-	// Capture our current set of canaries and handle any migrations that are
-	// needed by just stopping them.
-	if a.jobState.DeploymentCurrent != nil {
-		var canaryIDs []string
-		for _, dstate := range a.jobState.DeploymentCurrent.TaskGroups {
-			canaryIDs = append(canaryIDs, dstate.PlacedCanaries...)
-		}
-
-		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _, _, _ := canaries.filterByTainted(a.clusterState)
-
-		// We don't add these stops to desiredChanges because the deployment is
-		// still active. DesiredChanges is used to report deployment progress/final
-		// state. These transient failures aren't meaningful.
-		allocsToStop = slices.Concat(allocsToStop,
-			markStop(migrate, "", sstructs.StatusAllocMigrating),
-			markStop(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost),
-		)
-
-		canaries = untainted
-		*all = all.difference(migrate, lost)
-	}
-
-	result.Stop = allocsToStop
-	return canaries
 }
 
 // materializeSystemTaskGroups is used to materialize all the task groups
