@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/consul-template/renderer"
 	"github.com/hashicorp/go-envparse"
@@ -103,6 +104,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	vaultCluster := req.Task.GetVaultClusterName()
 	vaultConfig := h.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
+	mu := &sync.Mutex{}
 	contents := []byte{}
 	unblock := make(chan struct{})
 	tm, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
@@ -124,9 +126,10 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 		// This RenderFunc is used to keep any secret data from being written to disk.
 		RenderFunc: func(ri *renderer.RenderInput) (*renderer.RenderResult, error) {
-			// This append is not thread safe but during the initial render this
-			// func is called by the tm.Run() goroutine synchronously. We may want
-			// to lock this behind a mutex just in case that behavior changes.
+			// This RenderFunc is called by a single goroutine synchronously, but we
+			// lock the append in the event this behavior changes without us knowing.
+			mu.Lock()
+			defer mu.Unlock()
 			contents = append(contents, ri.Contents...)
 			return &renderer.RenderResult{
 				DidRender:   true,
