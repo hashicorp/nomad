@@ -31,6 +31,7 @@ binary {
       vulnerabilities = [
         "GO-2022-0635", // github.com/aws/aws-sdk-go@v1.55.6 TODO(jrasell): remove when dep updated.
         "GO-2025-3543", // github.com/opencontainers/runc    TODO(jrasell): remove once withdrawn from DBs.
+        "GO-2025-3829", https://github.com/moby/moby/releases/tag/v28.3.3 TODO(tgross): remove once verified, updated or withdrawn https://pkg.go.dev/vuln/GO-2025-3829
       ]
     }
   }
