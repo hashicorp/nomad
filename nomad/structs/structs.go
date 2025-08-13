@@ -8329,6 +8329,10 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 			secrets[s.Name] = true
 		}
 
+		if s.Provider == "vault" && t.Vault == nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q has provider \"vault\" but no vault block", s.Name))
+		}
+
 		if err := s.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q is invalid: %w", s.Name, err))
 		}

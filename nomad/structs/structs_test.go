@@ -6459,6 +6459,56 @@ func TestVault_Canonicalize(t *testing.T) {
 	require.Equal(t, VaultChangeModeRestart, v.ChangeMode)
 }
 
+func TestTask_Validate_Secret(t *testing.T) {
+	cases := []struct {
+		name   string
+		task   *Task
+		expErr bool
+	}{
+		{
+			name: "errors with vault provider and no vault block",
+			task: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "test",
+						Provider: "vault",
+					},
+				},
+			},
+			expErr: true,
+		},
+		{
+			name: "succeeds with vault provider and vault block",
+			task: &Task{
+				Vault: &Vault{},
+				Secrets: []*Secret{
+					{
+						Name:     "test",
+						Provider: "vault",
+					},
+				},
+			},
+			expErr: false,
+		},
+	}
+
+	vaultProviderErr := "has provider \"vault\" but no vault block"
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.task.Validate(JobTypeService, &TaskGroup{})
+
+			// Validate will return errors here, we just want to validate
+			// it contains the above vaultProviderErr or not
+			if tc.expErr {
+				must.ErrorContains(t, err, vaultProviderErr)
+			} else {
+				// no ErrorNotContains so use string matching
+				must.StrNotContains(t, err.Error(), vaultProviderErr)
+			}
+		})
+	}
+}
+
 func TestSecrets_Copy(t *testing.T) {
 	ci.Parallel(t)
 	s := &Secret{
