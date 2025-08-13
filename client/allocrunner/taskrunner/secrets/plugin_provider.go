@@ -43,7 +43,7 @@ func (p *ExternalPluginProvider) Fetch(ctx context.Context) (map[string]string, 
 		return nil, fmt.Errorf("error returned from secret plugin %s: %s", p.name, *resp.Error)
 	}
 
-	formatted := map[string]string{}
+	formatted := make(map[string]string, len(resp.Result))
 	for k, v := range resp.Result {
 		formatted[fmt.Sprintf("secret.%s.%s", p.name, k)] = v
 	}

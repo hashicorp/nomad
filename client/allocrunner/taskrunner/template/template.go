@@ -134,6 +134,9 @@ type TaskTemplateManagerConfig struct {
 
 	Logger hclog.Logger
 
+	// RenderFunc allows custom rendering of templated data, and overrides the
+	// Nomad custom RenderFunc used for sandboxing. This is currently used by
+	// the secrets block to hold all templated data in memory.
 	RenderFunc renderer.Renderer
 }
 
