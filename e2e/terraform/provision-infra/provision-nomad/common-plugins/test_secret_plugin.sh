@@ -1,7 +1,7 @@
+#!/bin/bash
+
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
-
-#!/bin/bash
 
 fingerprint() {
   echo {\"type\": \"secrets\", \"version\": \"0.0.1\"}

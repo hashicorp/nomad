@@ -1,11 +1,20 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "secret_value" {
+  type        = string
+  description = "The value of the randomly generated secret for this test"
+}
+
 job "custom_secret" {
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
+  }
+
+  update {
+    min_healthy_time = "1s"
   }
 
   group "group" {
@@ -25,7 +34,7 @@ job "custom_secret" {
         path     = "some/path"
         env {
           // The custom plugin will output this as part of the result field
-          TEST_ENV = "SECRET_VALUE"
+          TEST_ENV = "${var.secret_value}"
         }
       }
 

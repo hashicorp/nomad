@@ -38,26 +38,16 @@ func TestVaultSecret(t *testing.T) {
 
 	submission, cleanJob := jobs3.Submit(t,
 		"./input/vault_secret.hcl",
-		jobs3.DisableRandomJobID(),
+		jobs3.DisableRandomJobID(), // our path won't match the secret path with a random jobID
 		jobs3.Namespace(ns),
-		jobs3.Detach(),
-		jobs3.ReplaceInJobSpec("SECRET_PATH", secretFullPath),
+		jobs3.Var("secret_path", secretFullPath),
 	)
 	t.Cleanup(cleanJob)
 
-	// Ensure the placed allocation reaches the running state. If the test fails
-	// here, it's likely due to permissions or pathing of the secret errors.
-	must.NoError(
-		t,
-		e2e.WaitForAllocStatusExpected(submission.JobID(), ns, []string{"running"}),
-		must.Sprint("expected running allocation"),
-	)
-
 	// Validate the nomad variable was read and parsed into the expected
 	// environment variable
-	out, err := e2e.Command("nomad", "exec", submission.AllocID("group"), "env")
-	must.NoError(t, err)
-	must.StrContains(t, out, fmt.Sprintf("TEST_SECRET=%s", secretValue))
+	out := submission.Exec("group", "task", []string{"env"})
+	must.StrContains(t, out.Stdout, fmt.Sprintf("TEST_SECRET=%s", secretValue))
 }
 
 func TestNomadSecret(t *testing.T) {
@@ -97,24 +87,14 @@ func TestNomadSecret(t *testing.T) {
 		"./input/nomad_secret.hcl",
 		jobs3.DisableRandomJobID(),
 		jobs3.Namespace(ns),
-		jobs3.Detach(),
-		jobs3.ReplaceInJobSpec("SECRET_PATH", secretFullPath),
+		jobs3.Var("secret_path", secretFullPath),
 	)
 	t.Cleanup(cleanJob)
 
-	// Ensure the placed allocation reaches the running state. If the test fails
-	// here, it's likely due to permissions or pathing of the secret errors.
-	must.NoError(
-		t,
-		e2e.WaitForAllocStatusExpected(submission.JobID(), ns, []string{"running"}),
-		must.Sprint("expected running allocation"),
-	)
-
 	// Validate the nomad variable was read and parsed into the expected
 	// environment variable
-	out, err := e2e.Command("nomad", "exec", submission.AllocID("group"), "env")
-	must.NoError(t, err)
-	must.StrContains(t, out, fmt.Sprintf("TEST_SECRET=%s", secretValue))
+	out := submission.Exec("group", "task", []string{"env"})
+	must.StrContains(t, out.Stdout, fmt.Sprintf("TEST_SECRET=%s", secretValue))
 }
 
 func TestPluginSecret(t *testing.T) {
@@ -126,22 +106,12 @@ func TestPluginSecret(t *testing.T) {
 		"./input/custom_secret.hcl",
 		jobs3.DisableRandomJobID(),
 		jobs3.Namespace(ns),
-		jobs3.Detach(),
-		jobs3.ReplaceInJobSpec("SECRET_VALUE", secretValue),
+		jobs3.Var("secret_value", secretValue),
 	)
 	t.Cleanup(cleanJob)
 
-	// Ensure the placed allocation reaches the running state. If the test fails
-	// here, it's likely due to permissions or pathing of the secret errors.
-	must.NoError(
-		t,
-		e2e.WaitForAllocStatusExpected(submission.JobID(), ns, []string{"running"}),
-		must.Sprint("expected running allocation"),
-	)
-
 	// Validate the nomad variable was read and parsed into the expected
 	// environment variable
-	out, err := e2e.Command("nomad", "exec", submission.AllocID("group"), "env")
-	must.NoError(t, err)
-	must.StrContains(t, out, fmt.Sprintf("TEST_SECRET=%s", secretValue))
+	out := submission.Exec("group", "task", []string{"env"})
+	must.StrContains(t, out.Stdout, fmt.Sprintf("TEST_SECRET=%s", secretValue))
 }

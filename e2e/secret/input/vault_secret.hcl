@@ -1,11 +1,20 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "secret_path" {
+  type        = string
+  description = "The path of the vault secret"
+}
+
 job "vault_secret" {
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
+  }
+
+  update {
+    min_healthy_time = "1s"
   }
 
   group "group" {
@@ -24,7 +33,7 @@ job "vault_secret" {
 
       secret "testsecret" {
         provider = "vault"
-        path     = "SECRET_PATH"
+        path     = "${var.secret_path}"
         config {
           engine = "kv_v2"
         }
