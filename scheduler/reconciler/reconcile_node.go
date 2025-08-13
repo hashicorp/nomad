@@ -148,8 +148,7 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 	}
 
 	// Scan the existing updates
-	existing := make(map[string]struct{})   // set of alloc names
-	canaryAllocs := []*structs.Allocation{} // set of canary allocs
+	existing := make(map[string]struct{}) // set of alloc names
 	for _, alloc := range liveAllocs {
 		// Index the existing node
 		name := alloc.Name
@@ -214,6 +213,27 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				Alloc:     alloc,
 			})
 			continue
+		}
+
+		// find nodes on which to deploy canaries
+		canaryNode := slices.ContainsFunc(
+			canaryNodes[tg.Name],
+			func(n *structs.Node) bool { return n.ID == alloc.NodeID },
+		)
+
+		if canaryNode {
+			// we only deal with canaries if there's a deployment
+			if nr.DeploymentCurrent == nil {
+				continue
+			}
+
+			if !deploymentPaused && !deploymentFailed {
+				result.Place = append(result.Place, AllocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     alloc,
+				})
+			}
 		}
 
 		// note: the node can be both tainted and nil
@@ -304,11 +324,6 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 				Alloc:     alloc,
 			})
 			continue
-		}
-
-		// If it's a canary, set it aside
-		if nr.DeploymentCurrent != nil && slices.Contains(nr.DeploymentCurrent.TaskGroups[tg.Name].PlacedCanaries, alloc.ID) {
-			canaryAllocs = append(canaryAllocs, alloc)
 		}
 
 		// Everything is up-to-date
