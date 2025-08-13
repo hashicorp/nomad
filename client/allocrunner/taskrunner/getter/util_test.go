@@ -6,6 +6,7 @@ package getter
 import (
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -239,4 +240,34 @@ func TestUtil_environment(t *testing.T) {
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
 	})
+}
+
+func TestUtil_isPathWithin(t *testing.T) {
+	tdir := t.TempDir()
+	t.Run("when path not within root", func(t *testing.T) {
+		root := mktmpdir(t, tdir)
+		check := mktmpdir(t, tdir)
+
+		must.False(t, isPathWithin(root, check))
+	})
+
+	t.Run("when path within root", func(t *testing.T) {
+		root := mktmpdir(t, tdir)
+		check := mktmpdir(t, root)
+
+		must.True(t, isPathWithin(root, check))
+	})
+
+	t.Run("when root within path", func(t *testing.T) {
+		check := mktmpdir(t, tdir)
+		root := mktmpdir(t, check)
+
+		must.False(t, isPathWithin(root, check))
+	})
+}
+
+func mktmpdir(t *testing.T, parent string) string {
+	dir, err := os.MkdirTemp(parent, "path-within")
+	must.NoError(t, err, must.Sprint("failed to create temporary directory"))
+	return dir
 }

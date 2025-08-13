@@ -53,6 +53,12 @@ type ArtifactConfig struct {
 	// Default is 100GB.
 	DecompressionSizeLimit *string `hcl:"decompression_size_limit"`
 
+	// DisableArtifactInspection will turn off artifact inspection which checks
+	// the artifact contents for potential sandbox escapes. If the platform supports
+	// filesystem isolation, and it is not disabled, the check will not be run
+	// regardless of this value.
+	DisableArtifactInspection *bool `hcl:"disable_artifact_inspection"`
+
 	// DisableFilesystemIsolation will turn off the security feature where the
 	// artifact downloader can write only to the task sandbox directory, and can
 	// read only from specific locations on the host filesystem.
@@ -81,6 +87,7 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 		S3Timeout:                     pointer.Copy(a.S3Timeout),
 		DecompressionFileCountLimit:   pointer.Copy(a.DecompressionFileCountLimit),
 		DecompressionSizeLimit:        pointer.Copy(a.DecompressionSizeLimit),
+		DisableArtifactInspection:     pointer.Copy(a.DisableArtifactInspection),
 		DisableFilesystemIsolation:    pointer.Copy(a.DisableFilesystemIsolation),
 		FilesystemIsolationExtraPaths: slices.Clone(a.FilesystemIsolationExtraPaths),
 		SetEnvironmentVariables:       pointer.Copy(a.SetEnvironmentVariables),
@@ -103,6 +110,7 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 			S3Timeout:                   pointer.Merge(a.S3Timeout, o.S3Timeout),
 			DecompressionFileCountLimit: pointer.Merge(a.DecompressionFileCountLimit, o.DecompressionFileCountLimit),
 			DecompressionSizeLimit:      pointer.Merge(a.DecompressionSizeLimit, o.DecompressionSizeLimit),
+			DisableArtifactInspection:   pointer.Merge(a.DisableArtifactInspection, o.DisableArtifactInspection),
 			DisableFilesystemIsolation:  pointer.Merge(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation),
 			SetEnvironmentVariables:     pointer.Merge(a.SetEnvironmentVariables, o.SetEnvironmentVariables),
 		}
@@ -137,6 +145,8 @@ func (a *ArtifactConfig) Equal(o *ArtifactConfig) bool {
 	case !pointer.Eq(a.DecompressionFileCountLimit, o.DecompressionFileCountLimit):
 		return false
 	case !pointer.Eq(a.DecompressionSizeLimit, o.DecompressionSizeLimit):
+		return false
+	case !pointer.Eq(a.DisableArtifactInspection, o.DisableArtifactInspection):
 		return false
 	case !pointer.Eq(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation):
 		return false
@@ -223,6 +233,10 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("decompression_size_limit must be < %d but found %d", int64(math.MaxInt64), v)
 	}
 
+	if a.DisableArtifactInspection == nil {
+		return fmt.Errorf("disable_artifact_inspection must be set")
+	}
+
 	if a.DisableFilesystemIsolation == nil {
 		return fmt.Errorf("disable_filesystem_isolation must be set")
 	}
@@ -274,6 +288,9 @@ func DefaultArtifactConfig() *ArtifactConfig {
 		// DecompressionSizeLimit limits the amount of data decompressed for
 		// a single artifact. Must be large enough to accommodate large payloads.
 		DecompressionSizeLimit: pointer.Of("100GB"),
+
+		// Toggle for disabling artifact inspection
+		DisableArtifactInspection: pointer.Of(false),
 
 		// Toggle for disabling filesystem isolation, where available.
 		DisableFilesystemIsolation: pointer.Of(false),

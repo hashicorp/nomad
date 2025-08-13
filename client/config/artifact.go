@@ -26,6 +26,7 @@ type ArtifactConfig struct {
 	DecompressionLimitFileCount int
 	DecompressionLimitSize      int64
 
+	DisableArtifactInspection     bool
 	DisableFilesystemIsolation    bool
 	FilesystemIsolationExtraPaths []string
 	SetEnvironmentVariables       string
@@ -78,6 +79,7 @@ func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) 
 		S3Timeout:                     s3Timeout,
 		DecompressionLimitFileCount:   *c.DecompressionFileCountLimit,
 		DecompressionLimitSize:        int64(decompressionSizeLimit),
+		DisableArtifactInspection:     *c.DisableArtifactInspection,
 		DisableFilesystemIsolation:    *c.DisableFilesystemIsolation,
 		FilesystemIsolationExtraPaths: slices.Clone(c.FilesystemIsolationExtraPaths),
 		SetEnvironmentVariables:       *c.SetEnvironmentVariables,

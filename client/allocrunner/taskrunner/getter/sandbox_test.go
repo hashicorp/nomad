@@ -4,9 +4,12 @@
 package getter
 
 import (
+	"fmt"
 	"net/http"
+	"net/http/cgi"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -108,4 +111,125 @@ func TestSandbox_Get_chown(t *testing.T) {
 
 	uid := info.Sys().(*syscall.Stat_t).Uid
 	must.Eq(t, 65534, uid) // nobody's conventional uid
+}
+
+func TestSandbox_Get_inspection(t *testing.T) {
+	// These tests disable filesystem isolation as the
+	// artifact inspection is what is being tested.
+	testutil.RequireRoot(t)
+	logger := testlog.HCLogger(t)
+
+	// Create a temporary directory directly so the repos
+	// don't end up being found improperly
+	tdir, err := os.MkdirTemp("", "nomad-test")
+	must.NoError(t, err, must.Sprint("failed to create top level local repo directory"))
+
+	t.Run("symlink escaped sandbox", func(t *testing.T) {
+		dir, err := os.MkdirTemp(tdir, "fake-repo")
+		must.NoError(t, err, must.Sprint("failed to create local repo directory"))
+		must.NoError(t, os.Symlink("/", filepath.Join(dir, "bad-file")), must.Sprint("could not create symlink in local repo"))
+		srv := makeAndServeGitRepo(t, dir)
+		t.Cleanup(srv.Close)
+
+		artifact := &structs.TaskArtifact{
+			RelativeDest: "local/symlink",
+			GetterSource: fmt.Sprintf("git::%s/%s", srv.URL, filepath.Base(dir)),
+		}
+
+		t.Run("default", func(t *testing.T) {
+			ac := artifactConfig(10 * time.Second)
+			sbox := New(ac, logger)
+
+			_, taskDir := SetupDir(t)
+			env := noopTaskEnv(taskDir)
+			sbox.ac.DisableFilesystemIsolation = true
+
+			err := sbox.Get(env, artifact, "nobody")
+			must.ErrorIs(t, err, ErrSandboxEscape)
+		})
+
+		t.Run("DisableArtifactInspection", func(t *testing.T) {
+			ac := artifactConfig(10 * time.Second)
+			sbox := New(ac, logger)
+
+			_, taskDir := SetupDir(t)
+			env := noopTaskEnv(taskDir)
+			sbox.ac.DisableFilesystemIsolation = true
+			sbox.ac.DisableArtifactInspection = true
+
+			err := sbox.Get(env, artifact, "nobody")
+			must.NoError(t, err)
+		})
+	})
+
+	t.Run("symlink within sandbox", func(t *testing.T) {
+		dir, err := os.MkdirTemp(tdir, "fake-repo")
+		must.NoError(t, err, must.Sprint("failed to create local repo"))
+		// create a file to link to
+		f, err := os.Create(filepath.Join(dir, "test-file"))
+		must.NoError(t, err, must.Sprint("could not create test file in local repo"))
+		f.Close()
+		// move into local repo to create relative link
+		wd, err := os.Getwd()
+		must.NoError(t, err, must.Sprint("cannot determine working directory"))
+		must.NoError(t, os.Chdir(dir))
+		must.NoError(t, os.Symlink(filepath.Base(f.Name()), "good-file"), must.Sprint("could not create symlink in local repo"))
+		must.NoError(t, os.Chdir(wd))
+
+		// now serve the repo
+		srv := makeAndServeGitRepo(t, dir)
+		t.Cleanup(srv.Close)
+
+		artifact := &structs.TaskArtifact{
+			RelativeDest: "local/symlink",
+			GetterSource: fmt.Sprintf("git::%s/%s", srv.URL, filepath.Base(dir)),
+		}
+
+		ac := artifactConfig(10 * time.Second)
+		sbox := New(ac, logger)
+
+		_, taskDir := SetupDir(t)
+		env := noopTaskEnv(taskDir)
+		sbox.ac.DisableFilesystemIsolation = true
+
+		err = sbox.Get(env, artifact, "nobody")
+		must.NoError(t, err)
+	})
+}
+
+func makeAndServeGitRepo(t *testing.T, repoPath string) *httptest.Server {
+	t.Helper()
+	git, err := exec.LookPath("git")
+	must.NoError(t, err, must.Sprint("could not locate git executable"))
+
+	cmd := exec.Command("git", "init", ".")
+	cmd.Dir = repoPath
+	must.NoError(t, cmd.Run(), must.Sprint("cannot init git repository"))
+
+	cmd = exec.Command("git", "config", "user.email", "user@example.com")
+	cmd.Dir = repoPath
+	must.NoError(t, cmd.Run(), must.Sprint("cannot configure git repository"))
+
+	cmd = exec.Command("git", "config", "user.name", "test user")
+	cmd.Dir = repoPath
+	must.NoError(t, cmd.Run(), must.Sprint("cannot configure git repository"))
+
+	cmd = exec.Command("git", "add", "--all")
+	cmd.Dir = repoPath
+	must.NoError(t, cmd.Run(), must.Sprint("could not add files to git repository"))
+
+	cmd = exec.Command("git", "commit", "-m", "test commit")
+	cmd.Dir = repoPath
+	must.NoError(t, cmd.Run(), must.Sprint("cannot commit git repository content"))
+
+	handler := &cgi.Handler{
+		Path: git,
+		Args: []string{"http-backend"},
+		Env: []string{
+			"GIT_HTTP_EXPORT_ALL=true",
+			fmt.Sprintf("GIT_PROJECT_ROOT=%s", filepath.Dir(repoPath)),
+		},
+	}
+
+	return httptest.NewServer(handler)
 }

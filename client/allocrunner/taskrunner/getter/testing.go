@@ -33,6 +33,7 @@ func TestSandbox(t *testing.T) *Sandbox {
 func SetupDir(t *testing.T) (string, string) {
 	allocDir := t.TempDir()
 	taskDir := filepath.Join(allocDir, "local")
+	tmpDir := filepath.Join(taskDir, "tmp")
 	topDir := filepath.Dir(allocDir)
 
 	must.NoError(t, os.Chmod(topDir, 0o755))
@@ -41,5 +42,8 @@ func SetupDir(t *testing.T) (string, string) {
 
 	must.NoError(t, os.Mkdir(taskDir, 0o755))
 	must.NoError(t, os.Chmod(taskDir, 0o755))
+	must.NoError(t, os.Mkdir(tmpDir, 0o755))
+	must.NoError(t, os.Chmod(tmpDir, 0o755))
+
 	return allocDir, taskDir
 }

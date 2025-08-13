@@ -52,6 +52,7 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		S3Timeout:                     s.ac.S3Timeout,
 		DecompressionLimitFileCount:   s.ac.DecompressionLimitFileCount,
 		DecompressionLimitSize:        s.ac.DecompressionLimitSize,
+		DisableArtifactInspection:     s.ac.DisableArtifactInspection,
 		DisableFilesystemIsolation:    s.ac.DisableFilesystemIsolation,
 		FilesystemIsolationExtraPaths: s.ac.FilesystemIsolationExtraPaths,
 		SetEnvironmentVariables:       s.ac.SetEnvironmentVariables,
