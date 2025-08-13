@@ -44,8 +44,9 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test", "test")
 
-		err := testProvider.Fetch(context.Background())
+		vars, err := testProvider.Fetch(t.Context())
 		must.ErrorContains(t, err, "something bad")
+		must.Nil(t, vars)
 	})
 
 	t.Run("errors if fetch response contains error", func(t *testing.T) {
@@ -58,35 +59,28 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test", "test")
 
-		err := testProvider.Fetch(context.Background())
+		vars, err := testProvider.Fetch(t.Context())
 		must.ErrorContains(t, err, "error returned from secret plugin")
+		must.Nil(t, vars)
 	})
-}
 
-func TestExternalPluginProvider_Parse(t *testing.T) {
 	t.Run("formats response correctly", func(t *testing.T) {
-		testProvider := NewExternalPluginProvider(nil, "test", "test")
-		testProvider.response = &commonplugins.SecretResponse{
+		mockSecretPlugin := new(MockSecretPlugin)
+		mockSecretPlugin.On("Fetch", mock.Anything).Return(&commonplugins.SecretResponse{
 			Result: map[string]string{
 				"testkey": "testvalue",
 			},
-		}
+			Error: nil,
+		}, nil)
 
-		result, err := testProvider.Parse()
+		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test", "test")
+
+		result, err := testProvider.Fetch(t.Context())
 		must.NoError(t, err)
 
 		exp := map[string]string{
 			"secret.test.testkey": "testvalue",
 		}
 		must.Eq(t, exp, result)
-
-	})
-	t.Run("errors if response is nil", func(t *testing.T) {
-		testProvider := NewExternalPluginProvider(nil, "test", "test")
-		testProvider.response = nil
-
-		result, err := testProvider.Parse()
-		must.Error(t, err)
-		must.Nil(t, result)
 	})
 }

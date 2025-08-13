@@ -4,8 +4,6 @@
 package secrets
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -88,25 +86,4 @@ func TestVaultProvider_BuildTemplate(t *testing.T) {
 		_, err := NewVaultProvider(testSecret, testDir, "test")
 		must.Error(t, err)
 	})
-}
-
-func TestVaultProvider_Parse(t *testing.T) {
-	testDir := t.TempDir()
-
-	tmplFile := "foo"
-	tmplPath := filepath.Join(testDir, tmplFile)
-
-	data := "foo=bar"
-	err := os.WriteFile(tmplPath, []byte(data), 0777)
-	must.NoError(t, err)
-
-	p, err := NewVaultProvider(&structs.Secret{}, testDir, tmplFile)
-	must.NoError(t, err)
-
-	vars, err := p.Parse()
-	must.NoError(t, err)
-	must.Eq(t, vars, map[string]string{"foo": "bar"})
-
-	_, err = os.Stat(tmplPath)
-	must.ErrorContains(t, err, "no such file")
 }
