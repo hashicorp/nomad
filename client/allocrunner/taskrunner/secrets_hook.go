@@ -31,16 +31,6 @@ type PluginProvider interface {
 	Fetch(context.Context) (map[string]string, error)
 }
 
-type TemplateProvider interface {
-	SecretProvider
-	BuildTemplate() *structs.Template
-}
-
-type PluginProvider interface {
-	SecretProvider
-	Fetch(context.Context) error
-}
-
 type secretsHookConfig struct {
 	// logger is used to log
 	logger log.Logger
