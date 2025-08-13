@@ -1,12 +1,13 @@
 ---
 layout: commands
 page_title: nomad-pack plan command reference
-description: "Dry-run a pack update to determine its effects."
+description: |-
+  Use the `nomad-pack plan` command to perform a dry run that determines the effects of submitting a new or updated Nomad Pack.
 ---
 
 # nomad-pack plan command reference
 
-Dry-run to determine the effects of submitting a new or updated Nomad Pack.
+Use the `nomad-pack plan` command to perform a dry run that determines the effects of submitting a new or updated Nomad Pack.
 
 The `nomad-pack plan` command returns one of the following exit codes:
 
@@ -22,18 +23,17 @@ nomad-pack plan <pack_name> [options]
 
 ## Options
 
-- `-registry=<string>`: Specific registry name containing the pack to be
-  planned.
-- `-ref=<string>`: Specific Git reference of the pack you want to plan.
-  Supports	tags, SHA, and latest. If no ref is specified, defaults to latest.
-  Using `ref` with a file path is not supported.
-- `-diff`: Determines whether the diff between the remote job and planned job
-					is shown. Defaults to true.
+- `-registry=<string>`: Specific registry name containing the pack.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+- `-diff`: Determines whether to output the diff between the remote job and
+  planned job. Defaults to true.
 - `-policy-override`: Sets the flag to force override any soft mandatory
-					Sentinel policies.
+  Sentinel policies.
 - `-verbose`: Increase diff verbosity.
-- `-exit-code-no-changes=<int>`: Override exit code returned when the plan
-  shown no changes.
+- `-exit-code-no-changes=<int>`: Override exit code returned when the plan shown
+  no changes.
 - `-exit-code-makes-changes=<int>`: Override exit code returned when the plan
   shows changes.
 - `-exit-code-error=<int>`: Override exit code returned when there is an error.

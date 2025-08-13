@@ -1,13 +1,13 @@
 ---
 layout: commands
-page_title: nomad-pack render command reference
-sidebar_title: "run"
-description: "Run a new pack or update an existing pack"
+page_title: nomad-pack run command reference
+description: |-
+  Use the `nomad-pack run` command to install the specified Nomad Pack to a configured Nomad cluster.
 ---
 
-# nomad-pack render command reference
+# nomad-pack run command reference
 
-Install the specified Nomad Pack to a configured Nomad cluster.
+Use the `nomad-pack run` command to install the specified Nomad Pack to a configured Nomad cluster.
 
 ## Usage
 
@@ -18,39 +18,34 @@ nomad-pack run <pack_name> [options]
 ## Options
 
 - `-registry=<string>`: Specific registry name containing the pack to be run.
-- `-ref=<string>`: Specific Git reference of the pack to be run.
-					Supports tags, SHA, and latest. If no ref is specified,
-					defaults to latest.	Using `ref` with a file path is not supported.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
 - `-check-index=<uint>`: If set, the job is only registered or updated if the
-  passed job modify index matches the server side version. If a
-					check-index value of zero is passed, the job is only
-					registered if it does not yet exist. If a non-zero value is
-					passed, it ensures that the job is being updated from a
-					known state. The use of this flag is most common in
-					conjunction with job plan command.
-- `-consul-token=<string>`: If set, the passed Consul token is stored in the job before
-					sending to the Nomad servers. This allows passing the Consul
-					token without storing it in the job file. This overrides the
-					token found in the $CONSUL_HTTP_TOKEN environment variable
-					and that found in the job.
-- `-consul-namespace=<string>`: If set, any services in the job will be registered into the
-					specified Consul namespace. Any template block reading from
-					Consul KV will be scoped to the the specified Consul
-					namespace. If Consul ACLs are enabled and the
-					allow_unauthenticated Nomad server Consul configuration is
-					not enabled, then a Consul token must be supplied with
-					appropriate service and KV Consul ACL policy permissions.
-- `-vault-token=<string>`: If set, the passed Vault token is stored in the job before
-					sending to the Nomad servers. This allows passing the Vault
-					token without storing it in the job file. This overrides the
-					token found in the $VAULT_TOKEN environment variable and
-					that found in the job.
-- `-vault-namespace=<string>`: If set, the passed Vault namespace is stored in the job
-					before sending to the Nomad servers.
-- `-policy-override`: Sets the flag to force override any soft mandatory Sentinel
-					policies.
-- `-preserve-counts`: If set, the existing task group counts will be preserved
-					when updating a job.
+  passed job modify index matches the server side version. If you pass a value
+  of zero, the job is only registered if it does not yet exist.  Passing a
+  non-zero value ensures that the job is being updated from a known state. The
+  use of this flag is most common in conjunction with `nomad job plan` command.
+- `-consul-token=<string>`: If set, the passed Consul token is stored in the job
+  before	sending to the Nomad servers. This allows passing the Consul token
+  without storing it in the job file. This overrides the token found in the
+  $CONSUL_HTTP_TOKEN environment variable	and that found in the job.
+- `-consul-namespace=<string>`: If set, any services in the job are registered
+  into the	specified Consul namespace. Any template block reading from Consul
+  KV are scoped to the the specified Consul	namespace. If Consul ACLs are
+  enabled and the	`allow_unauthenticated` Nomad server Consul configuration is
+  not enabled, then you must supply a Consul token with appropriate service and
+  KV Consul ACL policy permissions.
+- `-vault-token=<string>`: If set, the passed Vault token is stored in the job
+  before	sending to the Nomad servers. This allows passing the Vault token
+  without storing it in the job file. This overrides the token found in the
+  $VAULT_TOKEN environment variable and that found in the job.
+- `-vault-namespace=<string>`: If set, the passed Vault namespace is stored in
+  the job before sending to the Nomad servers.
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies.
+- `-preserve-counts`: If set, the existing task group count is preserved when
+  updating a job.
 
 @include 'tools/nomad-pack/options-operations.mdx'
 

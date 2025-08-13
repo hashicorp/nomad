@@ -1,7 +1,8 @@
 ---
 layout: commands
 page_title: nomad-pack registry delete command reference
-description: "Use the `nomad-pack registry delete` command to delete registries or packs from the local environment."
+description: |-
+  Use the `nomad-pack registry delete` command to delete registries or packs from the local environment.
 ---
 
 # nomad-pack registry delete command reference
@@ -16,11 +17,10 @@ nomad-pack registry delete <name> [options]
 
 ## Options
 
-- `-target=<string>`: A specific pack within the registry to be deleted. If a reference	flag has been added, only that ref of the target pack will
-					be deleted.
-- `-ref=<string>`: Specific Git reference of the registry or pack to be deleted.
-					Supports tags, SHA, and latest. If no ref is specified,
-					defaults to latest. Using `ref` with a file path is not supported.
+- `-target=<string>`: A specific pack within the registry. If you add a
+  reference flag, the command only deletes that reference of the target pack.
+- `-ref=<string>`: Specific Git reference of the registry or pack. Supports
+  tags, SHA, and `@latest`. If you do not specify a reference, the command defaults to `@latest`. Using `ref` with a file path is not supported.
 
 <Warning>
 

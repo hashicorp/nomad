@@ -1,12 +1,13 @@
 ---
 layout: commands
 page_title: nomad-pack info command reference
-description: "Get information on a pack"
+description: |-
+  Use the `nomad-pack info` command to fetch information on the given pack including name, description, and variable details.
 ---
 
 # nomad-pack info command reference
 
-Fetch information on the given pack including name, description, and variable details.
+Use the `nomad-pack info` command to fetch information on the given pack including name, description, and variable details.
 
 ## Usage
 
@@ -17,10 +18,10 @@ nomad-pack info <pack_name>
 ## Options
 
 - `-registry=<string>`: Specific registry name containing the pack to retrieve
-  info about. If not specified, the default registry will be used.
+  info about. If not specified, this command targets the default registry.
 - `-ref=<string>`: Specific Git reference of the pack to retrieve info
-  about.Supports tags, SHA, and latest. If no ref is specified,	defaults to
-  latest.	Using `ref` with a file path is not supported.
+  about. Supports tags, SHA, and `@latest`. If you do not specify a reference,
+  the value defaults to `@latest`. Using `ref` with a file path is not supported.
 
 @include 'tools/nomad-pack/options-operations.mdx'
 

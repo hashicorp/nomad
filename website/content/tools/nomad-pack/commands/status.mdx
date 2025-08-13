@@ -1,12 +1,13 @@
 ---
 layout: commands
 page_title: nomad-pack status command reference
-description: "Fetch information on deployed packs."
+description: |-
+  Use the `nomad-pack status` command to fetch information on deployed Nomad packs.
 ---
 
 # nomad-pack status command reference
 
-Fetch information on deployed Nomad Packs.
+Use the `nomad-pack status` command to fetch information on deployed Nomad packs.
 
 ## Usage
 
@@ -21,11 +22,11 @@ deployment names.
 
 ## Options
 
-- `-registry=<string>`: Specific registry name containing the pack to inspect.
-					If not specified, the default registry will be used.
-- `-ref=<string>`: Specific Git reference of the pack to inspect.
-					Supports tags, SHA, and latest. If no ref is specified,
-					defaults to latest.	Using `ref` with a file path is not supported.
+- `-registry=<string>`: Specific registry name containing the pack to inspect.If
+  not specified, the command uses the default registry.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
 
 @include 'tools/nomad-pack/options-operations.mdx'
 

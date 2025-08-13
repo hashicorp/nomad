@@ -1,18 +1,19 @@
 ---
 layout: commands
 page_title: nomad-pack destroy command reference
-sidebar_title: "destroy"
-description: "Delete an existing pack"
+description: |-
+  Use the `nomad-pack destroy` command to stop and delete the specified Nomad pack from the configured Nomad cluster.
 ---
 
 # nomad-pack destroy command reference
 
-Stop and delete the specified Nomad pack from the configured Nomad cluster.
-This is the same as using the command `nomad-pack stop <pack_name> --purge`.
+Use the `nomad-pack destroy` command to stop and delete the specified Nomad pack
+from the configured Nomad cluster. This is the same as using the command
+`nomad-pack stop <pack_name> --purge`.
 
 By default, the `nomad-pack destroy` command deletes all jobs in the pack
-deployment. If a pack was run using var overrides to specify the job name, you
-must provide the var override when destroying the pack to guarantee Nomad Pack
+deployment. If you ran a pack with var overrides to specify the job name, you
+must provide the var override when destroying the pack to guarantee this command
 targets the correct job in the pack deployment.
 
 ## Usage
@@ -45,7 +46,7 @@ nomad-pack destroy example --name=dev
 
 Stop and delete an example pack in deployment "dev" that has a job named "test".
 If you have installed the same pack in deployment "dev" but override the job
-name to "hello", this command only "test".
+name to "hello", this command only destroys "test".
 
 ```shell
 nomad-pack destroy example --name=dev --var=job_name=test

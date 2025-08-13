@@ -1,7 +1,8 @@
 ---
 layout: commands
 page_title: nomad-pack registry add command reference
-description: "Use the `nomad-pack registry add` command to add registries or packs to the local environment."
+description: |-
+  Use the `nomad-pack registry add` command to add registries or packs to the local environment.
 ---
 
 # nomad-pack registry add command reference
@@ -16,15 +17,13 @@ nomad-pack registry add <name> <source> [options]
 
 ## Options
 
-- `-target=<string>`: A specific pack within the registry to be added.
-- `-ref=<string>`: Specific Git reference of the registry or pack to be added.
-					Supports tags, SHA, and latest. If no ref is specified,
-					defaults to latest. Running "nomad registry add" multiple
-					times for the same ref is idempotent, however running
-					`nomad-pack registry add` without specifying a reference, or when
-					specifying @latest, is destructive, and overwrites
-					current @latest in the global cache. Using `ref` with a file path is not supported.
-
+- `-target=<string>`: A specific pack within the registry.
+- `-ref=<string>`: Specific Git reference of the registry or pack. Supports
+tags, SHA, and `latest`. If you do not specify a reference, the command defaults
+to `@latest`. Running `nomad registry add` multiple times for the same ref is
+idempotent. However, running`nomad-pack registry add` without specifying a
+reference or when specifying `@latest` is destructive and overwrites current
+`@latest` in the global cache. Using `ref` with a file path is not supported.
 
 ## Examples
 
@@ -50,4 +49,3 @@ nomad-pack registry add community \
            github.com/hashicorp/nomad-pack-community-registry \
            --ref=v0.1.0
 ```
-

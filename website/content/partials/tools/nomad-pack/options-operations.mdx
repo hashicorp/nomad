@@ -1,25 +1,24 @@
 ### Operation options
 
-- `-var-file=<string>`: Specifies the path to a variable override file. This can
-						be provided multiple times on a single command to result
-						in a list of files.
+- `-var-file=<string>`: Specifies the path to a variable override file. You may
+  provide this multiple times on a single command for multiple files.
 - `-allow-unset-vars`: Suppress errors from unset variables without default
-					values. Equivalent of setting the NOMAD_PACK_ALLOW_UNSET_VARS
-					environment variable to "1" or "true".
-- `-ignore-missing-vars`: Determines whether override variables not present in
-					the pack should be ignored or produce an error.
+  values. Equivalent of setting the NOMAD_PACK_ALLOW_UNSET_VARS	environment
+  variable to `1` or `true`.
+- `-ignore-missing-vars`: Determines whether the command should override
+  variables not present in the pack or should produce an error.
 - `-var=<key=value>`: Specifies single override variables in the form of HCL
-					syntax and can be specified multiple times per command.
-- `-name=<string>`: If set, this will be the unique identifier of this deployed
-					instance of the specified pack. If not set, the pack name will be
-					used. This is useful for running more than one instance of a pack
-					within the same cluster. Note that this name must be globally unique
-					within a cluster. Running the run command multiple times with the same
-					name, will just re-submit the same pack, and apply changes if you have
-					made any to the underlying pack. Be mindful that, whether you have
-					made changes or not, the underlying Allocations will be replaced. When
-					managing packs, the name specified here is the name that should be
-					passed to nomad-pack's plan and destroy commands.
-- `-parser-v1`: Use the legacy syntax parser to parse your job. This
-			enables pack to run packs for earlier versions while you are
-			migrating them to the new syntax
+  syntax. You may specify multiple times per command.
+- `-name=<string>`: If set, this is the unique identifier of this deployed
+  instance of the specified pack. If not set, the pack name becomes the	unique
+  identifier. Setting a name is useful for running more than one	instance of a
+  pack	within the same cluster. Note that this name must	be globally unique
+  within a cluster. Running the run command multiple	times with the same	name
+  re-submits the same pack and applies changes if you have	made any to the
+  underlying pack. Be mindful that, whether	you have made changes or not, the
+  underlying allocations are replaced.When	managing packs, the name specified
+  here is the name that you should be	pass to Nomad Packs' `plan` and `destroy`
+  commands.
+- `-parser-v1`: Use the legacy syntax parser to parse your job. This enables
+  pack to run packs for earlier versions while you are	migrating them to the
+  new syntax
