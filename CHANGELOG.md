@@ -1,3 +1,16 @@
+## 1.8.16 Enterprise (August 13, 2025)
+
+SECURITY:
+
+* build: Update Go to 1.24.3 to address CVE-2025-47906 [[GH-26451](https://github.com/hashicorp/nomad/issues/26451)]
+
+BUG FIXES:
+
+* client: run all allocrunner postrun (cleanup) hooks, even if any of them error [[GH-26271](https://github.com/hashicorp/nomad/issues/26271)]
+* jobspec: Validate required hook field in lifecycle block [[GH-26285](https://github.com/hashicorp/nomad/issues/26285)]
+* reporting (Enterprise): Fixed a bug where older servers could panic if the leader upgrades to version with offline reporting
+* services: Fixed a bug where Nomad services were deleted if a node missed heartbeats and recovered before allocs were migrated [[GH-26424](https://github.com/hashicorp/nomad/issues/26424)]
+
 ## 1.8.15 Enterprise (July 8, 2025)
 
 BUG FIXES:
