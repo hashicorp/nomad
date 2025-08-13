@@ -774,7 +774,7 @@ func Test_computeCanaryNodes(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		required            []*structs.TaskGroup
+		required            map[string]*structs.TaskGroup
 		expectedCanaryNodes map[string]int // number of nodes per tg
 	}{
 		{
@@ -784,13 +784,13 @@ func Test_computeCanaryNodes(t *testing.T) {
 		},
 		{
 			"one task group with no update strategy",
-			[]*structs.TaskGroup{&structs.TaskGroup{}},
+			map[string]*structs.TaskGroup{"foo": &structs.TaskGroup{}},
 			map[string]int{},
 		},
 		{
 			"one task group with 33% canary deployment",
-			[]*structs.TaskGroup{
-				&structs.TaskGroup{
+			map[string]*structs.TaskGroup{
+				"foo": &structs.TaskGroup{
 					Name: "foo", Update: &structs.UpdateStrategy{
 						Canary:      33,
 						MaxParallel: 1, // otherwise the update strategy will be considered nil
@@ -803,14 +803,14 @@ func Test_computeCanaryNodes(t *testing.T) {
 		},
 		{
 			"two task groups: one with 50% canary deploy, second one with 2% canary deploy",
-			[]*structs.TaskGroup{
-				&structs.TaskGroup{
+			map[string]*structs.TaskGroup{
+				"foo": &structs.TaskGroup{
 					Name: "foo", Update: &structs.UpdateStrategy{
 						Canary:      50,
 						MaxParallel: 1, // otherwise the update strategy will be considered nil
 					},
 				},
-				&structs.TaskGroup{
+				"bar": &structs.TaskGroup{
 					Name: "bar", Update: &structs.UpdateStrategy{
 						Canary:      2,
 						MaxParallel: 1, // otherwise the update strategy will be considered nil
