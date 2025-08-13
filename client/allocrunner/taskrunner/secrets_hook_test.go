@@ -30,7 +30,7 @@ import (
 func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("nomad provider successfully renders valid secret", func(t *testing.T) {
+	t.Run("nomad provider successfully renders valid secrets", func(t *testing.T) {
 		secretsResp := `
 		{
 		  "CreateIndex": 812,
@@ -83,6 +83,14 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 					"namespace": "default",
 				},
 			},
+			{
+				Name:     "test_secret1",
+				Provider: "nomad",
+				Path:     "testnomadvar1",
+				Config: map[string]any{
+					"namespace": "default",
+				},
+			},
 		})
 
 		req := &interfaces.TaskPrestartRequest{
@@ -98,8 +106,10 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		must.NoError(t, err)
 
 		expected := map[string]string{
-			"secret.test_secret.key1": "value1",
-			"secret.test_secret.key2": "value2",
+			"secret.test_secret.key1":  "value1",
+			"secret.test_secret.key2":  "value2",
+			"secret.test_secret1.key1": "value1",
+			"secret.test_secret1.key2": "value2",
 		}
 		must.Eq(t, expected, taskEnv.Build().TaskSecrets)
 	})
@@ -277,6 +287,14 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 				"engine": "kv_v2",
 			},
 		},
+		{
+			Name:     "test_secret1",
+			Provider: "vault",
+			Path:     "/test/path1",
+			Config: map[string]any{
+				"engine": "kv_v2",
+			},
+		},
 	})
 
 	// Start template hook with a timeout context to ensure it exists.
@@ -293,7 +311,8 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 	must.NoError(t, err)
 
 	exp := map[string]string{
-		"secret.test_secret.secret": "secret",
+		"secret.test_secret.secret":  "secret",
+		"secret.test_secret1.secret": "secret",
 	}
 
 	must.Eq(t, exp, taskEnv.Build().TaskSecrets)

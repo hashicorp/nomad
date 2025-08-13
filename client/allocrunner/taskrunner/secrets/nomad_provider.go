@@ -6,11 +6,9 @@ package secrets
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
@@ -67,25 +65,6 @@ func (n *NomadProvider) BuildTemplate() *structs.Template {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Once:         true,
 	}
-}
-
-func (n *NomadProvider) Parse() (map[string]string, error) {
-	r, err := os.OpenRoot(n.secretDir)
-	if err != nil {
-		return nil, fmt.Errorf("error opening task secrets directory: %v", err)
-	}
-	defer r.Close()
-
-	f, err := r.Open(n.tmplFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening env template: %v", err)
-	}
-	defer func() {
-		f.Close()
-		r.Remove(n.tmplFile)
-	}()
-
-	return envparse.Parse(f)
 }
 
 // validateNomadInputs ensures none of the user provided inputs contain delimiters
