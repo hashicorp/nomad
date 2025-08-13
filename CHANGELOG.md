@@ -1,3 +1,18 @@
+## 1.9.12 Enterprise (August 13, 2025)
+
+SECURITY:
+
+* build: Update Go to 1.24.3 to address CVE-2025-47906 [[GH-26451](https://github.com/hashicorp/nomad/issues/26451)]
+
+BUG FIXES:
+
+* alloc exec: Fixed executor panic when exec-ing a rootless raw_exec task [[GH-26401](https://github.com/hashicorp/nomad/issues/26401)]
+* client: run all allocrunner postrun (cleanup) hooks, even if any of them error [[GH-26271](https://github.com/hashicorp/nomad/issues/26271)]
+* consul: Add AllocIPv6 option to allow IPv6 address being used for service registration [[GH-25632](https://github.com/hashicorp/nomad/issues/25632)]
+* jobspec: Validate required hook field in lifecycle block [[GH-26285](https://github.com/hashicorp/nomad/issues/26285)]
+* reporting (Enterprise): Fixed a bug where older servers could panic if the leader upgrades to version with offline reporting
+* services: Fixed a bug where Nomad services were deleted if a node missed heartbeats and recovered before allocs were migrated [[GH-26424](https://github.com/hashicorp/nomad/issues/26424)]
+
 ## 1.9.11 Enterprise (July 8, 2025)
 
 BUG FIXES:
