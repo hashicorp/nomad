@@ -46,6 +46,12 @@ func defaultEnvironment(taskDir string) map[string]string {
 	}
 }
 
+// lockdownAvailable returns if lockdown is implemented for
+// the current platform.
+func lockdownAvailable() bool {
+	return landlock.Available()
+}
+
 // lockdown isolates this process to only be able to write and
 // create files in the task's task directory.
 // dir - the task directory

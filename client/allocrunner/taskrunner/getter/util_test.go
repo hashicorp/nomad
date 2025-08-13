@@ -6,6 +6,8 @@ package getter
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -238,5 +240,50 @@ func TestUtil_environment(t *testing.T) {
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
+	})
+}
+
+func TestUtil_isPathWithin(t *testing.T) {
+	tdir := t.TempDir()
+	pathFn := func(parent string) string {
+		dir, err := os.MkdirTemp(parent, "testing-path")
+		must.NoError(t, err, must.Sprint("failed to create temporary directory"))
+		return dir
+	}
+
+	t.Run("when path not within root", func(t *testing.T) {
+		root := pathFn(tdir)
+		check := pathFn(tdir)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
+	})
+
+	t.Run("when path within root", func(t *testing.T) {
+		root := pathFn(tdir)
+		check := pathFn(root)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.True(t, result)
+	})
+
+	t.Run("when root within path", func(t *testing.T) {
+		check := pathFn(tdir)
+		root := pathFn(check)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
+	})
+
+	t.Run("when path does not exist", func(t *testing.T) {
+		root := filepath.Join(tdir, "missing")
+		check := filepath.Join(root, "unknown")
+		result, err := isPathWithin(root, check)
+
+		must.ErrorContains(t, err, "no such file or directory")
+		must.False(t, result)
 	})
 }
