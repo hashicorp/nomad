@@ -2045,6 +2045,53 @@ func (a *ACLCreateClientIntroductionTokenRequest) IdentityTTL(
 	return a.TTL
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLCreateClientIntroductionTokenRequest.TTL to be marshaled correctly.
+func (a *ACLCreateClientIntroductionTokenRequest) MarshalJSON() ([]byte, error) {
+	type Alias ACLCreateClientIntroductionTokenRequest
+	exported := &struct {
+		TTL string
+		*Alias
+	}{
+		TTL:   a.TTL.String(),
+		Alias: (*Alias)(a),
+	}
+	if a.TTL == 0 {
+		exported.TTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLCreateClientIntroductionTokenRequest.TTL to be unmarshalled correctly.
+func (a *ACLCreateClientIntroductionTokenRequest) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLCreateClientIntroductionTokenRequest
+	aux := &struct {
+		TTL interface{}
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.TTL != nil {
+		switch v := aux.TTL.(type) {
+		case string:
+			if v != "" {
+				if a.TTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.TTL = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected TTL type: %v", v)
+		}
+	}
+	return nil
+}
+
 // ACLCreateClientIntroductionTokenResponse is the response object used within the ACL
 // client introduction RPC handler.
 type ACLCreateClientIntroductionTokenResponse struct {
