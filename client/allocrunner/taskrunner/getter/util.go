@@ -5,7 +5,9 @@ package getter
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +29,8 @@ const (
 	// githubPrefixSSH is the prefix for downloading via git using ssh from GitHub.
 	githubPrefixSSH = "git@github.com:"
 )
+
+var ErrSandboxEscape = errors.New("artifact includes symlink that resolves outside of sandbox")
 
 func getURL(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) (string, error) {
 	source := taskEnv.ReplaceEnv(artifact.GetterSource)
@@ -184,5 +188,114 @@ func (s *Sandbox) runCmd(env *parameters) error {
 		}
 	}
 	subproc.Log(output, s.logger.Debug)
+
+	// if filesystem isolation was not disabled and lockdown
+	// is available on this platform, do not continue to inspection
+	if !env.DisableFilesystemIsolation && lockdownAvailable() {
+		return nil
+	}
+
+	// if artifact inspection is disabled, do not continue to inspection
+	if env.DisableArtifactInspection {
+		return nil
+	}
+
+	// inspect the alloc and task directories
+	if err := inspectArtifactContents(env.AllocDir, env.TaskDir); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// inspectArtifactContents will inspect artifacts for problematic
+// content and generate an error if encountered.
+func inspectArtifactContents(allocDir, taskDir string) error {
+	allocInspector, err := genWalkInspector(allocDir)
+	if err != nil {
+		return err
+	}
+	taskInspector, err := genWalkInspector(taskDir)
+	if err != nil {
+		return err
+	}
+
+	if err := filepath.WalkDir(allocDir, allocInspector); err != nil {
+		return err
+	}
+
+	if err := filepath.WalkDir(taskDir, taskInspector); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateWalkInspector creates a walk function to check for symlinks
+// that resolve outside of the rootDir.
+// NOTE: rootDir must be an absolute path
+func genWalkInspector(rootDir string) (fs.WalkDirFunc, error) {
+	rootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		return nil, err
+	}
+	rootStat, err := os.Stat(rootDir)
+	if err != nil {
+		return nil, err
+	}
+	rootParts := filepath.SplitList(rootDir)
+	rootSize := len(rootParts)
+
+	return func(path string, entry fs.DirEntry, err error) error {
+		// argument error means an error was encountered reading
+		// a directory or getting file info so stop here
+		if err != nil {
+			return err
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+
+		// Only care about symlinks
+		if info.Mode()&fs.ModeSymlink != fs.ModeSymlink {
+			return nil
+		}
+
+		// Build up the actual path
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+
+		abs, err := filepath.Abs(resolved)
+		if err != nil {
+			return err
+		}
+
+		// If the root dir has more path segments than the check
+		// path then the check path is outside the sandbox
+		checkParts := filepath.SplitList(abs)
+		if rootSize > len(checkParts) {
+			return ErrSandboxEscape
+		}
+
+		// Build the path to check by pulling the number of
+		// path segements of the root path
+		checkPath := filepath.Join(checkParts[0:rootSize]...)
+		checkStat, err := os.Stat(checkPath)
+		if err != nil {
+			return nil
+		}
+
+		// Now check if the two directories are the same. The
+		// same check is used vs. doing a string comparison
+		// to properly handling things like case sensitivity
+		if !os.SameFile(rootStat, checkStat) {
+			return ErrSandboxEscape
+		}
+
+		return nil
+	}, nil
 }

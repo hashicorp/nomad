@@ -11,6 +11,11 @@ import (
 )
 
 // lockdown is not implemented on Windows
+func lockdownAvailable() bool {
+	return false
+}
+
+// lockdown is not implemented on Windows
 func lockdown(string, string, []string) error {
 	return nil
 }

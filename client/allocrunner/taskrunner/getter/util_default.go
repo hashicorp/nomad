@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 )
 
+// lockdown is not available by default
+func lockdownAvailable() bool {
+	return false
+}
+
 // lockdown is not implemented by default
 func lockdown(string, string, []string) error {
 	return nil
