@@ -58,25 +58,7 @@ func (nr *NodeReconciler) Compute(
 	// Canary deployments deploy to the TaskGroup.UpdateStrategy.Canary
 	// percentage of eligible nodes, so we create a mapping of task group name
 	// to a list of nodes that canaries should be placed on.
-	canaryNodes := make(map[string][]*structs.Node, 0)
-	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
-	for _, tg := range required {
-		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
-			continue
-		}
-
-		for i, n := range eligibleNodesList {
-			if i > tg.Update.Canary*len(eligibleNodes) {
-				break
-			}
-
-			if canaryNodes[tg.Name] == nil {
-				canaryNodes[tg.Name] = []*structs.Node{}
-			}
-
-			canaryNodes[tg.Name] = append(canaryNodes[tg.Name], n)
-		}
-	}
+	canaryNodes := computeCanaryNodes(required, eligibleNodes)
 
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
@@ -93,9 +75,12 @@ func (nr *NodeReconciler) Compute(
 	return result
 }
 
-// computeCanaryNodes is a helper function that, given a set of task groups and
-// eligible nodes, outputs a map of arrays of nodes, indexed by task group name.
-func computeCanaryNodes(required []*structs.TaskGroup, eligibleNodes map[string]*structs.Node) map[string][]*structs.Node {
+// computeCanaryNodes is a helper function that, given required task groups and
+// eligible nodes, outputs a map of arrays of nodes, indexed by task group name,
+// on which canaries should be placed.
+func computeCanaryNodes(required map[string]*structs.TaskGroup,
+	eligibleNodes map[string]*structs.Node) map[string][]*structs.Node {
+
 	canaryNodes := map[string][]*structs.Node{}
 	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
 	for _, tg := range required {
