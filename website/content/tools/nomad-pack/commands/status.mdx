@@ -1,104 +1,61 @@
 ---
 layout: commands
-page_title: "Commands: Status"
-sidebar_title: "status"
-description: "Get information on deployed packs"
+page_title: nomad-pack status command reference
+description: "Fetch information on deployed packs."
 ---
 
-# Nomad-Pack Status
+# nomad-pack status command reference
 
-Command: `nomad-pack status`
-
-Get information on deployed packs
-
-@include "tools/nomad-pack/commands/status_desc.mdx"
+Fetch information on deployed Nomad Packs.
 
 ## Usage
 
-Usage: `nomad-pack status <name> [options]`
+```plaintext
+nomad-pack status <pack_name> [options]
+```
 
+If you do not specify a pack name, the `nomad-pack status` command returns	a
+list of all deployed packs. If you do specify a pack name, this command returns
+a list of all deployed jobs belonging to that pack, along with their status and
+deployment names.
 
-	Get information on deployed Nomad Packs. If no pack name is specified, it
-	will return	a list of all deployed packs. If pack name is specified, it will
-	return a list of all deployed jobs belonging to that pack, along with their
-	status and deployment names.
+## Options
 
-Examples:
-	# Get a list of all deployed packs and their registries
-	nomad-pack status
-
-	# Get a list of all deployed jobs in pack example, along with their status
-	# and deployment names
-	nomad-pack status example
-
-	# Get a list of all deployed jobs and their status for an example pack in
-	# the deployment name "dev"
-	nomad-pack status example --name=dev
-
-	# Get a list of all deployed jobs and their status for an example pack in
-	# the deployment name "dev"
-	nomad-pack status example --name=dev --registry=community
-
-#### Operation Options
-
-- `-var-file=<string>` - Specifies the path to a variable override file. This can
-						be provided multiple times on a single command to result
-						in a list of files.
-- `-allow-unset-vars` - Suppress errors from unset variables without default values.
-					Equivalent of setting the NOMAD_PACK_ALLOW_UNSET_VARS environment variable to "1" or "true".
-- `-ignore-missing-vars` - Determines whether override variables not present in the
-					pack should be ignored or produce an error.
-- `-var=<key=value>` - Specifies single override variables in the form of HCL
-					syntax and can be specified multiple times per command.
-- `-name=<string>` - If set, this will be the unique identifier of this deployed
-					instance of the specified pack. If not set, the pack name
-					will be used. This is useful for running more than one
-					instance of a pack within the same cluster. Note that this
-					name must be globally unique within a cluster. Running the
-					run command multiple times with the same name, will just
-					re-submit the same pack, and apply changes if you have made
-					any to the underlying pack. Be mindful that, whether you
-					have made changes or not, the underlying Allocations will be
-					replaced. When managing packs, the name specified here is
-					the name that should be passed to nomad-pack's plan and
-					destroy commands.
-- `-parser-v1` - Use the legacy syntax parser to parse your job. This
-			enables pack to run packs for earlier versions while you are
-			migrating them to the new syntax
-
-#### Nomad Cluster Options
-
-- `-address=<string>` - The address of the Nomad server.
-					Overrides the NOMAD_ADDR environment variable if set.
-- `-namespace=<string>` - The target namespace for queries and actions bound to a namespace.
-					Overrides the NOMAD_NAMESPACE environment variable if set.
-- `-region=<string>` - The region of the Nomad servers to forward commands to.
-					Overrides the NOMAD_REGION environment variable if set.
-- `-ca-cert=<string>` - Path to a PEM encoded CA cert file to use to verify the
-					Nomad server SSL certificate. Overrides the NOMAD_CACERT
-					environment variable if set.
-- `-client-cert=<string>` - Path to a PEM encoded client certificate for TLS authentication
-					to the Nomad server. Must also specify --client-key. Overrides
-					the NOMAD_CLIENT_CERT environment variable if set.
-- `-client-key=<string>` - Path to an unencrypted PEM encoded private key matching the
-					client certificate from --client-cert. Overrides the
-					NOMAD_CLIENT_KEY environment variable if set.
-- `-tls-server-name=<string>` - The server name to use as the SNI host when connecting via
-					TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable
-					if set.
-- `-token=<string>` - The SecretID of an ACL token to use to authenticate API requests with.
-					Overrides the NOMAD_TOKEN environment variable if set.
-- `-tls-skip-verify` - Do not verify TLS certificate. This is highly not recommended.
-						Verification will also be skipped if NOMAD_SKIP_VERIFY is set.
-
-#### Status Options
-
-- `-registry=<string>` - Specific registry name containing the pack to inspect.
+- `-registry=<string>`: Specific registry name containing the pack to inspect.
 					If not specified, the default registry will be used.
-- `-ref=<string>` - Specific git ref of the pack to inspect.
+- `-ref=<string>`: Specific Git reference of the pack to inspect.
 					Supports tags, SHA, and latest. If no ref is specified,
-					defaults to latest.
+					defaults to latest.	Using `ref` with a file path is not supported.
 
-					Using ref with a file path is not supported.
+@include 'tools/nomad-pack/options-operations.mdx'
 
-@include "tools/nomad-pack/commands/status_more.mdx"
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+# Examples
+
+Get a list of all deployed packs and their registries.
+
+```shell
+nomad-pack status
+```
+
+Get a list of all deployed jobs in pack example, along with their status
+and deployment names.
+
+```shell
+nomad-pack status example
+```
+
+Get a list of all deployed jobs and their status for an example pack in
+the deployment name "dev".
+
+```shell
+nomad-pack status example --name=dev
+```
+
+Get a list of all deployed jobs and their status for an example pack in
+the deployment name "dev".
+
+```shell
+nomad-pack status example --name=dev --registry=community
+```
