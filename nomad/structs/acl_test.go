@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -2240,4 +2241,66 @@ func TestACLClientIntroductionTokenRequest_IdentityTTL(t *testing.T) {
 			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
+}
+
+func TestACLCreateClientIntroductionTokenRequest_MarshalJSON(t *testing.T) {
+	ci.Parallel(t)
+
+	inputACLCreateClientIntroductionTokenRequest := ACLCreateClientIntroductionTokenRequest{
+		NodeName: "test-node",
+		NodePool: "test-node-pool",
+		TTL:      10 * time.Minute,
+	}
+
+	data, err := json.Marshal(&inputACLCreateClientIntroductionTokenRequest)
+	must.NoError(t, err)
+	must.SliceNotEmpty(t, data)
+}
+
+func TestACLCreateClientIntroductionTokenRequest_UnmarshalJSON(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("valid ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":"10m"}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.NoError(t, json.Unmarshal(input, &output))
+
+		must.Eq(
+			t,
+			ACLCreateClientIntroductionTokenRequest{
+				NodeName: "test-node",
+				NodePool: "test-node-pool",
+				TTL:      10 * time.Minute,
+			},
+			output,
+		)
+	})
+
+	t.Run("invalid ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":["10m"]}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.ErrorContains(t, json.Unmarshal(input, &output), "unexpected TTL type")
+	})
+
+	t.Run("empty ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":""}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.NoError(t, json.Unmarshal(input, &output))
+
+		must.Eq(
+			t,
+			ACLCreateClientIntroductionTokenRequest{
+				NodeName: "test-node",
+				NodePool: "test-node-pool",
+				TTL:      0,
+			},
+			output,
+		)
+	})
 }
