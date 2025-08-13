@@ -6,6 +6,7 @@ package reconciler
 import (
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"time"
 
@@ -83,13 +84,17 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 
 	canaryNodes := map[string][]*structs.Node{}
 	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
+
 	for _, tg := range required {
 		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
 			continue
 		}
 
+		// round up to the nearest integer
+		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
+
 		for i, n := range eligibleNodesList {
-			if i > (tg.Update.Canary*len(eligibleNodes))/100 {
+			if i > numberOfCanaryNodes-1 {
 				break
 			}
 
