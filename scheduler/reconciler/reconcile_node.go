@@ -64,7 +64,7 @@ func (nr *NodeReconciler) Compute(
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
 	for nodeID, allocs := range nodeAllocs {
-		diff, deploymentCompleteForNode := nr.diffSystemAllocsForNode(job, nodeID, eligibleNodes,
+		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
 			notReadyNodes, taintedNodes, canaryNodes, required, allocs, terminal,
 			serverSupportsDisconnectedClients)
 		deploymentComplete = deploymentComplete && deploymentCompleteForNode
@@ -93,13 +93,10 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 		// round up to the nearest integer
 		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
 
+		canaryNodes[tg.Name] = []*structs.Node{}
 		for i, n := range eligibleNodesList {
 			if i > numberOfCanaryNodes-1 {
 				break
-			}
-
-			if canaryNodes[tg.Name] == nil {
-				canaryNodes[tg.Name] = []*structs.Node{}
 			}
 
 			canaryNodes[tg.Name] = append(canaryNodes[tg.Name], n)
@@ -109,7 +106,7 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 	return canaryNodes
 }
 
-// diffSystemAllocsForNode is used to do a set difference between the target
+// computeForNode is used to do a set difference between the target
 // allocations and the existing allocations for a particular node. This returns
 // 8 sets of results:
 // 1. the list of named task groups that need to be placed (no existing
@@ -121,7 +118,11 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 // 6. those that are lost that need to be replaced (running on a lost node),
 // 7. those that are running on a disconnected node but may resume, and
 // 8. those that may still be running on a node that has resumed reconnected.
-func (nr *NodeReconciler) diffSystemAllocsForNode(
+//
+// This method doesn't mutated the NodeReconciler fields, and only returns a new
+// NodeReconcilerResult object and a boolean to indicate wither the deployment
+// is complete or not.
+func (nr *NodeReconciler) computeForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
@@ -227,11 +228,6 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 		)
 
 		if canaryNode {
-			// we only deal with canaries if there's a deployment
-			if nr.DeploymentCurrent == nil {
-				continue
-			}
-
 			if !deploymentPaused && !deploymentFailed {
 				result.Place = append(result.Place, AllocTuple{
 					Name:      name,
