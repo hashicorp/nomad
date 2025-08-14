@@ -1,0 +1,75 @@
+---
+layout: commands
+page_title: nomad-pack plan command reference
+description: |-
+  Use the `nomad-pack plan` command to perform a dry run that determines the effects of submitting a new or updated Nomad Pack.
+---
+
+# nomad-pack plan command reference
+
+Use the `nomad-pack plan` command to perform a dry run that determines the effects of submitting a new or updated Nomad Pack.
+
+The `nomad-pack plan` command returns one of the following exit codes:
+
+  - `0`:   No objects will be created or destroyed.
+  - `1`:   Objects will be created or destroyed.
+  - `255`: An error occurred determining the plan.
+
+## Usage
+
+```plaintext
+nomad-pack plan <pack_name> [options]
+```
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the pack.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+- `-diff`: Determines whether to output the diff between the remote job and
+  planned job. Defaults to true.
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies.
+- `-verbose`: Increase diff verbosity.
+- `-exit-code-no-changes=<int>`: Override exit code returned when the plan shown
+  no changes.
+- `-exit-code-makes-changes=<int>`: Override exit code returned when the plan
+  shows changes.
+- `-exit-code-error=<int>`: Override exit code returned when there is an error.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+## Examples
+
+Plan an example pack with the default deployment name.
+
+```shell
+nomad-pack plan example
+```
+
+Plan an example pack at a specific ref.
+
+```shell
+nomad-pack plan example --ref=v0.0.1
+```
+
+Plan a pack from a registry other than the default registry.
+
+```shell
+nomad-pack plan traefik --registry=community --ref=v0.0.1
+```
+
+Plan an example pack without showing the diff.
+
+```shell
+nomad-pack plan example --diff=false
+```
+
+Plan a pack under development from the current filesystem.
+
+```shell
+nomad-pack plan .
+```

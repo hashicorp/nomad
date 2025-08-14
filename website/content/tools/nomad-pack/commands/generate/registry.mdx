@@ -1,0 +1,31 @@
+---
+layout: commands
+page_title: nomad-pack generate registry command reference
+description: |-
+  Use the `nomad-pack generate registry` command to generate a new registry.
+---
+
+# nomad-pack generate registry command reference
+
+Use the `nomad-pack generate registry` command to generate a new registry.
+
+## Usage
+
+```plaintext
+nomad-pack generate registry <name>
+```
+
+## Options
+
+- `-to-dir=<string>`: Path to write generated registry to.
+- `-with-sample-pack`: Generate a sample "hello_world" pack in the registry.
+
+@include 'tools/nomad-pack/options-approval.mdx'
+
+## Examples
+
+Create a new registry named "my-new-registry" in the current directory.
+
+```shell
+nomad-pack generate registry my-new-registry
+```
