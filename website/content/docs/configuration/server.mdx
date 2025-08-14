@@ -116,6 +116,10 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
+- `client_introduction` <code>([ClientIntroduction](#client_introduction-parameters))</code> -
+  Configuration for how the Nomad server will handle client introduction
+  requests.
+
 - `csi_volume_claim_gc_interval` `(string: "5m")` - Specifies the interval
   between CSI volume claim garbage collections.
 
@@ -323,6 +327,37 @@ server {
   format](/nomad/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join block][server-join].
+
+### `client_introduction` Parameters
+
+The `client_introduction` block controls how the Nomad server should generate
+introduction tokens for new clients and what enforcement to apply when new
+clients attempt to register with the server.
+
+- `enforcement` `(string: "warn")` - Specifics how the server will handle new
+  client registration requests. The valid options are `none`, `warn`, and
+  `strict`.
+
+  When set to `none`, the server will not enforce any client registration
+  behaviour. When set to `warn`, the server will log a warning message and emit
+  a telemetry metric when a client attempts to register without an introduction
+  token, but will allow the registration to proceed. When set to `strict`, the
+  server will reject any client registration attempts that do not include a
+  valid introduction token and also log a warning message and emit a telemetry
+  metric.
+
+- `default_identity_ttl` `(string: "5m")` - The default TTL assigned to
+  generated client introduction tokens when the caller does not specify a TTL.
+  This is specified using a label suffix like "30s" or "1h" and must be less
+  than `max_identity_ttl`.
+
+- `max_identity_ttl` `(string: "30m")` - The maximum TTL that can be requested
+  by a caller when generating client introduction tokens. This is specified
+  using a label suffix like "30s" or "1h" and must be greater than
+  `default_identity_ttl`.
+
+The [Monitoring Nomad][monitoring_nomad_client_introduction] has more details on
+the client introduction metric that is emitted.
 
 ### `plan_rejection_tracker` Parameters
 
@@ -534,3 +569,4 @@ work.
 [Configure for multiple regions]: /nomad/docs/secure/acl/bootstrap#configure-for-multiple-regions
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
 [JWKS URL]: /nomad/api-docs/operator/keyring#list-active-public-keys
+[monitoring_nomad_client_introduction]:/nomad/docs/monitor#client_introduction
