@@ -7579,6 +7579,105 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	}
 }
 
+// TestServiceSched_DisconnectReplacementBlocked tests that an alloc with
+// disconnect.replace=true can be eventually replaced if there's no room in the
+// cluster
+func TestServiceSched_DisconnectReplacementBlocked(t *testing.T) {
+	ci.Parallel(t)
+	h := tests.NewHarness(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: time.Hour,
+		Replace:   pointer.Of(true),
+	}
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	disconnectedNode, job, unknownAllocs := initNodeAndAllocs(t, h, job,
+		structs.NodeStatusReady, structs.AllocClientStatusRunning)
+
+	// Now disconnect the node
+	disconnectedNode.Status = structs.NodeStatusDisconnected
+	must.NoError(t, h.State.UpsertNode(
+		structs.MsgTypeTestSetup, h.NextIndex(), disconnectedNode))
+
+	// Create an evaluation triggered by the disconnect
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      disconnectedNode.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	must.NoError(t, err)
+	must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
+	must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
+
+	// A blocked evan and a delayed eval are created
+	must.Len(t, 2, h.CreateEvals)
+	followUpEval1 := h.CreateEvals[0]
+	must.Eq(t, eval.ID, followUpEval1.PreviousEval)
+	must.Eq(t, "blocked", followUpEval1.Status)
+	must.Eq(t, time.Time{}, followUpEval1.WaitUntil)
+
+	followUpEval2 := h.CreateEvals[1]
+	must.Eq(t, eval.ID, followUpEval2.PreviousEval)
+	must.Eq(t, "pending", followUpEval2.Status)
+	must.NotEq(t, time.Time{}, followUpEval2.WaitUntil)
+
+	// validate alloc was not marked unknown yet because there was nowhere to
+	// place it
+	must.Len(t, 1, h.Plans[0].NodeAllocation[disconnectedNode.ID])
+	update := h.Plans[0].NodeAllocation[disconnectedNode.ID][0]
+	must.Eq(t, unknownAllocs[0].ID, update.ID)
+	must.Eq(t, "running", update.ClientStatus)
+
+	// add a new node to unblock
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create an evaluation triggered by the disconnect
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	must.NoError(t, h.State.UpsertEvals(
+		structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err = h.Process(NewServiceScheduler, eval)
+	must.NoError(t, err)
+	must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
+	must.Len(t, 2, h.Plans, must.Sprint("expected another plan"))
+
+	// now disconnected alloc will be marked unknown because we have a
+	// replacement
+	must.Len(t, 1, h.Plans[1].NodeAllocation[disconnectedNode.ID])
+	update = h.Plans[1].NodeAllocation[disconnectedNode.ID][0]
+	must.Eq(t, unknownAllocs[0].ID, update.ID)
+	must.Eq(t, "unknown", update.ClientStatus)
+
+	must.Len(t, 1, h.Plans[1].NodeAllocation[node.ID])
+	replacement := h.Plans[1].NodeAllocation[node.ID][0]
+	must.Eq(t, "pending", replacement.ClientStatus)
+	must.Eq(t, update.ID, replacement.PreviousAllocation)
+
+}
+
 func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
 	ci.Parallel(t)
 

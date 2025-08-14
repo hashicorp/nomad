@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where disconnected allocs could not be replaced would not produce blocked evals
+```

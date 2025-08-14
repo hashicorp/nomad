@@ -46,6 +46,10 @@ type PlacementResult interface {
 	// PreviousLost is true if the previous allocation was lost.
 	PreviousLost() bool
 
+	// PreviousUnknown returns true if the previous allocation was unknown along
+	// with the previous client status
+	PreviousUnknown() (string, bool)
+
 	// DowngradeNonCanary indicates that placement should use the latest stable job
 	// with the MinJobVersion, rather than the current deployment version
 	DowngradeNonCanary() bool
@@ -70,6 +74,8 @@ type AllocPlaceResult struct {
 	previousAlloc *structs.Allocation
 	reschedule    bool
 	lost          bool
+	unknown       bool
+	unknownStatus string
 
 	downgradeNonCanary bool
 	minJobVersion      uint64
@@ -87,6 +93,7 @@ func (a AllocPlaceResult) StopPreviousAlloc() (bool, string)   { return false, "
 func (a AllocPlaceResult) DowngradeNonCanary() bool            { return a.downgradeNonCanary }
 func (a AllocPlaceResult) MinJobVersion() uint64               { return a.minJobVersion }
 func (a AllocPlaceResult) PreviousLost() bool                  { return a.lost }
+func (a AllocPlaceResult) PreviousUnknown() (string, bool)     { return a.unknownStatus, a.unknown }
 func (a *AllocPlaceResult) SetTaskGroup(tg *structs.TaskGroup) { a.taskGroup = tg }
 
 // allocDestructiveResult contains the information required to do a destructive
@@ -108,9 +115,10 @@ func (a allocDestructiveResult) IsRescheduling() bool                           
 func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 	return true, a.stopStatusDescription
 }
-func (a allocDestructiveResult) DowngradeNonCanary() bool { return false }
-func (a allocDestructiveResult) MinJobVersion() uint64    { return 0 }
-func (a allocDestructiveResult) PreviousLost() bool       { return false }
+func (a allocDestructiveResult) DowngradeNonCanary() bool        { return false }
+func (a allocDestructiveResult) MinJobVersion() uint64           { return 0 }
+func (a allocDestructiveResult) PreviousLost() bool              { return false }
+func (a allocDestructiveResult) PreviousUnknown() (string, bool) { return "", false }
 
 // allocMatrix is a mapping of task groups to their allocation set.
 type allocMatrix map[string]allocSet

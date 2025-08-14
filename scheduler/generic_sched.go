@@ -705,10 +705,16 @@ func (s *GenericScheduler) computePlacements(
 				// reschedule as failed so that we can retry it in the following
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
+
 					if missing.IsRescheduling() {
 						updatedPrevAllocation := prevAllocation.Copy()
 						missing.SetPreviousAllocation(prevAllocation)
 						annotateRescheduleTracker(updatedPrevAllocation, structs.LastRescheduleFailedToPlace)
+
+						if status, ok := missing.PreviousUnknown(); ok {
+							updatedPrevAllocation.ClientStatus = status
+						}
+
 						swapAllocInPlan(s.plan, prevAllocation, updatedPrevAllocation)
 					}
 				}

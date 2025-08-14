@@ -567,7 +567,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// * An alloc was lost
 	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
-		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, disconnecting, isCanarying)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -830,23 +830,27 @@ func (a *AllocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 //
 // Placements will meet or exceed group count.
 func computePlacements(group *structs.TaskGroup,
-	nameIndex *AllocNameIndex, untainted, migrate, reschedule, lost allocSet,
+	nameIndex *AllocNameIndex, untainted, migrate, reschedule, lost, disconnecting allocSet,
 	isCanarying bool) []AllocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []AllocPlaceResult
 	for _, alloc := range reschedule {
-		place = append(place, AllocPlaceResult{
-			name:          alloc.Name,
-			taskGroup:     group,
-			previousAlloc: alloc,
-			reschedule:    true,
-			canary:        alloc.DeploymentStatus.IsCanary(),
-
+		placement := AllocPlaceResult{
+			name:               alloc.Name,
+			taskGroup:          group,
+			previousAlloc:      alloc,
+			reschedule:         true,
+			canary:             alloc.DeploymentStatus.IsCanary(),
 			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
 			minJobVersion:      alloc.Job.Version,
 			lost:               false,
-		})
+		}
+		if disconnected, ok := disconnecting[alloc.ID]; ok {
+			placement.unknown = true
+			placement.unknownStatus = disconnected.ClientStatus
+		}
+		place = append(place, placement)
 	}
 
 	// Add replacements for disconnected and lost allocs up to group.Count
