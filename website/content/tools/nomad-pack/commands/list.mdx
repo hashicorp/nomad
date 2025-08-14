@@ -1,0 +1,33 @@
+---
+layout: commands
+page_title: nomad-pack list command reference
+description: |-
+  Use the `nomad-pack list` command to list packs available in the local environment.
+---
+
+# nomad-pack list command reference
+
+Use the `nomad-pack list` command to list packs available in the local environment.
+
+## Usage
+
+```plaintext
+nomad-pack list
+```
+
+## Options
+
+- `-registry=<string>`: Registry name to filter packs by.
+- `-ref=<string>`: Registry ref to filter packs by.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+## Examples
+
+List all available packs.
+
+```shell
+nomad-pack list
+```

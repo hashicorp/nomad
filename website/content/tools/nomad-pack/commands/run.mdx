@@ -1,0 +1,85 @@
+---
+layout: commands
+page_title: nomad-pack run command reference
+description: |-
+  Use the `nomad-pack run` command to install the specified Nomad Pack to a configured Nomad cluster.
+---
+
+# nomad-pack run command reference
+
+Use the `nomad-pack run` command to install the specified Nomad Pack to a configured Nomad cluster.
+
+## Usage
+
+```plaintext
+nomad-pack run <pack_name> [options]
+```
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the pack to be run.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+- `-check-index=<uint>`: If set, the job is only registered or updated if the
+  passed job modify index matches the server side version. If you pass a value
+  of zero, the job is only registered if it does not yet exist.  Passing a
+  non-zero value ensures that the job is being updated from a known state. The
+  use of this flag is most common in conjunction with `nomad job plan` command.
+- `-consul-token=<string>`: If set, the passed Consul token is stored in the job
+  before	sending to the Nomad servers. This allows passing the Consul token
+  without storing it in the job file. This overrides the token found in the
+  $CONSUL_HTTP_TOKEN environment variable	and that found in the job.
+- `-consul-namespace=<string>`: If set, any services in the job are registered
+  into the	specified Consul namespace. Any template block reading from Consul
+  KV are scoped to the the specified Consul	namespace. If Consul ACLs are
+  enabled and the	`allow_unauthenticated` Nomad server Consul configuration is
+  not enabled, then you must supply a Consul token with appropriate service and
+  KV Consul ACL policy permissions.
+- `-vault-token=<string>`: If set, the passed Vault token is stored in the job
+  before	sending to the Nomad servers. This allows passing the Vault token
+  without storing it in the job file. This overrides the token found in the
+  $VAULT_TOKEN environment variable and that found in the job.
+- `-vault-namespace=<string>`: If set, the passed Vault namespace is stored in
+  the job before sending to the Nomad servers.
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies.
+- `-preserve-counts`: If set, the existing task group count is preserved when
+  updating a job.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+## Examples
+
+Run an example pack with the default deployment name "example".
+
+```shell
+nomad-pack run example
+```
+
+Run an example pack with the specified deployment name "dev".
+
+```shell
+nomad-pack run example --name=dev
+```
+
+Run an example pack with override variables in a variable file.
+
+```shell
+nomad-pack run example --var-file="./overrides.hcl"
+```
+
+Run an example pack with CLI variable overrides.
+
+```shell
+nomad-pack run example --var="redis_image_version=latest" \
+           --var="redis_resources={"cpu": "1000", "memory": "512"}"
+```
+
+Run a pack under development from the current filesystem.
+
+```shell
+nomad-pack run .
+```
