@@ -13,6 +13,8 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const SecretProviderNomad = "nomad"
+
 type nomadProviderConfig struct {
 	Namespace string `mapstructure:"namespace"`
 }

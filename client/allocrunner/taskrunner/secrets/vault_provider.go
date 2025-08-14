@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	SecretProviderVault = "vault"
+
 	VAULT_KV    = "kv"
 	VAULT_KV_V2 = "kv_v2"
 )

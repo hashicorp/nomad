@@ -219,6 +219,9 @@ const (
 	RateMetricRead  = "read"
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
+
+	// Vault secret provider used in task validation
+	SecretProviderVault = "vault"
 )
 
 var (
@@ -8327,6 +8330,10 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate secret %q found", s.Name))
 		} else {
 			secrets[s.Name] = true
+		}
+
+		if s.Provider == SecretProviderVault && t.Vault == nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q has provider \"vault\" but no vault block", s.Name))
 		}
 
 		if err := s.Validate(); err != nil {
