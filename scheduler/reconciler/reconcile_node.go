@@ -119,7 +119,7 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 // 7. those that are running on a disconnected node but may resume, and
 // 8. those that may still be running on a node that has resumed reconnected.
 //
-// This method doesn't mutated the NodeReconciler fields, and only returns a new
+// This method mutates the NodeReconciler fields, and returns a new
 // NodeReconcilerResult object and a boolean to indicate wither the deployment
 // is complete or not.
 func (nr *NodeReconciler) computeForNode(
