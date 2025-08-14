@@ -185,13 +185,13 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 
 		tmplFile := fmt.Sprintf("temp-%d", idx)
 		switch s.Provider {
-		case "nomad":
+		case secrets.SecretProviderNomad:
 			if p, err := secrets.NewNomadProvider(s, secretDir, tmplFile, h.nomadNamespace); err != nil {
 				multierror.Append(mErr, err)
 			} else {
 				tmplProvider = append(tmplProvider, p)
 			}
-		case "vault":
+		case secrets.SecretProviderVault:
 			if p, err := secrets.NewVaultProvider(s, secretDir, tmplFile); err != nil {
 				multierror.Append(mErr, err)
 			} else {
