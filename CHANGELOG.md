@@ -1,3 +1,25 @@
+## 1.10.4 (August 13, 2025)
+
+SECURITY:
+
+* build: Update Go to 1.24.3 to address CVE-2025-47906 [[GH-26451](https://github.com/hashicorp/nomad/issues/26451)]
+
+IMPROVEMENTS:
+
+* cli: Added monitor export cli command to retrieve journald logs or the contents of the Nomad log file for a given Nomad agent [[GH-26178](https://github.com/hashicorp/nomad/issues/26178)]
+* command: Add historical log capture to `nomad operator debug` command with `-log-lookback` and `-log-file-export` flags [[GH-26410](https://github.com/hashicorp/nomad/issues/26410)]
+* metrics: Added node_pool label to blocked_evals metrics [[GH-26215](https://github.com/hashicorp/nomad/issues/26215)]
+* sentinel (Enterprise): Added policy scope for csi-volumes [[GH-26438](https://github.com/hashicorp/nomad/issues/26438)]
+
+BUG FIXES:
+
+* alloc exec: Fixed executor panic when exec-ing a rootless raw_exec task [[GH-26401](https://github.com/hashicorp/nomad/issues/26401)]
+* cli: Fixed a bug where `acl policy self` command would output all policies when used with a management token [[GH-26396](https://github.com/hashicorp/nomad/issues/26396)]
+* client: run all allocrunner postrun (cleanup) hooks, even if any of them error [[GH-26271](https://github.com/hashicorp/nomad/issues/26271)]
+* consul: Add AllocIPv6 option to allow IPv6 address being used for service registration [[GH-25632](https://github.com/hashicorp/nomad/issues/25632)]
+* jobspec: Validate required hook field in lifecycle block [[GH-26285](https://github.com/hashicorp/nomad/issues/26285)]
+* services: Fixed a bug where Nomad services were deleted if a node missed heartbeats and recovered before allocs were migrated [[GH-26424](https://github.com/hashicorp/nomad/issues/26424)]
+
 ## 1.10.3 (July 08, 2025)
 
 IMPROVEMENTS:
