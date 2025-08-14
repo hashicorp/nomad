@@ -1,0 +1,63 @@
+---
+layout: commands
+page_title: nomad-pack stop command reference
+description: |-
+  Use the `nomad-pack stop` command to stop the specified Nomad Pack in the configured Nomad cluster.
+---
+
+# nomad-pack stop command reference
+
+Use the `nomad-pack stop` command to stop the specified Nomad Pack in the configured Nomad cluster.
+
+By default, the `stop` command stops all jobs in the pack deployment. If you ran
+a pack with variable overrides to specify the job name, you must provide the
+same variable overrides when stopping the pack to guarantee that this command
+targets the correct job in the pack deployment.
+
+## Usage
+
+```plaintext
+nomad-pack stop <pack_name> [options]
+```
+
+To delete the pack from the cluster, specify `--purge`, or use the [`nomad-pack
+destroy` command](/nomad/tools/nomad-pack/commands/destroy).
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the pack to be
+  stopped.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+- `-purge`: Purge is used to stop a pack and purge it from the system.	If not
+  set, you can still query the pack until the garbage collector purges the pack.
+- `-global`: Stop a multi-region pack in all its regions. By default, `pack
+  stop` only stops a single region at a time. Ignored for	single-region jobs.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+## Examples
+
+Stop an example pack in deployment "dev".
+
+```shell
+nomad-pack stop example --name=dev
+```
+
+Stop the `example` pack in deployment "dev" and purge it from the system.
+
+```shell
+nomad-pack stop example --name=dev --purge
+```
+
+Stop an example pack in deployment "dev" that has a job named "test"
+If the same pack has been installed in deployment "dev" but overriding the
+job name to "hello", only "test" is stopped.
+
+```shell
+nomad-pack stop example --name=dev --var=job_name=test
+```
+
