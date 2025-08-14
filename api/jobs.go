@@ -176,7 +176,7 @@ func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	return j.ListOptions(nil, q)
 }
 
-// List is used to list all of the existing jobs.
+// ListOptions is used to list all of the existing jobs.
 func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
 
@@ -1596,6 +1596,10 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 type JobDispatchRequest struct {

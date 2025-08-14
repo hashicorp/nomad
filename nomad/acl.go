@@ -16,6 +16,10 @@ func (s *Server) AuthenticateServerOnly(ctx *RPCContext, args structs.RequestWit
 	return s.auth.AuthenticateServerOnly(ctx, args)
 }
 
+func (s *Server) AuthenticateNodeIdentityGenerator(ctx *RPCContext, args structs.RequestWithIdentity) error {
+	return s.auth.AuthenticateNodeIdentityGenerator(ctx, args)
+}
+
 func (s *Server) AuthenticateClientOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
 	return s.auth.AuthenticateClientOnly(ctx, args)
 }

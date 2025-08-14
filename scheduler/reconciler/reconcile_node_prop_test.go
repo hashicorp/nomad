@@ -15,9 +15,10 @@ import (
 
 func TestNodeReconciler_PropTest(t *testing.T) {
 
-	// readResults returns a convenience map that may hold multiple "states" for
-	// the same alloc (ex. all three of "total" and "terminal" and "failed")
-	readResults := func(nr *nodeReconcilerInput, results *NodeReconcileResult) map[string]map[string]int {
+	// collectExpectedAndResults returns a convenience map that may hold
+	// multiple "states" for the same alloc (ex. all three of "total" and
+	// "terminal" and "failed")
+	collectExpectedAndResults := func(nr *nodeReconcilerInput, results *NodeReconcileResult) map[string]map[string]int {
 		perTaskGroup := map[string]map[string]int{}
 		for _, tg := range nr.job.TaskGroups {
 			perTaskGroup[tg.Name] = map[string]int{"expect_count": tg.Count}
@@ -65,17 +66,10 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		return perTaskGroup
 	}
 
-	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
-		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
-			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
-		must.NotNil(t, results, must.Sprint("results should never be nil"))
-
-		perTaskGroup := readResults(nr, results)
-
-		/*
-			SAFETY properties ("something bad never happens")
-		*/
+	// sharedSafetyProperties asserts safety properties ("something bad never
+	// happens") that apply to all job types that use the node reconciler
+	sharedSafetyProperties := func(t *rapid.T, nr *nodeReconcilerInput, results *NodeReconcileResult, perTaskGroup map[string]map[string]int) {
+		t.Helper()
 
 		if !nr.serverSupportsDisconnectedClients {
 			must.Len(t, 0, results.Disconnecting,
@@ -103,7 +97,16 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 					tgName, counts))
 
 		}
+	}
 
+	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
+		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
+		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
+			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
+		must.NotNil(t, results, must.Sprint("results should never be nil"))
+		perTaskGroup := collectExpectedAndResults(nr, results)
+
+		sharedSafetyProperties(t, nr, results, perTaskGroup)
 	}))
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
@@ -111,39 +114,9 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
 			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
+		perTaskGroup := collectExpectedAndResults(nr, results)
 
-		perTaskGroup := readResults(nr, results)
-
-		/*
-			SAFETY properties ("something bad never happens")
-		*/
-
-		if !nr.serverSupportsDisconnectedClients {
-			must.Len(t, 0, results.Disconnecting,
-				must.Sprint("groups that don't support disconnected clients should never result in disconnecting"))
-			must.Len(t, 0, results.Reconnecting,
-				must.Sprint("groups that don't support disconnected clients should never result in reconnecting"))
-		}
-
-		for tgName, counts := range perTaskGroup {
-			must.LessEq(t, counts["expect_count"]*len(nr.readyNodes), counts["place"],
-				must.Sprintf("group placements should never exceed ready nodes times count (%s): %v",
-					tgName, counts))
-
-			must.LessEq(t, counts["exist_total"], counts["migrate"],
-				must.Sprintf("group migrate should never exceed total allocs in group (%s): %v",
-					tgName, counts))
-			must.LessEq(t, counts["exist_total"], counts["ignore"],
-				must.Sprintf("group ignores should never exceed total allocs in group (%s): %v",
-					tgName, counts))
-			must.LessEq(t, counts["exist_total"], counts["stop"],
-				must.Sprintf("group stops should never exceed total allocs in group (%s): %v",
-					tgName, counts))
-			must.LessEq(t, counts["exist_total"], counts["update"],
-				must.Sprintf("group updates should never exceed total allocs in group (%s): %v",
-					tgName, counts))
-
-		}
+		sharedSafetyProperties(t, nr, results, perTaskGroup)
 	}))
 
 }

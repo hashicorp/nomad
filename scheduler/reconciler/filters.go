@@ -4,6 +4,7 @@
 package reconciler
 
 import (
+	"errors"
 	"slices"
 	"time"
 
@@ -11,10 +12,10 @@ import (
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
-// filterAndStopAll stops all allocations in an allocSet. This is useful in when
-// stopping an entire job or task group.
-func filterAndStopAll(set allocSet, cs ClusterState) (uint64, []AllocStopResult) {
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := filterByTainted(set, cs)
+// filterAndStopAll returns a stop result including all allocations in the
+// allocSet. This is useful in when stopping an entire job or task group.
+func (set allocSet) filterAndStopAll(cs ClusterState) (uint64, []AllocStopResult) {
+	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.filterByTainted(cs)
 
 	allocsToStop := slices.Concat(
 		markStop(untainted, "", sstructs.StatusAllocNotNeeded),
@@ -27,10 +28,22 @@ func filterAndStopAll(set allocSet, cs ClusterState) (uint64, []AllocStopResult)
 	return uint64(len(set)), allocsToStop
 }
 
-// filterByTerminal filters out terminal allocs
-func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
-	nonTerminal = make(map[string]*structs.Allocation)
-	for id, alloc := range untainted {
+// filterServerTerminalAllocs returns a new allocSet the includes only
+// non-server-terminal allocations.
+func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
+	remaining = make(allocSet)
+	for id, alloc := range set {
+		if !alloc.ServerTerminalStatus() {
+			remaining[id] = alloc
+		}
+	}
+	return
+}
+
+// filterByTerminal returns a new allocSet without any terminal allocations.
+func (set allocSet) filterByTerminal() (nonTerminal allocSet) {
+	nonTerminal = make(allocSet)
+	for id, alloc := range set {
 		if !alloc.TerminalStatus() {
 			nonTerminal[id] = alloc
 		}
@@ -38,12 +51,12 @@ func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
 	return
 }
 
-// filterByDeployment filters allocations into two sets, those that match the
-// given deployment ID and those that don't
-func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
-	match = make(map[string]*structs.Allocation)
-	nonmatch = make(map[string]*structs.Allocation)
-	for _, alloc := range a {
+// filterByDeployment returns two new allocSets: those allocations that match the
+// given deployment ID and those that don't.
+func (set allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
+	match = make(allocSet)
+	nonmatch = make(allocSet)
+	for _, alloc := range set {
 		if alloc.DeploymentID == id {
 			match[alloc.ID] = alloc
 		} else {
@@ -53,26 +66,27 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 	return
 }
 
-// filterOldTerminalAllocs filters allocations that should be ignored since they
-// are allocations that are terminal from a previous job version.
-func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore allocSet) {
+// filterOldTerminalAllocs returns two new allocSets: those that should be
+// ignored because they are terminal from a previous job version (second) and
+// any remaining (first).
+func (set allocSet) filterOldTerminalAllocs(a ReconcilerState) (remain, ignore allocSet) {
 	if !a.JobIsBatch {
-		return all, nil
+		return set, nil
 	}
 
-	filtered = filtered.union(all)
-	ignored := make(map[string]*structs.Allocation)
+	remain = remain.union(set)
+	ignored := make(allocSet)
 
 	// Ignore terminal batch jobs from older versions
-	for id, alloc := range filtered {
+	for id, alloc := range remain {
 		older := alloc.Job.Version < a.Job.Version || alloc.Job.CreateIndex < a.Job.CreateIndex
 		if older && alloc.TerminalStatus() {
-			delete(filtered, id)
+			delete(remain, id)
 			ignored[id] = alloc
 		}
 	}
 
-	return filtered, ignored
+	return remain, ignored
 }
 
 // filterByTainted takes a set of tainted nodes and filters the allocation set
@@ -83,16 +97,17 @@ func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore 
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that are on a node that has reconnected.
 // 6. Those that are in a state that results in a noop.
-func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
-	untainted = make(map[string]*structs.Allocation)
-	migrate = make(map[string]*structs.Allocation)
-	lost = make(map[string]*structs.Allocation)
-	disconnecting = make(map[string]*structs.Allocation)
-	reconnecting = make(map[string]*structs.Allocation)
-	ignore = make(map[string]*structs.Allocation)
-	expiring = make(map[string]*structs.Allocation)
+// 7. Those that are disconnected and need to be marked lost (and possibly replaced)
+func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
+	untainted = make(allocSet)
+	migrate = make(allocSet)
+	lost = make(allocSet)
+	disconnecting = make(allocSet)
+	reconnecting = make(allocSet)
+	ignore = make(allocSet)
+	expiring = make(allocSet)
 
-	for _, alloc := range a {
+	for _, alloc := range set {
 		// make sure we don't apply any reconnect logic to task groups
 		// without max_client_disconnect
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(state.SupportsDisconnectedClients)
@@ -250,18 +265,48 @@ func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, 
 	return
 }
 
+// filterOutByClientStatus returns a new allocSet containing allocs that don't
+// have the specified client status
+func (set allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
+	allocs := make(allocSet)
+	for _, alloc := range set {
+		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
+			allocs[alloc.ID] = alloc
+		}
+	}
+
+	return allocs
+}
+
+// filterByClientStatus returns a new allocSet containing allocs that have the
+// specified client status
+func (set allocSet) filterByClientStatus(clientStatus string) allocSet {
+	allocs := make(allocSet)
+	for _, alloc := range set {
+		if alloc.ClientStatus == clientStatus {
+			allocs[alloc.ID] = alloc
+		}
+	}
+
+	return allocs
+}
+
 // filterByRescheduleable filters the allocation set to return the set of
 // allocations that are either untainted or a set of allocations that must
 // be rescheduled now. Allocations that can be rescheduled at a future time
 // are also returned so that we can create follow up evaluations for them.
 // Allocs are skipped or considered untainted according to logic defined in
 // shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo) {
-	untainted := make(map[string]*structs.Allocation)
-	rescheduleNow := make(map[string]*structs.Allocation)
-	rescheduleLater := []*delayedRescheduleInfo{}
+func (set allocSet) filterByRescheduleable(isBatch, isDisconnecting bool,
+	now time.Time, evalID string, deployment *structs.Deployment,
+) (
+	untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo,
+) {
+	untainted = make(allocSet)
+	rescheduleNow = make(allocSet)
+	rescheduleLater = []*delayedRescheduleInfo{}
 
-	for _, alloc := range a {
+	for _, alloc := range set {
 		// Ignore disconnecting allocs that are already unknown. This can happen
 		// in the case of canaries that are interrupted by a disconnect.
 		if isDisconnecting && alloc.ClientStatus == structs.AllocClientStatusUnknown {
@@ -304,4 +349,144 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 
 	}
 	return untainted, rescheduleNow, rescheduleLater
+}
+
+// shouldFilter returns whether the alloc should be ignored or considered untainted.
+//
+// Ignored allocs are filtered out.
+// Untainted allocs count against the desired total.
+// Filtering logic for batch jobs:
+// If complete, and ran successfully - untainted
+// If desired state is stop - ignore
+//
+// Filtering logic for service jobs:
+// Never untainted
+// If desired state is stop/evict - ignore
+// If client status is complete/lost - ignore
+func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
+	// Allocs from batch jobs should be filtered when the desired status
+	// is terminal and the client did not finish or when the client
+	// status is failed so that they will be replaced. If they are
+	// complete but not failed, they shouldn't be replaced.
+	if isBatch {
+		switch alloc.DesiredStatus {
+		case structs.AllocDesiredStatusStop:
+			if alloc.RanSuccessfully() {
+				return true, false
+			}
+			if alloc.LastRescheduleFailed() {
+				return false, false
+			}
+			return false, true
+		case structs.AllocDesiredStatusEvict:
+			return false, true
+		}
+
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusFailed:
+			return false, false
+		}
+
+		return true, false
+	}
+
+	// Handle service jobs
+	switch alloc.DesiredStatus {
+	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+		if alloc.LastRescheduleFailed() {
+			return false, false
+		}
+
+		return false, true
+	}
+
+	switch alloc.ClientStatus {
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
+		return false, true
+	}
+
+	return false, false
+}
+
+// updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
+// should be rescheduled now, later or left in the untainted set
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
+	// if it has been marked eligible
+	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		return
+	}
+
+	// Check if the allocation is marked as it should be force rescheduled
+	if alloc.DesiredTransition.ShouldForceReschedule() {
+		rescheduleNow = true
+	}
+
+	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	var eligible bool
+	switch {
+	case isDisconnecting:
+		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
+
+	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
+		lastDisconnectTime := alloc.LastUnknown()
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
+
+	default:
+		rescheduleTime, eligible = alloc.NextRescheduleTime()
+	}
+
+	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
+		rescheduleNow = true
+		return
+	}
+
+	if eligible && (alloc.FollowupEvalID == "" || isDisconnecting) {
+		rescheduleLater = true
+	}
+
+	return
+}
+
+// delayByStopAfter returns a delay for any lost allocation that's got a
+// disconnect.stop_on_client_after configured
+func (set allocSet) delayByStopAfter() (later []*delayedRescheduleInfo) {
+	now := time.Now().UTC()
+	for _, a := range set {
+		if !a.ShouldClientStop() {
+			continue
+		}
+
+		t := a.WaitClientStop()
+
+		if t.After(now) {
+			later = append(later, &delayedRescheduleInfo{
+				allocID:        a.ID,
+				alloc:          a,
+				rescheduleTime: t,
+			})
+		}
+	}
+	return later
+}
+
+// delayByLostAfter returns a delay for any unknown allocation
+// that has disconnect.lost_after configured
+func (set allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, error) {
+	var later []*delayedRescheduleInfo
+
+	for _, alloc := range set {
+		timeout := alloc.DisconnectTimeout(now)
+		if !timeout.After(now) {
+			return nil, errors.New("unable to computing disconnecting timeouts")
+		}
+
+		later = append(later, &delayedRescheduleInfo{
+			allocID:        alloc.ID,
+			alloc:          alloc,
+			rescheduleTime: timeout,
+		})
+	}
+
+	return later, nil
 }

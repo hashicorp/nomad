@@ -16,8 +16,8 @@ description: |-
 />
 
 The `service` block instructs Nomad to register a service with the specified
-provider; Nomad or Consul. This section of the documentation will discuss the
-configuration, but please also read the
+provider: Nomad or Consul. This section of the documentation discusses the
+configuration, but you should also read the
 [Nomad service discovery documentation][service-discovery] for more detailed
 information about the external integrations.
 
@@ -71,13 +71,13 @@ job "docs" {
 }
 ```
 
-This section of the documentation only cover the job file fields and blocks
-for service discovery. For more details on using Nomad with Consul please see
+This section of the documentation only covers the job file fields and blocks
+for service discovery. For more details on using Nomad with Consul, refer to
 the [Consul integration documentation][service-discovery].
 
 The `service` block can also be at task group level.
 This enables services in the same task group to opt into [Consul
-Service Mesh][connect] integration.
+service mesh][connect] integration.
 
 ## Parameters
 
@@ -105,12 +105,12 @@ Service Mesh][connect] integration.
   - `passing` <code>int: 1</code> - The weight of services in passing state.
   - `warning` <code>int: 1</code> - The weight of services in warning state.
 
-- `connect` - Configures the [Consul Connect][connect] integration. Only
+- `connect` - Configures the [Consul service mesh][connect] integration. Only
   available on group services and where `provider = "consul"`.
 
 - `kind` `(string: <optional>)` - Configures the [Consul Service
   Kind][kind] to pass to Consul during service registration. Only available
-  when `provider = "consul"`, and is ignored if a Consul Connect Gateway is
+  when `provider = "consul"`, and is ignored if a Consul service mesh Gateway is
   defined.
 
 - `identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
@@ -150,12 +150,23 @@ Service Mesh][connect] integration.
     If a `to` value is not set, the port falls back to using the allocated host port. The `port`
     field may be a numeric port or a port label specified in the same group's network block.
 
+  - `alloc_ipv6` - Same as `alloc` but use the IPv6 address in case of dual-stack or IPv6-only.
+
   - `driver` - Advertise the port determined by the driver (e.g. Docker).
     The `port` may be a numeric port or a port label specified in the driver's
     `ports` field.
 
   - `host` - Advertise the host port for this service. `port` must match a port
     _label_ specified in the [`network`][network] block.
+
+  | Service kind | Allowed port value type |
+  | -------- | ------- |
+  | Normal       | Numeric or port mapping label |
+  | Uses [`connect` native][connect-native] | Numeric or port mapping label |
+  | Uses [`connect` sidecar][connect-sidecar] | Numeric |
+  | Ingress gateway | Port mapping label (optional) |
+  | Terminating gateway | None (optional) |
+  | Mesh gateway | External port mapping label |
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
@@ -181,7 +192,7 @@ Service Mesh][connect] integration.
 - `tagged_addresses` `(map<string|string>` - Specifies custom [tagged addresses][tagged_addresses] to
   advertise in the Consul service registration. Only available where `provider = "consul"`.
 
-- `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
+- `address_mode` `(string: "auto")` - Specifies which address (host, alloc, alloc_ipv6 or
   driver-specific) this service should advertise. See [below for
   examples.](#using-driver-address-mode) Valid options are:
 
@@ -190,6 +201,8 @@ Service Mesh][connect] integration.
     [networking modes][network_mode]. A numeric port may be specified for situations
     where no port mapping is necessary. This mode can only be set for services which
     are defined in a "group" block.
+
+  - `alloc_ipv6` - Same as `alloc` but use the IPv6 address in case of dual-stack or IPv6-only.
 
   - `auto` - Allows the driver to determine whether the host or driver address
     should be used. Defaults to `host` and only implemented by Docker. If you
@@ -207,7 +220,7 @@ Service Mesh][connect] integration.
 
 - `task` `(string: "")` - Specifies the name of the Nomad task associated with
   this service definition. Only available on group services. Must be set if this
-  service definition represents a Consul Connect-native service and there is more
+  service definition represents a Consul service mesh native service and there is more
   than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
@@ -541,7 +554,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
 [qemu]: /nomad/docs/job-declare/task-driver/qemu 'Nomad QEMU Driver'
 [restart_block]: /nomad/docs/job-specification/restart 'restart block'
-[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[connect]: /nomad/docs/job-specification/connect
 [kind]: /consul/api-docs/agent/service#kind
 [type]: /nomad/docs/job-specification/service#type
 [shutdowndelay]: /nomad/docs/job-specification/task#shutdown_delay
@@ -555,3 +568,5 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [identity_block]: /nomad/docs/job-specification/identity
 [weights]: /consul/docs/services/configuration/services-configuration-reference#weights
+[connect-sidecar]: /nomad/docs/job-specification/connect#using-sidecar-service
+[connect-native]: /nomad/docs/job-specification/connect#using-consul-service-mesh-native

@@ -283,9 +283,6 @@ Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would ca
 
 ### `options` Parameters
 
-~> Note: In Nomad 0.9 client configuration options for drivers were deprecated.
-Refer to the [plugin block][plugin-block] documentation for more information.
-
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver,
 refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
@@ -509,10 +506,11 @@ refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
 
 ### `template` Parameters
 
-- `function_denylist` `([]string: ["plugin", "writeToFile"])` - Specifies a
-  list of template rendering functions that should be disallowed in job specs.
-  By default the `plugin` and `writeToFile` functions are disallowed as they
-  allow unrestricted root access to the host.
+- `function_denylist` `([]string: ["plugin", "executeTemplate",
+  "writeToFile"])` - Specifies a list of template rendering functions that
+  should be disallowed in job specs.  By default the `plugin`, `executeTemplate`
+  and `writeToFile` functions are disallowed as they allow unrestricted root
+  access to the host or allow recursive execution.
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
   files on the client host via the `file` function. By default, templates can
@@ -840,7 +838,7 @@ client {
 [`nomad node drain -self -no-deadline`]: /nomad/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
-[unveil]: /nomad/docs/concepts/plugins/task-drivers#fsisolation-unveil
+[unveil]: /nomad/plugins/author/task-driver#fsisolation-unveil
 [dynamic host volumes]: /nomad/docs/other-specifications/volume/host
 [`volume create`]: /nomad/commands/volume/create
 [`volume register`]: /nomad/commands/volume/register

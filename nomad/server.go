@@ -1282,6 +1282,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// These endpoints are client RPCs and don't include a connection context
 	_ = server.Register(NewClientStatsEndpoint(s))
 	_ = server.Register(newNodeMetaEndpoint(s))
+	_ = server.Register(newNodeIdentityEndpoint(s))
 
 	// These endpoints have their streaming component registered in
 	// setupStreamingEndpoints, but their non-streaming RPCs are registered
@@ -2189,7 +2190,7 @@ directory.
 The "address" field is the address and port of the server.
 The "non_voter" field controls whether the server is a non-voter, which is used
 in some advanced Autopilot configurations, please see
-https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information. If
+https://developer.hashicorp.com/nomad/docs/manage/outage-recovery for more information. If
 "non_voter" is omitted it will default to false, which is typical for most
 clusters.
 
@@ -2206,5 +2207,5 @@ creating the peers.json file, and that all servers receive the same
 configuration. Once the peers.json file is successfully ingested and applied, it
 will be deleted.
 
-Please see https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information.
+Please see https://developer.hashicorp.com/nomad/docs/manage/outage-recovery for more information.
 `

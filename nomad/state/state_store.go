@@ -1097,21 +1097,26 @@ func (s *StateStore) deleteNodeTxn(txn *txn, index uint64, nodes []string) error
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(msgType structs.MessageType, index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeStatus(
+	msgType structs.MessageType,
+	index uint64,
+	req *structs.NodeUpdateStatusRequest,
+) error {
+
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	if err := s.updateNodeStatusTxn(txn, nodeID, status, updatedAt, event); err != nil {
+	if err := s.updateNodeStatusTxn(txn, req); err != nil {
 		return err
 	}
 
 	return txn.Commit()
 }
 
-func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) updateNodeStatusTxn(txn *txn, req *structs.NodeUpdateStatusRequest) error {
 
 	// Lookup the node
-	existing, err := txn.First("nodes", "id", nodeID)
+	existing, err := txn.First(TableNodes, indexID, req.NodeID)
 	if err != nil {
 		return fmt.Errorf("node lookup failed: %v", err)
 	}
@@ -1122,15 +1127,23 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
-	copyNode.StatusUpdatedAt = updatedAt
+	copyNode.StatusUpdatedAt = req.UpdatedAt
+
+	// If the request has a signing key ID, we should update the node reference
+	// to this. We need to check for the empty string, as a new identity won't
+	// always be generated, and we don't want to overwrite the exiting entry
+	// with an empty string.
+	if req.IdentitySigningKeyID != "" {
+		copyNode.IdentitySigningKeyID = req.IdentitySigningKeyID
+	}
 
 	// Add the event if given
-	if event != nil {
-		appendNodeEvents(txn.Index, copyNode, []*structs.NodeEvent{event})
+	if req.NodeEvent != nil {
+		appendNodeEvents(txn.Index, copyNode, []*structs.NodeEvent{req.NodeEvent})
 	}
 
 	// Update the status in the copy
-	copyNode.Status = status
+	copyNode.Status = req.Status
 	copyNode.ModifyIndex = txn.Index
 
 	// Update last missed heartbeat if the node became unresponsive or reset it
@@ -1143,16 +1156,11 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	}
 
 	// Insert the node
-	if err := txn.Insert("nodes", copyNode); err != nil {
+	if err := txn.Insert(TableNodes, copyNode); err != nil {
 		return fmt.Errorf("node update failed: %v", err)
 	}
-	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
+	if err := txn.Insert(tableIndex, &IndexEntry{TableNodes, txn.Index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	// Deregister any services on the node in the same transaction
-	if copyNode.Status == structs.NodeStatusDown {
-		s.deleteServiceRegistrationByNodeIDTxn(txn, txn.Index, copyNode.ID)
 	}
 
 	return nil
@@ -4064,10 +4072,8 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	if copyAlloc.ClientTerminalStatus() {
-		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, copyAlloc.ID); err != nil {
-			return err
-		}
+	if err := s.deregisterServicesForTerminalAllocs(txn, index, copyAlloc); err != nil {
+		return err
 	}
 
 	return nil
@@ -4280,6 +4286,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		}
 
 		if err := s.updatePluginForTerminalAlloc(index, alloc, txn); err != nil {
+			return err
+		}
+
+		if err := s.deregisterServicesForTerminalAllocs(txn, index, alloc); err != nil {
 			return err
 		}
 

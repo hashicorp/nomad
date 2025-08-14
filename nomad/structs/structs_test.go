@@ -258,7 +258,9 @@ func TestAuthenticatedIdentity_String(t *testing.T) {
 			name: "alloc claim",
 			inputAuthenticatedIdentity: &AuthenticatedIdentity{
 				Claims: &IdentityClaims{
-					AllocationID: "my-testing-alloc-id",
+					WorkloadIdentityClaims: &WorkloadIdentityClaims{
+						AllocationID: "my-testing-alloc-id",
+					},
 				},
 			},
 			expectedOutput: "alloc:my-testing-alloc-id",
@@ -277,6 +279,29 @@ func TestAuthenticatedIdentity_String(t *testing.T) {
 				RemoteIP: net.IPv4(192, 168, 135, 232),
 			},
 			expectedOutput: "my-testing-tls-name:192.168.135.232",
+		},
+		{
+			name: "client introduction node pool",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				Claims: &IdentityClaims{
+					NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
+						NodePool: "my-testing-node-pool",
+					},
+				},
+			},
+			expectedOutput: "client-introduction:my-testing-node-pool",
+		},
+		{
+			name: "client introduction node pool and name",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				Claims: &IdentityClaims{
+					NodeIntroductionIdentityClaims: &NodeIntroductionIdentityClaims{
+						NodeName: "my-testing-node-name",
+						NodePool: "my-testing-node-pool",
+					},
+				},
+			},
+			expectedOutput: "client-introduction:my-testing-node-pool:my-testing-node-name",
 		},
 	}
 
@@ -1512,7 +1537,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				},
 			},
 			expErr: []string{
-				"System jobs should not have a reschedule policy",
+				"System or sysbatch jobs should not have a reschedule policy",
 			},
 			jobType: JobTypeSystem,
 		},
@@ -8291,7 +8316,7 @@ func TestTaskIdentity_Canonicalize(t *testing.T) {
 	// to the original field.
 	must.NotNil(t, task.Identity)
 	must.Eq(t, WorkloadIdentityDefaultName, task.Identity.Name)
-	must.Eq(t, []string{WorkloadIdentityDefaultAud}, task.Identity.Audience)
+	must.Eq(t, []string{IdentityDefaultAud}, task.Identity.Audience)
 	must.False(t, task.Identity.Env)
 	must.False(t, task.Identity.File)
 

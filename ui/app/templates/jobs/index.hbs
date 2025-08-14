@@ -13,7 +13,7 @@
         <A.Button data-test-pause-fetching @text="Stop polling for job updates" @color="secondary" {{on "click" this.pauseJobFetching}} />
       {{/if}}
       <A.Button data-test-restart-fetching @text="Manually fetch jobs" @color="secondary" {{on "click" this.restartJobList}} />
-      <A.LinkStandalone @size="medium" @color="primary" @icon="learn-link" @iconPosition="trailing" @text="Tutorial: Configure reverse proxy for Nomad's web UI" @href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui#extend-connection-timeout" />
+      <A.LinkStandalone @size="medium" @color="primary" @icon="learn-link" @iconPosition="trailing" @text="Tutorial: Configure reverse proxy for Nomad's web UI" @href="https://developer.hashicorp.com/nomad/docs/deploy/clusters/reverse-proxy-ui#extend-connection-timeout" />
     </Hds::Alert>
   {{/if}}
 

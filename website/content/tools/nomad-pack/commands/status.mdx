@@ -1,0 +1,62 @@
+---
+layout: commands
+page_title: nomad-pack status command reference
+description: |-
+  Use the `nomad-pack status` command to fetch information on deployed Nomad packs.
+---
+
+# nomad-pack status command reference
+
+Use the `nomad-pack status` command to fetch information on deployed Nomad packs.
+
+## Usage
+
+```plaintext
+nomad-pack status <pack_name> [options]
+```
+
+If you do not specify a pack name, the `nomad-pack status` command returns	a
+list of all deployed packs. If you do specify a pack name, this command returns
+a list of all deployed jobs belonging to that pack, along with their status and
+deployment names.
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the pack to inspect.If
+  not specified, the command uses the default registry.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-nomad-cluster.mdx'
+
+# Examples
+
+Get a list of all deployed packs and their registries.
+
+```shell
+nomad-pack status
+```
+
+Get a list of all deployed jobs in pack example, along with their status
+and deployment names.
+
+```shell
+nomad-pack status example
+```
+
+Get a list of all deployed jobs and their status for an example pack in
+the deployment name "dev".
+
+```shell
+nomad-pack status example --name=dev
+```
+
+Get a list of all deployed jobs and their status for an example pack in
+the deployment name "dev".
+
+```shell
+nomad-pack status example --name=dev --registry=community
+```

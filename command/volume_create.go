@@ -51,8 +51,7 @@ Create Options:
     volumes only.
 
   -policy-override
-    Sets the flag to force override any soft mandatory Sentinel policies. Used
-    for dynamic host volumes only.
+    Sets the flag to force override any soft mandatory Sentinel policies. 
 `
 
 	return strings.TrimSpace(helpText)
@@ -134,7 +133,7 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 
 	switch strings.ToLower(volType) {
 	case "csi":
-		return c.csiCreate(client, ast)
+		return c.csiCreate(client, ast, override)
 	case "host":
 		return c.hostVolumeCreate(client, ast, detach, verbose, override, volID)
 	default:

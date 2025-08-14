@@ -945,3 +945,31 @@ func (s *HTTPServer) ACLLoginRequest(resp http.ResponseWriter, req *http.Request
 	setIndex(resp, out.Index)
 	return out.ACLToken, nil
 }
+
+func (s *HTTPServer) ACLCreateClientIntroductionTokenRequest(
+	_ http.ResponseWriter,
+	req *http.Request) (any, error) {
+
+	// The endpoint only supports PUT or POST requests.
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.ACLCreateClientIntroductionTokenRequest{}
+
+	// Perform the parsing of the write request. The parameters can be passed
+	// using just headers, or within the request body.
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	if req.Body != nil {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(http.StatusBadRequest, err.Error())
+		}
+	}
+
+	var out structs.ACLCreateClientIntroductionTokenResponse
+	if err := s.agent.RPC(structs.ACLCreateClientIntroductionTokenRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}

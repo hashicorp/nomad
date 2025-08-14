@@ -3,7 +3,7 @@ layout: docs
 page_title: sidecar_task block in the job specification
 description: |-
   The `sidecar_task` block allows specifying options for configuring
-  the task of the sidecar proxies used in Consul Connect integration
+  the task of the sidecar proxies used in Consul service mesh integration
 ---
 
 # `sidecar_task` block in the job specification
@@ -12,7 +12,7 @@ description: |-
 
 The `sidecar_task` block allows configuring various options for the proxy
 sidecar or Connect gateway managed by Nomad for the [Consul
-Connect](/nomad/docs/networking/consul) integration such as
+service mesh](/nomad/docs/networking/consul) integration such as
 resource requirements, kill timeouts and more as defined below. It is valid
 only within the context of a [`connect`][connect] block.
 

@@ -76,11 +76,25 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 // Register registers a single CSIVolume with Nomad. The volume must already
 // exist in the external storage provider.
 func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
-	req := CSIVolumeRegisterRequest{
+	req := &CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, nil, w)
+	_, meta, err := v.RegisterOpts(req, w)
 	return meta, err
+}
+
+// RegisterOpts registers a single CSIVolume with Nomad. The volume must already
+// exist in the external storage provider. It expects a single volume in the
+// request.
+func (v *CSIVolumes) RegisterOpts(req *CSIVolumeRegisterRequest, w *WriteOptions) (*CSIVolumeRegisterResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
+	resp := &CSIVolumeRegisterResponse{}
+	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, resp, w)
+
+	return resp, meta, err
 }
 
 // Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
@@ -97,15 +111,28 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 		Volumes: []*CSIVolume{vol},
 	}
 
-	resp := &CSIVolumeCreateResponse{}
-	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
+	resp, meta, err := v.CreateOpts(&req, w)
 	return resp.Volumes, meta, err
 }
 
-// DEPRECATED: will be removed in Nomad 1.4.0
+// CreateOpts creates a single CSIVolume in an external storage provider and
+// registers it with Nomad. You do not need to call Register if this call is
+// successful. It expects a single volume in the request.
+func (v *CSIVolumes) CreateOpts(req *CSIVolumeCreateRequest, w *WriteOptions) (*CSIVolumeCreateResponse, *WriteMeta, error) {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	vol := req.Volumes[0]
+	resp := &CSIVolumeCreateResponse{}
+	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
+	return resp, meta, err
+}
+
 // Delete deletes a CSI volume from an external storage provider. The ID
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
+//
+// Deprecated: will be removed in Nomad 1.4.0
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, nil, w)
 	return err
@@ -184,8 +211,9 @@ func (v *CSIVolumes) ListSnapshotsOpts(req *CSISnapshotListRequest) (*CSISnapsho
 	return resp, qm, nil
 }
 
-// DEPRECATED: will be removed in Nomad 1.4.0
 // ListSnapshots lists external storage volume snapshots.
+//
+// Deprecated: will be removed in Nomad 1.4.0
 func (v *CSIVolumes) ListSnapshots(pluginID string, secrets string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
 	var resp *CSISnapshotListResponse
 
@@ -269,26 +297,26 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 // API or in Nomad's logs.
 type CSISecrets map[string]string
 
-func (q *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+func (o *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	pairs := []string{}
 	for k, v := range secrets {
 		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
 	}
-	if q.Headers == nil {
-		q.Headers = map[string]string{}
+	if o.Headers == nil {
+		o.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+	o.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
-func (w *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+func (o *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	pairs := []string{}
 	for k, v := range secrets {
 		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
 	}
-	if w.Headers == nil {
-		w.Headers = map[string]string{}
+	if o.Headers == nil {
+		o.Headers = map[string]string{}
 	}
-	w.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+	o.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
@@ -450,17 +478,31 @@ func (v CSIVolumeExternalStubSort) Swap(i, j int) {
 
 type CSIVolumeCreateRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
-	Volumes []*CSIVolume
+	Volumes  []*CSIVolume
+	Warnings string
 	QueryMeta
 }
 
 type CSIVolumeRegisterRequest struct {
 	Volumes []*CSIVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
+}
+
+type CSIVolumeRegisterResponse struct {
+	Volumes  []*CSIVolume
+	Warnings string
 }
 
 type CSIVolumeDeregisterRequest struct {

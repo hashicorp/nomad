@@ -38,7 +38,7 @@ func TestACLRoleCreateCommand_Run(t *testing.T) {
 
 	// Test the basic validation on the command.
 	must.One(t, cmd.Run([]string{"-address=" + url, "this-command-does-not-take-args"}))
-	must.StrContains(t, ui.ErrorWriter.String(), "This command takes no arguments")
+	must.StrContains(t, ui.ErrorWriter.String(), uiMessageNoArguments)
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -32,6 +33,11 @@ type ServiceRegistrationHandler struct {
 	// this situation we need to be able to deregister services, but disallow
 	// registering new ones.
 	registrationEnabled bool
+
+	// nodeAuthToken is the token the node is using for RPC authentication with
+	// the servers. This is an atomic value as the node identity is periodically
+	// renewed, meaning this value is updated while potentially being read.
+	nodeAuthToken atomic.Value
 
 	// shutDownCh coordinates shutting down the handler and any long-running
 	// processes, such as the RPC retry.
@@ -102,6 +108,11 @@ func NewServiceRegistrationHandler(log hclog.Logger, cfg *ServiceRegistrationHan
 	return s
 }
 
+// SetNodeIdentityToken fulfills the NodeIdentityHandler interface, allowing
+// the client to update the node identity token used for RPC calls when it is
+// renewed.
+func (s *ServiceRegistrationHandler) SetNodeIdentityToken(token string) { s.nodeAuthToken.Store(token) }
+
 func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
 	// Check whether we are enabled or not first. Hitting this likely means
 	// there is a bug within the implicit constraint, or process using it, as
@@ -148,7 +159,7 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 		Services: registrations,
 		WriteRequest: structs.WriteRequest{
 			Region:    s.cfg.Region,
-			AuthToken: s.cfg.NodeSecret,
+			AuthToken: s.authToken(),
 		},
 	}
 
@@ -201,7 +212,7 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 		WriteRequest: structs.WriteRequest{
 			Region:    s.cfg.Region,
 			Namespace: workload.ProviderNamespace,
-			AuthToken: s.cfg.NodeSecret,
+			AuthToken: s.authToken(),
 		},
 	}
 
@@ -389,4 +400,15 @@ func (s *ServiceRegistrationHandler) generateNomadServiceRegistration(
 		Address:     ip,
 		Port:        port,
 	}, nil
+}
+
+// authToken returns the current authentication token used for RPC calls. It
+// will use the node identity token if it is set, otherwise it will fallback to
+// the node secret. This handles the case where the node is upgraded before the
+// Nomad servers and should be removed in Nomad 1.13.
+func (s *ServiceRegistrationHandler) authToken() string {
+	if id := s.nodeAuthToken.Load(); id != nil {
+		return id.(string)
+	}
+	return s.cfg.NodeSecret
 }

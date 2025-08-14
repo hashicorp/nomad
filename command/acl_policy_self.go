@@ -69,7 +69,7 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 	// Check that we have no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -79,6 +79,18 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Read the self token to check its type
+	token, _, err := client.ACLTokens().Self(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error fetching token: %s", err))
+		return 1
+	}
+
+	if token.Type == "management" {
+		c.Ui.Output("This is a management token. No individual policies are assigned.")
+		return 0
 	}
 
 	policies, _, err := client.ACLPolicies().Self(nil)

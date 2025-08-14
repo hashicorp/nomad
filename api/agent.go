@@ -156,7 +156,7 @@ func (a *Agent) Members() (*ServerMembers, error) {
 	return resp, nil
 }
 
-// Members is used to query all of the known server members
+// MembersOpts is used to query all of the known server members
 // with the ability to set QueryOptions
 func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
 	var resp *ServerMembers
@@ -302,8 +302,20 @@ func (a *Agent) Host(serverID, nodeID string, q *QueryOptions) (*HostDataRespons
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
 func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	frames, errCh := a.monitorHelper(stopCh, q, "/v1/agent/monitor")
+	return frames, errCh
+}
+
+// MonitorExport returns a channel which will receive streaming logs from the agent
+// Providing a non-nil stopCh can be used to close the connection and stop log streaming
+func (a *Agent) MonitorExport(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	frames, errCh := a.monitorHelper(stopCh, q, "/v1/agent/monitor/export")
+	return frames, errCh
+}
+
+func (a *Agent) monitorHelper(stopCh <-chan struct{}, q *QueryOptions, path string) (chan *StreamFrame, chan error) {
 	errCh := make(chan error, 1)
-	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
+	r, err := a.client.newRequest("GET", path)
 	if err != nil {
 		errCh <- err
 		return nil, errCh

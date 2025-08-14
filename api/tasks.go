@@ -202,6 +202,9 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 }
 
 func (r *ReschedulePolicy) Canonicalize(jobType string) {
+	if r == nil || jobType == JobTypeSystem || jobType == JobTypeSysbatch {
+		return
+	}
 	dp := NewDefaultReschedulePolicy(jobType)
 	if r.Interval == nil {
 		r.Interval = dp.Interval
@@ -282,16 +285,6 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 			Unlimited: pointerOf(false),
 		}
 
-	case "system":
-		dp = &ReschedulePolicy{
-			Attempts:      pointerOf(0),
-			Interval:      pointerOf(time.Duration(0)),
-			Delay:         pointerOf(time.Duration(0)),
-			DelayFunction: pointerOf(""),
-			MaxDelay:      pointerOf(time.Duration(0)),
-			Unlimited:     pointerOf(false),
-		}
-
 	default:
 		// GH-7203: it is possible an unknown job type is passed to this
 		// function and we need to ensure a non-nil object is returned so that
@@ -317,14 +310,14 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	return nrp
 }
 
-func (p *ReschedulePolicy) String() string {
-	if p == nil {
+func (r *ReschedulePolicy) String() string {
+	if r == nil {
 		return ""
 	}
-	if *p.Unlimited {
-		return fmt.Sprintf("unlimited with %v delay, max_delay = %v", *p.DelayFunction, *p.MaxDelay)
+	if *r.Unlimited {
+		return fmt.Sprintf("unlimited with %v delay, max_delay = %v", *r.DelayFunction, *r.MaxDelay)
 	}
-	return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *p.Attempts, *p.Interval, *p.DelayFunction, *p.MaxDelay)
+	return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *r.Attempts, *r.Interval, *r.DelayFunction, *r.MaxDelay)
 }
 
 // Spread is used to serialize task group allocation spread preferences
@@ -583,13 +576,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jobReschedule := job.Reschedule.Copy()
 		g.ReschedulePolicy = jobReschedule
 	}
-	// Only use default reschedule policy for non system jobs
-	if g.ReschedulePolicy == nil && *job.Type != "system" {
+	if g.ReschedulePolicy == nil && *job.Type != JobTypeSysbatch && *job.Type != JobTypeSystem {
 		g.ReschedulePolicy = NewDefaultReschedulePolicy(*job.Type)
 	}
-	if g.ReschedulePolicy != nil {
-		g.ReschedulePolicy.Canonicalize(*job.Type)
-	}
+	g.ReschedulePolicy.Canonicalize(*job.Type)
 
 	// Merge the migrate strategy from the job
 	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
@@ -674,7 +664,7 @@ func (g *TaskGroup) Constrain(c *Constraint) *TaskGroup {
 	return g
 }
 
-// AddMeta is used to add a meta k/v pair to a task group
+// SetMeta is used to add a meta k/v pair to a task group
 func (g *TaskGroup) SetMeta(key, val string) *TaskGroup {
 	if g.Meta == nil {
 		g.Meta = make(map[string]string)
@@ -707,7 +697,7 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 	return g
 }
 
-// AddSpread is used to add a new spread preference to a task group.
+// ScalingPolicy is used to add a new scaling policy to a task group.
 func (g *TaskGroup) ScalingPolicy(sp *ScalingPolicy) *TaskGroup {
 	g.Scaling = sp
 	return g
@@ -757,13 +747,13 @@ const (
 )
 
 type TaskLifecycle struct {
-	Hook    string `mapstructure:"hook" hcl:"hook,optional"`
+	Hook    string `mapstructure:"hook" hcl:"hook"`
 	Sidecar bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
 }
 
-// Determine if lifecycle has user-input values
+// Empty determines if lifecycle has user-input values
 func (l *TaskLifecycle) Empty() bool {
-	return l == nil || (l.Hook == "")
+	return l == nil
 }
 
 // Task is a single process in a task group.
@@ -1058,7 +1048,7 @@ func NewTask(name, driver string) *Task {
 	}
 }
 
-// Configure is used to configure a single k/v pair on
+// SetConfig is used to configure a single k/v pair on
 // the task.
 func (t *Task) SetConfig(key string, val interface{}) *Task {
 	if t.Config == nil {
@@ -1083,7 +1073,7 @@ func (t *Task) Require(r *Resources) *Task {
 	return t
 }
 
-// Constraint adds a new constraints to a single task.
+// Constrain adds a new constraints to a single task.
 func (t *Task) Constrain(c *Constraint) *Task {
 	t.Constraints = append(t.Constraints, c)
 	return t

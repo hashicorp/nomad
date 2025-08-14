@@ -118,7 +118,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   inside the container may have different IDs than on the host system. This
   feature will also **not** work with Docker Desktop.
 
-- `Once` `(bool: false)` - Specifies that the client will wait for the template
+- `once` `(bool: false)` - Specifies that the client will wait for the template
   to be rendered, and then no longer watch the dependencies specified in the
   template. This is useful for templates that do not need to be updated. Once mode
   implicitly disables wait/quiescence timers for this template, and ignores change
@@ -795,12 +795,13 @@ access it by index. This secret was set using
 The `template` block has the following [client configuration
 options](/nomad/docs/configuration/client#options):
 
-- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
-  rendering functions that should be disallowed in job specs. By default, the
-  `plugin` function is disallowed as it allows running arbitrary commands on the
-  host as root (unless Nomad is configured to run as a non-root user),
-  `executeTemplate` is disallowed to prevent accidental or malicious infinitely
-  recursive execution, and `writeToFile` is disallowed.
+- `function_denylist` `([]string: ["plugin", "executeTemplate",
+  "writeToFile"])` - Specifies a list of template rendering functions that
+  should be disallowed in job specs. By default, the `plugin` function is
+  disallowed as it allows running arbitrary commands on the host as root (unless
+  Nomad is configured to run as a non-root user), `executeTemplate` is
+  disallowed to prevent accidental or malicious infinitely recursive execution,
+  and `writeToFile` is disallowed.
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
   files on the client host via the `file` function. By default, templates can

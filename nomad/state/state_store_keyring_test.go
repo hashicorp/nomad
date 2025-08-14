@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
@@ -83,4 +84,119 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 
 	// deleting non-existent keys is safe
 	must.NoError(t, store.DeleteRootKey(index, uuid.Generate()))
+}
+
+func TestStateStore_IsRootKeyInUse(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name string
+		fn   func(*StateStore)
+	}{
+		{
+			name: "in use by alloc",
+			fn: func(store *StateStore) {
+
+				keyID := uuid.Generate()
+
+				mockAlloc := mock.Alloc()
+				mockAlloc.SigningKeyID = keyID
+
+				must.NoError(t, store.UpsertAllocs(
+					structs.MsgTypeTestSetup,
+					100,
+					[]*structs.Allocation{mockAlloc},
+				))
+
+				isInUse, err := store.IsRootKeyInUse(keyID)
+				must.NoError(t, err)
+				must.True(t, isInUse)
+			},
+		},
+		{
+			name: "in use by variable",
+			fn: func(store *StateStore) {
+
+				keyID := uuid.Generate()
+
+				mockVariable := mock.VariableEncrypted()
+				mockVariable.KeyID = keyID
+
+				stateResp := store.VarSet(110,
+					&structs.VarApplyStateRequest{Var: mockVariable, Op: structs.VarOpSet},
+				)
+
+				must.NoError(t, stateResp.Error)
+				must.Eq(t, structs.VarOpResultOk, stateResp.Result)
+
+				isInUse, err := store.IsRootKeyInUse(keyID)
+				must.NoError(t, err)
+				must.True(t, isInUse)
+			},
+		},
+		{
+			name: "in use by node",
+			fn: func(store *StateStore) {
+				keyID := uuid.Generate()
+
+				mockNode := mock.Node()
+				mockNode.IdentitySigningKeyID = keyID
+
+				must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 120, mockNode))
+
+				isInUse, err := store.IsRootKeyInUse(keyID)
+				must.NoError(t, err)
+				must.True(t, isInUse)
+			},
+		},
+		{
+			name: "not in use",
+			fn: func(store *StateStore) {
+
+				// Generate a random key ID to use to sign all the state
+				// objects.
+				keyID := uuid.Generate()
+
+				// Create a node, variable, and alloc that all use the same key
+				// and write them to the store.
+				mockNode := mock.Node()
+				mockNode.IdentitySigningKeyID = keyID
+
+				must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 130, mockNode))
+
+				mockVariable := mock.VariableEncrypted()
+				mockVariable.KeyID = keyID
+
+				stateResp := store.VarSet(140,
+					&structs.VarApplyStateRequest{Var: mockVariable, Op: structs.VarOpSet},
+				)
+
+				must.NoError(t, stateResp.Error)
+				must.Eq(t, structs.VarOpResultOk, stateResp.Result)
+
+				mockAlloc := mock.Alloc()
+				mockAlloc.SigningKeyID = keyID
+
+				must.NoError(t, store.UpsertAllocs(
+					structs.MsgTypeTestSetup,
+					150,
+					[]*structs.Allocation{mockAlloc},
+				))
+
+				// Perform a check using a different key ID to ensure we get the
+				// expected result.
+				isInUse, err := store.IsRootKeyInUse(uuid.Generate())
+				must.NoError(t, err)
+				must.False(t, isInUse)
+			},
+		},
+	}
+
+	testStore := testStateStore(t)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.fn(testStore)
+		})
+	}
 }

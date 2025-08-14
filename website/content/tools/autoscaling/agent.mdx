@@ -13,13 +13,12 @@ multiple configuration files or directories to configure the agent.
 
 ## Nomad Namespaces
 
-The Nomad Autoscaler currently has limited support for
-[Nomad Namespaces][nomad_namespaces]. The `nomad` configuration below supports
-specifying a namespace; if configured with a namespace, the Autoscaler will
-retrieve scaling policies and perform autoscaling only for jobs in that
-namespace. If the special wildcard namespace value `*` is used, the Autoscaler
-agent will retrieve scaling policies from all namespaces. A future version will
-include support for multiple namespaces.
+You can configure Nomad Autoscaler to use a [Nomad namespace][nomad_namespaces]
+using the agent's [`nomad`][autoscaler_agent_nomad] configuration block. The
+Autoscaler retrieves scaling policies and perform autoscaling only for jobs in
+that namespace. If you use the special wildcard namespace value `*`, the
+Autoscaler agent retrieves scaling policies from all namespaces. A future
+version will include support for multiple namespaces.
 
 ## Nomad ACLs
 
@@ -52,14 +51,17 @@ namespace "default" {
 }
 ```
 
-If running Nomad Autoscaler Enterprise, the following ACL policy addition is
-needed to ensure it can read the Nomad Enterprise license.
+<Note>
+
+If you are running Nomad Autoscaler Enterprise, add this ACL policy to ensure Nomad Autoscaler Enterprise is able to read the Nomad Enterprise license.
 
 ```hcl
 operator {
   policy = "read"
 }
 ```
+
+</Note>
 
 Other APM and target plugins may require additional ACLs; see the plugin documentation for more information.
 
@@ -121,7 +123,7 @@ following actions.
 
 [hcl_v2]: https://github.com/hashicorp/hcl/tree/hcl2
 [nomad_namespaces]: /nomad/docs/govern/namespaces
-[nomad_acls]: /nomad/tutorials/access-control
+[nomad_acls]: /nomad/docs/secure/acl
 [autoscaler_agent_nomad]: /nomad/tools/autoscaling/agent/nomad
 [autoscaler_cli_config]: /nomad/tools/autoscaling/cli#config
 [autoscaler_cli_policy_dir]: /nomad/tools/autoscaling/cli#policy-dir

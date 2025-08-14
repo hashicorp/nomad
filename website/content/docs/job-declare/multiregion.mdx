@@ -8,11 +8,12 @@ description: |-
 
 # Configure multi-region deployments
 
-Federated Nomad clusters enable users to submit jobs targeting any region
-from any server even if that server resides in a different region. As of Nomad 0.12
-Enterprise, you can also submit jobs that are deployed to multiple
-regions. This tutorial demonstrates multi-region deployments, including
+Federated Nomad clusters enable you to submit jobs targeting any region
+from any server even if that server resides in a different region. You may submit jobs that are deployed to multiple
+regions. This guide demonstrates multi-region deployments, including
 configurable rollout and rollback strategies.
+
+<EnterpriseAlert/>
 
 You can create a multi-region deployment job by adding a [`multiregion`]
 stanza to the job as shown below.
@@ -37,16 +38,6 @@ multiregion {
 
 }
 ```
-
-<Note>
-
-The functionality described here is available only in [Nomad
-Enterprise](https://www.hashicorp.com/products/nomad/pricing/) with the
-Multi-Cluster & Efficiency module. To explore Nomad Enterprise features, you can
-sign up for a free 30-day trial from
-[here](https://www.hashicorp.com/products/nomad/trial).
-
-</Note>
 
 ## Prerequisites
 
@@ -446,9 +437,9 @@ west    f08122e5  successful
 [nomad-tf]: https://github.com/hashicorp/nomad/tree/master/terraform
 [server-join]: /nomad/commands/server/join
 [ports-used]: /nomad/docs/deploy/production/requirements#ports-used
-[reference-arch]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul
+[reference-arch]: /nomad/docs/deploy/production/reference-architecture
 [nomad-server-members]: /nomad/commands/server/members
-[acls-track]: /nomad/tutorials/access-control
+[acls-track]: /nomad/docs/secure/acl
 [updates-track]: /nomad/docs/job-declare/strategy/
 [update-auto-revert]: /nomad/docs/job-specification/update#auto_revert
 ["task states"]: /nomad/docs/job-specification/update#health_check
@@ -456,4 +447,4 @@ west    f08122e5  successful
 [alloc-health-api]: /nomad/api-docs/deployments#set-allocation-health-in-deployment
 [`update` stanza]: /nomad/docs/job-specification/update
 [`nomad deployment unblock`]: /nomad/commands/deployment/unblock
-[multi-region-topology]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul#multi-region
+[multi-region-topology]:/nomad/docs/deploy/production/reference-architecture#multi-region

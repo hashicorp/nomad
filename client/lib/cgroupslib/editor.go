@@ -88,7 +88,7 @@ func (e *editor) Write(filename, content string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// A Factory creates a Lifecycle which is an abstraction over the setup and
+// Factory creates a Lifecycle which is an abstraction over the setup and
 // teardown routines used for creating and destroying cgroups used for
 // constraining Nomad tasks.
 func Factory(allocID, task string, cores bool) Lifecycle {
@@ -106,7 +106,7 @@ func Factory(allocID, task string, cores bool) Lifecycle {
 	}
 }
 
-// A Lifecycle manages the lifecycle of the cgroup(s) of a task from the
+// Lifecycle manages the lifecycle of the cgroup(s) of a task from the
 // perspective of the Nomad client. That is, it creates and deletes the cgroups
 // for a task, as well as provides last effort kill semantics for ensuring a
 // process cannot stay alive beyond the intent of the client.

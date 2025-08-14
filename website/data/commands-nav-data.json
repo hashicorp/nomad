@@ -412,7 +412,13 @@
   },
   {
     "title": "monitor",
-    "path": "monitor"
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "monitor"
+      },
+      { "title": "export", "path": "monitor/export" }
+    ]
   },
   {
     "title": "namespace",
@@ -682,6 +688,11 @@
       },
       {
         "title": "utilization",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "path": "operator/utilization"
       }
     ]

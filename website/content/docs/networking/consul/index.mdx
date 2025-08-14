@@ -78,7 +78,7 @@ You will also need to set the [nameserver][] to the address. This address is
 exposed as the `consul.dns.addr` node attribute or the `DNSStubListener`
 configuration value for `systemd-resolved`.
 
-An simpler solution is to use Consul Connect [transparent proxy][] mode to
+An simpler solution is to use Consul service mesh [transparent proxy][] mode to
 automatically configure tasks to use Consul DNS.
 
 ## Consul access control list (ACL)
@@ -132,15 +132,15 @@ the [`consul.cluster`][] parameter.
 ## Compatibility
 
 All currently supported versions of Nomad are compatible with recent versions of
-Consul, with some exceptions.
+Consul.
 
 * Nomad is not compatible with Consul Data Plane.
 
-|                   | Consul 1.17.0+ | Consul 1.18.0+ | Consul 1.19.0+ |
-|-------------------|----------------|----------------|----------------|
-| Nomad 1.8.0+      | ✅             | ✅             | ✅            |
-| Nomad 1.7.0+      | ✅             | ✅             | ✅            |
-| Nomad 1.6.0+      | ✅             | ✅             | ✅            |
+|               | Consul 1.19.0+ | Consul 1.20.0+ | Consul 1.21.0+ |
+|---------------|----------------|----------------|----------------|
+| Nomad 1.10.0+ | ✅             | ✅             | ✅             |
+| Nomad 1.9.0+  | ✅             | ✅             | ✅             |
+| Nomad 1.8.0+  | ✅             | ✅             | ✅             |
 
 [Automatic Clustering with Consul]: /nomad/docs/deploy/clusters/connect-nodes
 [CDP]: /consul/docs/connect/dataplane

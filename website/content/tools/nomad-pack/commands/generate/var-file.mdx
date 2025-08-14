@@ -1,0 +1,63 @@
+---
+layout: commands
+page_title: nomad-pack generate var-file command reference
+description: |-
+  Use the `nomad-pack generate registry` command to generate a variable override file for a pack.
+---
+
+# nomad-pack generate var-file command reference
+
+Use the `nomad-pack generate registry` command to generate a variable override file for a pack.
+
+## Usage
+
+```plaintext
+nomad-pack generate var-file <pack_name> [options]
+```
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the target pack. If
+  not specified, the default registry is used.
+- `-ref=<string>`: Specific Git reference of the target pack. Supports tags,
+  SHA, and `@latest`. If you do not specify a reference, the command defaults to
+  `@latest`.	Using `ref` with a file path is not supported.
+- `-to-file=<string>`: Path to write generated variable override file to in
+  addition to	standard output.
+
+@include 'tools/nomad-pack/options-approval.mdx'
+
+## Examples
+
+Generate a variables override file for the given pack to standard output.
+
+```shell
+nomad-pack generate var-file example
+```
+
+Generate a variable override for the example pack. Output to a file in
+addition to the terminal.
+
+```shell
+nomad-pack generate var-file example --to-file ./overrides.hcl
+```
+
+Generate a variable override for the `example` pack. Output to a file in
+addition to the terminal. Setting the `auto-approve` option allows the command
+to overwrite existing files.
+
+```shell
+nomad-pack generate var-file example --to-file ./overrides.hcl --auto-approve
+```
+
+Generate a variable override pack under development from the current working directory.
+
+```shell
+nomad-pack generate var-file .
+```
+
+Generate a variable override pack under development from the specified relative path.
+
+```shell
+nomad-pack generate var-file ../../my-pack
+```

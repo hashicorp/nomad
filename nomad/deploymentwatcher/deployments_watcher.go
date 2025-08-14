@@ -374,7 +374,7 @@ func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp
 		return err
 	}
 
-	return watcher.SetAllocHealth(req, resp)
+	return watcher.setAllocHealth(req, resp)
 }
 
 // PromoteDeployment is used to promote a deployment. If promote is false,
