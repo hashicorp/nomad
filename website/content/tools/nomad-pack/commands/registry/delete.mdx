@@ -1,0 +1,44 @@
+---
+layout: commands
+page_title: nomad-pack registry delete command reference
+description: |-
+  Use the `nomad-pack registry delete` command to delete registries or packs from the local environment.
+---
+
+# nomad-pack registry delete command reference
+
+Use the `nomad-pack registry delete` command to delete registries or packs from the local environment.
+
+## Usage
+
+```plaintext
+nomad-pack registry delete <name> [options]
+```
+
+## Options
+
+- `-target=<string>`: A specific pack within the registry. If you add a
+  reference flag, the command only deletes that reference of the target pack.
+- `-ref=<string>`: Specific Git reference of the registry or pack. Supports
+  tags, SHA, and `@latest`. If you do not specify a reference, the command defaults to `@latest`. Using `ref` with a file path is not supported.
+
+<Warning>
+
+If you do not specify `target` or `ref`, this command deletes the entire
+specified registry.
+
+</Warning>
+
+## Examples
+
+Delete the Traefik pack with tag `v0.0.1` from your local `community` registry.
+
+```shell
+nomad-pack registry delete community --target=traefik --ref=v0.0.1
+```
+
+Delete the `community` registry from the local environment.
+
+```shell
+nomad-pack registry delete community
+```

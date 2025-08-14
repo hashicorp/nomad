@@ -1,0 +1,31 @@
+---
+layout: commands
+page_title: nomad-pack generate pack command reference
+description: |-
+  Use the `nomad-pack generate pack` command to create a new Nomad pack.
+---
+
+# nomad-pack generate pack command reference
+
+Use the `nomad-pack generate pack` command to create a new Nomad pack.
+
+## Usage
+
+```plaintext
+nomad-pack generate pack <pack_name>
+```
+
+## Options
+
+- `-to-dir=<string>`: Path to write generated pack to.
+- `-overwrite`: If the output directory is not empty, should we overwrite?
+
+@include 'tools/nomad-pack/options-approval.mdx'
+
+## Examples
+
+Create a new pack named "my-new-pack" in the current directory.
+
+```shell
+nomad-pack generate pack my-new-pack
+```

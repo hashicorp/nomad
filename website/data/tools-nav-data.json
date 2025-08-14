@@ -267,6 +267,106 @@
       {
         "title": "Create packs",
         "path": "nomad-pack/create-packs"
+      },
+      {
+        "title": "CLI reference",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "nomad-pack/commands"
+          },
+          {
+            "title": "deps",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "nomad-pack/commands/deps"
+              },
+              {
+                "title": "vendor",
+                "path": "nomad-pack/commands/deps/vendor"
+              }
+            ]
+          },
+          {
+            "title": "destroy",
+            "path": "nomad-pack/commands/destroy"
+          },
+          {
+            "title": "generate",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "nomad-pack/commands/generate"
+              },
+              {
+                "title": "pack",
+                "path": "nomad-pack/commands/generate/pack"
+              },
+              {
+                "title": "registry",
+                "path": "nomad-pack/commands/generate/registry"
+              },
+              {
+                "title": "var-file",
+                "path": "nomad-pack/commands/generate/var-file"
+              }
+            ]
+          },
+          {
+            "title": "info",
+            "path": "nomad-pack/commands/info"
+          },
+          {
+            "title": "list",
+            "path": "nomad-pack/commands/list"
+          },
+          {
+            "title": "plan",
+            "path": "nomad-pack/commands/plan"
+          },
+          {
+            "title": "registry",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "nomad-pack/commands/registry"
+              },
+              {
+                "title": "add",
+                "path": "nomad-pack/commands/registry/add"
+              },
+              {
+                "title": "delete",
+                "path": "nomad-pack/commands/registry/delete"
+              },
+              {
+                "title": "list",
+                "path": "nomad-pack/commands/registry/list"
+              }
+            ]
+          },
+          {
+            "title": "render",
+            "path": "nomad-pack/commands/render"
+          },
+          {
+            "title": "run",
+            "path": "nomad-pack/commands/run"
+          },
+          {
+            "title": "status",
+            "path": "nomad-pack/commands/status"
+          },
+          {
+            "title": "stop",
+            "path": "nomad-pack/commands/stop"
+          },
+          {
+            "title": "version",
+            "path": "nomad-pack/commands/version"
+          }
+        ]
       }
     ]
   }

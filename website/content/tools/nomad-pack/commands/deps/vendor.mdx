@@ -1,0 +1,34 @@
+---
+layout: commands
+page_title: nomad-pack deps vendor command reference
+description: |-
+  Use the `nomad-pack deps vendor` command to download vendor dependencies for a pack.
+---
+
+# nomad-pack deps vendor command reference
+
+Use the `nomad-pack deps vendor` command to download vendor dependencies for a pack.
+
+## Usage
+
+```plaintext
+nomad-pack deps vendor [options]
+```
+
+## Options
+
+- `--path=<string>`: Full path to the pack that contains vendor dependencies.
+  All the dependencies are then downloaded into a `deps/` subdirectory of that
+  path.
+
+- `--timeout=<int> (default 30)`:  Timeout in seconds for downloading
+  dependencies. Defaults to 30.
+
+## Examples
+
+Download vendor dependencies for a pack in the current directory, with a timeout
+of 180 seconds.
+
+```shell
+nomad-pack deps vendor --timeout=180
+```
