@@ -5,6 +5,9 @@ package reconciler
 
 import (
 	"fmt"
+	"maps"
+	"math"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -53,11 +56,16 @@ func (nr *NodeReconciler) Compute(
 	// Create the required task groups.
 	required := materializeSystemTaskGroups(job)
 
+	// Canary deployments deploy to the TaskGroup.UpdateStrategy.Canary
+	// percentage of eligible nodes, so we create a mapping of task group name
+	// to a list of nodes that canaries should be placed on.
+	canaryNodes := computeCanaryNodes(required, eligibleNodes)
+
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
 	for nodeID, allocs := range nodeAllocs {
-		diff, deploymentCompleteForNode := nr.diffSystemAllocsForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, required, allocs, terminal,
+		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
+			notReadyNodes, taintedNodes, canaryNodes, required, allocs, terminal,
 			serverSupportsDisconnectedClients)
 		deploymentComplete = deploymentComplete && deploymentCompleteForNode
 		result.Append(diff)
@@ -68,21 +76,59 @@ func (nr *NodeReconciler) Compute(
 	return result
 }
 
-// diffSystemAllocsForNode is used to do a set difference between the target allocations
-// and the existing allocations for a particular node. This returns 8 sets of results,
-// the list of named task groups that need to be placed (no existing allocation), the
-// allocations that need to be updated (job definition is newer), allocs that
-// need to be migrated (node is draining), the allocs that need to be evicted
-// (no longer required), those that should be ignored, those that are lost
-// that need to be replaced (running on a lost node), those that are running on
-// a disconnected node but may resume, and those that may still be running on
-// a node that has resumed reconnected.
-func (nr *NodeReconciler) diffSystemAllocsForNode(
+// computeCanaryNodes is a helper function that, given required task groups and
+// eligible nodes, outputs a map[tgName] -> map[nodeID] -> node on which
+// canaries should be placed.
+func computeCanaryNodes(required map[string]*structs.TaskGroup,
+	eligibleNodes map[string]*structs.Node) map[string]map[string]*structs.Node {
+
+	canaryNodes := map[string]map[string]*structs.Node{}
+	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
+
+	for _, tg := range required {
+		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
+			continue
+		}
+
+		// round up to the nearest integer
+		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
+
+		canaryNodes[tg.Name] = map[string]*structs.Node{}
+		for i, n := range eligibleNodesList {
+			if i > numberOfCanaryNodes-1 {
+				break
+			}
+
+			canaryNodes[tg.Name][n.ID] = n
+		}
+	}
+
+	return canaryNodes
+}
+
+// computeForNode is used to do a set difference between the target
+// allocations and the existing allocations for a particular node. This returns
+// 8 sets of results:
+// 1. the list of named task groups that need to be placed (no existing
+// allocation),
+// 2. the allocations that need to be updated (job definition is newer),
+// 3. allocs that need to be migrated (node is draining),
+// 4. allocs that need to be evicted (no longer required),
+// 5. those that should be ignored,
+// 6. those that are lost that need to be replaced (running on a lost node),
+// 7. those that are running on a disconnected node but may resume, and
+// 8. those that may still be running on a node that has resumed reconnected.
+//
+// This method mutates the NodeReconciler fields, and returns a new
+// NodeReconcilerResult object and a boolean to indicate wither the deployment
+// is complete or not.
+func (nr *NodeReconciler) computeForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
+	canaryNodes map[string]map[string]*structs.Node, // nodes which should get canaries deployed, per task group
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
@@ -91,29 +137,25 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 	result := new(NodeReconcileResult)
 
 	// cancel deployments that aren't needed anymore
-	// TODO: old deployment is only used when checking for canaries
 	var deploymentUpdates []*structs.DeploymentStatusUpdate
-	_, nr.DeploymentCurrent, deploymentUpdates = cancelUnneededDeployments(job, nr.DeploymentCurrent)
+	nr.DeploymentOld, nr.DeploymentCurrent, deploymentUpdates = cancelUnneededDeployments(job, nr.DeploymentCurrent)
 	nr.DeploymentUpdates = append(nr.DeploymentUpdates, deploymentUpdates...)
 
-	/*
-		// TODO: the failed and paused fields are only used for dealing with canary
-		// placements and their respective deployments
-		//
-		// set deployment paused and failed, if we currently have a deployment
-		var deploymentPaused, deploymentFailed bool
-		if nr.DeploymentCurrent != nil {
-			// deployment is paused when it's manually paused by a user, or if the
-			// deployment is pending or initializing, which are the initial states
-			// for multi-region job deployments.
-			deploymentPaused = nr.DeploymentCurrent.Status == structs.DeploymentStatusPaused ||
-				nr.DeploymentCurrent.Status == structs.DeploymentStatusPending ||
-				nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
-			deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
-		}
-		// TODO: will be needed for canaries
-		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
-	*/
+	// set deployment paused and failed, if we currently have a deployment
+	var deploymentPaused, deploymentFailed bool
+	if nr.DeploymentCurrent != nil {
+		// deployment is paused when it's manually paused by a user, or if the
+		// deployment is pending or initializing, which are the initial states
+		// for multi-region job deployments.
+		deploymentPaused = nr.DeploymentCurrent.Status == structs.DeploymentStatusPaused ||
+			nr.DeploymentCurrent.Status == structs.DeploymentStatusPending ||
+			nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
+		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
+	}
+
+	// Track whether we're on canary node or not so that it's globally accessible
+	// throughout the method
+	var onCanaryNode bool
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -182,6 +224,9 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			})
 			continue
 		}
+
+		// find nodes on which to deploy canaries
+		_, onCanaryNode = canaryNodes[tg.Name][alloc.NodeID]
 
 		// note: the node can be both tainted and nil
 		node, nodeIsTainted := taintedNodes[alloc.NodeID]
@@ -344,46 +389,117 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			}
 
 			result.Place = append(result.Place, allocTuple)
-
-			// populate deployment state for this task group
-			var dstate = new(structs.DeploymentState)
-			var existingDeployment bool
-			if nr.DeploymentCurrent != nil {
-				dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-			}
-
-			if !existingDeployment && dstate != nil {
-				if !tg.Update.IsEmpty() {
-					dstate.AutoRevert = tg.Update.AutoRevert
-					dstate.AutoPromote = tg.Update.AutoPromote
-					dstate.ProgressDeadline = tg.Update.ProgressDeadline
-				}
-				dstate.DesiredTotal += len(result.Place)
-			}
-
-			if dstate == nil {
-				dstate = new(structs.DeploymentState)
-			}
-
-			// in this case there's nothing to do
-			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
-				continue
-			}
-
-			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
 		}
+
+		// populate deployment state for this task group
+		var dstate = new(structs.DeploymentState)
+		var existingDeployment bool
+		if nr.DeploymentCurrent != nil {
+			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
+		if !existingDeployment {
+			dstate = &structs.DeploymentState{}
+			if !tg.Update.IsEmpty() {
+				dstate.AutoRevert = tg.Update.AutoRevert
+				dstate.AutoPromote = tg.Update.AutoPromote
+				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			}
+		}
+
+		dstate.DesiredTotal += len(result.Place) + len(result.Update)
+
+		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
+
+		canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
+		result.Stop = append(result.Stop, canariesToStop...)
+
+		// check if there are any canaries to place
+		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
+
+		// in this case there's nothing to do
+		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
+			continue
+		}
+
+		nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
 
 	return result, deploymentComplete
 }
 
-func (nr *NodeReconciler) createDeployment(job *structs.Job,
-	tg *structs.TaskGroup, dstate *structs.DeploymentState, updates int,
-	allocs []*structs.Allocation) {
+// placeCanaries places canary allocations and mutates the dstate argument
+func (nr *NodeReconciler) placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed bool,
+	dstate *structs.DeploymentState, tg *structs.TaskGroup, allocs []*structs.Allocation) []AllocTuple {
+	placements := []AllocTuple{}
 
+	if !onCanaryNode || deploymentPaused || deploymentFailed {
+		return nil
+	}
+
+	for _, a := range allocs {
+		placements = append(placements, AllocTuple{
+			Name:      a.Name,
+			TaskGroup: tg,
+			Alloc:     a,
+			Canary:    true,
+		})
+
+		dstate.DesiredCanaries += 1
+	}
+
+	return placements
+}
+
+func (nr *NodeReconciler) cancelUnneededCanaries(allocs []*structs.Allocation, required map[string]*structs.TaskGroup) []AllocTuple {
+	stop := []AllocTuple{}
+
+	// Cancel non-promoted canaries from previous deployments
+	if nr.DeploymentOld != nil {
+		for oldDeployTGName, dstate := range nr.DeploymentOld.TaskGroups {
+			if !dstate.Promoted {
+				for _, a := range allocs {
+					if slices.Contains(dstate.PlacedCanaries, a.Name) {
+						stop = append(stop, AllocTuple{
+							Name:      a.Name,
+							TaskGroup: required[oldDeployTGName],
+							Alloc:     a,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	// Cancel any non-promoted canaries from a failed deployment
+	if nr.DeploymentCurrent != nil && nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
+		for tg, dstate := range nr.DeploymentCurrent.TaskGroups {
+			if !dstate.Promoted {
+				for _, a := range allocs {
+					if slices.Contains(dstate.PlacedCanaries, a.Name) {
+						stop = append(stop, AllocTuple{
+							Name:      a.Name,
+							TaskGroup: required[tg],
+							Alloc:     a,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return stop
+}
+
+func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGroup,
+	dstate *structs.DeploymentState, updates int, allocs []*structs.Allocation) {
+
+	// programming error
 	if dstate == nil {
-		dstate = &structs.DeploymentState{}
+		return
 	}
 
 	updatingSpec := updates != 0
@@ -422,7 +538,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job,
 }
 
 func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult) bool {
-	complete := len(buckets.Place)+len(buckets.Migrate) == 0 // && !requiresCanaries   // TODO: additional condition for canaries
+	complete := len(buckets.Place)+len(buckets.Migrate) == 0
 
 	if !complete || nr.DeploymentCurrent == nil {
 		return false
@@ -512,6 +628,7 @@ type AllocTuple struct {
 	Name      string
 	TaskGroup *structs.TaskGroup
 	Alloc     *structs.Allocation
+	Canary    bool
 }
 
 // NodeReconcileResult is used to return the sets that result from the diff
