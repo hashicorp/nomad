@@ -153,7 +153,7 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
-	// Track whether we're on canary node or not so that it's globaly accessible
+	// Track whether we're on canary node or not so that it's globally accessible
 	// throughout the method
 	var onCanaryNode bool
 
