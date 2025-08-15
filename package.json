@@ -1,0 +1,25 @@
+{
+  "name": "nomad-ui",
+  "private": true,
+  "scripts": {},
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
+  "engines": {
+    "node": "20.*",
+    "pnpm": ">= 10"
+  },
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "7.0.5",
+      "ember-auto-import": "^2.7.3",
+      "prop-types": "^15.8.1",
+      "clean-css@<4.1.11": ">=4.1.11",
+      "markdown-it@<12.3.2": ">=12.3.2",
+      "json5@<1.0.2": ">=1.0.2",
+      "braces@<3.0.3": ">=3.0.3",
+      "micromatch@<4.0.8": ">=4.0.8",
+      "ansi-html@<0.0.8": ">=0.0.8",
+      "@babel/runtime@<7.26.10": ">=7.26.10",
+      "on-headers@<1.1.0": ">=1.1.0"
+    }
+  }
+}

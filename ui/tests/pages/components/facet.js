@@ -4,10 +4,8 @@
  */
 
 import { clickable, collection, text, attribute } from 'ember-cli-page-object';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { selectChoose } from 'ember-power-select/test-support';
+import { clickTrigger } from 'ember-power-select/test-support/helpers';
 
 export const multiFacet = (scope) => ({
   scope,

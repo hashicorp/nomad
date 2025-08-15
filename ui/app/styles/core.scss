@@ -11,13 +11,13 @@
 @import './utils/layout';
 
 // Start with Bulma variables as a foundation
-@import 'bulma/sass/utilities/initial-variables';
+@import 'sass/utilities/initial-variables';
 
 // Override variables where appropriate
 @import './core/variables.scss';
 
 // Bring in the rest of Bulma
-@import 'bulma/bulma';
+@import 'bulma';
 
 @import './utils/structure-colors';
 
