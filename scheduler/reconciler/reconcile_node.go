@@ -77,12 +77,12 @@ func (nr *NodeReconciler) Compute(
 }
 
 // computeCanaryNodes is a helper function that, given required task groups and
-// eligible nodes, outputs a map of arrays of nodes, indexed by task group name,
-// on which canaries should be placed.
+// eligible nodes, outputs a map[tgName] -> map[nodeID] -> node on which
+// canaries should be placed.
 func computeCanaryNodes(required map[string]*structs.TaskGroup,
-	eligibleNodes map[string]*structs.Node) map[string][]*structs.Node {
+	eligibleNodes map[string]*structs.Node) map[string]map[string]*structs.Node {
 
-	canaryNodes := map[string][]*structs.Node{}
+	canaryNodes := map[string]map[string]*structs.Node{}
 	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
 
 	for _, tg := range required {
@@ -93,13 +93,13 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 		// round up to the nearest integer
 		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
 
-		canaryNodes[tg.Name] = []*structs.Node{}
+		canaryNodes[tg.Name] = map[string]*structs.Node{}
 		for i, n := range eligibleNodesList {
 			if i > numberOfCanaryNodes-1 {
 				break
 			}
 
-			canaryNodes[tg.Name] = append(canaryNodes[tg.Name], n)
+			canaryNodes[tg.Name][n.ID] = n
 		}
 	}
 
@@ -128,7 +128,7 @@ func (nr *NodeReconciler) computeForNode(
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
-	canaryNodes map[string][]*structs.Node, // nodes which should get canaries deployed, per task group
+	canaryNodes map[string]map[string]*structs.Node, // nodes which should get canaries deployed, per task group
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
@@ -152,6 +152,10 @@ func (nr *NodeReconciler) computeForNode(
 			nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
+
+	// Track whether we're on canary node or not so that it's globaly accessible
+	// throughout the method
+	var onCanaryNode bool
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -222,20 +226,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// find nodes on which to deploy canaries
-		canaryNode := slices.ContainsFunc(
-			canaryNodes[tg.Name],
-			func(n *structs.Node) bool { return n.ID == alloc.NodeID },
-		)
-
-		if canaryNode {
-			if !deploymentPaused && !deploymentFailed {
-				result.Place = append(result.Place, AllocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     alloc,
-				})
-			}
-		}
+		_, onCanaryNode = canaryNodes[tg.Name][alloc.NodeID]
 
 		// note: the node can be both tainted and nil
 		node, nodeIsTainted := taintedNodes[alloc.NodeID]
@@ -398,44 +389,73 @@ func (nr *NodeReconciler) computeForNode(
 			}
 
 			result.Place = append(result.Place, allocTuple)
-
-			// populate deployment state for this task group
-			var dstate = new(structs.DeploymentState)
-			var existingDeployment bool
-			if nr.DeploymentCurrent != nil {
-				dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-			}
-
-			if !existingDeployment && dstate != nil {
-				if !tg.Update.IsEmpty() {
-					dstate.AutoRevert = tg.Update.AutoRevert
-					dstate.AutoPromote = tg.Update.AutoPromote
-					dstate.ProgressDeadline = tg.Update.ProgressDeadline
-				}
-				dstate.DesiredTotal += len(result.Place)
-			}
-
-			if dstate == nil {
-				dstate = new(structs.DeploymentState)
-			}
-
-			isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-			deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
-
-			canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
-			result.Stop = append(result.Stop, canariesToStop...)
-
-			// in this case there's nothing to do
-			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
-				continue
-			}
-
-			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
 		}
+
+		// populate deployment state for this task group
+		var dstate = new(structs.DeploymentState)
+		var existingDeployment bool
+		if nr.DeploymentCurrent != nil {
+			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
+		if !existingDeployment && dstate != nil {
+			if !tg.Update.IsEmpty() {
+				dstate.AutoRevert = tg.Update.AutoRevert
+				dstate.AutoPromote = tg.Update.AutoPromote
+				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			}
+			dstate.DesiredTotal += len(result.Place)
+		}
+
+		if dstate == nil {
+			dstate = new(structs.DeploymentState)
+		}
+
+		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
+
+		canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
+		result.Stop = append(result.Stop, canariesToStop...)
+
+		// check if there are any canaries to place
+		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
+
+		dstate.DesiredTotal = len(result.Place) + len(result.Update) + dstate.DesiredCanaries
+
+		// in this case there's nothing to do
+		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
+			continue
+		}
+
+		nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
 
 	return result, deploymentComplete
+}
+
+// placeCanaries places canary allocations and mutates the dstate argument
+func (nr *NodeReconciler) placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed bool,
+	dstate *structs.DeploymentState, tg *structs.TaskGroup, allocs []*structs.Allocation) []AllocTuple {
+	placements := []AllocTuple{}
+
+	if !onCanaryNode || deploymentPaused || deploymentFailed {
+		return nil
+	}
+
+	for _, a := range allocs {
+		placements = append(placements, AllocTuple{
+			Name:      a.Name,
+			TaskGroup: tg,
+			Alloc:     a,
+			Canary:    true,
+		})
+
+		dstate.DesiredCanaries += 1
+	}
+
+	return placements
 }
 
 func (nr *NodeReconciler) cancelUnneededCanaries(allocs []*structs.Allocation, required map[string]*structs.TaskGroup) []AllocTuple {
@@ -478,12 +498,12 @@ func (nr *NodeReconciler) cancelUnneededCanaries(allocs []*structs.Allocation, r
 	return stop
 }
 
-func (nr *NodeReconciler) createDeployment(job *structs.Job,
-	tg *structs.TaskGroup, dstate *structs.DeploymentState, updates int,
-	allocs []*structs.Allocation) {
+func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGroup,
+	dstate *structs.DeploymentState, updates int, allocs []*structs.Allocation) {
 
+	// programming error
 	if dstate == nil {
-		dstate = &structs.DeploymentState{}
+		return
 	}
 
 	updatingSpec := updates != 0
@@ -612,6 +632,7 @@ type AllocTuple struct {
 	Name      string
 	TaskGroup *structs.TaskGroup
 	Alloc     *structs.Allocation
+	Canary    bool
 }
 
 // NodeReconcileResult is used to return the sets that result from the diff

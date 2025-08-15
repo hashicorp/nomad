@@ -897,41 +897,45 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	}
 
 	// Create 10 nodes
-	var nodes []*structs.Node
+	nodes := []*structs.Node{}
 	for i := range 10 {
 		node := mock.Node()
 		node.ID = fmt.Sprintf("node_%d", i)
+		node.Name = fmt.Sprintf("node_%d", i)
 		nodes = append(nodes, node)
 	}
 
-	// Create 10 allocations from the old job and place them on 10 nodes
-	var allocs []*structs.Allocation
-	for i := range 10 {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.Job.Version = 1
-		alloc.NodeID = fmt.Sprintf("node_%d", i)
-		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
-		alloc.TaskGroup = job.TaskGroups[0].Name
-		allocs = append(allocs, alloc)
+	allocs := []*structs.Allocation{}
+	for _, n := range nodes {
+		a := mock.Alloc()
+		a.Job = job
+		a.Name = "my-job.web[0]"
+		a.NodeID = n.ID
+		a.NodeName = n.Name
+		a.TaskGroup = job.TaskGroups[0].Name
+
+		allocs = append(allocs, a)
 	}
 
 	// bump the job version up
 	newJob := job.Copy()
-	newJob.Version = 2
+	newJob.Version = job.Version + 1
+	newJob.ModifyIndex = job.ModifyIndex + 1
 
 	reconciler := NewNodeReconciler(nil)
-	r := reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, true)
+	reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, false)
 
 	must.NotNil(t, reconciler.DeploymentCurrent)
 
-	newD := structs.NewDeployment(job, 50, reconciler.DeploymentCurrent.CreateTime)
-	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
-		DesiredCanaries: 2,
-		DesiredTotal:    10,
+	newD := &structs.Deployment{
+		StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+		TaskGroups: map[string]*structs.DeploymentState{
+			job.TaskGroups[0].Name: {
+				DesiredCanaries: 2,
+				DesiredTotal:    10,
+			}},
 	}
 
-	must.Eq(t, 2, len(r.Place))
+	must.Eq(t, newD.StatusDescription, reconciler.DeploymentCurrent.StatusDescription)
+	must.Eq(t, newD.TaskGroups, reconciler.DeploymentCurrent.TaskGroups)
 }
