@@ -23,6 +23,7 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 
 	fakeEtc := t.TempDir()
 	fakeHome := t.TempDir()
+	fakeDev := t.TempDir()
 
 	homedir.DisableCache = true
 	t.Cleanup(func() {
@@ -44,6 +45,7 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		etcKnownHosts  = filepath.Join(fakeEtc, "ssh/ssh_known_hosts")
 		sshDir         = filepath.Join(fakeHome, homeSSH)
 		knownHostsFile = filepath.Join(fakeHome, homeKnownHosts)
+		urandom        = filepath.Join(fakeDev, "urandom")
 	)
 
 	err := os.WriteFile(gitConfig, []byte("git"), filePerm)
@@ -70,6 +72,9 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	err = os.WriteFile(knownHostsFile, []byte("home known hosts"), filePerm)
 	must.NoError(t, err)
 
+	err = os.WriteFile(urandom, []byte("urandom"), filePerm)
+	must.NoError(t, err)
+
 	paths := filesForVCS(
 		homeSSH,
 		homeKnownHosts,
@@ -78,6 +83,7 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		gitConfig,
 		hgFile,
 		hgDir,
+		urandom,
 	)
 	must.SliceEqual(t, []*landlock.Path{
 		landlock.Dir(sshDir, "r"),
@@ -87,5 +93,6 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		landlock.File(gitConfig, "r"),
 		landlock.File(hgFile, "r"),
 		landlock.Dir(hgDir, "r"),
+		landlock.File(urandom, "r"),
 	}, paths)
 }
