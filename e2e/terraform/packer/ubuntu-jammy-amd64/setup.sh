@@ -109,6 +109,10 @@ sudo mv /tmp/linux/cni/loopback.* /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.conflist /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.sh /opt/cni/bin/
 
+echo "Installing CPI test plugins"
+mkdir_for_root /opt/nomad/data/common_plugins/secrets
+sudo mv /tmp/linux/common-plugins/test_secret_plugin.sh /opt/nomad/data/common_plugins/secrets/test_secret_plugin
+
 # Podman
 echo "Installing Podman"
 sudo apt-get -y install podman catatonit

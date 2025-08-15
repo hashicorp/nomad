@@ -106,11 +106,6 @@ resource "null_resource" "install_nomad_configs_linux" {
       "sudo mv /tmp/ca.crt /etc/nomad.d/tls/ca.crt",
 
       "sudo mv /tmp/nomad.service /etc/systemd/system/nomad.service",
-
-      # Common Plugins
-      "sudo mkdir -p /opt/nomad/data/common_plugins/secrets",
-      "sudo mv /tmp/test_secret_plugin /opt/nomad/data/common_plugins/secrets",
-      "sudo chmod 0700 /opt/nomad/data/common_plugins/secrets/test_secret_plugin",
     ]
   }
 
