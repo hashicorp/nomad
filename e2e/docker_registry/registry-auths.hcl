@@ -46,10 +46,6 @@ job "registry-auths" {
   }
 
   group "create-files" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
 
     # write out the test.sh file into var.helper_dir
     task "create-helper-file" {
