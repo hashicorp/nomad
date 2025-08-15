@@ -10,10 +10,6 @@ job "setup-podman-auth" {
   }
 
   group "create-files" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
 
     restart {
       attempts = 0
