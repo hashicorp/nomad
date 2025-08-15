@@ -58,56 +58,51 @@ func TestJobExposeCheckHook_tgValidateUseOfBridgeMode(t *testing.T) {
 	}
 
 	t.Run("no networks but no use of expose", func(t *testing.T) {
-		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Networks: make(structs.Networks, 0),
 		})
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
 	t.Run("no networks and uses expose", func(t *testing.T) {
-		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: make(structs.Networks, 0),
 			Services: []*structs.Service{s1},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect expose check: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("non-bridge network and uses expose", func(t *testing.T) {
-		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "host",
 			}},
 			Services: []*structs.Service{s1},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect expose check: invalid network mode for Consul Connect: group "g1" uses network mode "host"; must be "bridge" or "cni/*"`)
 	})
 
 	t.Run("bridge network uses expose", func(t *testing.T) {
-		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "bridge",
 			}},
 			Services: []*structs.Service{s1},
 		})
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
 	t.Run("cni network uses expose", func(t *testing.T) {
-		warn, err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "cni/test-net",
 			}},
 			Services: []*structs.Service{s1},
 		})
-		must.EqError(t, warn, `connect expose check: use CNI networks with Consul Connect at your own risk: group "g1" uses network mode "cni/test-net"`)
 		must.NoError(t, err)
 	})
 }
