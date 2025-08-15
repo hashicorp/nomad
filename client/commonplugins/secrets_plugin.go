@@ -41,9 +41,16 @@ type externalSecretsPlugin struct {
 
 	// pluginPath is the path on the host to the plugin executable
 	pluginPath string
+
+	// env is optional envVars passed to the plugin process
+	env map[string]string
 }
 
-func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
+// NewExternalSecretsPlugin creates an instance of a secrets plugin by validating the plugin
+// binary exists and is executable, and parsing any string key/value pairs out of the config
+// which will be used as environment variables for Fetch.
+func NewExternalSecretsPlugin(commonPluginDir string, name string, env map[string]string) (*externalSecretsPlugin, error) {
+	// validate plugin
 	executable := filepath.Join(commonPluginDir, SecretsPluginDir, name)
 	f, err := os.Stat(executable)
 	if err != nil {
@@ -58,6 +65,7 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSec
 
 	return &externalSecretsPlugin{
 		pluginPath: executable,
+		env:        env,
 	}, nil
 }
 
@@ -94,6 +102,10 @@ func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*Secret
 	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fetch", path)
 	cmd.Env = []string{
 		"CPI_OPERATION=fetch",
+	}
+
+	for env, val := range e.env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", env, val))
 	}
 
 	stdout, stderr, err := runPlugin(cmd, SecretsKillTimeout)
