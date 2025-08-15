@@ -7,11 +7,12 @@ description: |
 
 # `nomad node intro create` command reference
 
-Generates a new node introduction token. This token is used to authenticate a new Nomad client node
-to the cluster. When possible, we recommend specifying the optional `-node-name` flag, so that the
-token is scoped to a specific node.
+Use the `nomad node intro create` command to generates a new node introduction
+token. The Nomad cluster uses this token to authenticate a new Nomad client
+node. When possible, we recommend specifying the optional `-node-name` flag, so
+that the token is scoped to a specific node.
 
-If ACLs are enabled, this command requires a token with the 'node:write' capability.
+If ACLs are enabled, this command requires a token with the `node:write` capability.
 
 ## Usage
 
@@ -21,14 +22,14 @@ nomad node intro create [options]
 
 ## Options
 
-- `-node-name`: The name of the node to which the introduction token will be scoped. If not
-  specified, the value will be left empty.
+- `-node-name`: The name of the node to which the introduction token is scoped. If not
+  specified, the value is left empty.
 
-- `-node-pool`: The node pool to which the introduction token will be scoped. If not specified, the
-  value `default` will be used.
+- `-node-pool`: The node pool to which the introduction token is scoped. If not specified, the
+  value `default` is used.
 
 - `-ttl`: The TTL to apply to the introduction token. If not specified, the server configured
-  default value will be used.
+  default value is used.
 
 - `-json`: Output the response object in JSON format.
 
@@ -36,7 +37,7 @@ nomad node intro create [options]
 
 ## Examples
 
-Create a node introduction token with a specific node name, node pool, and TTL:
+Create a node introduction token with a specific node name, node pool, and TTL.
 
 ```shell-session
 $ nomad node intro create -node-name=node-338ef6e9 -node-pool=platform -ttl=15m
@@ -47,7 +48,7 @@ eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlMGJhMmM3LWE5ODktNzI2Ni1kZDdlLWMyYzBkZmU3OTg4OSIs
 ```
 
 Create a node introduction token with a specific node name, node pool, and TTL with the output in
-JSON format:
+JSON format.
 
 ```shell-session
 $ nomad node intro create -node-name=node-338ef6e9 -node-pool=platform -ttl=15m -json

@@ -7,16 +7,20 @@ description: |
 
 # `nomad node identity` command reference
 
-The `node identity` command is used to interact with a specific node's identity.
+Use the `node identity` command to interact with a specific node's identity.
 
 ## Usage
 
-Usage: `nomad node identity <subcommand> [options]`
+```plaintext
+nomad node identity <subcommand> [options]
+```
 
 Interact with a node's identity. All commands interact directly with a client and require setting
-the target node via its 36 character ID.
+the target node via its 36-character ID.
 
-Please see the individual subcommand help for detailed usage information:
+Refer to the individual subcommand help for detailed usage information.
+
+Subcommands:
 
  - [`renew`][renew] - Force a node to renew its identity
 

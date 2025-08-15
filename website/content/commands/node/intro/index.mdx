@@ -7,17 +7,21 @@ description: |
 
 # nomad node intro reference
 
-The `intro` command is used for managing node introduction tokens. These tokens are used to
-authenticate new Nomad clients to the cluster.
+Use the `nomad node intro` command to manage node introduction tokens. The Nomad
+cluster uses these tokens to authenticate new Nomad clients.
 
 ## Usage
 
-Usage: `nomad node intro <subcommand> [options]`
+```plaintext
+nomad node intro <subcommand> [options]
+```
 
-This command groups subcommands for managing node introduction tokens. These
-tokens are used to authenticate new Nomad client nodes to the cluster.
+This command groups subcommands for managing node introduction tokens. The Nomad
+cluster uses these tokens to authenticate new Nomad clients.
 
-Please see the individual subcommand help for detailed usage information:
+Refer to the individual subcommand help for detailed usage information.
+
+Subcommands:
 
  - [`create`][create] - Generate a new node introduction token
 

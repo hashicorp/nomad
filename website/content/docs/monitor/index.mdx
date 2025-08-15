@@ -291,14 +291,14 @@ latency and packet loss for the [Serf] address.
 
 ## Client introduction
 
-When Nomad is configured with [`client_introduction.enforcement`] set to either
-`warn` or `strict`, the server handling the client registration request will
-increment the `nomad.client.introduction.enforcement` counter each time a new
+When you configure Nomad with [`client_introduction.enforcement`] set to either
+`warn` or `strict`, the server handling the client registration request
+increments the `nomad.client.introduction.enforcement` counter each time a new
 registration is made without an introduction token.
 
 Monitoring this metric can help identify clients that are not registering with
-an introduction token which is important when migrating to a tougher enforcement
-level.
+an introduction token, which is important when migrating to a tougher
+enforcement level.
 
 [alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
