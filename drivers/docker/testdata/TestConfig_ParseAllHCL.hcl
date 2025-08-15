@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 config {
   image                  = "redis:7"
   image_pull_timeout     = "15m"
