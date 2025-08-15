@@ -549,3 +549,16 @@ func (w *WIHandle) Equal(o WIHandle) bool {
 		w.WorkloadIdentifier == o.WorkloadIdentifier &&
 		w.WorkloadType == o.WorkloadType
 }
+
+func CopySliceWorkloadIdentity(s []*WorkloadIdentity) []*WorkloadIdentity {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*WorkloadIdentity, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
