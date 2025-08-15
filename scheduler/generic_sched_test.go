@@ -4913,7 +4913,7 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 func TestServiceSched_BlockedDisconnectReplace(t *testing.T) {
 	ci.Parallel(t)
 
-	h := tests.NewHarness(t)
+	h := NewHarness(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusDisconnected
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
