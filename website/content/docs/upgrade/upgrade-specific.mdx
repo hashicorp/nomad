@@ -18,7 +18,12 @@ used to document those details separately from the standard upgrade flow.
 
 In Nomad 1.11.0, submitting a sysbatch job with a `reschedule` block returns
 an error instead of being silently ignored, as it was in previous versions. The
-same behavior applies to system jobs. 
+same behavior applies to system jobs.
+
+#### Memory oversubscription checked against total memory on node
+
+In Nomad 1.11.0, the scheduler checks that that the `resources.memory_max` of a
+task doesn't exceed the total memory on a given node.
 
 ## Nomad 1.10.2
 

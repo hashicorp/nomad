@@ -110,6 +110,18 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 			},
 		},
+		{
+			Node: &structs.Node{
+				// Empty but memory_max won't fit
+				NodeResources: &structs.NodeResources{
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
 	}
 	static := NewStaticRankIterator(ctx, nodes)
 
@@ -119,8 +131,9 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			{
 				Name: "web",
 				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+					CPU:         1024,
+					MemoryMB:    1024,
+					MemoryMaxMB: 2048,
 				},
 			},
 		},
@@ -132,19 +145,18 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	if len(out) != 2 {
-		t.Fatalf("Bad: %v", out)
-	}
-	if out[0] != nodes[0] || out[1] != nodes[2] {
-		t.Fatalf("Bad: %v", out)
-	}
+	must.Len(t, 2, out, must.Sprint("expected 2 scored nodes"))
 
-	if out[0].FinalScore != 1.0 {
-		t.Fatalf("Bad Score: %v", out[0].FinalScore)
-	}
-	if out[1].FinalScore < 0.50 || out[1].FinalScore > 0.60 {
-		t.Fatalf("Bad Score: %v", out[1].FinalScore)
-	}
+	must.Eq(t, nodes[0], out[0], must.Sprint("expected nodes[0] first"))
+	must.Eq(t, nodes[2], out[1], must.Sprint("expected nodes[2] second"))
+	must.Eq(t, 1.0, out[0].FinalScore, must.Sprint("bad score"))
+	must.Greater(t, 0.50, out[1].FinalScore, must.Sprint("bad score"))
+	must.Less(t, 0.60, out[1].FinalScore, must.Sprint("bad score"))
+
+	// un-feasible nodes node[1] and node[3] are not scored
+	must.Eq(t, 2,
+		ctx.metrics.ConstraintFiltered["task memory_max exceeds maximum available memory"])
+
 }
 
 // TestBinPackIterator_NoExistingAlloc_MixedReserve asserts that node's with
