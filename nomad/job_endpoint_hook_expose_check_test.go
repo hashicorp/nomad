@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,37 +58,52 @@ func TestJobExposeCheckHook_tgValidateUseOfBridgeMode(t *testing.T) {
 	}
 
 	t.Run("no networks but no use of expose", func(t *testing.T) {
-		require.Nil(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Networks: make(structs.Networks, 0),
-		}))
+		})
+		must.NoError(t, err)
 	})
 
 	t.Run("no networks and uses expose", func(t *testing.T) {
-		require.EqualError(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: make(structs.Networks, 0),
 			Services: []*structs.Service{s1},
-		}), `group "g1" must specify one bridge network for exposing service check(s)`)
+		})
+		must.EqError(t, err, `connect expose check: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("non-bridge network and uses expose", func(t *testing.T) {
-		require.EqualError(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "host",
 			}},
 			Services: []*structs.Service{s1},
-		}), `group "g1" must use bridge network for exposing service check(s)`)
+		})
+		must.EqError(t, err, `connect expose check: invalid network mode for Consul Connect: group "g1" uses network mode "host"; must be "bridge" or "cni/*"`)
 	})
 
 	t.Run("bridge network uses expose", func(t *testing.T) {
-		require.Nil(t, tgValidateUseOfBridgeMode(&structs.TaskGroup{
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "bridge",
 			}},
 			Services: []*structs.Service{s1},
-		}))
+		})
+		must.NoError(t, err)
+	})
+
+	t.Run("cni network uses expose", func(t *testing.T) {
+		err := tgValidateExposeNetworkMode(&structs.TaskGroup{
+			Name: "g1",
+			Networks: structs.Networks{{
+				Mode: "cni/test-net",
+			}},
+			Services: []*structs.Service{s1},
+		})
+		must.NoError(t, err)
 	})
 }
 
@@ -165,8 +181,8 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 				Services: []*structs.Service{s1},
 			}},
 		})
-		require.Empty(t, warnings)
-		require.EqualError(t, err, `group "g1" must specify one bridge network for exposing service check(s)`)
+		must.SliceEmpty(t, warnings)
+		must.EqError(t, err, `connect expose check: must have exactly one network for Consul Connect: group "g1" has 2 networks`)
 	})
 
 	t.Run("expose in service check", func(t *testing.T) {
@@ -189,8 +205,8 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 				}},
 			}},
 		})
-		require.Empty(t, warnings)
-		require.EqualError(t, err, `exposed service check g1[t1]->s2->s2-check1 is not a task-group service`)
+		must.SliceEmpty(t, warnings)
+		must.EqError(t, err, `exposed service check g1[t1]->s2->s2-check1 is not a task-group service`)
 	})
 
 	t.Run("ok", func(t *testing.T) {
@@ -224,8 +240,8 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 				}},
 			}},
 		})
-		require.Empty(t, warnings)
-		require.Nil(t, err)
+		must.SliceEmpty(t, warnings)
+		must.NoError(t, err)
 	})
 }
 
@@ -321,9 +337,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			Services: []*structs.Service{s},
 			Networks: structs.Networks{{
 				Mode:         "bridge",
-				DynamicPorts: []structs.Port{
-					// service declares "sPort", but does not exist
-				},
+				DynamicPorts: []structs.Port{}, // service declares "sPort", but does not exist
 			}},
 		}, s, c, checkIdx)
 		require.EqualError(t, err, `unable to determine local service port for service check group1->service1->check1`)
@@ -400,8 +414,8 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			Networks: nil, // not set, should cause validation error
 		}
 		ePath, err := exposePathForCheck(tg, s, c, checkIdx)
-		require.EqualError(t, err, `group "group1" must specify one bridge network for exposing service check(s)`)
-		require.Nil(t, ePath)
+		must.EqError(t, err, `connect expose check: must have exactly one network for Consul Connect: group "group1" has 0 networks`)
+		must.Nil(t, ePath)
 	})
 }
 
