@@ -216,6 +216,12 @@ client {
   controls on the behavior of task
   [`template`](/nomad/docs/job-specification/template) blocks.
 
+- `common_plugins_dir` `(string: "")` - Specifies the directory wherein
+  plugins conforming to the common plugins interface (TODO) should be placed.
+  When this parameter is empty, Nomad generates the path using the
+  [top-level `data-dir`][top_level_data_dir] suffixed with `common_plugins`,
+  like `"/opt/nomad/common_plugins"`. This must be an absolute path.
+
 - `host_volume` <code>([host_volume](#host_volume-block): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
 
