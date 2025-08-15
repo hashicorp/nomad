@@ -471,106 +471,97 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	}
 
 	t.Run("sidecar 0 networks", func(t *testing.T) {
-		warn, err := groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: nil,
 		}, makeService("connect-service"))
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect sidecar: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("sidecar non bridge", func(t *testing.T) {
-		warn, err := groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name: "g2",
 			Networks: structs.Networks{{
 				Mode: "host",
 			}},
 		}, makeService("connect-service"))
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect sidecar: invalid network mode for Consul Connect: group "g2" uses network mode "host"; must be "bridge" or "cni/*"`)
 	})
 
 	t.Run("sidecar okay bridge", func(t *testing.T) {
-		warn, err := groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name: "g3",
 			Networks: structs.Networks{{
 				Mode: "bridge",
 			}},
 		}, makeService("connect-service"))
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
 	t.Run("sidecar okay cni", func(t *testing.T) {
-		warn, err := groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name: "g4",
 			Networks: structs.Networks{{
 				Mode: "cni/test-net",
 			}},
 		}, makeService("connect-service"))
-		must.EqError(t, warn, `connect sidecar: use CNI networks with Consul Connect at your own risk: group "g4" uses network mode "cni/test-net"`)
 		must.NoError(t, err)
 	})
 
 	// group and service name validation
 
 	t.Run("non-connect service contains uppercase characters", func(t *testing.T) {
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
 				Name: "Other-Service",
 			}},
 		})
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
 	t.Run("connect service contains uppercase characters", func(t *testing.T) {
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
 				Name: "Other-Service",
 			}, makeService("Connect-Service")},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `Consul Connect service name "Connect-Service" in group "group" must not contain uppercase characters`)
 	})
 
 	t.Run("non-connect group contains uppercase characters", func(t *testing.T) {
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Other-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
 				Name: "other-service",
 			}},
 		})
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
 	t.Run("connect-group contains uppercase characters", func(t *testing.T) {
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Connect-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
 				Name: "other-service",
 			}, makeService("connect-service")},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `Consul Connect group "Connect-Group" with service "connect-service" must not contain uppercase characters`)
 	})
 
 	t.Run("connect group and service lowercase", func(t *testing.T) {
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "connect-group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
 				Name: "other-service",
 			}, makeService("connect-service")},
 		})
-		must.NoError(t, warn)
 		must.NoError(t, err)
 	})
 
@@ -587,12 +578,11 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				LocalBindPort: 8999,
 			}},
 		}
-		warn, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "connect-group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{s1, s2},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `Consul Connect services "s2" and "s1" in group "connect-group" using same address for upstreams (:8999)`)
 	})
 }
@@ -800,46 +790,42 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("no group network", func(t *testing.T) {
-		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+		err := groupConnectGatewayValidate(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: nil,
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect gateway: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("bad network mode", func(t *testing.T) {
-		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+		err := groupConnectGatewayValidate(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "",
 			}},
 		})
-		must.NoError(t, warn)
 		must.EqError(t, err, `connect gateway: invalid network mode for Consul Connect: group "g1" uses network mode ""; must be "bridge", "host", or "cni/*"`)
 	})
 
 	for _, good := range []string{"bridge", "host"} {
 		t.Run("good network mode "+good, func(t *testing.T) {
-			warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+			err := groupConnectGatewayValidate(&structs.TaskGroup{
 				Name: "g1",
 				Networks: structs.Networks{{
 					Mode: good,
 				}},
 			})
-			must.NoError(t, warn)
 			must.NoError(t, err)
 		})
 	}
 
 	t.Run("good network mode cni", func(t *testing.T) {
-		warn, err := groupConnectGatewayValidate(&structs.TaskGroup{
+		err := groupConnectGatewayValidate(&structs.TaskGroup{
 			Name: "g1",
 			Networks: structs.Networks{{
 				Mode: "cni/test-net",
 			}},
 		})
-		must.EqError(t, warn, `connect gateway: use CNI networks with Consul Connect at your own risk: group "g1" uses network mode "cni/test-net"`)
 		must.NoError(t, err)
 	})
 }

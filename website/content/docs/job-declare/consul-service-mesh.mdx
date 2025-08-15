@@ -36,7 +36,8 @@ service-based access control permissions throughout the entire mesh.
 Nomad has native integration with Consul to provide service mesh capabilities.
 The [`connect`][] block is the entrypoint for all service mesh configuration.
 Nomad automatically deploys a sidecar proxy task to all allocations that have a
-[`sidecar_service`][] block. All external traffic is provided by the sidecar.
+[`sidecar_service`][] block. All incoming external traffic is handled by the
+sidecar.
 
 This proxy task is responsible for exposing the service to the mesh and can
 also be used to access other services from within the allocation. These

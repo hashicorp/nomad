@@ -6301,8 +6301,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 		tg.Networks[0].Mode = "cni/test-net"
 
 		err := validateJob(j)
-		must.ErrorContains(t, err, "1 warning:")
-		must.ErrorContains(t, err, ErrConnectWithCNIWarning.Error())
+		must.NoError(t, err)
 	})
 
 	t.Run("consul connect but missing network", func(t *testing.T) {

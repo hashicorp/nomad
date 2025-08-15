@@ -62,22 +62,14 @@ func (jobExposeCheckHook) Validate(job *structs.Job) (warnings []error, err erro
 		// Make sure any group that contains a group-service that enables expose
 		// is configured with one network that is in "bridge" mode, or warn
 		// if the network is a "cni/*" mode.
-		// This check is being done independently of the preceding Connect task
-		// injection hook, because at some point in the future Connect will not
-		// require the use of network namespaces, whereas the use of "expose"
-		// does not make sense without the use of network namespace.
-		warn, err := tgValidateExposeNetworkMode(tg)
-		if err != nil {
-			return nil, err
-		}
-		if warn != nil {
-			warnings = append(warnings, warn)
+		if err = tgValidateExposeNetworkMode(tg); err != nil {
+			return warnings, err
 		}
 		// Make sure any group-service that contains a check that enables expose
 		// is connect-enabled and does not specify a custom sidecar task. We only
 		// support the expose feature when using the built-in Envoy integration.
-		if err := tgValidateUseOfCheckExpose(tg); err != nil {
-			return nil, err
+		if err = tgValidateUseOfCheckExpose(tg); err != nil {
+			return warnings, err
 		}
 	}
 	return warnings, nil
@@ -145,11 +137,11 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 // tgValidateExposeNetworkMode ensures there is exactly 1 network configured for
 // the task group, and that it uses "bridge" or "cni/*" mode (i.e. enables network
 // namespaces).
-func tgValidateExposeNetworkMode(tg *structs.TaskGroup) (warn, err error) {
+func tgValidateExposeNetworkMode(tg *structs.TaskGroup) error {
 	if tgUsesExposeCheck(tg) {
 		return groupConnectNetworkModeValidate(tg, "connect expose check", false)
 	}
-	return nil, nil
+	return nil
 }
 
 // tgUsesExposeCheck returns true if any group service in the task group makes
@@ -188,7 +180,7 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 
 	// Borrow some of the validation before we start manipulating the group
 	// network, which needs to exist once.
-	if _, err := tgValidateExposeNetworkMode(tg); err != nil {
+	if err := tgValidateExposeNetworkMode(tg); err != nil {
 		return nil, err
 	}
 

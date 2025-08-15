@@ -28,7 +28,6 @@ const (
 var (
 	ErrConnectRequireOneNetwork  = errors.New("must have exactly one network for Consul Connect")
 	ErrConnectInvalidNetworkMode = errors.New("invalid network mode for Consul Connect")
-	ErrConnectWithCNIWarning     = errors.New("use CNI networks with Consul Connect at your own risk")
 )
 
 // connectSidecarResources returns the set of resources used by default for
@@ -170,11 +169,7 @@ func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
-		warn, err := groupConnectValidate(g)
-		if warn != nil {
-			warnings = append(warnings, warn)
-		}
-		if err != nil {
+		if err := groupConnectValidate(g); err != nil {
 			return warnings, err
 		}
 	}
@@ -552,28 +547,23 @@ func newConnectSidecarTask(service, driver, cluster string) *structs.Task {
 	}
 }
 
-func groupConnectValidate(g *structs.TaskGroup) (warn, err error) {
+func groupConnectValidate(g *structs.TaskGroup) error {
+	var err error
 	for _, s := range g.Services {
 		switch {
 		case s.Connect.HasSidecar():
-			warn, err = groupConnectSidecarValidate(g, s)
-			if err != nil {
-				return warn, err
-			}
+			err = groupConnectSidecarValidate(g, s)
 		case s.Connect.IsNative():
 			err = groupConnectNativeValidate(g, s)
-			if err != nil {
-				return warn, err
-			}
 		case s.Connect.IsGateway():
-			warn, err = groupConnectGatewayValidate(g)
-			if err != nil {
-				return warn, err
-			}
+			err = groupConnectGatewayValidate(g)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	err = groupConnectUpstreamsValidate(g, g.Services)
-	return warn, err
+	return err
 }
 
 func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Service) error {
@@ -642,22 +632,15 @@ func transparentProxyPortLabelValidate(g *structs.TaskGroup, portLabel string) b
 	return false
 }
 
-func groupConnectNetworkModeValidate(g *structs.TaskGroup, errorPrefix string, allowHost bool) (warn, err error) {
+func groupConnectNetworkModeValidate(g *structs.TaskGroup, errorPrefix string, allowHost bool) error {
 	if nn := len(g.Networks); nn != 1 {
-		return nil, fmt.Errorf("%s: %w: group %q has %d networks",
+		return fmt.Errorf("%s: %w: group %q has %d networks",
 			errorPrefix, ErrConnectRequireOneNetwork, g.Name, nn)
 	}
 
 	mode := g.Networks[0].Mode
-
-	if mode == "bridge" || (allowHost && mode == "host") {
-		return nil, nil
-	}
-
-	if strings.HasPrefix(mode, "cni/") {
-		warn = fmt.Errorf("%s: %w: group %q uses network mode %q",
-			errorPrefix, ErrConnectWithCNIWarning, g.Name, mode)
-		return warn, nil
+	if mode == "bridge" || (allowHost && mode == "host") || strings.HasPrefix(mode, "cni/") {
+		return nil
 	}
 
 	// helpful error message
@@ -665,14 +648,13 @@ func groupConnectNetworkModeValidate(g *structs.TaskGroup, errorPrefix string, a
 	if allowHost {
 		allowed = `"bridge", "host", or "cni/*"`
 	}
-	return nil, fmt.Errorf("%s: %w: group %q uses network mode %q; must be %s",
+	return fmt.Errorf("%s: %w: group %q uses network mode %q; must be %s",
 		errorPrefix, ErrConnectInvalidNetworkMode, g.Name, mode, allowed)
 }
 
-func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn, err error) {
-	warn, err = groupConnectNetworkModeValidate(g, "connect sidecar", false)
-	if err != nil {
-		return warn, err
+func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error {
+	if err := groupConnectNetworkModeValidate(g, "connect sidecar", false); err != nil {
+		return err
 	}
 
 	// We must enforce lowercase characters on group and service names for connect
@@ -680,14 +662,14 @@ func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) (warn
 	// https://github.com/hashicorp/consul/blob/v1.9.5/command/connect/proxy/proxy.go#L235
 
 	if s.Name != strings.ToLower(s.Name) {
-		return warn, fmt.Errorf("Consul Connect service name %q in group %q must not contain uppercase characters", s.Name, g.Name)
+		return fmt.Errorf("Consul Connect service name %q in group %q must not contain uppercase characters", s.Name, g.Name)
 	}
 
 	if g.Name != strings.ToLower(g.Name) {
-		return warn, fmt.Errorf("Consul Connect group %q with service %q must not contain uppercase characters", g.Name, s.Name)
+		return fmt.Errorf("Consul Connect group %q with service %q must not contain uppercase characters", g.Name, s.Name)
 	}
 
-	return warn, nil
+	return nil
 }
 
 func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error {
@@ -699,7 +681,7 @@ func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error 
 	return nil
 }
 
-func groupConnectGatewayValidate(g *structs.TaskGroup) (warn, err error) {
+func groupConnectGatewayValidate(g *structs.TaskGroup) error {
 	// note that gateways can run in host network mode
 	return groupConnectNetworkModeValidate(g, "connect gateway", true)
 }
