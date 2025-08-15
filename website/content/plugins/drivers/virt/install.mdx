@@ -111,7 +111,7 @@ $ sudo yum -y install nomad-driver-virt
 This example shows the default plugin configuration.
 
 ```hcl
-plugin "nomad-driver-driver" {
+plugin "nomad-driver-virt" {
   config {
     data_dir     = "/var/lib/virt"
     image_paths  = ["/var/lib/virt", "${ALLOC_DIR}"]
