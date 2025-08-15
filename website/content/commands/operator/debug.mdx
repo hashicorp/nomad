@@ -54,16 +54,16 @@ true.
 - `-log-include-location`: Include file and line information in each log line
   monitored. The default is `true`.
 
-- `log-file-export`: Include agents' Nomad logfiles in the debug capture.
+- `-log-file-export`: Include agents' Nomad logfiles in the debug capture.
   The historical log export monitor runs concurrently with the log monitor
   and ignores the `-log-level` and `-log-include-location` flags used to
   configure that monitor. Nomad will return an error if the agent does not
   have file logging configured. Cannot be used with `-log-lookback`.
 
-- `log-lookback`: Include historical journald logs in the debug capture. The
+- `-log-lookback`: Include historical journald logs in the debug capture. The
   journald export monitor runs concurrently with the log monitor and ignores
   the `-log-level` and `-log-include-location` flags passed to that monitor.
-  This flag is only available on Linux systems using systemd, see the 
+  This flag is only available on Linux systems using systemd, see the
   `-log-file-export` flag to retrieve historical logs from non-Linux systems,
   or those without systemd. Cannot be used with `-log-file-export`.
 

@@ -9,7 +9,77 @@ description: >-
 
 We are pleased to announce the following Nomad updates.
 
-## Release highlights
+
+## 1.10.4 release highlights
+
+### Nomad logs and journald output
+
+We have added functionality that enables you to retrieve journald output or the
+contents of the Nomad log file remotely using the CLI.
+
+#### New monitor export command
+
+For a given Nomad agent, this command retrieves journald logs or the
+entire contents of the Nomad log file. Review the [`monitor export` command
+reference](/nomad/commands/monitor/export) for usage, options, and examples.
+
+#### Historical log capture for debugging
+
+We added the following flags to the `nomad operator debug` command:
+
+- [`-log-lookback`](/nomad/commands/operator/debug#log-lookback): Include
+  historical journald logs in the debug capture.
+- [`-log-file-export`](/nomad/commands/operator/debug#log-file-export): Include
+  Nomad agents' logfiles in the debug capture.
+
+Refer to the [`nomad operator debug` command
+reference](/nomad/commands/operator/debug) for details.
+
+### Blocked evaluation metrics
+
+The `nomad.nomad.blocked_evals.cpu` and `nomad.nomad.blocked_evals.memory`
+server metrics now have a `node_pool` label. This helps you determine the node
+pool where a scaling operation is needed.
+
+Review the [server metrics in the Metrics reference](/nomad/docs/reference/metrics#server-metrics).
+
+### Sentinel policy scope for CSI volumes <EnterpriseAlert inline />
+
+We added a new `submit-csi-volume` Sentinel policy scope, which lets you apply
+Sentinel policies to CSI volume creation and registration.
+
+You may override `soft-mandatory` polices assigned to CSI volume creation and
+registration, but you may not override `hard-mandatory` policies. Refer to the
+[`EnforcementLevel`
+parameter](/nomad/api-docs/sentinel-policies#enforcementlevel) in the Sentinel
+Policies API for `soft-mandatory` and `hard-mandatory` definitions.
+
+Refer to the following documentation:
+
+- Sentinel policy reference
+
+  - [submit-csi-volume
+    scope](/nomad/docs/reference/sentinel-policy#submit-csi-volume-scope)
+  - [Sentinel CSI Volume
+    Objects](/nomad/docs/reference/sentinel-policy#sentinel-csi-volume-objects)
+
+- Volumes API reference
+
+  - [Register CSI Volume](/nomad/api-docs/volumes#register-csi-volume)
+  - [Create CSI Volume](/nomad/api-docs/volumes#create-csi-volume)
+
+- CLI command reference
+
+  - [`sentinel apply -scope "submit-csi-volume"`](/nomad/commands/sentinel/apply#scope)
+  - [`volume create -policy-override` option](/nomad/commands/volume/create#policy-override)
+  - [`volume register -policy-override` option](/nomad/commands/volume/register#policy-override)
+
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.4) for a list of bug fixes.
+
+## 1.10.0 release highlights
 
 ### Dynamic host volumes
 
@@ -170,7 +240,7 @@ this feature:
   No running jobs
   ```
 
-## Breaking changes
+### Breaking changes
 
 @include 'release-notes/v1-10/breaking-go-sdk.mdx'
 
@@ -188,24 +258,22 @@ this feature:
 
 @include 'release-notes/v1-10/breaking-affinity-spread.mdx'
 
-## Deprecations
+### Deprecations
 
 @include 'release-notes/v1-10/deprecate-variable-limits.mdx'
 
-## Upgrade details
+### Upgrade details
 
 For more detailed information, refer to the [upgrade details
 page][upgrade] and the [GitHub releases changelogs][github-releases].
 
-## Known issues
+### Known issues
 
 None.
 
-## Changelogs
+### Changelog
 
-These links take you to the changelogs on the GitHub website.
-
-- [v1.10.0-beta.1](https://github.com/hashicorp/nomad/releases/tag/v1.10.0-beta.1)
+- [v1.10.0](https://github.com/hashicorp/nomad/releases/tag/v1.10.0)
 
 
 [consul-integration]: /nomad/docs/secure/acl/consul
