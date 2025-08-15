@@ -15,7 +15,7 @@ We are pleased to announce the following Nomad updates.
 ### Nomad logs and journald output
 
 We have added functionality that enables you to retrieve journald output or the
-contents of the Nomad log file.
+contents of the Nomad log file remotely using the CLI.
 
 #### New monitor export command
 
@@ -46,8 +46,13 @@ Review the [server metrics in the Metrics reference](/nomad/docs/reference/metri
 ### Sentinel policy scope for CSI volumes <EnterpriseAlert inline />
 
 We added a new `submit-csi-volume` Sentinel policy scope, which lets you apply
-Sentinel policies to CSI volume creation and registration. You may also override
-any mandatory polices assigned to CSI volume creation and registration.
+Sentinel policies to CSI volume creation and registration.
+
+You may override `soft-mandatory` polices assigned to CSI volume creation and
+registration, but you may not override `hard-mandatory` policies. Refer to the
+[`EnforcementLevel`
+parameter](/nomad/api-docs/sentinel-policies#enforcementlevel) in the Sentinel
+Policies API for `soft-mandatory` and `hard-mandatory` definitions.
 
 Refer to the following documentation:
 
@@ -56,7 +61,7 @@ Refer to the following documentation:
   - [submit-csi-volume
     scope](/nomad/docs/reference/sentinel-policy#submit-csi-volume-scope)
   - [Sentinel CSI Volume
-    Objects](/nomad/docs/reference/sentinel-policy#submit-csi-volume-scope)
+    Objects](/nomad/docs/reference/sentinel-policy#sentinel-csi-volume-objects)
 
 - Volumes API reference
 
