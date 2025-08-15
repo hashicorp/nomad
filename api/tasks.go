@@ -202,7 +202,7 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 }
 
 func (r *ReschedulePolicy) Canonicalize(jobType string) {
-	if r == nil || jobType == JobTypeSystem || jobType == JobTypeSysbatch {
+	if r == nil {
 		return
 	}
 	dp := NewDefaultReschedulePolicy(jobType)
@@ -289,6 +289,8 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 		// GH-7203: it is possible an unknown job type is passed to this
 		// function and we need to ensure a non-nil object is returned so that
 		// the canonicalization runs without panicking.
+		// This also applies to batch/sysbatch jobs, which do not reschedule;
+		// we still want to return a safe object.
 		dp = &ReschedulePolicy{
 			Attempts:      pointerOf(0),
 			Interval:      pointerOf(time.Duration(0)),
