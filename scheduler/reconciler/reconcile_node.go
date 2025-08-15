@@ -398,18 +398,16 @@ func (nr *NodeReconciler) computeForNode(
 			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
 		}
 
-		if !existingDeployment && dstate != nil {
+		if !existingDeployment {
+			dstate = &structs.DeploymentState{}
 			if !tg.Update.IsEmpty() {
 				dstate.AutoRevert = tg.Update.AutoRevert
 				dstate.AutoPromote = tg.Update.AutoPromote
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
-			dstate.DesiredTotal += len(result.Place)
 		}
 
-		if dstate == nil {
-			dstate = new(structs.DeploymentState)
-		}
+		dstate.DesiredTotal += len(result.Place) + len(result.Update)
 
 		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
@@ -419,8 +417,6 @@ func (nr *NodeReconciler) computeForNode(
 
 		// check if there are any canaries to place
 		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
-
-		dstate.DesiredTotal = len(result.Place) + len(result.Update) + dstate.DesiredCanaries
 
 		// in this case there's nothing to do
 		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {

@@ -895,6 +895,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 		Canary:      20, // deploy to 20% of eligible nodes
 		MaxParallel: 1,  // otherwise the update strategy will be considered nil
 	}
+	job.JobModifyIndex = 1
 
 	// Create 10 nodes
 	nodes := []*structs.Node{}
@@ -920,7 +921,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	// bump the job version up
 	newJob := job.Copy()
 	newJob.Version = job.Version + 1
-	newJob.ModifyIndex = job.ModifyIndex + 1
+	newJob.JobModifyIndex = job.JobModifyIndex + 1
 
 	reconciler := NewNodeReconciler(nil)
 	reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, false)
