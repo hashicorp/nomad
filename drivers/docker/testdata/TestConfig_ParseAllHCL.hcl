@@ -105,7 +105,7 @@ config {
       volume_options {
         no_copy = true
         labels = {
-          label_key = "label_value"
+          label_key     = "label_value"
           "dotted.keys" = "always work"
         }
         driver_config {
