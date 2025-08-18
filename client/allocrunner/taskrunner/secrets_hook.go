@@ -198,7 +198,7 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				tmplProvider = append(tmplProvider, p)
 			}
 		default:
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Env)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue

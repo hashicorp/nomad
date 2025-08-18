@@ -1045,15 +1045,20 @@ func (v *Vault) Canonicalize() {
 }
 
 type Secret struct {
-	Name     string         `hcl:"name,label"`
-	Provider string         `hcl:"provider,optional"`
-	Path     string         `hcl:"path,optional"`
-	Config   map[string]any `hcl:"config,block"`
+	Name     string            `hcl:"name,label"`
+	Provider string            `hcl:"provider,optional"`
+	Path     string            `hcl:"path,optional"`
+	Config   map[string]any    `hcl:"config,block"`
+	Env      map[string]string `hcl:"env,block"`
 }
 
 func (s *Secret) Canonicalize() {
 	if len(s.Config) == 0 {
 		s.Config = nil
+	}
+
+	if len(s.Env) == 0 {
+		s.Env = nil
 	}
 }
 
