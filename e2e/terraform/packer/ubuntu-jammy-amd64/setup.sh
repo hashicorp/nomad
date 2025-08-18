@@ -132,7 +132,7 @@ sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 
 # Envoy
 echo "Installing Envoy"
-sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
+sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.34.1/envoy-1.34.1-linux-x86_64
 sudo chmod +x /opt/bin/envoy
 
 echo "Updating boot parameters"
