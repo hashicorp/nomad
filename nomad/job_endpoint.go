@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/nomad/scheduler/tests"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -1894,7 +1894,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.
-	planner := &tests.Harness{
+	planner := &sstructs.Plan{
 		State: &snap.StateStore,
 	}
 

@@ -17,17 +17,17 @@ import (
 
 // RejectPlan is used to always reject the entire plan and force a state refresh
 type RejectPlan struct {
-	Harness *sstructs.Plan
+	*Harness
 }
 
 func (r *RejectPlan) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
-	return r.Harness.serversMeetMinimumVersion
+	return r.ServersMeetMinimumVersion(minVersion, checkFailedServers)
 }
 
 func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, sstructs.State, error) {
 	result := new(structs.PlanResult)
-	result.RefreshIndex = r.Harness.NextIndex()
-	return result, r.Harness.State, nil
+	result.RefreshIndex = r.NextIndex()
+	return result, r.State, nil
 }
 
 func (r *RejectPlan) UpdateEval(eval *structs.Evaluation) error {
