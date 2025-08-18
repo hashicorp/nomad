@@ -13,11 +13,6 @@ job "secrets" {
   }
 
   group "group" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
-
     restart {
       attempts = 0
       mode     = "fail"
@@ -31,11 +26,6 @@ job "secrets" {
       config {
         command = "cat"
         args    = ["${NOMAD_SECRETS_DIR}/nomad_token"]
-
-        # TODO(shoenig) should not need NOMAD_ values once
-        # https://github.com/hashicorp/nomad-driver-exec2/issues/29 is
-        # fixed.
-        unveil = ["r:${NOMAD_SECRETS_DIR}"]
       }
       resources {
         cpu    = 100
@@ -52,11 +42,6 @@ job "secrets" {
       config {
         command = "bash"
         args    = ["-c", "echo abc123 > ${NOMAD_SECRETS_DIR}/password.txt && cat ${NOMAD_SECRETS_DIR}/password.txt"]
-
-        # TODO(shoenig) should not need NOMAD_ values once
-        # https://github.com/hashicorp/nomad-driver-exec2/issues/29 is
-        # fixed.
-        unveil = ["rwc:${NOMAD_SECRETS_DIR}"]
       }
       resources {
         cpu    = 100

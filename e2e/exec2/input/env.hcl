@@ -12,11 +12,6 @@ job "env" {
   }
 
   group "group" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
-
     restart {
       attempts = 0
       mode     = "fail"
