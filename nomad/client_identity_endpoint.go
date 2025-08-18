@@ -20,6 +20,32 @@ func newNodeIdentityEndpoint(srv *Server) *NodeIdentity {
 	}
 }
 
+func (n *NodeIdentity) Get(args *structs.NodeIdentityGetReq, reply *structs.NodeIdentityGetResp) error {
+
+	// Prevent infinite loop between the leader and the follower with the target
+	// node connection.
+	args.QueryOptions.AllowStale = true
+
+	authErr := n.srv.Authenticate(nil, args)
+	if done, err := n.srv.forward(structs.NodeIdentityGetRPCMethod, args, args, reply); done {
+		return err
+	}
+	n.srv.MeasureRPCRate("client_identity", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client_identity", "get"}, time.Now())
+
+	// Check node read permissions
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	return n.srv.forwardClientRPC(structs.NodeIdentityGetRPCMethod, args.NodeID, args, reply)
+}
+
 func (n *NodeIdentity) Renew(args *structs.NodeIdentityRenewReq, reply *structs.NodeIdentityRenewResp) error {
 
 	// Prevent infinite loop between the leader and the follower with the target
