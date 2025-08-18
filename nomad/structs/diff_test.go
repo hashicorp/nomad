@@ -9477,6 +9477,9 @@ func TestTaskDiff(t *testing.T) {
 						Config: map[string]any{
 							"foo": "bar",
 						},
+						Env: map[string]string{
+							"foo": "bar",
+						},
 					},
 				},
 			},
@@ -9488,6 +9491,9 @@ func TestTaskDiff(t *testing.T) {
 						Path:     "/foo/bar1",
 						Config: map[string]any{
 							"foo": "bar1",
+						},
+						Env: map[string]string{
+							"foo": "bar",
 						},
 					},
 				},

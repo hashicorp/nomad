@@ -1,11 +1,20 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "secret_path" {
+  type        = string
+  description = "The path of the vault secret"
+}
+
 job "nomad_secret" {
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
+  }
+
+  update {
+    min_healthy_time = "1s"
   }
 
   group "group" {
@@ -22,7 +31,7 @@ job "nomad_secret" {
 
       secret "testsecret" {
         provider = "nomad"
-        path     = "SECRET_PATH"
+        path     = "${var.secret_path}"
         config {
           namespace = "default"
         }

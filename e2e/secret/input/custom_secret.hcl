@@ -1,12 +1,12 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-variable "secret_path" {
+variable "secret_value" {
   type        = string
-  description = "The path of the vault secret"
+  description = "The value of the randomly generated secret for this test"
 }
 
-job "vault_secret" {
+job "custom_secret" {
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -29,18 +29,17 @@ job "vault_secret" {
         args    = ["-c", "sleep 300"]
       }
 
-      vault {}
-
       secret "testsecret" {
-        provider = "vault"
-        path     = "${var.secret_path}"
-        config {
-          engine = "kv_v2"
+        provider = "test_secret_plugin"
+        path     = "some/path"
+        env {
+          // The custom plugin will output this as part of the result field
+          TEST_ENV = "${var.secret_value}"
         }
       }
 
       env {
-        TEST_SECRET = "${secret.testsecret.key}"
+        TEST_SECRET = "${secret.testsecret.TEST_ENV}"
       }
 
       resources {

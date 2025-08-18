@@ -113,6 +113,10 @@ echo "Installing additional CNI network configs"
 # copy of nomad's "bridge" for connect+cni test (e2e/connect/)
 sudo mv /tmp/linux/cni/nomad_bridge_copy.conflist /opt/cni/config/
 
+echo "Installing CPI test plugins"
+mkdir_for_root /opt/nomad/data/common_plugins/secrets
+sudo mv /tmp/linux/common-plugins/test_secret_plugin.sh /opt/nomad/data/common_plugins/secrets/test_secret_plugin
+
 # Podman
 echo "Installing Podman"
 sudo apt-get -y install podman catatonit
