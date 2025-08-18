@@ -70,7 +70,7 @@ func NewPlanWithSateAndIndex(state *state.StateStore, nextIndex uint64, serversM
 type Plan struct {
 	State *state.StateStore
 
-	// Planner  Planner
+	Planner  Planner
 	planLock sync.Mutex
 
 	Plans        []*structs.Plan
@@ -96,6 +96,11 @@ func (p *Plan) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error
 
 	// Store the plan
 	p.Plans = append(p.Plans, plan)
+
+	// Check for custom planner
+	if p.Planner != nil {
+		return p.Planner.SubmitPlan(plan)
+	}
 
 	// Get the index
 	index := p.NextIndex()
@@ -190,6 +195,10 @@ func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
 			alloc.CreateTime = now
 		}
 	}
+}
+
+func (p *Plan) SetNoSubmit() {
+	p.noSubmit = true
 }
 
 func (p *Plan) UpdateEval(eval *structs.Evaluation) error {

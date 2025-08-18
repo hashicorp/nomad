@@ -46,9 +46,7 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
 type Harness struct {
-	t        testing.TB
-	Planner  sstructs.Planner
-	noSubmit bool
+	t testing.TB
 
 	*sstructs.Plan
 }
@@ -72,16 +70,6 @@ func NewHarnessWithState(t testing.TB, state *state.StateStore) *Harness {
 		t:    t,
 		Plan: plan,
 	}
-}
-
-// SubmitPlan is used to handle plan submission
-func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.State, error) {
-	// Check for custom planner
-	if h.Planner != nil {
-		return h.Planner.SubmitPlan(plan)
-	}
-
-	return h.Plan.SubmitPlan(plan)
 }
 
 // Snapshot is used to snapshot the current state
@@ -120,10 +108,6 @@ func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
 	must.Len(t, 1, h.Evals)
 	update := h.Evals[0]
 	must.Eq(t, state, update.Status)
-}
-
-func (h *Harness) SetNoSubmit() {
-	h.noSubmit = true
 }
 
 // CreateAlloc is helper method to create allocations with given jobs and
