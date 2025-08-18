@@ -34,6 +34,14 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
+# Some Go tools require the tags to be a comma-separated list. Perform a
+# substitution from the space to a comma and create a new variable, so we can
+# use both
+null  :=
+space := $(null) #
+comma := ,
+GO_TAGS_COMMA := $(subst $(space),$(comma),$(strip $(GO_TAGS)))
+
 #GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
 ifndef GOTEST_GROUP
 GOTEST_GROUP := nomad client command drivers quick
@@ -163,7 +171,7 @@ check: ## Lint the source code
 	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
-	@hclogvet .
+	@GOFLAGS="-tags=$(GO_TAGS_COMMA)" hclogvet ./...
 
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/content/
