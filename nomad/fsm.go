@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/hashicorp/nomad/scheduler/tests"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/raft"
 )
 
@@ -2064,7 +2064,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		if job.IsParameterized() || job.IsPeriodic() {
 			continue
 		}
-		planner := &tests.Harness{
+		planner := &sstructs.PlanBuilder{
 			State: &snap.StateStore,
 		}
 		// Create an eval and mark it as requiring annotations and insert that as well
