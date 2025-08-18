@@ -716,7 +716,7 @@ func TestNodeDeployments(t *testing.T) {
 			},
 			false,
 			structs.DeploymentStatusSuccessful,
-			structs.DeploymentStatusDescriptionSuccessful,
+			"",
 		},
 		{
 			"existing running deployment for a stopped job should be cancelled",
