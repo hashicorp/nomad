@@ -65,14 +65,17 @@ network](/img/nomad-bridge-network.png)](/img/nomad-bridge-network.png)
 
 When setting up a bridge network, Nomad uses a configuration template based on
 the CNI Specification's [example
-configuration](https://www.cni.dev/docs/spec/#example-configuration). Refer to
-the external [configuration
-format](https://www.cni.dev/docs/spec/#example-configuration) for a complete
-explanation of the fields.
+configuration](https://www.cni.dev/docs/spec/#example-configuration).
+Refer to that documentation for a complete explanation of the fields.
 
-You can use this template as a basis for your own CNI-based bridge network
-configuration in cases where you need access to an unsupported option in the
-default configuration, like hairpin mode.
+You can use the following templates as a basis for your own CNI-based bridge
+network configuration in cases where you need access to an unsupported option
+in the default configuration.
+
+### Configuration files
+
+<Tabs>
+  <Tab heading="Default">
 
 This example uses two default values from Nomad client configuration.
 
@@ -133,6 +136,69 @@ The `NOMAD-ADMIN` internal constant provides the value for
 ```
 
 </CodeBlockConfig>
+
+  </Tab>
+  <Tab heading="Transparent Proxy">
+
+Jobs that use the
+[`transparent_proxy`](/nomad/docs/job-specification/transparent_proxy)
+block add a `consul-cni` plugin to the bottom of the CNI configuration.
+
+Refer to the
+[transparent proxy](/nomad/docs/networking/consul/service-mesh#transparent-proxy)
+section of Nomad's Consul service mesh documentation to ensure that
+the node is configured correctly for this feature.
+
+<CodeBlockConfig highlight="36-39">
+
+```json
+{
+  "cniVersion": "1.0.0",
+  "name": "nomad",
+  "plugins": [
+    {
+      "type": "loopback"
+    },
+    {
+      "type": "bridge",
+      "bridge": "nomad",
+      "ipMasq": true,
+      "isGateway": true,
+      "forceAddress": true,
+      "hairpinMode": false,
+      "ipam": {
+        "type": "host-local",
+        "ranges": [
+          [{"subnet": "172.26.64.0/20"}]
+        ],
+        "routes": [
+          {"dst": "0.0.0.0/0"}
+        ],
+        "dataDir": "/var/run/cni"
+      }
+    },
+    {
+      "type": "firewall",
+      "backend": "iptables",
+      "iptablesAdminChainName": "NOMAD-ADMIN"
+    },
+    {
+      "type": "portmap",
+      "capabilities": {"portMappings": true},
+      "snat": true
+    },
+    {
+      "type": "consul-cni",
+      "log_level": "debug"
+    }
+  ]
+}
+```
+
+</CodeBlockConfig>
+
+  </Tab>
+</Tabs>
 
 This configuration uses the following CNI reference plugins:
 
