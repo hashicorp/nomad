@@ -48,16 +48,16 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 type Harness struct {
 	t testing.TB
 
-	*sstructs.Plan
+	*sstructs.PlanBuilder
 }
 
 // NewHarness is used to make a new testing harness
 func NewHarness(t testing.TB) *Harness {
 	state := state.TestStateStore(t)
-	plan := sstructs.NewPlanWithSateAndIndex(state, 1, true)
+	plan := sstructs.NewPlanWithStateAndIndex(state, 1, true)
 	h := &Harness{
-		t:    t,
-		Plan: plan,
+		t:           t,
+		PlanBuilder: plan,
 	}
 	return h
 }
@@ -65,10 +65,10 @@ func NewHarness(t testing.TB) *Harness {
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
 func NewHarnessWithState(t testing.TB, state *state.StateStore) *Harness {
-	plan := sstructs.NewPlanWithSateAndIndex(state, 1, false)
+	plan := sstructs.NewPlanWithStateAndIndex(state, 1, false)
 	return &Harness{
-		t:    t,
-		Plan: plan,
+		t:           t,
+		PlanBuilder: plan,
 	}
 }
 

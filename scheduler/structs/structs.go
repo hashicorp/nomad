@@ -61,13 +61,13 @@ func (ev *PortCollisionEvent) Sanitize() *PortCollisionEvent {
 	return clean
 }
 
-// NewPlanWithSateAndIndex is used in the testing harness
-func NewPlanWithSateAndIndex(state *state.StateStore, nextIndex uint64, serversMeetMinimumVersion bool) *Plan {
-	return &Plan{State: state, nextIndex: nextIndex, serversMeetMinimumVersion: serversMeetMinimumVersion}
+// NewPlanWithStateAndIndex is used in the testing harness
+func NewPlanWithStateAndIndex(state *state.StateStore, nextIndex uint64, serversMeetMinimumVersion bool) *PlanBuilder {
+	return &PlanBuilder{State: state, nextIndex: nextIndex, serversMeetMinimumVersion: serversMeetMinimumVersion}
 }
 
-// Plan is used to submit plans.
-type Plan struct {
+// PlanBuilder is used to submit plans.
+type PlanBuilder struct {
 	State *state.StateStore
 
 	Planner  Planner
@@ -81,7 +81,6 @@ type Plan struct {
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
 
-	optimizePlan              bool
 	serversMeetMinimumVersion bool
 
 	// don't actually write plans back to state
@@ -89,7 +88,7 @@ type Plan struct {
 }
 
 // SubmitPlan is used to handle plan submission
-func (p *Plan) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error) {
+func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error) {
 	// Ensure sequential plan application
 	p.planLock.Lock()
 	defer p.planLock.Unlock()
@@ -131,52 +130,29 @@ func (p *Plan) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error
 		EvalID:            plan.EvalID,
 	}
 
-	if p.optimizePlan {
-		stoppedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
-		for _, updateList := range plan.NodeUpdate {
-			for _, stoppedAlloc := range updateList {
-				stoppedAllocDiffs = append(stoppedAllocDiffs, stoppedAlloc.AllocationDiff())
-			}
-		}
-		req.AllocsStopped = stoppedAllocDiffs
+	var allocs []*structs.Allocation
 
-		req.AllocsUpdated = allocsUpdated
-
-		preemptedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
-		for _, preemptions := range plan.NodePreemptions {
-			for _, preemptedAlloc := range preemptions {
-				allocDiff := preemptedAlloc.AllocationDiff()
-				allocDiff.ModifyTime = now
-				preemptedAllocDiffs = append(preemptedAllocDiffs, allocDiff)
-			}
-		}
-		req.AllocsPreempted = preemptedAllocDiffs
-	} else {
-		// COMPAT 0.11: Handles unoptimized log format
-		var allocs []*structs.Allocation
-
-		allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
-		for _, updateList := range plan.NodeUpdate {
-			allocsStopped = append(allocsStopped, updateList...)
-		}
-		allocs = append(allocs, allocsStopped...)
-
-		allocs = append(allocs, allocsUpdated...)
-		updateCreateTimestamp(allocs, now)
-
-		req.Alloc = allocs
-
-		// Set modify time for preempted allocs and flatten them
-		var preemptedAllocs []*structs.Allocation
-		for _, preemptions := range result.NodePreemptions {
-			for _, alloc := range preemptions {
-				alloc.ModifyTime = now
-				preemptedAllocs = append(preemptedAllocs, alloc)
-			}
-		}
-
-		req.NodePreemptions = preemptedAllocs
+	allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
+	for _, updateList := range plan.NodeUpdate {
+		allocsStopped = append(allocsStopped, updateList...)
 	}
+	allocs = append(allocs, allocsStopped...)
+
+	allocs = append(allocs, allocsUpdated...)
+	updateCreateTimestamp(allocs, now)
+
+	req.Alloc = allocs
+
+	// Set modify time for preempted allocs and flatten them
+	var preemptedAllocs []*structs.Allocation
+	for _, preemptions := range result.NodePreemptions {
+		for _, alloc := range preemptions {
+			alloc.ModifyTime = now
+			preemptedAllocs = append(preemptedAllocs, alloc)
+		}
+	}
+
+	req.NodePreemptions = preemptedAllocs
 
 	if p.noSubmit {
 		return result, nil, nil
@@ -197,11 +173,11 @@ func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
 	}
 }
 
-func (p *Plan) SetNoSubmit() {
+func (p *PlanBuilder) SetNoSubmit() {
 	p.noSubmit = true
 }
 
-func (p *Plan) UpdateEval(eval *structs.Evaluation) error {
+func (p *PlanBuilder) UpdateEval(eval *structs.Evaluation) error {
 	// Ensure sequential plan application
 	p.planLock.Lock()
 	defer p.planLock.Unlock()
@@ -212,7 +188,7 @@ func (p *Plan) UpdateEval(eval *structs.Evaluation) error {
 	return nil
 }
 
-func (p *Plan) CreateEval(eval *structs.Evaluation) error {
+func (p *PlanBuilder) CreateEval(eval *structs.Evaluation) error {
 	// Ensure sequential plan application
 	p.planLock.Lock()
 	defer p.planLock.Unlock()
@@ -223,7 +199,7 @@ func (p *Plan) CreateEval(eval *structs.Evaluation) error {
 	return nil
 }
 
-func (p *Plan) ReblockEval(eval *structs.Evaluation) error {
+func (p *PlanBuilder) ReblockEval(eval *structs.Evaluation) error {
 	// Ensure sequential plan application
 	p.planLock.Lock()
 	defer p.planLock.Unlock()
@@ -246,12 +222,12 @@ func (p *Plan) ReblockEval(eval *structs.Evaluation) error {
 	return nil
 }
 
-func (p *Plan) ServersMeetMinimumVersion(_ *version.Version, _ bool) bool {
+func (p *PlanBuilder) ServersMeetMinimumVersion(_ *version.Version, _ bool) bool {
 	return p.serversMeetMinimumVersion
 }
 
 // NextIndex returns the next index
-func (p *Plan) NextIndex() uint64 {
+func (p *PlanBuilder) NextIndex() uint64 {
 	p.nextIndexLock.Lock()
 	defer p.nextIndexLock.Unlock()
 	idx := p.nextIndex

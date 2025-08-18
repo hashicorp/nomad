@@ -2064,7 +2064,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		if job.IsParameterized() || job.IsPeriodic() {
 			continue
 		}
-		planner := &sstructs.Plan{
+		planner := &sstructs.PlanBuilder{
 			State: &snap.StateStore,
 		}
 		// Create an eval and mark it as requiring annotations and insert that as well

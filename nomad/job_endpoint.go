@@ -1894,7 +1894,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.
-	planner := &sstructs.Plan{
+	planner := &sstructs.PlanBuilder{
 		State: &snap.StateStore,
 	}
 
