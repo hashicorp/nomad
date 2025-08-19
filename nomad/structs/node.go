@@ -768,6 +768,13 @@ type NodeUpdateResponse struct {
 }
 
 const (
+	// NodeIdentityGetRPCMethod is the RPC method for retrieving a client's
+	// currently stored node identity.
+	//
+	// Args: NodeIdentityGetReq
+	// Reply: NodeIdentityGetResp
+	NodeIdentityGetRPCMethod = "NodeIdentity.Get"
+
 	// NodeIdentityRenewRPCMethod is the RPC method for instructing a client to
 	// forcibly request a renewal of its node identity at the next heartbeat.
 	//
@@ -775,6 +782,21 @@ const (
 	// Reply: NodeIdentityRenewResp
 	NodeIdentityRenewRPCMethod = "NodeIdentity.Renew"
 )
+
+type NodeIdentityGetReq struct {
+	NodeID string
+
+	// This is a client RPC, so we must use query options which allow us to set
+	// AllowStale=true.
+	QueryOptions
+}
+
+type NodeIdentityGetResp struct {
+
+	// Claims contains the node identity claims that are currently being
+	// utilized by the client.
+	Claims map[string]any
+}
 
 // NodeIdentityRenewReq is used to instruct the Nomad server to renew the client
 // identity at its next heartbeat regardless of whether it is close to
