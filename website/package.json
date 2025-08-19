@@ -5,7 +5,7 @@
   "author": "HashiCorp",
   "engines": {
     "npm": ">=9.6.7",
-    "node": ">=18.x <=20.x"
+    "node": ">=22.17.1"
   },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.7.3",
