@@ -696,6 +696,42 @@ func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp))
 }
 
+func TestNamespace_namespaceNoAssociatedQuotasLocally(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanupFn := TestServer(t, nil)
+	t.Cleanup(testServerCleanupFn)
+
+	namespaceEndpoint := &Namespace{
+		srv: testServer,
+	}
+
+	t.Run("namespace not found", func(t *testing.T) {
+
+		stateSnapshot, err := testServer.State().Snapshot()
+		must.NoError(t, err)
+
+		res, err := namespaceEndpoint.namespaceNoAssociatedQuotasLocally("not-found", stateSnapshot)
+		must.ErrorContains(t, err, "namespace not-found does not exist")
+		assert.False(t, res)
+	})
+
+	t.Run("namespace without quota", func(t *testing.T) {
+
+		mockNamespace := mock.Namespace()
+		mockNamespace.Quota = ""
+
+		testServer.State().UpsertNamespaces(testServer.raft.LastIndex(), []*structs.Namespace{mockNamespace})
+
+		stateSnapshot, err := testServer.State().Snapshot()
+		must.NoError(t, err)
+
+		res, err := namespaceEndpoint.namespaceNoAssociatedQuotasLocally(mockNamespace.Name, stateSnapshot)
+		must.NoError(t, err)
+		assert.True(t, res)
+	})
+}
+
 func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
