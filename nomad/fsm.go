@@ -3089,21 +3089,18 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item.
-		for raw := serviceRegs.Next(); raw != nil; raw = serviceRegs.Next() {
+	for raw := serviceRegs.Next(); raw != nil; raw = serviceRegs.Next() {
 
-			// Prepare the request struct.
-			reg := raw.(*structs.ServiceRegistration)
+		// Prepare the request struct.
+		reg := raw.(*structs.ServiceRegistration)
 
-			// Write out a service registration snapshot.
-			sink.Write([]byte{byte(ServiceRegistrationSnapshot)})
-			if err := encoder.Encode(reg); err != nil {
-				return err
-			}
+		// Write out a service registration snapshot.
+		sink.Write([]byte{byte(ServiceRegistrationSnapshot)})
+		if err := encoder.Encode(reg); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
 }
 
 func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,
