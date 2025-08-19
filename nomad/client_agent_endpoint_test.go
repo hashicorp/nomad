@@ -841,7 +841,9 @@ func TestAgentHost_Server(t *testing.T) {
 
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForKeyring(t, s2.RPC, s2.Region())
 
 	// determine leader and nonleader
 	servers := []*Server{s1, s2}
@@ -865,8 +867,8 @@ func TestAgentHost_Server(t *testing.T) {
 	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
-		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		numNodes := len(s1.connectedNodes()) + len(s2.connectedNodes())
+		return numNodes == 1, nil
 	}, func(err error) {
 		t.Fatalf("should have a clients")
 	})
