@@ -83,6 +83,7 @@ rkt-*
 ./idea
 *.iml
 .vscode
+.zed
 
 # UI rules
 
