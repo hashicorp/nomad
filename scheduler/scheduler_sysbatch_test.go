@@ -91,6 +91,11 @@ func TestSysBatch_JobRegister(t *testing.T) {
 	must.Eq(t, 0, queued, must.Sprint("unexpected queued allocations"))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// sysbatch jobs never create a deployment
+	deployments, err := h.State.DeploymentsByJobID(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+	must.Len(t, 0, deployments)
 }
 
 func TestSysBatch_JobRegister_AddNode_Running(t *testing.T) {
@@ -1839,9 +1844,10 @@ func TestSysBatch_canHandle(t *testing.T) {
 		must.True(t, s.canHandle(structs.EvalTriggerPeriodicJob))
 	})
 }
+
 func createNodes(t *testing.T, h *tests.Harness, n int) []*structs.Node {
 	nodes := make([]*structs.Node, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		node := mock.Node()
 		nodes[i] = node
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
