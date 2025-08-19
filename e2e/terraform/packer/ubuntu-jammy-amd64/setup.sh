@@ -127,7 +127,7 @@ sudo chmod +x /usr/local/bin/pledge
 
 # Exec2
 echo "Installing Exec2 Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0-alpha.2 nomad-driver-exec2
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0 nomad-driver-exec2
 sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 
 # Envoy
