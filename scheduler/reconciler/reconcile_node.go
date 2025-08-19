@@ -412,9 +412,6 @@ func (nr *NodeReconciler) computeForNode(
 		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
 
-		canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
-		result.Stop = append(result.Stop, canariesToStop...)
-
 		// check if there are any canaries to place
 		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
 
@@ -427,6 +424,9 @@ func (nr *NodeReconciler) computeForNode(
 
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
+
+	canariesToStop := nr.cancelUnneededCanaries(liveAllocs, required)
+	result.Stop = append(result.Stop, canariesToStop...)
 
 	return result, deploymentComplete
 }
