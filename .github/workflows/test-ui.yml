@@ -24,9 +24,9 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-js
       - name: lint:js
-        run: yarn run lint:js
+        run: pnpm lint:js
       - name: lint:hbs
-        run: yarn run lint:hbs
+        run: pnpm lint:hbs
       - id: nonce
         name: nonce
         run: echo "nonce=${{ github.run_id }}-$(date +%s)" >> "$GITHUB_OUTPUT"
@@ -67,7 +67,7 @@ jobs:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: |
-          yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+          pnpm exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
         continue-on-error: true
       - name: Express failure
         if: steps.ember_exam.outcome == 'failure'
@@ -134,7 +134,7 @@ jobs:
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
-        run: yarn percy build:finalize
+        run: pnpm percy build:finalize
 
   handle-failure:
     needs:

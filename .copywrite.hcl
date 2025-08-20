@@ -11,6 +11,8 @@ project {
     "command/asset/*.hcl",
     "command/agent/bindata_assetfs.go",
     "ui/node_modules",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml"
 
     // Enterprise files do not fall under the open source licensing. CE-ENT
     // merge conflicts might happen here, please be sure to put new CE

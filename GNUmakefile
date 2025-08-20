@@ -379,18 +379,18 @@ static-assets: ## Compile the static routes to serve alongside the API
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "==> Installing JavaScript assets"
-	@cd ui && npm rebuild node-sass
-	@cd ui && yarn install
+	@pnpm rebuild node-sass
+	@pnpm install --silent --fetch-timeout 300000
 	@echo "==> Running ember tests"
-	@cd ui && npm test
+	@pnpm -F nomad-ui test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "==> Installing JavaScript assets"
-	@cd ui && yarn install --silent --network-timeout 300000
-	@cd ui && npm rebuild node-sass
+	@pnpm install --silent --fetch-timeout 300000
+	@pnpm rebuild node-sass
 	@echo "==> Building Ember application"
-	@cd ui && npm run build
+	@pnpm -F nomad-ui build
 
 .PHONY: dev-ui
 dev-ui: ember-dist static-assets ## Build a dev UI binary

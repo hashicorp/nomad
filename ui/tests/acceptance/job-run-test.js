@@ -14,10 +14,8 @@ import {
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { selectChoose } from 'ember-power-select/test-support';
+import { clickTrigger } from 'ember-power-select/test-support/helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';

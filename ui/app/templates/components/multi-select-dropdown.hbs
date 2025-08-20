@@ -4,6 +4,8 @@
 ~}}
 
 <BasicDropdown
+  @ariaLabel="label-multi-select-dropdown"
+  @ariaLabelledBy="{{this.elementId}}-label"
   @horizontalPosition="auto"
   @onOpen={{action
     (queue (action (mut this.isOpen) true) (action this.capture))
