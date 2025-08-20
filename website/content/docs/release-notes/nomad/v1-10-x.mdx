@@ -140,6 +140,112 @@ Refer to these resources for details:
 Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.3)
 for a list of bug fixes.
 
+## 1.10.2 release highlights
+
+### Start stopped jobs
+
+The `nomad job start` CLI command starts a stopped job. This differs from the
+`nomad job restart` command, which restarts or reschedules allocations for a
+running job.
+
+Refer to the [`nomad job start` command reference](/nomad/commands/job/start)
+for details.
+
+### Dynamic host volumes garbage collection enhancements
+
+When a node is garbage collected, any dynamic host volumes on the node are
+orphaned in the state store. You generally don't want to automatically collect
+these volumes and risk data loss, so we enhanced garbage collection to help you
+prevent orphaned dynamic host volumes.
+
+We added the `-force` flag to the `nomad volume delete` command so that you can
+delete the volume if the node has been garbage collected. Refer to the [`nomad
+volume delete` command reference](/nomad/commands/volume/delete#force) for details.
+
+For clusters running on ephemeral cloud instances, such as AWS
+EC2 in an autoscaling group, deleting host volumes may add excessive friction.
+The `gc_volumes_on_node_gc` client configuration parameter specifies that the
+server should delete any dynamic host volumes on the node when garbage
+collection deletes the node. Refer to the [`gc_volumes_on_node_gc` parameter
+definition](/nomad/docs/configuration/client#gc_volumes_on_node_gc) for details.
+
+### Configure max number of allocations
+
+The `node_max_allocs` parameter sets the maximum number of allocations that
+Nomad may schedule on a client node. Refer to the [`node_max_allocs` parameter
+definition](/nomad/docs/configuration/client#node_max_allocs) for details.
+
+### ACL policy with workload identity enhancements
+
+- Apply an ACL policy to a namespace.
+
+  When you apply an ACL policy to a namespace, Nomad applies the policy to all
+  the jobs within the namespace. Refer to the [workload-associated ACL policies
+  documentation](/nomad/docs/concepts/workload-identity#workload-associated-acl-policies)
+  for details.
+- Find the ACL policies associated with the current workload identity or ACL
+  token.
+
+  This enhancement lets you learn about ACL capabilities from within the
+  workload identity tasks.  Refer to the following resources for details:
+
+  - ACL Polices HTTP API [Read Self Policy
+    endpoint](/nomad/api-docs/acl/policies#read-self-policy)
+  - `nomad acl policy self` [command reference](/nomad/commands/acl/policy/self)
+  - `nomad acl token self` [command reference](nomad/commands/acl/token/self)
+
+### Normalize IPv6 addresses
+
+Apply [RFC-5942 section 4
+recommendations](https://www.rfc-editor.org/rfc/rfc5952.html#section-4) to IPv6
+addresses. Nomad normalizes the addresses when it parses the configuration file
+so that the change runs through the whole system.
+
+### Option to render a job specification template only once
+
+Adds `once` mode to the template block. This allows templates to render once
+without watching dependencies. Refer to the following resources for more
+information:
+
+- Consul Template Modes [Once
+  Mode](/consul/docs/automate/consul-template/mode#once-mode) for a thorough
+  description.
+- Job specification `template` block's [`once`
+  parameter](/nomad/docs/job-specification/template#once) for Nomad behavioral
+  changes.
+
+### Offline utilization reporting <EnterpriseAlert inline/>
+
+With this enhancement, Nomad periodically records usage metrics
+snapshots in the state store. Cluster administrators in air-gapped or otherwise
+secured environments may use the API or CLI to generate utilization reporting
+bundles from those usage metrics snapshots.
+
+Refer to the following resources:
+
+- The [Operator Utilization HTTP API](/nomad/api-docs/operator/utilization)
+- The [`nomad operator utilization` command
+  reference](/nomad/commands/operator/utilization)
+- The agent configuration `reporting` block's [`snapshot_retention_time`
+  parameter](/nomad/docs/configuration/reporting#snapshot_retention_time)
+
+### Breaking changes
+
+Templates: We removed support for these non-hermetic sprig functions:
+`sprig_date`, `sprig_dateInZone`, `sprig_dateModify`, `sprig_htmlDate`,
+`sprig_htmlDateInZone`, `sprig_dateInZone`, `sprig_dateModify`,
+`sprig_randAlphaNum`, `sprig_randAlpha`, `sprig_randAscii`, `sprig_randNumeric`,
+`sprig_randBytes`, `sprig_uuidv4`, `sprig_env`, `sprig_expandenv`, and
+`sprig_getHostByName`.
+
+The aforementioned sprig functions posed a security risk in that they allowed
+reading environment variables or resolving domain names to IP addresses.
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.2)
+for a list of security and bug fixes.
+
 ## 1.10.0 release highlights
 
 ### Dynamic host volumes
