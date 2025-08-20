@@ -156,6 +156,7 @@ func (nr *NodeReconciler) computeForNode(
 	// Track whether we're on canary node or not so that it's globally accessible
 	// throughout the method
 	var onCanaryNode bool
+	var isCanarying bool
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -181,6 +182,26 @@ func (nr *NodeReconciler) computeForNode(
 
 		reconnect := false
 		expired := false
+
+		// populate deployment state for this task group
+		var dstate = new(structs.DeploymentState)
+		var existingDeployment bool
+		if nr.DeploymentCurrent != nil {
+			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
+		if !existingDeployment {
+			dstate = &structs.DeploymentState{}
+			if !tg.Update.IsEmpty() {
+				dstate.AutoRevert = tg.Update.AutoRevert
+				dstate.AutoPromote = tg.Update.AutoPromote
+				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			}
+		}
+
+		dstate.DesiredTotal += len(result.Place) + len(result.Update)
+
+		isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
@@ -310,11 +331,20 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
-			result.Update = append(result.Update, AllocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     alloc,
-			})
+			if isCanarying && onCanaryNode {
+				result.Update = append(result.Update, AllocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     alloc,
+					Canary:    true,
+				})
+			} else {
+				result.Update = append(result.Update, AllocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     alloc,
+				})
+			}
 			continue
 		}
 
@@ -333,6 +363,32 @@ func (nr *NodeReconciler) computeForNode(
 
 	// Scan the required groups
 	for name, tg := range required {
+
+		// populate deployment state for this task group
+		var dstate = new(structs.DeploymentState)
+		var existingDeployment bool
+		if nr.DeploymentCurrent != nil {
+			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
+		if !existingDeployment {
+			dstate = &structs.DeploymentState{}
+			if !tg.Update.IsEmpty() {
+				dstate.AutoRevert = tg.Update.AutoRevert
+				dstate.AutoPromote = tg.Update.AutoPromote
+				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			}
+		}
+
+		// check if there are any canaries to place
+		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
+
+		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+		if isCanarying {
+			dstate.DesiredTotal = dstate.DesiredCanaries
+		} else {
+			dstate.DesiredTotal = len(result.Place) + len(result.Update) // TODO: not a 100% sure if this is correct, needs more testing
+		}
 
 		// Check for an existing allocation
 		if _, ok := existing[name]; !ok {
@@ -388,32 +444,17 @@ func (nr *NodeReconciler) computeForNode(
 				allocTuple.Alloc = &structs.Allocation{NodeID: nodeID}
 			}
 
-			result.Place = append(result.Place, allocTuple)
-		}
-
-		// populate deployment state for this task group
-		var dstate = new(structs.DeploymentState)
-		var existingDeployment bool
-		if nr.DeploymentCurrent != nil {
-			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-		}
-
-		if !existingDeployment {
-			dstate = &structs.DeploymentState{}
-			if !tg.Update.IsEmpty() {
-				dstate.AutoRevert = tg.Update.AutoRevert
-				dstate.AutoPromote = tg.Update.AutoPromote
-				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			if isCanarying {
+				if onCanaryNode {
+					allocTuple.Canary = true
+					result.Place = append(result.Place, allocTuple)
+				}
+			} else {
+				result.Place = append(result.Place, allocTuple)
 			}
 		}
 
-		dstate.DesiredTotal += len(result.Place) + len(result.Update)
-
-		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
-
-		// check if there are any canaries to place
-		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
 
 		// in this case there's nothing to do
 		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {

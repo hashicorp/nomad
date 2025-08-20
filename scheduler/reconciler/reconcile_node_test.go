@@ -933,7 +933,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 		TaskGroups: map[string]*structs.DeploymentState{
 			job.TaskGroups[0].Name: {
 				DesiredCanaries: 2,
-				DesiredTotal:    10,
+				DesiredTotal:    2,
 			}},
 	}
 
