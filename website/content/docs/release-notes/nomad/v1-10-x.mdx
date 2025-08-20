@@ -73,7 +73,6 @@ Refer to the following documentation:
   - [`volume create -policy-override` option](/nomad/commands/volume/create#policy-override)
   - [`volume register -policy-override` option](/nomad/commands/volume/register#policy-override)
 
-
 ### Changelog
 
 Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.4) for a list of bug fixes.
@@ -203,8 +202,8 @@ so that the change runs through the whole system.
 
 ### Option to render a job specification template only once
 
-Adds `once` mode to the template block. This allows templates to render once
-without watching dependencies. Refer to the following resources for more
+We added `once` mode to the `template` block. This allows templates to render
+once without watching dependencies. Refer to the following resources for more
 information:
 
 - Consul Template Modes [Once
@@ -231,20 +230,47 @@ Refer to the following resources:
 
 ### Breaking changes
 
-Templates: We removed support for these non-hermetic sprig functions:
+In templates, we removed support for these non-hermetic Sprig functions:
 `sprig_date`, `sprig_dateInZone`, `sprig_dateModify`, `sprig_htmlDate`,
 `sprig_htmlDateInZone`, `sprig_dateInZone`, `sprig_dateModify`,
 `sprig_randAlphaNum`, `sprig_randAlpha`, `sprig_randAscii`, `sprig_randNumeric`,
 `sprig_randBytes`, `sprig_uuidv4`, `sprig_env`, `sprig_expandenv`, and
 `sprig_getHostByName`.
 
-The aforementioned sprig functions posed a security risk in that they allowed
+The aforementioned Sprig functions posed a security risk in that they allowed
 reading environment variables or resolving domain names to IP addresses.
 
 ### Changelog
 
 Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.2)
 for a list of security and bug fixes.
+
+### Upgrade details
+
+Review the [Nomad 1.10.2 upgrade guide](/nomad/docs/upgrade/upgrade-specific#nomad-1-10-2).
+
+## 1.10.1 release highlights
+
+### Override parameterized job's parent priority
+
+Use the `-priority` flag to override the priority inherited from a parameterized
+job's parent. Refer to the `nomad job dispatch` command's [`-priority`
+parameter](/nomad/commands/job/dispatch#priority) for details.
+
+### Breaking changes
+
+@include 'release-notes/v1-10-1/breaking-raft-peer.mdx'
+
+@include 'release-notes/v1-10-1/breaking-agent-exit.mdx'
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.1)
+for a list of security and bug fixes.
+
+### Upgrade details
+
+Review the [Nomad 1.10.1 upgrade guide](/nomad/docs/upgrade/upgrade-specific#nomad-1-10-1).
 
 ## 1.10.0 release highlights
 
