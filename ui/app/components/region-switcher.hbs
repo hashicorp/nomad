@@ -9,6 +9,8 @@
   <span data-test-region-switcher-parent>
     <PowerSelect
       data-test-region-switcher
+      @ariaLabel="label-region-switcher"
+      @ariaLabelledBy="label-region-switcher"
       @tagName="div"
       @triggerClass={{this.decoration}}
       @options={{this.sortedRegions}}
