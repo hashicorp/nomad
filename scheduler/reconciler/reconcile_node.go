@@ -457,7 +457,7 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
 
 		// in this case there's nothing to do
-		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
+		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || dstate.DesiredCanaries == 0 || !deploymentPlaceReady {
 			continue
 		}
 
