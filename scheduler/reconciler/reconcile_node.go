@@ -317,13 +317,15 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
-			if desiredCanaries > 0 && onCanaryNode {
-				result.Update = append(result.Update, AllocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     alloc,
-					Canary:    true,
-				})
+			if desiredCanaries > 0 {
+				if onCanaryNode {
+					result.Update = append(result.Update, AllocTuple{
+						Name:      name,
+						TaskGroup: tg,
+						Alloc:     alloc,
+						Canary:    true,
+					})
+				}
 			} else {
 				result.Update = append(result.Update, AllocTuple{
 					Name:      name,

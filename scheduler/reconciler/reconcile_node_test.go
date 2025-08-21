@@ -924,7 +924,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	newJob.JobModifyIndex = job.JobModifyIndex + 1
 
 	reconciler := NewNodeReconciler(nil)
-	reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, false)
+	r := reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, false)
 
 	must.NotNil(t, reconciler.DeploymentCurrent)
 
@@ -939,4 +939,6 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 
 	must.Eq(t, newD.StatusDescription, reconciler.DeploymentCurrent.StatusDescription)
 	must.Eq(t, newD.TaskGroups, reconciler.DeploymentCurrent.TaskGroups)
+	must.Eq(t, 2, len(r.Update))
+	must.Eq(t, 0, len(r.Place))
 }
