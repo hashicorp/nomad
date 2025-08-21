@@ -155,8 +155,10 @@ func (nr *NodeReconciler) computeForNode(
 
 	// Track whether we're on canary node or not so that it's globally accessible
 	// throughout the method
-	var onCanaryNode bool
-	var isCanarying bool
+	var onCanaryNode, isCanarying bool
+
+	// Track desired total placements across all loops
+	var desiredTotal, desiredCanaries int
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -183,25 +185,9 @@ func (nr *NodeReconciler) computeForNode(
 		reconnect := false
 		expired := false
 
-		// populate deployment state for this task group
-		var dstate = new(structs.DeploymentState)
-		var existingDeployment bool
-		if nr.DeploymentCurrent != nil {
-			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-		}
-
-		if !existingDeployment {
-			dstate = &structs.DeploymentState{}
-			if !tg.Update.IsEmpty() {
-				dstate.AutoRevert = tg.Update.AutoRevert
-				dstate.AutoPromote = tg.Update.AutoPromote
-				dstate.ProgressDeadline = tg.Update.ProgressDeadline
-			}
-		}
-
-		dstate.DesiredTotal += len(result.Place) + len(result.Update)
-
-		isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+		// Does this tg expect canaries?
+		desiredCanaries = len(canaryNodes[tg.Name])
+		isCanarying = desiredCanaries > 0
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
@@ -331,7 +317,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
-			if isCanarying && onCanaryNode {
+			if desiredCanaries > 0 && onCanaryNode {
 				result.Update = append(result.Update, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,
@@ -344,6 +330,7 @@ func (nr *NodeReconciler) computeForNode(
 					TaskGroup: tg,
 					Alloc:     alloc,
 				})
+				desiredTotal += 1
 			}
 			continue
 		}
@@ -380,14 +367,11 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
-		// check if there are any canaries to place
-		nr.placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed, dstate, tg, liveAllocs)
-
-		isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 		if isCanarying {
-			dstate.DesiredTotal = dstate.DesiredCanaries
+			dstate.DesiredTotal = desiredCanaries
+			dstate.DesiredCanaries = desiredCanaries
 		} else {
-			dstate.DesiredTotal = len(result.Place) + len(result.Update) // TODO: not a 100% sure if this is correct, needs more testing
+			dstate.DesiredTotal = desiredTotal
 		}
 
 		// Check for an existing allocation
@@ -448,16 +432,18 @@ func (nr *NodeReconciler) computeForNode(
 				if onCanaryNode {
 					allocTuple.Canary = true
 					result.Place = append(result.Place, allocTuple)
+					dstate.DesiredCanaries += 1
 				}
 			} else {
 				result.Place = append(result.Place, allocTuple)
+				dstate.DesiredTotal += 1
 			}
 		}
 
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
 
 		// in this case there's nothing to do
-		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || dstate.DesiredCanaries == 0 || !deploymentPlaceReady {
+		if existingDeployment || tg.Update.IsEmpty() || (dstate.DesiredTotal == 0 && dstate.DesiredCanaries == 0) || !deploymentPlaceReady {
 			continue
 		}
 
@@ -470,29 +456,6 @@ func (nr *NodeReconciler) computeForNode(
 	result.Stop = append(result.Stop, canariesToStop...)
 
 	return result, deploymentComplete
-}
-
-// placeCanaries places canary allocations and mutates the dstate argument
-func (nr *NodeReconciler) placeCanaries(onCanaryNode, deploymentPaused, deploymentFailed bool,
-	dstate *structs.DeploymentState, tg *structs.TaskGroup, allocs []*structs.Allocation) []AllocTuple {
-	placements := []AllocTuple{}
-
-	if !onCanaryNode || deploymentPaused || deploymentFailed {
-		return nil
-	}
-
-	for _, a := range allocs {
-		placements = append(placements, AllocTuple{
-			Name:      a.Name,
-			TaskGroup: tg,
-			Alloc:     a,
-			Canary:    true,
-		})
-
-		dstate.DesiredCanaries += 1
-	}
-
-	return placements
 }
 
 func (nr *NodeReconciler) cancelUnneededCanaries(allocs []*structs.Allocation, required map[string]*structs.TaskGroup) []AllocTuple {

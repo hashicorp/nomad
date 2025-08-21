@@ -525,6 +525,14 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			},
 		}
 
+		// If we are placing a canary, mark the deployment status on the
+		// allocation accordingly.
+		if missing.Canary && alloc.DeploymentID != "" {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Canary: true,
+			}
+		}
+
 		// If the new allocation is replacing an older allocation then we record the
 		// older allocation id so that they are chained
 		if missing.Alloc != nil {
