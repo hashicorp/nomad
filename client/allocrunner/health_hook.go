@@ -6,6 +6,7 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -86,7 +87,7 @@ func newAllocHealthWatcherHook(
 
 	// Neither deployments nor migrations care about the health of
 	// non-service jobs so never watch their health
-	if alloc.Job.Type != structs.JobTypeService {
+	if !slices.Contains([]string{structs.JobTypeService, structs.JobTypeSystem}, alloc.Job.Type) {
 		return noopAllocHealthWatcherHook{}
 	}
 
