@@ -115,6 +115,18 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed && !isCanarying
 	*/
 
+	// set deployment paused and failed, if we currently have a deployment
+	var deploymentPaused, deploymentFailed bool
+	if nr.DeploymentCurrent != nil {
+		// deployment is paused when it's manually paused by a user, or if the
+		// deployment is pending or initializing, which are the initial states
+		// for multi-region job deployments.
+		deploymentPaused = nr.DeploymentCurrent.Status == structs.DeploymentStatusPaused ||
+			nr.DeploymentCurrent.Status == structs.DeploymentStatusPending ||
+			nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
+		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
+	}
+
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
 	for _, alloc := range liveAllocs {
@@ -344,34 +356,35 @@ func (nr *NodeReconciler) diffSystemAllocsForNode(
 			}
 
 			result.Place = append(result.Place, allocTuple)
-
-			// populate deployment state for this task group
-			var dstate = new(structs.DeploymentState)
-			var existingDeployment bool
-			if nr.DeploymentCurrent != nil {
-				dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
-			}
-
-			if !existingDeployment && dstate != nil {
-				if !tg.Update.IsEmpty() {
-					dstate.AutoRevert = tg.Update.AutoRevert
-					dstate.AutoPromote = tg.Update.AutoPromote
-					dstate.ProgressDeadline = tg.Update.ProgressDeadline
-				}
-				dstate.DesiredTotal += len(result.Place)
-			}
-
-			if dstate == nil {
-				dstate = new(structs.DeploymentState)
-			}
-
-			// in this case there's nothing to do
-			if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 {
-				continue
-			}
-
-			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
 		}
+
+		// populate deployment state for this task group
+		var dstate *structs.DeploymentState
+		var existingDeployment bool
+		if nr.DeploymentCurrent != nil {
+			dstate, existingDeployment = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
+		if !existingDeployment {
+			dstate = new(structs.DeploymentState)
+			if !tg.Update.IsEmpty() {
+				dstate.AutoRevert = tg.Update.AutoRevert
+				dstate.AutoPromote = tg.Update.AutoPromote
+				dstate.ProgressDeadline = tg.Update.ProgressDeadline
+			}
+			dstate.DesiredTotal += len(result.Place)
+		}
+
+		dstate.DesiredTotal += len(result.Place) + len(result.Update)
+		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
+
+		// in this case there's nothing to do
+		if existingDeployment || tg.Update.IsEmpty() || dstate.DesiredTotal == 0 || !deploymentPlaceReady {
+			continue
+		}
+
+		nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
 
