@@ -102,7 +102,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc,
-			s.queuedAllocs, "")
+			s.queuedAllocs, s.deployment.GetID())
 	}
 
 	limit := maxSystemScheduleAttempts
@@ -116,7 +116,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs, "")
+				s.queuedAllocs, s.deployment.GetID())
 		}
 		return err
 	}
@@ -124,7 +124,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "",
-		s.queuedAllocs, "")
+		s.queuedAllocs, s.deployment.GetID())
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -285,6 +285,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Add the deployment changes to the plan
 	s.plan.Deployment = nr.DeploymentCurrent
 	s.plan.DeploymentUpdates = nr.DeploymentUpdates
+
+	// Update the stored deployment
+	if nr.DeploymentCurrent != nil {
+		s.deployment = nr.DeploymentCurrent
+	}
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
