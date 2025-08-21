@@ -139,16 +139,45 @@ func durationFromMeta(node *structs.Node, key string, defaultDur time.Duration) 
 }
 
 // DeriveTokenWithJWT takes a JWT from request and returns a consul token.
+// It first verify there are no tokens already, if so, only one token is
+// selected and the rest are removed. If non exists, it creates one.
 func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
-	t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
-		AuthMethod:  req.AuthMethodName,
-		BearerToken: req.JWT,
-		Meta:        req.Meta,
-	}, &consulapi.WriteOptions{
+	consulACLClient := c.client.ACL()
+	qo := &consulapi.QueryOptions{
 		Partition: c.partition,
-	})
+	}
 
-	return t, err
+	sts, _, err := consulACLClient.TokenListFiltered(consulapi.ACLTokenFilterOptions{
+		ServiceName: req.Meta["service"],
+	}, qo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(sts) == 0 {
+		t, _, err := consulACLClient.Login(&consulapi.ACLLoginParams{
+			AuthMethod:  req.AuthMethodName,
+			BearerToken: req.JWT,
+			Meta:        req.Meta,
+		}, &consulapi.WriteOptions{
+			Partition: c.partition,
+		})
+
+		return t, err
+	}
+
+	for _, token := range sts[1:] {
+		if _, err := consulACLClient.TokenDelete(token.AccessorID, &consulapi.WriteOptions{
+			Partition: c.partition,
+		}); err != nil {
+			c.logger.Error("unable to delete token", "service", req.Meta["service"], "error", err)
+		}
+	}
+
+	ft, _, err := consulACLClient.TokenRead(sts[0].AccessorID, qo)
+	return ft, err
+
 }
 
 func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {

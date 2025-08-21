@@ -208,6 +208,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 			Meta: map[string]string{
 				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
+				"service":      service.Name,
 			},
 		}
 		token, err := h.getConsulToken(clusterName, req)
