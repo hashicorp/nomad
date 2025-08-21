@@ -1055,12 +1055,14 @@ func (c *Command) handleSignals() int {
 	for {
 		select {
 		case sig := <-signalCh:
+			// Skip any SIGPIPE signal (see issues #1798, #3554)
+			if sig == syscall.SIGPIPE {
+				continue
+			}
+
 			c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
 			switch sig {
-			case syscall.SIGPIPE:
-				// Skip any SIGPIPE signal (see issues #1798, #3554)
-				continue
 			case syscall.SIGHUP:
 				sdNotifyReloading(sdSock)
 				err := c.handleReload()
