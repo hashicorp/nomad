@@ -6,6 +6,8 @@
   <PowerSelect
     @tagName="div"
     data-test-search
+    @ariaLabel="label-global-search"
+    @ariaLabelledBy="label-global-search"
     @searchEnabled={{true}}
     @search={{perform this.search}}
     @onInput={{action 'ensureMinimumLength'}}

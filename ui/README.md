@@ -7,16 +7,17 @@ The official Nomad UI.
 This is an [ember.js](https://emberjs.com/) project, and you will need the following tools installed on your computer.
 
 - [The current Node.js LTS release](https://nodejs.org/)
-- [Yarn](https://yarnpkg.com)
 - [Ember CLI](https://ember-cli.com/)
+- Make sure you have `corepack` installed wither via `node` as it usually comes bundled with it or install manually with homebrew.
 
 ## Installation
 
 The Nomad UI gets cloned along with the rest of Nomad. To install dependencies, do the following from the root of the Nomad project:
 
-```
-$ cd ui
-$ yarn
+```shell
+corepack enable
+corepack prepare pnpm@latest --activate
+pnpm i
 ```
 
 ## Running / Development
@@ -60,8 +61,8 @@ In the test environment, the fake data is generated with a random seed. If you w
 
 ### Linting
 
-- `yarn lint`
-- `yarn lint:fix`
+- `pnpm lint`
+- `pnpm lint:fix`
 
 ### Building
 

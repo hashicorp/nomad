@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+@use 'ember-basic-dropdown.css';
+@use 'ember-power-select.css';
+
 @import './core';
-
-@import 'ember-power-select';
-
-@import './components';
 @import '@hashicorp/design-system-components';
+@import './components';
 @import './charts';

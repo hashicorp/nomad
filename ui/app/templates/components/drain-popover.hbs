@@ -48,6 +48,8 @@
       >
         <PowerSelect
           data-test-drain-deadline-option-select
+          @ariaLabel="label-drain-deadline-option-select"
+          @ariaLabelledBy="label-drain-deadline-option-select"
           @tagName="div"
           @options={{this.durationQuickOptions}}
           @selected={{this.selectedDurationQuickOption}}
