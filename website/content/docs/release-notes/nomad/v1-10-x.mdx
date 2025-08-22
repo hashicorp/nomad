@@ -154,8 +154,8 @@ for details.
 
 When a node is garbage collected, any dynamic host volumes on the node are
 orphaned in the state store. You generally don't want to automatically collect
-these volumes and risk data loss, so we enhanced garbage collection to help you
-prevent orphaned dynamic host volumes.
+these volumes and risk data loss, so we enhanced garbage collection to let you
+delete orphaned dynamic host volumes.
 
 We added the `-force` flag to the `nomad volume delete` command so that you can
 delete the volume if the node has been garbage collected. Refer to the [`nomad
@@ -191,7 +191,7 @@ definition](/nomad/docs/configuration/client#node_max_allocs) for details.
   - ACL Polices HTTP API [Read Self Policy
     endpoint](/nomad/api-docs/acl/policies#read-self-policy)
   - `nomad acl policy self` [command reference](/nomad/commands/acl/policy/self)
-  - `nomad acl token self` [command reference](nomad/commands/acl/token/self)
+  - `nomad acl token self` [command reference](/nomad/commands/acl/token/self)
 
 ### Normalize IPv6 addresses
 
