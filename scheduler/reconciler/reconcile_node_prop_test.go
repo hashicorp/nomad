@@ -39,18 +39,16 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		// NodeReconcileResults doesn't split results by task group, so split
 		// them up so we can check them separately
 		recordResult := func(subresult []AllocTuple, label string) {
-			if subresult != nil {
-				for _, alloc := range subresult {
-					var tgName string
-					if alloc.TaskGroup != nil {
-						tgName = alloc.TaskGroup.Name
-					} else if alloc.Alloc != nil {
-						tgName = alloc.Alloc.TaskGroup
-					} else {
-						t.Fatal("one of task group or alloc must always be non-nil")
-					}
-					perTaskGroup[tgName][label]++
+			for _, alloc := range subresult {
+				var tgName string
+				if alloc.TaskGroup != nil {
+					tgName = alloc.TaskGroup.Name
+				} else if alloc.Alloc != nil {
+					tgName = alloc.Alloc.TaskGroup
+				} else {
+					t.Fatal("one of task group or alloc must always be non-nil")
 				}
+				perTaskGroup[tgName][label]++
 			}
 		}
 

@@ -73,7 +73,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff, _ := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, nil, nil, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
 		if len(diff.Ignore) > 0 {
@@ -96,7 +96,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff, _ := nr.diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, nil, nil, required, live, terminal, true)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
 
@@ -158,9 +158,9 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(nil)
-			diff, _ := nr.diffSystemAllocsForNode(
+			diff, _ := nr.computeForNode(
 				job, tc.nodeID, eligible, nil,
-				tainted, required, allocsForNode, terminal, true)
+				tainted, nil, nil, required, allocsForNode, terminal, true)
 
 			assertDiffCount(t, tc.expected, diff)
 		})
@@ -217,8 +217,8 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 	terminal := structs.TerminalByNodeByName{}
 
 	nr := NewNodeReconciler(nil)
-	diff, _ := nr.diffSystemAllocsForNode(
-		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
+	diff, _ := nr.computeForNode(
+		job, node.ID, eligible, nil, tainted, nil, nil, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
 	if len(diff.Update) > 0 {
@@ -287,8 +287,8 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 			}
 
 			nr := NewNodeReconciler(nil)
-			diff, _ := nr.diffSystemAllocsForNode(
-				job, tc.nodeID, eligible, ineligible, tainted,
+			diff, _ := nr.computeForNode(
+				job, tc.nodeID, eligible, ineligible, tainted, nil, nil,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, diff)
@@ -344,9 +344,9 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff, _ := nr.diffSystemAllocsForNode(
+	diff, _ := nr.computeForNode(
 		job, drainNode.ID, map[string]*structs.Node{}, nil,
-		tainted, required, allocs, terminal, true)
+		tainted, nil, nil, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{migrate: 1, ignore: 1}, diff)
 	if len(diff.Migrate) > 0 {
@@ -396,9 +396,9 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff, _ := nr.diffSystemAllocsForNode(
+	diff, _ := nr.computeForNode(
 		job, deadNode.ID, map[string]*structs.Node{}, nil,
-		tainted, required, allocs, terminal, true)
+		tainted, nil, nil, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{lost: 2}, diff)
 	if len(diff.Migrate) > 0 {
@@ -522,8 +522,8 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 			}
 
 			nr := NewNodeReconciler(nil)
-			got, _ := nr.diffSystemAllocsForNode(
-				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
+			got, _ := nr.computeForNode(
+				job, tc.node.ID, eligibleNodes, nil, taintedNodes, nil, nil,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, got)
@@ -716,7 +716,7 @@ func TestNodeDeployments(t *testing.T) {
 			},
 			false,
 			structs.DeploymentStatusSuccessful,
-			structs.DeploymentStatusDescriptionSuccessful,
+			"",
 		},
 		{
 			"existing running deployment for a stopped job should be cancelled",
@@ -755,6 +755,253 @@ func TestNodeDeployments(t *testing.T) {
 					},
 				)
 			}
+		})
+	}
+}
+
+func Test_computeCanaryNodes(t *testing.T) {
+	ci.Parallel(t)
+
+	// generate an odd number of nodes
+	fiveEligibleNodes := map[string]*structs.Node{}
+	for range 5 {
+		nodeID := uuid.Generate()
+		node := mock.Node()
+		node.ID = nodeID
+		fiveEligibleNodes[nodeID] = node
+	}
+
+	// generate an even number of nodes
+	fourEligibleNodes := map[string]*structs.Node{}
+	for range 4 {
+		nodeID := uuid.Generate()
+		node := mock.Node()
+		node.ID = nodeID
+		fourEligibleNodes[nodeID] = node
+	}
+
+	testCases := []struct {
+		name                string
+		nodes               map[string]*structs.Node
+		required            map[string]*structs.TaskGroup
+		expectedCanaryNodes map[string]int // number of nodes per tg
+	}{
+		{
+			name:                "no required task groups",
+			nodes:               fourEligibleNodes,
+			required:            nil,
+			expectedCanaryNodes: map[string]int{},
+		},
+		{
+			name:  "one task group with no update strategy",
+			nodes: fourEligibleNodes,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+				}},
+			expectedCanaryNodes: map[string]int{},
+		},
+		{
+			name:  "one task group with 33% canary deployment",
+			nodes: fourEligibleNodes,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+					Update: &structs.UpdateStrategy{
+						Canary:      33,
+						MaxParallel: 1, // otherwise the update strategy will be considered nil
+					},
+				},
+			},
+			expectedCanaryNodes: map[string]int{
+				"foo": 2, // we always round up
+			},
+		},
+		{
+			name:  "one task group with 100% canary deployment, four nodes",
+			nodes: fourEligibleNodes,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+					Update: &structs.UpdateStrategy{
+						Canary:      100,
+						MaxParallel: 1, // otherwise the update strategy will be considered nil
+					},
+				},
+			},
+			expectedCanaryNodes: map[string]int{
+				"foo": 4,
+			},
+		},
+		{
+			name:  "one task group with 50% canary deployment, even nodes",
+			nodes: fourEligibleNodes,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+					Update: &structs.UpdateStrategy{
+						Canary:      50,
+						MaxParallel: 1, // otherwise the update strategy will be considered nil
+					},
+				},
+			},
+			expectedCanaryNodes: map[string]int{
+				"foo": 2,
+			},
+		},
+		{
+			name:  "two task groups: one with 50% canary deploy, second one with 2% canary deploy",
+			nodes: fiveEligibleNodes,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+					Update: &structs.UpdateStrategy{
+						Canary:      50,
+						MaxParallel: 1, // otherwise the update strategy will be considered nil
+					},
+				},
+				"bar": {
+					Name: "bar",
+					Update: &structs.UpdateStrategy{
+						Canary:      2,
+						MaxParallel: 1, // otherwise the update strategy will be considered nil
+					},
+				},
+			},
+			expectedCanaryNodes: map[string]int{
+				"foo": 3, // we always round up
+				"bar": 1, // we always round up
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, canariesPerTG := computeCanaryNodes(tc.required, tc.nodes)
+			must.Eq(t, tc.expectedCanaryNodes, canariesPerTG)
+		})
+	}
+}
+
+// Tests the reconciler creates new canaries when the job changes
+func TestNodeReconciler_NewCanaries(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.SystemJob()
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Canary:      20, // deploy to 20% of eligible nodes
+		MaxParallel: 1,  // otherwise the update strategy will be considered nil
+	}
+	job.JobModifyIndex = 1
+
+	// Create 10 nodes
+	nodes := []*structs.Node{}
+	for i := range 10 {
+		node := mock.Node()
+		node.ID = fmt.Sprintf("node_%d", i)
+		node.Name = fmt.Sprintf("node_%d", i)
+		nodes = append(nodes, node)
+	}
+
+	allocs := []*structs.Allocation{}
+	for _, n := range nodes {
+		a := mock.Alloc()
+		a.Job = job
+		a.Name = "my-job.web[0]"
+		a.NodeID = n.ID
+		a.NodeName = n.Name
+		a.TaskGroup = job.TaskGroups[0].Name
+
+		allocs = append(allocs, a)
+	}
+
+	// bump the job version up
+	newJob := job.Copy()
+	newJob.Version = job.Version + 1
+	newJob.JobModifyIndex = job.JobModifyIndex + 1
+
+	// bump the version and add a new TG
+	newJobWithNewTaskGroup := newJob.Copy()
+	newJobWithNewTaskGroup.Version = newJob.Version + 1
+	newJobWithNewTaskGroup.JobModifyIndex = newJob.JobModifyIndex + 1
+	tg := newJob.TaskGroups[0].Copy()
+	tg.Name = "other"
+	tg.Update = &structs.UpdateStrategy{MaxParallel: 1}
+	newJobWithNewTaskGroup.TaskGroups = append(newJobWithNewTaskGroup.TaskGroups, tg)
+
+	// new job with no previous allocs and no canary update strategy
+	jobWithNoUpdates := mock.SystemJob()
+	jobWithNoUpdates.Name = "i-am-a-brand-new-job"
+	jobWithNoUpdates.TaskGroups[0].Name = "i-am-a-brand-new-tg"
+	jobWithNoUpdates.TaskGroups[0].Update = structs.DefaultUpdateStrategy
+
+	testCases := []struct {
+		name                string
+		job                 *structs.Job
+		existingDeployment  *structs.Deployment
+		expectedDeployment  *structs.Deployment
+		expectedPlaceCount  int
+		expectedUpdateCount int
+	}{
+		{
+			name:               "new job version",
+			job:                newJob,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+				TaskGroups: map[string]*structs.DeploymentState{
+					newJob.TaskGroups[0].Name: {
+						DesiredCanaries: 2,
+						DesiredTotal:    2,
+					}},
+			},
+			expectedPlaceCount:  0,
+			expectedUpdateCount: 2,
+		},
+		{
+			name:               "new job version with a new TG (no existing allocs, no canaries)",
+			job:                newJobWithNewTaskGroup,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+				TaskGroups: map[string]*structs.DeploymentState{
+					newJobWithNewTaskGroup.TaskGroups[0].Name: {
+						DesiredCanaries: 2,
+						DesiredTotal:    2,
+					},
+					newJobWithNewTaskGroup.TaskGroups[1].Name: {
+						DesiredCanaries: 0,
+						DesiredTotal:    10,
+					},
+				},
+			},
+			expectedPlaceCount:  10,
+			expectedUpdateCount: 2,
+		},
+		{
+			name:               "brand new job with no update block",
+			job:                jobWithNoUpdates,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunning,
+				TaskGroups: map[string]*structs.DeploymentState{
+					jobWithNoUpdates.TaskGroups[0].Name: {
+						DesiredTotal: 10,
+					},
+				},
+			},
+			expectedPlaceCount:  10,
+			expectedUpdateCount: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reconciler := NewNodeReconciler(tc.existingDeployment)
+			r := reconciler.Compute(tc.job, nodes, nil, nil, allocs, nil, false)
+			must.NotNil(t, reconciler.DeploymentCurrent)
+			must.Eq(t, tc.expectedPlaceCount, len(r.Place))
+			must.Eq(t, tc.expectedUpdateCount, len(r.Update))
 		})
 	}
 }
