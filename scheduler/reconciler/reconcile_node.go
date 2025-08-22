@@ -157,9 +157,6 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
-	// Track whether given TG is canarying
-	var isCanarying bool
-
 	// Track desired total placements across all loops
 	var desiredTotal int
 
@@ -187,9 +184,6 @@ func (nr *NodeReconciler) computeForNode(
 
 		reconnect := false
 		expired := false
-
-		// Does this tg expect canaries?
-		isCanarying = canariesPerTG[tg.Name] > 0
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
@@ -367,6 +361,7 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
+		isCanarying := canariesPerTG[tg.Name] > 0
 		if isCanarying {
 			dstate.DesiredTotal = canariesPerTG[tg.Name]
 			dstate.DesiredCanaries = canariesPerTG[tg.Name]
