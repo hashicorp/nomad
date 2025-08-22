@@ -6,6 +6,7 @@ package consul
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -166,6 +167,10 @@ func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLTo
 
 		return t, err
 	}
+
+	sort.Slice(sts, func(i, j int) bool {
+		return sts[i].CreateIndex > sts[j].CreateIndex
+	})
 
 	for _, token := range sts[1:] {
 		if _, err := consulACLClient.TokenDelete(token.AccessorID, &consulapi.WriteOptions{
