@@ -89,6 +89,7 @@ func additionalFilesForVCS() []*landlock.Path {
 		gitGlobalFile  = "/etc/gitconfig"           // https://git-scm.com/docs/git-config#SCOPES
 		hgGlobalFile   = "/etc/mercurial/hgrc"      // https://www.mercurial-scm.org/doc/hgrc.5.html#files
 		hgGlobalDir    = "/etc/mercurial/hgrc.d"    // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		urandom        = "/dev/urandom"             // git
 	)
 	return filesForVCS(
 		homeSSHDir,
@@ -98,6 +99,7 @@ func additionalFilesForVCS() []*landlock.Path {
 		gitGlobalFile,
 		hgGlobalFile,
 		hgGlobalDir,
+		urandom,
 	)
 }
 
@@ -108,7 +110,8 @@ func filesForVCS(
 	etcKnownHosts,
 	gitGlobalFile,
 	hgGlobalFile,
-	hgGlobalDir string) []*landlock.Path {
+	hgGlobalDir,
+	urandom string) []*landlock.Path {
 
 	// omit ssh if there is no home directory
 	home := findHomeDir()
@@ -142,6 +145,9 @@ func filesForVCS(
 	}
 	if exists(hgGlobalDir) {
 		result = append(result, landlock.Dir(hgGlobalDir, "r"))
+	}
+	if exists(urandom) {
+		result = append(result, landlock.File(urandom, "r"))
 	}
 	return result
 }
