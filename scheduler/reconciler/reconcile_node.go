@@ -461,7 +461,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 
 	hadRunning := false
 	for _, alloc := range allocs {
-		if alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
+		if alloc.Job.ID == job.ID && alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
 			hadRunning = true
 			break
 		}

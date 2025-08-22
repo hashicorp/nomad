@@ -920,22 +920,88 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	newJob.Version = job.Version + 1
 	newJob.JobModifyIndex = job.JobModifyIndex + 1
 
-	reconciler := NewNodeReconciler(nil)
-	r := reconciler.Compute(newJob, nodes, nil, nil, allocs, nil, false)
+	// bump the version and add a new TG
+	newJobWithNewTaskGroup := newJob.Copy()
+	newJobWithNewTaskGroup.Version = newJob.Version + 1
+	newJobWithNewTaskGroup.JobModifyIndex = newJob.JobModifyIndex + 1
+	tg := newJob.TaskGroups[0].Copy()
+	tg.Name = "other"
+	tg.Update = &structs.UpdateStrategy{MaxParallel: 1}
+	newJobWithNewTaskGroup.TaskGroups = append(newJobWithNewTaskGroup.TaskGroups, tg)
 
-	must.NotNil(t, reconciler.DeploymentCurrent)
+	// new job with no previous allocs and no canary update strategy
+	jobWithNoUpdates := mock.SystemJob()
+	jobWithNoUpdates.Name = "i-am-a-brand-new-job"
+	jobWithNoUpdates.TaskGroups[0].Name = "i-am-a-brand-new-tg"
+	jobWithNoUpdates.TaskGroups[0].Update = structs.DefaultUpdateStrategy
 
-	newD := &structs.Deployment{
-		StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
-		TaskGroups: map[string]*structs.DeploymentState{
-			job.TaskGroups[0].Name: {
-				DesiredCanaries: 2,
-				DesiredTotal:    2,
-			}},
+	testCases := []struct {
+		name                string
+		job                 *structs.Job
+		existingDeployment  *structs.Deployment
+		expectedDeployment  *structs.Deployment
+		expectedPlaceCount  int
+		expectedUpdateCount int
+	}{
+		{
+			name:               "new job version",
+			job:                newJob,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+				TaskGroups: map[string]*structs.DeploymentState{
+					newJob.TaskGroups[0].Name: {
+						DesiredCanaries: 2,
+						DesiredTotal:    2,
+					}},
+			},
+			expectedPlaceCount:  0,
+			expectedUpdateCount: 2,
+		},
+		{
+			name:               "new job version with a new TG (no existing allocs, no canaries)",
+			job:                newJobWithNewTaskGroup,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+				TaskGroups: map[string]*structs.DeploymentState{
+					newJobWithNewTaskGroup.TaskGroups[0].Name: {
+						DesiredCanaries: 2,
+						DesiredTotal:    2,
+					},
+					newJobWithNewTaskGroup.TaskGroups[1].Name: {
+						DesiredCanaries: 0,
+						DesiredTotal:    10,
+					},
+				},
+			},
+			expectedPlaceCount:  10,
+			expectedUpdateCount: 2,
+		},
+		{
+			name:               "brand new job with no update block",
+			job:                jobWithNoUpdates,
+			existingDeployment: nil,
+			expectedDeployment: &structs.Deployment{
+				StatusDescription: structs.DeploymentStatusDescriptionRunning,
+				TaskGroups: map[string]*structs.DeploymentState{
+					jobWithNoUpdates.TaskGroups[0].Name: {
+						DesiredTotal: 10,
+					},
+				},
+			},
+			expectedPlaceCount:  10,
+			expectedUpdateCount: 0,
+		},
 	}
 
-	must.Eq(t, newD.StatusDescription, reconciler.DeploymentCurrent.StatusDescription)
-	must.Eq(t, newD.TaskGroups, reconciler.DeploymentCurrent.TaskGroups)
-	must.Eq(t, 2, len(r.Update))
-	must.Eq(t, 0, len(r.Place))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reconciler := NewNodeReconciler(tc.existingDeployment)
+			r := reconciler.Compute(tc.job, nodes, nil, nil, allocs, nil, false)
+			must.NotNil(t, reconciler.DeploymentCurrent)
+			must.Eq(t, tc.expectedPlaceCount, len(r.Place))
+			must.Eq(t, tc.expectedUpdateCount, len(r.Update))
+		})
+	}
 }
