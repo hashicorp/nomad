@@ -42,7 +42,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/hashicorp/cap v0.9.0
+	github.com/hashicorp/cap v0.10.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.41.1
 	github.com/hashicorp/consul/api v1.32.1
