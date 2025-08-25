@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -396,26 +397,28 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 	require.NoError(h.Postrun())
 }
 
-// TestHealthHook_SystemNoop asserts that system jobs return the noop tracker.
-func TestHealthHook_SystemNoop(t *testing.T) {
+// TestHealthHook_System asserts that system jobs trigger hooks just like service jobs.
+func TestHealthHook_System(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.SystemAlloc()
 	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), nil, nil, nil, nil)
 
-	// Assert that it's the noop impl
 	_, ok := h.(noopAllocHealthWatcherHook)
-	require.True(t, ok)
+	must.False(t, ok)
 
-	// Assert the noop impl does not implement any hooks
+	_, ok = h.(*allocHealthWatcherHook)
+	must.True(t, ok)
+
+	// Assert the other hooks are implemented, too
 	_, ok = h.(interfaces.RunnerPrerunHook)
-	require.False(t, ok)
+	must.True(t, ok)
 	_, ok = h.(interfaces.RunnerUpdateHook)
-	require.False(t, ok)
+	must.True(t, ok)
 	_, ok = h.(interfaces.RunnerPostrunHook)
-	require.False(t, ok)
+	must.True(t, ok)
 	_, ok = h.(interfaces.ShutdownHook)
-	require.False(t, ok)
+	must.True(t, ok)
 }
 
 // TestHealthHook_BatchNoop asserts that batch jobs return the noop tracker.
