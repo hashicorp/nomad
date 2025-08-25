@@ -147,7 +147,7 @@ func filterByUser(usedBy string, sts []*consulapi.ACLTokenListEntry) []*consulap
 }
 
 // DeriveTokenWithJWT takes a JWT from request and returns a consul token.
-// It first verify there are no tokens already for this particualr service/task.
+// It first verify there are no tokens already for this particular service/task.
 // If so, only one token is selected and the rest are removed. If non exists,
 // it creates one.
 func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
