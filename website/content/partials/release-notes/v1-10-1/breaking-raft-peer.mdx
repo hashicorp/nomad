@@ -1,0 +1,8 @@
+
+#### Remove Raft peer by address removed
+
+Nomad 1.4.0 removed support for Raft Protocol v2, and this removed the ability
+to remove Raft peers by address instead of peer ID. Nomad 1.10.1 removes the
+non-functional `-peer-address` option for the [`operator raft
+peer-remove`](/nomad/commands/operator/raft/remove-peer) command, and the
+`address` parameter for the `DELETE /v1/operator/raft/peer` API.

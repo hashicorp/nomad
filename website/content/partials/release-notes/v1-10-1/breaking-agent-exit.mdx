@@ -1,0 +1,7 @@
+#### Agent exit on reloading configuration errors
+
+Errors encountered when reloading agent configuration now cause agents to exit.
+In prior versions, Nomad only logged configuration errors during reloads. This
+could lead to agents running but unable to communicate. Any other errors when
+parsing the new configuration are logged and the reload is aborted, consistent
+with the current behavior.
