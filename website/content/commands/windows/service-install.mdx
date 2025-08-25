@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: 'nomad windows service install command reference'
+description: |
+  The `nomad windows service install` command installs the Nomad binary
+  and creates a Windows service.
+---
+
+# `nomad windows service install` command reference
+
+The `windows service install` command installs the Nomad binary and
+creates a Windows service.
+
+## Usage
+
+```plaintext
+nomad windows service install
+```
+
+The `windows service install` command installs the `nomad` binary used to
+run this command, creates a data and configuration directory, writes a basic
+Nomad configuration file, creates a Windows service to run Nomad, and
+registers the service with Windows Event Log.
+
+If Nomad has been previously installed using this command, subsequent
+executions will do the following:
+
+1. Stop the service if it is running
+1. Install the currently executing nomad binary
+1. Ensure data and configuration directories exist
+1. Write a configuration file if no configuration files are found
+1. Update the service if needed
+1. Update the Event Log configuration if needed.
+
+## Options
+
+- `-config-dir <dir>`: Directory to hold the Nomad agent configuration.
+  Defaults to "{{.ProgramFiles}}\HashiCorp\nomad\bin"
+
+- `-data-dir <dir>`: Directory to hold the Nomad agent state. Defaults
+  to "{{.ProgramData}}\HashiCorp\nomad\data"
+
+- `-install-dir <dir>`: Directory to install the Nomad binary. Defaults 
+  to "{{.ProgramData}}\HashiCorp\nomad\config"
+
+- `-reinstall`: Allow the nomad Windows service to be stopped during install.
+
+## General options
+
+@include 'general_options.mdx'
