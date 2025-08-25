@@ -207,6 +207,81 @@ func TestJobNamespaceConstraintCheckHook_taskValidateNetworkMode(t *testing.T) {
 	}
 }
 
+func TestJobNamespaceConstraintCheckHook_taskValidateDockerNetworkMode(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		description string
+		mode        string
+		ns          *structs.Namespace
+		result      bool
+	}{
+		{
+			"No capabilities set, allow all",
+			"bridge",
+			&structs.Namespace{},
+			true,
+		},
+		{
+			"No drivers enabled/disabled, allow all",
+			"bridge",
+			&structs.Namespace{Capabilities: &structs.NamespaceCapabilities{}},
+			true,
+		},
+		{
+			"Only bridge and cni/custom are allowed 1/2",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes: []string{"bridge", "cni/custom"}},
+			},
+			true,
+		},
+		{
+			"Only bridge and cni/custom are allowed 2/2",
+			"host",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes: []string{"bridge", "cni/custom"}},
+			},
+			false,
+		},
+		{
+			"disable takes precedence over enable",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes:  []string{"bridge"},
+					DisabledNetworkModes: []string{"bridge"}},
+			},
+			false,
+		},
+		{
+			"All modes but host are allowed 1/2",
+			"host",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					DisabledNetworkModes: []string{"host"}},
+			},
+			false,
+		},
+		{
+			"All modes but host are allowed 2/2",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					DisabledNetworkModes: []string{"host"}},
+			},
+			true,
+		},
+	}
+
+	for _, c := range cases {
+		allowed, _ := taskValidateDockerNetworkMode(c.mode, c.ns)
+		must.Eq(t, c.result, allowed, must.Sprint(c.description))
+	}
+}
+
 func TestJobNamespaceConstraintCheckHook_validate_network_modes(t *testing.T) {
 	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, nil)
