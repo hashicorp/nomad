@@ -125,7 +125,7 @@
     "ember-truth-helpers": "^3.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-ember": "^11.12.0",
+    "eslint-plugin-ember": "^12.7.3",
     "eslint-plugin-ember-a11y-testing": "a11y-tool-sandbox/eslint-plugin-ember-a11y-testing#ca31c9698c7cb105f1c9761d98fcaca7d6874459",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.1",
