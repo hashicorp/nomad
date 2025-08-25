@@ -731,12 +731,23 @@ func TestSidecarTask_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	original := &SidecarTask{
-		Name:        "sidecar-task-1",
-		Driver:      "docker",
-		User:        "nobody",
-		Config:      map[string]interface{}{"foo": 1},
-		Env:         map[string]string{"color": "blue"},
-		Resources:   &Resources{MemoryMB: 300},
+		Name:      "sidecar-task-1",
+		Driver:    "docker",
+		User:      "nobody",
+		Config:    map[string]interface{}{"foo": 1},
+		Env:       map[string]string{"color": "blue"},
+		Resources: &Resources{MemoryMB: 300},
+		Identities: []*WorkloadIdentity{{
+			Name:         "myname",
+			Audience:     []string{"fooaud", "baraud"},
+			ChangeMode:   "signal",
+			ChangeSignal: "restart",
+			Env:          true,
+			File:         true,
+			Filepath:     "/local/tasktoken",
+			ServiceName:  "foosidecar",
+			TTL:          1337 * time.Minute,
+		}},
 		Meta:        map[string]string{"index": "1"},
 		KillTimeout: pointer.Of(2 * time.Second),
 		LogConfig: &LogConfig{
@@ -783,6 +794,10 @@ func TestSidecarTask_Equal(t *testing.T) {
 
 	t.Run("mod resources", func(t *testing.T) {
 		try(t, func(s *st) { s.Resources = &Resources{MemoryMB: 200} })
+	})
+
+	t.Run("mod identities", func(t *testing.T) {
+		try(t, func(s *st) { s.Identities = []*WorkloadIdentity{{Name: "mynewname"}} })
 	})
 
 	t.Run("mod meta", func(t *testing.T) {
