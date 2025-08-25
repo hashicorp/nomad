@@ -441,7 +441,15 @@ func (nr *NodeReconciler) computeForNode(
 			continue
 		}
 
-		nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+		maxParallel := 1
+		if !tg.Update.IsEmpty() {
+			maxParallel = tg.Update.MaxParallel
+		}
+
+		// maxParallel of 0 means no deployments
+		if maxParallel != 0 {
+			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+		}
 
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
@@ -493,7 +501,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 }
 
 func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult) bool {
-	complete := len(buckets.Place)+len(buckets.Migrate) == 0
+	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
 
 	if !complete || nr.DeploymentCurrent == nil {
 		return false
