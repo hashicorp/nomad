@@ -1,6 +1,10 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "network_mode" {
+  default = "bridge"
+}
+
 job "countdash" {
   datacenters = ["dc1"]
 
@@ -11,7 +15,7 @@ job "countdash" {
 
   group "api" {
     network {
-      mode = "bridge"
+      mode = var.network_mode
     }
 
     service {
@@ -43,7 +47,7 @@ job "countdash" {
 
   group "dashboard" {
     network {
-      mode = "bridge"
+      mode = var.network_mode
 
       port "http" {
         static = 9002

@@ -109,6 +109,10 @@ sudo mv /tmp/linux/cni/loopback.* /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.conflist /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.sh /opt/cni/bin/
 
+echo "Installing additional CNI network configs"
+# copy of nomad's "bridge" for connect+cni test (e2e/connect/)
+sudo mv /tmp/linux/cni/nomad_bridge_copy.conflist /opt/cni/config/
+
 # Podman
 echo "Installing Podman"
 sudo apt-get -y install podman catatonit
