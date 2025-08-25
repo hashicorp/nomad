@@ -1027,5 +1027,22 @@
         "path": "volume/status"
       }
     ]
+  },
+  {
+    "title": "windows",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "windows"
+      },
+      {
+        "title": "service install",
+        "path": "windows/service-install"
+      },
+      {
+        "title": "service uninstall",
+        "path": "windows/service-uninstall"
+      }
+    ]
   }
 ]
