@@ -136,9 +136,11 @@ md "C:\Users\Administrator\.ssh\"
 $myKey = "C:\Users\Administrator\.ssh\authorized_keys"
 $adminKey = "C:\ProgramData\ssh\administrators_authorized_keys"
 
-Invoke-RestMethod `
-  -Uri "http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key" `
-  -Outfile $myKey
+# Manually save the private key from instance metadata
+$ImdsToken = Invoke-RestMethod -Uri 'http://169.254.169.254/latest/api/token' -Method 'PUT' -Headers @{'X-aws-ec2-metadata-token-ttl-seconds' = 5400} -UseBasicParsing
+
+$ImdsHeaders = @{'X-aws-ec2-metadata-token' = $ImdsToken}
+Invoke-RestMethod -Uri 'http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key' -Headers $ImdsHeaders -UseBasicParsing -Outfile $myKey
 
 cp $myKey $adminKey
 
@@ -147,6 +149,8 @@ icacls $adminKey /inheritance:r
 icacls $adminKey /grant BUILTIN\Administrators:`(F`)
 icacls $adminKey /grant SYSTEM:`(F`)
 
+# Ensure the SSH agent pulls in the new key.
+Restart-Service -Name ssh-agent
 
 # -------------------------------------------
 # Disable automatic updates so we don't get restarts in the middle of tests
