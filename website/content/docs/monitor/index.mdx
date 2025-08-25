@@ -289,6 +289,17 @@ that membership is unstable.
 If these metrics increase, look at CPU load on the servers and network
 latency and packet loss for the [Serf] address.
 
+## Client introduction
+
+When you configure Nomad with [`client_introduction.enforcement`] set to either
+`warn` or `strict`, the server handling the client registration request
+increments the `nomad.client.introduction.enforcement` counter each time a new
+registration is made without an introduction token.
+
+Monitoring this metric can help identify clients that are not registering with
+an introduction token, which is important when migrating to a tougher
+enforcement level.
+
 [alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
 [allocation-metrics]: /nomad/docs/reference/metrics#allocation-metrics
@@ -311,3 +322,4 @@ latency and packet loss for the [Serf] address.
 [Consensus Protocol (Raft)]: /nomad/docs/monitor#raft-consensus-protocol
 [Job Summary Metrics]: /nomad/docs/reference/metrics#job-summary-metrics
 [Scheduling]: /nomad/docs/concepts/scheduling/how-scheduling-works
+[`client_introduction.enforcement`]: /nomad/docs/configuration/server#client_introduction-parameters

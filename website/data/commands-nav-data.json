@@ -469,6 +469,32 @@
         "path": "node/eligibility"
       },
       {
+        "title": "identity",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "node/identity"
+          },
+          {
+            "title": "renew",
+            "path": "node/identity/renew"
+          }
+        ]
+      },
+      {
+        "title": "intro",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "node/intro"
+          },
+          {
+            "title": "create",
+            "path": "node/intro/create"
+          }
+        ]
+      },
+      {
         "title": "meta",
         "routes": [
           {

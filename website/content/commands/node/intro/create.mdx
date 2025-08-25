@@ -1,0 +1,62 @@
+---
+layout: docs
+page_title: 'nomad node intro create command reference'
+description: |
+  The `nomad node intro create` command creates a new node introduction token.
+---
+
+# `nomad node intro create` command reference
+
+Use the `nomad node intro create` command to generates a new node introduction
+token. The Nomad cluster uses this token to authenticate a new Nomad client
+node. When possible, we recommend specifying the optional `-node-name` flag, so
+that the token is scoped to a specific node.
+
+If ACLs are enabled, this command requires a token with the `node:write` capability.
+
+## Usage
+
+```plaintext
+nomad node intro create [options]
+```
+
+## Options
+
+- `-node-name`: The name of the node to which the introduction token is scoped. If not
+  specified, the value is left empty.
+
+- `-node-pool`: The node pool to which the introduction token is scoped. If not specified, the
+  value `default` is used.
+
+- `-ttl`: The TTL to apply to the introduction token. If not specified, the server configured
+  default value is used.
+
+- `-json`: Output the response object in JSON format.
+
+- `-t`: Format and display the response object using a Go template.
+
+## Examples
+
+Create a node introduction token with a specific node name, node pool, and TTL.
+
+```shell-session
+$ nomad node intro create -node-name=node-338ef6e9 -node-pool=platform -ttl=15m
+
+Successfully generated client introduction token:
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlMGJhMmM3LWE5ODktNzI2Ni1kZDdlLWMyYzBkZmU3OTg4OSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJub21hZHByb2plY3QuaW8iLCJleHAiOjE3NTUwNzE2NDgsImlhdCI6MTc1NTA3MDc0OCwianRpIjoiYWVmMGE3NzUtNzQ0MS1jNjA2LTIyY2UtNGRhZGY4YzExYzlmIiwibmJmIjoxNzU1MDcwNzQ4LCJub21hZF9ub2RlX25hbWUiOiJub2RlLTMzOGVmNmU5Iiwibm9tYWRfbm9kZV9wb29sIjoicGxhdGZvcm0iLCJzdWIiOiJub2RlLWludHJvZHVjdGlvbjpnbG9iYWw6cGxhdGZvcm06bm9kZS0zMzhlZjZlOTpkZWZhdWx0In0.nCyqdlqStkjoX64p-AN0DA90eIbwVj9A-cYRtabEdTmqkocz-31YY9MlCKv0v6oU4AYHwUF-kBXG7LWYQgk2RKgWh-KttjfT1kJaS0k9jfiyVFxrLuz2F_KZO8kBzZFGS4bQw6nw0-6uR0tkkZvKVwrq6L3hyFUWpgB-gI2BidIZz7Y02RNtcpStjv0e-1DVyzFxInIuTnX-Z2fRAZz7w5e1nMtDFpnZgPM3nrjg2ZAKKiX9GiZT9IPip_KRsqdAN5TWkHlNQ7WmdzrIBZNe1IX15JWC7wSyCJn-n-FSSRc71X1P2ZYaOUzmJiGr-x7M95jDZD6CGDykfsD9pFQR_A
+```
+
+Create a node introduction token with a specific node name, node pool, and TTL with the output in
+JSON format.
+
+```shell-session
+$ nomad node intro create -node-name=node-338ef6e9 -node-pool=platform -ttl=15m -json
+{
+    "JWT": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlMGJhMmM3LWE5ODktNzI2Ni1kZDdlLWMyYzBkZmU3OTg4OSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJub21hZHByb2plY3QuaW8iLCJleHAiOjE3NTUwNzE3MzUsImlhdCI6MTc1NTA3MDgzNSwianRpIjoiZTYxYjhlYTUtZjkyYy05YmJmLWU0OWQtYmMxNTg2NDIyNjhhIiwibmJmIjoxNzU1MDcwODM1LCJub21hZF9ub2RlX25hbWUiOiJub2RlLTMzOGVmNmU5Iiwibm9tYWRfbm9kZV9wb29sIjoicGxhdGZvcm0iLCJzdWIiOiJub2RlLWludHJvZHVjdGlvbjpnbG9iYWw6cGxhdGZvcm06bm9kZS0zMzhlZjZlOTpkZWZhdWx0In0.Rij4lcI-vBT6C60oUmR_Qdx3LY6vYh-3OwLRjW-_cAZrl1OaoTUHwfinaUDZza4fY8UZo48ZXjcEw_9sHBYMnX9qByYbdtJUIsBCUn_VAIkMvZFLY4nR5zhB4XotQARqPNY0WENlEb0LhtQcIeFDPJOuDrDCrUk6QqKX5W-ZwFNLZe269LtQjlZDZT-AiNaJfhd8skNipdDW1XhusZucn3nIFQ-iQHqwb7zFB1vIxiNzJqPq_K2SYXIv41uEfWlcp9FTr_1XYQKfukzVg-GQq0nV74VVZSIh5TZLrEIB69GGoOy0t3CY7yDBfrqyKyw4B1fNPEz5o7G4VzoihmbGbA"
+}
+```
+
+## General options
+
+@include 'general_options.mdx'

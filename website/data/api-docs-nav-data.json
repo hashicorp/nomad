@@ -37,6 +37,10 @@
         "path": "acl/binding-rules"
       },
       {
+        "title": "Identities",
+        "path": "acl/identities"
+      },
+      {
         "title": "Login",
         "path": "acl/login"
       },
