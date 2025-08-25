@@ -59,6 +59,10 @@ resource "aws_instance" "client_windows_2022" {
   count                  = var.client_count_windows_2022
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
 
   user_data = file("${path.module}/userdata/windows-2022.ps1")
 
