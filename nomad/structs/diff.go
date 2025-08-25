@@ -2591,6 +2591,11 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, nDiffs...)
 	}
 
+	// DiskThrottle diff
+	if nDiffs := diskThrottleDiffs(r.DiskThrottles, other.DiskThrottles, contextual); nDiffs != nil {
+		diff.Objects = append(diff.Objects, nDiffs...)
+	}
+
 	// Requested Devices diff
 	if nDiffs := requestedDevicesDiffs(r.Devices, other.Devices, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)
@@ -2649,6 +2654,19 @@ func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 	}
 
 	return diff
+}
+
+func (d *DiskThrottle) DiffID() string {
+	return fmt.Sprintf("%d-%d", d.Major, d.Minor)
+}
+
+// Diff returns a diff of two DiskThrottle structs. If contextual diff is enabled,
+func diskThrottleDiffs(old, new []*DiskThrottle, contextual bool) []*ObjectDiff {
+
+	oldSlice := interfaceSlice(old)
+	newSlice := interfaceSlice(new)
+
+	return primitiveObjectSetDiff(oldSlice, newSlice, nil, "DiskThrottle", contextual)
 }
 
 // Diff returns a diff of two DNSConfig structs

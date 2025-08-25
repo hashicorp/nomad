@@ -1055,6 +1055,10 @@
         "path": "job-specification/disconnect"
       },
       {
+        "title": "disk_throttle",
+        "path": "job-specification/disk_throttle"
+      },
+      {
         "title": "dispatch_payload",
         "path": "job-specification/dispatch_payload"
       },
