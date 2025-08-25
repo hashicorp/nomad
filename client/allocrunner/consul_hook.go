@@ -156,6 +156,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		AuthMethodName: consulConfig.TaskIdentityAuthMethod,
 		Meta: map[string]string{
 			"requested_by": fmt.Sprintf("nomad_task_%s", task.Name),
+			"used_by":      h.alloc.ID[:8],
 		},
 	}
 	token, err := h.getConsulToken(consulConfig.Name, req)
@@ -207,8 +208,10 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
-				"service":      service.Name,
+				"requested_by": fmt.Sprintf("nomad_service_%s",
+					handle.InterpolatedWorkloadIdentifier),
+				"service": service.Name,
+				"used_by": h.alloc.ID[:8],
 			},
 		}
 		token, err := h.getConsulToken(clusterName, req)
@@ -273,6 +276,7 @@ func (h *consulHook) Shutdown() {
 // to restore after a client restart.
 func (h *consulHook) Destroy() error {
 	tokens := h.hookResources.GetConsulTokens()
+
 	err := h.revokeTokens(tokens)
 	if err != nil {
 		return err

@@ -6,7 +6,8 @@ package consul
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -139,40 +140,50 @@ func durationFromMeta(node *structs.Node, key string, defaultDur time.Duration) 
 	return d
 }
 
+func filterByUser(usedBy string, sts []*consulapi.ACLTokenListEntry) []*consulapi.ACLTokenListEntry {
+	return slices.DeleteFunc(sts, func(t *consulapi.ACLTokenListEntry) bool {
+		return !strings.Contains(t.Description, usedBy)
+	})
+}
+
 // DeriveTokenWithJWT takes a JWT from request and returns a consul token.
-// It first verify there are no tokens already, if so, only one token is
-// selected and the rest are removed. If non exists, it creates one.
+// It first verify there are no tokens already for this particualr service/task.
+// If so, only one token is selected and the rest are removed. If non exists,
+// it creates one.
 func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
 	consulACLClient := c.client.ACL()
 	qo := &consulapi.QueryOptions{
 		Partition: c.partition,
 	}
 
-	sts, _, err := consulACLClient.TokenListFiltered(consulapi.ACLTokenFilterOptions{
-		ServiceName: req.Meta["service"],
-	}, qo)
+	filter := consulapi.ACLTokenFilterOptions{}
 
+	service, ok := req.Meta["service"]
+	if ok {
+		filter.ServiceName = service
+	} else {
+		filter.AuthMethod = req.AuthMethodName
+	}
+
+	sts, _, err := consulACLClient.TokenListFiltered(filter, qo)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(sts) == 0 {
-		t, _, err := consulACLClient.Login(&consulapi.ACLLoginParams{
+	fts := filterByUser(req.Meta["used_by"], sts)
+	if len(fts) == 0 {
+		token, _, err := consulACLClient.Login(&consulapi.ACLLoginParams{
 			AuthMethod:  req.AuthMethodName,
 			BearerToken: req.JWT,
 			Meta:        req.Meta,
 		}, &consulapi.WriteOptions{
 			Partition: c.partition,
 		})
-
-		return t, err
+		return token, err
 	}
 
-	sort.Slice(sts, func(i, j int) bool {
-		return sts[i].CreateIndex > sts[j].CreateIndex
-	})
-
-	for _, token := range sts[1:] {
+	for _, token := range fts[1:] {
+		c.logger.Info("removing old ACL token", "user", req.Meta["used_by"])
 		if _, err := consulACLClient.TokenDelete(token.AccessorID, &consulapi.WriteOptions{
 			Partition: c.partition,
 		}); err != nil {
@@ -180,9 +191,8 @@ func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLTo
 		}
 	}
 
-	ft, _, err := consulACLClient.TokenRead(sts[0].AccessorID, qo)
-	return ft, err
-
+	token, _, err := consulACLClient.TokenRead(fts[0].AccessorID, qo)
+	return token, err
 }
 
 func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
