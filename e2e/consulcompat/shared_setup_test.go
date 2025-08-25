@@ -44,7 +44,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 	testconsul, err := consulTestUtil.NewTestServerConfigT(t,
 		func(c *consulTestUtil.TestServerConfig) {
 			c.ACL.Enabled = true
-			c.ACL.DefaultPolicy = "deny"
+			c.ACL.DefaultPolicy = "acl:read"
 			c.ACL.Tokens = consulTestUtil.TestTokens{
 				InitialManagement: rootToken,
 			}
