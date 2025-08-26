@@ -1,0 +1,71 @@
+---
+layout: commands
+page_title: nomad-pack render command reference
+description: |-
+  Use the `nomad-pack render` command to render the specified Nomad Pack and review the results.
+---
+
+# nomad-pack render command reference
+
+Use the `nomad-pack render` command to render the specified Nomad Pack and review the results.
+
+## Usage
+
+```plaintext
+nomad-pack render <pack_name> [options]
+```
+
+## Options
+
+- `-registry=<string>`: Specific registry name containing the pack. If not
+  specified, the default registry is used.
+- `-ref=<string>`: Specific Git reference of the pack to retrieve info about.
+  Supports tags, SHA, and `@latest`. If you do not specify a reference, the
+  value defaults to `@latest`. Using `ref` with a file path is not supported.
+- `-render-output-template`: Controls whether or not to render and display the
+  output template file within the pack.
+- `-skip-aux-files`: Controls whether or not the rendered output contains
+  auxiliary	files found in the `templates` folder.
+- `-no-format`: Controls whether or not to format templates before outputting.
+- `-to-dir=<string>`: Path to write rendered job files to in addition to
+  standard output.
+
+@include 'tools/nomad-pack/options-operations.mdx'
+
+@include 'tools/nomad-pack/options-approval.mdx'
+
+## Examples
+
+Render an example pack with override variables in a variable file.
+
+```shell
+nomad-pack render example --var-file="./overrides.hcl"
+```
+
+Render an example pack with CLI variable overrides.
+
+```shell
+nomad-pack render example --var="redis_image_version=latest" \
+           --var="redis_resources={"cpu": "1000", "memory": "512"}"
+```
+
+Render an example pack including the outputs template file.
+
+```shell
+nomad-pack render example --render-output-template
+```
+
+Render an example pack, outputting the rendered templates to file in
+addition to the terminal. Setting `auto-approve` allows the command to
+overwrite existing files.
+
+```shell
+nomad-pack render example --to-dir ~/out --auto-approve
+```
+
+Render a pack under development from the filesystem. Supports current
+working directory or relative path.
+
+```shell
+nomad-pack render .
+```

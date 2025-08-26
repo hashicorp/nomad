@@ -35,7 +35,7 @@ func (s *HTTPServer) auditHandler(h handlerFn) handlerFn {
 	return h
 }
 
-// auditHTTPHandler wraps  the passed handlerByteFn
+// auditNonJSONHandler wraps the passed handlerByteFn
 func (s *HTTPServer) auditNonJSONHandler(h handlerByteFn) handlerByteFn {
 	return h
 }

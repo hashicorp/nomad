@@ -332,14 +332,14 @@ type NodeReconcileResult struct {
 
 func (d *NodeReconcileResult) Fields() []any {
 	fields := []any{
-		"ignore", d.Ignore,
-		"place", d.Place,
-		"update", d.Update,
-		"stop", d.Stop,
-		"migrate", d.Migrate,
-		"lost", d.Lost,
-		"disconnecting", d.Disconnecting,
-		"reconnecting", d.Reconnecting,
+		"ignore", len(d.Ignore),
+		"place", len(d.Place),
+		"update", len(d.Update),
+		"stop", len(d.Stop),
+		"migrate", len(d.Migrate),
+		"lost", len(d.Lost),
+		"disconnecting", len(d.Disconnecting),
+		"reconnecting", len(d.Reconnecting),
 	}
 
 	return fields

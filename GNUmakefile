@@ -34,6 +34,14 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
+# Some Go tools require the tags to be a comma-separated list. Perform a
+# substitution from the space to a comma and create a new variable, so we can
+# use both
+null  :=
+space := $(null) #
+comma := ,
+GO_TAGS_COMMA := $(subst $(space),$(comma),$(strip $(GO_TAGS)))
+
 #GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
 ifndef GOTEST_GROUP
 GOTEST_GROUP := nomad client command drivers quick
@@ -46,7 +54,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 # or backport version, without the leading "v". main should have the latest
 # published release here, and release branches should point to the latest
 # published release in their X.Y release line.
-LAST_RELEASE ?= 1.10.3
+LAST_RELEASE ?= 1.10.4
 
 default: help
 
@@ -163,7 +171,7 @@ check: ## Lint the source code
 	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
-	@hclogvet .
+	@GOFLAGS="-tags=$(GO_TAGS_COMMA)" hclogvet ./...
 
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/content/
@@ -371,18 +379,18 @@ static-assets: ## Compile the static routes to serve alongside the API
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "==> Installing JavaScript assets"
-	@cd ui && npm rebuild node-sass
-	@cd ui && yarn install
+	@pnpm rebuild node-sass
+	@pnpm install --silent --fetch-timeout 300000
 	@echo "==> Running ember tests"
-	@cd ui && npm test
+	@pnpm -F nomad-ui test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "==> Installing JavaScript assets"
-	@cd ui && yarn install --silent --network-timeout 300000
-	@cd ui && npm rebuild node-sass
+	@pnpm install --silent --fetch-timeout 300000
+	@pnpm rebuild node-sass
 	@echo "==> Building Ember application"
-	@cd ui && npm run build
+	@pnpm -F nomad-ui build
 
 .PHONY: dev-ui
 dev-ui: ember-dist static-assets ## Build a dev UI binary

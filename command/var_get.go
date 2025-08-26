@@ -144,7 +144,7 @@ func (c *VarGetCommand) Run(args []string) int {
 			fmt.Print(v)
 			return 0
 		} else {
-			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", args[1]))
+			c.Ui.Error(fmt.Sprintf("Variable does not contain %q item", item))
 			return 1
 		}
 	}

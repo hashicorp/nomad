@@ -825,6 +825,13 @@ func TestNodeUpdateStatusRequest_IdentitySigningErrorIsTerminal(t *testing.T) {
 	}
 }
 
+func TestNodeIdentityGetReq_QueryOptions(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &NodeIdentityGetReq{}
+	must.True(t, req.IsRead())
+}
+
 func Test_DefaultNodeIntroductionConfig(t *testing.T) {
 	ci.Parallel(t)
 

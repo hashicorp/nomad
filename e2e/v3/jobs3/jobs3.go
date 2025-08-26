@@ -236,6 +236,7 @@ type Cleanup func()
 
 func Submit(t *testing.T, filename string, opts ...Option) (*Submission, Cleanup) {
 	t.Helper()
+	t.Logf("submitting job: %q", filename)
 	sub := initialize(t, filename)
 
 	for _, opt := range opts {

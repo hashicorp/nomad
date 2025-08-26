@@ -19,5 +19,6 @@ module "provision-infra" {
   consul_license                         = var.consul_license
   nomad_region                           = var.nomad_region
   instance_arch                          = var.instance_arch
+  instance_type                          = var.instance_type
   name                                   = var.name
 }

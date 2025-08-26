@@ -83,6 +83,7 @@ rkt-*
 ./idea
 *.iml
 .vscode
+.zed
 
 # UI rules
 
@@ -91,6 +92,7 @@ rkt-*
 /ui/tmp
 
 # dependencies
+/node_modules/
 /ui/node_modules
 /ui/bower_components
 

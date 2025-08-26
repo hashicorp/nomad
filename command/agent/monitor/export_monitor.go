@@ -238,7 +238,7 @@ func (d *ExportMonitor) Start() <-chan []byte {
 		for {
 			n, readErr := d.ExportReader.Read(logChunk)
 			if readErr != nil && readErr != io.EOF {
-				d.logger.Error("unable to read logs into channel", readErr.Error())
+				d.logger.Error("unable to read logs into channel", "error", readErr.Error())
 				return
 			}
 

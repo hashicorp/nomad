@@ -30,10 +30,7 @@ job "countdash" {
               "${meta.connect.proxy_concurrency}",
               "--disable-hot-restart"
             ]
-            # TODO(shoenig) should not need NOMAD_ values once
-            # https://github.com/hashicorp/nomad-driver-exec2/issues/29 is
-            # fixed.
-            unveil = ["rx:/opt/bin", "rwc:/dev/shm", "r:${NOMAD_TASK_DIR}", "r:${NOMAD_SECRETS_DIR}"]
+            unveil = ["rx:/opt/bin", "rwc:/dev/shm"]
           }
 
           resources {
@@ -90,10 +87,7 @@ job "countdash" {
               "${meta.connect.proxy_concurrency}",
               "--disable-hot-restart"
             ]
-            # TODO(shoenig) should not need NOMAD_ values once
-            # https://github.com/hashicorp/nomad-driver-exec2/issues/29 is
-            # fixed.
-            unveil = ["rx:/opt/bin", "rwc:/dev/shm", "r:${NOMAD_TASK_DIR}", "r:${NOMAD_SECRETS_DIR}"]
+            unveil = ["rx:/opt/bin", "rwc:/dev/shm"]
           }
 
           resources {

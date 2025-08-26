@@ -127,12 +127,12 @@ sudo chmod +x /usr/local/bin/pledge
 
 # Exec2
 echo "Installing Exec2 Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0-alpha.2 nomad-driver-exec2
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0 nomad-driver-exec2
 sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 
 # Envoy
 echo "Installing Envoy"
-sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
+sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.34.1/envoy-1.34.1-linux-x86_64
 sudo chmod +x /opt/bin/envoy
 
 echo "Updating boot parameters"
