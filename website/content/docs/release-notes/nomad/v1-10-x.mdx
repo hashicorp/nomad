@@ -9,7 +9,6 @@ description: >-
 
 We are pleased to announce the following Nomad updates.
 
-
 ## 1.10.4 release highlights
 
 ### Nomad logs and journald output
@@ -74,10 +73,204 @@ Refer to the following documentation:
   - [`volume create -policy-override` option](/nomad/commands/volume/create#policy-override)
   - [`volume register -policy-override` option](/nomad/commands/volume/register#policy-override)
 
-
 ### Changelog
 
 Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.4) for a list of bug fixes.
+
+## 1.10.3 release highlights
+
+### Consul service registrations
+
+We added the `kind` parameter to the `service` block in the job specification.
+You may manually register a Consul service by specifying a Consul service
+kind. Refer to the Consul Register Service HTTP API's [Kind
+parameter](/consul/api-docs/agent/service#kind) for a list of Consul service
+Kind values.
+
+Previously, you configured a Consul service mesh in your job specification's
+`gateway` block. Now you may specify the kind of Consul service in the job
+specification service itself. If you configure both a service kind and a
+gateway in your job specification, the configured Consul service mesh gateway
+takes precedence.
+
+Refer to the [job specification `service` block `kind`
+parameter](/nomad/docs/job-specification/service#kind) for details.
+
+### Docker task driver cgroup namespace support
+
+You may specify the cgroup namespace in your job specification's Docker task
+driver configuration. This lets you run services that require a cgroup
+namespace, such as the Datadog Agent.
+
+Refer to the Docker task driver's [`cgroupns`
+parameter](/nomad/docs/job-declare/task-driver/docker#cgroupns) for details.
+
+### NOMAD_UNIX_ADDR task environment variable
+
+Use the `NOMAD_UNIX_ADDR` value as your `NOMAD_ADDR` when you want to use the
+Nomad CLI with the [task API's](/nomad/api-docs/task-api) Unix socket.
+
+This example sets the `NOMAD_ADDR` to the `NOMAD_UNIX_ADDR` environment
+variable.
+
+```hcl
+task "nomad-cli" {
+  driver = "raw_exec"
+  config { ... run `nomad` commands ... }
+  identity {
+    env = true
+  }
+  env {
+    NOMAD_ADDR = "${NOMAD_UNIX_ADDR}"
+  }
+}
+```
+
+Refer to these resources for details:
+
+- [Nomad CLI environment variables](/nomad/commands#environment-variables)
+- Runtime environment settings [job-related
+  variables](/nomad/docs/reference/runtime-environment-settings#job-related-variables)
+- Runtime variable interpolation [job-related
+  variables](/nomad/docs/reference/runtime-variable-interpolation#job-related-variables)
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.3)
+for a list of bug fixes.
+
+## 1.10.2 release highlights
+
+### Start stopped jobs
+
+The `nomad job start` CLI command starts a stopped job. This differs from the
+`nomad job restart` command, which restarts or reschedules allocations for a
+running job.
+
+Refer to the [`nomad job start` command reference](/nomad/commands/job/start)
+for details.
+
+### Dynamic host volumes garbage collection enhancements
+
+When a node is garbage collected, any dynamic host volumes on the node are
+orphaned in the state store. You generally don't want to automatically collect
+these volumes and risk data loss, so we enhanced garbage collection to let you
+delete orphaned dynamic host volumes.
+
+We added the `-force` flag to the `nomad volume delete` command so that you can
+delete the volume if the node has been garbage collected. Refer to the [`nomad
+volume delete` command reference](/nomad/commands/volume/delete#force) for details.
+
+For clusters running on ephemeral cloud instances, such as AWS
+EC2 in an autoscaling group, deleting host volumes may add excessive friction.
+The `gc_volumes_on_node_gc` client configuration parameter specifies that the
+server should delete any dynamic host volumes on the node when garbage
+collection deletes the node. Refer to the [`gc_volumes_on_node_gc` parameter
+definition](/nomad/docs/configuration/client#gc_volumes_on_node_gc) for details.
+
+### Configure max number of allocations
+
+The `node_max_allocs` parameter sets the maximum number of allocations that
+Nomad may schedule on a client node. Refer to the [`node_max_allocs` parameter
+definition](/nomad/docs/configuration/client#node_max_allocs) for details.
+
+### ACL policy with workload identity enhancements
+
+- Apply an ACL policy to a namespace.
+
+  When you apply an ACL policy to a namespace, Nomad applies the policy to all
+  the jobs within the namespace. Refer to the [workload-associated ACL policies
+  documentation](/nomad/docs/concepts/workload-identity#workload-associated-acl-policies)
+  for details.
+- Find the ACL policies associated with the current workload identity or ACL
+  token.
+
+  This enhancement lets you learn about ACL capabilities from within the
+  workload identity tasks.  Refer to the following resources for details:
+
+  - ACL Polices HTTP API [Read Self Policy
+    endpoint](/nomad/api-docs/acl/policies#read-self-policy)
+  - `nomad acl policy self` [command reference](/nomad/commands/acl/policy/self)
+  - `nomad acl token self` [command reference](/nomad/commands/acl/token/self)
+
+### Normalize IPv6 addresses
+
+Apply [RFC-5942 section 4
+recommendations](https://www.rfc-editor.org/rfc/rfc5952.html#section-4) to IPv6
+addresses. Nomad normalizes the addresses when it parses the configuration file
+so that the change runs through the whole system.
+
+### Option to render a job specification template only once
+
+We added `once` mode to the `template` block. This allows templates to render
+once without watching dependencies. Refer to the following resources for more
+information:
+
+- Consul Template Modes [Once
+  Mode](/consul/docs/automate/consul-template/mode#once-mode) for a thorough
+  description.
+- Job specification `template` block's [`once`
+  parameter](/nomad/docs/job-specification/template#once) for Nomad behavioral
+  changes.
+
+### Offline utilization reporting <EnterpriseAlert inline/>
+
+With this enhancement, Nomad periodically records usage metrics
+snapshots in the state store. Cluster administrators in air-gapped or otherwise
+secured environments may use the API or CLI to generate utilization reporting
+bundles from those usage metrics snapshots.
+
+Refer to the following resources:
+
+- The [Operator Utilization HTTP API](/nomad/api-docs/operator/utilization)
+- The [`nomad operator utilization` command
+  reference](/nomad/commands/operator/utilization)
+- The agent configuration `reporting` block's [`snapshot_retention_time`
+  parameter](/nomad/docs/configuration/reporting#snapshot_retention_time)
+
+### Breaking changes
+
+In templates, we removed support for these non-hermetic Sprig functions:
+`sprig_date`, `sprig_dateInZone`, `sprig_dateModify`, `sprig_htmlDate`,
+`sprig_htmlDateInZone`, `sprig_dateInZone`, `sprig_dateModify`,
+`sprig_randAlphaNum`, `sprig_randAlpha`, `sprig_randAscii`, `sprig_randNumeric`,
+`sprig_randBytes`, `sprig_uuidv4`, `sprig_env`, `sprig_expandenv`, and
+`sprig_getHostByName`.
+
+The aforementioned Sprig functions posed a security risk in that they allowed
+reading environment variables or resolving domain names to IP addresses.
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.2)
+for a list of security and bug fixes.
+
+### Upgrade details
+
+Review the [Nomad 1.10.2 upgrade guide](/nomad/docs/upgrade/upgrade-specific#nomad-1-10-2).
+
+## 1.10.1 release highlights
+
+### Override parameterized job's parent priority
+
+Use the `-priority` flag to override the priority inherited from a parameterized
+job's parent. Refer to the `nomad job dispatch` command's [`-priority`
+parameter](/nomad/commands/job/dispatch#priority) for details.
+
+### Breaking changes
+
+@include 'release-notes/v1-10-1/breaking-raft-peer.mdx'
+
+@include 'release-notes/v1-10-1/breaking-agent-exit.mdx'
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.1)
+for a list of security and bug fixes.
+
+### Upgrade details
+
+Review the [Nomad 1.10.1 upgrade guide](/nomad/docs/upgrade/upgrade-specific#nomad-1-10-1).
 
 ## 1.10.0 release highlights
 
