@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'nomad node identity renew command reference'
+description: |
+  The `nomad node identity renew` command instructs a node to renew its identity.
+---
+
+# `nomad node identity renew` command reference
+
+Instruct a node to renew its identity at the next heartbeat. This command only applies to client
+agents.
+
+If ACLs are enabled, this command requires a token with the `node:write` capability.
+
+## Usage
+
+```plaintext
+nomad node identity renew [options] <node_id>
+```
+
+## Examples
+
+Instruct a specific node to renew its identity.
+
+```shell-session
+$ nomad node identity renew da86421c-7de9-85e4-2f50-3b2bf95102c1
+```
+
+## General options
+
+@include 'general_options.mdx'

@@ -1,0 +1,28 @@
+---
+layout: docs
+page_title: 'nomad node intro command reference'
+description: |
+  The `nomad node intro` commands allow for the creation of node introduction tokens.
+---
+
+# nomad node intro reference
+
+Use the `nomad node intro` command to manage node introduction tokens. The Nomad
+cluster uses these tokens to authenticate new Nomad clients.
+
+## Usage
+
+```plaintext
+nomad node intro <subcommand> [options]
+```
+
+This command groups subcommands for managing node introduction tokens. The Nomad
+cluster uses these tokens to authenticate new Nomad clients.
+
+Refer to the individual subcommand help for detailed usage information.
+
+Subcommands:
+
+ - [`create`][create] - Generate a new node introduction token
+
+[create]: /nomad/commands/node/intro/create

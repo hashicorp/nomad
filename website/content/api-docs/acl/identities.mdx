@@ -1,0 +1,64 @@
+---
+layout: api
+page_title: ACL Identities - HTTP API
+description: |-
+  Use the `/acl/identity` endpoint to create client introduction identity tokens.
+---
+
+# ACL identities HTTP API
+
+Use the `/acl/identity` endpoint to create client introduction identity tokens.
+
+## Create client introduction identity
+
+This endpoint creates an ACL identity for use with client introduction.
+
+| Method | Path                                         | Produces           |
+|--------|----------------------------------------------|--------------------|
+| `POST` | `/v1/acl/identity/client-introduction-token` | `application/json` |
+
+The following table shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+|------------------|--------------|
+| `NO`             | `node:write` |
+
+### Parameters
+
+- `NodeName` `(string: <optional>)` - The name of the node to which the introduction token is
+  scoped. If not specified, the value is left empty.
+
+- `NodePool` `(string: <optional>)` - The node pool to which the introduction token is scoped.
+  If not specified, the value is `default`.
+
+- `TTL` `(string: <optional>)` - The TTL to apply to the introduction token. If not specified, the
+  server configured default value is used.
+
+### Sample payload
+
+```json
+{
+  "NodeName": "node-338ef6e9",
+  "NodePool": "platform",
+  "TTL": "15m"
+}
+```
+
+### Sample request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/acl/identity/client-introduction-token
+```
+
+### Sample response
+
+```json
+{
+  "JWT":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlMGJhMmM3LWE5ODktNzI2Ni1kZDdlLWMyYzBkZmU3OTg4OSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJub21hZHByb2plY3QuaW8iLCJleHAiOjE3NTUwNzE2NDgsImlhdCI6MTc1NTA3MDc0OCwianRpIjoiYWVmMGE3NzUtNzQ0MS1jNjA2LTIyY2UtNGRhZGY4YzExYzlmIiwibmJmIjoxNzU1MDcwNzQ4LCJub21hZF9ub2RlX25hbWUiOiJub2RlLTMzOGVmNmU5Iiwibm9tYWRfbm9kZV9wb29sIjoicGxhdGZvcm0iLCJzdWIiOiJub2RlLWludHJvZHVjdGlvbjpnbG9iYWw6cGxhdGZvcm06bm9kZS0zMzhlZjZlOTpkZWZhdWx0In0.nCyqdlqStkjoX64p-AN0DA90eIbwVj9A-cYRtabEdTmqkocz-31YY9MlCKv0v6oU4AYHwUF-kBXG7LWYQgk2RKgWh-KttjfT1kJaS0k9jfiyVFxrLuz2F_KZO8kBzZFGS4bQw6nw0-6uR0tkkZvKVwrq6L3hyFUWpgB-gI2BidIZz7Y02RNtcpStjv0e-1DVyzFxInIuTnX-Z2fRAZz7w5e1nMtDFpnZgPM3nrjg2ZAKKiX9GiZT9IPip_KRsqdAN5TWkHlNQ7WmdzrIBZNe1IX15JWC7wSyCJn-n-FSSRc71X1P2ZYaOUzmJiGr-x7M95jDZD6CGDykfsD9pFQR_A"
+}
+```
