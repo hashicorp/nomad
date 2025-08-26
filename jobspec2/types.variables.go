@@ -61,6 +61,11 @@ type Variable struct {
 	// declaration, the type of the default variable will be used. This will
 	// allow to ensure that users set this variable correctly.
 	Type cty.Type
+	
+	// Defaults contains default values for optional object attributes
+	// when using TypeConstraintWithDefaults
+	Defaults *typeexpr.Defaults
+	
 	// Common name of the variable
 	Name string
 	// Description of the variable
@@ -169,7 +174,14 @@ func (v *Variable) Value() (cty.Value, hcl.Diagnostics) {
 		}}
 	}
 	val := v.Values[len(v.Values)-1]
-	return val.Value, v.validateValue(v.Values[len(v.Values)-1])
+	
+	// Apply defaults if they exist (for optional object attributes)
+	finalValue := val.Value
+	if v.Defaults != nil {
+		finalValue = v.Defaults.Apply(finalValue)
+	}
+	
+	return finalValue, v.validateValue(v.Values[len(v.Values)-1])
 }
 
 type Variables map[string]*Variable
@@ -289,13 +301,15 @@ func (variables *Variables) decodeVariableBlock(block *hcl.Block, ectx *hcl.Eval
 	}
 
 	if t, ok := content.Attributes["type"]; ok {
-		tp, moreDiags := typeexpr.Type(t.Expr)
+		tp, defaults, moreDiags := typeexpr.TypeConstraintWithDefaults(t.Expr)
 		diags = append(diags, moreDiags...)
 		if moreDiags.HasErrors() {
 			return diags
 		}
 
 		v.Type = tp
+		// Store defaults for later use when applying values
+		v.Defaults = defaults
 	}
 
 	if def, ok := content.Attributes["default"]; ok {
@@ -317,6 +331,11 @@ func (variables *Variables) decodeVariableBlock(block *hcl.Block, ectx *hcl.Eval
 				})
 				defaultValue = cty.DynamicVal
 			}
+		}
+		
+		// Apply defaults if they exist (for optional object attributes)
+		if v.Defaults != nil {
+			defaultValue = v.Defaults.Apply(defaultValue)
 		}
 
 		v.Values = append(v.Values, VariableAssignment{
@@ -542,6 +561,10 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 				val = cty.DynamicVal
 			}
 		}
+		// Apply defaults if they exist (for optional object attributes)
+		if variable.Defaults != nil {
+			val = variable.Defaults.Apply(val)
+		}
 		variable.Values = append(variable.Values, VariableAssignment{
 			From:  "env",
 			Value: val,
@@ -631,6 +654,10 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 					val = cty.DynamicVal
 				}
 			}
+			// Apply defaults if they exist (for optional object attributes)
+			if variable.Defaults != nil {
+				val = variable.Defaults.Apply(val)
+			}
 
 			variable.Values = append(variable.Values, VariableAssignment{
 				From:  "varfile",
@@ -678,6 +705,10 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 				})
 				val = cty.DynamicVal
 			}
+		}
+		// Apply defaults if they exist (for optional object attributes)
+		if variable.Defaults != nil {
+			val = variable.Defaults.Apply(val)
 		}
 
 		variable.Values = append(variable.Values, VariableAssignment{
