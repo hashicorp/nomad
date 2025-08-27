@@ -216,8 +216,8 @@ client {
   controls on the behavior of task
   [`template`](/nomad/docs/job-specification/template) blocks.
 
-- `common_plugins_dir` `(string: "")` - Specifies the directory where you should
-  place plugins that conform to the common plugins interface (@TODO). When this
+- `common_plugin_dir` `(string: "")` - Specifies the directory where you should
+  place plugins that conform to the [common plugins interface][common_plugins_interface]. When this
   parameter is empty, Nomad generates the path using the [top-level
   `data-dir`][top_level_data_dir] suffixed with `common_plugins`, like
   `"/opt/nomad/common_plugins"`. This must be an absolute path.
@@ -853,3 +853,4 @@ client {
 [dynamic host volumes]: /nomad/docs/other-specifications/volume/host
 [`volume create`]: /nomad/commands/volume/create
 [`volume register`]: /nomad/commands/volume/register
+[common_plugins_interface]: /nomad/plugins/author#common-plugin-interface

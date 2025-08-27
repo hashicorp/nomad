@@ -25,6 +25,8 @@ The following components are currently pluggable within Nomad:
 
 ## Architecture
 
+### Go-plugin
+
 The Nomad task driver and device plugin framework uses the [go-plugin][goplugin]
 project to expose a language-independent plugin interface. Plugins implement a
 set of gRPC services and methods that Nomad manages by running the plugin and
@@ -34,4 +36,22 @@ Go interfaces and structs exist for each plugin type that abstracts away
 go-plugin and the gRPC interface. The guides in this documentation reference
 these abstractions for ease of use.
 
+### Common Plugin Interface
+
+The Nomad Secret provider formalized a pattern first introduced with Dynamic Host
+Volume plugins into a Common Plugin Interface. These plugins differ from Go-plugins
+in that they generally perform a simple task and exit, not needing to run for
+extended periods of time or needing to manage other resources similar to task and
+device drivers. Common plugins must implement a `fingerprint` command, along with
+implementation specific commands.
+
+The parent directory of all common plugin implementations is managed via the
+[common_plugin_dir][common_plugin_dir] which each implementation residing in a specific
+subdirectory, located in the plugins authoring guide.
+
+Future releases of Nomad will check the common plugin directory for host volume
+plugins in addition to the [host_volume_plugin_dir][host_volume_plugin_dir].
+
 [goplugin]: https://github.com/hashicorp/go-plugin
+[common_plugin_dir]: /nomad/docs/configuration/client#common_plugin_dir
+[host_volume_plugin_dir]: /nomad/docs/configuration/client#host_volume_plugin_dir
