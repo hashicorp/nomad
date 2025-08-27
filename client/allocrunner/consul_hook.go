@@ -259,16 +259,11 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		userID := fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier)
+		tokenName := fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier)
 		token := &consulapi.ACLToken{}
 
-		if decodedBytes, err := base64.StdEncoding.DecodeString(swi.ACLAccessTokensB64[userID]); err == nil {
-			if err := json.Unmarshal(decodedBytes, token); len(decodedBytes) == 0 || err != nil {
-				h.logger.Error("unable to read stored token for service", "service", service.Name, "err", err)
-			}
-		} else {
-
-			h.logger.Error("unused tokens might be left behind", "service", service.Name, "err", err)
+		if err := readACLToken(swi.ACLAccessTokensB64[tokenName], token); err != nil {
+			h.logger.Error("unable to lookup older token", "service", service.Name, "err", err)
 		}
 
 		if token.AccessorID == "" {
@@ -277,7 +272,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 				JWT:            swi.JWT,
 				AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 				Meta: map[string]string{
-					"requested_by": userID,
+					"requested_by": tokenName,
 				},
 			}
 			token, err = h.getConsulToken(clusterName, req)
@@ -295,7 +290,16 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 				swi.ACLAccessTokensB64 = map[string]string{}
 			}
 
-			swi.ACLAccessTokensB64[userID] = ""
+			// If this steps fail, we should log and continue allowing the task to start
+			// if by any chance it restarts, it wont be able to reuse the stored token
+			// and it will create a new one.
+			t, err := writeACLToken(token)
+			if err != nil {
+				h.logger.Error("error processing access token for", "service", service.Name, "error", err)
+			}
+
+			swi.ACLAccessTokensB64[tokenName] = t
+
 			err = h.widmgr.Set(swi)
 			if err != nil {
 				mErr = multierror.Append(mErr, fmt.Errorf(
