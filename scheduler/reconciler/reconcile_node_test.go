@@ -916,15 +916,15 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	}
 
 	// bump the job version up
-	newJob := job.Copy()
-	newJob.Version = job.Version + 1
-	newJob.JobModifyIndex = job.JobModifyIndex + 1
+	newJobVersion := job.Copy()
+	newJobVersion.Version = job.Version + 1
+	newJobVersion.JobModifyIndex = job.JobModifyIndex + 1
 
 	// bump the version and add a new TG
-	newJobWithNewTaskGroup := newJob.Copy()
-	newJobWithNewTaskGroup.Version = newJob.Version + 1
-	newJobWithNewTaskGroup.JobModifyIndex = newJob.JobModifyIndex + 1
-	tg := newJob.TaskGroups[0].Copy()
+	newJobWithNewTaskGroup := newJobVersion.Copy()
+	newJobWithNewTaskGroup.Version = newJobVersion.Version + 1
+	newJobWithNewTaskGroup.JobModifyIndex = newJobVersion.JobModifyIndex + 1
+	tg := newJobVersion.TaskGroups[0].Copy()
 	tg.Name = "other"
 	tg.Update = &structs.UpdateStrategy{MaxParallel: 1}
 	newJobWithNewTaskGroup.TaskGroups = append(newJobWithNewTaskGroup.TaskGroups, tg)
@@ -958,11 +958,11 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	}{
 		{
 			name:                                "new job version",
-			job:                                 newJob,
+			job:                                 newJobVersion,
 			nodes:                               nodes,
 			existingDeployment:                  nil,
-			expectedDesiredCanaries:             map[string]int{newJob.TaskGroups[0].Name: 2},
-			expectedDesiredTotal:                map[string]int{newJob.TaskGroups[0].Name: 2},
+			expectedDesiredCanaries:             map[string]int{newJobVersion.TaskGroups[0].Name: 2},
+			expectedDesiredTotal:                map[string]int{newJobVersion.TaskGroups[0].Name: 2},
 			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
 			expectedPlaceCount:                  0,
 			expectedUpdateCount:                 2,

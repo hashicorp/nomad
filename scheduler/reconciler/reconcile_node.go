@@ -368,9 +368,9 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
-		dstate.DesiredTotal = desiredTotal[tg.Name]
+		dstate.DesiredTotal += desiredTotal[tg.Name]
 		if isCanarying {
-			dstate.DesiredCanaries = desiredCanaries[tg.Name]
+			dstate.DesiredCanaries += desiredCanaries[tg.Name]
 		}
 
 		// Check for an existing allocation
@@ -494,11 +494,6 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 		nr.DeploymentCurrent.TaskGroups = make(map[string]*structs.DeploymentState)
 	}
 
-	if nr.DeploymentCurrent.TaskGroups[tg.Name] != nil {
-		nr.DeploymentCurrent.TaskGroups[tg.Name].DesiredCanaries += dstate.DesiredCanaries
-		nr.DeploymentCurrent.TaskGroups[tg.Name].DesiredTotal += dstate.DesiredTotal
-	}
-
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
 }
 
@@ -593,6 +588,7 @@ type AllocTuple struct {
 	Name      string
 	TaskGroup *structs.TaskGroup
 	Alloc     *structs.Allocation
+	Canary    bool
 }
 
 // NodeReconcileResult is used to return the sets that result from the diff
