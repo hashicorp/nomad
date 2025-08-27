@@ -351,6 +351,17 @@ integration-test-consul: dev ## Run Nomad integration tests
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/consulcompat
 
+.PHONY: integration-test-client-intro
+integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
+	@echo "==> Running Nomad integration test suite for Client Introduction:"
+	NOMAD_E2E_CLIENT_INTRO=1 go test \
+		-v \
+		-race \
+		-timeout=120s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/client_intro
+
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
 clean: ## Remove build artifacts
@@ -396,7 +407,7 @@ ember-dist: ## Build the static UI assets from source
 dev-ui: ember-dist static-assets ## Build a dev UI binary
 	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
 
-HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
+HELP_FORMAT="    \033[36m%-32s\033[0m %s\n"
 .PHONY: help
 help: ## Display this usage information
 	@echo "Valid targets:"
