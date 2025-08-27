@@ -77,6 +77,10 @@ func TestCommand_Args(t *testing.T) {
 			[]string{"-client", "-node-pool=not@valid"},
 			"Invalid node pool",
 		},
+		{
+			[]string{"-client", "-eventlog-level", "DEBUG"},
+			"eventlog.level must be one of INFO, WARN, or ERROR",
+		},
 	}
 	for _, tc := range tcases {
 		// Make a new command. We preemptively close the shutdownCh
@@ -484,6 +488,33 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 			err: "missing protocol scheme",
+		},
+		{
+			name: "ValidEventlog",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+				},
+				Eventlog: &Eventlog{
+					Enabled: true,
+					Level:   "INFO",
+				},
+			},
+		},
+		{
+			name: "InvalidEventlog",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+				},
+				Eventlog: &Eventlog{
+					Enabled: true,
+					Level:   "DEBUG",
+				},
+			},
+			err: "eventlog.level must be one of INFO, WARN, or ERROR",
 		},
 	}
 

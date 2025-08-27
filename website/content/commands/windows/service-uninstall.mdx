@@ -1,0 +1,22 @@
+---
+layout: docs
+page_title: 'nomad windows service uninstall command reference'
+description: |
+  The `nomad windows service uninstall` command removes the Nomad
+  Windows service.
+---
+
+# `nomad windows service uninstall` command reference
+
+The `windows service uninstall` command removes the Nomad Windows service.
+
+## Usage
+
+```plaintext
+nomad windows service uninstall
+```
+
+The `windows service uninstall` command stops the Nomad service if
+it is currently running, deregisters the service with the Windows Event Log,
+and removes the Windows service. This command does not remove the installed
+Nomad binary or the data and configuration directories.

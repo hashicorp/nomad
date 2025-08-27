@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Allow agent logging to the Windows Event Log
+```
