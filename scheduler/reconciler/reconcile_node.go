@@ -157,8 +157,12 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
-	// Track desired total placements across all loops
-	var desiredTotal int
+	// Track desired total and desired canaries across all loops
+	desiredTotal := map[string]int{}
+	desiredCanaries := map[string]int{}
+
+	// Track whether we're during a canary update
+	var isCanarying bool
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -311,12 +315,15 @@ func (nr *NodeReconciler) computeForNode(
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
 			if canariesPerTG[tg.Name] > 0 {
+				isCanarying = true
 				if canaryNode[tg.Name] {
 					result.Update = append(result.Update, AllocTuple{
 						Name:      name,
 						TaskGroup: tg,
 						Alloc:     alloc,
 					})
+					desiredCanaries[tg.Name] += 1
+					desiredTotal[tg.Name] += 1
 				}
 			} else {
 				result.Update = append(result.Update, AllocTuple{
@@ -324,7 +331,7 @@ func (nr *NodeReconciler) computeForNode(
 					TaskGroup: tg,
 					Alloc:     alloc,
 				})
-				desiredTotal += 1
+				desiredTotal[tg.Name] += 1
 			}
 			continue
 		}
@@ -361,12 +368,9 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
-		isCanarying := canariesPerTG[tg.Name] > 0
+		dstate.DesiredTotal = desiredTotal[tg.Name]
 		if isCanarying {
-			dstate.DesiredTotal = canariesPerTG[tg.Name]
-			dstate.DesiredCanaries = canariesPerTG[tg.Name]
-		} else {
-			dstate.DesiredTotal = desiredTotal
+			dstate.DesiredCanaries = desiredCanaries[tg.Name]
 		}
 
 		// Check for an existing allocation
@@ -423,15 +427,8 @@ func (nr *NodeReconciler) computeForNode(
 				allocTuple.Alloc = &structs.Allocation{NodeID: nodeID}
 			}
 
-			if isCanarying {
-				if canaryNode[tg.Name] {
-					result.Place = append(result.Place, allocTuple)
-					dstate.DesiredCanaries += 1
-				}
-			} else {
-				result.Place = append(result.Place, allocTuple)
-				dstate.DesiredTotal += 1
-			}
+			result.Place = append(result.Place, allocTuple)
+			dstate.DesiredTotal += 1
 		}
 
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
@@ -495,6 +492,11 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	// Attach the groups deployment state to the deployment
 	if nr.DeploymentCurrent.TaskGroups == nil {
 		nr.DeploymentCurrent.TaskGroups = make(map[string]*structs.DeploymentState)
+	}
+
+	if nr.DeploymentCurrent.TaskGroups[tg.Name] != nil {
+		nr.DeploymentCurrent.TaskGroups[tg.Name].DesiredCanaries += dstate.DesiredCanaries
+		nr.DeploymentCurrent.TaskGroups[tg.Name].DesiredTotal += dstate.DesiredTotal
 	}
 
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
