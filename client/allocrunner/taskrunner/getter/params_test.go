@@ -24,6 +24,7 @@ const paramsAsJSON = `
   "s3_timeout": 5000000000,
   "decompression_limit_file_count": 3,
   "decompression_limit_size": 98765,
+  "disable_artifact_inspection": false,
   "disable_filesystem_isolation": true,
   "filesystem_isolation_extra_paths": [
     "f:r:/dev/urandom",
