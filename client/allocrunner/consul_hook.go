@@ -5,6 +5,8 @@ package allocrunner
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -23,7 +25,7 @@ import (
 type consulHook struct {
 	alloc                   *structs.Allocation
 	allocdir                allocdir.Interface
-	widmgr                  widmgr.IdentityManager
+	widmgr                  widmgr.TokenStorage
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor consul.ConsulClientFunc
 	hookResources           *cstructs.AllocHookResources
@@ -36,7 +38,7 @@ type consulHook struct {
 type consulHookConfig struct {
 	alloc    *structs.Allocation
 	allocdir allocdir.Interface
-	widmgr   widmgr.IdentityManager
+	widmgr   widmgr.TokenStorage
 
 	// consulConfigs is a map of cluster names to Consul configs
 	consulConfigs map[string]*structsc.ConsulConfig
@@ -122,6 +124,30 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	return nil
 }
 
+func readACLToken(b64ACLToken string, token *consulapi.ACLToken) error {
+	decodedBytes, err := base64.StdEncoding.DecodeString(b64ACLToken)
+	if err != nil {
+		return fmt.Errorf("unable to process ACLToken: %w", err)
+	}
+
+	if len(decodedBytes) != 0 {
+		if err := json.Unmarshal(decodedBytes, token); err != nil {
+			return fmt.Errorf("unable to unmarshal ACLToken: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func writeACLToken(token *consulapi.ACLToken) (string, error) {
+	jsonBytes, err := json.Marshal(token)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal ACL token: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(jsonBytes), nil
+}
+
 func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
 	if task == nil {
 		// programming error
@@ -145,29 +171,60 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 
 	// Find signed workload identity.
 	ti := *task.IdentityHandle(wid)
-	jwt, err := h.widmgr.Get(ti)
+	swi, err := h.widmgr.Get(ti)
 	if err != nil {
 		return fmt.Errorf("error getting signed identity for task %s: %v", task.Name, err)
 	}
 
-	// Derive token for task.
-	req := consul.JWTLoginRequest{
-		JWT:            jwt.JWT,
-		AuthMethodName: consulConfig.TaskIdentityAuthMethod,
-		Meta: map[string]string{
-			"requested_by": fmt.Sprintf("nomad_task_%s", task.Name),
-		},
+	tokenName := widName + "/" + task.Name
+	token := &consulapi.ACLToken{}
+	if err := readACLToken(swi.ACLAccessTokensB64[tokenName], token); err != nil {
+		h.logger.Error("unable to lookup older token", "task", task.Name, "err", err)
 	}
-	token, err := h.getConsulToken(consulConfig.Name, req)
-	if err != nil {
-		return fmt.Errorf("failed to derive Consul token for task %s: %v", task.Name, err)
+
+	// Derive and store token for task if non present yet
+	if token.AccessorID == "" {
+		h.logger.Debug("logging into consul", "name", ti.IdentityName, "type", ti.WorkloadType)
+		req := consul.JWTLoginRequest{
+			JWT:            swi.JWT,
+			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
+			Meta: map[string]string{
+				"requested_by": fmt.Sprintf("nomad_task_%s", task.Name),
+			},
+		}
+
+		token, err = h.getConsulToken(consulConfig.Name, req)
+		if err != nil {
+			return fmt.Errorf("failed to derive Consul token for task %s: %v", task.Name, err)
+		}
+
+		// Store token in client state so it can be reused in case of desconnection
+		if swi.ACLAccessTokensB64 == nil {
+			// Avoid panics for tokens created before this field was added.
+			swi.ACLAccessTokensB64 = map[string]string{}
+		}
+
+		// If this steps fail, we should log and continue allowing the task to start
+		// if by any chance it restarts, it wont be able to reuse the stored token
+		// and it will create a new one.
+		t, err := writeACLToken(token)
+		if err != nil {
+			h.logger.Error("error processing access token for", "task", task.Name, "error", err)
+		}
+
+		swi.ACLAccessTokensB64[tokenName] = t
+
+		err = h.widmgr.Set(swi)
+		if err != nil {
+			h.logger.Error("error updating access token for", "task", task.Name, "error", err)
+		}
 	}
 
 	// Store token in results.
 	if _, ok = tokens[clusterName]; !ok {
 		tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 	}
-	tokenName := widName + "/" + task.Name
+
 	tokens[clusterName][tokenName] = token
 
 	return nil
@@ -192,8 +249,8 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Find signed identity workload.
-		handle := *service.IdentityHandle(env.ReplaceEnv)
-		jwt, err := h.widmgr.Get(handle)
+		ti := *service.IdentityHandle(env.ReplaceEnv)
+		swi, err := h.widmgr.Get(ti)
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
 				"error getting signed identity for service %s: %v",
@@ -202,27 +259,58 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		// Derive token for service.
-		req := consul.JWTLoginRequest{
-			JWT:            jwt.JWT,
-			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
-			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
-			},
+		userID := fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier)
+		token := &consulapi.ACLToken{}
+
+		if decodedBytes, err := base64.StdEncoding.DecodeString(swi.ACLAccessTokensB64[userID]); err == nil {
+			if err := json.Unmarshal(decodedBytes, token); len(decodedBytes) == 0 || err != nil {
+				h.logger.Error("unable to read stored token for service", "service", service.Name, "err", err)
+			}
+		} else {
+
+			h.logger.Error("unused tokens might be left behind", "service", service.Name, "err", err)
 		}
-		token, err := h.getConsulToken(clusterName, req)
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"failed to derive Consul token for service %s: %v",
-				service.Name, err,
-			))
-			continue
+
+		if token.AccessorID == "" {
+			h.logger.Debug("logging into consul", "name", ti.IdentityName, "type", ti.WorkloadType)
+			req := consul.JWTLoginRequest{
+				JWT:            swi.JWT,
+				AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
+				Meta: map[string]string{
+					"requested_by": userID,
+				},
+			}
+			token, err = h.getConsulToken(clusterName, req)
+			if err != nil {
+				mErr = multierror.Append(mErr, fmt.Errorf(
+					"failed to derive Consul token for service %s: %v",
+					service.Name, err,
+				))
+				continue
+			}
+
+			// Store token in client state so it can be reused in case of desconnection
+			// Make it backwards compatible with identities that dont have this field.
+			if swi.ACLAccessTokensB64 == nil {
+				swi.ACLAccessTokensB64 = map[string]string{}
+			}
+
+			swi.ACLAccessTokensB64[userID] = ""
+			err = h.widmgr.Set(swi)
+			if err != nil {
+				mErr = multierror.Append(mErr, fmt.Errorf(
+					"error updating access token for service workload identity %s: %v",
+					service.Name, err,
+				))
+				continue
+			}
 		}
 
 		// Store token in results.
 		if _, ok = tokens[clusterName]; !ok {
 			tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 		}
+
 		tokens[clusterName][service.Identity.Name] = token
 	}
 
