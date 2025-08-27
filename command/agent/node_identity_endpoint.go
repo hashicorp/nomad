@@ -47,8 +47,20 @@ func (s *HTTPServer) NodeIdentityGetRequest(resp http.ResponseWriter, req *http.
 }
 
 func (s *HTTPServer) NodeIdentityRenewRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
-	// Build the request by parsing all common parameters and node id
+
+	// Only allow POST and PUT methods.
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Build the request by decoding the request body which will contain the
+	// node ID and the common parameters.
 	args := structs.NodeIdentityRenewReq{}
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 	parseNode(req, &args.NodeID)
 
