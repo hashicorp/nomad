@@ -31,6 +31,7 @@ type parameters struct {
 	S3Timeout                     time.Duration `json:"s3_timeout"`
 	DecompressionLimitFileCount   int           `json:"decompression_limit_file_count"`
 	DecompressionLimitSize        int64         `json:"decompression_limit_size"`
+	DisableArtifactInspection     bool          `json:"disable_artifact_inspection"`
 	DisableFilesystemIsolation    bool          `json:"disable_filesystem_isolation"`
 	FilesystemIsolationExtraPaths []string      `json:"filesystem_isolation_extra_paths"`
 	SetEnvironmentVariables       string        `json:"set_environment_variables"`
@@ -99,6 +100,8 @@ func (p *parameters) Equal(o *parameters) bool {
 	case p.DecompressionLimitFileCount != o.DecompressionLimitFileCount:
 		return false
 	case p.DecompressionLimitSize != o.DecompressionLimitSize:
+		return false
+	case p.DisableArtifactInspection != o.DisableArtifactInspection:
 		return false
 	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
 		return false
