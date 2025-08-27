@@ -6,7 +6,7 @@ run:
   timeout: 10m
 
   # Modules download mode (do not modify go.mod)
-  module-download-mode: readonly
+  modules-download-mode: readonly
 
   # Exclude test files
   tests: false
@@ -52,6 +52,7 @@ linters:
         - shadow
     staticcheck:
       checks:
+        - SA5008
         - ST1016
         - ST1020
   exclusions:
