@@ -329,14 +329,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
 	}
 
-	// Check if a rolling upgrade strategy is being used
-	limit := len(r.Update)
-	if !s.job.Stopped() && s.job.Update.Rolling() {
-		limit = s.job.Update.MaxParallel
-	}
-
-	// Treat non in-place updates as an eviction and new placement.
-	s.limitReached = evictAndPlace(s.ctx, r, r.Update, sstructs.StatusAllocUpdating, &limit)
+	// Treat non in-place updates as an eviction and new placement, which will
+	// be limited by max_parallel
+	s.limitReached = evictAndPlace(s.ctx, s.job, r, sstructs.StatusAllocUpdating)
 
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
@@ -605,19 +600,34 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies both the diffResult and the
-// limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx feasible.Context, diff *reconciler.NodeReconcileResult, allocs []reconciler.AllocTuple, desc string, limit *int) bool {
-	n := len(allocs)
-	for i := 0; i < n && i < *limit; i++ {
-		a := allocs[i]
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
-		diff.Place = append(diff.Place, a)
+// placement queue. evictAndPlace modifies the diffResult. It returns true if
+// the limit has been reached for any task group.
+func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.NodeReconcileResult, desc string) bool {
+
+	limits := map[string]int{} // per task group limits
+	if !job.Stopped() {
+		jobLimit := len(diff.Update)
+		if job.Update.MaxParallel > 0 {
+			jobLimit = job.Update.MaxParallel
+		}
+		for _, tg := range job.TaskGroups {
+			if tg.Update != nil && tg.Update.MaxParallel > 0 {
+				limits[tg.Name] = tg.Update.MaxParallel
+			} else {
+				limits[tg.Name] = jobLimit
+			}
+		}
 	}
-	if n <= *limit {
-		*limit -= n
-		return false
+
+	limited := false
+	for _, a := range diff.Update {
+		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
+			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+			diff.Place = append(diff.Place, a)
+			limits[a.Alloc.TaskGroup]--
+		} else {
+			limited = true
+		}
 	}
-	*limit = 0
-	return true
+	return limited
 }

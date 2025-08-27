@@ -3292,61 +3292,101 @@ func TestSystemSched_CSITopology(t *testing.T) {
 
 }
 
-func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
+func TestEvictAndPlace(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := feasible.MockContext(t)
-	allocs := []reconciler.AllocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+	testCases := []struct {
+		name             string
+		allocsPerTG      map[string]int
+		maxParallelPerTG map[string]int
+		jobMaxParallel   int
+
+		expectLimited bool
+		expectPlace   int
+	}{
+		{
+			name:           "one group limit less than allocs",
+			allocsPerTG:    map[string]int{"a": 4},
+			jobMaxParallel: 2,
+			expectLimited:  true,
+			expectPlace:    2,
+		},
+		{
+			name:           "one group limit equals allocs",
+			allocsPerTG:    map[string]int{"a": 4},
+			jobMaxParallel: 4,
+			expectLimited:  false,
+			expectPlace:    4,
+		},
+		{
+			name:           "one group limit greater than allocs",
+			allocsPerTG:    map[string]int{"a": 2},
+			jobMaxParallel: 4,
+			expectLimited:  false,
+			expectPlace:    2,
+		},
+		{
+			name:             "group limit supercedes job limit",
+			allocsPerTG:      map[string]int{"a": 4},
+			maxParallelPerTG: map[string]int{"a": 2},
+			jobMaxParallel:   1,
+			expectLimited:    true,
+			expectPlace:      2,
+		},
+		{
+			name:             "two groups limit less than allocs on one",
+			allocsPerTG:      map[string]int{"a": 4, "b": 4},
+			maxParallelPerTG: map[string]int{"a": 2, "b": 4},
+			jobMaxParallel:   0,
+			expectLimited:    true,
+			expectPlace:      6,
+		},
+		{
+			name:             "two groups neither limited",
+			allocsPerTG:      map[string]int{"a": 2, "b": 2},
+			maxParallelPerTG: map[string]int{"a": 4, "b": 4},
+			jobMaxParallel:   0,
+			expectLimited:    false,
+			expectPlace:      4,
+		},
+		{
+			name:             "two groups one uses job limit",
+			allocsPerTG:      map[string]int{"a": 4, "b": 4},
+			maxParallelPerTG: map[string]int{"a": 4},
+			jobMaxParallel:   2,
+			expectLimited:    true,
+			expectPlace:      6,
+		},
 	}
-	diff := &reconciler.NodeReconcileResult{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := &structs.Job{Update: structs.UpdateStrategy{
+				MaxParallel: tc.jobMaxParallel, Stagger: time.Second}}
 
-	limit := 2
-	must.True(t, evictAndPlace(ctx, diff, allocs, "", &limit),
-		must.Sprintf("evictAndReplace() should have returned true"))
-	must.Zero(t, limit,
-		must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 2, diff.Place,
-		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
-}
+			allocs := []reconciler.AllocTuple{}
+			for tg, count := range tc.allocsPerTG {
+				job.TaskGroups = append(job.TaskGroups, &structs.TaskGroup{Name: tg})
+				for range count {
+					allocs = append(allocs, reconciler.AllocTuple{
+						Alloc: &structs.Allocation{ID: uuid.Generate(), TaskGroup: tg}})
+				}
+			}
+			for tg, max := range tc.maxParallelPerTG {
+				for _, jtg := range job.TaskGroups {
+					if jtg.Name == tg {
+						jtg.Update = &structs.UpdateStrategy{
+							MaxParallel: max, Stagger: time.Second}
+					}
+				}
+			}
+			diff := &reconciler.NodeReconcileResult{Update: allocs}
+			_, ctx := feasible.MockContext(t)
 
-func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	_, ctx := feasible.MockContext(t)
-	allocs := []reconciler.AllocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+			must.Eq(t, tc.expectLimited, evictAndPlace(ctx, job, diff, ""),
+				must.Sprintf("limited"))
+			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
+				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
+		})
 	}
-	diff := &reconciler.NodeReconcileResult{}
 
-	limit := 4
-	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit),
-		must.Sprint("evictAndReplace() should have returned false"))
-	must.Zero(t, limit, must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 4, diff.Place,
-		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
-}
-
-func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	_, ctx := feasible.MockContext(t)
-	allocs := []reconciler.AllocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-	}
-	diff := &reconciler.NodeReconcileResult{}
-
-	limit := 6
-	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit))
-	must.Eq(t, 2, limit, must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 4, diff.Place, must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
 }
