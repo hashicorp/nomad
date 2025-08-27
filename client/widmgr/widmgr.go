@@ -5,6 +5,7 @@ package widmgr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -460,6 +461,10 @@ func (m *WIDMgr) Set(swi *structs.SignedWorkloadIdentity) error {
 	index := slices.IndexFunc(storedIdentities, func(i *structs.SignedWorkloadIdentity) bool {
 		return i.IdentityName == swi.IdentityName
 	})
+
+	if index == -1 {
+		return errors.New("workload identity not found")
+	}
 
 	storedIdentities[index] = swi
 
