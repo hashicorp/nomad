@@ -1,0 +1,3 @@
+```release-note:bug
+csi: fix EOF error when registering volumes
+```
