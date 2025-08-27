@@ -371,6 +371,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
+	reply.Volumes = args.Volumes
 	reply.Index = index
 	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
