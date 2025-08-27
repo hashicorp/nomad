@@ -23,11 +23,6 @@ type IdentityManager interface {
 	Run() error
 	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
-
-	TokenStorage
-}
-
-type TokenStorage interface {
 	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
 	Set(swi *structs.SignedWorkloadIdentity) error
 }
