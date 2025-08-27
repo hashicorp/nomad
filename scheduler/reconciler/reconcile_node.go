@@ -162,7 +162,7 @@ func (nr *NodeReconciler) computeForNode(
 	desiredCanaries := map[string]int{}
 
 	// Track whether we're during a canary update
-	var isCanarying bool
+	isCanarying := map[string]bool{}
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -315,7 +315,7 @@ func (nr *NodeReconciler) computeForNode(
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
 			if canariesPerTG[tg.Name] > 0 {
-				isCanarying = true
+				isCanarying[tg.Name] = true
 				if canaryNode[tg.Name] {
 					result.Update = append(result.Update, AllocTuple{
 						Name:      name,
@@ -370,7 +370,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		dstate.DesiredTotal += desiredTotal[tg.Name]
-		if isCanarying {
+		if isCanarying[tg.Name] {
 			dstate.DesiredCanaries += desiredCanaries[tg.Name]
 		}
 
