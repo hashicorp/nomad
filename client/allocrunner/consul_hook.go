@@ -209,14 +209,14 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		// and it will create a new one.
 		t, err := writeACLToken(token)
 		if err != nil {
-			h.logger.Error("error processing access token for", "task", task.Name, "error", err)
+			h.logger.Warn("error processing access token for", "task", task.Name, "error", err)
 		}
 
 		swi.ACLAccessTokensB64[tokenName] = t
 
 		err = h.widmgr.Set(swi)
 		if err != nil {
-			h.logger.Error("error updating access token for", "task", task.Name, "error", err)
+			h.logger.Warn("error updating access token for", "task", task.Name, "error", err)
 		}
 	}
 
@@ -295,18 +295,15 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			// and it will create a new one.
 			t, err := writeACLToken(token)
 			if err != nil {
-				h.logger.Error("error processing access token for", "service", service.Name, "error", err)
+				h.logger.Warn("error processing access token for", "service", service.Name, "error", err)
 			}
 
 			swi.ACLAccessTokensB64[tokenName] = t
 
 			err = h.widmgr.Set(swi)
 			if err != nil {
-				mErr = multierror.Append(mErr, fmt.Errorf(
-					"error updating access token for service workload identity %s: %v",
-					service.Name, err,
-				))
-				continue
+				h.logger.Warn("error updating access token for service workload identity %s: %v",
+					service.Name, err)
 			}
 		}
 
