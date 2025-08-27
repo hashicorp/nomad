@@ -321,6 +321,7 @@ func (nr *NodeReconciler) computeForNode(
 						Name:      name,
 						TaskGroup: tg,
 						Alloc:     alloc,
+						Canary:    true,
 					})
 					desiredCanaries[tg.Name] += 1
 					desiredTotal[tg.Name] += 1
