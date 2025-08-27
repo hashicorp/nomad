@@ -155,7 +155,7 @@ func (m *MockIdentityManager) Watch(_ structs.WIHandle) (<-chan *structs.SignedW
 	return nil, nil
 }
 
-// Watch implements the IdentityManager.Set functionality. It currently does
+// Set implements the IdentityManager.Set functionality. It currently does
 // nothing.
 func (m *MockIdentityManager) Set(_ *structs.SignedWorkloadIdentity) error {
 	return nil
