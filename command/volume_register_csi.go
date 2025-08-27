@@ -35,8 +35,6 @@ func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File, o
 				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
-	vol = resp.Volumes[0] // note: the command only ever returns 1 volume from the API
-
 	c.Ui.Output(fmt.Sprintf("Volume %q registered", vol.ID))
 	return 0
 }
