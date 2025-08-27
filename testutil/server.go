@@ -104,7 +104,7 @@ type VaultConfig struct {
 	Enabled              bool                    `json:"enabled"`
 	Address              string                  `json:"address"`
 	AllowUnauthenticated *bool                   `json:"allow_unauthenticated,omitempty"`
-	Token                string                  `json:"token,omitemtpy"`
+	Token                string                  `json:"token,omitempty"`
 	Role                 string                  `json:"role,omitempty"`
 	JWTAuthBackendPath   string                  `json:"jwt_auth_backend_path,omitempty"`
 	DefaultIdentity      *WorkloadIdentityConfig `json:"default_identity,omitempty"`
