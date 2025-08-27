@@ -21,9 +21,15 @@ import (
 // signed identities. At runtime it is implemented by *widmgr.WIDMgr.
 type IdentityManager interface {
 	Run() error
-	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
 	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
+
+	TokenStorage
+}
+
+type TokenStorage interface {
+	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
+	Set(swi *structs.SignedWorkloadIdentity) error
 }
 
 type WIDMgr struct {
@@ -83,8 +89,8 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 
 	// Create a context for the renew loop. This context will be canceled when
 	// the allocation is stopped or agent is shutting down
-	stopCtx, stop := context.WithCancel(context.Background())
 
+	stopCtx, stop := context.WithCancel(context.Background())
 	return &WIDMgr{
 		allocID:                 a.ID,
 		defaultSignedIdentities: a.SignedIdentities,
@@ -116,8 +122,6 @@ func (m *WIDMgr) Run() error {
 		m.logger.Debug("no workload identities to retrieve or renew")
 		return nil
 	}
-
-	m.logger.Debug("retrieving and renewing workload identities", "num_identities", len(m.widSpecs))
 
 	hasExpired, err := m.restoreStoredIdentities()
 	if err != nil {
@@ -239,6 +243,7 @@ func (m *WIDMgr) restoreStoredIdentities() (bool, error) {
 		if !identity.Expiration.IsZero() && identity.Expiration.Before(time.Now()) {
 			hasExpired = true
 		}
+
 		m.lastToken[identity.WIHandle] = identity
 	}
 
@@ -449,4 +454,19 @@ func (m *WIDMgr) send(id structs.WIHandle, token *structs.SignedWorkloadIdentity
 		// watchersLock is held
 		c <- token
 	}
+}
+
+func (m *WIDMgr) Set(swi *structs.SignedWorkloadIdentity) error {
+	storedIdentities, err := m.db.GetAllocIdentities(m.allocID)
+	if err != nil {
+		return err
+	}
+
+	index := slices.IndexFunc(storedIdentities, func(i *structs.SignedWorkloadIdentity) bool {
+		return i.IdentityName == swi.IdentityName
+	})
+
+	storedIdentities[index] = swi
+
+	return m.db.PutAllocIdentities(m.allocID, storedIdentities)
 }
