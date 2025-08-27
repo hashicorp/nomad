@@ -531,6 +531,14 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			alloc.PreviousAllocation = missing.Alloc.ID
 		}
 
+		// If we are placing a canary, add the canary to the deployment state
+		// object and mark it as a canary.
+		if missing.Canary && s.deployment != nil {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Canary: true,
+			}
+		}
+
 		// If this placement involves preemption, set DesiredState to evict for those allocations
 		if option.PreemptedAllocs != nil {
 			var preemptedAllocIDs []string
