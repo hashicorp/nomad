@@ -5,7 +5,9 @@ package getter
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +29,8 @@ const (
 	// githubPrefixSSH is the prefix for downloading via git using ssh from GitHub.
 	githubPrefixSSH = "git@github.com:"
 )
+
+var ErrSandboxEscape = errors.New("artifact includes symlink that resolves outside of sandbox")
 
 func getURL(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) (string, error) {
 	source := taskEnv.ReplaceEnv(artifact.GetterSource)
@@ -184,5 +188,123 @@ func (s *Sandbox) runCmd(env *parameters) error {
 		}
 	}
 	subproc.Log(output, s.logger.Debug)
+
+	// if filesystem isolation was not disabled and lockdown
+	// is available on this platform, do not continue to inspection
+	if !env.DisableFilesystemIsolation && lockdownAvailable() {
+		return nil
+	}
+
+	// if artifact inspection is disabled, do not continue to inspection
+	if env.DisableArtifactInspection {
+		return nil
+	}
+
+	// inspect the writable directories. start with inspecting the
+	// alloc directory
+	allocInspector, err := genWalkInspector(env.AllocDir)
+	if err != nil {
+		return err
+	}
+
+	if err := filepath.WalkDir(env.AllocDir, allocInspector); err != nil {
+		return err
+	}
+
+	// the task directory is within the alloc directory. however, if
+	// that ever changes for some reason, make sure it is checked as well
+	isWithin, err := isPathWithin(env.AllocDir, env.TaskDir)
+	if err != nil {
+		return err
+	}
+
+	if !isWithin {
+		taskInspector, err := genWalkInspector(env.TaskDir)
+		if err != nil {
+			return err
+		}
+
+		if err := filepath.WalkDir(env.TaskDir, taskInspector); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// generateWalkInspector creates a walk function to check for symlinks
+// that resolve outside of the rootDir.
+func genWalkInspector(rootDir string) (fs.WalkDirFunc, error) {
+	rootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var walkFn fs.WalkDirFunc
+
+	walkFn = func(path string, entry fs.DirEntry, err error) error {
+		// argument error means an error was encountered reading
+		// a directory or getting file info so stop here
+		if err != nil {
+			return err
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+
+		// Only care about symlinks
+		if info.Mode()&fs.ModeSymlink != fs.ModeSymlink {
+			return nil
+		}
+
+		// Build up the actual path
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+
+		toCheck, err := filepath.Abs(resolved)
+		if err != nil {
+			return err
+		}
+
+		// Check that entry is still within sandbox
+		isWithin, err := isPathWithin(rootDir, toCheck)
+		if err != nil {
+			return err
+		}
+
+		if !isWithin {
+			return ErrSandboxEscape
+		}
+
+		return nil
+	}
+	return walkFn, nil
+}
+
+// isPathWithin checks if the toCheckPath is within the rootPath. It
+// uses the os.SameFile function to perform the path check so paths
+// are compared appropriately based on the filesystem.
+func isPathWithin(rootPath, toCheckPath string) (bool, error) {
+	rootPath = filepath.Clean(rootPath)
+	toCheckPath = filepath.Clean(toCheckPath)
+
+	if len(rootPath) > len(toCheckPath) {
+		return false, nil
+	}
+
+	rootStat, err := os.Stat(rootPath)
+	if err != nil {
+		return false, err
+	}
+
+	checkStat, err := os.Stat(toCheckPath[0:len(rootPath)])
+	if err != nil {
+		return false, err
+	}
+
+	return os.SameFile(rootStat, checkStat), nil
 }

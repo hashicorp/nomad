@@ -488,6 +488,11 @@ refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
   of files that will be decompressed before triggering an error and cancelling the
   operation. Set to `0` to not enforce a limit.
 
+- `disable_artifact_inspection` `(bool: false)` - Specifies whether to disable
+  artifact inspection for sandbox escapes. If the platform supports filesystem
+  isolation, and it is not disabled, artifact inspection will not be performed
+  regardless of this value.
+
 - `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
