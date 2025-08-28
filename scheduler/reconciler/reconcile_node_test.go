@@ -962,7 +962,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 			nodes:                               nodes,
 			existingDeployment:                  nil,
 			expectedDesiredCanaries:             map[string]int{newJobVersion.TaskGroups[0].Name: 2},
-			expectedDesiredTotal:                map[string]int{newJobVersion.TaskGroups[0].Name: 2},
+			expectedDesiredTotal:                map[string]int{newJobVersion.TaskGroups[0].Name: 10},
 			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
 			expectedPlaceCount:                  0,
 			expectedUpdateCount:                 2,
@@ -977,7 +977,7 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 				newJobWithNewTaskGroup.TaskGroups[1].Name: 0,
 			},
 			expectedDesiredTotal: map[string]int{
-				newJobWithNewTaskGroup.TaskGroups[0].Name: 2,
+				newJobWithNewTaskGroup.TaskGroups[0].Name: 10,
 				newJobWithNewTaskGroup.TaskGroups[1].Name: 10,
 			},
 			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,

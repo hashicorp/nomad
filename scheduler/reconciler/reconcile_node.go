@@ -158,7 +158,6 @@ func (nr *NodeReconciler) computeForNode(
 	}
 
 	// Track desired total and desired canaries across all loops
-	desiredTotal := map[string]int{}
 	desiredCanaries := map[string]int{}
 
 	// Track whether we're during a canary update
@@ -324,7 +323,6 @@ func (nr *NodeReconciler) computeForNode(
 						Canary:    true,
 					})
 					desiredCanaries[tg.Name] += 1
-					desiredTotal[tg.Name] += 1
 				}
 			} else {
 				result.Update = append(result.Update, AllocTuple{
@@ -332,7 +330,6 @@ func (nr *NodeReconciler) computeForNode(
 					TaskGroup: tg,
 					Alloc:     alloc,
 				})
-				desiredTotal[tg.Name] += 1
 			}
 			continue
 		}
@@ -369,7 +366,7 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
-		dstate.DesiredTotal += desiredTotal[tg.Name]
+		dstate.DesiredTotal = len(eligibleNodes)
 		if isCanarying[tg.Name] {
 			dstate.DesiredCanaries += desiredCanaries[tg.Name]
 		}
@@ -429,7 +426,6 @@ func (nr *NodeReconciler) computeForNode(
 			}
 
 			result.Place = append(result.Place, allocTuple)
-			dstate.DesiredTotal += 1
 		}
 
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
