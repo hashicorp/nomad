@@ -1,0 +1,3 @@
+```release-note:bug
+build: fixup yarn/pnpm replacement in build script, pin node version in package.json
+```
