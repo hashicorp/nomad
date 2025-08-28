@@ -76,6 +76,7 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 		consulConfigs:           consulConfigs,
 		consulClientConstructor: consul.NewMockConsulClient,
 		hookResources:           hookResources,
+		db:                      db,
 		logger:                  logger,
 	}
 	return newConsulHook(consulHookCfg)
@@ -263,7 +264,7 @@ func Test_consulHook_Postrun(t *testing.T) {
 	task := hook.alloc.LookupTask("web")
 	tokens := map[string]map[string]*consulapi.ACLToken{}
 	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
-	hook.hookResources.SetConsulTokens(tokens)
+	hook.resourcesBackend.setConsulTokens(tokens)
 	must.MapLen(t, 1, tokens)
 
 	// gracefully handle wrong tokens
@@ -273,6 +274,6 @@ func Test_consulHook_Postrun(t *testing.T) {
 
 	// hook resources should be cleared
 	must.NoError(t, hook.Postrun())
-	tokens = hook.hookResources.GetConsulTokens()
+	tokens = hook.resourcesBackend.getConsulTokens()
 	must.MapEmpty(t, tokens["default"])
 }

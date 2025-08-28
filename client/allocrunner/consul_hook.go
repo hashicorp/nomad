@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -63,7 +62,7 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		widmgr:                  cfg.widmgr,
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
-		resourcesBackend:        newResourcesBackend(cfg.hookResources, cfg.db),
+		resourcesBackend:        newResourcesBackend(cfg.alloc.ID, cfg.hookResources, cfg.db),
 		shutdownCtx:             shutdownCtx,
 		shutdownCancelFn:        shutdownCancelFn,
 	}
@@ -94,7 +93,7 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	}
 
 	// tokens are a map of Consul cluster to identity name to Consul ACL token.
-	tokens, err := h.resourcesBackend.loadAllocTokens(h.alloc.ID)
+	tokens, err := h.resourcesBackend.loadAllocTokens()
 	if err != nil {
 		h.logger.Error("error reading stored ACL tokens", "error", err)
 	}
@@ -125,7 +124,7 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	}
 
 	// write the tokens to hookResources
-	if err := h.resourcesBackend.setConsulTokens(h.alloc.ID, tokens); err != nil {
+	if err := h.resourcesBackend.setConsulTokens(tokens); err != nil {
 		h.logger.Error("unable to update tokens in state", "error", err)
 	}
 
@@ -293,7 +292,7 @@ func (h *consulHook) Destroy() error {
 		return err
 	}
 
-	h.resourcesBackend.setConsulTokens(h.alloc.ID, tokens)
+	h.resourcesBackend.setConsulTokens(tokens)
 	return nil
 }
 
@@ -331,8 +330,9 @@ type resourcesBackend struct {
 	db            cstate.StateDB
 }
 
-func newResourcesBackend(hr *cstructs.AllocHookResources, db cstate.StateDB) *resourcesBackend {
+func newResourcesBackend(allocID string, hr *cstructs.AllocHookResources, db cstate.StateDB) *resourcesBackend {
 	return &resourcesBackend{
+		allocID:       allocID,
 		hookResources: hr,
 		db:            db,
 	}
@@ -363,14 +363,14 @@ func encodeACLToken(token *consulapi.ACLToken) (string, error) {
 }
 
 // This function will never return nil, even in case of error
-func (rs *resourcesBackend) loadAllocTokens(allocID string) (map[string]map[string]*consulapi.ACLToken, error) {
+func (rs *resourcesBackend) loadAllocTokens() (map[string]map[string]*consulapi.ACLToken, error) {
 	allocTokens := map[string]map[string]*consulapi.ACLToken{}
 
-	ts, err := rs.db.GetAllocConsulACLTokens(allocID)
+	ts, err := rs.db.GetAllocConsulACLTokens(rs.allocID)
 	if err != nil {
 		return allocTokens, err
 	}
-	spew.Dump(allocID, ts)
+
 	var mErr *multierror.Error
 	for _, st := range ts {
 
@@ -391,7 +391,7 @@ func (rs *resourcesBackend) loadAllocTokens(allocID string) (map[string]map[stri
 	return allocTokens, mErr.ErrorOrNil()
 }
 
-func (rs *resourcesBackend) setConsulTokens(allocID string, m map[string]map[string]*consulapi.ACLToken) error {
+func (rs *resourcesBackend) setConsulTokens(m map[string]map[string]*consulapi.ACLToken) error {
 	rs.hookResources.SetConsulTokens(m)
 
 	var mErr *multierror.Error
@@ -413,8 +413,7 @@ func (rs *resourcesBackend) setConsulTokens(allocID string, m map[string]map[str
 		}
 	}
 
-	spew.Dump(" about to store", ts)
-	return rs.db.PutAllocConsulACLTokens(allocID, ts)
+	return rs.db.PutAllocConsulACLTokens(rs.allocID, ts)
 }
 
 func (rs *resourcesBackend) getConsulTokens() map[string]map[string]*consulapi.ACLToken {
