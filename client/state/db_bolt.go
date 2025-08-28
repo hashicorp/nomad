@@ -37,6 +37,7 @@ allocations/
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
 	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
      |--> identities -> allocIdentitiesEntry{}
+     |--> ConsulACLTokens -> consulACLTokensEntry{}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -102,7 +103,7 @@ var (
 
 	// allocConsulACLTokeKey is the key []*structs.ConsulACLTokens is stored
 	// under
-	allocConsulACLTokeKey = []byte("alloc_consul_acl_token_identities")
+	allocConsulACLTokenKey = []byte("alloc_consul_acl_token_identities")
 
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
@@ -597,7 +598,7 @@ func (s *BoltStateDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs
 		entry := allocConsulACLTokenEntry{
 			Tokens: tokens,
 		}
-		return allocBkt.Put(allocIdentityKey, &entry)
+		return allocBkt.Put(allocConsulACLTokenKey, &entry)
 	})
 }
 
@@ -616,7 +617,7 @@ func (s *BoltStateDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.Consu
 			return nil // No previous state for this alloc
 		}
 
-		return allocBkt.Get(allocConsulACLTokeKey, &entry)
+		return allocBkt.Get(allocConsulACLTokenKey, &entry)
 	})
 
 	if boltdd.IsErrNotFound(err) {

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -124,7 +125,9 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	}
 
 	// write the tokens to hookResources
-	h.resourcesBackend.setConsulTokens(h.alloc.ID, tokens)
+	if err := h.resourcesBackend.setConsulTokens(h.alloc.ID, tokens); err != nil {
+		h.logger.Error("unable to update tokens in state", "error", err)
+	}
 
 	return nil
 }
@@ -203,7 +206,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 
 		// Find signed identity workload.
 		ti := *service.IdentityHandle(env.ReplaceEnv)
-		tokenName := fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier)
+		tokenName := service.Identity.Name
 		token := tokens[clusterName][tokenName]
 
 		// If no token was previously stored, create one.
@@ -222,7 +225,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 				JWT:            swi.JWT,
 				AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 				Meta: map[string]string{
-					"requested_by": tokenName,
+					"requested_by": fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier),
 				},
 			}
 
@@ -242,7 +245,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 		}
 
-		tokens[clusterName][service.Identity.Name] = token
+		tokens[clusterName][tokenName] = token
 	}
 
 	return mErr.ErrorOrNil()
@@ -367,14 +370,19 @@ func (rs *resourcesBackend) loadAllocTokens(allocID string) (map[string]map[stri
 	if err != nil {
 		return allocTokens, err
 	}
-
+	spew.Dump(allocID, ts)
 	var mErr *multierror.Error
 	for _, st := range ts {
+
 		token := &consulapi.ACLToken{}
 		err := decodeACLToken(st.ACLToken, token)
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
 			continue
+		}
+
+		if allocTokens[st.Cluster] == nil {
+			allocTokens[st.Cluster] = map[string]*consulapi.ACLToken{}
 		}
 
 		allocTokens[st.Cluster][st.TokenID] = token
@@ -405,6 +413,7 @@ func (rs *resourcesBackend) setConsulTokens(allocID string, m map[string]map[str
 		}
 	}
 
+	spew.Dump(" about to store", ts)
 	return rs.db.PutAllocConsulACLTokens(allocID, ts)
 }
 
