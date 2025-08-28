@@ -131,17 +131,17 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 // caputreLogger is a simple logger that captures log lines in memory and also
 // writes them to stderr. It allows us to caputre output and inspect it for
 // testing.
-type caputreLogger struct {
+type captureLogger struct {
 	lines []string
 }
 
-func newCaptureLogger() *caputreLogger {
-	return &caputreLogger{
+func newCaptureLogger() *captureLogger {
+	return &captureLogger{
 		lines: make([]string, 0),
 	}
 }
 
-func (c *caputreLogger) Write(p []byte) (int, error) {
+func (c *captureLogger) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
