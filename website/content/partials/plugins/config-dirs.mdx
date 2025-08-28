@@ -1,0 +1,13 @@
+You may configure the directories where you place plugin executable binaries.
+The following table lists the Agent configuration field as well as the default
+directory for each plugin type. Note that the default directories use the value
+of the configured [`data_dir`](/nomad/docs/configuration#data_dir) parameter,
+which specifies a local directory.
+
+| Type                                                     | Plugin directory configuration parameter                                                   | Default plugin directory         | Plugin configuration                                                       |
+|----------------------------------------------------------|--------------------------------------------------------------------------------------------|----------------------------------|----------------------------------------------------------------------------|
+| [Device driver](/nomad/plugins/devices)                  | [`plugin_dir`](/nomad/docs/configuration#plugin_dir)                                       | `<data_dir>/plugins`             | [`plugin` block](/nomad/docs/configuration/plugin)                         |
+| [Task driver](/nomad/plugins/drivers)                    | [`plugin_dir`](/nomad/docs/configuration#plugin_dir)                                       | `<data_dir>/plugins`             | [`plugin` block](/nomad/docs/configuration/plugin)                         |
+| [Dynamic host volume](/nomad/plugins/author/host-volume) | [`client.host_volume_plugin_dir`](/nomad/docs/configuration/client#host_volume_plugin_dir) | `<data_dir>/host_volume_plugins` | [ `plugin`  block](/nomad/docs/configuration/plugin)                       |
+| [Secret provider](/nomad/plugins/author/secret-provider) | [`client.common_plugin_dir`/secrets](/nomad/docs/configuration/client#common_plugin_dir)   | `<data_dir>/common_plugins`      | [ `plugin`  block](/nomad/docs/configuration/plugin)                       |
+| [CNI reference](https://www.cni.dev/plugins/current/)    | [`client.cni_path`](/nomad/docs/configuration/client#cni_path)                             | `/opt/cni/bin`                   | [`client.cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) |
