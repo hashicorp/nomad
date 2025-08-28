@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -37,7 +38,8 @@ var (
 
 	agentTemplate = template.Must(template.New("agent").Parse(`
 enable_debug = true
-log_level = "{{ or .LogLevel "DEBUG" }}"
+name         = "{{ or .AgentName "nomad-e2e-test-agent" }}"
+log_level    = "{{ or .LogLevel "DEBUG" }}"
 
 ports {
   http = {{.HTTP}}
@@ -58,6 +60,11 @@ client {
   options = {
     "driver.raw_exec.enable" = "1"
   }
+  {{- $retry_join_length := len .RetryJoinAddrs }}{{ if not (eq $retry_join_length 0) }}
+  server_join {
+    retry_join = [{{ range $index, $element := .RetryJoinAddrs }}{{if $index}}, {{end}}"{{$element}}"{{ end }}]
+  }
+  {{ end }}
 }
 {{ end }}
 `))
@@ -69,7 +76,22 @@ type AgentTemplateVars struct {
 	Serf         int
 	EnableClient bool
 	EnableServer bool
-	LogLevel     string
+
+	// AgentName is the name to apply to the Nomad agent. This is optional, but
+	// allows for multiple agents to be run on the same host. If not set, it
+	// will default to "nomad-e2e-test-agent".
+	AgentName string
+
+	LogLevel string
+
+	// NodePool is the Nomad node pool to assign the agent to when running with
+	// client mode enabled. This will default to the "default" node pool if not
+	// set.
+	NodePool string
+
+	// RetryJoinAddrs is a list of addresses to use for the retry_join config
+	// block.
+	RetryJoinAddrs []string
 }
 
 func newAgentTemplateVars() (*AgentTemplateVars, error) {
@@ -87,12 +109,30 @@ func newAgentTemplateVars() (*AgentTemplateVars, error) {
 	}
 
 	vars := AgentTemplateVars{
-		HTTP: httpPort,
-		RPC:  rpcPort,
-		Serf: serfPort,
+		HTTP:     httpPort,
+		RPC:      rpcPort,
+		Serf:     serfPort,
+		LogLevel: hclog.Warn.String(),
+		NodePool: "default",
 	}
 
 	return &vars, nil
+}
+
+// SetMode is a helper function to allow setting the agent mode (client, server,
+// or both).
+func (a *AgentTemplateVars) SetMode(mode AgentMode) {
+	switch mode {
+	case ModeClient:
+		a.EnableClient = true
+		a.EnableServer = false
+	case ModeServer:
+		a.EnableClient = false
+		a.EnableServer = true
+	case ModeBoth:
+		a.EnableClient = true
+		a.EnableServer = true
+	}
 }
 
 func writeConfig(path string, vars *AgentTemplateVars) error {
@@ -220,6 +260,65 @@ func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 	client.Cmd.Stdout = clientOut
 	client.Cmd.Stderr = clientOut
 	return
+}
+
+// TemplateVariableCallbackFunc is a callback function that allow callers to
+// modify the template variables before the config file is written out.
+type TemplateVariableCallbackFunc func(c *AgentTemplateVars)
+
+func NewSingleModeAgent(
+	bin, baseDir string,
+	mode AgentMode,
+	writer io.Writer,
+	varCallbackFn TemplateVariableCallbackFunc,
+) (*NomadAgent, error) {
+
+	templateVars, err := newAgentTemplateVars()
+	if err != nil {
+		return nil, err
+	}
+
+	// Allow the caller to modify the template variables before we write out the
+	// config file.
+	if varCallbackFn != nil {
+		varCallbackFn(templateVars)
+	}
+
+	// Set the mode (client, server, or both)
+	templateVars.SetMode(mode)
+
+	baseDataDir := BaseDir
+
+	if baseDir != "" {
+		baseDataDir = baseDir
+	}
+
+	if err := os.MkdirAll(baseDataDir, 0755); err != nil {
+		return nil, err
+	}
+
+	agentDir, err := os.MkdirTemp(baseDataDir, "agent")
+	if err != nil {
+		return nil, err
+	}
+
+	agentConfig := filepath.Join(agentDir, "agent.hcl")
+	if err := writeConfig(agentConfig, templateVars); err != nil {
+		return nil, err
+	}
+
+	nomadAgent := &NomadAgent{
+		BinPath:  bin,
+		DataDir:  agentDir,
+		ConfFile: agentConfig,
+		Vars:     templateVars,
+		Cmd:      exec.Command(bin, "agent", "-config", agentConfig, "-data-dir", agentDir),
+	}
+
+	nomadAgent.Cmd.Stdout = writer
+	nomadAgent.Cmd.Stderr = writer
+
+	return nomadAgent, nil
 }
 
 // Start the agent command.
