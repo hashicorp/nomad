@@ -33,7 +33,7 @@ EOF
 }
 
 
-IMAGE="mcr.microsoft.com/playwright:v1.53.1-jammy"
+IMAGE="mcr.microsoft.com/playwright:v1.55.0-jammy"
 pushd $(dirname "${BASH_SOURCE[0]}") > /dev/null
 
 run_tests() {
