@@ -52,6 +52,7 @@ linters:
         - shadow
     staticcheck:
       checks:
+        - SA4029
         - SA5008
         - ST1016
         - ST1020
