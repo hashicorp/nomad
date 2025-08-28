@@ -503,6 +503,7 @@ type CSIVolumeRegisterRequest struct {
 type CSIVolumeRegisterResponse struct {
 	Volumes  []*CSIVolume
 	Warnings string
+	QueryMeta
 }
 
 type CSIVolumeDeregisterRequest struct {

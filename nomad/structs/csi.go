@@ -879,9 +879,10 @@ type CSIVolumeRegisterRequest struct {
 }
 
 type CSIVolumeRegisterResponse struct {
+	Volumes []*CSIVolume
+
 	// Warnings are non-fatal messages from Enterprise policy enforcement
 	Warnings string
-
 	QueryMeta
 }
 
