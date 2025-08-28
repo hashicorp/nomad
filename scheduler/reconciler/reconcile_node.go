@@ -428,7 +428,9 @@ func (nr *NodeReconciler) computeForNode(
 			result.Place = append(result.Place, allocTuple)
 		}
 
+		// check if deployment is place ready or complete
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
+		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 
 		// in this case there's nothing to do
 		if existingDeployment || tg.Update.IsEmpty() || (dstate.DesiredTotal == 0 && dstate.DesiredCanaries == 0) || !deploymentPlaceReady {
@@ -444,8 +446,6 @@ func (nr *NodeReconciler) computeForNode(
 		if maxParallel != 0 {
 			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
 		}
-
-		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
 	}
 
 	return result, deploymentComplete
