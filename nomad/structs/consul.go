@@ -27,8 +27,9 @@ const (
 )
 
 type ConsulACLToken struct {
-	WorkloadID string
-	ACLToken   string
+	Cluster  string
+	TokenID  string
+	ACLToken string
 }
 
 // Consul represents optional per-group consul configuration.
