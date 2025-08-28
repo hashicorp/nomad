@@ -23,5 +23,5 @@ find ~/.nvm/versions/node -not -name "v${NODE_VERSION}" -depth 1 -exec rm -rf {}
 
 npm install -g ember-cli
 
-# Install Yarn for front-end dependency management
-curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.5
+# Install pnpm for front-end dependency management
+npm install -g pnpm@latest-10
