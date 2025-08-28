@@ -157,8 +157,11 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
-	// Track desired total placements across all loops
-	var desiredTotal int
+	// Track desired total and desired canaries across all loops
+	desiredCanaries := map[string]int{}
+
+	// Track whether we're during a canary update
+	isCanarying := map[string]bool{}
 
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
@@ -311,12 +314,15 @@ func (nr *NodeReconciler) computeForNode(
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
 			if canariesPerTG[tg.Name] > 0 {
+				isCanarying[tg.Name] = true
 				if canaryNode[tg.Name] {
 					result.Update = append(result.Update, AllocTuple{
 						Name:      name,
 						TaskGroup: tg,
 						Alloc:     alloc,
+						Canary:    true,
 					})
+					desiredCanaries[tg.Name] += 1
 				}
 			} else {
 				result.Update = append(result.Update, AllocTuple{
@@ -324,7 +330,6 @@ func (nr *NodeReconciler) computeForNode(
 					TaskGroup: tg,
 					Alloc:     alloc,
 				})
-				desiredTotal += 1
 			}
 			continue
 		}
@@ -361,12 +366,9 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
-		isCanarying := canariesPerTG[tg.Name] > 0
-		if isCanarying {
-			dstate.DesiredTotal = canariesPerTG[tg.Name]
-			dstate.DesiredCanaries = canariesPerTG[tg.Name]
-		} else {
-			dstate.DesiredTotal = desiredTotal
+		dstate.DesiredTotal = len(eligibleNodes)
+		if isCanarying[tg.Name] {
+			dstate.DesiredCanaries += desiredCanaries[tg.Name]
 		}
 
 		// Check for an existing allocation
@@ -423,15 +425,7 @@ func (nr *NodeReconciler) computeForNode(
 				allocTuple.Alloc = &structs.Allocation{NodeID: nodeID}
 			}
 
-			if isCanarying {
-				if canaryNode[tg.Name] {
-					result.Place = append(result.Place, allocTuple)
-					dstate.DesiredCanaries += 1
-				}
-			} else {
-				result.Place = append(result.Place, allocTuple)
-				dstate.DesiredTotal += 1
-			}
+			result.Place = append(result.Place, allocTuple)
 		}
 
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
@@ -591,6 +585,7 @@ type AllocTuple struct {
 	Name      string
 	TaskGroup *structs.TaskGroup
 	Alloc     *structs.Allocation
+	Canary    bool
 }
 
 // NodeReconcileResult is used to return the sets that result from the diff

@@ -916,15 +916,15 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	}
 
 	// bump the job version up
-	newJob := job.Copy()
-	newJob.Version = job.Version + 1
-	newJob.JobModifyIndex = job.JobModifyIndex + 1
+	newJobVersion := job.Copy()
+	newJobVersion.Version = job.Version + 1
+	newJobVersion.JobModifyIndex = job.JobModifyIndex + 1
 
 	// bump the version and add a new TG
-	newJobWithNewTaskGroup := newJob.Copy()
-	newJobWithNewTaskGroup.Version = newJob.Version + 1
-	newJobWithNewTaskGroup.JobModifyIndex = newJob.JobModifyIndex + 1
-	tg := newJob.TaskGroups[0].Copy()
+	newJobWithNewTaskGroup := newJobVersion.Copy()
+	newJobWithNewTaskGroup.Version = newJobVersion.Version + 1
+	newJobWithNewTaskGroup.JobModifyIndex = newJobVersion.JobModifyIndex + 1
+	tg := newJobVersion.TaskGroups[0].Copy()
 	tg.Name = "other"
 	tg.Update = &structs.UpdateStrategy{MaxParallel: 1}
 	newJobWithNewTaskGroup.TaskGroups = append(newJobWithNewTaskGroup.TaskGroups, tg)
@@ -935,73 +935,103 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 	jobWithNoUpdates.TaskGroups[0].Name = "i-am-a-brand-new-tg"
 	jobWithNoUpdates.TaskGroups[0].Update = structs.DefaultUpdateStrategy
 
+	// additional test to make sure there are no canaries being placed for v0
+	// jobs
+	freshJob := mock.SystemJob()
+	freshJob.TaskGroups[0].Update = structs.DefaultUpdateStrategy
+	freshNodes := []*structs.Node{}
+	for range 2 {
+		node := mock.Node()
+		freshNodes = append(freshNodes, node)
+	}
+
 	testCases := []struct {
-		name                string
-		job                 *structs.Job
-		existingDeployment  *structs.Deployment
-		expectedDeployment  *structs.Deployment
-		expectedPlaceCount  int
-		expectedUpdateCount int
+		name                                string
+		job                                 *structs.Job
+		nodes                               []*structs.Node
+		existingDeployment                  *structs.Deployment
+		expectedDesiredCanaries             map[string]int
+		expectedDesiredTotal                map[string]int
+		expectedDeploymentStatusDescription string
+		expectedPlaceCount                  int
+		expectedUpdateCount                 int
 	}{
 		{
-			name:               "new job version",
-			job:                newJob,
-			existingDeployment: nil,
-			expectedDeployment: &structs.Deployment{
-				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
-				TaskGroups: map[string]*structs.DeploymentState{
-					newJob.TaskGroups[0].Name: {
-						DesiredCanaries: 2,
-						DesiredTotal:    2,
-					}},
-			},
-			expectedPlaceCount:  0,
-			expectedUpdateCount: 2,
+			name:                                "new job version",
+			job:                                 newJobVersion,
+			nodes:                               nodes,
+			existingDeployment:                  nil,
+			expectedDesiredCanaries:             map[string]int{newJobVersion.TaskGroups[0].Name: 2},
+			expectedDesiredTotal:                map[string]int{newJobVersion.TaskGroups[0].Name: 10},
+			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+			expectedPlaceCount:                  0,
+			expectedUpdateCount:                 2,
 		},
 		{
 			name:               "new job version with a new TG (no existing allocs, no canaries)",
 			job:                newJobWithNewTaskGroup,
+			nodes:              nodes,
 			existingDeployment: nil,
-			expectedDeployment: &structs.Deployment{
-				StatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
-				TaskGroups: map[string]*structs.DeploymentState{
-					newJobWithNewTaskGroup.TaskGroups[0].Name: {
-						DesiredCanaries: 2,
-						DesiredTotal:    2,
-					},
-					newJobWithNewTaskGroup.TaskGroups[1].Name: {
-						DesiredCanaries: 0,
-						DesiredTotal:    10,
-					},
-				},
+			expectedDesiredCanaries: map[string]int{
+				newJobWithNewTaskGroup.TaskGroups[0].Name: 2,
+				newJobWithNewTaskGroup.TaskGroups[1].Name: 0,
 			},
-			expectedPlaceCount:  10,
-			expectedUpdateCount: 2,
+			expectedDesiredTotal: map[string]int{
+				newJobWithNewTaskGroup.TaskGroups[0].Name: 10,
+				newJobWithNewTaskGroup.TaskGroups[1].Name: 10,
+			},
+			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunningNeedsPromotion,
+			expectedPlaceCount:                  10,
+			expectedUpdateCount:                 2,
 		},
 		{
 			name:               "brand new job with no update block",
 			job:                jobWithNoUpdates,
+			nodes:              nodes,
 			existingDeployment: nil,
-			expectedDeployment: &structs.Deployment{
-				StatusDescription: structs.DeploymentStatusDescriptionRunning,
-				TaskGroups: map[string]*structs.DeploymentState{
-					jobWithNoUpdates.TaskGroups[0].Name: {
-						DesiredTotal: 10,
-					},
-				},
+			expectedDesiredCanaries: map[string]int{
+				jobWithNoUpdates.TaskGroups[0].Name: 0,
 			},
-			expectedPlaceCount:  10,
-			expectedUpdateCount: 0,
+			expectedDesiredTotal: map[string]int{
+				jobWithNoUpdates.TaskGroups[0].Name: 10,
+			},
+			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunning,
+			expectedPlaceCount:                  10,
+			expectedUpdateCount:                 0,
+		},
+		{
+			name:               "fresh job with no updates, empty nodes",
+			job:                freshJob,
+			nodes:              freshNodes,
+			existingDeployment: nil,
+			expectedDesiredCanaries: map[string]int{
+				freshJob.TaskGroups[0].Name: 0,
+			},
+			expectedDesiredTotal: map[string]int{
+				freshJob.TaskGroups[0].Name: 2,
+			},
+			expectedDeploymentStatusDescription: structs.DeploymentStatusDescriptionRunning,
+			expectedPlaceCount:                  2,
+			expectedUpdateCount:                 0,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			reconciler := NewNodeReconciler(tc.existingDeployment)
-			r := reconciler.Compute(tc.job, nodes, nil, nil, allocs, nil, false)
+			r := reconciler.Compute(tc.job, tc.nodes, nil, nil, allocs, nil, false)
 			must.NotNil(t, reconciler.DeploymentCurrent)
-			must.Eq(t, tc.expectedPlaceCount, len(r.Place))
-			must.Eq(t, tc.expectedUpdateCount, len(r.Update))
+			must.Eq(t, tc.expectedPlaceCount, len(r.Place), must.Sprint("incorrect amount of r.Place"))
+			must.Eq(t, tc.expectedUpdateCount, len(r.Update), must.Sprint("incorrect amount of r.Update"))
+			must.Eq(t, tc.expectedDeploymentStatusDescription, reconciler.DeploymentCurrent.StatusDescription)
+			for _, tg := range tc.job.TaskGroups {
+				must.Eq(t, tc.expectedDesiredCanaries[tg.Name],
+					reconciler.DeploymentCurrent.TaskGroups[tg.Name].DesiredCanaries,
+					must.Sprintf("incorrect number of DesiredCanaries for %s", tg.Name))
+				must.Eq(t, tc.expectedDesiredTotal[tg.Name],
+					reconciler.DeploymentCurrent.TaskGroups[tg.Name].DesiredTotal,
+					must.Sprintf("incorrect number of DesiredTotal for %s", tg.Name))
+			}
 		})
 	}
 }
