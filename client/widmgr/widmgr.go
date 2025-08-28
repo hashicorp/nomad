@@ -21,9 +21,10 @@ import (
 // signed identities. At runtime it is implemented by *widmgr.WIDMgr.
 type IdentityManager interface {
 	Run() error
+	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
 	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
-	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
+
 }
 
 type WIDMgr struct {
