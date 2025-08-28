@@ -129,6 +129,10 @@
         "path": "author/host-volume"
       },
       {
+        "title": "Secret provider",
+        "path": "author/secret-provider"
+      },
+      {
         "title": "Task driver",
         "path": "author/task-driver"
       }
