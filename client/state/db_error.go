@@ -173,11 +173,11 @@ func (m *ErrDB) Close() error {
 	return fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) PutAllocConsulACLTokens(allocID string, tokens []*structs.ConsulACLToken, opts ...WriteOption) error {
+func (m *ErrDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
 	return fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) GetAllocConsulACLTokens(allocID string) ([]*structs.ConsulACLToken, error) {
+func (m *ErrDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
 	return nil, fmt.Errorf("Error!")
 }
 

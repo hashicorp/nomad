@@ -26,12 +26,6 @@ const (
 	ConsulWorkloadsDefaultAuthMethodName = "nomad-workloads"
 )
 
-type ConsulACLToken struct {
-	Cluster  string
-	TokenID  string
-	ACLToken string
-}
-
 // Consul represents optional per-group consul configuration.
 type Consul struct {
 	// Namespace in which to operate in Consul.

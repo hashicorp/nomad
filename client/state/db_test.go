@@ -511,7 +511,7 @@ func TestStateDB_NodeIdentity(t *testing.T) {
 	})
 }
 
-func TestStateDB_CnsulACLToken(t *testing.T) {
+func TestStateDB_ConsulACLToken(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
@@ -522,12 +522,13 @@ func TestStateDB_CnsulACLToken(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, nil, tokens)
 
-		fakeToken := &structs.ConsulACLToken{
-			WorkloadID: "workloadID",
-			ACLToken:   "token",
+		fakeToken := &cstructs.ConsulACLToken{
+			Cluster:  "fake cluster",
+			TokenID:  "workloadID",
+			ACLToken: "token",
 		}
 
-		must.NoError(t, db.PutAllocConsulACLTokens(alloc1.ID, []*structs.ConsulACLToken{fakeToken}))
+		must.NoError(t, db.PutAllocConsulACLTokens(alloc1.ID, []*cstructs.ConsulACLToken{fakeToken}))
 
 		tokens, err = db.GetAllocConsulACLTokens(alloc1.ID)
 		must.NoError(t, err)

@@ -409,3 +409,9 @@ var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
 type NodeRegistration struct {
 	HasRegistered bool
 }
+
+type ConsulACLToken struct {
+	Cluster  string
+	TokenID  string
+	ACLToken string
+}

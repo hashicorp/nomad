@@ -48,7 +48,7 @@ type MemDB struct {
 	identities map[string][]*structs.SignedWorkloadIdentity
 
 	// alloc_id -> []consulAclTokens
-	consulACLTokens map[string][]*structs.ConsulACLToken
+	consulACLTokens map[string][]*cstructs.ConsulACLToken
 
 	// devicemanager -> plugin-state
 	devManagerPs *dmstate.PluginState
@@ -85,7 +85,7 @@ func NewMemDB(logger hclog.Logger) *MemDB {
 		taskState:          make(map[string]map[string]*structs.TaskState),
 		checks:             make(checks.ClientResults),
 		identities:         make(map[string][]*structs.SignedWorkloadIdentity),
-		consulACLTokens:    make(map[string][]*structs.ConsulACLToken),
+		consulACLTokens:    make(map[string][]*cstructs.ConsulACLToken),
 		dynamicHostVolumes: make(map[string]*cstructs.HostVolumeState),
 		clientIdentity:     atomic.Value{},
 		logger:             logger,
@@ -184,7 +184,7 @@ func (m *MemDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkloadIde
 	return m.identities[allocID], nil
 }
 
-func (m *MemDB) PutAllocConsulACLTokens(allocID string, tokens []*structs.ConsulACLToken, opts ...WriteOption) error {
+func (m *MemDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -192,7 +192,7 @@ func (m *MemDB) PutAllocConsulACLTokens(allocID string, tokens []*structs.Consul
 	return nil
 }
 
-func (m *MemDB) GetAllocConsulACLTokens(allocID string) ([]*structs.ConsulACLToken, error) {
+func (m *MemDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.consulACLTokens[allocID], nil

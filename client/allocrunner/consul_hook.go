@@ -175,12 +175,6 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		if err != nil {
 			return fmt.Errorf("failed to derive Consul token for task %s: %v", task.Name, err)
 		}
-
-		// Store token in client state so it can be reused in case of desconnection
-		if swi.ACLAccessTokensB64 == nil {
-			// Avoid panics for tokens created before this field was added.
-			swi.ACLAccessTokensB64 = map[string]string{}
-		}
 	}
 
 	// Store token in results.
@@ -393,7 +387,7 @@ func (rs *resourcesBackend) setConsulTokens(allocID string, m map[string]map[str
 	rs.hookResources.SetConsulTokens(m)
 
 	var mErr *multierror.Error
-	ts := []*structs.ConsulACLToken{}
+	ts := []*cstructs.ConsulACLToken{}
 	for cCluster, tokens := range m {
 		for tokenID, aclToken := range tokens {
 
@@ -403,7 +397,7 @@ func (rs *resourcesBackend) setConsulTokens(allocID string, m map[string]map[str
 				continue
 			}
 
-			ts = append(ts, &structs.ConsulACLToken{
+			ts = append(ts, &cstructs.ConsulACLToken{
 				Cluster:  cCluster,
 				TokenID:  tokenID,
 				ACLToken: stringToken,
