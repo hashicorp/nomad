@@ -493,9 +493,8 @@ type WorkloadIdentityRequest struct {
 // includes the JWT for the requested workload identity.
 type SignedWorkloadIdentity struct {
 	WorkloadIdentityRequest
-	JWT                string
-	Expiration         time.Time
-	ACLAccessTokensB64 map[string]string
+	JWT        string
+	Expiration time.Time
 }
 
 // WorkloadIdentityRejection is the response to a WorkloadIdentityRequest that
