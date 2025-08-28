@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Store and reuse ACL access token for tasks and services
+```
