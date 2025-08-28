@@ -56,7 +56,9 @@ server {
 
 {{ if .EnableClient }}
 client {
-  enabled = true
+  enabled   = true
+  node_pool = "{{ or .NodePool "default" }}"
+
   options = {
     "driver.raw_exec.enable" = "1"
   }
@@ -267,7 +269,7 @@ func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 type TemplateVariableCallbackFunc func(c *AgentTemplateVars)
 
 func NewSingleModeAgent(
-	bin, baseDir string,
+	bin, baseDir, additionalConfig string,
 	mode AgentMode,
 	writer io.Writer,
 	varCallbackFn TemplateVariableCallbackFunc,
@@ -307,12 +309,36 @@ func NewSingleModeAgent(
 		return nil, err
 	}
 
+	commandArgs := []string{
+		"agent",
+		"-config=" + agentConfig,
+		"-data-dir=" + agentDir,
+	}
+
+	// If the caller specifieed additional config, write it out to a file and
+	// add it to the command args.
+	//
+	// This allows for arbitrary config to be added that isn't supported by the
+	// template.
+	//
+	// The caller is responsible for ensuring the additional config is valid.
+	if additionalConfig != "" {
+
+		extraFilePath := filepath.Join(agentDir, "extra.hcl")
+
+		if err := os.WriteFile(extraFilePath, []byte(additionalConfig), 0755); err != nil {
+			return nil, err
+		}
+
+		commandArgs = append(commandArgs, "-config="+extraFilePath)
+	}
+
 	nomadAgent := &NomadAgent{
 		BinPath:  bin,
 		DataDir:  agentDir,
 		ConfFile: agentConfig,
 		Vars:     templateVars,
-		Cmd:      exec.Command(bin, "agent", "-config", agentConfig, "-data-dir", agentDir),
+		Cmd:      exec.Command(bin, commandArgs...),
 	}
 
 	nomadAgent.Cmd.Stdout = writer
