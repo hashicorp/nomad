@@ -580,13 +580,13 @@ func (s *BoltStateDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkl
 	return entry.Identities, nil
 }
 
-// allocIdentitiesEntry wraps the signed identities so we can safely add more
+// allocConsulACLTokenEntry wraps the ACLtokens so we can safely add more
 // state in the future without needing a new entry type
 type allocConsulACLTokenEntry struct {
 	Tokens []*structs.ConsulACLToken
 }
 
-// PutAllocConsulACLToken
+// PutAllocConsulACLToken strores all Consul ACL tokens for an alloc.
 func (s *BoltStateDB) PutAllocConsulACLTokens(allocID string, tokens []*structs.ConsulACLToken, opts ...WriteOption) error {
 	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		allocBkt, err := getAllocationBucket(tx, allocID)
@@ -601,7 +601,7 @@ func (s *BoltStateDB) PutAllocConsulACLTokens(allocID string, tokens []*structs.
 	})
 }
 
-// GetAllocConsulACLToken
+// GetAllocConsulACLToken returns all Consul ACL tokens for an alloc.
 func (s *BoltStateDB) GetAllocConsulACLTokens(allocID string) ([]*structs.ConsulACLToken, error) {
 	var entry allocConsulACLTokenEntry
 

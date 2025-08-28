@@ -5,7 +5,6 @@ package widmgr
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -25,7 +24,6 @@ type IdentityManager interface {
 	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
 	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
-	Set(swi *structs.SignedWorkloadIdentity) error
 }
 
 type WIDMgr struct {
@@ -450,23 +448,4 @@ func (m *WIDMgr) send(id structs.WIHandle, token *structs.SignedWorkloadIdentity
 		// watchersLock is held
 		c <- token
 	}
-}
-
-func (m *WIDMgr) Set(swi *structs.SignedWorkloadIdentity) error {
-	storedIdentities, err := m.db.GetAllocIdentities(m.allocID)
-	if err != nil {
-		return err
-	}
-
-	index := slices.IndexFunc(storedIdentities, func(i *structs.SignedWorkloadIdentity) bool {
-		return i.IdentityName == swi.IdentityName
-	})
-
-	if index == -1 {
-		return errors.New("workload identity not found")
-	}
-
-	storedIdentities[index] = swi
-
-	return m.db.PutAllocIdentities(m.allocID, storedIdentities)
 }
