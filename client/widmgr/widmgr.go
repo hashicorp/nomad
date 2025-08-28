@@ -24,7 +24,6 @@ type IdentityManager interface {
 	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
 	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
-
 }
 
 type WIDMgr struct {
@@ -84,8 +83,8 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 
 	// Create a context for the renew loop. This context will be canceled when
 	// the allocation is stopped or agent is shutting down
-
 	stopCtx, stop := context.WithCancel(context.Background())
+
 	return &WIDMgr{
 		allocID:                 a.ID,
 		defaultSignedIdentities: a.SignedIdentities,
@@ -117,6 +116,8 @@ func (m *WIDMgr) Run() error {
 		m.logger.Debug("no workload identities to retrieve or renew")
 		return nil
 	}
+
+	m.logger.Debug("retrieving and renewing workload identities", "num_identities", len(m.widSpecs))
 
 	hasExpired, err := m.restoreStoredIdentities()
 	if err != nil {
@@ -238,7 +239,6 @@ func (m *WIDMgr) restoreStoredIdentities() (bool, error) {
 		if !identity.Expiration.IsZero() && identity.Expiration.Before(time.Now()) {
 			hasExpired = true
 		}
-
 		m.lastToken[identity.WIHandle] = identity
 	}
 
