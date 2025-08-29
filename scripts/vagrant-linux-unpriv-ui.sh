@@ -24,4 +24,4 @@ find ~/.nvm/versions/node -not -name "v${NODE_VERSION}" -depth 1 -exec rm -rf {}
 npm install -g ember-cli
 
 # Install pnpm for front-end dependency management
-npm install -g pnpm@latest-10
+npm install -g pnpm@10.15.0

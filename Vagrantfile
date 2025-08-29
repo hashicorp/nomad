@@ -2,8 +2,8 @@
 # vi: set ft=ruby :
 #
 
-LINUX_BASE_BOX = "bento/ubuntu-24.04"
-FREEBSD_BASE_BOX = "bento/freebsd-14"
+LINUX_BASE_BOX = "bento/ubuntu-18.04"
+FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.3-STABLE"
 
 LINUX_IP_ADDRESS = "192.168.56.200"
 
@@ -57,26 +57,26 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
 	end
 
-	#config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
-	#	vmCfg.vm.box = FREEBSD_BASE_BOX
-	#	vmCfg.vm.hostname = "freebsd"
-	#	vmCfg.ssh.shell = "sh"
-	#	vmCfg = configureProviders vmCfg,
-	#		cpus: suggestedCPUCores()
-	#	vmCfg.vm.network "private_network", type: "dhcp"
-	#	vmCfg.vm.synced_folder '.',
-	#		'/opt/gopath/src/github.com/hashicorp/nomad',
-	#		type: "nfs",
-	#		bsd__nfs_options: ['noatime']
+	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = FREEBSD_BASE_BOX
+		vmCfg.vm.hostname = "freebsd"
+		vmCfg.ssh.shell = "sh"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
+		vmCfg.vm.network "private_network", type: "dhcp"
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad',
+			type: "nfs",
+			bsd__nfs_options: ['noatime']
 
-	#	vmCfg.vm.provision "shell",
-	#		privileged: true,
-	#		path: './scripts/vagrant-freebsd-priv-config.sh'
+		vmCfg.vm.provision "shell",
+			privileged: true,
+			path: './scripts/vagrant-freebsd-priv-config.sh'
 
-	#	vmCfg.vm.provision "shell",
-	#		privileged: false,
-	#		path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
-	#end
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
+	end
 
 	# Test Cluster (Linux)
 	1.upto(3) do |n|
