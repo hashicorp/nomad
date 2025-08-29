@@ -5,6 +5,8 @@ package allocrunner
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -13,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
+	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -26,7 +29,7 @@ type consulHook struct {
 	widmgr                  widmgr.IdentityManager
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor consul.ConsulClientFunc
-	hookResources           *cstructs.AllocHookResources
+	resourcesBackend        *resourcesBackend
 
 	logger           log.Logger
 	shutdownCtx      context.Context
@@ -37,6 +40,7 @@ type consulHookConfig struct {
 	alloc    *structs.Allocation
 	allocdir allocdir.Interface
 	widmgr   widmgr.IdentityManager
+	db       cstate.StateDB
 
 	// consulConfigs is a map of cluster names to Consul configs
 	consulConfigs map[string]*structsc.ConsulConfig
@@ -58,7 +62,7 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		widmgr:                  cfg.widmgr,
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
-		hookResources:           cfg.hookResources,
+		resourcesBackend:        newResourcesBackend(cfg.alloc.ID, cfg.hookResources, cfg.db),
 		shutdownCtx:             shutdownCtx,
 		shutdownCancelFn:        shutdownCancelFn,
 	}
@@ -89,7 +93,10 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	}
 
 	// tokens are a map of Consul cluster to identity name to Consul ACL token.
-	tokens := map[string]map[string]*consulapi.ACLToken{}
+	tokens, err := h.resourcesBackend.loadAllocTokens()
+	if err != nil {
+		h.logger.Error("error reading stored ACL tokens", "error", err)
+	}
 
 	tg := job.LookupTaskGroup(h.alloc.TaskGroup)
 	if tg == nil { // this is always a programming error
@@ -117,7 +124,9 @@ func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	}
 
 	// write the tokens to hookResources
-	h.hookResources.SetConsulTokens(tokens)
+	if err := h.resourcesBackend.setConsulTokens(tokens); err != nil {
+		h.logger.Error("unable to update tokens in state", "error", err)
+	}
 
 	return nil
 }
@@ -143,41 +152,44 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		return nil
 	}
 
-	// Find signed workload identity.
-	ti := *task.IdentityHandle(wid)
-	jwt, err := h.widmgr.Get(ti)
-	if err != nil {
-		return fmt.Errorf("error getting signed identity for task %s: %v", task.Name, err)
-	}
+	tokenName := widName + "/" + task.Name
+	token := tokens[clusterName][tokenName]
 
-	// Derive token for task.
-	req := consul.JWTLoginRequest{
-		JWT:            jwt.JWT,
-		AuthMethodName: consulConfig.TaskIdentityAuthMethod,
-		Meta: map[string]string{
-			"requested_by": fmt.Sprintf("nomad_task_%s", task.Name),
-		},
-	}
-	token, err := h.getConsulToken(consulConfig.Name, req)
-	if err != nil {
-		return fmt.Errorf("failed to derive Consul token for task %s: %v", task.Name, err)
+	// If no token was previously stored, create one.
+	if token == nil {
+		// Find signed workload identity.
+		ti := *task.IdentityHandle(wid)
+		swi, err := h.widmgr.Get(ti)
+		if err != nil {
+			return fmt.Errorf("error getting signed identity for task %s: %v", task.Name, err)
+		}
+
+		h.logger.Debug("logging into consul", "name", ti.IdentityName, "type", ti.WorkloadType)
+		req := consul.JWTLoginRequest{
+			JWT:            swi.JWT,
+			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
+			Meta: map[string]string{
+				"requested_by": fmt.Sprintf("nomad_task_%s", task.Name),
+			},
+		}
+
+		token, err = h.getConsulToken(consulConfig.Name, req)
+		if err != nil {
+			return fmt.Errorf("failed to derive Consul token for task %s: %v", task.Name, err)
+		}
 	}
 
 	// Store token in results.
 	if _, ok = tokens[clusterName]; !ok {
 		tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 	}
-	tokenName := widName + "/" + task.Name
+
 	tokens[clusterName][tokenName] = token
 
 	return nil
 }
 
 func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken, env *taskenv.TaskEnv) error {
-	if len(services) == 0 {
-		return nil
-	}
-
 	var mErr *multierror.Error
 	for _, service := range services {
 		// Exit early if service doesn't need a Consul token.
@@ -192,38 +204,47 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Find signed identity workload.
-		handle := *service.IdentityHandle(env.ReplaceEnv)
-		jwt, err := h.widmgr.Get(handle)
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"error getting signed identity for service %s: %v",
-				service.Name, err,
-			))
-			continue
-		}
+		ti := *service.IdentityHandle(env.ReplaceEnv)
+		tokenName := service.Identity.Name
+		token := tokens[clusterName][tokenName]
 
-		// Derive token for service.
-		req := consul.JWTLoginRequest{
-			JWT:            jwt.JWT,
-			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
-			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
-			},
-		}
-		token, err := h.getConsulToken(clusterName, req)
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"failed to derive Consul token for service %s: %v",
-				service.Name, err,
-			))
-			continue
+		// If no token was previously stored, create one.
+		if token == nil {
+			swi, err := h.widmgr.Get(ti)
+			if err != nil {
+				mErr = multierror.Append(mErr, fmt.Errorf(
+					"error getting signed identity for service %s: %v",
+					service.Name, err,
+				))
+				continue
+			}
+
+			h.logger.Debug("logging into consul", "name", ti.IdentityName, "type", ti.WorkloadType)
+			req := consul.JWTLoginRequest{
+				JWT:            swi.JWT,
+				AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
+				Meta: map[string]string{
+					"requested_by": fmt.Sprintf("nomad_service_%s", ti.InterpolatedWorkloadIdentifier),
+				},
+			}
+
+			token, err = h.getConsulToken(clusterName, req)
+			if err != nil {
+				mErr = multierror.Append(mErr, fmt.Errorf(
+					"failed to derive Consul token for service %s: %v",
+					service.Name, err,
+				))
+				continue
+			}
+
 		}
 
 		// Store token in results.
 		if _, ok = tokens[clusterName]; !ok {
 			tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 		}
-		tokens[clusterName][service.Identity.Name] = token
+
+		tokens[clusterName][tokenName] = token
 	}
 
 	return mErr.ErrorOrNil()
@@ -254,13 +275,7 @@ func (h *consulHook) clientForCluster(cluster string) (consul.Client, error) {
 
 // Postrun cleans up the Consul tokens after the tasks have exited.
 func (h *consulHook) Postrun() error {
-	tokens := h.hookResources.GetConsulTokens()
-	err := h.revokeTokens(tokens)
-	if err != nil {
-		return err
-	}
-	h.hookResources.SetConsulTokens(tokens)
-	return nil
+	return h.Destroy()
 }
 
 // Shutdown will get called when the client is gracefully stopping.
@@ -271,12 +286,13 @@ func (h *consulHook) Shutdown() {
 // Destroy cleans up any remaining Consul tokens if the alloc is GC'd or fails
 // to restore after a client restart.
 func (h *consulHook) Destroy() error {
-	tokens := h.hookResources.GetConsulTokens()
+	tokens := h.resourcesBackend.getConsulTokens()
 	err := h.revokeTokens(tokens)
 	if err != nil {
 		return err
 	}
-	h.hookResources.SetConsulTokens(tokens)
+
+	h.resourcesBackend.setConsulTokens(tokens)
 	return nil
 }
 
@@ -306,4 +322,100 @@ func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLTok
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+type resourcesBackend struct {
+	allocID       string
+	hookResources *cstructs.AllocHookResources
+	db            cstate.StateDB
+}
+
+func newResourcesBackend(allocID string, hr *cstructs.AllocHookResources, db cstate.StateDB) *resourcesBackend {
+	return &resourcesBackend{
+		allocID:       allocID,
+		hookResources: hr,
+		db:            db,
+	}
+}
+
+func decodeACLToken(b64ACLToken string, token *consulapi.ACLToken) error {
+	decodedBytes, err := base64.StdEncoding.DecodeString(b64ACLToken)
+	if err != nil {
+		return fmt.Errorf("unable to process ACLToken: %w", err)
+	}
+
+	if len(decodedBytes) != 0 {
+		if err := json.Unmarshal(decodedBytes, token); err != nil {
+			return fmt.Errorf("unable to unmarshal ACLToken: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func encodeACLToken(token *consulapi.ACLToken) (string, error) {
+	jsonBytes, err := json.Marshal(token)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal ACL token: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(jsonBytes), nil
+}
+
+// This function will never return nil, even in case of error
+func (rs *resourcesBackend) loadAllocTokens() (map[string]map[string]*consulapi.ACLToken, error) {
+	allocTokens := map[string]map[string]*consulapi.ACLToken{}
+
+	ts, err := rs.db.GetAllocConsulACLTokens(rs.allocID)
+	if err != nil {
+		return allocTokens, err
+	}
+
+	var mErr *multierror.Error
+	for _, st := range ts {
+
+		token := &consulapi.ACLToken{}
+		err := decodeACLToken(st.ACLToken, token)
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
+			continue
+		}
+
+		if allocTokens[st.Cluster] == nil {
+			allocTokens[st.Cluster] = map[string]*consulapi.ACLToken{}
+		}
+
+		allocTokens[st.Cluster][st.TokenID] = token
+	}
+
+	return allocTokens, mErr.ErrorOrNil()
+}
+
+func (rs *resourcesBackend) setConsulTokens(m map[string]map[string]*consulapi.ACLToken) error {
+	rs.hookResources.SetConsulTokens(m)
+
+	var mErr *multierror.Error
+	ts := []*cstructs.ConsulACLToken{}
+	for cCluster, tokens := range m {
+		for tokenID, aclToken := range tokens {
+
+			stringToken, err := encodeACLToken(aclToken)
+			if err != nil {
+				mErr = multierror.Append(mErr, err)
+				continue
+			}
+
+			ts = append(ts, &cstructs.ConsulACLToken{
+				Cluster:  cCluster,
+				TokenID:  tokenID,
+				ACLToken: stringToken,
+			})
+		}
+	}
+
+	return rs.db.PutAllocConsulACLTokens(rs.allocID, ts)
+}
+
+func (rs *resourcesBackend) getConsulTokens() map[string]map[string]*consulapi.ACLToken {
+	return rs.hookResources.GetConsulTokens()
 }
