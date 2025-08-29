@@ -138,7 +138,8 @@ func fallbackVaultConfig(provider *structs.KEKProviderConfig, vaultcfg *config.V
 	setFallback("tls_client_key", vaultcfg.TLSKeyFile, "VAULT_CLIENT_KEY")
 	setFallback("tls_server_name", vaultcfg.TLSServerName, "VAULT_TLS_SERVER_NAME")
 
-	skipVerify := ""
+	// default to false as this will be parsed by the go-kms-wrapping package
+	skipVerify := "false"
 	if vaultcfg.TLSSkipVerify != nil {
 		skipVerify = fmt.Sprintf("%v", *vaultcfg.TLSSkipVerify)
 	}
