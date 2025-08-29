@@ -156,7 +156,7 @@ job "countdash" {
     #   config {
     #     image = "${meta.connect.sidecar_image}"
     #     args  = [
-    #      "-c", "${NOMAD_TASK_DIR}/bootstrap.json",
+    #      "-c", "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
     #      "-l", "${meta.connect.log_level}"
     #     ]
     #   }

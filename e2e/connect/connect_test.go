@@ -25,7 +25,8 @@ func TestConnect(t *testing.T) {
 		test.NoError(t, err)
 	})
 
-	t.Run("ConnectDemo", testConnectDemo)
+	t.Run("ConnectDemo", testConnectDemo("bridge"))
+	t.Run("ConnectDemoCNI", testConnectDemo("cni/nomad-bridge-copy"))
 	t.Run("ConnectCustomSidecarExposed", testConnectCustomSidecarExposed)
 	t.Run("ConnectNativeDemo", testConnectNativeDemo)
 	t.Run("ConnectIngressGatewayDemo", testConnectIngressGatewayDemo)
@@ -36,30 +37,34 @@ func TestConnect(t *testing.T) {
 }
 
 // testConnectDemo tests the demo job file used in Connect Integration examples.
-func testConnectDemo(t *testing.T) {
-	sub, _ := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
+func testConnectDemo(networkMode string) func(t *testing.T) {
+	return func(t *testing.T) {
+		sub, _ := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60),
+			jobs3.Var("network_mode", networkMode),
+		)
 
-	cc := e2eutil.ConsulClient(t)
+		cc := e2eutil.ConsulClient(t)
 
-	ixn := &capi.Intention{
-		SourceName:      "count-dashboard",
-		DestinationName: "count-api",
-		Action:          "allow",
+		ixn := &capi.Intention{
+			SourceName:      "count-dashboard",
+			DestinationName: "count-api",
+			Action:          "allow",
+		}
+		_, err := cc.Connect().IntentionUpsert(ixn, nil)
+		must.NoError(t, err, must.Sprint("could not create intention"))
+
+		t.Cleanup(func() {
+			_, err := cc.Connect().IntentionDeleteExact("count-dashboard", "count-api", nil)
+			test.NoError(t, err)
+		})
+
+		assertServiceOk(t, cc, "count-api-sidecar-proxy")
+		assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
+
+		logs := sub.Exec("dashboard", "dashboard",
+			[]string{"/bin/sh", "-c", "wget -O /dev/null http://${NOMAD_UPSTREAM_ADDR_count_api}"})
+		must.StrContains(t, logs.Stderr, "saving to")
 	}
-	_, err := cc.Connect().IntentionUpsert(ixn, nil)
-	must.NoError(t, err, must.Sprint("could not create intention"))
-
-	t.Cleanup(func() {
-		_, err := cc.Connect().IntentionDeleteExact("count-dashboard", "count-api", nil)
-		test.NoError(t, err)
-	})
-
-	assertServiceOk(t, cc, "count-api-sidecar-proxy")
-	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
-
-	logs := sub.Exec("dashboard", "dashboard",
-		[]string{"/bin/sh", "-c", "wget -O /dev/null http://${NOMAD_UPSTREAM_ADDR_count_api}"})
-	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // testConnectCustomSidecarExposed tests that a connect sidecar with custom task
