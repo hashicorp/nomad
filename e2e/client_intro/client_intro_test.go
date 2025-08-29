@@ -69,6 +69,14 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 	must.NoError(t, testServer.Start())
 	t.Cleanup(func() { _ = testServer.Destroy() })
 
+	// Create a Nomad API client to talk to the server. Do it here, so we only
+	// do this once.
+	nomadClient, err := testServer.Client()
+	must.NoError(t, err)
+	must.NotNil(t, nomadClient)
+
+	waitForKeyring(t, nomadClient)
+
 	clientCallbackFn := func(c *execagent.AgentTemplateVars) {
 		c.AgentName = "client-intro-" + uuid.Short()
 		c.LogLevel = hclog.Warn.String()
@@ -90,12 +98,6 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 
 	must.NoError(t, testClient.Start())
 	t.Cleanup(func() { _ = testClient.Destroy() })
-
-	// Create a Nomad API client to talk to the server. Do it here, so we only
-	// do this once.
-	nomadClient, err := testServer.Client()
-	must.NoError(t, err)
-	must.NotNil(t, nomadClient)
 
 	// Wait for the client to show up in the server's node list. We use the node
 	// name as the identifier to check for since it's unique.
@@ -171,7 +173,15 @@ server {
 	must.NoError(t, testServer.Start())
 	t.Cleanup(func() { _ = testServer.Destroy() })
 
-	//
+	// Create a Nomad API client to talk to the server. Do it here, so we only
+	// do this once.
+	nomadClient, err := testServer.Client()
+	must.NoError(t, err)
+	must.NotNil(t, nomadClient)
+
+	waitForKeyring(t, nomadClient)
+
+	// Generate a unique name for the client node we will be creating.
 	clientAgentName := "client-intro-" + uuid.Short()
 
 	clientCallbackFn := func(c *execagent.AgentTemplateVars) {
@@ -240,12 +250,6 @@ server {
 		},
 	)
 
-	// Get an API client, so we can create the introduction token that
-	// the client will use.
-	nomadClient, err := testServer.Client()
-	must.NoError(t, err)
-	must.NotNil(t, nomadClient)
-
 	resp, _, err := nomadClient.ACLIdentity().CreateClientIntroductionToken(
 		&api.ACLIdentityClientIntroductionTokenRequest{
 			NodeName: clientAgentName,
@@ -292,6 +296,25 @@ server {
 		}),
 		wait.Timeout(30*time.Second),
 		wait.Gap(3*time.Second),
+	))
+}
+
+// waitForKeyring blocks until the keyring is initialized. If the keyring is not
+// initialized within the timeout period, the test will fail.
+func waitForKeyring(t *testing.T, nomadClient *api.Client) {
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			keyList, _, err := nomadClient.Keyring().List(nil)
+			if err != nil {
+				return err
+			}
+			if len(keyList) == 0 {
+				return errors.New("no keys found")
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(500*time.Millisecond),
 	))
 }
 
