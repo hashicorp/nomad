@@ -36,8 +36,8 @@ allocations/
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
 	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
-     |--> identities -> allocIdentitiesEntry{}
-     |--> ConsulACLTokens -> consulACLTokensEntry{}
+     |--> alloc_identities -> allocIdentitiesEntry{}
+     |--> alloc_consul_acl_token_identities -> consulACLTokensEntry{}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
