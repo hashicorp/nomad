@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
@@ -127,98 +128,218 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
+func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 	ci.Parallel(t)
 
-	h := tests.NewHarness(t)
+	t.Run("sticky ephemeral allocs in same node pool", func(t *testing.T) {
 
-	// Create some nodes
-	for i := 0; i < 10; i++ {
+		h := tests.NewHarness(t)
+
+		// Create some nodes
+		for i := 0; i < 10; i++ {
+			node := mock.Node()
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		}
+
+		// Create a job
+		job := mock.Job()
+		job.TaskGroups[0].EphemeralDisk.Sticky = true
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+		// Create a mock evaluation to register the job
+		eval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+		// Process the evaluation
+		if err := h.Process(NewServiceScheduler, eval); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Ensure the plan allocated
+		plan := h.Plans[0]
+		planned := make(map[string]*structs.Allocation)
+		for _, allocList := range plan.NodeAllocation {
+			for _, alloc := range allocList {
+				planned[alloc.ID] = alloc
+			}
+		}
+		if len(planned) != 10 {
+			t.Fatalf("bad: %#v", plan)
+		}
+
+		// Update the job to force a rolling upgrade
+		updated := job.Copy()
+		updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
+
+		// Create a mock evaluation to handle the update
+		eval = &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerNodeUpdate,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+		h1 := tests.NewHarnessWithState(t, h.State)
+		if err := h1.Process(NewServiceScheduler, eval); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Ensure we have created only one new allocation
+		// Ensure a single plan
+		if len(h1.Plans) != 1 {
+			t.Fatalf("bad: %#v", h1.Plans)
+		}
+		plan = h1.Plans[0]
+		var newPlanned []*structs.Allocation
+		for _, allocList := range plan.NodeAllocation {
+			newPlanned = append(newPlanned, allocList...)
+		}
+		if len(newPlanned) != 10 {
+			t.Fatalf("bad plan: %#v", plan)
+		}
+		// Ensure that the new allocations were placed on the same node as the older
+		// ones
+		for _, new := range newPlanned {
+			if new.PreviousAllocation == "" {
+				t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
+			}
+
+			old, ok := planned[new.PreviousAllocation]
+			if !ok {
+				t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
+			}
+			if new.NodeID != old.NodeID {
+				t.Fatalf("new alloc and old alloc node doesn't match; got %q; want %q", new.NodeID, old.NodeID)
+			}
+		}
+	})
+
+	t.Run("ephemeral alloc should change node if node pool changes", func(t *testing.T) {
+		h := tests.NewHarness(t)
+
+		// Create some nodes
+		for i := 0; i < 5; i++ {
+			node := mock.Node()
+			if i == 0 {
+				node.NodePool = "test"
+			}
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		}
+
 		node := mock.Node()
+		node.NodePool = "test"
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-	}
 
-	// Create a job
-	job := mock.Job()
-	job.TaskGroups[0].EphemeralDisk.Sticky = true
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+		// Create test node pools with different scheduler algorithms.
+		testPool := mock.NodePool()
+		testPool.Name = "test"
 
-	// Create a mock evaluation to register the job
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    job.Priority,
-		TriggeredBy: structs.EvalTriggerJobRegister,
-		JobID:       job.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-
-	// Process the evaluation
-	if err := h.Process(NewServiceScheduler, eval); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure the plan allocated
-	plan := h.Plans[0]
-	planned := make(map[string]*structs.Allocation)
-	for _, allocList := range plan.NodeAllocation {
-		for _, alloc := range allocList {
-			planned[alloc.ID] = alloc
+		nodePools := []*structs.NodePool{
+			testPool,
 		}
-	}
-	if len(planned) != 10 {
-		t.Fatalf("bad: %#v", plan)
-	}
+		h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
 
-	// Update the job to force a rolling upgrade
-	updated := job.Copy()
-	updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
-
-	// Create a mock evaluation to handle the update
-	eval = &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    job.Priority,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-	h1 := tests.NewHarnessWithState(t, h.State)
-	if err := h1.Process(NewServiceScheduler, eval); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure we have created only one new allocation
-	// Ensure a single plan
-	if len(h1.Plans) != 1 {
-		t.Fatalf("bad: %#v", h1.Plans)
-	}
-	plan = h1.Plans[0]
-	var newPlanned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
-		newPlanned = append(newPlanned, allocList...)
-	}
-	if len(newPlanned) != 10 {
-		t.Fatalf("bad plan: %#v", plan)
-	}
-	// Ensure that the new allocations were placed on the same node as the older
-	// ones
-	for _, new := range newPlanned {
-		if new.PreviousAllocation == "" {
-			t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
+		iterator, err := h.State.NodePools(nil, state.SortDefault)
+		must.NoError(t, err)
+		for obj := iterator.Next(); obj != nil; obj = iterator.Next() {
+			if pool, ok := obj.(*structs.NodePool); ok {
+				fmt.Println(pool.Name)
+			}
 		}
 
-		old, ok := planned[new.PreviousAllocation]
-		if !ok {
-			t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
+		// Create a job
+		job := mock.Job()
+		job.TaskGroups[0].EphemeralDisk.Sticky = true
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+		// Create a mock evaluation to register the job
+		eval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
 		}
-		if new.NodeID != old.NodeID {
-			t.Fatalf("new alloc and old alloc node doesn't match; got %q; want %q", new.NodeID, old.NodeID)
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+		// Process the evaluation
+		if err := h.Process(NewServiceScheduler, eval); err != nil {
+			t.Fatalf("err: %v", err)
 		}
-	}
+
+		// Ensure the plan allocated
+		plan := h.Plans[0]
+		planned := make(map[string]*structs.Allocation)
+		for _, allocList := range plan.NodeAllocation {
+			for _, alloc := range allocList {
+				planned[alloc.ID] = alloc
+			}
+		}
+		if len(planned) != 10 {
+			t.Fatalf("bad: %#v", plan)
+		}
+
+		// Update the job to force a rolling upgrade
+		updated := job.Copy()
+		updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
+		updated.NodePool = "test"
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
+
+		// Create a mock evaluation to handle the update
+		eval = &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerNodeUpdate,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+		h1 := tests.NewHarnessWithState(t, h.State)
+		if err := h1.Process(NewServiceScheduler, eval); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Ensure we have created only one new allocation
+		// Ensure a single plan
+		if len(h1.Plans) != 1 {
+			t.Fatalf("bad: %#v", h1.Plans)
+		}
+		plan = h1.Plans[0]
+		var newPlanned []*structs.Allocation
+		for _, allocList := range plan.NodeAllocation {
+			newPlanned = append(newPlanned, allocList...)
+		}
+		if len(newPlanned) != 10 {
+			t.Fatalf("bad plan: %#v", plan)
+		}
+		// Ensure that the new allocations were placed on the same node as the older
+		// ones
+		for _, new := range newPlanned {
+			if new.PreviousAllocation == "" {
+				t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
+			}
+
+			old, ok := planned[new.PreviousAllocation]
+			if !ok {
+				t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
+			}
+			if new.Job.NodePool == old.Job.NodePool {
+				t.Fatalf("allocs should be on different node pools; got %q; want %q", new.Job.NodePool, old.Job.NodePool)
+			}
+		}
+	})
 }
 
 func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {

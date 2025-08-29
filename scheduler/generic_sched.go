@@ -860,6 +860,12 @@ func (s *GenericScheduler) findPreferredNode(place reconciler.PlacementResult) (
 	if prev == nil {
 		return nil, nil
 	}
+
+	// if node pool was updated, don't set the preferred node
+	if prev.Job != nil && prev.Job.NodePool != s.job.NodePool {
+		return nil, nil
+	}
+
 	if place.TaskGroup().EphemeralDisk.Sticky || place.TaskGroup().EphemeralDisk.Migrate {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
