@@ -1,0 +1,3 @@
+```release-note:improvement
+resource: Added support for disk throttle limits
+```

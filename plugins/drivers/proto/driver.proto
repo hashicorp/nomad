@@ -521,6 +521,7 @@ message Resources {
 message AllocatedTaskResources {
     AllocatedCpuResources cpu = 1;
     AllocatedMemoryResources memory = 2;
+    repeated DiskThrottle DiskThrottles = 3; 
     repeated NetworkResource networks = 5;
 }
 
@@ -531,6 +532,15 @@ message AllocatedCpuResources {
 message AllocatedMemoryResources {
     int64 memory_mb = 2;
     int64 memory_max_mb = 3;
+}
+
+message DiskThrottle {
+    int64 major = 1;
+    int64 minor = 2;
+    uint64 read_bps = 3;
+    uint64 read_iops = 4;
+    uint64 write_bps = 5;
+    uint64 write_iops = 6;
 }
 
 message NetworkResource {

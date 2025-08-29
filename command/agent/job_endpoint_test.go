@@ -4069,6 +4069,33 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 				},
 			},
 		},
+		{
+			"with disk throttles",
+			&api.Resources{
+				CPU:      pointer.Of(100),
+				MemoryMB: pointer.Of(200),
+				DiskThrottles: []*api.DiskThrottle{
+					{
+						Major: pointer.Of(8),
+						Minor: pointer.Of(1),
+						ReadBps:  pointer.Of(uint64(1000)),
+						WriteBps: pointer.Of(uint64(2000)),
+					},
+				},
+			},
+			&structs.Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				DiskThrottles: []*structs.DiskThrottle{
+					{
+						Major: 8,
+						Minor: 1,
+						ReadBps:  1000,
+						WriteBps: 2000,
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

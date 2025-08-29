@@ -6735,6 +6735,104 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
+			Name: "DiskThrottle Resources edited",
+			Old: &Task{
+				Resources: &Resources{
+					CPU:      100,
+					MemoryMB: 100,
+					DiskMB:   100,
+					DiskThrottles: []*DiskThrottle{
+						{
+							Major:     8,
+							Minor:     0,
+							ReadBps:   1000,
+							WriteBps:  1000,
+							ReadIops:  100,
+							WriteIops: 100,
+						},
+						{
+							Major:    8,
+							Minor:    1,
+							ReadBps:  2000,
+							WriteBps: 2000,
+						},
+					},
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:      100,
+					MemoryMB: 100,
+					DiskMB:   100,
+					DiskThrottles: []*DiskThrottle{
+						{
+							Major:     8,
+							Minor:     0,
+							ReadBps:   100,
+							WriteBps:  100,
+							ReadIops:  100,
+							WriteIops: 10,
+						},
+						{
+							Major:    8,
+							Minor:    1,
+							ReadBps:  1000,
+							WriteBps: 1000,
+						},
+						{
+							Major:     8,
+							Minor:     2,
+							ReadBps:   500,
+							WriteBps:  500,
+							ReadIops:  50,
+							WriteIops: 50,
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type:   DiffTypeEdited,
+						Name:   "Resources",
+						Fields: nil,
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "DiskThrottle",
+								Fields: []*FieldDiff{
+									{Type: DiffTypeEdited, Name: "ReadBps", Old: "2000", New: "1000"},
+									{Type: DiffTypeEdited, Name: "WriteBps", Old: "2000", New: "1000"},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "DiskThrottle",
+								Fields: []*FieldDiff{
+									{Type: DiffTypeEdited, Name: "ReadBps", Old: "1000", New: "100"},
+									{Type: DiffTypeEdited, Name: "WriteBps", Old: "1000", New: "100"},
+									{Type: DiffTypeEdited, Name: "WriteIops", Old: "100", New: "10"},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DiskThrottle",
+								Fields: []*FieldDiff{
+									{Type: DiffTypeAdded, Name: "Major", Old: "", New: "8"},
+									{Type: DiffTypeAdded, Name: "Minor", Old: "", New: "2"},
+									{Type: DiffTypeAdded, Name: "ReadBps", Old: "", New: "500"},
+									{Type: DiffTypeAdded, Name: "ReadIops", Old: "", New: "50"},
+									{Type: DiffTypeAdded, Name: "WriteBps", Old: "", New: "500"},
+									{Type: DiffTypeAdded, Name: "WriteIops", Old: "", New: "50"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "Config same",
 			Old: &Task{
 				Config: map[string]interface{}{

@@ -11,15 +11,16 @@ import (
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU         *int               `hcl:"cpu,optional"`
-	Cores       *int               `hcl:"cores,optional"`
-	MemoryMB    *int               `mapstructure:"memory" hcl:"memory,optional"`
-	MemoryMaxMB *int               `mapstructure:"memory_max" hcl:"memory_max,optional"`
-	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
-	Networks    []*NetworkResource `hcl:"network,block"`
-	Devices     []*RequestedDevice `hcl:"device,block"`
-	NUMA        *NUMAResource      `hcl:"numa,block"`
-	SecretsMB   *int               `mapstructure:"secrets" hcl:"secrets,optional"`
+	CPU           *int               `hcl:"cpu,optional"`
+	Cores         *int               `hcl:"cores,optional"`
+	MemoryMB      *int               `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB   *int               `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	DiskMB        *int               `mapstructure:"disk" hcl:"disk,optional"`
+	DiskThrottles []*DiskThrottle    `hcl:"disk_throttle,block"`
+	Networks      []*NetworkResource `hcl:"network,block"`
+	Devices       []*RequestedDevice `hcl:"device,block"`
+	NUMA          *NUMAResource      `hcl:"numa,block"`
+	SecretsMB     *int               `mapstructure:"secrets" hcl:"secrets,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -159,6 +160,19 @@ type DNSConfig struct {
 }
 type CNIConfig struct {
 	Args map[string]string `hcl:"args,optional"`
+}
+
+// DiskThrottle is used to describe disk throttling
+type DiskThrottle struct {
+	Major     *int    `hcl:"major"`
+	Minor     *int    `hcl:"minor"`
+	ReadBps   *uint64 `hcl:"read_bps,optional"`
+	ReadIops  *uint64 `hcl:"read_iops,optional"`
+	WriteBps  *uint64 `hcl:"write_bps,optional"`
+	WriteIops *uint64 `hcl:"write_iops,optional"`
+}
+
+func (d *DiskThrottle) Canonicalize() {
 }
 
 // NetworkResource is used to describe required network

@@ -446,10 +446,11 @@ type AllocatedResources struct {
 }
 
 type AllocatedTaskResources struct {
-	Cpu      AllocatedCpuResources
-	Memory   AllocatedMemoryResources
-	Networks []*NetworkResource
-	Devices  []*AllocatedDeviceResource
+	Cpu           AllocatedCpuResources
+	Memory        AllocatedMemoryResources
+	DiskThrottles []*DiskThrottle
+	Networks      []*NetworkResource
+	Devices       []*AllocatedDeviceResource
 }
 
 type AllocatedSharedResources struct {

@@ -304,6 +304,8 @@ func nonNetworkResourcesUpdated(a, b *structs.Resources) comparison {
 		return difference("task memory", a.MemoryMB, b.MemoryMB)
 	case a.MemoryMaxMB != b.MemoryMaxMB:
 		return difference("task memory max", a.MemoryMaxMB, b.MemoryMaxMB)
+	case a.DiskThrottles.Equal(&b.DiskThrottles):
+		return difference("task disk throttles", a.DiskThrottles, b.DiskThrottles)
 	case !a.Devices.Equal(&b.Devices):
 		return difference("task devices", a.Devices, b.Devices)
 	case !a.NUMA.Equal(b.NUMA):
