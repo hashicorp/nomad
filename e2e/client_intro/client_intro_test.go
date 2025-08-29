@@ -9,10 +9,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/execagent"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -33,6 +35,7 @@ func TestClientIntro(t *testing.T) {
 	}
 
 	t.Run("testClientIntroEnforcementWarn", testClientIntroEnforcementWarn)
+	t.Run("testClientIntroEnforcementStrict", testClientIntroEnforcementStrict)
 }
 
 func testClientIntroEnforcementWarn(t *testing.T) {
@@ -57,6 +60,7 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 	testServer, err := execagent.NewSingleModeAgent(
 		nomadBinary,
 		t.TempDir(),
+		"",
 		execagent.ModeServer,
 		serverWriter,
 		serverCallbackFn,
@@ -76,6 +80,7 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 	testClient, err := execagent.NewSingleModeAgent(
 		nomadBinary,
 		t.TempDir(),
+		"",
 		execagent.ModeClient,
 		clientWriter,
 		clientCallbackFn,
@@ -107,7 +112,7 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 			}
 			return errors.New("node not found")
 		}),
-		wait.Timeout(20*time.Second),
+		wait.Timeout(30*time.Second),
 		wait.Gap(3*time.Second),
 	))
 
@@ -128,11 +133,174 @@ func testClientIntroEnforcementWarn(t *testing.T) {
 	)
 }
 
+func testClientIntroEnforcementStrict(t *testing.T) {
+
+	// Find the Nomad binary that will be used for all Nomad agents in this
+	// test.
+	nomadBinary, err := discover.NomadExecutable()
+	must.NoError(t, err)
+	must.FileExists(t, nomadBinary)
+
+	// Generate our server configuration file which sets the log level to error,
+	// which ensures we include the client intro log lines.
+	serverCallbackFn := func(c *execagent.AgentTemplateVars) {
+		c.AgentName = "server-intro-" + uuid.Short()
+		c.LogLevel = hclog.Error.String()
+	}
+
+	// Use our custom logger to capture the server output so we can inspect it
+	// later.
+	serverWriter := newCaptureLogger()
+
+	extraCfg := `
+server {
+  client_introduction {
+	enforcement = "strict"
+  }
+}`
+
+	testServer, err := execagent.NewSingleModeAgent(
+		nomadBinary,
+		t.TempDir(),
+		extraCfg,
+		execagent.ModeServer,
+		serverWriter,
+		serverCallbackFn,
+	)
+
+	must.NoError(t, testServer.Start())
+	t.Cleanup(func() { _ = testServer.Destroy() })
+
+	//
+	clientAgentName := "client-intro-" + uuid.Short()
+
+	clientCallbackFn := func(c *execagent.AgentTemplateVars) {
+		c.AgentName = clientAgentName
+		c.LogLevel = hclog.Error.String()
+		c.NodePool = "platform"
+		c.RetryJoinAddrs = []string{"127.0.0.1" + ":" + strconv.Itoa(testServer.Vars.RPC)}
+	}
+
+	// Use our custom logger to capture the client output so we can inspect it
+	// later.
+	clientWriter := newCaptureLogger()
+
+	testClient, err := execagent.NewSingleModeAgent(
+		nomadBinary,
+		t.TempDir(),
+		"",
+		execagent.ModeClient,
+		clientWriter,
+		clientCallbackFn,
+	)
+	must.NoError(t, err)
+	must.NotNil(t, testClient)
+
+	must.NoError(t, testClient.Start())
+	t.Cleanup(func() { _ = testClient.Destroy() })
+
+	// Wait for the client to log the expected error about being rejected due
+	// to not having an intro token.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+
+			// We need to lock the lines slice while we read it, as the client
+			// agent is still running and writing to it.
+			clientWriter.linesLock.RLock()
+			defer clientWriter.linesLock.RUnlock()
+
+			// Iterate the stored lines backwards, as the log line we are looking
+			// for is likely to be towards the end of the output.
+			for i := len(clientWriter.lines) - 1; i >= 0; i-- {
+				if strings.Contains(
+					clientWriter.lines[i],
+					`client: error registering: error="rpc error: Permission denied"`,
+				) {
+					return nil
+				}
+			}
+			return errors.New("did not find expected client intro log line")
+		}),
+		wait.Timeout(30*time.Second),
+		wait.Gap(3*time.Second),
+	))
+
+	// We have confirmed the client in its current state cannot register with
+	// the cluster, so destroy it.
+	_ = testClient.Destroy()
+
+	// The node has been rejected from registering which has been seen within
+	// its logs, so now we need to check the server logs to ensure we saw the
+	// expected error about the client joining without an intro token.
+	must.SliceContainsFunc(
+		t, serverWriter.lines,
+		"[ERROR] nomad.client: node registration without introduction token",
+		func(a string, b string) bool {
+			return strings.Contains(a, b)
+		},
+	)
+
+	// Get an API client, so we can create the introduction token that
+	// the client will use.
+	nomadClient, err := testServer.Client()
+	must.NoError(t, err)
+	must.NotNil(t, nomadClient)
+
+	resp, _, err := nomadClient.ACLIdentity().CreateClientIntroductionToken(
+		&api.ACLIdentityClientIntroductionTokenRequest{
+			NodeName: clientAgentName,
+			NodePool: "platform",
+		},
+		nil,
+	)
+
+	must.NoError(t, err)
+	must.NotEq(t, "", resp.JWT)
+
+	// Generate a new client agent, this time with the intro token, and start it.
+	// It should be able to register successfully.
+	newTestClient, err := execagent.NewSingleModeAgent(
+		nomadBinary,
+		t.TempDir(),
+		"",
+		execagent.ModeClient,
+		clientWriter,
+		clientCallbackFn,
+	)
+	must.NoError(t, err)
+	must.NotNil(t, newTestClient)
+
+	newTestClient.Cmd.Args = append(testClient.Cmd.Args, "-client-intro-token="+resp.JWT)
+
+	must.NoError(t, newTestClient.Start())
+	t.Cleanup(func() { _ = newTestClient.Destroy() })
+
+	// Wait for the client to show up in the server's node list. We use the node
+	// name as the identifier to check for since it's unique.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			nodeList, _, err := nomadClient.Nodes().List(nil)
+			if err != nil {
+				return err
+			}
+			for _, node := range nodeList {
+				if node.Name == clientAgentName {
+					return nil
+				}
+			}
+			return errors.New("node not found")
+		}),
+		wait.Timeout(30*time.Second),
+		wait.Gap(3*time.Second),
+	))
+}
+
 // caputreLogger is a simple logger that captures log lines in memory and also
 // writes them to stderr. It allows us to caputre output and inspect it for
 // testing.
 type captureLogger struct {
-	lines []string
+	lines     []string
+	linesLock sync.RWMutex
 }
 
 func newCaptureLogger() *captureLogger {
@@ -149,7 +317,10 @@ func (c *captureLogger) Write(p []byte) (int, error) {
 	buf := make([]byte, 0, totalLength)
 	buf = append(buf, p...)
 
+	// Store the log line in memory for later inspection.
+	c.linesLock.Lock()
 	c.lines = append(c.lines, string(buf))
+	c.linesLock.Unlock()
 
 	return os.Stderr.Write(buf)
 }
