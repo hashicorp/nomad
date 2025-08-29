@@ -12,11 +12,133 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
+
+// PortRangeCacheEntry represents a cached parsed port range result
+type PortRangeCacheEntry struct {
+	Ports     []uint64
+	Timestamp time.Time
+}
+
+// Age returns the age of the cache entry
+func (e PortRangeCacheEntry) Age() time.Duration {
+	return time.Since(e.Timestamp)
+}
+
+// Get returns the cached ports slice
+func (e PortRangeCacheEntry) Get() []uint64 {
+	return e.Ports
+}
+
+// PortRangeCache provides thread-safe caching of parsed port ranges
+type PortRangeCache struct {
+	*lru.TwoQueueCache[string, PortRangeCacheEntry]
+	hits   int64
+	misses int64
+}
+
+// NewPortRangeCache creates a new port range cache with the specified size
+func NewPortRangeCache(size int) (*PortRangeCache, error) {
+	cache, err := lru.New2Q[string, PortRangeCacheEntry](size)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &PortRangeCache{
+		TwoQueueCache: cache,
+	}, nil
+}
+
+// Get retrieves a cached port range result
+func (c *PortRangeCache) Get(key string) ([]uint64, bool) {
+	if c == nil || c.TwoQueueCache == nil {
+		return nil, false
+	}
+	
+	entry, found := c.TwoQueueCache.Get(key)
+	if found {
+		c.hits++
+		return entry.Get(), true
+	}
+	
+	c.misses++
+	return nil, false
+}
+
+// Add stores a port range result in the cache
+func (c *PortRangeCache) Add(key string, ports []uint64) {
+	if c == nil || c.TwoQueueCache == nil {
+		return
+	}
+	
+	entry := PortRangeCacheEntry{
+		Ports:     ports,
+		Timestamp: time.Now(),
+	}
+	
+	c.TwoQueueCache.Add(key, entry)
+}
+
+// Stats returns cache hit and miss statistics
+func (c *PortRangeCache) Stats() (hits, misses int64) {
+	if c == nil {
+		return 0, 0
+	}
+	return c.hits, c.misses
+}
+
+// Len returns the number of entries in the cache
+func (c *PortRangeCache) Len() int {
+	if c == nil || c.TwoQueueCache == nil {
+		return 0
+	}
+	return c.TwoQueueCache.Len()
+}
+
+// Clear removes all entries from the cache and resets statistics
+func (c *PortRangeCache) Clear() {
+	if c == nil || c.TwoQueueCache == nil {
+		return
+	}
+	c.TwoQueueCache.Purge()
+	c.hits = 0
+	c.misses = 0
+}
+
+// portRangeCacheSize defines the maximum number of entries in the port range cache
+const portRangeCacheSize = 256
+
+// portRangeCache is the global port range cache instance
+var (
+	portRangeCache     *PortRangeCache
+	portRangeCacheOnce sync.Once
+)
+
+// getPortRangeCache returns the global port range cache instance, initializing it if necessary
+func getPortRangeCache() *PortRangeCache {
+	portRangeCacheOnce.Do(func() {
+		cache, err := NewPortRangeCache(portRangeCacheSize)
+		if err != nil {
+			// If cache creation fails, we'll operate without caching
+			// This ensures the system remains functional
+			return
+		}
+		portRangeCache = cache
+	})
+	return portRangeCache
+}
+
+// GetPortRangeCache returns the global port range cache instance for testing
+func GetPortRangeCache() *PortRangeCache {
+	return getPortRangeCache()
+}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
@@ -480,12 +602,12 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
 }
 
-// ParsePortRanges parses the passed port range string and returns a list of the
+// parsePortRangesUncached parses the passed port range string and returns a list of the
 // ports. The specification is a comma separated list of either port numbers or
 // port ranges. A port number is a single integer and a port range is two
 // integers separated by a hyphen. As an example the following spec would
-// convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
-func ParsePortRanges(spec string) ([]uint64, error) {
+// convert to: parsePortRangesUncached("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+func parsePortRangesUncached(spec string) ([]uint64, error) {
 	parts := strings.Split(spec, ",")
 
 	// Hot path the empty case
@@ -558,4 +680,35 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 		return results[i] < results[j]
 	})
 	return results, nil
+}
+
+// ParsePortRanges parses the passed port range string and returns a list of the
+// ports. The specification is a comma separated list of either port numbers or
+// port ranges. A port number is a single integer and a port range is two
+// integers separated by a hyphen. As an example the following spec would
+// convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+//
+// This function uses caching to avoid redundant parsing of identical port range strings.
+func ParsePortRanges(spec string) ([]uint64, error) {
+	// Check cache first
+	cache := getPortRangeCache()
+	if cache != nil {
+		if cached, found := cache.Get(spec); found {
+			return cached, nil
+		}
+	}
+	
+	// Parse if not cached
+	result, err := parsePortRangesUncached(spec)
+	if err != nil {
+		// Don't cache error cases
+		return nil, err
+	}
+	
+	// Cache successful results
+	if cache != nil {
+		cache.Add(spec, result)
+	}
+	
+	return result, nil
 }
