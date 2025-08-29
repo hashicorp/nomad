@@ -52,6 +52,15 @@ variable "docker_ports" {
     }
   ]
 }
+
+variable "service_config" {
+  type = object({
+    name         = string
+    port         = optional(number, 8080)
+    health_check = optional(bool, true)
+    timeout      = optional(string, "30s")
+  })
+}
 ```
 
 Or a less precise variables block:
@@ -126,6 +135,48 @@ The keyword `any` may be used to indicate that any type is acceptable. For more
 information on the meaning and behavior of these different types, as well as
 detailed information about automatic conversion of complex types, see [Type
 Constraints](/terraform/language/expressions/type-constraints).
+
+### Optional Object Type Attributes
+
+When using `object()` type constraints, you can mark specific attributes as optional
+by using the `optional()` modifier. This allows you to specify default values for
+attributes that may be omitted when the variable is set:
+
+```hcl
+variable "server_config" {
+  type = object({
+    name    = string
+    port    = optional(number, 8080)
+    ssl     = optional(bool, false)
+    timeout = optional(string, "30s")
+  })
+}
+```
+
+In this example:
+- `name` is required and must be provided
+- `port` is optional and defaults to `8080` if not specified
+- `ssl` is optional and defaults to `false` if not specified  
+- `timeout` is optional and defaults to `"30s"` if not specified
+
+When setting the variable value, you can omit optional attributes:
+
+```hcl
+server_config = {
+  name = "web-server"
+  # port will default to 8080
+  # ssl will default to false
+  timeout = "60s"  # overrides the default
+}
+```
+
+The `optional()` modifier takes two arguments:
+1. The type constraint for the attribute
+2. The default value to use when the attribute is omitted
+
+This feature provides the same functionality as Terraform's `optional()` modifier,
+making variable definitions more flexible and reducing the need to specify every
+attribute when using complex object types.
 
 If both the `type` and `default` arguments are specified, the given default
 value must be convertible to the specified type.
