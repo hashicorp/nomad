@@ -1,3 +1,2 @@
-```release-note:improvement
-consul: Store and reuse ACL access token for tasks and services
-```
+```release-note:bug
+consul: Fixed a bug where restarting the Nomad agent would cause Consul ACL tokens to be recreated
