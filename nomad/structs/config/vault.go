@@ -109,6 +109,7 @@ func DefaultVaultConfig() *VaultConfig {
 		Addr:                "https://vault.service.consul:8200",
 		JWTAuthBackendPath:  "jwt-nomad",
 		ConnectionRetryIntv: DefaultVaultConnectRetryIntv,
+		TLSSkipVerify:       pointer.Of(false),
 	}
 }
 
