@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -601,14 +602,30 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
-		result = &drivers.ExitResult{
-			Err: fmt.Errorf("executor: error waiting on process: %v", err),
+		// Improved error handling for executor crashes
+		exitCode := 128 // Use proper exit code for process crash instead of 0
+		userMsg := "Task executor process crashed unexpectedly"
+		
+		// Check for common RPC connection errors that indicate executor crash
+		errStr := err.Error()
+		if strings.Contains(errStr, "connection was forcibly closed") ||
+		   strings.Contains(errStr, "EOF") ||
+		   strings.Contains(errStr, "Unavailable") ||
+		   strings.Contains(errStr, "connection reset by peer") {
+			userMsg = "Lost connection to task executor process"
 		}
-		// if process state is nil, we've probably been killed, so return a reasonable
-		// exit state to the handlers
-		if ps == nil {
-			result.ExitCode = -1
-			result.OOMKilled = false
+		
+		result = &drivers.ExitResult{
+			Err:      fmt.Errorf("%s", userMsg),
+			ExitCode: exitCode,
+		}
+		
+		// Log technical details for debugging
+		d.logger.Error("executor error details", "technical_error", err.Error())
+		
+		// Handle OOM detection if process state is available
+		if ps != nil {
+			result.OOMKilled = ps.OOMKilled
 		}
 	} else {
 		result = &drivers.ExitResult{
