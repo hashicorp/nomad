@@ -39,9 +39,9 @@ RUN /bin/bash -c '. ~/.nvm/nvm.sh && ln -s ~/.nvm/versions/node/$(nvm current) ~
 
 COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
-# Update PATH with GO bin, yarn, and node
+# Update PATH with GO bin, pnpm, and node
 ENV GOPATH="/opt/gopath" \
-    PATH="/home/vagrant/.nvm/versions/node/.default/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
+    PATH="/home/vagrant/.nvm/versions/node/.default/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.pnpm/bin:/home/vagrant/.config/pnpm/global/node_modules/.bin:$PATH"
 
 RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
