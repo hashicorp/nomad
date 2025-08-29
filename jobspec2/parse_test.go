@@ -1180,3 +1180,76 @@ func TestIdentity(t *testing.T) {
 	must.Eq(t, "sighup", altID.ChangeSignal)
 	must.Eq(t, 2*time.Hour, altID.TTL)
 }
+
+func TestParse_OptionalObjectAttributes(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variable "user_config" {
+  type = object({
+    name    = string
+    retries = optional(number, 3)
+    timeout = optional(string, "30s")
+  })
+}
+
+job "example" {
+  region = var.user_config.name
+  meta {
+    retries = "${var.user_config.retries}"
+    timeout = var.user_config.timeout
+  }
+}
+`
+
+	t.Run("with partial values", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{`user_config={"name": "test-job"}`},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.NotNil(t, out.Region)
+		require.Equal(t, "test-job", *out.Region)
+		require.Equal(t, map[string]string{
+			"retries": "3",    // default value applied
+			"timeout": "30s",  // default value applied
+		}, out.Meta)
+	})
+
+	t.Run("with all values provided", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{`user_config={"name": "test-job", "retries": 5, "timeout": "60s"}`},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.NotNil(t, out.Region)
+		require.Equal(t, "test-job", *out.Region)
+		require.Equal(t, map[string]string{
+			"retries": "5",    // provided value used
+			"timeout": "60s",  // provided value used
+		}, out.Meta)
+	})
+
+	t.Run("with only some optional values provided", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{`user_config={"name": "test-job", "retries": 10}`},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.NotNil(t, out.Region)
+		require.Equal(t, "test-job", *out.Region)
+		require.Equal(t, map[string]string{
+			"retries": "10",   // provided value used
+			"timeout": "30s",  // default value applied
+		}, out.Meta)
+	})
+}
