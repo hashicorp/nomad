@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: allow use of different vendor/models when checking for device counts while filtering feasible nodes
+```

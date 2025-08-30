@@ -3113,10 +3113,31 @@ func TestDeviceChecker(t *testing.T) {
 		return n
 	}
 
-	nvidia := &structs.NodeDeviceResource{
+	nvidia_A := &structs.NodeDeviceResource{
 		Vendor: "nvidia",
 		Type:   "gpu",
 		Name:   "1080ti",
+		Attributes: map[string]*psstructs.Attribute{
+			"memory":        psstructs.NewIntAttribute(4, psstructs.UnitGiB),
+			"pci_bandwidth": psstructs.NewIntAttribute(995, psstructs.UnitMiBPerS),
+			"cores_clock":   psstructs.NewIntAttribute(800, psstructs.UnitMHz),
+		},
+		Instances: []*structs.NodeDevice{
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+		},
+	}
+
+	nvidia_B := &structs.NodeDeviceResource{
+		Vendor: "nvidia",
+		Type:   "gpu",
+		Name:   "2080ti",
 		Attributes: map[string]*psstructs.Attribute{
 			"memory":        psstructs.NewIntAttribute(4, psstructs.UnitGiB),
 			"pci_bandwidth": psstructs.NewIntAttribute(995, psstructs.UnitMiBPerS),
@@ -3171,13 +3192,13 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:             "gpu devices by type",
 			Result:           true,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq},
 		},
 		{
 			Name:             "wrong devices by type",
 			Result:           false,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{fpgaTypeReq},
 		},
 		{
@@ -3189,37 +3210,37 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:             "gpu devices by vendor/type",
 			Result:           true,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuVendorTypeReq},
 		},
 		{
 			Name:             "wrong devices by vendor/type",
 			Result:           false,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{fpgaVendorTypeReq},
 		},
 		{
 			Name:             "gpu devices by vendor/type/model",
 			Result:           true,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuFullReq},
 		},
 		{
 			Name:             "wrong devices by vendor/type/model",
 			Result:           false,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{fpgaFullReq},
 		},
 		{
 			Name:             "too many requested",
 			Result:           false,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
 		},
 		{
 			Name:        "meets constraints requirement",
 			Result:      true,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3248,7 +3269,7 @@ func TestDeviceChecker(t *testing.T) {
 						{
 							Operand: "set_contains",
 							LTarget: "${device.ids}",
-							RTarget: nvidia.Instances[0].ID,
+							RTarget: nvidia_A.Instances[0].ID,
 						},
 					},
 				},
@@ -3257,7 +3278,7 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:        "meets constraints requirement multiple count",
 			Result:      true,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3286,7 +3307,7 @@ func TestDeviceChecker(t *testing.T) {
 						{
 							Operand: "set_contains",
 							LTarget: "${device.ids}",
-							RTarget: fmt.Sprintf("%s,%s", nvidia.Instances[1].ID, nvidia.Instances[0].ID),
+							RTarget: fmt.Sprintf("%s,%s", nvidia_A.Instances[1].ID, nvidia_A.Instances[0].ID),
 						},
 					},
 				},
@@ -3295,7 +3316,7 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:        "meets constraints requirement over count",
 			Result:      false,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3328,7 +3349,7 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:        "does not meet first constraint",
 			Result:      false,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3361,7 +3382,7 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:        "does not meet second constraint",
 			Result:      false,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3394,7 +3415,7 @@ func TestDeviceChecker(t *testing.T) {
 		{
 			Name:        "does not meet ID constraint",
 			Result:      false,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{
 				{
 					Name:  "nvidia/gpu",
@@ -3406,6 +3427,17 @@ func TestDeviceChecker(t *testing.T) {
 							RTarget: "not_valid",
 						},
 					},
+				},
+			},
+		},
+		{
+			Name:        "different model GPU's meets device request",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A, nvidia_B},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 2,
 				},
 			},
 		},
