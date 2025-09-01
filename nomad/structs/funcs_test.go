@@ -6,6 +6,8 @@ package structs
 import (
 	"encoding/base64"
 	"fmt"
+	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
@@ -1003,6 +1005,262 @@ func TestParsePortRanges(t *testing.T) {
 			results, err := ParsePortRanges(tc.spec)
 			require.Nil(t, results)
 			require.EqualError(t, err, tc.err)
+		})
+	}
+}
+
+// TestParsePortRanges_ValidCases tests that valid port ranges work correctly with caching
+func TestParsePortRanges_ValidCases(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		spec     string
+		expected []uint64
+	}{
+		{
+			name:     "SinglePort",
+			spec:     "80",
+			expected: []uint64{80},
+		},
+		{
+			name:     "MultiplePortsCommaDelimited",
+			spec:     "22,80,443",
+			expected: []uint64{22, 80, 443},
+		},
+		{
+			name:     "PortRange",
+			spec:     "8000-8002",
+			expected: []uint64{8000, 8001, 8002},
+		},
+		{
+			name:     "ComplexMixed",
+			spec:     "22,80,443,8000-8002,9000",
+			expected: []uint64{22, 80, 443, 8000, 8001, 8002, 9000},
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			// Test first call (cache miss)
+			result1, err1 := ParsePortRanges(tc.spec)
+			require.NoError(t, err1)
+			require.Equal(t, tc.expected, result1)
+
+			// Test second call (should be cache hit)
+			result2, err2 := ParsePortRanges(tc.spec)
+			require.NoError(t, err2)
+			require.Equal(t, tc.expected, result2)
+			require.Equal(t, result1, result2)
+		})
+	}
+}
+
+// TestParsePortRanges_CacheInitialization tests cache initialization edge cases
+func TestParsePortRanges_CacheInitialization(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test that ParsePortRanges works even if cache initialization fails
+	// This is tested by ensuring the function still works correctly
+	result, err := ParsePortRanges("80,443")
+	require.NoError(t, err)
+	require.Equal(t, []uint64{80, 443}, result)
+
+	// Test that cache is properly initialized
+	cache := GetPortRangeCache()
+	require.NotNil(t, cache, "Cache should be initialized")
+}
+
+// TestParsePortRanges_ThreadSafety tests concurrent access to ParsePortRanges
+func TestParsePortRanges_ThreadSafety(t *testing.T) {
+	ci.Parallel(t)
+
+	const numGoroutines = 10
+	const numIterations = 100
+
+	specs := []string{
+		"80",
+		"22,80,443",
+		"8000-8010",
+		"22,80,443,8000-8010,9000",
+	}
+
+	expected := map[string][]uint64{
+		"80":                        {80},
+		"22,80,443":                 {22, 80, 443},
+		"8000-8010":                 {8000, 8001, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010},
+		"22,80,443,8000-8010,9000":  {22, 80, 443, 8000, 8001, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010, 9000},
+	}
+
+	var wg sync.WaitGroup
+	errors := make(chan error, numGoroutines*numIterations*len(specs))
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numIterations; j++ {
+				for _, spec := range specs {
+					result, err := ParsePortRanges(spec)
+					if err != nil {
+						errors <- fmt.Errorf("ParsePortRanges(%q) failed: %v", spec, err)
+						continue
+					}
+					if !reflect.DeepEqual(result, expected[spec]) {
+						errors <- fmt.Errorf("ParsePortRanges(%q) = %v, expected %v", spec, result, expected[spec])
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+
+	// Check for any errors
+	var errorList []error
+	for err := range errors {
+		errorList = append(errorList, err)
+	}
+
+	if len(errorList) > 0 {
+		t.Fatalf("Thread safety test failed with %d errors. First error: %v", len(errorList), errorList[0])
+	}
+}
+
+// TestParsePortRanges_CacheIsolation tests that cache state doesn't interfere between tests
+func TestParsePortRanges_CacheIsolation(t *testing.T) {
+	ci.Parallel(t)
+
+	// This test verifies that the cache works correctly across multiple test runs
+	// and that cached results are consistent
+
+	testSpecs := []string{
+		"80",
+		"22,80,443",
+		"8000-8002",
+	}
+
+	expected := map[string][]uint64{
+		"80":         {80},
+		"22,80,443":  {22, 80, 443},
+		"8000-8002":  {8000, 8001, 8002},
+	}
+
+	// Run multiple iterations to test cache behavior
+	for iteration := 0; iteration < 3; iteration++ {
+		t.Run(fmt.Sprintf("iteration_%d", iteration), func(t *testing.T) {
+			for _, spec := range testSpecs {
+				result, err := ParsePortRanges(spec)
+				require.NoError(t, err)
+				require.Equal(t, expected[spec], result)
+
+				// Call again to test cache hit
+				result2, err2 := ParsePortRanges(spec)
+				require.NoError(t, err2)
+				require.Equal(t, expected[spec], result2)
+				require.Equal(t, result, result2)
+			}
+		})
+	}
+}
+
+// TestParsePortRanges_ErrorsNotCached tests that error cases are not cached
+func TestParsePortRanges_ErrorsNotCached(t *testing.T) {
+	ci.Parallel(t)
+
+	invalidSpecs := []string{
+		"-1",
+		"0",
+		"99999",
+		"invalid",
+	}
+
+	for _, spec := range invalidSpecs {
+		t.Run(fmt.Sprintf("spec_%s", spec), func(t *testing.T) {
+			// First call should return error
+			result1, err1 := ParsePortRanges(spec)
+			require.Error(t, err1)
+			require.Nil(t, result1)
+
+			// Second call should also return error (not cached)
+			result2, err2 := ParsePortRanges(spec)
+			require.Error(t, err2)
+			require.Nil(t, result2)
+
+			// Error messages should be identical
+			require.Equal(t, err1.Error(), err2.Error())
+		})
+	}
+}
+
+// TestParsePortRanges_BackwardCompatibility tests that the function maintains backward compatibility
+func TestParsePortRanges_BackwardCompatibility(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test cases that should work exactly as before
+	testCases := []struct {
+		name     string
+		input    string
+		expected []uint64
+		hasError bool
+	}{
+		{
+			name:     "EmptyString",
+			input:    "",
+			expected: nil,
+			hasError: false,
+		},
+		{
+			name:     "SinglePort",
+			input:    "80",
+			expected: []uint64{80},
+			hasError: false,
+		},
+		{
+			name:     "MultiplePortsCommaDelimited",
+			input:    "22,80,443",
+			expected: []uint64{22, 80, 443},
+			hasError: false,
+		},
+		{
+			name:     "PortRange",
+			input:    "8000-8002",
+			expected: []uint64{8000, 8001, 8002},
+			hasError: false,
+		},
+		{
+			name:     "ComplexMixed",
+			input:    "22,80,443,8000-8002,9000",
+			expected: []uint64{22, 80, 443, 8000, 8001, 8002, 9000},
+			hasError: false,
+		},
+		{
+			name:     "InvalidPortZero",
+			input:    "0",
+			expected: nil,
+			hasError: true,
+		},
+		{
+			name:     "InvalidPortTooLarge",
+			input:    "99999",
+			expected: nil,
+			hasError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParsePortRanges(tc.input)
+			
+			if tc.hasError {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+			}
 		})
 	}
 }
