@@ -78,9 +78,7 @@ run_proxy() {
 }
 
 _get_aws_ip(){
-  aws_metadata_url="http://169.254.169.254/latest/meta-data"
-  nomad exec -namespace=proxy -job nomad-proxy \
-    curl -s "$aws_metadata_url/public-ipv4"
+  nomad action -namespace=proxy -job=nomad-proxy -group=proxy -task=nginx get_proxy_public_address
 }
 
 _get_svc_ip() {
