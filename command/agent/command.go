@@ -546,6 +546,13 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		c.Ui.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
+	for _, keyring := range config.KEKProviders {
+		if err := keyring.Validate(); err != nil {
+			c.Ui.Error(fmt.Sprintf("keyring %q invalid: %v", keyring.Name, err))
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -1580,7 +1587,7 @@ Client Options:
 
   -network-interface
     Forces the network fingerprinter to use the specified network interface.
-  
+
   -preferred-address-family
     Specify which IP family to prefer when selecting an IP address of the
     network interface. Valid values are "ipv4" and "ipv6". When not specified,

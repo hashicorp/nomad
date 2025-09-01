@@ -485,6 +485,23 @@ func TestIsValidConfig(t *testing.T) {
 			},
 			err: "missing protocol scheme",
 		},
+		{
+			name: "invalidate keyring provider",
+			conf: Config{
+				DataDir: "/tmp",
+				Server: &ServerConfig{
+					BootstrapExpect: 1,
+					Enabled:         true,
+				},
+				KEKProviders: []*structs.KEKProviderConfig{
+					{
+						Name:     "invalid",
+						Provider: "foo",
+					},
+				},
+			},
+			err: "unknown keyring provider",
+		},
 	}
 
 	for _, tc := range cases {

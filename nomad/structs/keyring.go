@@ -297,6 +297,22 @@ type KEKProviderConfig struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
+// Validate checks that the KEKProviderConfig is valid.
+func (c *KEKProviderConfig) Validate() error {
+
+	if c == nil {
+		return nil
+	}
+
+	switch KEKProviderName(c.Provider) {
+	case KEKProviderAEAD, KEKProviderAWSKMS, KEKProviderAzureKeyVault,
+		KEKProviderGCPCloudKMS, KEKProviderVaultTransit:
+		return nil
+	default:
+		return fmt.Errorf("unknown keyring provider: %q", c.Provider)
+	}
+}
+
 func (c *KEKProviderConfig) Copy() *KEKProviderConfig {
 	return &KEKProviderConfig{
 		Provider: c.Provider,
