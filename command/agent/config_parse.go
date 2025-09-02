@@ -363,7 +363,7 @@ func extraKeys(c *Config) error {
 
 	helper.RemoveEqualFold(&c.ExtraKeysHCL, "keyring")
 	for _, provider := range c.KEKProviders {
-		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider)
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider.String())
 	}
 
 	// Remove reporting extra keys

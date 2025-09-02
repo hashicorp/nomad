@@ -43,10 +43,10 @@ type RootKeyState string
 
 const (
 	RootKeyStateInactive     RootKeyState = "inactive"
-	RootKeyStateActive                    = "active"
-	RootKeyStateRekeying                  = "rekeying"
-	RootKeyStateDeprecated                = "deprecated"
-	RootKeyStatePrepublished              = "prepublished"
+	RootKeyStateActive       RootKeyState = "active"
+	RootKeyStateRekeying     RootKeyState = "rekeying"
+	RootKeyStateDeprecated   RootKeyState = "deprecated"
+	RootKeyStatePrepublished RootKeyState = "prepublished"
 )
 
 // List lists all the keyring metadata
