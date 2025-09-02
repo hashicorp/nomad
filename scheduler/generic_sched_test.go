@@ -135,7 +135,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		h := tests.NewHarness(t)
 
 		// Create some nodes
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			node := mock.Node()
 			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 		}
@@ -223,11 +223,8 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		h := tests.NewHarness(t)
 
 		// Create some nodes
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			node := mock.Node()
-			if i == 0 {
-				node.NodePool = "test"
-			}
 			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 		}
 
