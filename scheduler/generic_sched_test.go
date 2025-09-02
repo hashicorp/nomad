@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
@@ -244,14 +243,6 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 			testPool,
 		}
 		h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
-
-		iterator, err := h.State.NodePools(nil, state.SortDefault)
-		must.NoError(t, err)
-		for obj := iterator.Next(); obj != nil; obj = iterator.Next() {
-			if pool, ok := obj.(*structs.NodePool); ok {
-				fmt.Println(pool.Name)
-			}
-		}
 
 		// Create a job
 		job := mock.Job()
