@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: fixes an issue where tlsSkipVerify was not defaulting to false
+```
