@@ -158,9 +158,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 		// Process the evaluation
-		if err := h.Process(NewServiceScheduler, eval); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 		// Ensure the plan allocated
 		plan := h.Plans[0]
@@ -190,9 +188,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		}
 		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 		h1 := tests.NewHarnessWithState(t, h.State)
-		if err := h1.Process(NewServiceScheduler, eval); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, h1.Process(NewServiceScheduler, eval))
 
 		// Ensure we have created only one new allocation
 		// Ensure a single plan
@@ -274,9 +270,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 		// Process the evaluation
-		if err := h.Process(NewServiceScheduler, eval); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 		// Ensure the plan allocated
 		plan := h.Plans[0]
@@ -307,9 +301,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		}
 		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 		h1 := tests.NewHarnessWithState(t, h.State)
-		if err := h1.Process(NewServiceScheduler, eval); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, h1.Process(NewServiceScheduler, eval))
 
 		// Ensure we have created only one new allocation
 		// Ensure a single plan
