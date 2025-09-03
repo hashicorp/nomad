@@ -29,6 +29,7 @@ import (
 )
 
 func getTestConsul(t *testing.T) *consultest.TestServer {
+	testutil.RequireConsul(t)
 	testConsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
 		c.Peering = nil         // fix for older versions of Consul (<1.13.0) that don't support peering
 		if !testing.Verbose() { // disable consul logging if -v not set
@@ -300,7 +301,6 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 
 func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	ci.Parallel(t)
-	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
@@ -362,7 +362,6 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 
 func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	ci.Parallel(t)
-	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
