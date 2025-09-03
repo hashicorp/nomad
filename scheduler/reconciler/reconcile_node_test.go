@@ -1035,3 +1035,74 @@ func TestNodeReconciler_NewCanaries(t *testing.T) {
 		})
 	}
 }
+
+// Tests the reconciler correctly promotes canaries
+func TestNodeReconciler_CanaryPromotion(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.SystemJob()
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Canary:      20, // deploy to 20% of eligible nodes
+		MaxParallel: 1,  // otherwise the update strategy will be considered nil
+	}
+	job.JobModifyIndex = 1
+
+	// bump the job version up
+	newJobVersion := job.Copy()
+	newJobVersion.Version = job.Version + 1
+	newJobVersion.JobModifyIndex = job.JobModifyIndex + 1
+
+	// Create 5 nodes
+	nodes := []*structs.Node{}
+	for i := range 5 {
+		node := mock.Node()
+		node.ID = fmt.Sprintf("node_%d", i)
+		node.Name = fmt.Sprintf("node_%d", i)
+		nodes = append(nodes, node)
+	}
+
+	// Create v0 allocs on 2 of the nodes, and v1 (canary) allocs on 3 nodes
+	allocs := []*structs.Allocation{}
+	for _, n := range nodes[0:3] {
+		a := mock.Alloc()
+		a.Job = job
+		a.Name = "my-job.web[0]"
+		a.NodeID = n.ID
+		a.NodeName = n.Name
+		a.TaskGroup = job.TaskGroups[0].Name
+
+		allocs = append(allocs, a)
+	}
+	for _, n := range nodes[3:] {
+		a := mock.Alloc()
+		a.Job = job
+		a.Name = "my-job.web[0]"
+		a.NodeID = n.ID
+		a.NodeName = n.Name
+		a.TaskGroup = job.TaskGroups[0].Name
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{Canary: true}
+		a.Job.Version = newJobVersion.Version
+		a.Job.JobModifyIndex = newJobVersion.JobModifyIndex
+
+		allocs = append(allocs, a)
+	}
+
+	// promote canaries
+	deployment := structs.NewDeployment(newJobVersion, 10, time.Now().Unix())
+	deployment.TaskGroups[newJobVersion.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:        true,
+		HealthyAllocs:   5,
+		DesiredTotal:    5,
+		DesiredCanaries: 0,
+	}
+
+	// reconcile
+	reconciler := NewNodeReconciler(deployment)
+	reconciler.Compute(newJobVersion, nodes, nil, nil, allocs, nil, false)
+
+	must.NotNil(t, reconciler.DeploymentCurrent)
+	must.Eq(t, 5, reconciler.DeploymentCurrent.TaskGroups[newJobVersion.TaskGroups[0].Name].DesiredTotal)
+	must.SliceContainsFunc(t, reconciler.DeploymentUpdates, structs.DeploymentStatusSuccessful,
+		func(a *structs.DeploymentStatusUpdate, b string) bool { return a.Status == b },
+	)
+}

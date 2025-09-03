@@ -183,6 +183,13 @@ func (nr *NodeReconciler) computeForNode(
 			continue
 		}
 
+		// populate deployment state for this task group if there is an existing
+		// deployment
+		var dstate = new(structs.DeploymentState)
+		if nr.DeploymentCurrent != nil {
+			dstate, _ = nr.DeploymentCurrent.TaskGroups[tg.Name]
+		}
+
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
 		reconnect := false
@@ -313,7 +320,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
-			if canariesPerTG[tg.Name] > 0 {
+			if canariesPerTG[tg.Name] > 0 && dstate != nil && !dstate.Promoted {
 				isCanarying[tg.Name] = true
 				if canaryNode[tg.Name] {
 					result.Update = append(result.Update, AllocTuple{
@@ -367,8 +374,8 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		dstate.DesiredTotal = len(eligibleNodes)
-		if isCanarying[tg.Name] {
-			dstate.DesiredCanaries += desiredCanaries[tg.Name]
+		if isCanarying[tg.Name] && !dstate.Promoted {
+			dstate.DesiredCanaries = canariesPerTG[tg.Name]
 		}
 
 		// Check for an existing allocation
@@ -430,7 +437,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// check if deployment is place ready or complete
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
-		deploymentComplete = nr.isDeploymentComplete(tg.Name, result)
+		deploymentComplete = nr.isDeploymentComplete(tg.Name, result, isCanarying[tg.Name])
 
 		// in this case there's nothing to do
 		if existingDeployment || tg.Update.IsEmpty() || (dstate.DesiredTotal == 0 && dstate.DesiredCanaries == 0) || !deploymentPlaceReady {
@@ -494,17 +501,16 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
 }
 
-func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult) bool {
+func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult, isCanarying bool) bool {
 	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
 
-	if !complete || nr.DeploymentCurrent == nil {
+	if !complete || nr.DeploymentCurrent == nil || isCanarying {
 		return false
 	}
 
 	// ensure everything is healthy
 	if dstate, ok := nr.DeploymentCurrent.TaskGroups[groupName]; ok {
-		if dstate.HealthyAllocs < max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
-			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
+		if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
 			complete = false
 		}
 	}
