@@ -44,10 +44,10 @@ also be used to access other services from within the allocation. These
 external services are called upstreams and are declared using the
 [`upstreams`][] block.
 
-You must set the group's `network` [`mode`][] to `bridge`, or an appropriately
-configured `cni/*` network, for network isolation. Using a `cni/*` network
-with Consul service mesh requires extra care. You may model your network
-configuration on Nomad's [`bridge` network][].
+Consul service mesh requires network isolation to function, so you must set
+job group's `network` [`mode`](/nomad/docs/job-specification/network#mode)
+to `bridge`, or an [appropriately configured `cni/*`
+network](/nomad/docs/networking/consul/service-mesh#network-mode).
 
 ~> **Warning:** To fully isolate your workloads make sure to bind them only to
    the `loopback` interface.
@@ -170,5 +170,3 @@ The types of gateways provided by Consul Service Mesh are:
 [`upstreams`]: /nomad/docs/job-specification/upstreams
 [consul_cli_envoy]: /consul/commands/connect/envoy
 [runtime_network]: /nomad/docs/reference/runtime-environment-settings#network-related-variables
-[`mode`]: /nomad/docs/job-specification/network#mode
-[`bridge` network]: /nomad/docs/networking/cni#create-a-cni-bridge-mode-configuration

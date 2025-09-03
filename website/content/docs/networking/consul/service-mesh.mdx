@@ -59,6 +59,35 @@ For using the Consul service mesh integration with Consul ACLs enabled, see the
 [Secure Nomad Jobs with Consul Service Mesh](/nomad/tutorials/integrate-consul/consul-service-mesh)
 guide.
 
+### Network mode
+
+Consul service mesh requires network isolation to function, so you must set
+job group's `network` [`mode`](/nomad/docs/job-specification/network#mode)
+to `bridge`, or an appropriately configured `cni/*` network.
+
+<details>
+<summary style={{ cursor: "pointer" }}>
+  Using a custom <code>cni/*</code> network with Consul service mesh requires
+  extra care.
+</summary>
+
+Given the variety of network configurations, the Nomad team and enterprise
+support are limited in our ability to support custom network configurations.
+Use custom CNI networks with Consul service mesh at your own risk. That said,
+you may model your network configuration on Nomad's [`bridge`
+network](/nomad/docs/networking/cni#create-a-custom-bridge-mode-configuration-with-cni-plugins).
+
+Consider these qualities when configuring your network:
+
+ * Nomad provides an isolated network namespace, but your CNI configuration
+   should not expose the main task(s) to the host network.
+ * Incoming traffic needs to be able to reach the sidecar at the IP:port
+   which will be advertised on the sidecar service.
+ * Traffic needs to be able to flow from different allocs' sidecars to
+   one another.
+
+</details>
+
 ## Nomad Consul service mesh example
 
 The following section walks through an example to enable secure communication
