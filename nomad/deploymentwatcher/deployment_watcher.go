@@ -925,6 +925,10 @@ func (w *deploymentWatcher) getAllocsCh(index uint64) <-chan *allocUpdates {
 // getAllocs retrieves the allocations that are part of the deployment blocking
 // at the given index.
 func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, uint64, error) {
+	if err := w.queryLimiter.Wait(w.ctx); err != nil {
+		return nil, 0, err
+	}
+
 	resp, index, err := w.state.BlockingQuery(w.getAllocsImpl, index, w.ctx)
 	if err != nil {
 		return nil, 0, err
@@ -938,10 +942,6 @@ func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, u
 
 // getDeploysImpl retrieves all deployments from the passed state store.
 func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
-	if err := w.queryLimiter.Wait(w.ctx); err != nil {
-		return nil, 0, err
-	}
-
 	// Capture all the allocations
 	allocs, err := state.AllocsByDeployment(ws, w.deploymentID)
 	if err != nil {
