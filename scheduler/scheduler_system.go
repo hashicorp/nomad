@@ -632,7 +632,9 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 			diff.Place = append(diff.Place, a)
-			limits[a.Alloc.TaskGroup]--
+			if !a.Canary {
+				limits[a.Alloc.TaskGroup]--
+			}
 		} else {
 			limited = true
 		}
