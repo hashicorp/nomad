@@ -1942,6 +1942,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	reply.FailedTGAllocs = updatedEval.FailedTGAllocs
 	reply.JobModifyIndex = index
 	reply.Annotations = annotations
+	reply.CauseDeployment = planner.Plans[0].Deployment != nil
 	reply.CreatedEvals = planner.CreateEvals
 	reply.Index = index
 	return nil
