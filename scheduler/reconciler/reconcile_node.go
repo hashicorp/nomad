@@ -320,7 +320,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
-			if canariesPerTG[tg.Name] > 0 && !dstate.Promoted {
+			if canariesPerTG[tg.Name] > 0 && dstate != nil && !dstate.Promoted {
 				isCanarying[tg.Name] = true
 				if canaryNode[tg.Name] {
 					result.Update = append(result.Update, AllocTuple{
