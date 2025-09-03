@@ -12,12 +12,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestVolumeWatch_Reap(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	srv := &MockRPCServer{
 		state: state.TestStateStore(t),
@@ -43,7 +42,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 
 	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err := w.volumeReapImpl(vol)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// past claim from a previous pass
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
@@ -55,8 +54,8 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	}
 	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
-	require.NoError(err)
-	require.Len(vol.PastClaims, 1)
+	must.NoError(t, err)
+	must.MapLen(t, 1, vol.PastClaims)
 
 	// claim emitted by a GC event
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
@@ -67,8 +66,8 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	}
 	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
-	require.NoError(err)
-	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
+	must.NoError(t, err)
+	must.MapLen(t, 2, vol.PastClaims) // alloc claim + GC claim
 
 	// release claims of a previously GC'd allocation
 	vol.ReadAllocs[alloc.ID] = nil
@@ -80,8 +79,8 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	}
 	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
-	require.NoError(err)
-	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
+	must.NoError(t, err)
+	must.MapLen(t, 2, vol.PastClaims) // alloc claim + GC claim
 }
 
 func TestVolumeReapBadState(t *testing.T) {
@@ -89,14 +88,14 @@ func TestVolumeReapBadState(t *testing.T) {
 
 	store := state.TestStateStore(t)
 	err := state.TestBadCSIState(t, store)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	srv := &MockRPCServer{
 		state: store,
 	}
 
 	vol, err := srv.state.CSIVolumeByID(nil,
 		structs.DefaultNamespace, "csi-volume-nfs0")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	srv.state.CSIVolumeDenormalize(nil, vol)
 
 	ctx, exitFn := context.WithCancel(context.Background())
@@ -110,6 +109,6 @@ func TestVolumeReapBadState(t *testing.T) {
 	}
 
 	err = w.volumeReapImpl(vol)
-	require.NoError(t, err)
-	require.Equal(t, 2, srv.countCSIUnpublish)
+	must.NoError(t, err)
+	must.Eq(t, 2, srv.countCSIUnpublish)
 }
