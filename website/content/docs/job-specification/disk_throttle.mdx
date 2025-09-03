@@ -1,0 +1,113 @@
+---
+layout: docs
+page_title: disk_throttles block in the job specification
+description: |-
+  Configure disk I/O throttling limits in the `disk_throttles` block of the Nomad job specification.
+---
+
+
+# `disk_throttle` block in the job specification
+
+
+<Placement groups={['job', 'group', 'task', 'resources', 'disk_throttle']} />
+
+The disk_throttle block is used to set limits on the disk I/O (Input/Output) a task can perform on a specific block device. 
+This block helps mitigate the "noisy neighbor" problem, where a single task consuming excessive disk bandwidth can negatively impact other tasks running on the same node.
+
+When a disk_throttle block is added, Nomad will limit the task's I/O throughput in bytes per second (BPS) or I/O operations per second (IOPS). 
+This feature is primarily implemented using Linux cgroups.
+
+
+```hcl
+job "docs" {
+  group "example" {
+    task "database" {
+      resources {
+        disk_throttle {
+          # Major/minor number of the device (e.g., /dev/sda is 8:0)
+          major      = 8
+          minor      = 0
+
+          # Limit read/write speed to 10 MB/s
+          read_bps   = 10485760
+          write_bps  = 10485760
+
+          # Limit read/write operations to 100 per second
+          read_iops  = 100
+          write_iops = 100
+        }
+      }
+    }
+  }
+}
+```
+
+In the example above, the database task is subject to I/O limits on the device with major number 8 and minor number 0. 
+The read and write bandwidth are each limited to 10 MB/s, and the I/O operations are limited to 100 per second.
+
+~> Compatibility: Disk throttling is currently limited to Linux 
+
+## `disk_throttle` Parameters
+
+- `major` `(int: <required>)` - Specifies the major number of the block device to throttle. You can find this on Linux using the ls -l /dev/DEVICE_NAME command.
+
+- `minor` `(int: <required>)` - Specifies the minor number of the block device to throttle.
+
+- `read_bps` `(int: <optional>)` - Specifies the maximum read speed for the device in Bytes per Second.
+
+- `write_bps` `(int: <optional>)` - Specifies the maximum write speed for the device in Bytes per Second.
+
+- `read_iops` `(int: <optional>)` - Specifies the maximum read operations for the device in I/O Operations Per Second.
+
+- `write_iops` `(int: <optional>)` - Specifies the maximum write operations for the device in I/O Operations Per Second.
+
+## `disk_throttle` Examples
+The following examples only show the `disk_throttle` blocks. 
+Remember that the `disk_throttle` block is only valid in the placements listed above.
+
+### Limiting Bandwidth (BPS)
+This example limits the read and write bandwidth of a specific device to 50 MB/s.
+
+```hcl
+disk_throttle {
+  major      = 8
+  minor      = 16
+  read_bps   = 52428800  # 50 MB/s
+  write_bps  = 52428800  # 50 MB/s
+}
+```
+
+### Limiting Operations (IOPS)
+This example limits the read and write operations of a specific device to 200 per second.
+
+```hcl
+disk_throttle {
+  major      = 8
+  minor      = 16
+  read_iops  = 200
+  write_iops = 200
+}
+```
+
+### Throttling Multiple Devices
+You can repeat the disk_throttle block to apply different I/O policies to multiple devices for a single task. 
+This example applies a high-bandwidth throttle to one device (/dev/sda) and a more restrictive throttle to a second device (/dev/sdb).
+
+```hcl
+resources {
+  disk_throttle {
+    major      = 8
+    minor      = 0
+    read_bps   = 104857600 # 100 MB/s
+    write_bps  = 104857600 # 100 MB/s
+  }
+  disk_throttle {
+    major      = 8
+    minor      = 16
+    write_bps  = 5242880   # 5 MB/s
+    write_iops = 50
+  }
+}
+```
+
+
