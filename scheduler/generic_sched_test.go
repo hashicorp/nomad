@@ -205,17 +205,15 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		// Ensure that the new allocations were placed on the same node as the older
 		// ones
 		for _, new := range newPlanned {
-			if new.PreviousAllocation == "" {
-				t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
-			}
+			// new alloc should have a previous allocation
+			must.NotEq(t, new.PreviousAllocation, "")
 
+			// new allocs PreviousAllocation must be a valid previously placed alloc
 			old, ok := planned[new.PreviousAllocation]
-			if !ok {
-				t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
-			}
-			if new.NodeID != old.NodeID {
-				t.Fatalf("new alloc and old alloc node doesn't match; got %q; want %q", new.NodeID, old.NodeID)
-			}
+			must.True(t, ok)
+
+			// new alloc should be placed in the same node
+			must.Eq(t, new.NodeID, old.NodeID)
 		}
 	})
 
@@ -228,8 +226,9 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 		}
 
+		testNodePool := "test"
 		node := mock.Node()
-		node.NodePool = "test"
+		node.NodePool = testNodePool
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 		// Create test node pools with different scheduler algorithms.
@@ -304,20 +303,18 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		if len(newPlanned) != 10 {
 			t.Fatalf("bad plan: %#v", plan)
 		}
-		// Ensure that the new allocations were placed on the same node as the older
-		// ones
-		for _, new := range newPlanned {
-			if new.PreviousAllocation == "" {
-				t.Fatalf("new alloc %q doesn't have a previous allocation", new.ID)
-			}
 
-			old, ok := planned[new.PreviousAllocation]
-			if !ok {
-				t.Fatalf("new alloc %q previous allocation doesn't match any prior placed alloc (%q)", new.ID, new.PreviousAllocation)
-			}
-			if new.Job.NodePool == old.Job.NodePool {
-				t.Fatalf("allocs should be on different node pools; got %q; want %q", new.Job.NodePool, old.Job.NodePool)
-			}
+		// ensure new allocation has expected fields
+		for _, new := range newPlanned {
+			// new alloc should have a previous allocation
+			must.NotEq(t, new.PreviousAllocation, "")
+
+			// new allocs PreviousAllocation must be a valid previously placed alloc
+			_, ok := planned[new.PreviousAllocation]
+			must.True(t, ok)
+
+			// new alloc should be placed in the correct node pool
+			must.Eq(t, new.Job.NodePool, testNodePool)
 		}
 	})
 }
