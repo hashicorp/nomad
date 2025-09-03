@@ -5,7 +5,9 @@ package command
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"runtime"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/command/agent"
@@ -1312,6 +1314,31 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+	}
+
+	if runtime.GOOS == "windows" {
+		maps.Copy(all, map[string]cli.CommandFactory{
+			"windows": func() (cli.Command, error) {
+				return &WindowsCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service": func() (cli.Command, error) {
+				return &WindowsServiceCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service install": func() (cli.Command, error) {
+				return &WindowsServiceInstallCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service uninstall": func() (cli.Command, error) {
+				return &WindowsServiceUninstallCommand{
+					Meta: meta,
+				}, nil
+			},
+		})
 	}
 
 	deprecated := map[string]cli.CommandFactory{
