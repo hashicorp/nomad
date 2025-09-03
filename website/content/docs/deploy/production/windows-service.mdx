@@ -7,9 +7,12 @@ description: |-
 
 # Install Nomad as a Windows service
 
-Nomad can be run as a native Windows service. In order to do this, you will need
-to register the Nomad application with the Windows Service Control Manager using
-[`sc.exe`], configure Nomad to log to a file, and then start the Nomad service.
+You may run Nomad as a native Windows service. Use the [windows service install][]
+command to install Nomad and create the Windows service.
+
+You may also set up the Nomad Windows service manually. Use [`sc.exe`] to register
+the Nomad application with the Windows Service Control Manager, configure Nomad to
+log to a file, and then start the Nomad service.
 
 ~> **Note:** These steps should be run in a PowerShell session with Administrator
 capabilities.
@@ -23,7 +26,7 @@ argument should include the fully qualified path to the Nomad executable and any
 arguments to the nomad command: agent, -config, etc.
 
 ```plaintext
-sc.exe create "Nomad" binPath="«full path to nomad.exe» agent -config=«path to config file or directory»" start= auto
+sc.exe create "Nomad" binPath="«full path to nomad.exe» agent -config=«path to config file or directory»" start=auto
 [SC] CreateService SUCCESS
 ```
 
@@ -93,3 +96,4 @@ restart of Nomad service is not sufficient.
 [`sc.exe`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682107(v=vs.85).aspx
 [download]: /nomad/downloads
 [logging]: /nomad/docs/configuration#log_file
+[windows service install]: /nomad/docs/commands/windows/service-install
