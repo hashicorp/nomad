@@ -219,7 +219,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		}
 	})
 
-	t.Run("ephemeral alloc should change node if node pool changes", func(t *testing.T) {
+	t.Run("ephemeral alloc should migrate if node pool changes", func(t *testing.T) {
 		h := tests.NewHarness(t)
 
 		// Create some nodes
@@ -295,6 +295,76 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 
 			// new alloc should be placed in the correct node pool
 			must.Eq(t, new.Job.NodePool, testNodePool)
+		}
+	})
+
+	t.Run("ephemeral alloc should migrate if datacenter changes", func(t *testing.T) {
+		h := tests.NewHarness(t)
+
+		// Create some nodes
+		for range 5 {
+			node := mock.Node()
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		}
+
+		testDatacenter := "test"
+		node := mock.Node()
+		node.Datacenter = testDatacenter
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+		// Create a job
+		job := createEphemeralJob(t, h, true, true)
+
+		// Ensure the plan allocated
+		plan := h.Plans[0]
+		planned := make(map[string]*structs.Allocation)
+		for _, allocList := range plan.NodeAllocation {
+			for _, alloc := range allocList {
+				planned[alloc.ID] = alloc
+			}
+		}
+		must.MapLen(t, 10, planned)
+
+		// Update the job to force a rolling upgrade
+		updated := job.Copy()
+		updated.Datacenters = []string{"test"}
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
+
+		// Create a mock evaluation to handle the update
+		eval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerNodeUpdate,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+		h1 := tests.NewHarnessWithState(t, h.State)
+		must.NoError(t, h1.Process(NewServiceScheduler, eval))
+
+		// Ensure we have created only one new allocation
+		// Ensure a single plan
+		must.SliceLen(t, 1, h1.Plans)
+
+		plan = h1.Plans[0]
+		var newPlanned []*structs.Allocation
+		for _, allocList := range plan.NodeAllocation {
+			newPlanned = append(newPlanned, allocList...)
+		}
+		must.SliceLen(t, 10, newPlanned)
+
+		// ensure new allocation has expected fields
+		for _, new := range newPlanned {
+			// new alloc should have a previous allocation
+			must.NotEq(t, new.PreviousAllocation, "")
+
+			// new allocs PreviousAllocation must be a valid previously placed alloc
+			_, ok := planned[new.PreviousAllocation]
+			must.True(t, ok)
+
+			// new alloc should be placed in the correct node pool
+			must.Eq(t, new.NodeID, node.ID)
 		}
 	})
 }
