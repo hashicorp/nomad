@@ -33,7 +33,7 @@ func getProviderConfigs(srv *Server) (map[string]*structs.KEKProviderConfig, err
 
 	if len(srv.config.KEKProviderConfigs) == 0 {
 		providerConfigs[string(structs.KEKProviderAEAD)] = &structs.KEKProviderConfig{
-			Provider: string(structs.KEKProviderAEAD),
+			Provider: structs.KEKProviderAEAD,
 			Active:   true,
 		}
 	}

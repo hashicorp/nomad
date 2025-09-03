@@ -800,13 +800,13 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 		}
 
 		switch {
-		case isUpgraded && provider.Provider == string(structs.KEKProviderAEAD):
+		case isUpgraded && provider.Provider == structs.KEKProviderAEAD:
 			// nothing to do but don't want to hit next case
 
 		case isUpgraded:
 			wrappedKey.KeyEncryptionKey = nil
 
-		case provider.Provider == string(structs.KEKProviderAEAD): // !isUpgraded
+		case provider.Provider == structs.KEKProviderAEAD: // !isUpgraded
 			kek := wrappedKey.KeyEncryptionKey
 			wrappedKey.KeyEncryptionKey = nil
 			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
@@ -831,7 +831,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 	}
 	var kek []byte
 	var err error
-	if provider.Provider == string(structs.KEKProviderAEAD) || provider.Provider == "" {
+	if provider.Provider == structs.KEKProviderAEAD || provider.Provider == "" {
 		kek, err = crypto.Bytes(32)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate key wrapper key: %w", err)
@@ -848,7 +848,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 	}
 
 	kekWrapper := &structs.WrappedKey{
-		Provider:                 provider.Provider,
+		Provider:                 provider.Provider.String(),
 		ProviderID:               provider.ID(),
 		WrappedDataEncryptionKey: rootBlob,
 		WrappedRSAKey:            &kms.BlobInfo{},
