@@ -21,8 +21,15 @@ module.exports = async config => {
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const page = await context.newPage();
   await page.goto(NOMAD_ADDR+'/ui/settings/tokens');
-  await page.fill('input[id="token-input"]', NOMAD_TOKEN);
-  await page.click('button:has-text("Sign in")', {strict: true});
+
+  // playwright "locater" reference: https://playwright.dev/docs/locators
+  // visiting /ui/settings/tokens without a token gets the "anonymous token"
+  // automatically, so we need to sign out before we can sign in
+  // with a real token.
+  await page.getByRole('button', {name: 'Sign Out'}).click();
+  // now input the token and sign in
+  await page.getByLabel('Secret ID').fill(NOMAD_TOKEN);
+  await page.getByRole('button', {name: 'Sign In'}).click();
 
   const { storageState } = config.projects[0].use;
   await page.context().storageState({ path: storageState });
