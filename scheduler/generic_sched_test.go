@@ -130,19 +130,10 @@ func TestServiceSched_JobRegister(t *testing.T) {
 func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("sticky ephemeral allocs in same node pool", func(t *testing.T) {
-
-		h := tests.NewHarness(t)
-
-		// Create some nodes
-		for range 10 {
-			node := mock.Node()
-			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-		}
-
-		// Create a job
+	createEphemeralJob := func(t *testing.T, h *tests.Harness, sticky, migrate bool) *structs.Job {
 		job := mock.Job()
-		job.TaskGroups[0].EphemeralDisk.Sticky = true
+		job.TaskGroups[0].EphemeralDisk.Sticky = sticky
+		job.TaskGroups[0].EphemeralDisk.Migrate = migrate
 		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 		// Create a mock evaluation to register the job
@@ -159,7 +150,23 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		// Process the evaluation
 		must.NoError(t, h.Process(NewServiceScheduler, eval))
 
-		// Ensure the plan allocated
+		return job
+	}
+
+	t.Run("sticky ephemeral allocs in same node pool", func(t *testing.T) {
+
+		h := tests.NewHarness(t)
+
+		// Create some nodes
+		for range 10 {
+			node := mock.Node()
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		}
+
+		// create a job
+		job := createEphemeralJob(t, h, true, false)
+
+		// // Ensure the plan allocated
 		plan := h.Plans[0]
 		planned := make(map[string]*structs.Allocation)
 		for _, allocList := range plan.NodeAllocation {
@@ -167,9 +174,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 				planned[alloc.ID] = alloc
 			}
 		}
-		if len(planned) != 10 {
-			t.Fatalf("bad: %#v", plan)
-		}
+		must.MapLen(t, 10, planned)
 
 		// Update the job to force a rolling upgrade
 		updated := job.Copy()
@@ -177,7 +182,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
 
 		// Create a mock evaluation to handle the update
-		eval = &structs.Evaluation{
+		eval := &structs.Evaluation{
 			Namespace:   structs.DefaultNamespace,
 			ID:          uuid.Generate(),
 			Priority:    job.Priority,
@@ -191,17 +196,14 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 
 		// Ensure we have created only one new allocation
 		// Ensure a single plan
-		if len(h1.Plans) != 1 {
-			t.Fatalf("bad: %#v", h1.Plans)
-		}
+		must.SliceLen(t, 1, h1.Plans)
+
 		plan = h1.Plans[0]
 		var newPlanned []*structs.Allocation
 		for _, allocList := range plan.NodeAllocation {
 			newPlanned = append(newPlanned, allocList...)
 		}
-		if len(newPlanned) != 10 {
-			t.Fatalf("bad plan: %#v", plan)
-		}
+		must.SliceLen(t, 10, newPlanned)
 		// Ensure that the new allocations were placed on the same node as the older
 		// ones
 		for _, new := range newPlanned {
@@ -241,23 +243,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
 
 		// Create a job
-		job := mock.Job()
-		job.TaskGroups[0].EphemeralDisk.Sticky = true
-		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
-
-		// Create a mock evaluation to register the job
-		eval := &structs.Evaluation{
-			Namespace:   structs.DefaultNamespace,
-			ID:          uuid.Generate(),
-			Priority:    job.Priority,
-			TriggeredBy: structs.EvalTriggerJobRegister,
-			JobID:       job.ID,
-			Status:      structs.EvalStatusPending,
-		}
-		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-
-		// Process the evaluation
-		must.NoError(t, h.Process(NewServiceScheduler, eval))
+		job := createEphemeralJob(t, h, true, true)
 
 		// Ensure the plan allocated
 		plan := h.Plans[0]
@@ -267,18 +253,15 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 				planned[alloc.ID] = alloc
 			}
 		}
-		if len(planned) != 10 {
-			t.Fatalf("bad: %#v", plan)
-		}
+		must.MapLen(t, 10, planned)
 
 		// Update the job to force a rolling upgrade
 		updated := job.Copy()
-		updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
 		updated.NodePool = "test"
 		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
 
 		// Create a mock evaluation to handle the update
-		eval = &structs.Evaluation{
+		eval := &structs.Evaluation{
 			Namespace:   structs.DefaultNamespace,
 			ID:          uuid.Generate(),
 			Priority:    job.Priority,
@@ -292,17 +275,14 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 
 		// Ensure we have created only one new allocation
 		// Ensure a single plan
-		if len(h1.Plans) != 1 {
-			t.Fatalf("bad: %#v", h1.Plans)
-		}
+		must.SliceLen(t, 1, h1.Plans)
+
 		plan = h1.Plans[0]
 		var newPlanned []*structs.Allocation
 		for _, allocList := range plan.NodeAllocation {
 			newPlanned = append(newPlanned, allocList...)
 		}
-		if len(newPlanned) != 10 {
-			t.Fatalf("bad plan: %#v", plan)
-		}
+		must.SliceLen(t, 10, newPlanned)
 
 		// ensure new allocation has expected fields
 		for _, new := range newPlanned {
