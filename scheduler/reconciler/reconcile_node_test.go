@@ -764,11 +764,13 @@ func Test_computeCanaryNodes(t *testing.T) {
 
 	// generate an odd number of nodes
 	fiveEligibleNodes := map[string]*structs.Node{}
-	for range 5 {
-		nodeID := uuid.Generate()
+	// name them so we can refer to their names while testing pre-existing
+	// canary allocs
+	fiveEligibleNodeNames := []string{"node1", "node2", "node3", "node4", "node5"}
+	for _, name := range fiveEligibleNodeNames {
 		node := mock.Node()
-		node.ID = nodeID
-		fiveEligibleNodes[nodeID] = node
+		node.ID = name
+		fiveEligibleNodes[name] = node
 	}
 
 	// generate an even number of nodes
@@ -781,29 +783,36 @@ func Test_computeCanaryNodes(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                string
-		nodes               map[string]*structs.Node
-		required            map[string]*structs.TaskGroup
-		expectedCanaryNodes map[string]int // number of nodes per tg
+		name                 string
+		nodes                map[string]*structs.Node
+		nodeAllocs           map[string][]*structs.Allocation
+		required             map[string]*structs.TaskGroup
+		expectedCanaryNodes  map[string]int    // number of nodes per tg
+		expectedCanaryNodeID map[string]string // sometimes we want to make sure a particular node ID is a canary
 	}{
 		{
-			name:                "no required task groups",
-			nodes:               fourEligibleNodes,
-			required:            nil,
-			expectedCanaryNodes: map[string]int{},
+			name:                 "no required task groups",
+			nodes:                fourEligibleNodes,
+			nodeAllocs:           nil,
+			required:             nil,
+			expectedCanaryNodes:  map[string]int{},
+			expectedCanaryNodeID: nil,
 		},
 		{
-			name:  "one task group with no update strategy",
-			nodes: fourEligibleNodes,
+			name:       "one task group with no update strategy",
+			nodes:      fourEligibleNodes,
+			nodeAllocs: nil,
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
 				}},
-			expectedCanaryNodes: map[string]int{},
+			expectedCanaryNodes:  map[string]int{},
+			expectedCanaryNodeID: nil,
 		},
 		{
-			name:  "one task group with 33% canary deployment",
-			nodes: fourEligibleNodes,
+			name:       "one task group with 33% canary deployment",
+			nodes:      fourEligibleNodes,
+			nodeAllocs: nil,
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
@@ -816,10 +825,12 @@ func Test_computeCanaryNodes(t *testing.T) {
 			expectedCanaryNodes: map[string]int{
 				"foo": 2, // we always round up
 			},
+			expectedCanaryNodeID: nil,
 		},
 		{
-			name:  "one task group with 100% canary deployment, four nodes",
-			nodes: fourEligibleNodes,
+			name:       "one task group with 100% canary deployment, four nodes",
+			nodes:      fourEligibleNodes,
+			nodeAllocs: nil,
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
@@ -832,10 +843,12 @@ func Test_computeCanaryNodes(t *testing.T) {
 			expectedCanaryNodes: map[string]int{
 				"foo": 4,
 			},
+			expectedCanaryNodeID: nil,
 		},
 		{
-			name:  "one task group with 50% canary deployment, even nodes",
-			nodes: fourEligibleNodes,
+			name:       "one task group with 50% canary deployment, even nodes",
+			nodes:      fourEligibleNodes,
+			nodeAllocs: nil,
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
@@ -848,10 +861,22 @@ func Test_computeCanaryNodes(t *testing.T) {
 			expectedCanaryNodes: map[string]int{
 				"foo": 2,
 			},
+			expectedCanaryNodeID: nil,
 		},
 		{
-			name:  "two task groups: one with 50% canary deploy, second one with 2% canary deploy",
+			name:  "two task groups: one with 50% canary deploy, second one with 2% canary deploy, pre-existing canary alloc",
 			nodes: fiveEligibleNodes,
+			nodeAllocs: map[string][]*structs.Allocation{
+				"foo": {mock.Alloc()}, // should be disregarded since it's not one of our nodes
+				fiveEligibleNodeNames[0]: {
+					{DeploymentStatus: nil},
+					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false}},
+					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true}, TaskGroup: "foo"},
+				},
+				fiveEligibleNodeNames[1]: {
+					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true}, TaskGroup: "bar"},
+				},
+			},
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
@@ -872,13 +897,22 @@ func Test_computeCanaryNodes(t *testing.T) {
 				"foo": 3, // we always round up
 				"bar": 1, // we always round up
 			},
+			expectedCanaryNodeID: map[string]string{
+				fiveEligibleNodeNames[0]: "foo",
+				fiveEligibleNodeNames[1]: "bar",
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, canariesPerTG := computeCanaryNodes(tc.required, tc.nodes)
+			canaryNodes, canariesPerTG := computeCanaryNodes(tc.required, tc.nodeAllocs, tc.nodes)
 			must.Eq(t, tc.expectedCanaryNodes, canariesPerTG)
+			if tc.nodeAllocs != nil {
+				for nodeID, tgName := range tc.expectedCanaryNodeID {
+					must.True(t, canaryNodes[nodeID][tgName])
+				}
+			}
 		})
 	}
 }

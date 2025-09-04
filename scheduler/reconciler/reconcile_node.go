@@ -59,7 +59,7 @@ func (nr *NodeReconciler) Compute(
 	// Canary deployments deploy to the TaskGroup.UpdateStrategy.Canary
 	// percentage of eligible nodes, so we create a mapping of task group name
 	// to a list of nodes that canaries should be placed on.
-	canaryNodes, canariesPerTG := computeCanaryNodes(required, eligibleNodes)
+	canaryNodes, canariesPerTG := computeCanaryNodes(required, nodeAllocs, eligibleNodes)
 
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
@@ -76,11 +76,12 @@ func (nr *NodeReconciler) Compute(
 	return result
 }
 
-// computeCanaryNodes is a helper function that, given required task groups and
-// eligible nodes, outputs a map[nodeID] -> map[TG] -> bool which indicates
-// which TGs this node is a canary for, and a map[TG] -> int to indicate how
-// many total canaries are to be placed for a TG.
-func computeCanaryNodes(required map[string]*structs.TaskGroup,
+// computeCanaryNodes is a helper function that, given required task groups, a
+// mapping of nodes to their allocs and a map of eligible nodes, outputs a
+// map[nodeID] -> map[TG] -> bool which indicates which TGs this node is a
+// canary for, and a map[TG] -> int to indicate how many total canaries are to
+// be placed for a TG.
+func computeCanaryNodes(required map[string]*structs.TaskGroup, nodeAllocs map[string][]*structs.Allocation,
 	eligibleNodes map[string]*structs.Node) (map[string]map[string]bool, map[string]int) {
 
 	canaryNodes := map[string]map[string]bool{}
@@ -96,8 +97,31 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup,
 		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
 		canariesPerTG[tg.Name] = numberOfCanaryNodes
 
+		// check if there are any allocations on any nodes that are/were
+		// canaries.
+		for nodeID, allocs := range nodeAllocs {
+			for _, a := range allocs {
+				if a.DeploymentStatus == nil || a.DeploymentStatus.Canary == false {
+					continue
+				}
+				if a.TaskGroup == tg.Name {
+					canaryNodes[nodeID] = map[string]bool{}
+					canaryNodes[nodeID][tg.Name] = true
+
+					// this node should no longer be considered when searching
+					// for canary nodes
+					numberOfCanaryNodes -= 1
+					eligibleNodesList = slices.DeleteFunc(
+						eligibleNodesList,
+						func(n *structs.Node) bool { return n.ID == nodeID },
+					)
+				}
+			}
+		}
+
 		for i, n := range eligibleNodesList {
 			canaryNodes[n.ID] = map[string]bool{}
+
 			if i > numberOfCanaryNodes-1 {
 				break
 			}
