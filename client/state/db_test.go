@@ -493,6 +493,32 @@ func TestStateDB_CheckResult(t *testing.T) {
 
 }
 
+func TestStateDB_ConsulACLToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		alloc1 := mock.Alloc()
+
+		must.NoError(t, db.PutAllocation(alloc1))
+		tokens, err := db.GetAllocConsulACLTokens(alloc1.ID)
+		must.NoError(t, err)
+		must.Eq(t, nil, tokens)
+
+		fakeToken := &cstructs.ConsulACLToken{
+			Cluster:  "fake cluster",
+			TokenID:  "workloadID",
+			ACLToken: "token",
+		}
+
+		must.NoError(t, db.PutAllocConsulACLTokens(alloc1.ID, []*cstructs.ConsulACLToken{fakeToken}))
+
+		tokens, err = db.GetAllocConsulACLTokens(alloc1.ID)
+		must.NoError(t, err)
+		must.One(t, len(tokens))
+		must.Eq(t, fakeToken, tokens[0])
+	})
+}
+
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always
 // succeeds.
 func TestStateDB_Upgrade(t *testing.T) {

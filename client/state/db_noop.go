@@ -157,6 +157,14 @@ func (n NoopDB) DeleteDynamicHostVolume(_ string) error {
 	return nil
 }
 
+func (n NoopDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
+	return nil, nil
+}
+
 func (n NoopDB) Close() error {
 	return nil
 }
