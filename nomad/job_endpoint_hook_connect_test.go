@@ -471,28 +471,41 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	}
 
 	t.Run("sidecar 0 networks", func(t *testing.T) {
-		require.EqualError(t, groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name:     "g1",
 			Networks: nil,
-		}, makeService("connect-service")), `Consul Connect sidecars require exactly 1 network, found 0 in group "g1"`)
+		}, makeService("connect-service"))
+		must.EqError(t, err, `connect sidecar: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("sidecar non bridge", func(t *testing.T) {
-		require.EqualError(t, groupConnectSidecarValidate(&structs.TaskGroup{
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name: "g2",
 			Networks: structs.Networks{{
 				Mode: "host",
 			}},
-		}, makeService("connect-service")), `Consul Connect sidecar requires bridge network, found "host" in group "g2"`)
+		}, makeService("connect-service"))
+		must.EqError(t, err, `connect sidecar: invalid network mode for Consul Connect: group "g2" uses network mode "host"; must be "bridge" or "cni/*"`)
 	})
 
-	t.Run("sidecar okay", func(t *testing.T) {
-		require.NoError(t, groupConnectSidecarValidate(&structs.TaskGroup{
+	t.Run("sidecar okay bridge", func(t *testing.T) {
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
 			Name: "g3",
 			Networks: structs.Networks{{
 				Mode: "bridge",
 			}},
-		}, makeService("connect-service")))
+		}, makeService("connect-service"))
+		must.NoError(t, err)
+	})
+
+	t.Run("sidecar okay cni", func(t *testing.T) {
+		err := groupConnectSidecarValidate(&structs.TaskGroup{
+			Name: "g4",
+			Networks: structs.Networks{{
+				Mode: "cni/test-net",
+			}},
+		}, makeService("connect-service"))
+		must.NoError(t, err)
 	})
 
 	// group and service name validation
@@ -505,7 +518,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Name: "Other-Service",
 			}},
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect service contains uppercase characters", func(t *testing.T) {
@@ -516,7 +529,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Name: "Other-Service",
 			}, makeService("Connect-Service")},
 		})
-		require.EqualError(t, err, `Consul Connect service name "Connect-Service" in group "group" must not contain uppercase characters`)
+		must.EqError(t, err, `Consul Connect service name "Connect-Service" in group "group" must not contain uppercase characters`)
 	})
 
 	t.Run("non-connect group contains uppercase characters", func(t *testing.T) {
@@ -527,7 +540,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Name: "other-service",
 			}},
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect-group contains uppercase characters", func(t *testing.T) {
@@ -538,7 +551,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Name: "other-service",
 			}, makeService("connect-service")},
 		})
-		require.EqualError(t, err, `Consul Connect group "Connect-Group" with service "connect-service" must not contain uppercase characters`)
+		must.EqError(t, err, `Consul Connect group "Connect-Group" with service "connect-service" must not contain uppercase characters`)
 	})
 
 	t.Run("connect group and service lowercase", func(t *testing.T) {
@@ -549,7 +562,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 				Name: "other-service",
 			}, makeService("connect-service")},
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect group overlap upstreams", func(t *testing.T) {
@@ -570,7 +583,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{s1, s2},
 		})
-		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "connect-group" using same address for upstreams (:8999)`)
+		must.EqError(t, err, `Consul Connect services "s2" and "s1" in group "connect-group" using same address for upstreams (:8999)`)
 	})
 }
 
@@ -781,7 +794,7 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 			Name:     "g1",
 			Networks: nil,
 		})
-		require.EqualError(t, err, `Consul Connect gateways require exactly 1 network, found 0 in group "g1"`)
+		must.EqError(t, err, `connect gateway: must have exactly one network for Consul Connect: group "g1" has 0 networks`)
 	})
 
 	t.Run("bad network mode", func(t *testing.T) {
@@ -791,7 +804,29 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 				Mode: "",
 			}},
 		})
-		require.EqualError(t, err, `Consul Connect Gateway service requires Task Group with network mode of type "bridge" or "host"`)
+		must.EqError(t, err, `connect gateway: invalid network mode for Consul Connect: group "g1" uses network mode ""; must be "bridge", "host", or "cni/*"`)
+	})
+
+	for _, good := range []string{"bridge", "host"} {
+		t.Run("good network mode "+good, func(t *testing.T) {
+			err := groupConnectGatewayValidate(&structs.TaskGroup{
+				Name: "g1",
+				Networks: structs.Networks{{
+					Mode: good,
+				}},
+			})
+			must.NoError(t, err)
+		})
+	}
+
+	t.Run("good network mode cni", func(t *testing.T) {
+		err := groupConnectGatewayValidate(&structs.TaskGroup{
+			Name: "g1",
+			Networks: structs.Networks{{
+				Mode: "cni/test-net",
+			}},
+		})
+		must.NoError(t, err)
 	})
 }
 

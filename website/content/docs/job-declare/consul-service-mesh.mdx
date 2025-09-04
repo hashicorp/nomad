@@ -36,15 +36,18 @@ service-based access control permissions throughout the entire mesh.
 Nomad has native integration with Consul to provide service mesh capabilities.
 The [`connect`][] block is the entrypoint for all service mesh configuration.
 Nomad automatically deploys a sidecar proxy task to all allocations that have a
-[`sidecar_service`][] block.
+[`sidecar_service`][] block. All incoming external traffic is handled by the
+sidecar.
 
 This proxy task is responsible for exposing the service to the mesh and can
 also be used to access other services from within the allocation. These
 external services are called upstreams and are declared using the
 [`upstreams`][] block.
 
-The allocation `network_mode` must be set to `bridge` for network isolation and
-all external traffic is provided by the sidecar.
+Consul service mesh requires network isolation to function, so you must set
+job group's `network` [`mode`](/nomad/docs/job-specification/network#mode)
+to `bridge`, or an [appropriately configured `cni/*`
+network](/nomad/docs/networking/consul/service-mesh#network-mode).
 
 ~> **Warning:** To fully isolate your workloads make sure to bind them only to
    the `loopback` interface.
@@ -167,4 +170,3 @@ The types of gateways provided by Consul Service Mesh are:
 [`upstreams`]: /nomad/docs/job-specification/upstreams
 [consul_cli_envoy]: /consul/commands/connect/envoy
 [runtime_network]: /nomad/docs/reference/runtime-environment-settings#network-related-variables
-
