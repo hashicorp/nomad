@@ -154,11 +154,13 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	if !s.sysbatch {
-		// Get any existing deployment
 		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
 			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
 		}
+		// system deployments may be mutated in the reconciler because the node
+		// count can change between evaluations
+		s.deployment = s.deployment.Copy()
 	}
 
 	// Create a plan
