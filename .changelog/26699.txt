@@ -1,0 +1,3 @@
+```release-note:bug
+client: restore task network status on client restart
+```
