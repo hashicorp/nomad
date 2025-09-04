@@ -18,6 +18,11 @@ type NodeReconciler struct {
 	DeploymentOld     *structs.Deployment
 	DeploymentCurrent *structs.Deployment
 	DeploymentUpdates []*structs.DeploymentStatusUpdate
+
+	// COMPAT(1.14.0):
+	// compatHasSameVersionAllocs indicates that the reconciler found some
+	// allocations that were for the version being deployed
+	compatHasSameVersionAllocs bool
 }
 
 func NewNodeReconciler(deployment *structs.Deployment) *NodeReconciler {
@@ -61,6 +66,8 @@ func (nr *NodeReconciler) Compute(
 	// to a list of nodes that canaries should be placed on.
 	canaryNodes, canariesPerTG := nr.computeCanaryNodes(required, nodeAllocs, terminal, eligibleNodes)
 
+	compatHadExistingDeployment := nr.DeploymentCurrent != nil
+
 	result := new(NodeReconcileResult)
 	deploymentComplete := true
 	for nodeID, allocs := range nodeAllocs {
@@ -69,6 +76,14 @@ func (nr *NodeReconciler) Compute(
 			allocs, terminal, serverSupportsDisconnectedClients)
 		deploymentComplete = deploymentComplete && deploymentCompleteForNode
 		result.Append(diff)
+	}
+
+	// COMPAT(1.14.0) prevent a new deployment from being created in the case
+	// where we've upgraded the cluster while a legacy rolling deployment was in
+	// flight, otherwise we won't have HealthAllocs tracking and will never mark
+	// the deployment as complete
+	if !compatHadExistingDeployment && nr.compatHasSameVersionAllocs {
+		nr.DeploymentCurrent = nil
 	}
 
 	nr.DeploymentUpdates = append(nr.DeploymentUpdates, nr.setDeploymentStatusAndUpdates(deploymentComplete, job)...)
@@ -392,6 +407,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// Everything is up-to-date
 	IGNORE:
+		nr.compatHasSameVersionAllocs = true
 		result.Ignore = append(result.Ignore, AllocTuple{
 			Name:      name,
 			TaskGroup: tg,
@@ -520,8 +536,8 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	hadRunning := false
 	for _, alloc := range allocs {
 		if alloc.Job.ID == job.ID && alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
+			nr.compatHasSameVersionAllocs = true
 			hadRunning = true
-			break
 		}
 	}
 
