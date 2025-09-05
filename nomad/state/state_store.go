@@ -758,8 +758,8 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		}
 		d := raw.(*structs.Deployment)
 
-		// If the allocation belongs to a job with the same ID but a different
-		// create index and we are not getting all the allocations whose Jobs
+		// If the deployment belongs to a job with the same ID but a different
+		// create index and we are not getting all the deployments whose Jobs
 		// matches the same Job ID then we skip it
 		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
 			continue

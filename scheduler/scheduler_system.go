@@ -154,11 +154,13 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	if !s.sysbatch {
-		// Get any existing deployment
 		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
 			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
 		}
+		// system deployments may be mutated in the reconciler because the node
+		// count can change between evaluations
+		s.deployment = s.deployment.Copy()
 	}
 
 	// Create a plan
@@ -632,7 +634,9 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 			diff.Place = append(diff.Place, a)
-			limits[a.Alloc.TaskGroup]--
+			if !a.Canary {
+				limits[a.Alloc.TaskGroup]--
+			}
 		} else {
 			limited = true
 		}
