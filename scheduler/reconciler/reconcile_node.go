@@ -135,7 +135,7 @@ func (nr *NodeReconciler) findOldCanaryNodes(nodesList []*structs.Node, numberOf
 	a *structs.Allocation, tg *structs.TaskGroup, canaryNodes map[string]map[string]bool, nodeID string) ([]*structs.Node, int) {
 
 	if a.DeploymentStatus == nil || a.DeploymentStatus.Canary == false ||
-		nr.DeploymentCurrent == nil { // TODO: should we add this? || nr.DeploymentCurrent.ID != a.DeploymentID {
+		nr.DeploymentCurrent == nil {
 		return nodesList, numberOfCanaryNodes
 	}
 
