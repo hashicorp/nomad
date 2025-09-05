@@ -724,8 +724,8 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
-	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
-	// so this may be nil during server upgrades.
+	// Not all job registrations will include an eval (ex. registering a
+	// dispatch/periodic job)
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
 

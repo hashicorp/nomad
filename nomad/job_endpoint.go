@@ -2106,12 +2106,29 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Compress the payload
 	dispatchJob.Payload = snappy.Encode(nil, args.Payload)
 
+	// If the job is periodic, we don't create an eval.
+	var eval *structs.Evaluation
+	if !dispatchJob.IsPeriodic() {
+		now := time.Now().UnixNano()
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   args.RequestNamespace(),
+			Priority:    dispatchJob.Priority,
+			Type:        dispatchJob.Type,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       dispatchJob.ID,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
+		}
+	}
+
 	regReq := &structs.JobRegisterRequest{
 		Job:          dispatchJob,
 		WriteRequest: args.WriteRequest,
+		Eval:         eval,
 	}
 
-	// Commit this update via Raft
 	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
 	if err != nil {
 		j.logger.Error("dispatched job register failed", "error", err)
@@ -2122,38 +2139,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	reply.DispatchedJobID = dispatchJob.ID
 	reply.Index = jobCreateIndex
 
-	// If the job is periodic, we don't create an eval.
-	if !dispatchJob.IsPeriodic() {
-		// Create a new evaluation
-		now := time.Now().UnixNano()
-		eval := &structs.Evaluation{
-			ID:             uuid.Generate(),
-			Namespace:      args.RequestNamespace(),
-			Priority:       dispatchJob.Priority,
-			Type:           dispatchJob.Type,
-			TriggeredBy:    structs.EvalTriggerJobRegister,
-			JobID:          dispatchJob.ID,
-			JobModifyIndex: jobCreateIndex,
-			Status:         structs.EvalStatusPending,
-			CreateTime:     now,
-			ModifyTime:     now,
-		}
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// Commit this evaluation via Raft
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "dispatch")
-			return err
-		}
-
-		// Setup the reply
+	if eval != nil {
 		reply.EvalID = eval.ID
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
+		reply.EvalCreateIndex = jobCreateIndex
 	}
 
 	return nil
