@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
@@ -960,7 +959,7 @@ func TestParse_BadInput(t *testing.T) {
 	for i, c := range inputs {
 		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
 			_, err := Parse(c)
-			assert.Error(t, err)
+			must.Error(t, err)
 		})
 	}
 }

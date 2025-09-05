@@ -8,8 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCapabilitySet(t *testing.T) {
@@ -365,13 +363,13 @@ func TestAllowNamespace(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			got := acl.AllowNamespace(tc.namespace)
-			require.Equal(t, tc.allow, got)
+			must.Eq(t, tc.allow, got)
 		})
 	}
 }
@@ -437,14 +435,14 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
-			require.NotNil(t, policy.Namespaces)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			got := acl.AllowNamespace(tc.namespace)
-			require.Equal(t, tc.allow, got)
+			must.Eq(t, tc.allow, got)
 		})
 	}
 }
@@ -640,12 +638,12 @@ node_pool "*" {
 
 			for _, op := range tc.allowOps {
 				got := acl.AllowNodePoolOperation(tc.pool, op)
-				assert.True(t, got, must.Sprintf("expected operation %q to be allowed", op))
+				must.True(t, got, must.Sprintf("expected operation %q to be allowed", op))
 			}
 
 			for _, op := range tc.denyOps {
 				got := acl.AllowNodePoolOperation(tc.pool, op)
-				assert.False(t, got, must.Sprintf("expected operation %q to be denied", op))
+				must.False(t, got, must.Sprintf("expected operation %q to be denied", op))
 			}
 
 			if tc.allow {
@@ -696,16 +694,14 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
 			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.HostVolumes)
+			must.NoError(t, err)
+			must.NotNil(t, policy.HostVolumes)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
-			assert.Equal(tc.Allow, acl.AllowHostVolume("prod-api-services"))
+			must.Eq(t, tc.Allow, acl.AllowHostVolume("prod-api-services"))
 		})
 	}
 }
@@ -910,28 +906,27 @@ func TestVariablesMatching(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
-			require.NotNil(t, policy.Namespaces[0].Variables)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces[0].Variables)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 			allowed := acl.AllowVariableOperation(tc.ns, tc.path, tc.op, tc.claim)
-			require.Equal(t, tc.allow, allowed)
+			must.Eq(t, tc.allow, allowed)
 		})
 	}
 
 	t.Run("search over namespace", func(t *testing.T) {
 		policy, err := Parse(`namespace "ns" {
 					variables { path "foo/bar" { capabilities = ["read"] }}}`)
-		require.NoError(t, err)
-		require.NotNil(t, policy.Namespaces[0].Variables)
+		must.NoError(t, err)
+		must.NotNil(t, policy.Namespaces[0].Variables)
 
 		acl, err := NewACL(false, []*Policy{policy})
-		require.NoError(t, err)
-		require.True(t, acl.AllowVariableSearch("ns"))
-		require.False(t, acl.AllowVariableSearch("no-access"))
+		must.NoError(t, err)
+		must.True(t, acl.AllowVariableSearch("ns"))
+		must.False(t, acl.AllowVariableSearch("no-access"))
 	})
-
 }
 
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
@@ -963,21 +958,19 @@ func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
 			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.Namespaces)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
 			var namespaces []string
 			for _, cs := range findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS) {
 				namespaces = append(namespaces, cs.name)
 			}
 
-			assert.Equal(tc.MatchingGlobs, namespaces)
+			must.Eq(t, tc.MatchingGlobs, namespaces)
 		})
 	}
 }
@@ -1019,17 +1012,15 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
 			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.Namespaces)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
 			matches := findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS)
-			assert.Equal(tc.Difference, matches[0].difference)
+			must.Eq(t, tc.Difference, matches[0].difference)
 		})
 	}
 
