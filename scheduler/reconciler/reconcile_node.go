@@ -122,11 +122,15 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup, nodeAllocs map[s
 		}
 
 		for i, n := range eligibleNodesList {
-			canaryNodes[n.ID] = map[string]bool{}
 
 			if i > numberOfCanaryNodes-1 {
 				break
 			}
+			
+			if _, ok := canaryNodes[n.ID]; !ok {
+				canaryNodes[n.ID] = map[string]bool{}
+			}
+			
 
 			canaryNodes[n.ID][tg.Name] = true
 		}
