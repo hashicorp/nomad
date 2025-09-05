@@ -2231,6 +2231,16 @@ func (n *Node) Canonicalize() {
 			}
 		}
 	}
+
+	// TODO(tgross): need to convert here to ports
+
+	for _, nrr := range n.NodeResources.NodeNetworks {
+		for _, addr := range nrr.Addresses {
+			fmt.Println(addr.ReservedPorts)
+		}
+	}
+
+	fmt.Println(n.ReservedResources.Networks.ReservedHostPorts)
 }
 
 func (n *Node) Copy() *Node {
@@ -2748,11 +2758,27 @@ func (n NodeNetworkAF) Validate() error {
 }
 
 type NodeNetworkAddress struct {
-	Family        NodeNetworkAF
-	Alias         string
-	Address       string
-	ReservedPorts string
-	Gateway       string // default route for this address
+	Family              NodeNetworkAF
+	Alias               string
+	Address             string
+	ReservedPorts       string
+	ParsedReservedPorts []uint64 `json:"-"`
+	Gateway             string   // default route for this address
+}
+
+// COMPAT(1.14.0): remove
+func (nna *NodeNetworkAddress) GetReservedPorts() ([]uint64, error) {
+	if nna.ReservedPorts == "" {
+		return []uint64{}, nil // TODO(tgross): return nil?
+	}
+	if len(nna.ParsedReservedPorts) > 0 {
+		return nna.ParsedReservedPorts, nil
+	}
+
+	// note we can't safely memoize here because the caller is likely to be
+	// working on the original from the state store, not a copy
+	parsed, err := ParsePortRanges(nna.ReservedPorts)
+	return parsed, err
 }
 
 type AllocatedPortMapping struct {
@@ -3737,11 +3763,6 @@ type NodeReservedNetworkResources struct {
 	// interfaces. Its format is a comma separate list of integers or integer
 	// ranges. (80,443,1000-2000,2005)
 	ReservedHostPorts string
-}
-
-// ParseReservedHostPorts returns the reserved host ports.
-func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
-	return ParsePortRanges(n.ReservedHostPorts)
 }
 
 // AllocatedResources is the set of resources to be used by an allocation.
