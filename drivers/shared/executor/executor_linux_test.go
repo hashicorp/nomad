@@ -865,6 +865,37 @@ func TestExecutor_UserEnv(t *testing.T) {
 	must.Eq(t, output, "runner")
 }
 
+func TestExecutor_LogNameEnv(t *testing.T) {
+	t.Parallel()
+	testutil.RequireCILinux(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "echo $LOGNAME"}
+	execCmd.User = "runner"
+	execCmd.ResourceLimits = true
+	defer allocDir.Destroy()
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	must.NonZero(t, ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	must.NoError(t, err)
+	must.Zero(t, state.ExitCode)
+
+	_, ok := executor.(*LibcontainerExecutor)
+	must.True(t, ok)
+
+	output := strings.TrimSpace(testExecCmd.stdout.String())
+	must.Eq(t, output, "runner")
+}
+
 func TestExecCommand_getCgroupOr_off(t *testing.T) {
 	ci.Parallel(t)
 
