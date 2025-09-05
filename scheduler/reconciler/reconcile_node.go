@@ -105,7 +105,9 @@ func computeCanaryNodes(required map[string]*structs.TaskGroup, nodeAllocs map[s
 					continue
 				}
 				if a.TaskGroup == tg.Name {
-					canaryNodes[nodeID] = map[string]bool{}
+					if _, ok := canaryNodes[nodeID]; !ok {
+						canaryNodes[nodeID] = map[string]bool{}
+					}
 					canaryNodes[nodeID][tg.Name] = true
 
 					// this node should no longer be considered when searching
