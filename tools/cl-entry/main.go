@@ -25,6 +25,7 @@ const (
     4. breaking-change
     5. note
     6. deprecation
+    7. feature (for major features)
   Enter Kind => `
 
 	note = `Write a note, for example
@@ -96,8 +97,10 @@ func label(n int) (string, error) {
 		label = "note"
 	case 6:
 		label = "deprecation"
+	case 7:
+		label = "feature"
 	default:
-		return "", errors.New("not a valid type, must be 1-6")
+		return "", errors.New("not a valid type, must be 1-7")
 	}
 	return label, nil
 }
