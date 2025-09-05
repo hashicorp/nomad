@@ -889,7 +889,15 @@ func Test_computeCanaryNodes(t *testing.T) {
 					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true}, TaskGroup: "bar"},
 				},
 			},
-			terminalAllocs: nil,
+			terminalAllocs: structs.TerminalByNodeByName{
+				fiveEligibleNodeNames[2]: map[string]*structs.Allocation{
+					"foo": {
+						DeploymentStatus: &structs.AllocDeploymentStatus{
+							Canary: true,
+						},
+					},
+				},
+			},
 			required: map[string]*structs.TaskGroup{
 				"foo": {
 					Name: "foo",
@@ -914,6 +922,7 @@ func Test_computeCanaryNodes(t *testing.T) {
 			expectedCanaryNodeID: map[string]string{
 				fiveEligibleNodeNames[0]: "foo",
 				fiveEligibleNodeNames[1]: "bar",
+				fiveEligibleNodeNames[2]: "foo",
 			},
 		},
 	}
