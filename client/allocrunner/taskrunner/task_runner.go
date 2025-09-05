@@ -1513,7 +1513,7 @@ func (tr *TaskRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
 	tr.envBuilder = tr.envBuilder.SetNetworkStatus(s)
 }
 
-// GetEnv builds the tasks environment variables. It is used for
+// GetTaskEnv builds the tasks environment variables. It is used for
 // testing purposes to expose the environment to other packages.
 func (tr *TaskRunner) GetTaskEnv() map[string]string {
 	return tr.envBuilder.Build().All()
