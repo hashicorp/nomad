@@ -493,7 +493,7 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 		return nil, nil
 	}
 
-	ports := make(map[uint64]struct{})
+	ports := []uint64{}
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		rangeParts := strings.Split(part, "-")
@@ -507,11 +507,13 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				if err != nil {
 					return nil, err
 				}
-
+				if port == 0 {
+					return nil, fmt.Errorf("port must be > 0")
+				}
 				if port > MaxValidPort {
 					return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
 				}
-				ports[port] = struct{}{}
+				ports = append(ports, port)
 			}
 		case 2:
 			// We are parsing a range
@@ -526,36 +528,25 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 			}
 
 			if end < start {
-				return nil, fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
+				return nil, fmt.Errorf("invalid range: ending value (%v) less than starting (%v) value", end, start)
 			}
 
 			// Full range validation is below but prevent creating
 			// arbitrarily large arrays here
+			if start == 0 {
+				return nil, fmt.Errorf("port must be > 0")
+			}
 			if end > MaxValidPort {
 				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
 			}
 
 			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
+				ports = append(ports, i)
 			}
 		default:
 			return nil, fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
 		}
 	}
 
-	var results []uint64
-	for port := range ports {
-		if port == 0 {
-			return nil, fmt.Errorf("port must be > 0")
-		}
-		if port > MaxValidPort {
-			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
-		}
-		results = append(results, port)
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i] < results[j]
-	})
-	return results, nil
+	return ports, nil
 }
