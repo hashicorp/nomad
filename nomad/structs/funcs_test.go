@@ -966,14 +966,16 @@ func TestVaultNamespaceSet(t *testing.T) {
 	require.ElementsMatch(t, expected, got)
 }
 
-// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
+// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges and
+// returns the expected values
 func TestParsePortRanges(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		name string
-		spec string
-		err  string
+		name   string
+		spec   string
+		expect []uint64
+		err    string
 	}{
 		{
 			name: "UnmatchedDash",
@@ -995,14 +997,39 @@ func TestParsePortRanges(t *testing.T) {
 			spec: "9223372036854775807", // (2**63)-1
 			err:  "port must be < 65536 but found 9223372036854775807",
 		},
+		{
+			name:   "OverlappingRanges",
+			spec:   "1-3,2-4",
+			expect: []uint64{1, 2, 3, 2, 3, 4}, // we don't care about dupes
+		},
+		{
+			name: "ReversedRange",
+			spec: "3-1",
+			err:  "invalid range: ending value (1) less than starting (3) value",
+		},
+		{
+			name: "ZeroRange",
+			spec: "0-1",
+			err:  "port must be > 0",
+		},
+		{
+			name:   "OverlappingOutOfOrderRanges",
+			spec:   "2-4,1-3",
+			expect: []uint64{2, 3, 4, 1, 2, 3}, // we don't care about dupes
+		},
 	}
 
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ParsePortRanges(tc.spec)
-			require.Nil(t, results)
-			require.EqualError(t, err, tc.err)
+			if tc.err == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expect, results)
+			} else {
+				must.Nil(t, results)
+				must.EqError(t, err, tc.err)
+			}
 		})
 	}
 }
