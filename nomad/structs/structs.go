@@ -5322,6 +5322,9 @@ var (
 type UpdateStrategy struct {
 	// Stagger is used to determine the rate at which allocations are migrated
 	// due to down or draining nodes.
+	//
+	// Deprecated: as of Nomad 1.11, this field is equivalent to MinHealthyTime
+	// and will be removed in future releases.
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel

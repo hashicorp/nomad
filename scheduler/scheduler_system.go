@@ -49,6 +49,8 @@ type SystemScheduler struct {
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
+	deployment *structs.Deployment
+
 	limitReached bool
 	nextEval     *structs.Evaluation
 
@@ -100,7 +102,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc,
-			s.queuedAllocs, "")
+			s.queuedAllocs, s.deployment.GetID())
 	}
 
 	limit := maxSystemScheduleAttempts
@@ -114,7 +116,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs, "")
+				s.queuedAllocs, s.deployment.GetID())
 		}
 		return err
 	}
@@ -122,7 +124,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
 		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "",
-		s.queuedAllocs, "")
+		s.queuedAllocs, s.deployment.GetID())
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -149,6 +151,16 @@ func (s *SystemScheduler) process() (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
+	}
+
+	if !s.sysbatch {
+		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
+		}
+		// system deployments may be mutated in the reconciler because the node
+		// count can change between evaluations
+		s.deployment = s.deployment.Copy()
 	}
 
 	// Create a plan
@@ -181,7 +193,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	// If the limit of placements was reached we need to create an evaluation
 	// to pickup from here after the stagger period.
 	if s.limitReached && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.job.Update.Stagger)
+		s.nextEval = s.eval.NextRollingEval(s.job.Update.MinHealthyTime)
 		if err := s.planner.CreateEval(s.nextEval); err != nil {
 			s.logger.Error("failed to make next eval for rolling update", "error", err)
 			return false, err
@@ -265,10 +277,20 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	nr := reconciler.NewNodeReconciler(s.deployment)
+	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
+	}
+
+	// Add the deployment changes to the plan
+	s.plan.Deployment = nr.DeploymentCurrent
+	s.plan.DeploymentUpdates = nr.DeploymentUpdates
+
+	// Update the stored deployment
+	if nr.DeploymentCurrent != nil {
+		s.deployment = nr.DeploymentCurrent
 	}
 
 	// Add all the allocs to stop
@@ -309,14 +331,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
 	}
 
-	// Check if a rolling upgrade strategy is being used
-	limit := len(r.Update)
-	if !s.job.Stopped() && s.job.Update.Rolling() {
-		limit = s.job.Update.MaxParallel
-	}
-
-	// Treat non in-place updates as an eviction and new placement.
-	s.limitReached = evictAndPlace(s.ctx, r, r.Update, sstructs.StatusAllocUpdating, &limit)
+	// Treat non in-place updates as an eviction and new placement, which will
+	// be limited by max_parallel
+	s.limitReached = evictAndPlace(s.ctx, s.job, r, sstructs.StatusAllocUpdating)
 
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
@@ -374,6 +391,11 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 
 	// track node filtering, to only report an error if all nodes have been filtered
 	var filteredMetrics map[string]*structs.AllocMetric
+
+	var deploymentID string
+	if s.deployment != nil && s.deployment.Active() {
+		deploymentID = s.deployment.ID
+	}
 
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
@@ -492,6 +514,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
+			DeploymentID:       deploymentID,
 			TaskResources:      resources.OldTaskResources(),
 			AllocatedResources: resources,
 			DesiredStatus:      structs.AllocDesiredStatusRun,
@@ -508,6 +531,14 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 		// older allocation id so that they are chained
 		if missing.Alloc != nil {
 			alloc.PreviousAllocation = missing.Alloc.ID
+		}
+
+		// If we are placing a canary, add the canary to the deployment state
+		// object and mark it as a canary.
+		if missing.Canary && s.deployment != nil {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Canary: true,
+			}
 		}
 
 		// If this placement involves preemption, set DesiredState to evict for those allocations
@@ -579,19 +610,36 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies both the diffResult and the
-// limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx feasible.Context, diff *reconciler.NodeReconcileResult, allocs []reconciler.AllocTuple, desc string, limit *int) bool {
-	n := len(allocs)
-	for i := 0; i < n && i < *limit; i++ {
-		a := allocs[i]
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
-		diff.Place = append(diff.Place, a)
+// placement queue. evictAndPlace modifies the diffResult. It returns true if
+// the limit has been reached for any task group.
+func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.NodeReconcileResult, desc string) bool {
+
+	limits := map[string]int{} // per task group limits
+	if !job.Stopped() {
+		jobLimit := len(diff.Update)
+		if job.Update.MaxParallel > 0 {
+			jobLimit = job.Update.MaxParallel
+		}
+		for _, tg := range job.TaskGroups {
+			if tg.Update != nil && tg.Update.MaxParallel > 0 {
+				limits[tg.Name] = tg.Update.MaxParallel
+			} else {
+				limits[tg.Name] = jobLimit
+			}
+		}
 	}
-	if n <= *limit {
-		*limit -= n
-		return false
+
+	limited := false
+	for _, a := range diff.Update {
+		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
+			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+			diff.Place = append(diff.Place, a)
+			if !a.Canary {
+				limits[a.Alloc.TaskGroup]--
+			}
+		} else {
+			limited = true
+		}
 	}
-	*limit = 0
-	return true
+	return limited
 }

@@ -39,18 +39,16 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		// NodeReconcileResults doesn't split results by task group, so split
 		// them up so we can check them separately
 		recordResult := func(subresult []AllocTuple, label string) {
-			if subresult != nil {
-				for _, alloc := range subresult {
-					var tgName string
-					if alloc.TaskGroup != nil {
-						tgName = alloc.TaskGroup.Name
-					} else if alloc.Alloc != nil {
-						tgName = alloc.Alloc.TaskGroup
-					} else {
-						t.Fatal("one of task group or alloc must always be non-nil")
-					}
-					perTaskGroup[tgName][label]++
+			for _, alloc := range subresult {
+				var tgName string
+				if alloc.TaskGroup != nil {
+					tgName = alloc.TaskGroup.Name
+				} else if alloc.Alloc != nil {
+					tgName = alloc.Alloc.TaskGroup
+				} else {
+					t.Fatal("one of task group or alloc must always be non-nil")
 				}
+				perTaskGroup[tgName][label]++
 			}
 		}
 
@@ -101,8 +99,10 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("system jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
-			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
+		n := NewNodeReconciler(nr.deployment)
+		results := n.Compute(nr.job, nr.readyNodes,
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
@@ -111,8 +111,10 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 
 	t.Run("sysbatch jobs", rapid.MakeCheck(func(t *rapid.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
-		results := Node(nr.job, nr.readyNodes, nr.notReadyNodes,
-			nr.taintedNodes, nr.allocs, nr.terminal, nr.serverSupportsDisconnectedClients)
+		n := NewNodeReconciler(nr.deployment)
+		results := n.Compute(nr.job, nr.readyNodes,
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
@@ -128,6 +130,7 @@ type nodeReconcilerInput struct {
 	taintedNodes                      map[string]*structs.Node
 	allocs                            []*structs.Allocation
 	terminal                          structs.TerminalByNodeByName
+	deployment                        *structs.Deployment
 	serverSupportsDisconnectedClients bool
 }
 
@@ -190,12 +193,15 @@ func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeR
 			}
 		}
 
+		deployment := genDeployment(idg, job, live).Draw(t, "deployment")
+
 		return &nodeReconcilerInput{
 			job:                               job,
 			readyNodes:                        readyNodes,
 			notReadyNodes:                     notReadyNodes,
 			taintedNodes:                      taintedNodes,
 			allocs:                            live,
+			deployment:                        deployment,
 			serverSupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected"),
 		}
 	})
