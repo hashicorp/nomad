@@ -20,6 +20,7 @@ const (
 	localsLabel    = "locals"
 	vaultLabel     = "vault"
 	taskLabel      = "task"
+	secretLabel    = "secret"
 
 	inputVariablesAccessor = "var"
 	localsAccessor         = "local"
@@ -31,8 +32,9 @@ type jobConfig struct {
 
 	ParseConfig *ParseConfig
 
-	Vault *api.Vault  `hcl:"vault,block"`
-	Tasks []*api.Task `hcl:"task,block"`
+	Vault   *api.Vault    `hcl:"vault,block"`
+	Secrets []*api.Secret `hcl:"secret,block"`
+	Tasks   []*api.Task   `hcl:"task,block"`
 
 	InputVariables Variables
 	LocalVariables Variables
@@ -174,6 +176,13 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 				t.Name = b.Labels[0]
 				c.Tasks = append(c.Tasks, t)
 			}
+		} else if b.Type == secretLabel {
+			t := &api.Secret{}
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
+			if len(b.Labels) == 1 {
+				t.Name = b.Labels[0]
+				c.Secrets = append(c.Secrets, t)
+			}
 		}
 	}
 
@@ -277,6 +286,7 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 		extra, remain, mdiags := body.PartialContent(&hcl.BodySchema{
 			Blocks: []hcl.BlockHeaderSchema{
 				{Type: "vault"},
+				{Type: "secret", LabelNames: []string{"name"}},
 				{Type: "task", LabelNames: []string{"name"}},
 			},
 		})

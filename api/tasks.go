@@ -786,6 +786,7 @@ type Task struct {
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
+	Secrets         []*Secret              `hcl:"secret,block"`
 
 	// Identity is the default Nomad Workload Identity and will be added to
 	// Identities with the name "default"
@@ -824,6 +825,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()
+	}
+	for _, s := range t.Secrets {
+		s.Canonicalize()
 	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
@@ -1039,6 +1043,24 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.AllowTokenExpiration == nil {
 		v.AllowTokenExpiration = pointerOf(false)
+	}
+}
+
+type Secret struct {
+	Name     string            `hcl:"name,label"`
+	Provider string            `hcl:"provider,optional"`
+	Path     string            `hcl:"path,optional"`
+	Config   map[string]any    `hcl:"config,block"`
+	Env      map[string]string `hcl:"env,block"`
+}
+
+func (s *Secret) Canonicalize() {
+	if len(s.Config) == 0 {
+		s.Config = nil
+	}
+
+	if len(s.Env) == 0 {
+		s.Env = nil
 	}
 }
 

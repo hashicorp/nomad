@@ -230,6 +230,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if !at.Vault.Equal(bt.Vault) {
 			return difference("task vault", at.Vault, bt.Vault)
 		}
+		if !slices.EqualFunc(at.Secrets, bt.Secrets, func(a, b *structs.Secret) bool { return a.Equal(b) }) {
+			return difference("task secrets", at.Secrets, bt.Secrets)
+		}
 		if c := consulUpdated(at.Consul, bt.Consul); c.modified {
 			return c
 		}

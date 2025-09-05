@@ -270,7 +270,8 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 	diags = append(diags, moreDiags...)
 
 	tgExtra := struct {
-		Vault *api.Vault `hcl:"vault,block"`
+		Vault   *api.Vault    `hcl:"vault,block"`
+		Secrets []*api.Secret `hcl:"secret,block"`
 	}{}
 
 	extra, _ := gohcl.ImpliedBodySchema(tgExtra)
@@ -286,6 +287,14 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
 			tgExtra.Vault = v
 		}
+		if b.Type == "secret" {
+			v := &api.Secret{}
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
+			if len(b.Labels) == 1 {
+				v.Name = b.Labels[0]
+			}
+			tgExtra.Secrets = append(tgExtra.Secrets, v)
+		}
 	}
 
 	d := newHCLDecoder()
@@ -300,6 +309,16 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 		for _, t := range tg.Tasks {
 			if t.Vault == nil {
 				t.Vault = tgExtra.Vault
+			}
+		}
+	}
+
+	if len(tgExtra.Secrets) > 0 {
+		for _, t := range tg.Tasks {
+			if len(t.Secrets) == 0 {
+				t.Secrets = tgExtra.Secrets
+			} else {
+				t.Secrets = append(t.Secrets, t.Secrets...)
 			}
 		}
 	}

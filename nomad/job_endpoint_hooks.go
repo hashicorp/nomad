@@ -279,6 +279,8 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	taskScheduleTaskGroups := j.RequiredScheduleTask()
 
+	secretBlocks := j.Secrets()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
@@ -286,7 +288,8 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
 		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
 		transparentProxyTaskGroups.Empty() &&
-		taskScheduleTaskGroups.Empty() {
+		taskScheduleTaskGroups.Empty() &&
+		len(secretBlocks) == 0 {
 		return j, nil, nil
 	}
 
@@ -300,6 +303,12 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]
 			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
+		}
+
+		for _, secretProviders := range secretBlocks {
+			for _, provider := range secretProviders {
+				mutateConstraint(constraintMatcherLeft, tg, secretsConstraintFn(provider))
+			}
 		}
 
 		// If the task group utilizes NUMA resources, run the mutator.
@@ -380,6 +389,17 @@ func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 		}
 	}
 	return vaultConstraint
+}
+
+// secretsConstraintFn returns a constraint that checks for the existence of a
+// fingerprinted secrets plugin. This is to support upgrades to 1.11 where a nomad
+// server follower may not be upgraded yet and attempt to place a job on a client
+// that has not been upgraded. This should be removed in Nomad 1.14.
+func secretsConstraintFn(provider string) *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: fmt.Sprintf("${attr.plugins.secrets.%s.version}", provider),
+		Operand: structs.ConstraintAttributeIsSet,
+	}
 }
 
 // consulConstraintFn returns a service discovery constraint that matches the

@@ -18,6 +18,7 @@ import (
 
 	ctconf "github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/consul-template/manager"
+	"github.com/hashicorp/consul-template/renderer"
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/go-hclog"
@@ -132,6 +133,11 @@ type TaskTemplateManagerConfig struct {
 	TaskID string
 
 	Logger hclog.Logger
+
+	// RenderFunc allows custom rendering of templated data, and overrides the
+	// Nomad custom RenderFunc used for sandboxing. This is currently used by
+	// the secrets block to hold all templated data in memory.
+	RenderFunc renderer.Renderer
 }
 
 // Validate validates the configuration.
@@ -980,7 +986,11 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	sandboxEnabled := isSandboxEnabled(config)
 	sandboxDir := filepath.Dir(config.TaskDir) // alloc working directory
 	conf.ReaderFunc = ReaderFn(config.TaskID, sandboxDir, sandboxEnabled)
-	conf.RendererFunc = RenderFn(config.TaskID, sandboxDir, sandboxEnabled)
+	if config.RenderFunc != nil {
+		conf.RendererFunc = config.RenderFunc
+	} else {
+		conf.RendererFunc = RenderFn(config.TaskID, sandboxDir, sandboxEnabled)
+	}
 	conf.Finalize()
 	return conf, nil
 }

@@ -220,6 +220,36 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	must.Eq(t, zero, node.Node)
 }
 
+func TestServiceStack_Select_Secrets(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Attributes["plugins.secrets.foo.version"] = "0.0.1"
+	must.NoError(t, zero.ComputeClass())
+
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Secrets = []*structs.Secret{
+		{
+			Provider: "foo",
+		},
+	}
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
+
+	must.Eq(t, zero, node.Node)
+}
+
 func TestServiceStack_Select_HostVolume(t *testing.T) {
 	ci.Parallel(t)
 
@@ -562,6 +592,44 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	must.Eq(t, zero, node.Node)
 
 	zero.Attributes["driver.foo"] = "0"
+	must.NoError(t, zero.ComputeClass())
+
+	stack = NewSystemStack(false, ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+	node = stack.Select(job.TaskGroups[0], selectOptions)
+	must.Nil(t, node)
+}
+
+func TestSystemStack_Select_Secrets(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+	zero := nodes[0]
+	zero.Attributes["plugins.secrets.foo.version"] = "0.0.1"
+	must.NoError(t, zero.ComputeClass())
+
+	stack := NewSystemStack(false, ctx)
+	stack.SetNodes(nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Secrets = []*structs.Secret{
+		{
+			Provider: "foo",
+		},
+	}
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
+	must.Eq(t, zero, node.Node)
+
+	delete(zero.Attributes, "plugins.secrets.foo.version")
 	must.NoError(t, zero.ComputeClass())
 
 	stack = NewSystemStack(false, ctx)

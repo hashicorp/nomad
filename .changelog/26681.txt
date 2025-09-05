@@ -1,0 +1,3 @@
+```release-note:feature
+secrets: Adds secret block for fetching and interpolating secrets in job spec
+```

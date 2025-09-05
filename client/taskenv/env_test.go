@@ -39,6 +39,9 @@ const (
 	envOneVal = "127.0.0.1"
 	envTwoKey = "NOMAD_PORT_WEB"
 	envTwoVal = ":80"
+
+	// Secrets populated from secrets hook
+	testSecret = "foo"
 )
 
 var (
@@ -65,7 +68,13 @@ func testEnvBuilder() *Builder {
 		envOneKey: envOneVal,
 		envTwoKey: envTwoVal,
 	}
-	return NewBuilder(n, mock.Alloc(), task, "global")
+
+	b := NewBuilder(n, mock.Alloc(), task, "global")
+	b.taskSecrets = map[string]string{
+		testSecret: testSecret,
+	}
+
+	return b
 }
 
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
@@ -145,13 +154,13 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 	ci.Parallel(t)
 
-	input := fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey)
-	exp := fmt.Sprintf("%v%v", nodeName, attrVal)
+	input := fmt.Sprintf("${%v}${%v%v}${%v}", nodeNameKey, nodeAttributePrefix, attrKey, testSecret)
+	exp := fmt.Sprintf("%v%v%v", nodeName, attrVal, testSecret)
 	env := testEnvBuilder()
 	act := env.Build().ReplaceEnv(input)
 
 	if act != exp {
-		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
+		t.Fatalf("ReplaceEnv(%v) returned %#v; want %#v", input, act, exp)
 	}
 }
 
@@ -364,6 +373,10 @@ func TestEnvironment_AllValues(t *testing.T) {
 	}
 	env.mu.Unlock()
 
+	env.taskSecrets = map[string]string{
+		"secret.testsecret.test": "foo",
+	}
+
 	values, errs, err := env.Build().AllValues()
 	require.NoError(t, err)
 
@@ -396,6 +409,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"node.attr.driver.mock_driver": "1",
 		"node.attr.kernel.name":        "linux",
 		"node.attr.nomad.version":      "0.5.0",
+
+		// Task Secrets for interpreting task config
+		`secret.testsecret.test`: "foo",
 
 		// Env
 		"taskEnvKey":                                "taskEnvVal",

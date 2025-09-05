@@ -35,6 +35,7 @@ const (
 	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
 	FilterConstraintDrivers                        = "missing drivers"
 	FilterConstraintDevices                        = "missing devices"
+	FilterConstraintSecrets                        = "missing secrets provider"
 	FilterConstraintsCSIPluginTopology             = "did not meet topology requirement"
 )
 
@@ -159,6 +160,48 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
+}
+
+type SecretsProviderChecker struct {
+	ctx     Context
+	secrets map[string]struct{}
+}
+
+func NewSecretsProviderChecker(ctx Context, secrets map[string]struct{}) *SecretsProviderChecker {
+	return &SecretsProviderChecker{
+		ctx:     ctx,
+		secrets: secrets,
+	}
+}
+
+func (s *SecretsProviderChecker) SetSecrets(secrets map[string]struct{}) {
+	s.secrets = secrets
+
+}
+
+func (s *SecretsProviderChecker) Feasible(option *structs.Node) bool {
+	// Use this node if possible
+	if s.hasSecrets(option) {
+		return true
+	}
+	s.ctx.Metrics().FilterNode(option, FilterConstraintSecrets)
+	return false
+}
+
+// hasSecrets is used to check if the node has all the appropriate
+// secrets provider for this task group. Secrets providers are registered
+// as node attributes "secrets.plugin.*.version".
+func (s *SecretsProviderChecker) hasSecrets(option *structs.Node) bool {
+	for secret := range s.secrets {
+		secretStr := fmt.Sprintf("plugins.secrets.%s.version", secret)
+
+		_, ok := option.Attributes[secretStr]
+		if !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
