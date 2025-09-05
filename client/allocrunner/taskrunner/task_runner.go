@@ -1513,6 +1513,12 @@ func (tr *TaskRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
 	tr.envBuilder = tr.envBuilder.SetNetworkStatus(s)
 }
 
+// GetEnv builds the tasks environment variables. It is used for
+// testing purposes to expose the environment to other packages.
+func (tr *TaskRunner) GetTaskEnv() map[string]string {
+	return tr.envBuilder.Build().All()
+}
+
 // triggerUpdate if there isn't already an update pending. Should be called
 // instead of calling updateHooks directly to serialize runs of update hooks.
 // TaskRunner state should be updated prior to triggering update hooks.
