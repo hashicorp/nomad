@@ -62,6 +62,16 @@ func RequireLinux(t *testing.T) {
 	}
 }
 
+// RequireCILinux skips tests unless:
+// - running on Linux
+// - running on GHA
+func RequireCILinux(t *testing.T) {
+	u, _ := user.Current()
+	if runtime.GOOS != "linux" || u.Username != "runner" {
+		t.Skip("Test requires Linux and Github CI runner")
+	}
+}
+
 // RequireNotWindows skips tests whenever:
 // - running on Windows
 func RequireNotWindows(t *testing.T) {
