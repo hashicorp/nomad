@@ -47,7 +47,7 @@ require (
 	github.com/hashicorp/consul-template v0.41.1
 	github.com/hashicorp/consul/api v1.32.1
 	github.com/hashicorp/consul/sdk v0.16.2
-	github.com/hashicorp/cronexpr v1.1.2
+	github.com/hashicorp/cronexpr v1.1.3
 	github.com/hashicorp/go-bexpr v0.1.14
 	github.com/hashicorp/go-checkpoint v0.5.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
