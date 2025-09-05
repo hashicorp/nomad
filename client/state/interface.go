@@ -144,6 +144,9 @@ type StateDB interface {
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
 	Close() error
+
+	PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error
+	GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error)
 }
 
 // WriteOptions adjusts the way the data is persisted by the StateDB above. Default is
