@@ -110,8 +110,8 @@ job "docs" {
   [Docker][] images specify their own default users. Clients can restrict
   [which drivers][user_drivers] are allowed to run tasks as [certain
   users][user_denylist]. On UNIX-like systems, setting `user` also affects
-  the environment variables `HOME` and `USER` available to the task.  On
-  Windows, when Nomad is running as a [system service][service] for the
+  the environment variables `HOME`, `USER`, and `LOGNAME` available to the task.
+  On Windows, when Nomad is running as a [system service][service] for the
   [`raw_exec`][raw_exec] driver, you may specify a less-privileged service user.
   For example, `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`.
 

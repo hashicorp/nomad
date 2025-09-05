@@ -237,6 +237,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 			return nil, err
 		}
 		process.Env = append(process.Env, fmt.Sprintf("USER=%s", u.Username))
+		process.Env = append(process.Env, fmt.Sprintf("LOGNAME=%s", u.Username))
 		process.Env = append(process.Env, fmt.Sprintf("HOME=%s", u.HomeDir))
 	}
 
