@@ -895,6 +895,7 @@ func Test_computeCanaryNodes(t *testing.T) {
 						DeploymentStatus: &structs.AllocDeploymentStatus{
 							Canary: true,
 						},
+						TaskGroup: "foo",
 					},
 				},
 			},
@@ -924,6 +925,26 @@ func Test_computeCanaryNodes(t *testing.T) {
 				fiveEligibleNodeNames[1]: "bar",
 				fiveEligibleNodeNames[2]: "foo",
 			},
+		},
+		{
+			name:           "task group with 100% canary deploy, 1 eligible node",
+			nodes:          map[string]*structs.Node{"foo": mock.Node()},
+			liveAllocs:     nil,
+			terminalAllocs: nil,
+			required: map[string]*structs.TaskGroup{
+				"foo": {
+					Name: "foo",
+					Update: &structs.UpdateStrategy{
+						Canary:      100,
+						MaxParallel: 1,
+					},
+				},
+			},
+			existingDeployment: nil,
+			expectedCanaryNodes: map[string]int{
+				"foo": 1,
+			},
+			expectedCanaryNodeID: nil,
 		},
 	}
 
