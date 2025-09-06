@@ -1330,6 +1330,47 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
 }
 
+func TestAllocRunner_Restore_TaskNetworkStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+
+	// add a port for the allocation which is needed to mock a cni port
+	testPM := structs.AllocatedPortMapping{
+		Label:           "test",
+		Value:           1,
+		To:              2,
+		HostIP:          "127.0.0.1",
+		IgnoreCollision: false,
+	}
+	alloc.AllocatedResources.Shared.Ports = []structs.AllocatedPortMapping{testPM}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Use a memory backed statedb
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	testNS := &structs.AllocNetworkStatus{
+		InterfaceName: "test-interface",
+		Address:       "192.168.1.1",
+	}
+	conf.StateDB.PutNetworkStatus(alloc.ID, testNS)
+
+	ar.Restore()
+
+	taskEnv := ar.(*allocRunner).tasks["web"].GetTaskEnv()
+
+	expAddr := fmt.Sprintf("%s:%d", testNS.Address, testPM.To)
+	// Assert all networking related environment variables have been set after a restore
+	must.Eq(t, taskEnv["NOMAD_ALLOC_ADDR_"+testPM.Label], expAddr)
+	must.Eq(t, taskEnv["NOMAD_ALLOC_INTERFACE_"+testPM.Label], testNS.InterfaceName)
+	must.Eq(t, taskEnv["NOMAD_ALLOC_IP_"+testPM.Label], testNS.Address)
+}
+
 func TestAllocRunner_Update_Semantics(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
