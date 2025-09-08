@@ -1,7 +1,0 @@
-```release-note:security
-build: Update Go to 1.24.7 to address CVE-2025-47910
-```
-
-```release-note:security
-build: Update go-getter to 1.8.0 which uses aws-sdk-go (v2)
-```
