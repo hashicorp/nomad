@@ -3774,11 +3774,6 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
-// ParseReservedHostPorts returns the reserved host ports.
-func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
-	return ParsePortRanges(n.ReservedHostPorts)
-}
-
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
