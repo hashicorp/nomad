@@ -20,6 +20,16 @@ In Nomad 1.11.0, submitting a sysbatch job with a `reschedule` block returns
 an error instead of being silently ignored, as it was in previous versions. The
 same behavior applies to system jobs.
 
+#### Eval broker metrics for dispatch and periodic jobs
+
+The leader records metrics for the eval broker. In Nomad 1.11.0 the `job` label
+on the `nomad.nomad.broker.wait_time`, `nomad.nomad.broker.process_time`,
+`nomad.nomad.broker.response_time`, and `nomad.nomad.broker.eval_waiting`
+metrics refers to the parent job ID for dispatch and periodic jobs. The
+`nomad.nomad.broker.eval_waiting` no longer has an `eval_id` label. For clusters
+running high volume dispatch workloads, this change significantly reduces
+metrics cardinality and memory usage on the leader.
+
 ## Nomad 1.10.2
 
 #### Clients respect `telemetry.publish_allocation_metrics`

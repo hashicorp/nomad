@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1024,8 +1026,7 @@ func TestParsePortRanges(t *testing.T) {
 		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ParsePortRanges(tc.spec)
 			if tc.err == "" {
@@ -1036,5 +1037,35 @@ func TestParsePortRanges(t *testing.T) {
 				must.EqError(t, err, tc.err)
 			}
 		})
+	}
+}
+
+func TestParentIDFromJobID(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		jobID  string
+		expect string
+	}{
+		{
+			jobID:  DispatchedID("example", "", time.Now()),
+			expect: "example",
+		},
+		{
+			jobID: fmt.Sprintf(
+				"example/whatever%s%d", PeriodicLaunchSuffix, time.Now().Unix()),
+			expect: "example/whatever",
+		},
+		{
+			jobID:  "example/whatever",
+			expect: "example/whatever",
+		},
+		{
+			jobID:  "example",
+			expect: "example",
+		},
+	}
+	for _, tc := range cases {
+		test.Eq(t, tc.expect, ParentIDFromJobID(tc.jobID))
 	}
 }

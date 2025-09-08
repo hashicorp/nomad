@@ -1,0 +1,7 @@
+```release-note:breaking-change
+metrics: Eval broker metrics that previously used the job ID as a label will now use the parent ID of dispatch and periodic jobs
+```
+
+```release-note:improvement
+metrics: Reduce memory usage on the Nomad leader for collecting eval broker metrics.
+```
