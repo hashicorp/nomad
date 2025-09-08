@@ -1246,6 +1246,9 @@ type ClusterMetadata struct {
 
 // VaultAccessor is a reference to a created Vault token on behalf of
 // an allocation's task.
+//
+// DEPRECATED (1.10.0): this object exists only to allow decoding any accessors
+// still left in state so they can be discarded during FSM restore
 type VaultAccessor struct {
 	AllocID     string
 	Task        string

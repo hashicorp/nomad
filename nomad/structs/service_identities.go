@@ -5,6 +5,9 @@ package structs
 
 // An SITokenAccessor is a reference to a created Consul Service Identity token on
 // behalf of an allocation's task.
+//
+// DEPRECATED (1.10.0): this object exists only to allow decoding any accessors
+// still left in state so they can be discarded during FSM restore
 type SITokenAccessor struct {
 	ConsulNamespace string
 	NodeID          string

@@ -84,7 +84,6 @@ func init() {
 		periodicLaunchTableSchema,
 		evalTableSchema,
 		allocTableSchema,
-		vaultAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
 		oneTimeTokenTableSchema,
@@ -828,44 +827,6 @@ func allocTableSchema() *memdb.TableSchema {
 							},
 						},
 					},
-				},
-			},
-		},
-	}
-}
-
-// vaultAccessorTableSchema returns the MemDB schema for the Vault Accessor
-// Table. This table tracks Vault accessors for tokens created on behalf of
-// allocations required Vault tokens.
-func vaultAccessorTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "vault_accessors",
-		Indexes: map[string]*memdb.IndexSchema{
-			// The primary index is the accessor id
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Accessor",
-				},
-			},
-
-			"alloc_id": {
-				Name:         "alloc_id",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "AllocID",
-				},
-			},
-
-			indexNodeID: {
-				Name:         indexNodeID,
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "NodeID",
 				},
 			},
 		},
