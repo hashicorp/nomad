@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -485,7 +486,10 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 // port ranges. A port number is a single integer and a port range is two
 // integers separated by a hyphen. As an example the following spec would
 // convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+// This function may return duplicates or overlapping ranges, so we limit the
+// maximum number of ports returned to MaxValidPort.
 func ParsePortRanges(spec string) ([]uint64, error) {
+	count := 0
 	parts := strings.Split(spec, ",")
 
 	// Hot path the empty case
@@ -513,6 +517,10 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				if port > MaxValidPort {
 					return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
 				}
+				count++
+				if count > MaxValidPort {
+					return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+				}
 				ports = append(ports, port)
 			}
 		case 2:
@@ -539,7 +547,11 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 			if end > MaxValidPort {
 				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
 			}
-
+			count += int(end - start)
+			if count > MaxValidPort {
+				return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+			}
+			ports = slices.Grow(ports, int(end-start))
 			for i := start; i <= end; i++ {
 				ports = append(ports, i)
 			}

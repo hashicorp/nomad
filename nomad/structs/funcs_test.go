@@ -1017,6 +1017,11 @@ func TestParsePortRanges(t *testing.T) {
 			spec:   "2-4,1-3",
 			expect: []uint64{2, 3, 4, 1, 2, 3}, // we don't care about dupes
 		},
+		{
+			name: "HugeRange",
+			spec: "1-65536,1-65536",
+			err:  "maximum of 65536 ports can be reserved",
+		},
 	}
 
 	for i := range cases {
