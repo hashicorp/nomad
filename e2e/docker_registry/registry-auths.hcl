@@ -47,6 +47,10 @@ job "registry-auths" {
 
   group "create-files" {
 
+    restart {
+      delay = "2s"
+    }
+
     # write out the test.sh file into var.helper_dir
     task "create-helper-file" {
       driver = "pledge"
