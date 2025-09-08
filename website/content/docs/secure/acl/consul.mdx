@@ -276,9 +276,30 @@ Consul Enterprise supports multiple namespaces and Nomad Enterprise allows jobs
 to use the [`consul.namespace`][] parameter to register services and read KV
 data from different Consul namespaces.
 
-In a multi-namespace environment, you should create the auth method and binding
-rules in the `default` namespace and configure the auth method with a set of
-[`NamespaceRules`][].
+In a multi-namespace environment, you'll configure the auth method to include
+the `consul_namespace` claim mapping.
+
+<CodeBlockConfig highlight="6" filename="auth-method.json">
+
+```json
+{
+  "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": ["consul.io"],
+  "ClaimMappings": {
+    "consul_namespace": "consul_namespace",
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+```
+
+</CodeBlockConfig>
+
+You should create the auth method and binding rules in the `default` namespace
+and configure the auth method with a set of [`NamespaceRules`][].
 
 ```shell-session
 $ consul acl auth-method create \
