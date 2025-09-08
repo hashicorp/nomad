@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -485,7 +486,10 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 // port ranges. A port number is a single integer and a port range is two
 // integers separated by a hyphen. As an example the following spec would
 // convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+// This function may return duplicates or overlapping ranges, so we limit the
+// maximum number of ports returned to MaxValidPort.
 func ParsePortRanges(spec string) ([]uint64, error) {
+	count := 0
 	parts := strings.Split(spec, ",")
 
 	// Hot path the empty case
@@ -493,7 +497,7 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 		return nil, nil
 	}
 
-	ports := make(map[uint64]struct{})
+	ports := []uint64{}
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		rangeParts := strings.Split(part, "-")
@@ -507,11 +511,17 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				if err != nil {
 					return nil, err
 				}
-
+				if port == 0 {
+					return nil, fmt.Errorf("port must be > 0")
+				}
 				if port > MaxValidPort {
 					return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
 				}
-				ports[port] = struct{}{}
+				count++
+				if count > MaxValidPort {
+					return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+				}
+				ports = append(ports, port)
 			}
 		case 2:
 			// We are parsing a range
@@ -526,36 +536,29 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 			}
 
 			if end < start {
-				return nil, fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
+				return nil, fmt.Errorf("invalid range: ending value (%v) less than starting (%v) value", end, start)
 			}
 
 			// Full range validation is below but prevent creating
 			// arbitrarily large arrays here
+			if start == 0 {
+				return nil, fmt.Errorf("port must be > 0")
+			}
 			if end > MaxValidPort {
 				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
 			}
-
+			count += int(end - start)
+			if count > MaxValidPort {
+				return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+			}
+			ports = slices.Grow(ports, int(end-start))
 			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
+				ports = append(ports, i)
 			}
 		default:
 			return nil, fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
 		}
 	}
 
-	var results []uint64
-	for port := range ports {
-		if port == 0 {
-			return nil, fmt.Errorf("port must be > 0")
-		}
-		if port > MaxValidPort {
-			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
-		}
-		results = append(results, port)
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i] < results[j]
-	})
-	return results, nil
+	return ports, nil
 }
