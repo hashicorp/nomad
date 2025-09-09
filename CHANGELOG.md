@@ -1,3 +1,26 @@
+## 1.10.5 (September 09, 2025)
+
+SECURITY:
+
+* build: Update Go to 1.24.7 to address CVE-2025-47910 [[GH-26713](https://github.com/hashicorp/nomad/issues/26713)]
+* build: Update go-getter to 1.7.9 to address CVE-2025-8959. Nomad Client Agents with Landlock support are not impacted by this vulnerability. [[GH-26533](https://github.com/hashicorp/nomad/issues/26533)]
+* client: inspect artifacts for sandbox escape when landlock is unavailable [[GH-26608](https://github.com/hashicorp/nomad/issues/26608)]
+
+IMPROVEMENTS:
+
+* agent: Allow agent logging to the Windows Event Log [[GH-26441](https://github.com/hashicorp/nomad/issues/26441)]
+* cli: Add commands for installing and uninstalling Windows system service [[GH-26442](https://github.com/hashicorp/nomad/issues/26442)]
+* config: Validate the `keyring` configuration block label against supported values on agent startup [[GH-26673](https://github.com/hashicorp/nomad/issues/26673)]
+* scheduling: Improve performance of scheduling when checking reserved ports usage [[GH-26712](https://github.com/hashicorp/nomad/issues/26712)]
+
+BUG FIXES:
+
+* csi: fix EOF error when registering volumes [[GH-26642](https://github.com/hashicorp/nomad/issues/26642)]
+* dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
+* exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
+* exec: Correctly set the `LOGNAME` env var when the job specification user value is set [[GH-26703](https://github.com/hashicorp/nomad/issues/26703)]
+* logs: skip logging SIGPIPE [[GH-26582](https://github.com/hashicorp/nomad/issues/26582)]
+
 ## 1.10.4 (August 13, 2025)
 
 SECURITY:
