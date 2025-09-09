@@ -78,6 +78,11 @@ path "secret/metadata/*" {
   "token_policies": ["nomad-workloads"]
 }
 `
+
+	// VaultNamespaceHeaderName is the header set to specify which namespace
+	// the request is indented for. This is defined within Nomad, so we do not
+	// need to import the entire Vault SDK package.
+	VaultNamespaceHeaderName = "X-Vault-Namespace"
 )
 
 func renderVaultTemplate(tmplStr string, data any) ([]byte, error) {
@@ -285,7 +290,7 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	conf.Namespace = testNs
 	c, err := NewVaultClient(conf, logger)
 	must.NoError(t, err)
-	must.Eq(t, testNs, c.client.Headers().Get(structs.VaultNamespaceHeaderName))
+	must.Eq(t, testNs, c.client.Headers().Get(VaultNamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {
