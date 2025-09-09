@@ -537,6 +537,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, vDiff)
 	}
 
+	secDiffs := secretsDiffs(t.Secrets, other.Secrets, contextual)
+	if secDiffs != nil {
+		diff.Objects = append(diff.Objects, secDiffs...)
+	}
+
 	// Consul diff
 	consulDiff := primitiveObjectDiff(t.Consul, other.Consul, nil, "Consul", contextual)
 	if consulDiff != nil {
@@ -576,6 +581,61 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 	}
 
 	return diff, nil
+}
+
+func secretsDiff(old, new *Secret, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Secret"}
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Secret{}
+		diff.Type = DiffTypeAdded
+	} else if new == nil {
+		new = &Secret{}
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// Diff the primitive fields.
+	oldPrimitiveFlat := flatmap.Flatten(old, nil, false)
+	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+	return diff
+}
+
+// secretsDiffs diffs a set of secrets. The comparator for whether a secret
+// is new/edited/deleted is the secret Name field.
+func secretsDiffs(old, new []*Secret, contextual bool) []*ObjectDiff {
+	var diffs []*ObjectDiff
+
+	oldMap := map[string]*Secret{}
+	newMap := map[string]*Secret{}
+
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	for k, v := range oldMap {
+		if diff := secretsDiff(v, newMap[k], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+	for k, v := range newMap {
+		// diff any newly added secrets
+		if _, ok := oldMap[k]; !ok {
+			if diff := secretsDiff(nil, v, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+
+	return diffs
 }
 
 func actionDiff(old, new *Action, contextual bool) *ObjectDiff {

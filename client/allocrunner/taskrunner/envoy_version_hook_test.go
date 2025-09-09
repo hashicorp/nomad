@@ -26,7 +26,7 @@ var (
 	taskEnvDefault = taskenv.NewTaskEnv(nil, nil, nil, map[string]string{
 		"meta.connect.sidecar_image": envoy.ImageFormat,
 		"meta.connect.gateway_image": envoy.ImageFormat,
-	}, "", "")
+	}, nil, "", "")
 )
 
 func TestEnvoyVersionHook_semver(t *testing.T) {
@@ -147,7 +147,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 			"MY_ENVOY": "my/envoy",
 		}, map[string]string{
 			"MY_ENVOY": "my/envoy",
-		}, nil, nil, "", ""))
+		}, nil, nil, nil, "", ""))
 		must.Eq(t, "my/envoy", task.Config["image"])
 	})
 

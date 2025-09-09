@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -6457,6 +6458,186 @@ func TestVault_Canonicalize(t *testing.T) {
 	v.Canonicalize()
 	require.Equal(t, "SIGHUP", v.ChangeSignal)
 	require.Equal(t, VaultChangeModeRestart, v.ChangeMode)
+}
+
+func TestTask_Validate_Secret(t *testing.T) {
+	cases := []struct {
+		name   string
+		task   *Task
+		expErr bool
+	}{
+		{
+			name: "errors with vault provider and no vault block",
+			task: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "test",
+						Provider: "vault",
+					},
+				},
+			},
+			expErr: true,
+		},
+		{
+			name: "succeeds with vault provider and vault block",
+			task: &Task{
+				Vault: &Vault{},
+				Secrets: []*Secret{
+					{
+						Name:     "test",
+						Provider: "vault",
+					},
+				},
+			},
+			expErr: false,
+		},
+	}
+
+	vaultProviderErr := "has provider \"vault\" but no vault block"
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.task.Validate(JobTypeService, &TaskGroup{})
+
+			// Validate will return errors here, we just want to validate
+			// it contains the above vaultProviderErr or not
+			if tc.expErr {
+				must.ErrorContains(t, err, vaultProviderErr)
+			} else {
+				// no ErrorNotContains so use string matching
+				must.StrNotContains(t, err.Error(), vaultProviderErr)
+			}
+		})
+	}
+}
+
+func TestSecrets_Copy(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config: map[string]any{
+			"some-key": map[string]any{
+				"nested-key": "nested-value",
+			},
+		},
+	}
+	ns := s.Copy()
+
+	must.Eq(t, s.Name, ns.Name)
+	must.Eq(t, s.Provider, ns.Provider)
+	must.Eq(t, s.Path, ns.Path)
+	must.Eq(t, s.Config, ns.Config)
+
+	// make sure nested maps are copied correctly
+	s.Config["some-key"].(map[string]any)["nested-key"] = "new-value"
+
+	must.NotEq(t, s.Config, ns.Config)
+}
+
+func TestSecrets_Validate(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		name      string
+		secret    *Secret
+		expectErr error
+	}{
+		{
+			name: "valid secret",
+			secret: &Secret{
+				Name:     "testsecret",
+				Provider: "test-provier",
+				Path:     "test-path",
+			},
+			expectErr: nil,
+		},
+		{
+			name: "missing name",
+			secret: &Secret{
+				Path:     "test-path",
+				Provider: "test-provider",
+			},
+			expectErr: errors.New("secret name cannot be empty"),
+		},
+		{
+			name: "missing provider",
+			secret: &Secret{
+				Name: "testsecret",
+				Path: "test-path",
+			},
+			expectErr: errors.New("secret provider cannot be empty"),
+		},
+		{
+			name: "missing path",
+			secret: &Secret{
+				Name:     "testsecret",
+				Provider: "test-provier",
+			},
+			expectErr: errors.New("secret path cannot be empty"),
+		},
+		{
+			name: "nomad provider fails with env",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "nomad",
+				Path:     "test",
+				Env: map[string]string{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("nomad provider cannot use the env block"),
+		},
+		{
+			name: "vault provider fails with env",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "vault",
+				Path:     "test",
+				Env: map[string]string{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("vault provider cannot use the env block"),
+		},
+		{
+			name: "custom provider fails with config",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test",
+				Path:     "test",
+				Config: map[string]any{
+					"test": "test",
+				},
+			},
+			expectErr: errors.New("custom plugin provider test cannot use the config block"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.secret.Validate()
+			if tc.expectErr != nil {
+				must.ErrorContains(t, err, tc.expectErr.Error())
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+
+}
+
+func TestSecrets_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   make(map[string]any),
+	}
+
+	s.Canonicalize()
+
+	must.Nil(t, s.Config)
 }
 
 func TestParameterizedJobConfig_Validate(t *testing.T) {

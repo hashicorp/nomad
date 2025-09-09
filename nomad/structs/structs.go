@@ -219,11 +219,17 @@ const (
 	RateMetricRead  = "read"
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
+
+	// Vault secret provider used in task validation
+	SecretProviderVault = "vault"
 )
 
 var (
 	// validNamespaceName is used to validate a namespace name
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// validSecretName is used to validate a secret name
+	validSecretName = regexp.MustCompile("^[a-zA-Z0-9_]{1,128}$")
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -5091,6 +5097,33 @@ func (j *Job) Vault() map[string]map[string]*Vault {
 	return blocks
 }
 
+// Secrets returns the set of secrets per task group, per task
+func (j *Job) Secrets() map[string][]string {
+	blocks := make(map[string][]string, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		secrets := []string{}
+
+		for _, task := range tg.Tasks {
+			if len(task.Secrets) == 0 {
+				continue
+			}
+
+			for _, s := range task.Secrets {
+				if !slices.Contains(secrets, s.Provider) {
+					secrets = append(secrets, s.Provider)
+				}
+			}
+		}
+
+		if len(secrets) != 0 {
+			blocks[tg.Name] = secrets
+		}
+	}
+
+	return blocks
+}
+
 // ConnectTasks returns the set of Consul Connect enabled tasks defined on the
 // job that will require a Service Identity token in the case that Consul ACLs
 // are enabled. The TaskKind.Value is the name of the Consul service.
@@ -7787,6 +7820,9 @@ type Task struct {
 	// have access to.
 	Vault *Vault
 
+	// List of secrets for the task.
+	Secrets []*Secret
+
 	// Consul configuration specific to this task. If uset, falls back to the
 	// group's Consul field.
 	Consul *Consul
@@ -8283,6 +8319,23 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 
 		if err := wid.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
+		}
+	}
+
+	secrets := make(map[string]bool)
+	for _, s := range t.Secrets {
+		if _, ok := secrets[s.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate secret %q found", s.Name))
+		} else {
+			secrets[s.Name] = true
+		}
+
+		if s.Provider == SecretProviderVault && t.Vault == nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q has provider \"vault\" but no vault block", s.Name))
+		}
+
+		if err := s.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q is invalid: %w", s.Name, err))
 		}
 	}
 
@@ -10381,6 +10434,102 @@ func (v *Vault) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+type Secret struct {
+	Name     string
+	Provider string
+	Path     string
+	Config   map[string]any
+	Env      map[string]string
+}
+
+func (s *Secret) Equal(o *Secret) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+
+	switch {
+	case s.Name != o.Name:
+		return false
+	case s.Provider != o.Provider:
+		return false
+	case s.Path != o.Path:
+		return false
+	case !maps.Equal(s.Config, o.Config):
+		return false
+	case !maps.Equal(s.Env, o.Env):
+		return false
+	}
+
+	return true
+}
+
+func (s *Secret) Copy() *Secret {
+	if s == nil {
+		return nil
+	}
+
+	confCopy, err := copystructure.Copy(s.Config)
+	if err != nil {
+		// The default Copy() implementation should not return
+		// an error, so we should not reach this code path.
+		panic(err.Error())
+	}
+
+	return &Secret{
+		Name:     s.Name,
+		Provider: s.Provider,
+		Path:     s.Path,
+		Config:   confCopy.(map[string]any),
+		Env:      maps.Clone(s.Env),
+	}
+}
+
+func (s *Secret) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	if s.Name == "" {
+		_ = multierror.Append(&mErr, errors.New("secret name cannot be empty"))
+	}
+
+	if !validSecretName.MatchString(s.Name) {
+		_ = multierror.Append(&mErr, fmt.Errorf("secret name must match regex %s", validSecretName))
+	}
+
+	if s.Provider == "" {
+		_ = multierror.Append(&mErr, errors.New("secret provider cannot be empty"))
+	}
+
+	if s.Path == "" {
+		_ = multierror.Append(&mErr, errors.New("secret path cannot be empty"))
+	}
+
+	if s.Provider == "nomad" || s.Provider == "vault" {
+		if len(s.Env) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("%s provider cannot use the env block", s.Provider))
+		}
+	} else {
+		if len(s.Config) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("custom plugin provider %s cannot use the config block", s.Provider))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (s *Secret) Canonicalize() {
+	if s == nil {
+		return
+	}
+
+	if len(s.Config) == 0 {
+		s.Config = nil
+	}
 }
 
 const (

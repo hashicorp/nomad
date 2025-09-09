@@ -61,6 +61,7 @@ type GenericStack struct {
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
 	taskGroupNetwork     *NetworkChecker
+	taskGroupSecrets     *SecretsProviderChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -164,6 +165,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
+	s.taskGroupSecrets.SetSecrets(tgConstr.Secrets)
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -218,6 +220,7 @@ type SystemStack struct {
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
 	taskGroupNetwork     *NetworkChecker
+	taskGroupSecrets     *SecretsProviderChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -258,6 +261,9 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	// Filter on available client networks
 	s.taskGroupNetwork = NewNetworkChecker(ctx)
 
+	// Filter on task group secrets
+	s.taskGroupSecrets = NewSecretsProviderChecker(ctx, nil)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -268,6 +274,7 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 		s.taskGroupConstraint,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
+		s.taskGroupSecrets,
 	}
 	avail := []FeasibilityChecker{
 		s.taskGroupHostVolumes,
@@ -359,6 +366,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
+	s.taskGroupSecrets.SetSecrets(tgConstr.Secrets)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)
@@ -409,6 +417,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on available client networks
 	s.taskGroupNetwork = NewNetworkChecker(ctx)
 
+	// Filter on task group secrets
+	s.taskGroupSecrets = NewSecretsProviderChecker(ctx, nil)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -419,6 +430,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 		s.taskGroupConstraint,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
+		s.taskGroupSecrets,
 	}
 	avail := []FeasibilityChecker{
 		s.taskGroupHostVolumes,
@@ -480,12 +492,17 @@ func TaskGroupConstraints(tg *structs.TaskGroup) TgConstrainTuple {
 	c := TgConstrainTuple{
 		Constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
 		Drivers:     make(map[string]struct{}),
+		Secrets:     make(map[string]struct{}),
 	}
 
 	c.Constraints = append(c.Constraints, tg.Constraints...)
 	for _, task := range tg.Tasks {
 		c.Drivers[task.Driver] = struct{}{}
 		c.Constraints = append(c.Constraints, task.Constraints...)
+
+		for _, s := range task.Secrets {
+			c.Secrets[s.Provider] = struct{}{}
+		}
 	}
 
 	return c
@@ -498,4 +515,7 @@ type TgConstrainTuple struct {
 
 	// The set of required Drivers within the task group.
 	Drivers map[string]struct{}
+
+	// The secret providers being utilized by the task group
+	Secrets map[string]struct{}
 }
