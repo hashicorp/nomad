@@ -4,46 +4,41 @@
 package scheduler_system
 
 import (
+	"testing"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
-type SystemSchedTest struct {
-	framework.TC
-	jobIDs []string
+func TestSystemScheduler(t *testing.T) {
+	cluster3.Establish(t,
+		cluster3.Leader(),
+		cluster3.LinuxClients(3),
+	)
+
+	t.Run("testJobUpdateOnIneligibleNode", testJobUpdateOnIneligbleNode)
 }
 
-func init() {
-	framework.AddSuites(&framework.TestSuite{
-		Component:   "SystemScheduler",
-		CanRunLocal: true,
-		Cases: []framework.TestCase{
-			new(SystemSchedTest),
-		},
-	})
-}
+func testJobUpdateOnIneligbleNode(t *testing.T) {
+	job, cleanup := jobs3.Submit(t,
+		"./input/secrets.hcl",
+		jobs3.WaitComplete("group"),
+	)
+	t.Cleanup(cleanup)
 
-func (tc *SystemSchedTest) BeforeAll(f *framework.F) {
-	// Ensure cluster has leader before running tests
-	e2eutil.WaitForLeader(f.T(), tc.Nomad())
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 4)
-}
-
-func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
-	t := f.T()
-	nomadClient := tc.Nomad()
-
-	jobID := "system_deployment"
+	job.ID := "system_deployment"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scheduler_system/input/system_job0.nomad", jobID, "")
 
 	jobs := nomadClient.Jobs()
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
-	require.True(t, len(allocs) >= 3)
+	must.NoError(t, err)
+	must.True(t, len(allocs) >= 3)
 
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
 
@@ -54,12 +49,12 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	nodesAPI := tc.Nomad().Nodes()
 	disabledNodeID := allocs[0].NodeID
 	_, err = nodesAPI.ToggleEligibility(disabledNodeID, false, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Assert all jobs still running
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	allocForDisabledNode := make(map[string]*api.AllocationListStub)
@@ -82,8 +77,8 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 			delete(allocForDisabledNode, alloc.ID)
 		}
 	}
-	require.NotEmpty(t, allocForDisabledNode)
-	require.Len(t, allocForDisabledNode, 1)
+	must.MapNotEmpty(t, allocForDisabledNode)
+	must.MapLen(t, 1, allocForDisabledNode)
 
 	// Update job
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scheduler_system/input/system_job1.nomad", jobID, "")
@@ -91,7 +86,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	// Get updated allocations
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, false, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Wait for allocs to start
 	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocs)
@@ -99,40 +94,20 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 
 	// Get latest alloc status now that they are no longer pending
 	allocs, _, err = jobs.Allocations(jobID, false, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var foundPreviousAlloc bool
 	for _, dAlloc := range allocForDisabledNode {
 		for _, alloc := range allocs {
 			if alloc.ID == dAlloc.ID {
 				foundPreviousAlloc = true
-				require.Equal(t, uint64(0), alloc.JobVersion)
+				must.Eq(t, uint64(0), alloc.JobVersion)
 			} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
 				// Ensure allocs running on non disabled node are
 				// newer version
-				require.Equal(t, uint64(1), alloc.JobVersion)
+				must.Eq(t, uint64(1), alloc.JobVersion)
 			}
 		}
 	}
-	require.True(t, foundPreviousAlloc, "unable to find previous alloc for ineligible node")
-}
-
-func (tc *SystemSchedTest) AfterEach(f *framework.F) {
-	nomadClient := tc.Nomad()
-
-	// Mark all nodes eligible
-	nodesAPI := tc.Nomad().Nodes()
-	nodes, _, _ := nodesAPI.List(nil)
-	for _, node := range nodes {
-		nodesAPI.ToggleEligibility(node.ID, true, nil)
-	}
-
-	jobs := nomadClient.Jobs()
-	// Stop all jobs in test
-	for _, id := range tc.jobIDs {
-		jobs.Deregister(id, true, nil)
-	}
-	tc.jobIDs = []string{}
-	// Garbage collect
-	nomadClient.System().GarbageCollect()
+	must.True(t, foundPreviousAlloc, must.Sprint("unable to find previous alloc for ineligible node"))
 }
