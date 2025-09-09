@@ -39,7 +39,7 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		Labels: map[string]string{"abc": "123"},
 	}
 	isolationSetter := &mockNetworkIsolationSetter{t: t, expectedSpec: spec}
-	statusSetter := &mockNetworkStatusSetter{t: t, expectedStatus: nil}
+	statusSetter := &mockNetworkStatus{t: t, expectedStatus: mock.AllocNetworkStatus()}
 
 	callCounts := testutil.NewCallCounter()
 

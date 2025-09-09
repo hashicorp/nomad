@@ -28,18 +28,18 @@ func (m *mockNetworkIsolationSetter) SetNetworkIsolation(spec *drivers.NetworkIs
 	test.Eq(m.t, m.expectedSpec, spec)
 }
 
-type mockNetworkStatusSetter struct {
+type mockNetworkStatus struct {
 	t              *testing.T
 	expectedStatus *structs.AllocNetworkStatus
 	called         bool
 }
 
-func (m *mockNetworkStatusSetter) SetNetworkStatus(status *structs.AllocNetworkStatus) {
+func (m *mockNetworkStatus) SetNetworkStatus(status *structs.AllocNetworkStatus) {
 	m.called = true
 	test.Eq(m.t, m.expectedStatus, status)
 }
 
-func (m *mockNetworkStatusSetter) NetworkStatus() *structs.AllocNetworkStatus {
+func (m *mockNetworkStatus) NetworkStatus() *structs.AllocNetworkStatus {
 	m.called = true
 	return m.expectedStatus
 }
@@ -80,9 +80,9 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 		t:            t,
 		expectedSpec: spec,
 	}
-	statusSetter := &mockNetworkStatusSetter{
+	statusSetter := &mockNetworkStatus{
 		t:              t,
-		expectedStatus: nil,
+		expectedStatus: mock.AllocNetworkStatus(),
 	}
 
 	logger := testlog.HCLogger(t)
@@ -124,7 +124,7 @@ func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
 		t:            t,
 		expectedSpec: nil,
 	}
-	statusSetter := &mockNetworkStatusSetter{
+	statusSetter := &mockNetworkStatus{
 		t:              t,
 		expectedStatus: nil,
 	}
