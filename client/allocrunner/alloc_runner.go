@@ -487,11 +487,8 @@ func (ar *allocRunner) Restore() error {
 
 	ar.stateLock.Lock()
 	ar.state.DeploymentStatus = ds
+	ar.state.NetworkStatus = ns
 	ar.stateLock.Unlock()
-
-	// sets the network status in alloc state along with setting
-	// the status for each taskrunner
-	ar.SetNetworkStatus(ns)
 
 	states := make(map[string]*structs.TaskState)
 
