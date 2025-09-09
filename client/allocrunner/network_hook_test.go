@@ -41,7 +41,6 @@ func (m *mockNetworkStatusSetter) SetNetworkStatus(status *structs.AllocNetworkS
 
 func (m *mockNetworkStatusSetter) NetworkStatus() *structs.AllocNetworkStatus {
 	m.called = true
-	// test.Eq(m.t, m.expectedStatus, status)
 	return m.expectedStatus
 }
 
