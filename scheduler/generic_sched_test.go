@@ -153,8 +153,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		return job
 	}
 
-	t.Run("sticky ephemeral allocs in same node pool", func(t *testing.T) {
-
+	t.Run("sticky ephemeral allocs in same node pool does not change nodes", func(t *testing.T) {
 		h := tests.NewHarness(t)
 
 		// Create some nodes
@@ -166,7 +165,7 @@ func TestServiceSched_JobRegister_EphemeralDisk(t *testing.T) {
 		// create a job
 		job := createEphemeralJob(t, h, true, false)
 
-		// // Ensure the plan allocated
+		// Ensure the plan allocated
 		plan := h.Plans[0]
 		planned := make(map[string]*structs.Allocation)
 		for _, allocList := range plan.NodeAllocation {

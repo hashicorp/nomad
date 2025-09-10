@@ -862,12 +862,12 @@ func (s *GenericScheduler) findPreferredNode(place reconciler.PlacementResult) (
 		return nil, nil
 	}
 
-	// if node pool was updated, don't set the preferred node
+	// when a jobs nodepool or datacenter are updated, we should ignore setting a preferred node
+	// even if a task has ephemeral disk, as this would bypass the normal nodepool/datacenter node
+	// selection logic, which would result in the alloc being place incorrectly.
 	if prev.Job != nil && prev.Job.NodePool != s.job.NodePool {
 		return nil, nil
 	}
-
-	// if the datacenters field was updated, skip preferred node
 	if !slices.Equal(prev.Job.Datacenters, s.job.Datacenters) {
 		return nil, nil
 	}
