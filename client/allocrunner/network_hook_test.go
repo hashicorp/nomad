@@ -31,16 +31,16 @@ func (m *mockNetworkIsolationSetter) SetNetworkIsolation(spec *drivers.NetworkIs
 type mockNetworkStatus struct {
 	t              *testing.T
 	expectedStatus *structs.AllocNetworkStatus
-	called         bool
+	calls          int
 }
 
 func (m *mockNetworkStatus) SetNetworkStatus(status *structs.AllocNetworkStatus) {
-	m.called = true
+	m.calls++
 	test.Eq(m.t, m.expectedStatus, status)
 }
 
 func (m *mockNetworkStatus) NetworkStatus() *structs.AllocNetworkStatus {
-	m.called = true
+	m.calls++
 	return m.expectedStatus
 }
 
