@@ -1426,13 +1426,6 @@ func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
 		return true
 	}
 
-	// COMPAT(0.11): Remove in 0.11
-	// The node does not have the new resources object so it can not have any
-	// devices
-	if option.NodeResources == nil {
-		return false
-	}
-
 	// Check if the node has any devices
 	nodeDevs := option.NodeResources.Devices
 	if len(nodeDevs) == 0 {
@@ -1466,20 +1459,18 @@ OUTER:
 				continue
 			}
 
-			// First check we have enough instances of the device since this is
-			// cheaper than checking the constraints
-			if unused < desiredCount {
-				continue
-			}
-
 			// Check the constraints
 			if nodeDeviceMatches(c.ctx, d, req) {
-				// Consume the instances
-				available[d] -= desiredCount
+				for desiredCount > 0 && available[d] > 0 {
+					available[d] -= 1
+					desiredCount -= 1
+				}
 
-				// Move on to the next request
-				continue OUTER
+				if desiredCount == 0 {
+					continue OUTER
+				}
 			}
+
 		}
 
 		// We couldn't match the request for the device
