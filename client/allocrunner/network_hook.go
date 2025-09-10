@@ -177,7 +177,6 @@ CREATE:
 				return fmt.Errorf("network already configured but never saved to state")
 			}
 			status = stateStatus
-			return nil
 		}
 
 		// If the driver set the sandbox hostname label, then we will use that
