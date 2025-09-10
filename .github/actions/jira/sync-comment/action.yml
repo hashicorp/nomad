@@ -1,0 +1,22 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+name: jira-sync-comment
+description: Sync GitHub comment to JIRA issue
+inputs:
+  issue:
+    required: true
+    description: JIRA issue to sync comment
+  comment:
+    required: true
+    description: Comment to add to JIRA issue
+
+runs:
+  using: composite
+  steps:
+  - name: Sync comment to JIRA
+    shell: bash
+    run: ./.github/actions/jira/sync-comment/jira-sync-comment.bash
+    env:
+      ISSUE: ${{ inputs.issue }}
+      COMMENT: ${{ inputs.comment }}

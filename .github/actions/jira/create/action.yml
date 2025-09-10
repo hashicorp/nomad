@@ -1,0 +1,43 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+name: jira-create
+description: Create a JIRA issue
+inputs:
+  project:
+    required: true
+    description: JIRA project
+    default: NMD
+  issuetype:
+    required: true
+    description: Type of JIRA issue
+    default: "GH Issue"
+  summary:
+    required: true
+    description: Title of the issue
+  description:
+    required: false
+    description: Description of the issue
+  extraFields:
+    required: false
+    description: Extra fields to add to issue
+outputs:
+  issue:
+    description: JIRA issue ID of created issue
+    value: ${{ steps.create.outputs.issue }}
+  issue-key:
+    description: JIRA issue key of created issue
+    value: ${{ steps.create.outputs.issue-key }}
+runs:
+  using: composite
+  steps:
+  - name: Create JIRA issue
+    id: create
+    shell: bash
+    run: ./.github/actions/jira/create/jira-create.bash
+    env:
+      PROJECT: ${{ inputs.project }}
+      ISSUE_TYPE: ${{ inputs.issueType }}
+      SUMMARY: ${{ inputs.summary }}
+      DESCRIPTION: ${{ inputs.description }}
+      EXTRA_FIELDS: ${{ inputs.extraFields }}
