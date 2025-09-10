@@ -12,6 +12,15 @@ runs:
       with:
         run_install: false
 
+  # avoid missing pnpm cache directory causing fatal error in "Post Setup node"
+  # https://github.com/actions/setup-node/issues/1137#issuecomment-2508963254
+    - name: Ensure PNPM cache dir
+      run: |
+        pnpm_dir="$(pnpm store path --silent)"
+        echo "pnpm_dir: $pnpm_dir"
+        mkdir -pv "$pnpm_dir"
+      shell: bash
+
     - name: Setup node
       uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
       with:
