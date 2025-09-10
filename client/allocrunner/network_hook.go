@@ -174,7 +174,7 @@ CREATE:
 		if status == nil {
 			stateStatus := h.networkStatus.NetworkStatus()
 			if stateStatus == nil {
-				return fmt.Errorf("network already configured but never saved to state")
+				return errors.New("network already configured but not found in state")
 			}
 			status = stateStatus
 		}
