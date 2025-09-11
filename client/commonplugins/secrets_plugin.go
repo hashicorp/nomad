@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -51,6 +52,9 @@ type externalSecretsPlugin struct {
 // which will be used as environment variables for Fetch.
 func NewExternalSecretsPlugin(commonPluginDir string, name string, env map[string]string) (*externalSecretsPlugin, error) {
 	// validate plugin
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
 	executable := filepath.Join(commonPluginDir, SecretsPluginDir, name)
 	f, err := os.Stat(executable)
 	if err != nil {

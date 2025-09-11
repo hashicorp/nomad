@@ -53,6 +53,7 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 	// map of plugin names to fingerprinted versions
 	plugins := map[string]string{}
 	for name := range files {
+		name = strings.TrimSuffix(name, ".exe")
 		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginDir, name, nil)
 		if err != nil {
 			return err
