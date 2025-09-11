@@ -49,8 +49,9 @@ func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsol
 	}
 }
 
-type networkStatusSetter interface {
+type networkStatus interface {
 	SetNetworkStatus(*structs.AllocNetworkStatus)
+	NetworkStatus() *structs.AllocNetworkStatus
 }
 
 // networkHook is an alloc lifecycle hook that manages the network namespace
@@ -60,9 +61,9 @@ type networkHook struct {
 	// network is created
 	isolationSetter networkIsolationSetter
 
-	// statusSetter is a callback to the alloc runner to set the network status once
-	// network setup is complete
-	networkStatusSetter networkStatusSetter
+	// statusSetter is a callback to the alloc runner to get or set the network
+	// status once network setup is complete
+	networkStatus networkStatus
 
 	// manager is used when creating the network namespace. This defaults to
 	// bind mounting a network namespace descritor under /var/run/netns but
@@ -87,11 +88,11 @@ func newNetworkHook(logger hclog.Logger,
 	alloc *structs.Allocation,
 	netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator,
-	networkStatusSetter networkStatusSetter,
+	networkStatus networkStatus,
 ) *networkHook {
 	return &networkHook{
 		isolationSetter:     ns,
-		networkStatusSetter: networkStatusSetter,
+		networkStatus:       networkStatus,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
@@ -168,8 +169,14 @@ CREATE:
 
 			return fmt.Errorf("failed to configure networking for alloc: %v", err)
 		}
+		// A nil status indicates a netns already exists and is configured correctly.
+		// It should have been saved to the local state store.
 		if status == nil {
-			return nil // netns already existed and was correctly configured
+			stateStatus := h.networkStatus.NetworkStatus()
+			if stateStatus == nil {
+				return errors.New("network already configured but not found in state")
+			}
+			status = stateStatus
 		}
 
 		// If the driver set the sandbox hostname label, then we will use that
@@ -196,7 +203,8 @@ CREATE:
 			}
 		}
 
-		h.networkStatusSetter.SetNetworkStatus(status)
+		// Saves the network status state, and also propagates status to task runners.
+		h.networkStatus.SetNetworkStatus(status)
 	}
 	return nil
 }

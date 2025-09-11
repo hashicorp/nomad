@@ -39,7 +39,7 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		Labels: map[string]string{"abc": "123"},
 	}
 	isolationSetter := &mockNetworkIsolationSetter{t: t, expectedSpec: spec}
-	statusSetter := &mockNetworkStatusSetter{t: t, expectedStatus: nil}
+	statusSetter := &mockNetworkStatus{t: t, expectedStatus: mock.AllocNetworkStatus()}
 
 	callCounts := testutil.NewCallCounter()
 
@@ -84,6 +84,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		expectSetupCalls                 int
 		expectPostrunDestroyNetworkCalls int
 		expectPrerunError                string
+		expectGetStatusCalls             int
+		expectSetStatusCalls             int
 	}{
 		{
 			name:                             "good check",
@@ -92,6 +94,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			expectPrerunDestroyNetworkCalls:  0,
 			expectCheckCalls:                 1,
 			expectSetupCalls:                 0,
+			expectGetStatusCalls:             1,
+			expectSetStatusCalls:             1,
 			expectPostrunDestroyNetworkCalls: 1,
 		},
 		{
@@ -102,6 +106,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			expectPrerunDestroyNetworkCalls:  1,
 			expectCheckCalls:                 2,
 			expectSetupCalls:                 0,
+			expectGetStatusCalls:             1,
+			expectSetStatusCalls:             1,
 			expectPostrunDestroyNetworkCalls: 2,
 		},
 		{
@@ -116,6 +122,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			expectCheckCalls:                 2,
 			expectSetupCalls:                 0,
 			expectPostrunDestroyNetworkCalls: 2,
+			expectGetStatusCalls:             0,
+			expectSetStatusCalls:             0,
 			expectPrerunError:                "failed to configure networking for alloc: network namespace already exists but was misconfigured: whatever",
 		},
 		{
@@ -125,6 +133,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			expectPrerunDestroyNetworkCalls:  0,
 			expectCheckCalls:                 0,
 			expectSetupCalls:                 0,
+			expectGetStatusCalls:             1,
+			expectSetStatusCalls:             1,
 			expectPostrunDestroyNetworkCalls: 1,
 		},
 	}
@@ -135,6 +145,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			callCounts.Reset()
 			fakePlugin.counter.Reset()
 			fakePlugin.checkErrors = tc.checkErrs
+			statusSetter.getCalls = 0
+			statusSetter.setCalls = 0
 			configurator.nodeAttrs["plugins.cni.version.bridge"] = tc.cniVersion
 			hook := newNetworkHook(testlog.HCLogger(t), isolationSetter,
 				alloc, nm, configurator, statusSetter)
@@ -158,6 +170,8 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			test.Eq(t, tc.expectPostrunDestroyNetworkCalls,
 				callCounts.Get()["DestroyNetwork"], test.Sprint("DestroyNetwork calls after postrun"))
 
+			test.Eq(t, tc.expectGetStatusCalls, statusSetter.getCalls, test.Sprint("NetworkStatus Calls"))
+			test.Eq(t, tc.expectSetStatusCalls, statusSetter.setCalls, test.Sprint("SetNetworkStatus Calls"))
 		})
 	}
 }
