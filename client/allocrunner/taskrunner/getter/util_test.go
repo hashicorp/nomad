@@ -286,4 +286,15 @@ func TestUtil_isPathWithin(t *testing.T) {
 		must.ErrorContains(t, err, "no such file or directory")
 		must.False(t, result)
 	})
+
+	t.Run("when path not within root but shorter", func(t *testing.T) {
+		root, err := os.MkdirTemp(tdir, "testing-path-XXX")
+		must.NoError(t, err)
+		check, err := os.MkdirTemp(tdir, "testing-path-XXXX")
+		must.NoError(t, err)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
+	})
 }
