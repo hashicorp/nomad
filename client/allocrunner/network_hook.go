@@ -62,7 +62,7 @@ type networkHook struct {
 	isolationSetter networkIsolationSetter
 
 	// statusSetter is a callback to the alloc runner to get or set the network
-	// status one network setup is complete
+	// status once network setup is complete
 	networkStatus networkStatus
 
 	// manager is used when creating the network namespace. This defaults to
