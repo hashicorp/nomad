@@ -303,6 +303,10 @@ func isPathWithin(rootPath, toCheckPath string) (bool, error) {
 
 	checkStat, err := os.Stat(toCheckPath[0:len(rootPath)])
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
 		return false, err
 	}
 
