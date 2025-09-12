@@ -385,3 +385,15 @@ type UpgradeCheckVaultWorkloadIdentityResponse struct {
 
 	QueryMeta
 }
+
+// SetNumSchedulersRequest is used to set the number of schedulers
+type SetNumSchedulersRequest struct {
+	Schedulers int
+	WriteRequest
+}
+
+// GetNumSchedulersResponse is used to get number of schedulers
+type GetNumSchedulersResponse struct {
+	Schedulers int
+	QueryMeta
+}
