@@ -218,7 +218,7 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 }
 
 // Restore is used to restore an evaluation that was previously enqueued. It
-// works like enqueue exceot that it does not track enqueueTime of the restored
+// works like enqueue except that it does not track enqueueTime of the restored
 // evaluation.
 func (b *EvalBroker) Restore(eval *structs.Evaluation) {
 	b.l.Lock()
@@ -406,7 +406,7 @@ SCAN:
 				b.dequeuedTime[eval.ID] = time.Now()
 			}
 			metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "wait_time"}, t, []metrics.Label{
-				{Name: "job", Value: eval.JobID},
+				{Name: "job", Value: structs.ParentIDFromJobID(eval.JobID)},
 				{Name: "namespace", Value: eval.Namespace},
 				{Name: "eval_type", Value: eval.Type},
 				{Name: "triggered_by", Value: eval.TriggeredBy},
@@ -788,18 +788,15 @@ func (b *EvalBroker) handleAckNackLocked(eval *structs.Evaluation) {
 		return
 	}
 
-	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "process_time"}, tDeq, []metrics.Label{
-		{Name: "job", Value: eval.JobID},
+	labels := []metrics.Label{
+		{Name: "job", Value: structs.ParentIDFromJobID(eval.JobID)},
 		{Name: "namespace", Value: eval.Namespace},
 		{Name: "eval_type", Value: eval.Type},
 		{Name: "triggered_by", Value: eval.TriggeredBy},
-	})
-	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "response_time"}, tEnq, []metrics.Label{
-		{Name: "job", Value: eval.JobID},
-		{Name: "namespace", Value: eval.Namespace},
-		{Name: "eval_type", Value: eval.Type},
-		{Name: "triggered_by", Value: eval.TriggeredBy},
-	})
+	}
+
+	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "process_time"}, tDeq, labels)
+	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "response_time"}, tEnq, labels)
 	delete(b.enqueuedTime, eval.ID)
 	delete(b.dequeuedTime, eval.ID)
 }
@@ -1003,8 +1000,7 @@ func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				metrics.SetGaugeWithLabels([]string{"nomad", "broker", "eval_waiting"},
 					float32(time.Until(eval.WaitUntil).Seconds()),
 					[]metrics.Label{
-						{Name: "eval_id", Value: eval.ID},
-						{Name: "job", Value: eval.JobID},
+						{Name: "job", Value: structs.ParentIDFromJobID(eval.JobID)},
 						{Name: "namespace", Value: eval.Namespace},
 					})
 			}

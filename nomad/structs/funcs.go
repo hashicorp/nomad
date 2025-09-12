@@ -562,3 +562,17 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 
 	return ports, nil
 }
+
+// ParentIDFromJobID returns the parent job ID of a given dispatch or periodic
+// job. Generally you should use the child job's Job.ParentID field instead, but
+// this is useful for contexts where the Job struct isn't present.
+func ParentIDFromJobID(jobID string) string {
+	if strings.Index(jobID, "/") == 0 {
+		// do a cheap O(n) check first before we do the more expensive Cut
+		// method
+		return jobID
+	}
+	jobID, _, _ = strings.Cut(jobID, DispatchLaunchSuffix)
+	jobID, _, _ = strings.Cut(jobID, PeriodicLaunchSuffix)
+	return jobID
+}
