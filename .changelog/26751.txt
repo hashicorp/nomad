@@ -1,0 +1,3 @@
+```release-note:bug
+secrets: Fixed support for custom Secrets plugins on Windows
+```

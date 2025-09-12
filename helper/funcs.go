@@ -569,7 +569,3 @@ func FindExecutableFiles(path string) (map[string]string, error) {
 	}
 	return executables, nil
 }
-
-func IsExecutable(i os.FileInfo) bool {
-	return !i.IsDir() && i.Mode()&0o111 != 0
-}
