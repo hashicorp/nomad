@@ -1,0 +1,22 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+name: jira-transition
+description: Transition state of JIRA issue
+inputs:
+  issue:
+    required: true
+    description: JIRA issue to transition
+  transition:
+    required: true
+    description: Transition name to apply to issue
+
+runs:
+  using: composite
+  steps:
+  - name: Transition JIRA issue
+    shell: bash
+    run: ./.github/actions/jira/transition/jira-transition.bash
+    env:
+      ISSUE: ${{ inputs.issue }}
+      TRANSITION: ${{ inputs.transition }}

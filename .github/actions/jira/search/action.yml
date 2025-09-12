@@ -1,0 +1,22 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+name: jira-search
+description: Search for a JIRA issue
+inputs:
+  jql:
+    required: true
+    description: JQL used to search for issue
+outputs:
+  issue:
+    description: JIRA issue ID matching JQL
+    value: ${{ steps.search.outputs.issue }}
+runs:
+  using: composite
+  steps:
+  - name: Search for JIRA issue
+    id: search
+    shell: bash
+    run: ./.github/actions/jira/search/jira-search.bash
+    env:
+      JQL: ${{ inputs.jql }}
