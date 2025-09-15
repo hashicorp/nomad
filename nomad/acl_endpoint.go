@@ -191,35 +191,19 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_policies"}, time.Now())
 
-	// Check management level permissions
-	acl, err := a.srv.ResolveACL(args)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if acl == nil {
-		return structs.ErrPermissionDenied
 	}
 
 	// If it is not a management token determine the policies that may be listed
-	mgt := acl.IsManagement()
-	tokenPolicyNames := set.New[string](0)
+	mgt := aclObj.IsManagement()
+	var tokenPolicyNames *set.Set[string]
 	if !mgt {
-		token, err := a.requestACLToken(args.AuthToken)
+		tokenPolicyNames, err = a.getPoliciesForIdentity(*args.GetIdentity())
 		if err != nil {
 			return err
 		}
-		if token == nil {
-			return structs.ErrTokenNotFound
-		}
-
-		// Generate a set of policy names. This is initially generated from the
-		// ACL role links.
-		tokenPolicyNames, err = a.policyNamesFromRoleLinks(token.Roles)
-		if err != nil {
-			return err
-		}
-
-		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertSlice(token.Policies)
 	}
 
 	// Setup the blocking query
@@ -227,7 +211,6 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Iterate over all the policies
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
@@ -238,7 +221,6 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 			if err != nil {
 				return err
 			}
-
 			// Convert all the policies to a list stub
 			reply.Policies = nil
 			for {
@@ -285,36 +267,19 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policy"}, time.Now())
 
-	// Check management level permissions
-	acl, err := a.srv.ResolveACL(args)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if acl == nil {
-		return structs.ErrPermissionDenied
 	}
 
-	// If the policy is the anonymous one, anyone can get it
-	// If it is not a management token determine if it can get this policy
-	mgt := acl.IsManagement()
+	// If the policy is the anonymous one, anyone can get it. Otherwise
+	// management tokens or tokens that have the policy can get it.
+	mgt := aclObj.IsManagement()
 	if !mgt && args.Name != "anonymous" {
-		token, err := a.requestACLToken(args.AuthToken)
+		tokenPolicyNames, err := a.getPoliciesForIdentity(*args.GetIdentity())
 		if err != nil {
 			return err
 		}
-		if token == nil {
-			return structs.ErrTokenNotFound
-		}
-
-		// Generate a set of policy names. This is initially generated from the
-		// ACL role links.
-		tokenPolicyNames, err := a.policyNamesFromRoleLinks(token.Roles)
-		if err != nil {
-			return err
-		}
-
-		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertSlice(token.Policies)
-
 		if !tokenPolicyNames.Contains(args.Name) {
 			return structs.ErrPermissionDenied
 		}
@@ -325,7 +290,6 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Look for the policy
 			out, err := state.ACLPolicyByName(ws, args.Name)
 			if err != nil {
 				return err
@@ -382,23 +346,24 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	// For client typed tokens, allow them to query any policies associated with that token.
-	// This is used by clients which are resolving the policies to enforce. Any associated
-	// policies need to be fetched so that the client can determine what to allow.
-	token := args.GetIdentity().GetACLToken()
-	if token == nil {
-		return structs.ErrPermissionDenied
-	}
-
-	// Generate a set of policy names. This is initially generated from the
-	// ACL role links.
-	tokenPolicyNames, err := a.policyNamesFromRoleLinks(token.Roles)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
 
-	// Add the token policies which are directly referenced into the set.
-	tokenPolicyNames.InsertSlice(token.Policies)
+	// For client-typed tokens, allow them to query any policies associated with
+	// that token. This is used by Nomad clients which are resolving the
+	// policies to enforce. Any associated policies need to be fetched so that
+	// the client can determine what to allow.
+	mgt := aclObj.IsManagement()
+	var tokenPolicyNames *set.Set[string]
+	if !mgt {
+		var err error
+		tokenPolicyNames, err = a.getPoliciesForIdentity(*args.GetIdentity())
+		if err != nil {
+			return err
+		}
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -423,7 +388,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 					continue
 				}
 
-				if token.Type != structs.ACLManagementToken && !tokenPolicyNames.Contains(policyName) {
+				if !mgt && !tokenPolicyNames.Contains(policyName) {
 					return structs.ErrPermissionDenied
 				}
 				reply.Policies[policyName] = out
@@ -1776,6 +1741,41 @@ func (a *ACL) GetRoleByName(
 			return nil
 		},
 	})
+}
+
+// getPoliciesForIdentity resolves the policy names which are linked to the
+// identity, whether that identity comes from a workload identity or ACL
+// token. We'll always return an empty set (not nil), even on error.
+func (a *ACL) getPoliciesForIdentity(identity structs.AuthenticatedIdentity) (*set.Set[string], error) {
+	tokenPolicyNames := set.New[string](0)
+	token := identity.GetACLToken()
+	if token == nil {
+		claims := identity.GetClaims()
+		if claims == nil {
+			return tokenPolicyNames, structs.ErrPermissionDenied
+		}
+		if claims.IsNode() || claims.IsNodeIntroduction() {
+			return tokenPolicyNames, nil
+		}
+		policies, err := a.srv.auth.ResolvePoliciesForClaims(claims)
+		if err != nil {
+			return tokenPolicyNames, err
+		}
+		for _, policy := range policies {
+			tokenPolicyNames.Insert(policy.Name)
+		}
+	} else {
+		// role-linked policies
+		var err error
+		tokenPolicyNames, err = a.policyNamesFromRoleLinks(token.Roles)
+		if err != nil {
+			return tokenPolicyNames, err
+		}
+
+		// directly referenced policies
+		tokenPolicyNames.InsertSlice(token.Policies)
+	}
+	return tokenPolicyNames, nil
 }
 
 // policyNamesFromRoleLinks resolves the policy names which are linked via the

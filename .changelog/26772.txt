@@ -1,0 +1,3 @@
+```release-note:bug
+auth: Fixed a bug where workload identity tokens could not be used to list or get policies from the ACL API
+```
