@@ -2247,6 +2247,19 @@ func (n *Node) Canonicalize() {
 	}
 }
 
+// Comparable returns a comparable version of the node's resources available for scheduling.
+// This conversion can be lossy so care must be taken when using it.
+func (n *Node) Comparable() *ComparableResources {
+	if n == nil {
+		return nil
+	}
+
+	resources := n.NodeResources.Comparable()
+	resources.Subtract(n.ReservedResources.Comparable())
+
+	return resources
+}
+
 func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil
@@ -3244,8 +3257,8 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		return nil
 	}
 
-	usableCores := n.Processors.Topology.UsableCores().Slice()
-	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
+	allCores := n.Processors.Topology.AllCores().Slice()
+	cores := helper.ConvertSlice(allCores, func(id hw.CoreID) uint16 {
 		return uint16(id)
 	})
 
@@ -3253,7 +3266,7 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares:     int64(n.Processors.Topology.TotalCompute()),
-				ReservedCores: reservableCores,
+				ReservedCores: cores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
