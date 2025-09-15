@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/shoenig/test v1.12.1
+	github.com/shoenig/test v1.12.2
 )
 
 require (
