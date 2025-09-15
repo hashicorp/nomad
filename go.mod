@@ -17,7 +17,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.6
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.7
 	github.com/aws/smithy-go v1.23.0
 	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/errdefs v1.0.0
@@ -121,18 +121,18 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shoenig/go-landlock v1.2.2
 	github.com/shoenig/go-m1cpu v0.1.6
-	github.com/shoenig/test v1.12.1
+	github.com/shoenig/test v1.12.2
 	github.com/stretchr/testify v1.11.1
-	github.com/zclconf/go-cty v1.16.4
+	github.com/zclconf/go-cty v1.17.0
 	github.com/zclconf/go-cty-yaml v1.1.0
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
-	golang.org/x/crypto v0.41.0
+	golang.org/x/crypto v0.42.0
 	golang.org/x/mod v0.27.0
-	golang.org/x/sync v0.16.0
-	golang.org/x/sys v0.35.0
-	golang.org/x/time v0.12.0
-	google.golang.org/grpc v1.75.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/sys v0.36.0
+	golang.org/x/time v0.13.0
+	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
@@ -182,7 +182,7 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.6 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.38.3 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.39.0 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.10 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.6 // indirect
@@ -336,9 +336,9 @@ require (
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.35.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/api v0.217.0 // indirect
 	google.golang.org/genproto v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
