@@ -1,6 +1,32 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+locals {
+  # these include a sleep, so docker logs can consistently be retrieved
+  no_token_401 = <<-SCRIPT
+    curl -v \
+      --unix-socket ${NOMAD_SECRETS_DIR}/api.sock \
+      localhost/v1/agent/health
+    sleep 1
+  SCRIPT
+
+  bad_token_403 = <<-SCRIPT
+    curl -v \
+      --unix-socket ${NOMAD_SECRETS_DIR}/api.sock \
+      --header "X-Nomad-Token: 37297754-3b87-41da-9ac7-d98fd934deed" \
+      localhost/v1/agent/health
+    sleep 1
+  SCRIPT
+
+  good_token = <<-SCRIPT
+    curl -v \
+      --unix-socket ${NOMAD_SECRETS_DIR}/api.sock \
+      --header "X-Nomad-Token: ${NOMAD_TOKEN}" \
+      localhost/v1/agent/health
+    sleep 1
+  SCRIPT
+}
+
 job "api-auth" {
   type = "batch"
 
@@ -15,12 +41,9 @@ job "api-auth" {
     task "none" {
       driver = "docker"
       config {
-        image = "curlimages/curl:7.87.0"
-        args = [
-          "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
-          "-v",
-          "localhost/v1/agent/health",
-        ]
+        image   = "curlimages/curl:7.87.0"
+        command = "sh"
+        args    = ["-c", "${local.no_token_401}"]
       }
       resources {
         cpu    = 16
@@ -33,13 +56,9 @@ job "api-auth" {
     task "bad" {
       driver = "docker"
       config {
-        image = "curlimages/curl:7.87.0"
-        args = [
-          "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
-          "-H", "X-Nomad-Token: 37297754-3b87-41da-9ac7-d98fd934deed",
-          "-v",
-          "localhost/v1/agent/health",
-        ]
+        image   = "curlimages/curl:7.87.0"
+        command = "sh"
+        args    = ["-c", "${local.bad_token_403}"]
       }
       resources {
         cpu    = 16
@@ -53,13 +72,9 @@ job "api-auth" {
       driver = "docker"
 
       config {
-        image = "curlimages/curl:7.87.0"
-        args = [
-          "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
-          "-H", "Authorization: Bearer ${NOMAD_TOKEN}",
-          "-v",
-          "localhost/v1/agent/health",
-        ]
+        image   = "curlimages/curl:7.87.0"
+        command = "sh"
+        args    = ["-c", "${local.good_token}"]
       }
 
       identity {
@@ -78,13 +93,8 @@ job "api-auth" {
       driver = "exec"
 
       config {
-        command = "curl"
-        args = [
-          "-H", "Authorization: Bearer ${NOMAD_TOKEN}",
-          "--unix-socket", "${NOMAD_SECRETS_DIR}/api.sock",
-          "-v",
-          "localhost/v1/agent/health",
-        ]
+        command = "sh"
+        args    = ["-c", "${local.good_token}"]
       }
 
       identity {
