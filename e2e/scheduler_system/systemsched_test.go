@@ -26,6 +26,7 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/system_job0.nomad",
 		jobs3.WaitComplete("group"),
+		jobs3.DisableRandomJobID(),
 	)
 	t.Cleanup(cleanup)
 
@@ -72,14 +73,15 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	must.MapLen(t, 1, allocForDisabledNode)
 
 	// Update job
-	job, cleanup = jobs3.Submit(t,
+	job2, cleanup2 := jobs3.Submit(t,
 		"./input/system_job1.nomad",
 		jobs3.WaitComplete("group"),
+		jobs3.DisableRandomJobID(),
 	)
-	t.Cleanup(cleanup)
+	t.Cleanup(cleanup2)
 
 	// Get updated allocations
-	allocs = job.Allocs()
+	allocs = job2.Allocs()
 	must.SliceNotEmpty(t, allocs)
 
 	var foundPreviousAlloc bool
