@@ -1000,6 +1000,70 @@ func TestJobs_Canonicalize(t *testing.T) {
 			},
 		},
 		{
+			name: "missing update for system job",
+			input: &Job{
+				Name:     pointerOf("foo"),
+				ID:       pointerOf("bar"),
+				ParentID: pointerOf("lol"),
+				Type:     pointerOf(JobTypeSystem),
+				TaskGroups: []*TaskGroup{
+					{
+						Name: pointerOf("bar"),
+						Tasks: []*Task{
+							{
+								Name: "task1",
+							},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				Namespace:         pointerOf(DefaultNamespace),
+				ID:                pointerOf("bar"),
+				ParentID:          pointerOf("lol"),
+				Name:              pointerOf("foo"),
+				Region:            pointerOf("global"),
+				Type:              pointerOf(JobTypeSystem),
+				Priority:          pointerOf(JobDefaultPriority),
+				NodePool:          pointerOf(""),
+				AllAtOnce:         pointerOf(false),
+				ConsulNamespace:   pointerOf(""),
+				VaultNamespace:    pointerOf(""),
+				NomadTokenID:      pointerOf(""),
+				Stop:              pointerOf(false),
+				Stable:            pointerOf(false),
+				Version:           pointerOf(uint64(0)),
+				Status:            pointerOf(""),
+				StatusDescription: pointerOf(""),
+				CreateIndex:       pointerOf(uint64(0)),
+				ModifyIndex:       pointerOf(uint64(0)),
+				JobModifyIndex:    pointerOf(uint64(0)),
+				Update:            DefaultUpdateStrategy(),
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          pointerOf("bar"),
+						Count:         pointerOf(1),
+						RestartPolicy: defaultServiceJobRestartPolicy(),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  pointerOf(false),
+							Migrate: pointerOf(false),
+							SizeMB:  pointerOf(300),
+						},
+						Update: DefaultUpdateStrategy(),
+						Tasks: []*Task{
+							{
+								Name:          "task1",
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								KillTimeout:   pointerOf(5 * time.Second),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "restart_merge",
 			input: &Job{
 				Name:     pointerOf("foo"),
