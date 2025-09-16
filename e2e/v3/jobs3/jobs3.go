@@ -75,6 +75,30 @@ func (sub *Submission) Allocs() []*nomadapi.AllocationListStub {
 	return allocs
 }
 
+// WaitForDeploymentFunc monitors a given deployment with provided fn and
+// returns success if the fn returns true.
+func (sub *Submission) WaitForDeploymentFunc(ctx context.Context,
+	deploymentID string, fn func(*nomadapi.Deployment) bool) {
+	sub.t.Helper()
+
+	deploymentsApi := sub.nomadClient.Deployments()
+	for {
+		select {
+		case <-ctx.Done():
+			must.Unreachable(sub.t, must.Sprint("timeout reached waiting for deployment"))
+		default:
+		}
+
+		deployment, _, err := deploymentsApi.Info(deploymentID, nil)
+		must.NoError(sub.t, err)
+		must.NotNil(sub.t, deployment)
+
+		if fn(deployment) {
+			return
+		}
+	}
+}
+
 type TaskEvents struct {
 	Group  string
 	Task   string

@@ -29,7 +29,7 @@ job "system_job" {
         image = "busybox:1"
 
         command = "/bin/sh"
-        args    = ["-c", "sleep 1500"]
+        args    = ["-c", "sleep 15000"]
       }
 
       env {

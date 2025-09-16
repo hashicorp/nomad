@@ -4,6 +4,7 @@
 package scheduler_system
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -27,7 +28,6 @@ func TestSystemScheduler(t *testing.T) {
 func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/system_job0.nomad",
-		jobs3.WaitComplete("group"),
 		jobs3.DisableRandomJobID(),
 	)
 	t.Cleanup(cleanup)
@@ -56,28 +56,15 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	must.SliceNotEmpty(t, allocs)
 
 	allocForDisabledNode := make(map[string]*api.AllocationListStub)
-
 	for _, alloc := range allocs {
 		if alloc.NodeID == disabledNodeID {
 			allocForDisabledNode[alloc.ID] = alloc
 		}
 	}
 
-	// Filter down to only our latest running alloc
-	for _, alloc := range allocForDisabledNode {
-		must.Eq(t, uint64(0), alloc.JobVersion)
-		if alloc.ClientStatus == structs.AllocClientStatusComplete {
-			// remove the old complete alloc from map
-			delete(allocForDisabledNode, alloc.ID)
-		}
-	}
-	must.MapNotEmpty(t, allocForDisabledNode)
-	must.MapLen(t, 1, allocForDisabledNode)
-
 	// Update job
 	job2, cleanup2 := jobs3.Submit(t,
 		"./input/system_job1.nomad",
-		jobs3.WaitComplete("group"),
 		jobs3.DisableRandomJobID(),
 	)
 	t.Cleanup(cleanup2)
@@ -105,7 +92,6 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 func testCanaryUpdate(t *testing.T) {
 	_, cleanup := jobs3.Submit(t,
 		"./input/system_canary_v0.nomad.hcl",
-		jobs3.WaitComplete("group"),
 		jobs3.DisableRandomJobID(),
 	)
 	t.Cleanup(cleanup)
@@ -118,43 +104,58 @@ func testCanaryUpdate(t *testing.T) {
 	)
 	t.Cleanup(cleanup2)
 
+	// how many eligible nodes do we have?
+	nodesApi := job2.NodesApi()
+	nodesList, _, err := nodesApi.List(nil)
+	must.Nil(t, err)
+	must.SliceNotEmpty(t, nodesList)
+
+	numberOfEligibleNodes := 0
+	for _, n := range nodesList {
+		if n.SchedulingEligibility == api.NodeSchedulingEligible {
+			numberOfEligibleNodes += 1
+		}
+	}
+
 	// Get updated allocations
 	allocs := job2.Allocs()
 	must.SliceNotEmpty(t, allocs)
 
 	deploymentsApi := job2.DeploymentsApi()
+	deploymentsList, _, err := deploymentsApi.List(nil)
+	must.NoError(t, err)
 
-	// wait for the canary allocations to become healthy
-	timeout := time.After(30 * time.Second)
-CANARYWAIT:
-	for {
-		select {
-		case <-timeout:
-			must.Unreachable(t, must.Sprint("timeout reached waiting for healthy status of canary allocs"))
-		default:
-		}
-
-		deployments, _, err := deploymentsApi.List(nil)
-		must.NoError(t, err)
-		for _, d := range deployments {
-			for _, tg := range d.TaskGroups { // this job has 1 tg
-				if d.JobVersion == 1 && tg.HealthyAllocs >= tg.DesiredCanaries {
-					break CANARYWAIT
-				}
-			}
+	var deployment *api.Deployment
+	for _, d := range deploymentsList {
+		if d.JobID == job2.JobID() && d.Status == api.DeploymentStatusRunning {
+			deployment = d
 		}
 	}
+	must.NotNil(t, deployment)
 
-	// filter allocation from v1 version of the job, they should all be canaries
+	// wait for the canary allocations to become healthy
+	timeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	job2.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
+		for _, tg := range d.TaskGroups { // we only have 1 tg in this job
+			if d.JobVersion == 1 && tg.HealthyAllocs >= tg.DesiredCanaries {
+				return true
+			}
+		}
+		return false
+	})
+
+	// find allocations from v1 version of the job, they should all be canaries
 	// and there should be exactly 2
-	canaryAllocs := []*api.AllocationListStub{}
+	count := 0
 	for _, a := range allocs {
 		if a.JobVersion == 1 {
 			must.True(t, a.DeploymentStatus.Canary)
-			canaryAllocs = append(canaryAllocs, a)
+			count += 1
 		}
 	}
-	must.SliceLen(t, 2, canaryAllocs, must.Sprint("expected 2 canary allocs"))
+	must.Eq(t, numberOfEligibleNodes/2, count, must.Sprint("expected canaries to be placed on 50% of eligible nodes"))
 
 	// promote canaries
 	deployments, _, err := deploymentsApi.List(nil)
@@ -163,36 +164,37 @@ CANARYWAIT:
 	_, _, err = deploymentsApi.PromoteAll(deployments[0].ID, nil)
 	must.NoError(t, err)
 
-	// wait for the promotions to become healthy
-PROMOTIONWAIT:
-	for {
-		select {
-		case <-timeout:
-			must.Unreachable(t, must.Sprint("timeout reached waiting for healthy status of promoted allocs"))
-		default:
-		}
+	// promoting canaries on a system job should result in a new deployment
+	deploymentsList, _, err = deploymentsApi.List(nil)
+	must.NoError(t, err)
 
-		deploymentsApi := job2.DeploymentsApi()
-		deployments, _, err := deploymentsApi.List(nil)
-		must.NoError(t, err)
-		for _, d := range deployments {
-			for _, tg := range d.TaskGroups { // this job has 1 tg
-				if d.JobVersion == 1 && tg.HealthyAllocs >= tg.DesiredTotal {
-					break PROMOTIONWAIT
-				}
-			}
+	for _, d := range deploymentsList {
+		if d.JobID == job2.JobID() && d.Status == api.DeploymentStatusRunning {
+			deployment = d
 		}
 	}
+	must.NotNil(t, deployment)
 
-	// expect 4 allocations for job version 1, none of them canary
+	// wait for the promotions to become healthy
+	job2.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
+		for _, tg := range d.TaskGroups { // we only have 1 tg in this job
+			if d.JobVersion == 1 && tg.HealthyAllocs >= tg.DesiredTotal {
+				return true
+			}
+		}
+		return false
+	})
+
+	// expect the number of allocations for promoted deployment to be the same
+	// as the number of eligible nodes
 	newAllocs := job2.Allocs()
 	must.SliceNotEmpty(t, newAllocs)
 
-	promotedAllocs := []*api.AllocationListStub{}
+	promotedAllocs := 0
 	for _, a := range newAllocs {
 		if a.JobVersion == 1 {
-			promotedAllocs = append(promotedAllocs, a)
+			promotedAllocs += 1
 		}
 	}
-	must.SliceLen(t, 4, promotedAllocs, must.Sprint("expected 4 allocations for promoted job"))
+	must.Eq(t, numberOfEligibleNodes, promotedAllocs)
 }
