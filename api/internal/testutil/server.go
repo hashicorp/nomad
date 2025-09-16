@@ -261,6 +261,7 @@ func (s *TestServer) Stop() {
 	// kill and wait gracefully
 	err := s.gracefulStop()
 	must.NoError(s.t, err)
+	fmt.Println("sent sigint!")
 
 	select {
 	case <-done:
