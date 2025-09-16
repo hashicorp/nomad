@@ -243,6 +243,7 @@ func (s *TestServer) Stop() {
 	defer func() { _ = os.RemoveAll(s.Config.DataDir) }()
 
 	fmt.Println("TEST RUNNER PID", os.Getpid())
+	fmt.Println("CMD PID", s.cmd.Process.Pid)
 
 	// wait for the process to exit to be sure that the data dir can be
 	// deleted on all platforms.
