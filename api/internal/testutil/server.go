@@ -240,7 +240,9 @@ func NewTestServer(t testing.TB, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
-	defer func() { _ = os.RemoveAll(s.Config.DataDir) }()
+	s.t.Cleanup(func() {
+		_ = os.RemoveAll(s.Config.DataDir)
+	})
 
 	// wait for the process to exit to be sure that the data dir can be
 	// deleted on all platforms.
@@ -251,7 +253,7 @@ func (s *TestServer) Stop() {
 	}()
 
 	// kill and wait gracefully
-	err := s.cmd.Process.Signal(os.Interrupt)
+	err := s.gracefulStop()
 	must.NoError(s.t, err)
 
 	select {
