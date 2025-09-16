@@ -264,6 +264,7 @@ func (s *TestServer) Stop() {
 
 	select {
 	case <-done:
+		fmt.Println("stopped ok!")
 		return
 	case <-time.After(5 * time.Second):
 		fmt.Println("timed out")
