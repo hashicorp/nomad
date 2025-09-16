@@ -4,6 +4,8 @@
 package winsvc
 
 import (
+	"fmt"
+
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
 )
@@ -25,6 +27,7 @@ func init() {
 	if !isSvc {
 		return
 	}
+	fmt.Println("IsWindowsService!???")
 
 	go executeWindowsService()
 }
