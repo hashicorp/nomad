@@ -199,6 +199,10 @@ func (sub *Submission) AllocID(group string) string {
 	panic("bug")
 }
 
+func (sub *Submission) NodesApi() *nomadapi.Nodes {
+	return sub.nomadClient.Nodes()
+}
+
 func (sub *Submission) logf(msg string, args ...any) {
 	sub.t.Helper()
 	util3.Log3(sub.t, sub.verbose, msg, args...)
