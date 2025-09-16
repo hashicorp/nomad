@@ -242,6 +242,8 @@ func NewTestServer(t testing.TB, cb ServerConfigCallback) *TestServer {
 func (s *TestServer) Stop() {
 	defer func() { _ = os.RemoveAll(s.Config.DataDir) }()
 
+	fmt.Println("TEST RUNNER PID", os.Getpid())
+
 	// wait for the process to exit to be sure that the data dir can be
 	// deleted on all platforms.
 	done := make(chan struct{})
