@@ -18,11 +18,67 @@ import (
 func TestHTTPServer_NodeIdentityGetRequest(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("200 ok", func(t *testing.T) {
+	t.Run("405 invalid method", func(t *testing.T) {
 		httpTest(t, cb, func(s *TestAgent) {
 			respW := httptest.NewRecorder()
 
-			req, err := http.NewRequest(http.MethodGet, "/v1/client/identity", nil)
+			badMethods := []string{
+				http.MethodConnect,
+				http.MethodDelete,
+				http.MethodHead,
+				http.MethodOptions,
+				http.MethodPatch,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodTrace,
+			}
+
+			for _, method := range badMethods {
+				req, err := http.NewRequest(method, "/v1/client/identity", nil)
+				must.NoError(t, err)
+
+				_, err = s.Server.NodeIdentityGetRequest(respW, req)
+				must.ErrorContains(t, err, "Invalid method")
+
+				codedErr, ok := err.(HTTPCodedError)
+				must.True(t, ok)
+				must.Eq(t, http.StatusMethodNotAllowed, codedErr.Code())
+				must.Eq(t, ErrInvalidMethod, codedErr.Error())
+			}
+		})
+	})
+
+	t.Run("400 query param with unknown node", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(
+				http.MethodGet,
+				"/v1/client/identity?node_id="+uuid.Generate(),
+				nil,
+			)
+			must.NoError(t, err)
+
+			_, err = s.Server.NodeIdentityGetRequest(respW, req)
+			must.ErrorContains(t, err, "Unknown node")
+		})
+	})
+
+	t.Run("200 ok query param", func(t *testing.T) {
+
+		// Enable the client, so we have something to renew.
+		configFn := func(c *Config) { c.Client.Enabled = true }
+
+		httpTest(t, configFn, func(s *TestAgent) {
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(
+				http.MethodGet,
+				"/v1/client/identity?node_id="+s.client.NodeID(),
+				nil,
+			)
 			must.NoError(t, err)
 
 			obj, err := s.Server.NodeIdentityGetRequest(respW, req)
@@ -52,36 +108,6 @@ func TestHTTPServer_NodeIdentityGetRequest(t *testing.T) {
 				s.client.Datacenter(),
 				s.client.Node().NodePool,
 			})
-		})
-	})
-
-	t.Run("405 invalid method", func(t *testing.T) {
-		httpTest(t, cb, func(s *TestAgent) {
-			respW := httptest.NewRecorder()
-
-			badMethods := []string{
-				http.MethodConnect,
-				http.MethodDelete,
-				http.MethodHead,
-				http.MethodOptions,
-				http.MethodPatch,
-				http.MethodPost,
-				http.MethodPut,
-				http.MethodTrace,
-			}
-
-			for _, method := range badMethods {
-				req, err := http.NewRequest(method, "/v1/client/identity", nil)
-				must.NoError(t, err)
-
-				_, err = s.Server.NodeIdentityGetRequest(respW, req)
-				must.ErrorContains(t, err, "Invalid method")
-
-				codedErr, ok := err.(HTTPCodedError)
-				must.True(t, ok)
-				must.Eq(t, http.StatusMethodNotAllowed, codedErr.Code())
-				must.Eq(t, ErrInvalidMethod, codedErr.Error())
-			}
 		})
 	})
 }
@@ -118,10 +144,15 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 		})
 	})
 
-	t.Run("400 no node", func(t *testing.T) {
+	t.Run("400 body with unknown node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 
-			reqObj := structs.NodeIdentityRenewReq{NodeID: uuid.Generate()}
+			reqObj := structs.NodeIdentityRenewReq{
+				NodeID: uuid.Generate(),
+				QueryOptions: structs.QueryOptions{
+					Region: s.config().Region,
+				},
+			}
 
 			buf := encodeReq(reqObj)
 
@@ -135,7 +166,24 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 		})
 	})
 
-	t.Run("200 ok", func(t *testing.T) {
+	t.Run("400 query param with unknown node", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(
+				http.MethodPost,
+				"/v1/client/identity/renew?node_id="+uuid.Generate(),
+				nil,
+			)
+			must.NoError(t, err)
+
+			_, err = s.Server.NodeIdentityRenewRequest(respW, req)
+			must.ErrorContains(t, err, "Unknown node")
+		})
+	})
+
+	t.Run("200 ok body", func(t *testing.T) {
 
 		// Enable the client, so we have something to renew.
 		configFn := func(c *Config) { c.Client.Enabled = true }
@@ -151,6 +199,32 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 			respW := httptest.NewRecorder()
 
 			req, err := http.NewRequest(http.MethodPost, "/v1/client/identity/renew", buf)
+			must.NoError(t, err)
+
+			obj, err := s.Server.NodeIdentityRenewRequest(respW, req)
+			must.NoError(t, err)
+
+			_, ok := obj.(structs.NodeIdentityRenewResp)
+			must.True(t, ok)
+		})
+	})
+
+	t.Run("200 ok query param", func(t *testing.T) {
+
+		// Enable the client, so we have something to renew.
+		configFn := func(c *Config) { c.Client.Enabled = true }
+
+		httpTest(t, configFn, func(s *TestAgent) {
+
+			testutil.WaitForClient(t, s.RPC, s.client.NodeID(), s.config().Region)
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(
+				http.MethodPost,
+				"/v1/client/identity/renew?node_id="+s.client.NodeID(),
+				nil,
+			)
 			must.NoError(t, err)
 
 			obj, err := s.Server.NodeIdentityRenewRequest(respW, req)
