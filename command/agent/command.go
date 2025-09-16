@@ -1122,7 +1122,8 @@ func (c *Command) handleSignals() int {
 				return c.terminateGracefully(signalCh, sdSock)
 			case syscall.SIGINT:
 				if !c.agent.GetConfig().LeaveOnInt {
-					return 0 // TODO: fix me
+					c.Ui.Error("no leave on int configured, returning 1 (DEBUG:0)")
+					return 0
 				}
 
 				return c.terminateGracefully(signalCh, sdSock)
