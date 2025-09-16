@@ -263,7 +263,7 @@ func (s *TestServer) Stop() {
 		s.t.Logf("timed out waiting for process to gracefully terminate")
 	}
 
-	fmt.Println("sending kill")
+	fmt.Println("sending kill to ", s.cmd.Process.Pid)
 	err = s.cmd.Process.Kill()
 	must.NoError(s.t, err, must.Sprint("failed to kill process"))
 	fmt.Println("sent kill")
