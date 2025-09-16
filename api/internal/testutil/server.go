@@ -251,7 +251,7 @@ func (s *TestServer) Stop() {
 	}()
 
 	// kill and wait gracefully
-	err := s.cmd.Process.Signal(os.Interrupt)
+	err := s.gracefulStop()
 	must.NoError(s.t, err)
 
 	select {

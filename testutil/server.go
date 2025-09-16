@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/shoenig/test/must"
 )
 
 // TestServerConfig is the main server configuration struct.
@@ -280,9 +281,8 @@ func (s *TestServer) Stop() {
 	}()
 
 	// kill and wait gracefully
-	if err := s.cmd.Process.Signal(os.Interrupt); err != nil {
-		s.t.Errorf("err: %s", err)
-	}
+	err := s.gracefulStop()
+	must.NoError(s.t, err)
 
 	select {
 	case <-done:
