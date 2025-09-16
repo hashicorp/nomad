@@ -24,7 +24,7 @@ func TestSystemScheduler(t *testing.T) {
 
 func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
-		"./input/system_job0.hcl",
+		"./input/system_job0.nomad",
 		jobs3.WaitComplete("group"),
 	)
 	t.Cleanup(cleanup)
@@ -38,17 +38,22 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	_, err := nodesAPI.ToggleEligibility(disabledNodeID, false, nil)
 	must.NoError(t, err)
 
+	// make sure to mark all nodes as eligible once we're done
+	t.Cleanup(func() {
+		nodes, _, err := nodesAPI.List(nil)
+		must.NoError(t, err)
+		for _, n := range nodes {
+			_, err := nodesAPI.ToggleEligibility(n.ID, true, nil)
+			must.NoError(t, err)
+		}
+	})
+
 	// Assert all jobs still running
 	allocs = job.Allocs()
 	must.SliceNotEmpty(t, allocs)
 
 	allocForDisabledNode := make(map[string]*api.AllocationListStub)
 
-	// Wait for allocs to run and collect allocs on ineligible node
-	// Allocation could have failed, ensure there is one thats running
-	// and that it is the correct version (0)
-
-	// e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 	for _, alloc := range allocs {
 		if alloc.NodeID == disabledNodeID {
 			allocForDisabledNode[alloc.ID] = alloc
@@ -68,9 +73,10 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 
 	// Update job
 	job, cleanup = jobs3.Submit(t,
-		"./input/system_job1.hcl",
+		"./input/system_job1.nomad",
 		jobs3.WaitComplete("group"),
 	)
+	t.Cleanup(cleanup)
 
 	// Get updated allocations
 	allocs = job.Allocs()
