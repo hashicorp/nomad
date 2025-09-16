@@ -240,7 +240,11 @@ func NewTestServer(t testing.TB, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
-	defer func() { _ = os.RemoveAll(s.Config.DataDir) }()
+	defer func() {
+		fmt.Println("removing datadir")
+		err := os.RemoveAll(s.Config.DataDir)
+		fmt.Println("removed datadir. err=", err)
+	}()
 
 	fmt.Println("TEST RUNNER PID", os.Getpid())
 	fmt.Println("CMD PID", s.cmd.Process.Pid)
