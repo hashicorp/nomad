@@ -1227,7 +1227,7 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Update != nil {
 		j.Update.Canonicalize()
-	} else if *j.Type == JobTypeService {
+	} else if *j.Type == JobTypeService || *j.Type == JobTypeSystem {
 		j.Update = DefaultUpdateStrategy()
 	}
 	if j.Multiregion != nil {
