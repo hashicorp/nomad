@@ -10,18 +10,15 @@ import (
 	"syscall"
 )
 
+var (
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	proc     = kernel32.NewProc("GenerateConsoleCtrlEvent")
+)
+
 // gracefulStop performs a platform-specific graceful stop. On Windows the Go
 // API does not implement SIGINT even though it's supported on Windows via
 // CTRL_C_EVENT
 func (s *TestServer) gracefulStop() error {
-	kernel32, err := syscall.LoadDLL("kernel32.dll")
-	if err != nil {
-		return fmt.Errorf("could not load kernel dll: %w", err)
-	}
-	proc, err := kernel32.FindProc("GenerateConsoleCtrlEvent")
-	if err != nil {
-		return fmt.Errorf("could not load GenerateConsoleCtrlEvent procedure: %w", err)
-	}
 	pid := s.cmd.Process.Pid
 	result, _, err := proc.Call(syscall.CTRL_C_EVENT, uintptr(pid))
 	if result == 0 {

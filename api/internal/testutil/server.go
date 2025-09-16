@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
 	"github.com/shoenig/test/must"
@@ -258,6 +259,7 @@ func (s *TestServer) Stop() {
 	case <-done:
 		return
 	case <-time.After(5 * time.Second):
+		spew.Dump(s.cmd.Process)
 		s.t.Logf("timed out waiting for process to gracefully terminate")
 	}
 
@@ -266,6 +268,7 @@ func (s *TestServer) Stop() {
 
 	select {
 	case <-done:
+		fmt.Println("killed ok!")
 	case <-time.After(5 * time.Second):
 		s.t.Logf("timed out waiting for process to be killed")
 	}
