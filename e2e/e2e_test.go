@@ -25,7 +25,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/quotas"
 	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
 	_ "github.com/hashicorp/nomad/e2e/scheduler_sysbatch"
-	_ "github.com/hashicorp/nomad/e2e/scheduler_system"
 	_ "github.com/hashicorp/nomad/e2e/taskevents"
 
 	// these are no longer on the old framework but by importing them
