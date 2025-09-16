@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
 	"github.com/shoenig/test/must"
@@ -251,6 +250,7 @@ func (s *TestServer) Stop() {
 		_ = s.cmd.Wait()
 	}()
 
+	fmt.Println("sending sigint")
 	// kill and wait gracefully
 	err := s.gracefulStop()
 	must.NoError(s.t, err)
@@ -259,12 +259,14 @@ func (s *TestServer) Stop() {
 	case <-done:
 		return
 	case <-time.After(5 * time.Second):
-		spew.Dump(s.cmd.Process)
+		fmt.Println("timed out")
 		s.t.Logf("timed out waiting for process to gracefully terminate")
 	}
 
+	fmt.Println("sending kill")
 	err = s.cmd.Process.Kill()
 	must.NoError(s.t, err, must.Sprint("failed to kill process"))
+	fmt.Println("sent kill")
 
 	select {
 	case <-done:
