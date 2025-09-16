@@ -56,13 +56,16 @@ func (s *HTTPServer) NodeIdentityRenewRequest(resp http.ResponseWriter, req *htt
 	// Build the request by decoding the request body which will contain the
 	// node ID and the common parameters.
 	args := structs.NodeIdentityRenewReq{}
-
-	if err := decodeBody(req, &args); err != nil {
-		return nil, CodedError(http.StatusBadRequest, err.Error())
-	}
-
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 	parseNode(req, &args.NodeID)
+
+	// If the request body is not empty, it is likely the caller is using this
+	// to indicate the node ID. Decode it.
+	if req.Body != nil && req.Body != http.NoBody {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(http.StatusBadRequest, err.Error())
+		}
+	}
 
 	// Determine the handler to use
 	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(args.NodeID)
