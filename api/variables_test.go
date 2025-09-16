@@ -17,7 +17,8 @@ func TestVariables_SimpleCRUD(t *testing.T) {
 	testutil.Parallel(t)
 
 	_, s := makeClient(t, nil, nil)
-	defer s.Stop()
+	t.Cleanup(s.Stop)
+	//	defer s.Stop()
 
 	// nsv := c.Variables()
 	// sv1 := NewVariable("my/first/variable/SimpleCRUD")
