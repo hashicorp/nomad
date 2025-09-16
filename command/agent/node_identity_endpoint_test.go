@@ -48,7 +48,7 @@ func TestHTTPServer_NodeIdentityGetRequest(t *testing.T) {
 		})
 	})
 
-	t.Run("400 no node query param", func(t *testing.T) {
+	t.Run("400 query param with unknown node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 
 			respW := httptest.NewRecorder()
@@ -144,7 +144,7 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 		})
 	})
 
-	t.Run("400 no node body", func(t *testing.T) {
+	t.Run("400 body with unknown node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 
 			reqObj := structs.NodeIdentityRenewReq{
@@ -166,7 +166,7 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 		})
 	})
 
-	t.Run("400 no node query param", func(t *testing.T) {
+	t.Run("400 query param with unknown node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 
 			respW := httptest.NewRecorder()
