@@ -203,6 +203,10 @@ func (sub *Submission) NodesApi() *nomadapi.Nodes {
 	return sub.nomadClient.Nodes()
 }
 
+func (sub *Submission) DeploymentsApi() *nomadapi.Deployments {
+	return sub.nomadClient.Deployments()
+}
+
 func (sub *Submission) logf(msg string, args ...any) {
 	sub.t.Helper()
 	util3.Log3(sub.t, sub.verbose, msg, args...)
@@ -412,7 +416,7 @@ EVAL:
 	}
 
 	switch *job.Type {
-	case "service":
+	case "service", "system":
 		// need to monitor the deployment until it is complete
 		depAPI := sub.nomadClient.Deployments()
 	DEPLOY:
