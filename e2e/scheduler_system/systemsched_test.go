@@ -171,6 +171,7 @@ func testCanaryUpdate(t *testing.T) {
 	for _, d := range deploymentsList {
 		if d.JobID == job2.JobID() && d.Status == api.DeploymentStatusRunning {
 			deployment = d
+			break
 		}
 	}
 	must.NotNil(t, deployment)
