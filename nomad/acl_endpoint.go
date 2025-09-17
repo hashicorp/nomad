@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/acl"
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -197,13 +198,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	}
 
 	// If it is not a management token determine the policies that may be listed
-	mgt := aclObj.IsManagement()
-	var tokenPolicyNames *set.Set[string]
-	if !mgt {
-		tokenPolicyNames, err = a.getPoliciesForIdentity(*args.GetIdentity())
-		if err != nil {
-			return err
-		}
+	allowedPolicyFn, err := a.getPolicyAuthorizationFunc(aclObj, *args.GetIdentity())
+	if err != nil {
+		return err
 	}
 
 	// Setup the blocking query
@@ -229,7 +226,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 					break
 				}
 				realPolicy := raw.(*structs.ACLPolicy)
-				if mgt || tokenPolicyNames.Contains(realPolicy.Name) {
+				if allowedPolicyFn(realPolicy.Name) {
 					reply.Policies = append(reply.Policies, realPolicy.Stub())
 				}
 			}
@@ -273,16 +270,14 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	}
 
 	// If the policy is the anonymous one, anyone can get it. Otherwise
-	// management tokens or tokens that have the policy can get it.
-	mgt := aclObj.IsManagement()
-	if !mgt && args.Name != "anonymous" {
-		tokenPolicyNames, err := a.getPoliciesForIdentity(*args.GetIdentity())
-		if err != nil {
-			return err
-		}
-		if !tokenPolicyNames.Contains(args.Name) {
-			return structs.ErrPermissionDenied
-		}
+	// management tokens or tokens that have the policy can get it. If it is not
+	// a management token determine the policies that may be listed
+	allowedPolicyFn, err := a.getPolicyAuthorizationFunc(aclObj, *args.GetIdentity())
+	if err != nil {
+		return err
+	}
+	if args.Name != "anonymous" && !allowedPolicyFn(args.Name) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -355,14 +350,9 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	// that token. This is used by Nomad clients which are resolving the
 	// policies to enforce. Any associated policies need to be fetched so that
 	// the client can determine what to allow.
-	mgt := aclObj.IsManagement()
-	var tokenPolicyNames *set.Set[string]
-	if !mgt {
-		var err error
-		tokenPolicyNames, err = a.getPoliciesForIdentity(*args.GetIdentity())
-		if err != nil {
-			return err
-		}
+	allowedPolicyFn, err := a.getPolicyAuthorizationFunc(aclObj, *args.GetIdentity())
+	if err != nil {
+		return err
 	}
 
 	// Setup the blocking query
@@ -388,7 +378,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 					continue
 				}
 
-				if !mgt && !tokenPolicyNames.Contains(policyName) {
+				if !allowedPolicyFn(policyName) {
 					return structs.ErrPermissionDenied
 				}
 				reply.Policies[policyName] = out
@@ -1741,6 +1731,30 @@ func (a *ACL) GetRoleByName(
 			return nil
 		},
 	})
+}
+
+// getPolicyAuthorizationFunc returns a function that can be used to test
+// whether a given ACL object / identity has access to a given policy.  For
+// client-typed tokens, we allow them to query any policies associated with that
+// token. This is used by Nomad clients which are resolving the policies to
+// enforce. Any associated policies need to be fetched so that the client can
+// determine what to allow.
+func (a *ACL) getPolicyAuthorizationFunc(
+	aclObj *acl.ACL,
+	identity structs.AuthenticatedIdentity,
+) (func(string) bool, error) {
+	if aclObj.IsManagement() {
+		return func(string) bool { return true }, nil
+	}
+
+	tokenPolicyNames, err := a.getPoliciesForIdentity(identity)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(policy string) bool {
+		return tokenPolicyNames.Contains(policy)
+	}, nil
 }
 
 // getPoliciesForIdentity resolves the policy names which are linked to the
