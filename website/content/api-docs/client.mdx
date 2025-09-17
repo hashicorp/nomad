@@ -836,5 +836,91 @@ The table below shows this endpoint's support for
 $ nomad operator api /v1/client/gc
 ```
 
+## Read a Node's Identity Claims
+
+This endpoint reads the identity claims for a node.
+
+| Method | Path                  | Produces           |
+| ------ | --------------------- | ------------------ |
+| `GET`  | `/v1/client/identity` | `application/json` |
+
+This table shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `node:read`  |
+
+### Parameters
+
+- `:node_id` `(string: <optional>)` - Specifies the node to target. This is
+  required when the endpoint is being accessed via a server that is specified as part
+  of the path (`?node_id=...`). Note, this must be the full node ID, not the
+  short 8-character one.
+
+### Sample Request
+
+```shell-session
+$ nomad operator api \
+  /v1/client/identity?node_id=c172799d-1592-06c9-ffc8-308ed12f8080
+```
+
+### Sample Response
+
+```json
+{
+  "Claims": {
+    "aud": "nomadproject.io",
+    "exp": 1758032770,
+    "jti": "a881c528-64f5-4fdd-70cb-c759c3427bb8",
+    "nomad_node_datacenter": "dc1",
+    "nomad_node_id": "c172799d-1592-06c9-ffc8-308ed12f8080",
+    "nomad_node_pool": "default",
+    "iat": 1757946370,
+    "nbf": 1757946370,
+    "sub": "node:global:default:c172799d-1592-06c9-ffc8-308ed12f8080:default"
+  }
+}
+```
+
+## Renew a Node's Identity
+
+This endpoint instructs a node to renew its identity at the next heartbeat.
+
+| Method | Path                        | Produces           |
+| ------ | --------------------------- | ------------------ |
+| `GET`  | `/v1/client/identity/renew` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `NO`             | `node:write`  |
+
+### Parameters
+
+- `NodeID` or `:node_id` `(string: <optional>)` - Specifies the node to target.
+  This is required when the endpoint is being accessed via a server. This may be
+  specified as part of the path (`?node_id=...`) or request body
+  (`NodeID: "..."`), with the query parameter taking precedence when both are
+  provided. Note, this must be the full node ID, not the short 8-character one.
+
+### Sample Request
+
+```shell-session
+$ nomad operator api \
+  -X POST \
+  /v1/client/identity/renew?node_id=c172799d-1592-06c9-ffc8-308ed12f8080
+```
+
+### Sample Response
+
+```json
+{}
+```
+
 [api-node-read]: /nomad/api-docs/nodes
 [disabled=true]: /nomad/docs/job-specification/logs#disabled
