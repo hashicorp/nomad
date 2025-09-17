@@ -1074,7 +1074,7 @@ func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	defer signal.Stop(signalCh)
 
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
 	// Signal readiness only once signal handlers are setup
 	sdSock, err := openNotify()
@@ -1113,7 +1113,7 @@ func (c *Command) handleSignals() int {
 				}
 
 				return c.terminateGracefully(signalCh, sdSock)
-			case os.Interrupt:
+			case syscall.SIGINT:
 				if !c.agent.GetConfig().LeaveOnInt {
 					return 1
 				}
