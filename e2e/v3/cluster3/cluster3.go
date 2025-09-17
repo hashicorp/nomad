@@ -148,7 +148,7 @@ func (c *Cluster) wait() {
 		errCh <- err
 	}()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		err := <-errCh
 		must.NoError(c.t, err)
 	}
