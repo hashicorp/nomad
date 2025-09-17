@@ -1,0 +1,3 @@
+```release-note:improvement
+install: Updated license information displayed during post-install
+```
