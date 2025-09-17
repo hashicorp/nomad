@@ -620,6 +620,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 		"unique.consul.name":   "HAL9000",
 	}, resp.Attributes)
 	must.True(t, resp.Detected)
+	must.Eq(t, "dc1.HAL9000", resp.Links["consul"])
 
 	// consul now available
 	must.NotNil(t, cf.clusters[structs.ConsulDefaultCluster])
@@ -711,6 +712,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"unique.consul.name":     "HAL9000",
 	}, resp.Attributes)
 	must.True(t, resp.Detected)
+	must.Eq(t, "dc1.HAL9000", resp.Links["consul"])
 
 	// consul now available
 	must.NotNil(t, cf.clusters[structs.ConsulDefaultCluster])
