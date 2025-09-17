@@ -1,0 +1,3 @@
+```release-note:security
+acl: Support delegating namespace create and delete
+```

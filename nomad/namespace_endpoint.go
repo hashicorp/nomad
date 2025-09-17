@@ -11,6 +11,7 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -45,11 +46,13 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
-	// Check management permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	// Check namespace create permissions.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityCreate)
+
+	// Resolve access list
+	aclObj, err := n.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
-		return structs.ErrPermissionDenied
 	}
 
 	// Validate there is at least one namespace
@@ -61,6 +64,11 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	for _, ns := range args.Namespaces {
 		if err := ns.Validate(); err != nil {
 			return fmt.Errorf("Invalid namespace %q: %v", ns.Name, err)
+		}
+
+		// Check create permissions
+		if !aclObj.IsManagement() && !allowNsOp(aclObj, ns.Name) {
+			return structs.ErrPermissionDenied
 		}
 
 		ns.SetHash()
@@ -95,11 +103,13 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
-	// Check management permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	// Check namespace delete permissions.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityDelete)
+
+	// Resolve access list
+	aclObj, err := n.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
-		return structs.ErrPermissionDenied
 	}
 
 	// Validate at least one namespace
@@ -111,6 +121,12 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		if ns == structs.DefaultNamespace {
 			return fmt.Errorf("can not delete default namespace")
 		}
+
+		// Check delete permissions
+		if !aclObj.IsManagement() && !allowNsOp(aclObj, ns) {
+			return structs.ErrPermissionDenied
+		}
+
 	}
 
 	// snapshot the state once, because we'll be doing many checks and want

@@ -614,15 +614,23 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 
 	ns1 := mock.Namespace()
 	ns2 := mock.Namespace()
+	ns3 := mock.Namespace()
+	ns4 := mock.Namespace()
 	state := s1.fsm.State()
-	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2, ns3, ns4})
 
 	// Create the policy and tokens
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
+		mock.NamespacePolicy("team-*", "", []string{acl.NamespaceCapabilityDelete}))
 
 	req := &structs.NamespaceDeleteRequest{
 		Namespaces:   []string{ns1.Name, ns2.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	req2 := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{ns3.Name, ns4.Name},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
@@ -674,6 +682,23 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 		assert.Nil(out)
 
 		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
+	// Try with a valid token
+	req2.AuthToken = validToken.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req2, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we deleted the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns3.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns4.Name)
 		assert.Nil(err)
 		assert.Nil(out)
 	}
@@ -773,15 +798,23 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 
 	ns1 := mock.Namespace()
 	ns2 := mock.Namespace()
+	ns3 := mock.Namespace()
+	ns4 := mock.Namespace()
 	state := s1.fsm.State()
 
 	// Create the policy and tokens
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
+		mock.NamespacePolicy("team-*", "", []string{acl.NamespaceCapabilityCreate}))
 
-	// Create the register request
+	// Create the register requests
 	req := &structs.NamespaceUpsertRequest{
 		Namespaces:   []*structs.Namespace{ns1, ns2},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	req2 := &structs.NamespaceUpsertRequest{
+		Namespaces:   []*structs.Namespace{ns3, ns4},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
@@ -851,6 +884,23 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 		assert.NotNil(out)
 
 		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
+
+	// Try with a valid token
+	req2.AuthToken = validToken.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req2, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we created the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns3.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns4.Name)
 		assert.Nil(err)
 		assert.NotNil(out)
 	}

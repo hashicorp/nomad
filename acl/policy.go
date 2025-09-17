@@ -30,6 +30,8 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
+	NamespaceCapabilityCreate               = "create"
+	NamespaceCapabilityDelete               = "delete"
 	NamespaceCapabilityDeny                 = "deny"
 	NamespaceCapabilityListJobs             = "list-jobs"
 	NamespaceCapabilityParseJob             = "parse-job"
@@ -207,7 +209,8 @@ func (p *PluginPolicy) isValid() bool {
 // isNamespaceCapabilityValid ensures the given capability is valid for a namespace policy
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
-	case NamespaceCapabilityDeny, NamespaceCapabilityParseJob, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
+	case NamespaceCapabilityCreate, NamespaceCapabilityDelete,
+		NamespaceCapabilityDeny, NamespaceCapabilityParseJob, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
