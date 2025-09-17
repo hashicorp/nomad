@@ -9,6 +9,33 @@ description: >-
 
 We are pleased to announce the following Nomad updates.
 
+## 1.10.5 release highlights
+
+### Windows OS enhancements
+
+- Configure Nomad agents to write to the Windows Event Log. Refer to the agent
+  configuration's [`eventlog` parameter](/nomad/docs/configuration#eventlog) for
+  details.
+- Use CLI commands to install and uninstall Nomad as a system service. Refer to
+  the following for more information:
+
+    - [`nomad windows service install` command reference](/nomad/commands/windows/service-install)
+    - [`nomad windows service uninstall` command reference](/nomad/commands/windows/service-uninstall)
+
+
+### Keyring configuration validation
+
+On agent startup, Nomad validates [the keyring configuration type](/nomad/docs/configuration/keyring) against supported values.
+
+### Scheduling performance improvement
+
+We improved scheduling performance when checking reserved ports usage.
+
+### Changelog
+
+Review [the changelog](https://github.com/hashicorp/nomad/releases/tag/v1.10.5)
+for a list of bug and security fixes.
+
 ## 1.10.4 release highlights
 
 ### Nomad logs and journald output
