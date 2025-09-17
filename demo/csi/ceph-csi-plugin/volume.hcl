@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 id        = "testvolume"
-name      = "test1"
+name      = "3c86c5b2-a836-4e07-ba38-01c1702cd8a7"
 type      = "csi"
 plugin_id = "cephrbd"
 
@@ -14,10 +14,10 @@ capability {
   attachment_mode = "file-system"
 }
 
-capability {
-  access_mode     = "single-node-writer"
-  attachment_mode = "block-device"
-}
+# capability {
+#   access_mode     = "single-node-writer"
+#   attachment_mode = "block-device"
+# }
 
 # mount_options {
 #   fs_type     = "ext4"
@@ -33,7 +33,7 @@ capability {
 
 secrets {
   userID  = "admin"
-  userKey = "AQDsIoxgHqpeBBAAtmd9Ndu4m1xspTbvwZdIzA=="
+  userKey = "AQBN9Mpoycc9JhAAQmzirsWH7k2U7x74hFVcWA=="
 }
 
 parameters {
@@ -41,4 +41,5 @@ parameters {
   clusterID     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
   pool          = "rbd"
   imageFeatures = "layering"
+  fsName = "foo"
 }

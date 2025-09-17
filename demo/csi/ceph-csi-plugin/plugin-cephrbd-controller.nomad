@@ -39,7 +39,7 @@ job "plugin-cephrbd-controller" {
         args = [
           "--drivername=rbd.csi.ceph.com",
           "--v=5",
-          "--type=rbd",
+          "--type=cephfs",
           "--controllerserver=true",
           "--nodeid=${NODE_ID}",
           "--instanceid=${POD_ID}",
@@ -48,6 +48,9 @@ job "plugin-cephrbd-controller" {
         ]
 
         ports = ["prometheus"]
+
+        # TODO: this is... interesting?
+        security_opt = ["label=disable"]
 
         # we need to be able to write key material to disk in this location
         mount {

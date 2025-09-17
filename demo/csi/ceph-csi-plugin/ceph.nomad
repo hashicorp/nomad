@@ -38,18 +38,18 @@ job "ceph" {
       port = 3300
     }
 
-    service {
-      name = "ceph-dashboard"
-      port = 5000
+    # service {
+    #   name = "ceph-dashboard"
+    #   port = 5000
 
-      check {
-        type           = "http"
-        interval       = "5s"
-        timeout        = "1s"
-        path           = "/"
-        initial_status = "warning"
-      }
-    }
+    #   check {
+    #     type           = "http"
+    #     interval       = "5s"
+    #     timeout        = "1s"
+    #     path           = "/"
+    #     initial_status = "warning"
+    #   }
+    # }
 
     task "ceph" {
       driver = "docker"
