@@ -32,7 +32,7 @@ job "plugin-cephrbd-node" {
         args = [
           "--drivername=rbd.csi.ceph.com",
           "--v=5",
-          "--type=rbd",
+          "--type=cephfs",
           "--nodeserver=true",
           "--nodeid=${NODE_ID}",
           "--instanceid=${POD_ID}",
@@ -48,7 +48,6 @@ job "plugin-cephrbd-node" {
         data = <<-EOT
 POD_ID=${NOMAD_ALLOC_ID}
 NODE_ID=${node.unique.id}
-CSI_ENDPOINT=unix://csi/csi.sock
 EOT
 
         destination = "${NOMAD_TASK_DIR}/env"
