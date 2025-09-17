@@ -1,0 +1,3 @@
+```release-note:bug
+consul (Enterprise): Fixed a bug where Consul fingerprinting would generate warning logs if there was no default cluster
+```

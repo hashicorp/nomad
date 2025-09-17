@@ -242,12 +242,12 @@ func (cfs *consulState) query(logger hclog.Logger) agentconsul.Self {
 }
 
 func (f *ConsulFingerprint) link(resp *FingerprintResponse) {
-	if dc, ok := resp.Attributes["consul.datacenter"]; ok {
-		if name, ok2 := resp.Attributes["unique.consul.name"]; ok2 {
-			resp.AddLink("consul", fmt.Sprintf("%s.%s", dc, name))
+	if uniqueName, ok := resp.Attributes["unique.consul.name"]; ok {
+		if dc, ok := resp.Attributes["consul.datacenter"]; ok {
+			resp.AddLink("consul", fmt.Sprintf("%s.%s", dc, uniqueName))
+		} else {
+			f.logger.Debug("malformed Consul response prevented adding link")
 		}
-	} else {
-		f.logger.Warn("malformed Consul response prevented linking")
 	}
 }
 
