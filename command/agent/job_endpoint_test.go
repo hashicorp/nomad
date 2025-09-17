@@ -3582,7 +3582,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	structsJob := ApiJobToStructJob(apiJob)
 
-	require.Equal(t, expected, structsJob)
+	must.Eq(t, expected, structsJob)
 
 	systemAPIJob := &api.Job{
 		Stop:        pointer.Of(true),
@@ -3725,6 +3725,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Operand: "c",
 			},
 		},
+		Update: structs.UpdateStrategy{
+			Stagger:     30 * time.Second,
+			MaxParallel: 1,
+		},
 		TaskGroups: []*structs.TaskGroup{
 			{
 				Name:  "group1",
@@ -3742,6 +3746,17 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:           10 * time.Second,
 					Mode:            "delay",
 					RenderTemplates: false,
+				},
+				Update: &structs.UpdateStrategy{
+					Stagger:          30 * time.Second,
+					MaxParallel:      1,
+					HealthCheck:      structs.UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:   10 * time.Second,
+					HealthyDeadline:  5 * time.Minute,
+					ProgressDeadline: 10 * time.Minute,
+					AutoRevert:       false,
+					AutoPromote:      false,
+					Canary:           0,
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,
@@ -3832,7 +3847,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	}
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
-	require.Equal(t, expectedSystemJob, systemStructsJob)
+	must.Eq(t, expectedSystemJob, systemStructsJob)
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
