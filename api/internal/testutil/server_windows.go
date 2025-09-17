@@ -12,6 +12,7 @@ import (
 
 var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	handler  = kernel32.NewProc("SetConsoleCtrlHandler")
 	proc     = kernel32.NewProc("GenerateConsoleCtrlEvent")
 )
 
@@ -20,7 +21,14 @@ var (
 // CTRL_C_EVENT
 func (s *TestServer) gracefulStop() error {
 	pid := s.cmd.Process.Pid
-	result, _, err := proc.Call(syscall.CTRL_C_EVENT, uintptr(pid))
+	result, _, err := handler.Call(0, 1)
+	if result == 0 {
+		fmt.Println("failed to modify handlers")
+		return fmt.Errorf("failed to modify handlers for ctrl-c on pid %d: %w", pid, err)
+	}
+
+	result, _, err = proc.Call(syscall.CTRL_C_EVENT, uintptr(pid))
+	fmt.Println("signal was sent --")
 	if result == 0 {
 		// note: err is always non-nil because Call always populates it from
 		// GetLastError and you need to check the result returned against the
@@ -30,5 +38,6 @@ func (s *TestServer) gracefulStop() error {
 		// error information, call GetLastError."
 		return fmt.Errorf("failed to send ctrl-C event to pid %d: %w", pid, err)
 	}
+	fmt.Println("done with graceful stop in testutil")
 	return nil
 }
