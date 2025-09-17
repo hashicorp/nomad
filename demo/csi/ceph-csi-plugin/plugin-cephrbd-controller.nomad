@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: MPL-2.0
 
 variable "cluster_id" {
-  type = string
-  # generated from uuid5(dns) with ceph.example.com as the seed
-  default     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
+  type        = string
+  default     = ""
   description = "cluster ID for the Ceph monitor"
 }
 
 job "plugin-cephrbd-controller" {
-  datacenters = ["dc1", "dc2"]
+  #datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -25,9 +24,10 @@ job "plugin-cephrbd-controller" {
     }
 
     service {
-      name = "prometheus"
-      port = "prometheus"
-      tags = ["ceph-csi"]
+      name     = "prometheus"
+      port     = "prometheus"
+      provider = "nomad"
+      tags     = ["ceph-csi"]
     }
 
     task "plugin" {
@@ -37,17 +37,21 @@ job "plugin-cephrbd-controller" {
         image = "quay.io/cephcsi/cephcsi:canary"
 
         args = [
-          "--drivername=rbd.csi.ceph.com",
+          "--drivername=cephfs.csi.ceph.com",
           "--v=5",
-          "--type=rbd",
+          "--type=cephfs",
           "--controllerserver=true",
           "--nodeid=${NODE_ID}",
           "--instanceid=${POD_ID}",
           "--endpoint=${CSI_ENDPOINT}",
           "--metricsport=${NOMAD_PORT_prometheus}",
+
         ]
 
         ports = ["prometheus"]
+
+        # TODO: this is... interesting?
+        security_opt = ["label=disable"]
 
         # we need to be able to write key material to disk in this location
         mount {
@@ -84,7 +88,7 @@ EOT
 [{
     "clusterID": "${var.cluster_id}",
     "monitors": [
-        {{range $index, $service := service "ceph-mon"}}{{if gt $index 0}}, {{end}}"{{.Address}}"{{end}}
+        {{range $index, $service := nomadService "ceph-mon"}}{{if gt $index 0}}, {{end}}"{{.Address}}:{{.Port}}"{{end}}
     ]
 }]
 EOF

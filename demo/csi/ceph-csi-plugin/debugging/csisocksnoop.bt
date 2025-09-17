@@ -1,0 +1,5 @@
+#!/usr/bin/bpftrace
+
+kprobe:unix_stream_sendmsg /comm == "nomad"/ {
+      printf("sendmsg path: %s\n", str(((struct path *)arg0)dentry.d_name.name));
+}

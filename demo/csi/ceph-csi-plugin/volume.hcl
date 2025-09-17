@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 id        = "testvolume"
-name      = "test1"
+name      = "2e1064ef-4ed3-48a8-af27-9d29611ee967"
 type      = "csi"
 plugin_id = "cephrbd"
 
@@ -14,31 +14,18 @@ capability {
   attachment_mode = "file-system"
 }
 
-capability {
-  access_mode     = "single-node-writer"
-  attachment_mode = "block-device"
-}
-
-# mount_options {
-#   fs_type     = "ext4"
-#   mount_flags = ["ro"]
-# }
-
-
-# creds should be coming from:
-# /var/lib/ceph/mds/ceph-demo/keyring
-
-# but instead we're getting them from:
-# /etc/ceph/ceph.client.admin.keyring
-
+# NOTE: these are bogus test secrets pulled from the demo ceph container's
+# keyring file, not real secrets that we care about securing
 secrets {
   userID  = "admin"
-  userKey = "AQDsIoxgHqpeBBAAtmd9Ndu4m1xspTbvwZdIzA=="
+  userKey = "AQBN3PdoU2vbCBAA3z4eAts5FwEpwmM0B+AEaA=="
 }
 
+# NOTE: we have to update this on each run, would be good to be able to template
+# these via HCL2
 parameters {
-  # seeded from uuid5(ceph.example.com)
-  clusterID     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
-  pool          = "rbd"
+  clusterID     = "540cdda2-84fe-4a41-8115-59c79b450536"
+  pool          = "cephfs"
   imageFeatures = "layering"
+  fsName        = "foo"
 }

@@ -1,0 +1,63 @@
+#!/usr/bin/env bpftrace
+/*
+ * undump	Trace unix domain socket package receive.
+ *		For Linux, uses bpftrace and eBPF.
+ *
+ * Example of usage:
+ *
+ * Terminal 1, UNIX Socket Server:
+ *
+ * ```
+ * $ nc -lU /var/tmp/unixsocket
+ * # receive from Client
+ * Hello, world
+ * 123abc
+ * ```
+ *
+ * Terminal 2, UNIX socket Client:
+ *
+ * ```
+ * $ nc -U /var/tmp/unixsocket
+ * # Input some lines
+ * Hello, world
+ * 123abc
+ * ```
+ *
+ * Terminal 3, receive tracing:
+ *
+ * ```
+ * $ sudo ./undump.bt
+ * Attaching 3 probes...
+ * Dump UNIX socket packages RX. Ctrl-C to end
+ * TIME     COMM             PID      SIZE     DATA
+ * 20:40:11 nc               139071   13       Hello, world\x0a
+ * 20:40:14 nc               139071   7        123abc\x0a
+ * ^C
+ * ```
+ *
+ * This is a bpftrace version of the bcc examples/tracing of the same name.
+ *
+ * Copyright 2022 CESTC, Inc.
+ *
+ * 22-May-2022	Rong Tao	Created this.
+ */
+#ifndef BPFTRACE_HAVE_BTF
+#include <linux/skbuff.h>
+#endif
+
+BEGIN
+{
+	printf("Dump UNIX socket packages RX. Ctrl-C to end\n");
+	printf("%-8s %-16s %-8s %-8s %-s\n", "TIME", "COMM", "PID", "SIZE", "DATA");
+}
+
+kprobe:unix_stream_read_actor
+{
+	$skb = (struct sk_buff *)arg0;
+	time("%H:%M:%S ");
+	printf("%-16s %-8d %-8d %r\n", comm, pid, $skb->len, buf($skb->data, $skb->len));
+}
+
+END
+{
+}

@@ -18,9 +18,10 @@ job "plugin-cephrbd-node" {
     }
 
     service {
-      name = "prometheus"
-      port = "prometheus"
-      tags = ["ceph-csi"]
+      name     = "prometheus"
+      port     = "prometheus"
+      provider = "nomad"
+      tags     = ["ceph-csi"]
     }
 
     task "plugin" {
@@ -32,7 +33,7 @@ job "plugin-cephrbd-node" {
         args = [
           "--drivername=rbd.csi.ceph.com",
           "--v=5",
-          "--type=rbd",
+          "--type=cephfs",
           "--nodeserver=true",
           "--nodeid=${NODE_ID}",
           "--instanceid=${POD_ID}",
@@ -42,13 +43,16 @@ job "plugin-cephrbd-node" {
 
         privileged = true
         ports      = ["prometheus"]
+
+
+        # TODO: this is... interesting?
+        security_opt = ["label=disable"]
       }
 
       template {
         data = <<-EOT
 POD_ID=${NOMAD_ALLOC_ID}
 NODE_ID=${node.unique.id}
-CSI_ENDPOINT=unix://csi/csi.sock
 EOT
 
         destination = "${NOMAD_TASK_DIR}/env"
