@@ -1515,13 +1515,15 @@ func TestClient_getRegistrationToken(t *testing.T) {
 		})
 		t.Cleanup(func() { _ = testClientCleanup() })
 
+		// Ensure the identity is written to state before marking as registered,
+		// as would happen in a real client.
+		must.NoError(t, testClient.stateDB.PutNodeIdentity("my-identity-token"))
+
 		must.NoError(t, testClient.stateDB.PutNodeRegistration(
 			&cstructs.NodeRegistration{
 				HasRegistered: true,
 			},
 		))
-
-		must.NoError(t, testClient.stateDB.PutNodeIdentity("my-identity-token"))
 
 		must.Eq(t, "my-identity-token", testClient.getRegistrationToken())
 	})
