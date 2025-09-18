@@ -23,7 +23,7 @@ task "webservice" {
 
   config {
     image = "redis:7"
-    labels {
+    labels = {
       group = "webservice-cache"
     }
   }
@@ -216,25 +216,10 @@ The `docker` driver supports the following configuration in the job spec. Only
 
   ```hcl
   config {
-    labels {
+    labels = {
       foo = "bar"
-      zip = "zap"
+      "quote.dotted.keys" = "zap"
     }
-  }
-  ```
-
-  A more verbose syntax must be used to specify labels with keys that require
-  quoting. For example DataDog's autodiscovery mechanism looks for labels with
-  dots in the key which must be quoted:
-
-  ```hcl
-  config {
-    labels = [
-      {
-        "com.datadoghq.ad.check_names"  =  "[\"openmetrics\"]"
-        "com.datadoghq.ad.init_configs" = "[{}]"
-      }
-    ]
   }
   ```
 
@@ -424,7 +409,7 @@ The `docker` driver supports the following configuration in the job spec. Only
       readonly = false
       volume_options {
         no_copy = false
-        labels {
+        labels = {
           foo = "bar"
         }
         driver_config {
