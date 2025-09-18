@@ -606,6 +606,88 @@ func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
 	})
 }
 
+// TestACLEndpoint_GetListPolicies_WorkloadIdentity verifies that workload
+// identities can List and Get any workload-associated policies
+func TestACLEndpoint_GetListPolicies_WorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, cleanupSrv := TestACLServer(t, nil)
+	t.Cleanup(cleanupSrv)
+	codec := rpcClient(t, srv)
+	store := srv.fsm.State()
+
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	job := mock.MinJob()
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+
+	// setup one policy associated with the job and one not
+	jobPolicy := mock.ACLPolicy()
+	jobPolicy.JobACL = &structs.JobACL{Namespace: job.Namespace, JobID: job.ID}
+	jobPolicy.SetHash()
+	nonJobPolicy := mock.ACLPolicy()
+	must.NoError(t, store.UpsertACLPolicies(structs.MsgTypeTestSetup, 150,
+		[]*structs.ACLPolicy{jobPolicy, nonJobPolicy}))
+
+	// create an alloc with a signed identity
+	alloc := mock.MinAllocForJob(job)
+	store.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc})
+	task := alloc.LookupTask("t")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+		&structs.WIHandle{
+			WorkloadIdentifier: "t",
+			WorkloadType:       structs.WorkloadTypeTask,
+		},
+		task.Identity).
+		WithTask(task).
+		Build(time.Now().Add(-10 * time.Minute))
+	jwtToken, _, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+
+	listReq := &structs.ACLPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var listResp structs.ACLPolicyListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", listReq, &listResp))
+	must.Len(t, 1, listResp.Policies)
+	must.Eq(t, jobPolicy.Name, listResp.Policies[0].Name)
+
+	getReq := &structs.ACLPolicySpecificRequest{
+		Name: jobPolicy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var getResp structs.SingleACLPolicyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", getReq, &getResp))
+	must.NotNil(t, getResp.Policy)
+
+	// can't get other policies
+	getReq.Name = nonJobPolicy.Name
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", getReq, &getResp),
+		structs.ErrPermissionDenied.Error())
+
+	getSetReq := &structs.ACLPolicySetRequest{
+		Names: []string{jobPolicy.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var getSetResp structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", getSetReq, &getSetResp))
+	must.MapLen(t, 1, getSetResp.Policies)
+
+	// can't get other policies, even if some of the set is ok
+	getSetReq.Names = append(getSetReq.Names, nonJobPolicy.Name)
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", getSetReq, &getSetResp),
+		structs.ErrPermissionDenied.Error())
+}
+
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 	ci.Parallel(t)
 
