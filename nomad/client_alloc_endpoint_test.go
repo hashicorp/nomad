@@ -279,7 +279,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node.Copy()))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 	require.True(nstructs.IsErrUnknownNomadVersion(err), err.Error())
@@ -496,10 +496,10 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
-	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
-	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
-	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job.Copy()))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a.Copy()}))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job.Copy()))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a.Copy()}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
