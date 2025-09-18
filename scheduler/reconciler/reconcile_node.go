@@ -415,8 +415,8 @@ func (nr *NodeReconciler) computeForNode(
 		})
 	}
 
-	// as we iterate over require groups, we'll keep track of whether the deployment
-	// is complete or not
+	// as we iterate over require groups, we'll keep track of whether the
+	// deployment is complete or not
 	deploymentComplete := false
 
 	// Scan the required groups
@@ -516,7 +516,7 @@ func (nr *NodeReconciler) computeForNode(
 
 		// maxParallel of 0 means no deployments
 		if maxParallel != 0 {
-			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs)
+			nr.createDeployment(job, tg, dstate, len(result.Update), liveAllocs, terminal[nodeID])
 		}
 	}
 
@@ -524,7 +524,7 @@ func (nr *NodeReconciler) computeForNode(
 }
 
 func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGroup,
-	dstate *structs.DeploymentState, updates int, allocs []*structs.Allocation) {
+	dstate *structs.DeploymentState, updates int, allocs []*structs.Allocation, terminal map[string]*structs.Allocation) {
 
 	// programming error
 	if dstate == nil {
@@ -534,10 +534,24 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	updatingSpec := updates != 0
 
 	hadRunning := false
+	hadRunningCondition := func(a *structs.Allocation) bool {
+		return a.Job.ID == job.ID && a.Job.Version == job.Version && a.Job.CreateIndex == job.CreateIndex
+	}
+
 	for _, alloc := range allocs {
-		if alloc.Job.ID == job.ID && alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex {
+		if hadRunningCondition(alloc) {
 			nr.compatHasSameVersionAllocs = true
 			hadRunning = true
+			break
+		}
+	}
+
+	// if there's a terminal allocation it means we're doing a reschedule.
+	// We don't create deployments for reschedules.
+	for _, alloc := range terminal {
+		if hadRunningCondition(alloc) {
+			hadRunning = true
+			break
 		}
 	}
 
