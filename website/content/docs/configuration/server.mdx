@@ -104,7 +104,7 @@ server {
   evaluation must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h". Note
   that batch job evaluations are controlled via
-  `batch_eval_gc_threshold`. Allocations are garbage collected with their
+  `batch_eval_gc_threshold`. Nomad garbage collects allocations with their
   evaluations, so this field also controls server garbage collection of
   allocations. Evaluations with non-terminal allocations cannot be garbage
   collected.

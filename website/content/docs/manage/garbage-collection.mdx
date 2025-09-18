@@ -75,9 +75,8 @@ for objects without a configurable interval setting.
 | **Volume** | [`csi_volume_claim_gc_interval`](/nomad/docs/configuration/server#csi_volume_claim_gc_interval)<br/>Default: 5 minutes| [`csi_volume_claim_gc_threshold`](/nomad/docs/configuration/server#csi_volume_claim_gc_threshold)<br/>Default: 1 hour |
 
 Allocations do not have an independent threshold configuration. Because
-allocations are created by specific evaluations, allocations are garbage
-collected when their evaluations are garbage collected. This also means that
-evaluations cannot be garbage collected until their allocations are terminal.
+specific evaluations create allocations, Nomad garbage collects allocations when garbage collecting their evaluations. This also means that Nomad cannot garbage collect
+evaluations until their allocations are terminal.
 
 ### Triggers
 
@@ -133,7 +132,7 @@ Nomad's client runs allocation garbage collection based on these triggers:
   When an allocation transitions to a terminal state, Nomad marks the allocation
   for garbage collection and then signals the garbage collection process to run
   immediately. As with the scheduled interval, this may be a no-op if the
-  thresholds have no been reached.
+  thresholds have not been reached.
 
 - Allocation placement
 
