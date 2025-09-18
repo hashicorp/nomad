@@ -542,6 +542,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 		if hadRunningCondition(alloc) {
 			nr.compatHasSameVersionAllocs = true
 			hadRunning = true
+			break
 		}
 	}
 
@@ -550,6 +551,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	for _, alloc := range terminal {
 		if hadRunningCondition(alloc) {
 			hadRunning = true
+			break
 		}
 	}
 
