@@ -1768,9 +1768,6 @@ func (a *ACL) getPoliciesForIdentity(identity structs.AuthenticatedIdentity) (*s
 		if claims == nil {
 			return tokenPolicyNames, structs.ErrPermissionDenied
 		}
-		if claims.IsNode() || claims.IsNodeIntroduction() {
-			return tokenPolicyNames, nil
-		}
 		policies, err := a.srv.auth.ResolvePoliciesForClaims(claims)
 		if err != nil {
 			return tokenPolicyNames, err
