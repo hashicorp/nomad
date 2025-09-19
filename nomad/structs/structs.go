@@ -2352,6 +2352,24 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 	return s
 }
 
+// AvailableResources returns a comparable version of the resources available
+// for scheduling workloads.
+func (n *Node) AvailableResources() *ComparableResources {
+	if n == nil {
+		return nil
+	}
+
+	available := n.NodeResources.Comparable()
+	reserved := n.ReservedResources.Comparable()
+
+	// ReservedResources is a simple representation of the excluded resources. It is not aware of the hardware topology,
+	// hence we need to manually account for the reserved cpu and the cpu of the reserved cores.
+	available.Subtract(reserved)
+	available.Flattened.Cpu.CpuShares = int64(n.NodeResources.Processors.Topology.UsableCompute())
+
+	return available
+}
+
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
@@ -3239,8 +3257,8 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		return nil
 	}
 
-	usableCores := n.Processors.Topology.UsableCores().Slice()
-	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
+	totalCores := n.Processors.Topology.TotalCores().Slice()
+	cores := helper.ConvertSlice(totalCores, func(id hw.CoreID) uint16 {
 		return uint16(id)
 	})
 
@@ -3248,7 +3266,7 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares:     int64(n.Processors.Topology.TotalCompute()),
-				ReservedCores: reservableCores,
+				ReservedCores: cores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,

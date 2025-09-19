@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where the bandwidth of reserved cores was not taken into account
+```

@@ -162,13 +162,7 @@ func (p *Preemptor) Copy() *Preemptor {
 
 // SetNode sets the node
 func (p *Preemptor) SetNode(node *structs.Node) {
-	nodeRemainingResources := node.NodeResources.Comparable()
-
-	// Subtract the reserved resources of the node
-	if c := node.ReservedResources.Comparable(); c != nil {
-		nodeRemainingResources.Subtract(c)
-	}
-	p.nodeRemainingResources = nodeRemainingResources
+	p.nodeRemainingResources = node.AvailableResources()
 }
 
 // SetCandidates initializes the candidate set from which preemptions are chosen

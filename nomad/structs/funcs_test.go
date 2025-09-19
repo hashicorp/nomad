@@ -106,6 +106,16 @@ func node2k() *Node {
 						ID:        1,
 						Grade:     numalib.Performance,
 						BaseSpeed: 1000,
+					}, {
+						ID:        2,
+						Grade:     numalib.Performance,
+						BaseSpeed: 1000,
+						Disable:   true,
+					}, {
+						ID:        3,
+						Grade:     numalib.Performance,
+						BaseSpeed: 1000,
+						Disable:   true,
 					}},
 					OverrideWitholdCompute: 1000, // set by client reserved field
 				},
@@ -137,7 +147,8 @@ func node2k() *Node {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
+				CpuShares:        1000,
+				ReservedCpuCores: []uint16{2, 3},
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 1024,
@@ -247,6 +258,38 @@ func TestAllocsFit(t *testing.T) {
 	must.Eq(t, "cores", dim)
 	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
 	must.Eq(t, []uint16{0}, used.Flattened.Cpu.ReservedCores)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	a3 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 512,
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a3}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, []uint16{}, used.Flattened.Cpu.ReservedCores)
+	must.Eq(t, 512, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit second allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a3, a3}, nil, false)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, "cpu", dim)
+	must.Eq(t, 2000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, []uint16{}, used.Flattened.Cpu.ReservedCores)
 	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 }
 
@@ -649,8 +692,23 @@ func TestScoreFitBinPack(t *testing.T) {
 				Cores: []numalib.Core{{
 					ID:        0,
 					Grade:     numalib.Performance,
-					BaseSpeed: 4096,
+					BaseSpeed: 2048,
+				}, {
+					ID:        1,
+					Grade:     numalib.Performance,
+					BaseSpeed: 2048,
+				}, {
+					ID:        2,
+					Grade:     numalib.Performance,
+					BaseSpeed: 2048,
+					Disable:   true,
+				}, {
+					ID:        3,
+					Grade:     numalib.Performance,
+					BaseSpeed: 2048,
+					Disable:   true,
 				}},
+				OverrideWitholdCompute: 2048, // set by client reserved field
 			},
 		},
 		Memory: NodeMemoryResources{
@@ -661,7 +719,8 @@ func TestScoreFitBinPack(t *testing.T) {
 	node.NodeResources.Compatibility()
 	node.ReservedResources = &NodeReservedResources{
 		Cpu: NodeReservedCpuResources{
-			CpuShares: 2048,
+			CpuShares:        2048,
+			ReservedCpuCores: []uint16{2, 3},
 		},
 		Memory: NodeReservedMemoryResources{
 			MemoryMB: 4096,
