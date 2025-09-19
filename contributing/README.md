@@ -10,6 +10,25 @@ to the [Nomad website](https://developer.hashicorp.com/nomad).
 The [good first issue label](https://github.com/hashicorp/nomad/issues?q=is:issue+is:open+label:%22good+first+issue%22)
 is used to identify issues which are suited to first time contributors.
 
+## Contributing to Nomad
+
+We welcome contributions from the community. Before you start coding, please
+[open a Feature Request issue](https://github.com/hashicorp/nomad/issues) with the following information:
+
+- Details on the feature you'd like to see and the problem you hope to solve,
+  including how you envision using the feature.
+- Your wish to contribute the code, your proposed solution, and the test plan.
+
+The Feature Request issue template has sections for the aforementioned
+information.
+
+Creating the issue opens a discussion with us so that we can collect feedback,
+help with design, track the feature request, and better review your code PR. This
+initial discussion and collaboration ensures that you have the support you need
+to implement and test your enhancement.  
+If you'd like to contribute to an existing issue, you should post in the issue before 
+starting. Let us know you'd like to work on it and your proposed solution.
+
 Developing with Vagrant
 ---
 A development environment is supplied via Vagrant to make getting started easier.
