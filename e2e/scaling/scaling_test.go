@@ -187,6 +187,9 @@ func testScalingSystemJob(t *testing.T) {
 		must.Eq(t, a.ID, initialAllocs[i].ID)
 	}
 
+	// Wait for the deployment to finish
+	must.NoError(t, e2eutil.WaitForLastDeploymentStatus(jobID, defaultNS, "successful", nil))
+
 	// Scale down to 0
 	testMeta = map[string]any{"scaling-e2e-test": "value"}
 	scaleResp, _, err = nomad.Jobs().Scale(jobID, "system_job_group", pointer.Of(0),
