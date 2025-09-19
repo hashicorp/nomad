@@ -7683,7 +7683,7 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 	require.Contains(err.Error(), "should not contain count if error is true")
 }
 
-func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
+func TestJobEndpoint_Scale_TaskGroupOutOfBounds(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -7724,6 +7724,45 @@ func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
 	require.Contains(err.Error(), "group count was less than scaling policy minimum: 2 < 3")
+}
+
+func TestJobEndpoint_Scale_JobOutOfBounds(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(config *Config) {
+		config.JobMaxCount = 4
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	const requestedCount = 6
+	job := mock.Job()
+	job.TaskGroups[0].Count = requestedCount
+
+	// register the job
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	require.Nil(err)
+
+	var resp structs.JobRegisterResponse
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Count:          pointer.Of(int64(requestedCount)),
+		Message:        "count too high",
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "total count was greater than configured job_max_count: 6 > 4")
 }
 
 func TestJobEndpoint_Scale_NoEval(t *testing.T) {

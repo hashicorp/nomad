@@ -352,6 +352,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxPriority = jobMaxPriority
 	conf.JobDefaultPriority = jobDefaultPriority
 
+	jobMaxCount := structs.JobDefaultMaxCount
+	if agentConfig.Server.JobMaxCount != nil && *agentConfig.Server.JobMaxCount != 0 {
+		jobMaxCount = *agentConfig.Server.JobMaxCount
+		if jobMaxCount < 1 {
+			return nil, fmt.Errorf("job_max_count cannot be %d. Must be at least 1", *agentConfig.Server.JobMaxCount)
+		}
+	}
+	conf.JobMaxCount = jobMaxCount
+
 	if agentConfig.Server.JobTrackedVersions != nil {
 		if *agentConfig.Server.JobTrackedVersions <= 0 {
 			return nil, fmt.Errorf("job_tracked_versions must be greater than 0")

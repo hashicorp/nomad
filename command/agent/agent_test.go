@@ -1945,6 +1945,72 @@ func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
 	}
 }
 
+func TestAgent_ServerConfig_JobMaxCount_Ok(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		configured *int
+		expected   int
+	}{
+		{
+			configured: nil,
+			expected:   structs.JobDefaultMaxCount,
+		},
+		{
+			configured: pointer.Of(1),
+			expected:   1,
+		},
+		{
+			configured: pointer.Of(0),
+			expected:   structs.JobDefaultMaxCount,
+		},
+		{
+			configured: pointer.Of(structs.JobDefaultMaxCount),
+			expected:   structs.JobDefaultMaxCount,
+		},
+		{
+			configured: pointer.Of(2 * structs.JobDefaultMaxCount),
+			expected:   2 * structs.JobDefaultMaxCount,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprint(tc.configured), func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.JobMaxCount = tc.configured
+
+			serverConf, err := convertServerConfig(conf)
+			must.NoError(t, err)
+
+			must.Eq(t, tc.expected, serverConf.JobMaxCount)
+		})
+	}
+}
+
+func TestAgent_ServerConfig_JobMaxCount_Bad(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []int{
+		-3,
+		-1,
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.JobMaxCount = &tc
+
+			_, err := convertServerConfig(conf)
+			must.Error(t, err)
+			must.ErrorContains(t, err, "job_max_count cannot be")
+		})
+	}
+}
+
 func Test_convertServerConfig_clientIntroduction(t *testing.T) {
 	ci.Parallel(t)
 

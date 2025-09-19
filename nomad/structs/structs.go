@@ -4327,6 +4327,9 @@ const (
 	// JobMaxPriority is the maximum allowed configuration value for maximum job priority
 	JobMaxPriority = math.MaxInt16 - 1
 
+	// JobDefaultMaxCount is the default maximum allowed number of instances per job
+	JobDefaultMaxCount = 50000
+
 	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
