@@ -168,7 +168,8 @@ client {
   which a client will track before triggering a garbage collection of terminal
   allocations. This will _not_ limit the number of allocations a node can run at
   a time, however after `gc_max_allocs` every new allocation will cause terminal
-  allocations to be GC'd. Note that Nomad immediately garbage collects terminal allocations if garbage collected on the server.
+  allocations to be GC'd. Note that Nomad immediately garbage collects terminal
+  allocations if garbage collected on the server.
 
 - `gc_parallel_destroys` `(int: 2)` - Specifies the maximum number of
   parallel destroys allowed by the garbage collector. This value should be

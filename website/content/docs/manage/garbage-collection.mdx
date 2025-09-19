@@ -45,7 +45,8 @@ collect objects after they are terminal for at least the specified time
 threshold and no longer needed for future scheduling decisions. This also means
 that if a job is stopped it can't be garbage collected until its allocations are
 terminal. Note that when you force garbage collection by running the `nomad
-system gc` command, Nomad ignores the specified time threshold.
+system gc` command, Nomad ignores the specified time threshold, but all
+other conditions still apply.
 
 ## Server-side garbage collection
 
@@ -75,8 +76,9 @@ for objects without a configurable interval setting.
 | **Volume** | [`csi_volume_claim_gc_interval`](/nomad/docs/configuration/server#csi_volume_claim_gc_interval)<br/>Default: 5 minutes| [`csi_volume_claim_gc_threshold`](/nomad/docs/configuration/server#csi_volume_claim_gc_threshold)<br/>Default: 1 hour |
 
 Allocations do not have an independent threshold configuration. Because
-specific evaluations create allocations, Nomad garbage collects allocations when garbage collecting their evaluations. This also means that Nomad cannot garbage collect
-evaluations until their allocations are terminal.
+specific evaluations create allocations, Nomad garbage collects allocations
+when garbage collecting their evaluations. This also means that Nomad
+cannot garbage collect evaluations until their allocations are terminal.
 
 ### Triggers
 
@@ -144,7 +146,8 @@ Nomad's client runs allocation garbage collection based on these triggers:
 
   When the server garbage collects an allocation or you force garbage collection
   by running the `nomad system gc` command, the garbage collection process
-  removes all terminal objects on all servers and clients, ignoring thresholds.
+  removes all terminal objects on all servers and clients, ignoring all
+  threshold settings cluster-wide.
 
 Nomad does not continuously monitor disk or inode usage to trigger garbage
 collection. Instead, Nomad only checks disk and inode thresholds when one of the
