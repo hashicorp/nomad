@@ -54,11 +54,11 @@ func TestMetrics(t *testing.T) {
 	t.Cleanup(cleanupSetup)
 
 	t.Log("running metrics job cpustress ...")
-	jobCPU, cleanupCPU := jobs3.Submit(t, "./input/cpustress.hcl")
+	jobCPU, cleanupCPU := jobs3.Submit(t, "./input/cpustress.hcl", jobs3.Timeout(60*time.Second))
 	t.Cleanup(cleanupCPU)
 
 	t.Log("running metrics job nomadagent ...")
-	jobHP, cleanupHP := jobs3.Submit(t, "./input/nomadagent.hcl")
+	jobHP, cleanupHP := jobs3.Submit(t, "./input/nomadagent.hcl", jobs3.Timeout(60*time.Second))
 	t.Cleanup(cleanupHP)
 
 	t.Log("running metrics job prometheus ...")
@@ -74,7 +74,7 @@ func TestMetrics(t *testing.T) {
 	t.Cleanup(cleanupCaddy)
 
 	t.Log("running metrics job winagent ...")
-	jobWin, cleanupWin := jobs3.Submit(t, "./input/winagent.hcl")
+	jobWin, cleanupWin := jobs3.Submit(t, "./input/winagent.hcl", jobs3.Timeout(60*time.Second))
 	t.Cleanup(cleanupWin)
 
 	t.Log("let the metrics collect for a bit (10s) ...")

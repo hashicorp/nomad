@@ -29,6 +29,7 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/system_job0.nomad",
 		jobs3.DisableRandomJobID(),
+		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup)
 
@@ -66,6 +67,7 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job2, cleanup2 := jobs3.Submit(t,
 		"./input/system_job1.nomad",
 		jobs3.DisableRandomJobID(),
+		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup2)
 
@@ -93,6 +95,7 @@ func testCanaryUpdate(t *testing.T) {
 	_, cleanup := jobs3.Submit(t,
 		"./input/system_canary_v0.nomad.hcl",
 		jobs3.DisableRandomJobID(),
+		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup)
 
@@ -100,6 +103,7 @@ func testCanaryUpdate(t *testing.T) {
 	job2, cleanup2 := jobs3.Submit(t,
 		"./input/system_canary_v1.nomad.hcl",
 		jobs3.DisableRandomJobID(),
+		jobs3.Timeout(60*time.Second),
 		jobs3.Detach(),
 	)
 	t.Cleanup(cleanup2)
