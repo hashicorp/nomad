@@ -26,7 +26,8 @@ Creating the issue opens a discussion with us so that we can collect feedback,
 help with design, track the feature request, and better review your code PR. This
 initial discussion and collaboration ensures that you have the support you need
 to implement and test your enhancement.  
-
+If you'd like to contribute to an existing issue, you should post in the issue before 
+starting. Let us know you'd like to work on it and your proposed solution.
 Developing with Vagrant
 ---
 A development environment is supplied via Vagrant to make getting started easier.
