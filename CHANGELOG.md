@@ -202,6 +202,27 @@ BUG FIXES:
 * services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 * services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 
+## 1.9.13 Enterprise (September 19, 2025)
+
+SECURITY:
+
+* build: Update go-getter to 1.7.9 to address CVE-2025-8959. Nomad Client Agents with Landlock support are not impacted by this vulnerability. [[GH-26533](https://github.com/hashicorp/nomad/issues/26533)]
+* client: inspect artifacts for sandbox escape when landlock is unavailable [[GH-26608](https://github.com/hashicorp/nomad/issues/26608)]
+
+IMPROVEMENTS:
+
+* config: Validate the `keyring` configuration block label against supported values on agent startup [[GH-26673](https://github.com/hashicorp/nomad/issues/26673)]
+* scheduling: Improve performance of scheduling when checking reserved ports usage [[GH-26712](https://github.com/hashicorp/nomad/issues/26712)]
+* ui: Updated icons to the newest design system [[GH-25353](https://github.com/hashicorp/nomad/issues/25353)]
+
+BUG FIXES:
+
+* dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
+* exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
+* exec: Correctly set the `LOGNAME` env var when the job specification user value is set [[GH-26703](https://github.com/hashicorp/nomad/issues/26703)]
+* logs: skip logging SIGPIPE [[GH-26582](https://github.com/hashicorp/nomad/issues/26582)]
+
+
 ## 1.9.12 Enterprise (August 13, 2025)
 
 SECURITY:
@@ -534,6 +555,26 @@ BUG FIXES:
 * task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+
+## 1.8.17 Enterprise (September 19, 2025)
+
+SECURITY:
+
+* build: Update go-getter to 1.7.9 to address CVE-2025-8959. Nomad Client Agents with Landlock support are not impacted by this vulnerability. [[GH-26533](https://github.com/hashicorp/nomad/issues/26533)]
+* client: inspect artifacts for sandbox escape when landlock is unavailable [[GH-26608](https://github.com/hashicorp/nomad/issues/26608)]
+
+IMPROVEMENTS:
+
+* config: Validate the `keyring` configuration block label against supported values on agent startup [[GH-26673](https://github.com/hashicorp/nomad/issues/26673)]
+* scheduling: Improve performance of scheduling when checking reserved ports usage [[GH-26712](https://github.com/hashicorp/nomad/issues/26712)]
+* ui: Updated icons to the newest design system [[GH-25353](https://github.com/hashicorp/nomad/issues/25353)]
+
+BUG FIXES:
+
+* dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
+* exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
+* exec: Correctly set the `LOGNAME` env var when the job specification user value is set [[GH-26703](https://github.com/hashicorp/nomad/issues/26703)]
+* logs: skip logging SIGPIPE [[GH-26582](https://github.com/hashicorp/nomad/issues/26582)]
 
 ## 1.8.16 Enterprise (August 13, 2025)
 
