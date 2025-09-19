@@ -257,6 +257,7 @@ type RPCInfo interface {
 	AllowStaleRead() bool
 	IsForwarded() bool
 	SetForwarded()
+	NumHops() int16
 	TimeToBlock() time.Duration
 	// SetTimeToBlock sets how long this request can block. The requested time may not be possible,
 	// so Callers should readback TimeToBlock. E.g. you cannot set time to block at all on WriteRequests
@@ -269,6 +270,11 @@ type RPCInfo interface {
 type InternalRpcInfo struct {
 	// Forwarded marks whether the RPC has been forwarded.
 	Forwarded bool
+	Hops      int16
+}
+
+func (i *InternalRpcInfo) NumHops() int16 {
+	return i.Hops
 }
 
 // IsForwarded returns whether the RPC is forwarded from another server.
@@ -279,6 +285,7 @@ func (i *InternalRpcInfo) IsForwarded() bool {
 // SetForwarded marks that the RPC is being forwarded from another server.
 func (i *InternalRpcInfo) SetForwarded() {
 	i.Forwarded = true
+	i.Hops++
 }
 
 // QueryOptions is used to specify various flags for read queries
