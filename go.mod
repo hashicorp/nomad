@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.24.7
+go 1.25.0
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
@@ -45,8 +45,8 @@ require (
 	github.com/hashicorp/cap v0.10.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.41.1
-	github.com/hashicorp/consul/api v1.32.1
-	github.com/hashicorp/consul/sdk v0.16.2
+	github.com/hashicorp/consul/api v1.32.3
+	github.com/hashicorp/consul/sdk v0.16.3
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/hashicorp/go-bexpr v0.1.14
 	github.com/hashicorp/go-checkpoint v0.5.0
@@ -334,7 +334,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
+	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/term v0.35.0 // indirect
