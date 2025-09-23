@@ -101,14 +101,7 @@ prod-1  <none>`,
 				"-filter", `Name == "prod-1"`,
 			},
 			expectedOut: `
-[
-    {
-        "Description": "",
-        "Meta": null,
-        "Name": "prod-1",
-        "SchedulerConfiguration": null
-    }
-]`,
+"NodeIdentityTTL":"24h0m0s","Name":"prod-1","Description":"","Meta":null,"SchedulerConfiguration":null`,
 			expectedCode: 0,
 		},
 		{

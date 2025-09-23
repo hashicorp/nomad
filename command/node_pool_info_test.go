@@ -6,6 +6,7 @@ package command
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -35,13 +36,15 @@ func TestNodePoolInfoCommand_Run(t *testing.T) {
 		Meta: map[string]string{
 			"env": "test",
 		},
+		NodeIdentityTTL: 720 * time.Hour,
 	}
 	_, err := client.NodePools().Register(dev1, nil)
 	must.NoError(t, err)
 
 	dev1Output := `
-Name        = dev-1
-Description = Test pool
+Name              = dev-1
+Description       = Test pool
+Node Identity TTL = 720h0m0s
 
 Metadata
 env = test
@@ -50,14 +53,7 @@ Scheduler Configuration
 No scheduler configuration`
 
 	dev1JsonOutput := `
-{
-    "Description": "Test pool",
-    "Meta": {
-        "env": "test"
-    },
-    "Name": "dev-1",
-    "SchedulerConfiguration": null
-}`
+"NodeIdentityTTL":"720h0m0s","Name":"dev-1","Description":"Test pool","Meta":{"env":"test"},"SchedulerConfiguration":null`
 
 	// These two node pools are used to test exact prefix match.
 	prod1 := &api.NodePool{Name: "prod-1"}
@@ -91,8 +87,9 @@ No scheduler configuration`
 			name: "exact prefix match",
 			args: []string{"prod-1"},
 			expectedOut: `
-Name        = prod-1
-Description = <none>
+Name              = prod-1
+Description       = <none>
+Node Identity TTL = 24h0m0s
 
 Metadata
 No metadata

@@ -5,6 +5,7 @@
     "environment": "prod",
     "owner": "sre"
   },
+  "NodeIdentityTTL": "24h",
   "SchedulerConfiguration": {
     "SchedulerAlgorithm": "spread",
     "MemoryOversubscriptionEnabled": true
