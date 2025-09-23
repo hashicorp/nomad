@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -58,6 +59,10 @@ type volumeManager struct {
 	// externalNodeID is the identity of a given nomad client as observed by the
 	// storage provider (ex. a hostname, VM instance ID, etc.)
 	externalNodeID string
+
+	// inFlight and its lock control concurrent requests for the same volume
+	inFlight     map[structs.NamespacedID]context.Context
+	inFlightLock sync.Mutex
 }
 
 func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool, externalID string) *volumeManager {
@@ -71,6 +76,7 @@ func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.
 		requiresStaging:     requiresStaging,
 		usageTracker:        newVolumeUsageTracker(),
 		externalNodeID:      externalID,
+		inFlight:            make(map[structs.NamespacedID]context.Context),
 	}
 }
 
@@ -244,12 +250,26 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 }
 
 // MountVolume performs the steps required for using a given volume
-// configuration for the provided allocation.
-// It is passed the publishContext from remote attachment, and specific usage
-// modes from the CSI Hook.
-// It then uses this state to stage and publish the volume as required for use
-// by the given allocation.
-func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (mountInfo *MountInfo, err error) {
+// configuration for the provided allocation. It is passed the publishContext
+// from remote attachment, and specific usage modes from the CSI Hook.  It then
+// uses this state to stage and publish the volume as required for use by the
+// given allocation.
+func (v *volumeManager) MountVolume(ctx context.Context,
+	vol *structs.CSIVolume, alloc *structs.Allocation,
+	usage *UsageOptions, publishContext map[string]string,
+) (*MountInfo, error) {
+
+	var mountInfo *MountInfo
+	err := v.serializedOp(ctx, vol.Namespace, vol.ID, func() error {
+		var err error
+		mountInfo, err = v.mountVolumeImpl(ctx, vol, alloc, usage, publishContext)
+		return err
+	})
+
+	return mountInfo, err
+}
+
+func (v *volumeManager) mountVolumeImpl(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (mountInfo *MountInfo, err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
@@ -372,7 +392,17 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, al
 	return fmt.Errorf("%w: %v", structs.ErrCSIClientRPCIgnorable, rpcErr)
 }
 
-func (v *volumeManager) UnmountVolume(ctx context.Context, volNS, volID, remoteID, allocID string, usage *UsageOptions) (err error) {
+// UnmountVolume unpublishes the volume for a specific allocation, and unstages
+// the volume if there are no more allocations claiming it on the node
+func (v *volumeManager) UnmountVolume(ctx context.Context,
+	volNS, volID, remoteID, allocID string, usage *UsageOptions,
+) error {
+	return v.serializedOp(ctx, volNS, volID, func() error {
+		return v.unmountVolumeImpl(ctx, volNS, volID, remoteID, allocID, usage)
+	})
+}
+
+func (v *volumeManager) unmountVolumeImpl(ctx context.Context, volNS, volID, remoteID, allocID string, usage *UsageOptions) (err error) {
 	logger := v.logger.With("volume_id", volID, "ns", volNS, "alloc_id", allocID)
 	ctx = hclog.WithContext(ctx, logger)
 	logger.Trace("unmounting volume")
@@ -408,7 +438,23 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volNS, volID, remoteI
 }
 
 // ExpandVolume sends a NodeExpandVolume request to the node plugin
-func (v *volumeManager) ExpandVolume(ctx context.Context, volNS, volID, remoteID, allocID string, usage *UsageOptions, capacity *csi.CapacityRange) (newCapacity int64, err error) {
+func (v *volumeManager) ExpandVolume(ctx context.Context,
+	volNS, volID, remoteID, allocID string,
+	usage *UsageOptions, capacity *csi.CapacityRange,
+) (int64, error) {
+
+	var newCapacity int64
+	err := v.serializedOp(ctx, volNS, volID, func() error {
+		var err error
+		newCapacity, err = v.expandVolumeImpl(
+			ctx, volNS, volID, remoteID, allocID, usage, capacity)
+		return err
+	})
+
+	return newCapacity, err
+}
+
+func (v *volumeManager) expandVolumeImpl(ctx context.Context, volNS, volID, remoteID, allocID string, usage *UsageOptions, capacity *csi.CapacityRange) (newCapacity int64, err error) {
 	capability, err := csi.VolumeCapabilityFromStructs(usage.AttachmentMode, usage.AccessMode, usage.MountOptions)
 	if err != nil {
 		// nil may be acceptable, so let the node plugin decide.
@@ -461,4 +507,44 @@ func (v *volumeManager) HasMount(_ context.Context, mountInfo *MountInfo) (bool,
 	m := mount.New()
 	isNotMount, err := m.IsNotAMountPoint(mountInfo.Source)
 	return !isNotMount, err
+}
+
+// serializedOp ensures that we only have one in-flight request per volume, and
+// keeps multi-step operations (ex. stage + publish) together in a single batch
+// rather than potentially interleaving
+func (v *volumeManager) serializedOp(ctx context.Context, volumeNS, volumeID string, fn func() error) error {
+
+	id := structs.NewNamespacedID(volumeID, volumeNS)
+
+	for {
+		v.inFlightLock.Lock()
+		future := v.inFlight[id]
+
+		if future == nil {
+			future, futureDone := context.WithCancel(ctx)
+			v.inFlight[id] = future
+			v.inFlightLock.Unlock()
+
+			err := fn()
+
+			// close the future while holding the lock and not in a defer so
+			// that we can ensure we've cleared it from the map before allowing
+			// anyone else to take the lock and write a new one
+			v.inFlightLock.Lock()
+			futureDone()
+			delete(v.inFlight, id)
+			v.inFlightLock.Unlock()
+
+			return err
+		} else {
+			v.inFlightLock.Unlock()
+
+			select {
+			case <-future.Done():
+				continue
+			case <-ctx.Done():
+				return nil // agent shutdown
+			}
+		}
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -596,4 +597,114 @@ func TestVolumeManager_InterleavedStaging(t *testing.T) {
 
 	must.Eq(t, 1, csiFake.NodeUnpublishVolumeCallCount, must.Sprint("expected 1 unpublish call"))
 	must.Eq(t, 0, csiFake.NodeUnstageVolumeCallCount, must.Sprint("expected no unstage call"))
+}
+
+func TestVolumeManager_Serialization(t *testing.T) {
+	ci.Parallel(t)
+
+	tmpPath := t.TempDir()
+	csiFake := &csifake.Client{}
+
+	logger := testlog.HCLogger(t)
+
+	ctx := hclog.WithContext(t.Context(), logger)
+
+	manager := newVolumeManager(logger,
+		func(e *structs.NodeEvent) {}, csiFake,
+		tmpPath, tmpPath, true, "i-example")
+
+	// ensure that serialized ops for the same volume cannot interleave.
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel)
+	errs := make(chan error, 3)
+	results := make(chan string, 3)
+
+	// we can't guarantee the goroutines will contend, so we'll force the first
+	// op to wait until the other goroutines have at least started, and then
+	// sleep for a bit to give them a chance to catch up
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
+			wg.Wait()
+			time.Sleep(100 * time.Millisecond)
+			results <- "one"
+			return errors.New("one")
+		})
+	}()
+
+	go func() {
+		wg.Done() // unblock the first op
+		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
+			results <- "two"
+			return errors.New("two")
+		})
+	}()
+
+	go func() {
+		wg.Done() // unblock the first op
+		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
+			results <- "three"
+			return errors.New("three")
+		})
+	}()
+
+	found := 0
+	for {
+		if found >= 3 {
+			break
+		}
+		select {
+		case err := <-errs:
+			found++
+			select {
+			case result := <-results:
+				if err.Error() != result {
+					t.Fatal("got result out-of-order from error")
+				}
+			case <-ctx.Done():
+				t.Fatal("did not get result for error before timeout")
+			}
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for error")
+		}
+
+	}
+
+	// ensure that serialized ops for the different volumes can interleave
+	wg.Add(1)
+
+	go func() {
+		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
+			wg.Wait()
+			time.Sleep(100 * time.Millisecond)
+			return errors.New("four")
+		})
+	}()
+
+	go func() {
+		errs <- manager.serializedOp(ctx, "ns", "vol1", func() error {
+			wg.Done() // unblock the first op
+			return errors.New("five")
+		})
+	}()
+
+	ctx2, cancel2 := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel2)
+
+	found = 0
+	for {
+		if found >= 2 {
+			break
+		}
+		select {
+		case <-errs:
+			found++
+		case <-ctx2.Done():
+			t.Fatal("timed out waiting for error")
+		}
+	}
+
 }
