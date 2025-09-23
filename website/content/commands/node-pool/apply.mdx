@@ -40,6 +40,8 @@ node_pool "prod" {
     env = "prod"
   }
 
+  node_pool_identity = "720h"
+
   # Available only in Nomad Enterprise.
   scheduler_config {
     scheduler_algorithm = "spread"

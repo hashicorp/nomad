@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: Node Identity
+description: Nomad's node identity feature uniquely identities each Nomad client node and provides an authentication mechanism for nodes to make RPC calls to the Nomad servers.
+---
+
+# Node Identity
+This page provides conceptual information about Nomad's node identity feature, which uniquely
+identities each Nomad client node and provides an authentication mechanism for nodes to make RPC
+calls to the Nomad servers.
+
+Every Nomad node is given a default identity once the cluster is able to fully support the feature
+with a defined lifetime. This node identity is a [JSON Web Token (JWT)][] that has been signed by
+the leader's keyring and is generated as part of the node's registration and heartbeat process.
+
+## Node Identity Claims
+
+Nomad node identity includes the following identity claims alongside the standard JWT claims such as
+`exp` (expiration time), `iat` (issued at time), and `aud` (audience).
+
+```json
+{
+  "nomad_node_id": "f6e8c9d4-5b6a-4c3d-8e2f-1a2b3c4d5e6f",
+  "nomad_node_pool": "default",
+  "nomad_node_datacenter": "dc1"
+}
+```
+
+To view all identity claims for a specific node, operators can run the
+[`node identity get` command][cli_node_identity_get].
+
+## Node Identity Renewal
+A node's identity expiration is dictated by the [`node_identity_ttl`][config_node_identity_ttl]
+parameter within the node pool speficication, which defaults to 24 hours. When a node's identity has
+exceeded 67% of its lifetime, the Nomad server will issue a new identity to the node at its next
+heartbeat.
+
+Operators can force a node to renew its identity at its next heartbeat by running the
+[`node identity renew` command][cli_node_identity_renew] which ensure the 67% lifetime check is
+bypassed.
+
+## Node Identity Persistence
+
+[JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
+[config_node_identity_ttl]: /nomad/docs/other-specifications/node-pool#node_identity_ttl
+[cli_node_identity_get]: /nomad/commands/node/identity/get
+[cli_node_identity_renew]: /nomad/commands/node/identity/renew

@@ -28,6 +28,12 @@ node_pool "example" {
     owner       = "sre"
   }
 
+  # node identity TTL is an optional parameter that sets the TTL for all node
+  # identities issued to nodes in this node pool. The value must be a valid
+  # duration string (e.g. "30m", "1h", "24h"). If not set, the default value is
+  # "24h".
+  # node_identity_ttl = "24h"
+
   # The scheduler configuration options specific to this node pool. This block
   # supports a subset of the fields supported in the global scheduler
   # configuration as described at:
@@ -59,6 +65,10 @@ Successfully applied node pool "example"!
 - `meta` `(map[string]string: <optional>)` - Sets optional metadata on the node
   pool, defined as key-value pairs. The scheduler does not use node pool
   metadata as part of scheduling.
+
+- `node_identity_ttl` `(string: <optional>)` - Sets the TTL for node identities
+  issued to nodes in this node pool. The value must be a valid duration string
+  (e.g. "30m", "1h", "24h"). If not set, the default value is "24h".
 
 - `scheduler_config` <code>([SchedulerConfig][sched-config]: nil)</code> <EnterpriseAlert inline /> -
   Sets scheduler configuration options specific to the node pool. If not

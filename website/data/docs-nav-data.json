@@ -124,6 +124,10 @@
         "path": "concepts/stateful-deployments"
       },
       {
+        "title": "Node identity",
+        "path": "concepts/node-identity"
+      },
+      {
         "title": "Workload identity",
         "path": "concepts/workload-identity"
       }
