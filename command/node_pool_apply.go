@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/hcl"
 	"github.com/posener/complete"
 )
 
@@ -112,7 +112,11 @@ func (c *NodePoolApplyCommand) Run(args []string) int {
 	if jsonInput {
 		err = json.Unmarshal(content, &poolSpec.NodePool)
 	} else {
-		err = hclsimple.Decode(path, content, nil, &poolSpec)
+		hclParser := hcl.NewParser()
+
+		if hclDiags := hclParser.Parse(content, &poolSpec, path); hclDiags.HasErrors() {
+			err = hclDiags
+		}
 	}
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse input content: %v", err))

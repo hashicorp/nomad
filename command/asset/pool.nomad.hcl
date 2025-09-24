@@ -9,6 +9,12 @@ node_pool "example" {
     owner       = "sre"
   }
 
+  # node identity TTL is an optional parameter that sets the TTL for all node
+  # identities issued to nodes in this node pool. The value must be a valid
+  # duration string (e.g. "30m", "1h", "24h"). If not set, the default value is
+  # "24h".
+  # node_identity_ttl = "24h"
+
   # The scheduler configuration options specific to this node pool. This block
   # supports a subset of the fields supported in the global scheduler
   # configuration as described at:

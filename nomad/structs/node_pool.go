@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"regexp"
@@ -205,6 +206,36 @@ func (n *NodePool) SetHash() []byte {
 	// Set and return the hash
 	n.Hash = hashVal
 	return hashVal
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// NodePool.NodeIdentityTTL to be unmarshalled correctly.
+func (n *NodePool) UnmarshalJSON(data []byte) (err error) {
+	type Alias NodePool
+	aux := &struct {
+		NodeIdentityTTL any
+		*Alias
+	}{
+		Alias: (*Alias)(n),
+	}
+
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.NodeIdentityTTL != nil {
+		switch v := aux.NodeIdentityTTL.(type) {
+		case string:
+			if v != "" {
+				if n.NodeIdentityTTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			n.NodeIdentityTTL = time.Duration(v)
+		}
+
+	}
+	return nil
 }
 
 // NodePoolSchedulerConfiguration is the scheduler configuration applied to a

@@ -5,6 +5,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
@@ -139,7 +140,10 @@ func TestNodePools_Register(t *testing.T) {
 
 	// Create test node pool.
 	t.Run("create and update node pool", func(t *testing.T) {
-		dev1 := &NodePool{Name: "dev-1"}
+		dev1 := &NodePool{
+			Name:            "dev-1",
+			NodeIdentityTTL: 720 * time.Hour,
+		}
 		_, err := nodePools.Register(dev1, nil)
 		must.NoError(t, err)
 
@@ -147,6 +151,7 @@ func TestNodePools_Register(t *testing.T) {
 		got, _, err := nodePools.Info(dev1.Name, nil)
 		must.NoError(t, err)
 		must.Eq(t, dev1.Name, got.Name)
+		must.Eq(t, dev1.NodeIdentityTTL, got.NodeIdentityTTL)
 
 		// Update test node pool.
 		dev1.Description = "test"
@@ -158,6 +163,7 @@ func TestNodePools_Register(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, dev1.Name, got.Name)
 		must.Eq(t, dev1.Description, got.Description)
+		must.Eq(t, dev1.NodeIdentityTTL, got.NodeIdentityTTL)
 	})
 
 	t.Run("missing node pool", func(t *testing.T) {

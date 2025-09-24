@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
@@ -59,7 +60,8 @@ node_pool "dev" {
 	file.Seek(0, 0)
 	hclTestFile = `
 node_pool "dev" {
-  description = "dev node pool"
+  description       = "dev node pool"
+  node_identity_ttl = "720h"
 
   meta {
     test = "true"
@@ -78,12 +80,14 @@ node_pool "dev" {
 	must.NotNil(t, got)
 	must.NotNil(t, got.Meta)
 	must.Eq(t, "true", got.Meta["test"])
+	must.Eq(t, 720*time.Hour, got.NodeIdentityTTL)
 
 	// Create node pool with JSON file.
 	jsonTestFile := `
 {
   "Name": "prod",
-  "Description": "prod node pool"
+  "Description": "prod node pool",
+  "NodeIdentityTTL": "720h"
 }`
 
 	file, err = os.CreateTemp(t.TempDir(), "node-pool-test-*.json")

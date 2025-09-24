@@ -110,10 +110,16 @@ func (c *NodePoolInfoCommand) Run(args []string) int {
 		return 0
 	}
 
-	// Print node pool information.
+	// Print node pool information and conditionally handle the node identity
+	// ttl, so we don't print <nil> if we are not talking to a version of Nomad
+	// that supports it.
 	basic := []string{
 		fmt.Sprintf("Name|%s", pool.Name),
 		fmt.Sprintf("Description|%s", pool.Description),
+	}
+
+	if pool.NodeIdentityTTL > 0 {
+		basic = append(basic, fmt.Sprintf("Node Identity TTL|%s", pool.NodeIdentityTTL))
 	}
 	c.Ui.Output(formatKV(basic))
 

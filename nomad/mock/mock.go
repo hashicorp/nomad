@@ -248,7 +248,7 @@ func NodePool() *structs.NodePool {
 	pool := &structs.NodePool{
 		Name:            fmt.Sprintf("pool-%s", uuid.Short()),
 		Description:     "test node pool",
-		NodeIdentityTTL: 24 * time.Hour,
+		NodeIdentityTTL: 720 * time.Hour,
 		Meta:            map[string]string{"team": "test"},
 	}
 	pool.SetHash()
