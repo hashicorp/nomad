@@ -673,12 +673,20 @@ func TestVolumeManager_Serialization(t *testing.T) {
 
 	}
 
-	// ensure that serialized ops for the different volumes can interleave
-	wg.Add(1)
+	// ensure that serialized ops for different volumes don't block each other
+	var wg1 sync.WaitGroup
+	var wg2 sync.WaitGroup
+	wg1.Add(1)
+	wg2.Add(1)
 
 	go func() {
 		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
-			wg.Wait()
+			// at this point we've entered the serialized op for vol0 and are
+			// waiting to enter the serialized op for vol1. if serialization
+			// blocks vol1's op, we'll never unblock here and will hit the
+			// timeout
+			wg1.Wait()
+			wg2.Done()
 			time.Sleep(100 * time.Millisecond)
 			return errors.New("four")
 		})
@@ -686,7 +694,8 @@ func TestVolumeManager_Serialization(t *testing.T) {
 
 	go func() {
 		errs <- manager.serializedOp(ctx, "ns", "vol1", func() error {
-			wg.Done() // unblock the first op
+			wg1.Done() // unblock the first op
+			wg2.Wait() // wait for the first op to make sure we're running concurrently
 			return errors.New("five")
 		})
 	}()
