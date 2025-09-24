@@ -208,23 +208,6 @@ func (n *NodePool) SetHash() []byte {
 	return hashVal
 }
 
-// MarshalJSON implements the json.Marshaler interface and allows
-// NodePool.NodeIdentityTTL to be marshaled correctly.
-func (n *NodePool) MarshalJSON() ([]byte, error) {
-	type Alias NodePool
-	exported := &struct {
-		NodeIdentityTTL string
-		*Alias
-	}{
-		NodeIdentityTTL: n.NodeIdentityTTL.String(),
-		Alias:           (*Alias)(n),
-	}
-	if n.NodeIdentityTTL == 0 {
-		exported.NodeIdentityTTL = ""
-	}
-	return json.Marshal(exported)
-}
-
 // UnmarshalJSON implements the json.Unmarshaler interface and allows
 // NodePool.NodeIdentityTTL to be unmarshalled correctly.
 func (n *NodePool) UnmarshalJSON(data []byte) (err error) {

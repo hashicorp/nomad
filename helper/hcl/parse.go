@@ -5,6 +5,7 @@ package hcl
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -16,17 +17,23 @@ type Parser struct {
 	decoder *gohcl.Decoder
 }
 
-// NewParser returns a new Parser instance with an empty gohcl.Decoder that can
-// be used for parsing and decoding HCL files into Go structs.
+// NewParser returns a new Parser instance which supports decoding time.Duration
+// parameters by default.
 func NewParser() *Parser {
+
+	// Create our base decoder, so we can register custom decoders on it.
+	decoder := &gohcl.Decoder{}
+
+	// Register default custom decoders here which currently only includes
+	// time.Duration parsing.
+	dur := time.Duration(0)
+	decoder.RegisterExpressionDecoder(reflect.TypeOf(dur), DecodeDuration)
+	decoder.RegisterExpressionDecoder(reflect.TypeOf(&dur), DecodeDuration)
+
 	return &Parser{
-		decoder: &gohcl.Decoder{},
+		decoder: decoder,
 		parser:  hclparse.NewParser(),
 	}
-}
-
-func (p *Parser) AddExpressionDecoder(typ reflect.Type, fn gohcl.ExpressionDecoderFunc) {
-	p.decoder.RegisterExpressionDecoder(typ, fn)
 }
 
 func (p *Parser) Parse(src []byte, dst any, filename string) hcl.Diagnostics {

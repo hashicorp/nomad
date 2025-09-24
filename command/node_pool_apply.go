@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/hcl"
@@ -114,12 +112,7 @@ func (c *NodePoolApplyCommand) Run(args []string) int {
 	if jsonInput {
 		err = json.Unmarshal(content, &poolSpec.NodePool)
 	} else {
-
-		// The node pool specification includes a time duration field, so we
-		// need to register a custom decoder for that type as HCL does not have
-		// native support.
 		hclParser := hcl.NewParser()
-		hclParser.AddExpressionDecoder(reflect.TypeOf(time.Duration(0)), hcl.DecodeDuration)
 
 		if hclDiags := hclParser.Parse(content, &poolSpec, path); hclDiags.HasErrors() {
 			err = hclDiags
