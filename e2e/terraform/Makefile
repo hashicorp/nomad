@@ -5,7 +5,8 @@ CONSUL_LICENSE_PATH ?=
 # deploy for quick local development testing
 
 custom.tfvars:
-	echo 'nomad_local_binary = "$(PKG_PATH)"' > custom.tfvars
+	echo 'name = "$(shell whoami)-testing"' > custom.tfvars
+	echo 'nomad_local_binary = "$(PKG_PATH)"' >> custom.tfvars
 	echo 'volumes = false' >> custom.tfvars
 	echo 'client_count_linux = 3' >> custom.tfvars
 	echo 'client_count_windows_2022 = 0' >> custom.tfvars

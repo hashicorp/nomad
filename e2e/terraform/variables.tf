@@ -88,6 +88,12 @@ variable "hcp_vault_namespace" {
   default     = "admin"
 }
 
+variable "hcp_hvn_cidr" {
+  description = "The CIDR block of the HVN peered into the account."
+  type        = string
+  default     = "172.25.16.0/20"
+}
+
 variable "aws_kms_alias" {
   description = "The alias for the AWS KMS key ID"
   type        = string
