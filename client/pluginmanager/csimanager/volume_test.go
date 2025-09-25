@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -596,4 +597,94 @@ func TestVolumeManager_InterleavedStaging(t *testing.T) {
 
 	must.Eq(t, 1, csiFake.NodeUnpublishVolumeCallCount, must.Sprint("expected 1 unpublish call"))
 	must.Eq(t, 0, csiFake.NodeUnstageVolumeCallCount, must.Sprint("expected no unstage call"))
+}
+
+func TestVolumeManager_Serialization(t *testing.T) {
+	ci.Parallel(t)
+
+	tmpPath := t.TempDir()
+	csiFake := &csifake.Client{}
+
+	logger := testlog.HCLogger(t)
+
+	ctx := hclog.WithContext(t.Context(), logger)
+
+	manager := newVolumeManager(logger,
+		func(e *structs.NodeEvent) {}, csiFake,
+		tmpPath, tmpPath, true, "i-example")
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel)
+
+	// test that an operation on a volume can block another operation on the
+	// same volume
+	//
+	// we can't guarantee the goroutines will try to contend, so we'll force the
+	// op in the goroutine to wait until we've entered the serialized function,
+	// and then have the serialized function sleep. the wait + the op in the
+	// goroutine should take at least as long as that sleep to complete and
+	// return
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	elapsedCh := make(chan time.Duration)
+
+	go func() {
+		now := time.Now()
+		wg.Wait()
+		manager.serializedOp(ctx, "ns", "vol0", func() error {
+			return errors.New("two")
+		})
+		elapsedCh <- time.Since(now)
+	}()
+
+	manager.serializedOp(ctx, "ns", "vol0", func() error {
+		wg.Done()
+		time.Sleep(100 * time.Millisecond)
+		return errors.New("one")
+	})
+
+	must.GreaterEq(t, 100*time.Millisecond, <-elapsedCh)
+
+	// test that serialized ops for different volumes don't block each other
+
+	var wg1 sync.WaitGroup
+	var wg2 sync.WaitGroup
+	wg1.Add(1)
+	wg2.Add(1)
+	errs := make(chan error, 2)
+	go func() {
+		errs <- manager.serializedOp(ctx, "ns", "vol0", func() error {
+			// at this point we've entered the serialized op for vol0 and are
+			// waiting to enter the serialized op for vol1. if serialization
+			// blocks vol1's op, we'll never unblock here and will hit the
+			// timeout
+			wg1.Wait()
+			wg2.Done()
+			return errors.New("four")
+		})
+	}()
+
+	errs <- manager.serializedOp(ctx, "ns", "vol1", func() error {
+		wg1.Done() // unblock the first op
+		wg2.Wait() // wait for the first op to make sure we're running concurrently
+		return errors.New("five")
+	})
+
+	ctx2, cancel2 := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel2)
+
+	found := 0
+	for {
+		if found >= 2 {
+			break
+		}
+		select {
+		case <-errs:
+			found++
+		case <-ctx2.Done():
+			t.Fatal("timed out waiting for error")
+		}
+	}
+
 }
