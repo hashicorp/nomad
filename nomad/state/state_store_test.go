@@ -3645,6 +3645,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	must.NoError(t, err)
 	vs = slurp(iter)
 	must.False(t, vs[0].HasFreeWriteClaims())
+	must.MapLen(t, 1, vs[0].ReadClaims)
+	must.MapLen(t, 0, vs[0].PastClaims)
 
 	claim2 := new(structs.CSIVolumeClaim)
 	*claim2 = *claim0
@@ -3657,7 +3659,20 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	must.True(t, vs[0].ReadSchedulable())
 
-	// deregistration is an error when the volume is in use
+	// alloc finishes, so we should see a past claim
+	a0 = a0.Copy()
+	a0.ClientStatus = structs.AllocClientStatusComplete
+	index++
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{a0})
+	must.NoError(t, err)
+
+	v0, err = state.CSIVolumeByID(nil, ns, vol0)
+	must.NoError(t, err)
+	must.MapLen(t, 1, v0.ReadClaims)
+	must.MapLen(t, 1, v0.PastClaims)
+
+	// but until this claim is freed the volume is in use, so deregistration is
+	// still an error
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
 	must.Error(t, err, must.Sprint("volume deregistered while in use"))
