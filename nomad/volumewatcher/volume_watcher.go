@@ -184,10 +184,6 @@ func (vw *volumeWatcher) volumeReap(vol *structs.CSIVolume) {
 	}
 }
 
-func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
-	return len(vol.ReadClaims) == 0 && len(vol.WriteClaims) == 0 && len(vol.PastClaims) == 0
-}
-
 // volumeReapImpl unpublished all the volume's PastClaims. PastClaims
 // will be populated from nil or terminal allocs when we call
 // CSIVolumeDenormalize(), so this assumes we've done so in the caller

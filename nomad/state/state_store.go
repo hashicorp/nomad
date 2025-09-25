@@ -2918,6 +2918,7 @@ func (s *StateStore) volSafeToForce(txn Txn, v *structs.CSIVolume) bool {
 	}
 
 	for _, alloc := range vol.ReadAllocs {
+		// note we check that both server and client agree on terminal status
 		if alloc != nil && !alloc.TerminalStatus() {
 			return false
 		}
@@ -3029,7 +3030,7 @@ func (s *StateStore) csiVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 			}
 
 			currentAllocs[id] = a
-			if (a == nil || a.TerminalStatus()) && pastClaim == nil {
+			if (a == nil || a.ClientTerminalStatus()) && pastClaim == nil {
 				// the alloc is garbage collected but nothing has written a PastClaim,
 				// so create one now
 				pastClaim = &structs.CSIVolumeClaim{
