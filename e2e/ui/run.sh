@@ -33,8 +33,21 @@ EOF
 }
 
 
-IMAGE="mcr.microsoft.com/playwright:v1.55.0-jammy"
 pushd $(dirname "${BASH_SOURCE[0]}") > /dev/null
+
+IMAGE="mcr.microsoft.com/playwright"
+# since playwright looks for latest browser(s),
+# it will throw an error in non-latest containers.
+# so, instead of constantly changing the image
+# tag manually, pull it from the registry API.
+get_image_tag() {
+  1>&2 echo 'detecting playwright image tag'
+  local os='noble'
+  curl -sS 'https://mcr.microsoft.com/api/v1/catalog/playwright/tags?reg=mar' \
+  | jq -r '[ .[].name | select(match("^v.*-jammy$")) ] | last '
+  # '[ ..query.. ] | last' gets the bottom one in the api response
+  # that matches the regex. the api returns them sorted oldest to newest.
+}
 
 run_tests() {
     run bash script.sh $@
@@ -47,6 +60,12 @@ run_shell() {
 run() {
     local tty_args=''
     [ -t 1 ] && tty_args='-it'
+    local tag="$(get_image_tag)"
+    if [ -z "$tag" ]; then
+      echo 'failed to detect docker image tag'
+      return 1
+    fi
+    echo "got playwright tag '$tag'"
     docker run $tty_args --rm \
            -v $(pwd):/src \
            -w /src \
@@ -54,8 +73,8 @@ run() {
            -e NOMAD_TOKEN=$NOMAD_TOKEN \
            --ipc=host \
            --net=host \
-           "$IMAGE" \
-           $@
+           "$IMAGE:$tag" \
+           "$@"
 }
 
 run_proxy() {
