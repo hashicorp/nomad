@@ -45,7 +45,14 @@ lifetime check is bypassed.
 
 ## Node identity persistence
 
+A node's identity is stored within its local DB which is persisted within the
+configured [`data_dir`][client_cfg_state_dir]. To view the stored identity,
+along with other state resouces, run the
+[`operator client-state` command][cli_operattor_client_state].
+
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
 [config_node_identity_ttl]: /nomad/docs/other-specifications/node-pool#node_identity_ttl
 [cli_node_identity_get]: /nomad/commands/node/identity/get
 [cli_node_identity_renew]: /nomad/commands/node/identity/renew
+[client_cfg_state_dir]: /nomad/docs/configuration/client#state_dir
+[cli_operattor_client_state]: /nomad/commands/operator/client-state
