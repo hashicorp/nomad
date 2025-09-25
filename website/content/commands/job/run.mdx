@@ -79,6 +79,9 @@ that volume.
 - `-preserve-counts`: If set, the existing task group counts will be preserved
   when updating a job.
 
+- `-preserve-resources`: If set, the existing task resources will be preserved
+  when updating a job.
+
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` block reading from Consul KV will
   be scoped to the specified Consul namespace. Consul must be configured to authenticate
