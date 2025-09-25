@@ -30,6 +30,14 @@ metrics refers to the parent job ID for dispatch and periodic jobs. The
 running high volume dispatch workloads, this change significantly reduces
 metrics cardinality and memory usage on the leader.
 
+#### ACL policies no longer silently ignore duplicate or invalid keys
+
+Nomad 1.11.0 introduces stricter validation for ACL policies. Policy writes that
+include duplicate or invalid keys will be rejected with an error instead of
+being silently ignored. Any existing policies with duplicate or invalid keys
+will continue to work, but the source policy document will need to be updated
+to be valid before it can be written to Nomad.
+
 ## Nomad 1.10.6
 
 #### ACL policies no longer silently ignore duplicate or invalid keys
@@ -93,16 +101,6 @@ scenario was 404.
 @include 'release-notes/v1-10/breaking-affinity-spread.mdx'
 
 @include 'release-notes/v1-10/breaking-vault-consul-token.mdx'
-
-## Nomad 1.9.14
-
-#### ACL policies no longer silently ignore duplicate or invalid keys
-
-Nomad 1.9.14 introduces stricter validation for ACL policies. Policy writes that
-include duplicate or invalid keys will be rejected with an error instead of
-being silently ignored. Any existing policies with duplicate or invalid keys
-will continue to work, but the source policy document will need to be updated
-to be valid before it can be written to Nomad.
 
 ## Nomad 1.9.9
 

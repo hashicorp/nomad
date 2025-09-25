@@ -433,7 +433,7 @@ func CompileACLObject(cache *ACLCache[*acl.ACL], policies []*ACLPolicy) (*acl.AC
 	// Parse the policies
 	parsed := make([]*acl.Policy, 0, len(policies))
 	for _, policy := range policies {
-		p, err := acl.Parse(policy.Rules, acl.PolicyParseLeinient)
+		p, err := acl.Parse(policy.Rules, acl.PolicyParseLenient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %q: %v", policy.Name, err)
 		}

@@ -1053,7 +1053,7 @@ node_pool "pool-read-write" {
 	)
 
 	// Expect no error when parsing in non-strict mode.
-	_, err = Parse(inputPolicy, PolicyParseLeinient)
+	_, err = Parse(inputPolicy, PolicyParseLenient)
 	must.NoError(t, err)
 }
 

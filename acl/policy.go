@@ -404,11 +404,11 @@ const (
 	// This should be used when creating or updating policies.
 	PolicyParseStrict = true
 
-	// PolicyParseLeinient can be used to indicate that the policy should be
-	// parsed in leinient mode, ignoring any unknown keys. This should be used
+	// PolicyParseLenient can be used to indicate that the policy should be
+	// parsed in lenient mode, ignoring any unknown keys. This should be used
 	// when evaluating policies, so we gracefully handle policies that were
 	// created before we added stricter validation.
-	PolicyParseLeinient = false
+	PolicyParseLenient = false
 )
 
 // Parse is used to parse the specified ACL rules into an intermediary set of
@@ -419,7 +419,7 @@ const (
 // tighten restrictions around unknown keys when writing policies, while not
 // breaking existing policies that may have unknown keys when evaluating them,
 // since they may have been written before the restrictions were added. The
-// constants PolicyParseStrict and PolicyParseLeinient can be used to make the
+// constants PolicyParseStrict and PolicyParseLenient can be used to make the
 // intent clear at the call site.
 func Parse(rules string, strict bool) (*Policy, error) {
 	// Decode the rules
