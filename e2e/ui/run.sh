@@ -44,7 +44,7 @@ get_image_tag() {
   1>&2 echo 'detecting playwright image tag'
   local os='noble'
   curl -sS 'https://mcr.microsoft.com/api/v1/catalog/playwright/tags?reg=mar' \
-  | jq -r '[ .[] | select(.name | match("^v.*-'$os'$")) | .name ] | last'
+  | jq -r '[ .[].name | select(match("^v.*-jammy$")) ] | last '
   # '[ ..query.. ] | last' gets the bottom one in the api response
   # that matches the regex. the api returns them sorted oldest to newest.
 }
