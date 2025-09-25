@@ -21,6 +21,9 @@ capability {
 
 parameters {
   type = "gp2"
+
+  # ref https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/tagging.md#storageclass-tagging
+  tagSpecification_1 = "Name=e2e-testing-vol1"
 }
 
 topology_request {
