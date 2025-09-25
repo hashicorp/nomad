@@ -524,7 +524,7 @@ func (v *volumeManager) serializedOp(ctx context.Context, volumeNS, volumeID str
 		future := v.inFlight[id]
 
 		if future == nil {
-			future, futureDone := context.WithCancel(ctx)
+			future, resolveFuture := context.WithCancel(ctx)
 			v.inFlight[id] = future
 			v.inFlightLock.Unlock()
 
@@ -534,7 +534,7 @@ func (v *volumeManager) serializedOp(ctx context.Context, volumeNS, volumeID str
 			// that we can ensure we've cleared it from the map before allowing
 			// anyone else to take the lock and write a new one
 			v.inFlightLock.Lock()
-			futureDone()
+			resolveFuture()
 			delete(v.inFlight, id)
 			v.inFlightLock.Unlock()
 
