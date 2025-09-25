@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -119,6 +120,17 @@ type Policy struct {
 	Quota       *QuotaPolicy        `hcl:"quota"`
 	Plugin      *PluginPolicy       `hcl:"plugin"`
 	Raw         string              `hcl:"-"`
+
+	// ExtraKeysHCL is used to capture any extra keys in the HCL input, so we
+	// can return an error if the user specified something unknown.
+	//
+	// Unfortunately, due to our current HCL use, keys from known blocks
+	// (namespace, node pools, and host volumes) will appear here, so we need to
+	// remove those as we process them. If the policy contains multiple blocks
+	// of the same type (e.g. multiple namespace blocks), the extra keys will
+	// also include "namespace" for all but the first block, so we need to
+	// remove those as we process them too.
+	ExtraKeysHCL []string `hcl:",unusedKeys"`
 }
 
 // IsEmpty checks to make sure that at least one policy has been set and is not
@@ -132,6 +144,14 @@ func (p *Policy) IsEmpty() bool {
 		p.Operator == nil &&
 		p.Quota == nil &&
 		p.Plugin == nil
+}
+
+// removeExtraKey removes a single occurrence of the passed key from the
+// ExtraKeysHCL slice. If the key is not found, this is a no-op.
+func (p *Policy) removeExtraKey(key string) {
+	if idx := slices.Index(p.ExtraKeysHCL, key); idx > -1 {
+		p.ExtraKeysHCL = append(p.ExtraKeysHCL[:idx], p.ExtraKeysHCL[idx+1:]...)
+	}
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -378,10 +398,30 @@ func expandVariablesCapabilities(caps []string) []string {
 	return caps
 }
 
-// Parse is used to parse the specified ACL rules into an
-// intermediary set of policies, before being compiled into
-// the ACL
-func Parse(rules string) (*Policy, error) {
+const (
+	// PolicyParseStrict can be used to indicate that the policy should be
+	// parsed in strict mode, returning an error if there are any unknown keys.
+	// This should be used when creating or updating policies.
+	PolicyParseStrict = true
+
+	// PolicyParseLeinient can be used to indicate that the policy should be
+	// parsed in leinient mode, ignoring any unknown keys. This should be used
+	// when evaluating policies, so we gracefully handle policies that were
+	// created before we added stricter validation.
+	PolicyParseLeinient = false
+)
+
+// Parse is used to parse the specified ACL rules into an intermediary set of
+// policies, before being compiled into the ACL.
+//
+// The "strict" parameter should be set to true if the policy is being created
+// or updated, and false if it is being used for evaluation. This allowed us to
+// tighten restrictions around unknown keys when writing policies, while not
+// breaking existing policies that may have unknown keys when evaluating them,
+// since they may have been written before the restrictions were added. The
+// constants PolicyParseStrict and PolicyParseLeinient can be used to make the
+// intent clear at the call site.
+func Parse(rules string, strict bool) (*Policy, error) {
 	// Decode the rules
 	p := &Policy{Raw: rules}
 	if rules == "" {
@@ -446,9 +486,10 @@ func Parse(rules string) (*Policy, error) {
 				pathPolicy.Capabilities = expandVariablesCapabilities(pathPolicy.Capabilities)
 
 			}
-
 		}
 
+		// Remove the namespace name from the extra key list.
+		p.removeExtraKey(ns.Name)
 	}
 
 	for _, np := range p.NodePools {
@@ -468,6 +509,9 @@ func Parse(rules string) (*Policy, error) {
 			extraCap := expandNodePoolPolicy(np.Policy)
 			np.Capabilities = append(np.Capabilities, extraCap...)
 		}
+
+		// Remove the node-pool name from the extra key list.
+		p.removeExtraKey(np.Name)
 	}
 
 	for _, hv := range p.HostVolumes {
@@ -489,7 +533,22 @@ func Parse(rules string) (*Policy, error) {
 			extraCap := expandHostVolumePolicy(hv.Policy)
 			hv.Capabilities = append(hv.Capabilities, extraCap...)
 		}
+
+		// Remove the host-volume name from the extra key list.
+		p.removeExtraKey(hv.Name)
 	}
+
+	// Now that we have processed all known keys, return an error if the
+	// operator wrote a policy with unknown keys if we are being strict. While
+	// these do not grant any extra privileges, it can be misleaing to allow
+	// these and cause problems later if we add new capabilities that collide
+	// with the unknown keys.
+	if len(p.ExtraKeysHCL) > 0 && strict {
+		return nil, fmt.Errorf("Invalid or duplicate policy keys: %v",
+			strings.Join(p.ExtraKeysHCL, ", "))
+	}
+
+	p.ExtraKeysHCL = nil
 
 	if p.Agent != nil && !isPolicyValid(p.Agent.Policy) {
 		return nil, fmt.Errorf("Invalid agent policy: %#v", p.Agent)
@@ -550,6 +609,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		if len(nsObj.Keys) == 0 {
 			p.Namespaces[i].Name = ""
 		}
+		if i > 0 {
+			p.removeExtraKey("namespace")
+		}
 
 		// Fix missing variable paths.
 		nsOT, ok := nsObj.Val.(*ast.ObjectType)
@@ -579,6 +641,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		if len(npObj.Keys) == 0 {
 			p.NodePools[i].Name = ""
 		}
+		if i > 0 {
+			p.removeExtraKey("node_pool")
+		}
 	}
 
 	hvList := list.Filter("host_volume")
@@ -586,6 +651,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		// Fix missing host volume key.
 		if len(hvObj.Keys) == 0 {
 			p.HostVolumes[i].Name = ""
+		}
+		if i > 0 {
+			p.removeExtraKey("host_volume")
 		}
 	}
 

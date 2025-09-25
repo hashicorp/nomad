@@ -934,7 +934,7 @@ func TestParse(t *testing.T) {
 
 	for idx, tc := range tcases {
 		t.Run(fmt.Sprintf("%02d", idx), func(t *testing.T) {
-			p, err := Parse(tc.Raw)
+			p, err := Parse(tc.Raw, PolicyParseStrict)
 			if tc.ExpectErr == "" {
 				must.NoError(t, err)
 			} else {
@@ -958,10 +958,103 @@ func TestParse_BadInput(t *testing.T) {
 
 	for i, c := range inputs {
 		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
-			_, err := Parse(c)
+			_, err := Parse(c, PolicyParseStrict)
 			must.Error(t, err)
 		})
 	}
+}
+
+func TestParse_ExtraKeys(t *testing.T) {
+	ci.Parallel(t)
+
+	inputPolicy := `
+
+namespace "foo" {
+  policy = "write"
+  variables {
+    path "project/*" {
+      capabilities = ["read", "write"]
+    }
+  }
+}
+namespace "bar" {
+  policy = "write"
+  variables {
+    path "system/*" {
+      capabilities = ["read", "write"]
+    }
+  }
+}
+
+bogus {
+  policy = "read"
+}
+anotherbogus {
+  policy = "write"
+}
+
+node {
+  policy = "read"
+}
+node {
+  policy = "write"
+}
+
+agent {
+  policy = "read"
+}
+agent {
+  policy = "write"
+}
+
+operator {
+  policy = "read"
+}
+operator {
+  policy = "write"
+}
+
+quota {
+  policy = "read"
+}
+quota {
+  policy = "write"
+}
+
+host_volume "volume-read-only" {
+  policy = "read"
+}
+host_volume "volume-read-write" {
+  policy = "write"
+}
+
+plugin {
+  policy = "read"
+}
+plugin {
+  policy = "write"
+}
+
+node_pool "pool-read-only" {
+  policy = "read"
+}
+node_pool "pool-read-write" {
+  policy = "write"
+}
+`
+
+	// Expect an error mentioning all the bad keys when indicating we are
+	// parsing the policy in strict mode.
+	_, err := Parse(inputPolicy, PolicyParseStrict)
+	must.ErrorContains(
+		t,
+		err,
+		"Invalid or duplicate policy keys: agent, anotherbogus, bogus, node, operator, plugin, quota",
+	)
+
+	// Expect no error when parsing in non-strict mode.
+	_, err = Parse(inputPolicy, PolicyParseLeinient)
+	must.NoError(t, err)
 }
 
 func TestPluginPolicy_isValid(t *testing.T) {
