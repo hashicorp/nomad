@@ -603,12 +603,13 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 		Job:        sJob,
 		Submission: submission,
 
-		EnforceIndex:   args.EnforceIndex,
-		JobModifyIndex: args.JobModifyIndex,
-		PolicyOverride: args.PolicyOverride,
-		PreserveCounts: args.PreserveCounts,
-		EvalPriority:   args.EvalPriority,
-		WriteRequest:   *writeReq,
+		EnforceIndex:      args.EnforceIndex,
+		JobModifyIndex:    args.JobModifyIndex,
+		PolicyOverride:    args.PolicyOverride,
+		PreserveCounts:    args.PreserveCounts,
+		PreserveResources: args.PreserveResources,
+		EvalPriority:      args.EvalPriority,
+		WriteRequest:      *writeReq,
 	}
 
 	var out structs.JobRegisterResponse

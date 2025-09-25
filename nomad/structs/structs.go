@@ -737,6 +737,11 @@ type JobRegisterRequest struct {
 	// PreserveCounts is ignored for newly created jobs.
 	PreserveCounts bool
 
+	// PreserveResources indicates that during job update, existing task
+	// resources should be preserved, over those specified in the new job spec
+	// PreserveResources is ignored for newly created jobs.
+	PreserveResources bool
+
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 

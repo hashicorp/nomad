@@ -356,6 +356,76 @@ func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
 	require.Equal(2, out.TaskGroups[1].Count)  // should be as in job spec
 }
 
+func TestJobEndpoint_Register_PreserveResources(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Name = "group1"
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[1].Name = "group2"
+	job.TaskGroups[1].Tasks[0].Resources = &structs.Resources{
+		CPU:      300,
+		MemoryMB: 128,
+	}
+	job.Canonicalize()
+
+	// Register the job
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &structs.JobRegisterResponse{}))
+
+	// Check the job in the FSM state
+	state := s1.fsm.State()
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(10, out.TaskGroups[0].Count)
+
+	// New version:
+	job = job.Copy()
+	task := job.TaskGroups[0].Tasks[0]
+	task.Resources.CPU = 200
+	task.Resources.MemoryMB = 400
+
+	job.TaskGroups[1].Tasks[0].Resources = &structs.Resources{
+		CPU:      250,
+		MemoryMB: 64,
+	}
+
+	// Perform the update
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job:               job,
+		PreserveResources: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &structs.JobRegisterResponse{}))
+
+	// Check the job in the FSM state
+	out, err = state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(500, out.TaskGroups[0].Tasks[0].Resources.CPU)      // should not change
+	require.Equal(256, out.TaskGroups[0].Tasks[0].Resources.MemoryMB) // should be as in job spec
+
+	require.Equal(300, out.TaskGroups[1].Tasks[0].Resources.CPU)      // should not change
+	require.Equal(128, out.TaskGroups[1].Tasks[0].Resources.MemoryMB) // should be as in job spec
+}
+
 func TestJobEndpoint_Register_EvalPriority(t *testing.T) {
 	ci.Parallel(t)
 	requireAssert := require.New(t)
