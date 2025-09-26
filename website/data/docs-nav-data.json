@@ -33,6 +33,10 @@
             "path": "architecture/cluster/federation"
           },
           {
+            "title": "Node identity",
+            "path": "architecture/cluster/node-identity"
+          },
+          {
             "title": "Node pools",
             "path": "architecture/cluster/node-pools"
           }

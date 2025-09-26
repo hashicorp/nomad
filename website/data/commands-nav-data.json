@@ -476,6 +476,10 @@
             "path": "node/identity"
           },
           {
+            "title": "get",
+            "path": "node/identity/get"
+          },
+          {
             "title": "renew",
             "path": "node/identity/renew"
           }

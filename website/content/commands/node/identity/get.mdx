@@ -1,0 +1,40 @@
+---
+layout: docs
+page_title: 'nomad node identity get command reference'
+description: |
+  The `nomad node identity get` command returns the identity claims for a specific node.
+---
+
+# `nomad node identity get` command reference
+
+Get the identity claims for a node. This command only applies to client agents.
+
+If ACLs are enabled, this command requires a token with the `node:read` capability.
+
+## Usage
+
+```plaintext
+nomad node identity get [options] <node_id>
+```
+
+## Examples
+
+Get the identity claims of a specific node.
+
+```shell-session
+$ nomad node identity renew da86421c-7de9-85e4-2f50-3b2bf95102c1
+Claim Key              Claim Value
+aud                    nomadproject.io
+exp                    2025-09-23T10:37:39+01:00
+iat                    2025-09-22T10:37:39+01:00
+jti                    6b3ccaac-9e23-088f-405b-23797ca64c1a
+nbf                    2025-09-22T10:37:39+01:00
+sub                    node:global:default:da86421c-7de9-85e4-2f50-3b2bf95102c1:default
+nomad_node_datacenter  dc1
+nomad_node_id          da86421c-7de9-85e4-2f50-3b2bf95102c1
+nomad_node_pool        default
+```
+
+## General options
+
+@include 'general_options.mdx'

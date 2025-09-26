@@ -1,0 +1,58 @@
+---
+layout: docs
+page_title: Node identity
+description: Nomad's node identity feature uniquely identities each Nomad client node and provides an authentication mechanism for nodes to make RPC calls to the Nomad servers.
+---
+
+# Node identity
+
+This page provides conceptual information about Nomad's node identity feature,
+which uniquely identities each Nomad client node and provides an authentication
+mechanism for nodes to make RPC calls to the Nomad servers.
+
+The Nomad cluster gives every node a default identity once the cluster is able
+to fully support the feature with a defined lifetime. This node identity is a
+[JSON Web Token (JWT)][] that has been signed by the leader's keyring and is
+generated as part of the node's registration and heartbeat process.
+
+## Node identity claims
+
+Alongside the standard JWT claims such as `exp` (expiration time), `iat` (issued
+at time), and `aud` (audience), Nomad node identity includes the
+`nomad_node_id`, `nomad_node_pool`, and `nomad_node_datacenter` identity claims.
+
+```json
+{
+  "nomad_node_id": "f6e8c9d4-5b6a-4c3d-8e2f-1a2b3c4d5e6f",
+  "nomad_node_pool": "default",
+  "nomad_node_datacenter": "dc1"
+}
+```
+
+To review all identity claims for a specific node, run the
+[`node identity get` command][cli_node_identity_get].
+
+## Node identity renewal
+
+The node pool specification's [`node_identity_ttl`][config_node_identity_ttl]
+parameter dictates the identity's expiration, which defaults to 24 hours. When a
+node's identity exceeds 67% of its lifetime, the Nomad server issues a new
+identity to the node at its next heartbeat.
+
+You may force a node to renew its identity at its next heartbeat by running the
+[`node identity renew` command][cli_node_identity_renew], which ensure the 67%
+lifetime check is bypassed.
+
+## Node identity persistence
+
+A node's identity is stored within its local database, which is persisted within the
+configured [`data_dir`][client_cfg_state_dir]. To view the stored identity,
+along with other state resouces, run the
+[`operator client-state` command][cli_operattor_client_state].
+
+[JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
+[config_node_identity_ttl]: /nomad/docs/other-specifications/node-pool#node_identity_ttl
+[cli_node_identity_get]: /nomad/commands/node/identity/get
+[cli_node_identity_renew]: /nomad/commands/node/identity/renew
+[client_cfg_state_dir]: /nomad/docs/configuration/client#state_dir
+[cli_operattor_client_state]: /nomad/commands/operator/client-state

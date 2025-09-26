@@ -31,8 +31,9 @@ Retrieve information on a node pool:
 
 ```shell-session
 $ nomad node pool info prod
-Name        = prod
-Description = Node pool for production workloads.
+Name              = prod
+Description       = Node pool for production workloads.
+Node Identity TTL = "24h0m0s"
 
 Metadata
 env = production
@@ -53,6 +54,7 @@ $ nomad node pool info -json prod
     },
     "ModifyIndex": 39,
     "Name": "prod",
+    "NodeIdentityTTL": "24h0m0s",
     "SchedulerConfiguration": {
         "SchedulerAlgorithm": "spread"
     }
