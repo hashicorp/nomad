@@ -145,6 +145,7 @@ func TestNode_Register_Identity(t *testing.T) {
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 
 				req := structs.NodeRegisterRequest{
 					Node: node,
@@ -173,6 +174,7 @@ func TestNode_Register_Identity(t *testing.T) {
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				node.NodePool = "custom-pool"
 
 				req := structs.NodeRegisterRequest{
@@ -199,6 +201,7 @@ func TestNode_Register_Identity(t *testing.T) {
 				must.NoError(t, srv.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{nodePool}))
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				node.NodePool = nodePool.Name
 
 				req := structs.NodeRegisterRequest{
@@ -224,6 +227,7 @@ func TestNode_Register_Identity(t *testing.T) {
 				timeJWTNow := jwt.NewNumericDate(timeNow)
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 				claims := structs.GenerateNodeIdentityClaims(
@@ -260,6 +264,7 @@ func TestNode_Register_Identity(t *testing.T) {
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 				claims := structs.GenerateNodeIdentityClaims(
@@ -295,6 +300,7 @@ func TestNode_Register_Identity(t *testing.T) {
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, 1000, node.Copy()))
 
 				claims := structs.GenerateNodeIdentityClaims(
@@ -1575,6 +1581,7 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				must.Eq(t, "", node.IdentitySigningKeyID)
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, srv.raft.LastIndex(), node))
 
@@ -1609,6 +1616,7 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 				))
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				node.NodePool = nodePool.Name
 
 				must.Eq(t, "", node.IdentitySigningKeyID)
@@ -1669,6 +1677,7 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 				timeJWTNow := jwt.NewNumericDate(timeNow)
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, srv.raft.LastIndex(), node))
 
 				claims := structs.GenerateNodeIdentityClaims(
@@ -1717,6 +1726,7 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 				timeJWTNow := jwt.NewNumericDate(timeNow)
 
 				node := mock.Node()
+				node.Attributes["nomad.version"] = "1.11.0"
 				node.NodePool = nodePool.Name
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, srv.raft.LastIndex(), node))
 
@@ -2413,6 +2423,9 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Create the register request
 	node := mock.Node()
+	node.Attributes["nomad.version"] = "1.11.0"
+	must.NoError(t, node.ComputeClass())
+
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "global"},

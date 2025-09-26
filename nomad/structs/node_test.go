@@ -9,10 +9,73 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNode_meetsMinimumVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		nodeVersion    string
+		minVersion     *version.Version
+		expectedOutput bool
+	}{
+		{
+			name:           "missing version attribute",
+			nodeVersion:    "",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "invalid version attribute",
+			nodeVersion:    "not-a-semver",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "node version less than minimum",
+			nodeVersion:    "1.10.5",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "node version equal to minimum",
+			nodeVersion:    "1.10.6-dev",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "node version greater than minimum",
+			nodeVersion:    "1.10.7",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "prerelease",
+			nodeVersion:    "1.10.6-dev",
+			minVersion:     version.Must(version.NewVersion("1.10.6")),
+			expectedOutput: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testNode := &Node{
+				Attributes: map[string]string{
+					"nomad.version": tc.nodeVersion,
+				},
+			}
+
+			actualOutput := testNode.meetsMinimumVersion(tc.minVersion)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
 
 func TestDriverInfoEquals(t *testing.T) {
 	ci.Parallel(t)
@@ -468,6 +531,7 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 		inputAuthErr             error
 		inputTime                time.Time
 		inputTTL                 time.Duration
+		inputNomadVersionAttr    string
 		expectedOutput           bool
 	}{
 		{
@@ -476,35 +540,40 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 			inputAuthErr:             jwt.ErrExpired,
 			inputTime:                time.Now(),
 			inputTTL:                 10 * time.Minute,
+			inputNomadVersionAttr:    "1.11.0",
 			expectedOutput:           true,
 		},
 		{
 			name: "first time node registration",
 			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
 				WriteRequest: WriteRequest{
 					identity: &AuthenticatedIdentity{
 						ACLToken: AnonymousACLToken,
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now(),
-			inputTTL:       10 * time.Minute,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now(),
+			inputTTL:              10 * time.Minute,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "registration using node secret ID",
 			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
 				WriteRequest: WriteRequest{
 					identity: &AuthenticatedIdentity{
 						ClientID: "client-id-1",
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now(),
-			inputTTL:       10 * time.Minute,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now(),
+			inputTTL:              10 * time.Minute,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "modified node node pool configuration",
@@ -526,10 +595,11 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "modified node class configuration",
@@ -551,10 +621,11 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "modified node datacenter configuration",
@@ -576,10 +647,11 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "expiring node identity",
@@ -601,10 +673,37 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "old client version",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.8.17",
+			expectedOutput:        false,
 		},
 		{
 			name: "no generation",
@@ -626,15 +725,20 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputAuthErr:   nil,
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: false,
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+
+			// Set the nomad.version attribute on the mock node.
+			mockNode.Attributes["nomad.version"] = tc.inputNomadVersionAttr
+
 			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
 				tc.inputAuthErr,
 				tc.inputTime,
@@ -648,11 +752,15 @@ func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 	ci.Parallel(t)
 
+	// Generate a stable mock node for testing.
+	mockNode := MockNode()
+
 	testCases := []struct {
 		name                     string
 		inputNodeRegisterRequest *NodeUpdateStatusRequest
 		inputTime                time.Time
 		inputTTL                 time.Duration
+		inputNomadVersionAttr    string
 		expectedOutput           bool
 	}{
 		{
@@ -664,9 +772,10 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputTime:      time.Now(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputTime:             time.Now(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "expiring node identity",
@@ -682,9 +791,10 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "not expiring node identity",
@@ -700,9 +810,10 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: false,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
 		},
 		{
 			name: "not expiring forced renewal node identity",
@@ -719,9 +830,10 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: true,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
 		},
 		{
 			name: "server authenticated request",
@@ -732,15 +844,35 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 					},
 				},
 			},
-			inputTime:      time.Now().UTC(),
-			inputTTL:       24 * time.Hour,
-			expectedOutput: false,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
+		},
+		{
+			name: "old client version",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputTime:             time.Now(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.8.17",
+			expectedOutput:        false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+
+			// Set the nomad.version attribute on the mock node.
+			mockNode.Attributes["nomad.version"] = tc.inputNomadVersionAttr
+
 			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
+				mockNode,
 				tc.inputTime,
 				tc.inputTTL,
 			)

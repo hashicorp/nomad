@@ -743,7 +743,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check and generate a node identity if needed.
-	if args.ShouldGenerateNodeIdentity(timeNow.UTC(), identityTTL) {
+	if args.ShouldGenerateNodeIdentity(node, timeNow.UTC(), identityTTL) {
 
 		claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
 
