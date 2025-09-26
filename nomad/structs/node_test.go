@@ -60,6 +60,30 @@ func TestNode_meetsMinimumVersion(t *testing.T) {
 			minVersion:     version.Must(version.NewVersion("1.10.6")),
 			expectedOutput: true,
 		},
+		{
+			name:           "enterprise node version less than minimum",
+			nodeVersion:    "1.10.5+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "enterprise node version equal to minimum",
+			nodeVersion:    "1.10.6-dev+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "enterprise node version greater than minimum",
+			nodeVersion:    "1.10.7+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "enterprise prerelease",
+			nodeVersion:    "1.10.6-dev+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6")),
+			expectedOutput: true,
+		},
 	}
 
 	for _, tc := range cases {
