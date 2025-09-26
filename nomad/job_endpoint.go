@@ -298,6 +298,24 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 		}
 	}
+	// Preserve the existing task resources, if requested
+	if existingJob != nil && args.PreserveResources {
+		prevResources := make(map[string]map[string]*structs.Resources)
+		for _, tg := range existingJob.TaskGroups {
+			prevResources[tg.Name] = make(map[string]*structs.Resources)
+			for _, task := range tg.Tasks {
+				prevResources[tg.Name][task.Name] = task.Resources
+			}
+
+		}
+		for _, tg := range args.Job.TaskGroups {
+			for _, task := range tg.Tasks {
+				if res, ok := prevResources[tg.Name][task.Name]; ok {
+					task.Resources = res
+				}
+			}
+		}
+	}
 
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.

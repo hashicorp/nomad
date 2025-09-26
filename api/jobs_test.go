@@ -186,6 +186,118 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	must.Eq(t, 3, status.TaskGroups["group3"].Desired) // new     => as specified
 }
 
+func TestJobs_Register_PreserveResources(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/echo").
+		SetLogConfig(&LogConfig{
+			MaxFiles:      pointerOf(1),
+			MaxFileSizeMB: pointerOf(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: pointerOf(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	task.Resources = &Resources{
+		CPU:      pointerOf(50),
+		MemoryMB: pointerOf(128),
+	}
+
+	// Update the job, with PreserveResources = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveResources: true,
+	}, nil)
+	must.NoError(t, err)
+
+	// Query the job scale status
+	registered, _, err := jobs.Info(*job.ID, nil)
+	must.NoError(t, err)
+	must.Eq(t, 100, *registered.TaskGroups[0].Tasks[0].Resources.CPU)      // preserved
+	must.Eq(t, 300, *registered.TaskGroups[0].Tasks[0].Resources.MemoryMB) // preserved
+}
+
+func TestJobs_Register_NoPreserveResources(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/echo").
+		SetLogConfig(&LogConfig{
+			MaxFiles:      pointerOf(1),
+			MaxFileSizeMB: pointerOf(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: pointerOf(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	task.Resources = &Resources{
+		CPU:      pointerOf(50),
+		MemoryMB: pointerOf(128),
+	}
+
+	// Update the job, with PreserveResources = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveResources: false,
+	}, nil)
+	must.NoError(t, err)
+
+	// Query the job scale status
+	registered, _, err := jobs.Info(*job.ID, nil)
+	must.NoError(t, err)
+	must.Eq(t, 50, *registered.TaskGroups[0].Tasks[0].Resources.CPU)       // updated
+	must.Eq(t, 128, *registered.TaskGroups[0].Tasks[0].Resources.MemoryMB) // updated
+}
+
 func TestJobs_Register_EvalPriority(t *testing.T) {
 	testutil.Parallel(t)
 

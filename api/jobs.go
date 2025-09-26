@@ -120,12 +120,13 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // RegisterOptions is used to pass through job registration parameters
 type RegisterOptions struct {
-	EnforceIndex   bool
-	ModifyIndex    uint64
-	PolicyOverride bool
-	PreserveCounts bool
-	EvalPriority   int
-	Submission     *JobSubmission
+	EnforceIndex      bool
+	ModifyIndex       uint64
+	PolicyOverride    bool
+	PreserveCounts    bool
+	PreserveResources bool
+	EvalPriority      int
+	Submission        *JobSubmission
 }
 
 // Register is used to register a new job. It returns the ID
@@ -152,6 +153,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		}
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
+		req.PreserveResources = opts.PreserveResources
 		req.EvalPriority = opts.EvalPriority
 		req.Submission = opts.Submission
 	}
@@ -1486,10 +1488,11 @@ type JobRegisterRequest struct {
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.
-	EnforceIndex   bool   `json:",omitempty"`
-	JobModifyIndex uint64 `json:",omitempty"`
-	PolicyOverride bool   `json:",omitempty"`
-	PreserveCounts bool   `json:",omitempty"`
+	EnforceIndex      bool   `json:",omitempty"`
+	JobModifyIndex    uint64 `json:",omitempty"`
+	PolicyOverride    bool   `json:",omitempty"`
+	PreserveCounts    bool   `json:",omitempty"`
+	PreserveResources bool   `json:",omitempty"`
 
 	// EvalPriority is an optional priority to use on any evaluation created as
 	// a result on this job registration. This value must be between 1-100

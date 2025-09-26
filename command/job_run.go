@@ -106,6 +106,9 @@ Run Options:
   -preserve-counts
     If set, the existing task group counts will be preserved when updating a job.
 
+  -preserve-resources
+    If set, the existing task resources will be preserved when updating a job.
+
   -consul-namespace
     (Enterprise only) If set, any services in the job will be registered into
     the specified Consul namespace. Any template block reading from Consul KV
@@ -137,20 +140,21 @@ func (c *JobRunCommand) Synopsis() string {
 func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-check-index":      complete.PredictNothing,
-			"-detach":           complete.PredictNothing,
-			"-verbose":          complete.PredictNothing,
-			"-consul-namespace": complete.PredictAnything,
-			"-vault-namespace":  complete.PredictAnything,
-			"-output":           complete.PredictNothing,
-			"-policy-override":  complete.PredictNothing,
-			"-preserve-counts":  complete.PredictNothing,
-			"-json":             complete.PredictNothing,
-			"-hcl2-strict":      complete.PredictNothing,
-			"-var":              complete.PredictAnything,
-			"-var-file":         complete.PredictFiles("*.var"),
-			"-eval-priority":    complete.PredictNothing,
-			"-ui":               complete.PredictNothing,
+			"-check-index":        complete.PredictNothing,
+			"-detach":             complete.PredictNothing,
+			"-verbose":            complete.PredictNothing,
+			"-consul-namespace":   complete.PredictAnything,
+			"-vault-namespace":    complete.PredictAnything,
+			"-output":             complete.PredictNothing,
+			"-policy-override":    complete.PredictNothing,
+			"-preserve-counts":    complete.PredictNothing,
+			"-preserve-resources": complete.PredictNothing,
+			"-json":               complete.PredictNothing,
+			"-hcl2-strict":        complete.PredictNothing,
+			"-var":                complete.PredictAnything,
+			"-var-file":           complete.PredictFiles("*.var"),
+			"-eval-priority":      complete.PredictNothing,
+			"-ui":                 complete.PredictNothing,
 		})
 }
 
@@ -165,7 +169,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override, preserveCounts, openURL bool
+	var detach, verbose, output, override, preserveCounts, preserveResources, openURL bool
 	var checkIndexStr, consulNamespace, vaultNamespace string
 	var evalPriority int
 
@@ -176,6 +180,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.BoolVar(&output, "output", false, "")
 	flagSet.BoolVar(&override, "policy-override", false, "")
 	flagSet.BoolVar(&preserveCounts, "preserve-counts", false, "")
+	flagSet.BoolVar(&preserveResources, "preserve-resources", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&checkIndexStr, "check-index", "", "")
@@ -272,10 +277,11 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	// Set the register options
 	opts := &api.RegisterOptions{
-		PolicyOverride: override,
-		PreserveCounts: preserveCounts,
-		EvalPriority:   evalPriority,
-		Submission:     sub,
+		PolicyOverride:    override,
+		PreserveCounts:    preserveCounts,
+		PreserveResources: preserveResources,
+		EvalPriority:      evalPriority,
+		Submission:        sub,
 	}
 	if enforce {
 		opts.EnforceIndex = true
