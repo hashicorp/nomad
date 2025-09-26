@@ -65,7 +65,7 @@ require (
 	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13
 	github.com/hashicorp/go-memdb v1.3.5
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/hashicorp/go-msgpack/v2 v2.1.4
+	github.com/hashicorp/go-msgpack/v2 v2.1.5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
 	github.com/hashicorp/go-plugin v1.7.0
@@ -82,10 +82,10 @@ require (
 	github.com/hashicorp/memberlist v0.5.3
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
-	github.com/hashicorp/raft v1.7.3
+	github.com/hashicorp/raft v1.6.0
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
-	github.com/hashicorp/serf v0.10.2
+	github.com/hashicorp/serf v0.10.3-0.20250926091615-c0c1e25340ed
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
@@ -263,7 +263,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.3 // indirect
 	github.com/hashicorp/go-set/v2 v2.1.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
-	github.com/hashicorp/mdns v1.0.5 // indirect
+	github.com/hashicorp/mdns v1.0.6 // indirect
 	github.com/hashicorp/raft-boltdb v0.0.0-20250113192317-e8660f88bcc9 // indirect
 	github.com/hashicorp/vault/api/auth/kubernetes v0.10.0 // indirect
 	github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 // indirect
