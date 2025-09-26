@@ -8,14 +8,48 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
+
+// minNodeIdentityNomadNodeVersion is the minimum Nomad version that supports
+// node identities. This is used to determine whether we should generate a new
+// identity for a node during registration and status updates.
+//
+// TODO(jrasell): Update this when we have a stable release with node identity
+// support.
+var minNodeIdentityNomadNodeVersion = version.Must(version.NewVersion("1.10.6-dev"))
+
+// meetsMinimumVersion identifies whether the node meets the minimum version as
+// specified by vrsn. The node version is determined by the nomad.version
+// attribute. If the attribute is not set or we cannot parse the version, we
+// assume the node does not meet the minimum version.
+func (n *Node) meetsMinimumVersion(vrsn *version.Version) bool {
+
+	nomadVersionAttr, ok := n.Attributes["nomad.version"]
+	if !ok {
+		return false
+	}
+
+	nomadBuildVer, err := version.NewVersion(nomadVersionAttr)
+	if err != nil {
+		return false
+	}
+
+	versionsMatch := slices.Equal(
+		vrsn.Segments(),
+		nomadBuildVer.Segments(),
+	)
+
+	return !(nomadBuildVer.LessThan(vrsn) && !versionsMatch)
+}
 
 // CSITopology is a map of topological domains to topological segments.
 // A topological domain is a sub-division of a cluster, like "region",
@@ -614,6 +648,12 @@ func (n *NodeRegisterRequest) ShouldGenerateNodeIdentity(
 		return errors.Is(authErr, jwt.ErrExpired)
 	}
 
+	// If the node does not meet the minimum version, we do not want to generate
+	// a new identity, as it will not be able to use it.
+	if !n.Node.meetsMinimumVersion(minNodeIdentityNomadNodeVersion) {
+		return false
+	}
+
 	// If an ACL token or client ID is set, a node is attempting to register for
 	// the first time, or is re-registering using its secret ID. In either case,
 	// we should generate a new identity.
@@ -667,9 +707,16 @@ type NodeUpdateStatusRequest struct {
 // ShouldGenerateNodeIdentity determines whether the handler should generate a
 // new node identity based on the caller identity information.
 func (n *NodeUpdateStatusRequest) ShouldGenerateNodeIdentity(
+	node *Node,
 	now time.Time,
 	ttl time.Duration,
 ) bool {
+
+	// If the node does not meet the minimum version, we do not want to generate
+	// a new identity, as it will not be able to use it.
+	if !node.meetsMinimumVersion(minNodeIdentityNomadNodeVersion) {
+		return false
+	}
 
 	identity := n.GetIdentity()
 
