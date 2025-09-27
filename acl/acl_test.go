@@ -107,9 +107,9 @@ func TestACLMerge(t *testing.T) {
 	ci.Parallel(t)
 
 	// Merge read + write policy
-	p1, err := Parse(readAll)
+	p1, err := Parse(readAll, PolicyParseStrict)
 	must.NoError(t, err)
-	p2, err := Parse(writeAll)
+	p2, err := Parse(writeAll, PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err := NewACL(false, []*Policy{p1, p2})
 	must.NoError(t, err)
@@ -147,7 +147,7 @@ func TestACLMerge(t *testing.T) {
 	must.False(t, acl.AllowClientOp())
 
 	// Merge read + blank
-	p3, err := Parse("")
+	p3, err := Parse("", PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err = NewACL(false, []*Policy{p1, p3})
 	must.NoError(t, err)
@@ -185,7 +185,7 @@ func TestACLMerge(t *testing.T) {
 	must.False(t, acl.AllowClientOp())
 
 	// Merge read + deny
-	p4, err := Parse(denyAll)
+	p4, err := Parse(denyAll, PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err = NewACL(false, []*Policy{p1, p4})
 	must.NoError(t, err)
@@ -362,7 +362,7 @@ func TestAllowNamespace(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)
 
 			acl, err := NewACL(false, []*Policy{policy})
@@ -434,7 +434,7 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.Namespaces)
 
@@ -629,7 +629,7 @@ node_pool "*" {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.NodePools)
 
@@ -694,7 +694,7 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			policy, err := Parse(tc.Policy)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.HostVolumes)
 
@@ -905,7 +905,7 @@ func TestVariablesMatching(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.Namespaces[0].Variables)
 
@@ -918,7 +918,7 @@ func TestVariablesMatching(t *testing.T) {
 
 	t.Run("search over namespace", func(t *testing.T) {
 		policy, err := Parse(`namespace "ns" {
-					variables { path "foo/bar" { capabilities = ["read"] }}}`)
+					variables { path "foo/bar" { capabilities = ["read"] }}}`, PolicyParseStrict)
 		must.NoError(t, err)
 		must.NotNil(t, policy.Namespaces[0].Variables)
 
@@ -958,7 +958,7 @@ func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			policy, err := Parse(tc.Policy)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.Namespaces)
 
@@ -1012,7 +1012,7 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			policy, err := Parse(tc.Policy)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.Namespaces)
 
@@ -1079,7 +1079,7 @@ func TestAgentDebug(t *testing.T) {
 
 			acl := ACLsDisabledACL
 			if !tc.aclsDisabled {
-				policy, err := Parse(tc.policy)
+				policy, err := Parse(tc.policy, PolicyParseStrict)
 				must.NoError(t, err)
 
 				acl, err = NewACL(false, []*Policy{policy})
