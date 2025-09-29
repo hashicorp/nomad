@@ -600,15 +600,26 @@ func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeRe
 func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, job *structs.Job) []*structs.DeploymentStatusUpdate {
 	statusUpdates := []*structs.DeploymentStatusUpdate{}
 
-	if nr.DeploymentCurrent != nil {
+	if d := nr.DeploymentCurrent; d != nil {
+
+		// Deployments that require promotion should have appropriate status set
+		// immediately, no matter their completness.
+		if d.RequiresPromotion() {
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+			return statusUpdates
+		}
 
 		// Mark the deployment as complete if possible
 		if deploymentComplete {
 			if job.IsMultiregion() {
 				// the unblocking/successful states come after blocked, so we
 				// need to make sure we don't revert those states
-				if nr.DeploymentCurrent.Status != structs.DeploymentStatusUnblocking &&
-					nr.DeploymentCurrent.Status != structs.DeploymentStatusSuccessful {
+				if d.Status != structs.DeploymentStatusUnblocking &&
+					d.Status != structs.DeploymentStatusSuccessful {
 					statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
 						DeploymentID:      nr.DeploymentCurrent.ID,
 						Status:            structs.DeploymentStatusBlocked,
@@ -625,23 +636,12 @@ func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool,
 		}
 
 		// Mark the deployment as pending since its state is now computed.
-		if nr.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
+		if d.Status == structs.DeploymentStatusInitializing {
 			statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      nr.DeploymentCurrent.ID,
 				Status:            structs.DeploymentStatusPending,
 				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
 			})
-		}
-	}
-
-	// Set the description of a created deployment
-	if d := nr.DeploymentCurrent; d != nil {
-		if d.RequiresPromotion() {
-			if d.HasAutoPromote() {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
-			} else {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-			}
 		}
 	}
 
