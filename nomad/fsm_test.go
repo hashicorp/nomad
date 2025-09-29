@@ -906,6 +906,61 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	}
 }
 
+func TestFSM_RegisterJob_PreserveValues(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 10
+	job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      500,
+		MemoryMB: 256,
+	}
+	req := structs.JobRegisterRequest{
+		Job:            job,
+		PreserveCounts: true, // Should be no-op on first register, but ensure no error
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	must.Nil(t, resp)
+
+	job.TaskGroups[0].Count = 5
+	job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      750,
+		MemoryMB: 500,
+	}
+
+	req2 := structs.JobRegisterRequest{
+		Job:               job,
+		PreserveCounts:    true,
+		PreserveResources: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	bufout, err := structs.Encode(structs.JobRegisterRequestType, req2)
+	must.NoError(t, err)
+
+	resp2 := fsm.Apply(makeLog(bufout))
+	must.Nil(t, resp2)
+
+	// Verify job is registered and values were preserved
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	must.NoError(t, err)
+	must.NotNil(t, jobOut)
+	must.Eq(t, jobOut.CreateIndex, 1)
+
+	must.Eq(t, jobOut.TaskGroups[0].Count, 10)
+	must.Eq(t, jobOut.TaskGroups[0].Tasks[0].Resources.CPU, 500)
+	must.Eq(t, jobOut.TaskGroups[0].Tasks[0].Resources.MemoryMB, 256)
+}
+
 func TestFSM_DeregisterJob_Error(t *testing.T) {
 	ci.Parallel(t)
 	fsm := testFSM(t)

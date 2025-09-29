@@ -625,6 +625,49 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Preserve the existing task group counts and resources, if requested. Do
+	// this here to avoid race conditions when registering and scaling jobs.
+	if req.PreserveCounts || req.PreserveResources {
+		existingJobID := req.Job.ID
+		if existingJobID != "" {
+			existingJob, err := n.state.JobByID(nil, req.Namespace, existingJobID)
+			if err != nil {
+				n.logger.Error("JobByID lookup for existing job failed", "existing_job_id", existingJobID, "namespace", req.Namespace, "error", err)
+				return err
+			}
+			if existingJob != nil {
+				if req.PreserveCounts {
+					prevCounts := make(map[string]int)
+					for _, tg := range existingJob.TaskGroups {
+						prevCounts[tg.Name] = tg.Count
+					}
+					for _, tg := range req.Job.TaskGroups {
+						if count, ok := prevCounts[tg.Name]; ok {
+							tg.Count = count
+						}
+					}
+				}
+
+				if req.PreserveResources {
+					prevResources := make(map[string]map[string]*structs.Resources)
+					for _, tg := range existingJob.TaskGroups {
+						prevResources[tg.Name] = make(map[string]*structs.Resources)
+						for _, task := range tg.Tasks {
+							prevResources[tg.Name][task.Name] = task.Resources
+						}
+					}
+					for _, tg := range req.Job.TaskGroups {
+						for _, task := range tg.Tasks {
+							if res, ok := prevResources[tg.Name][task.Name]; ok {
+								task.Resources = res
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/* Handle upgrade paths:
 	 * - Empty maps and slices should be treated as nil to avoid
 	 *   un-intended destructive updates in scheduler since we use
