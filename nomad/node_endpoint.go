@@ -215,39 +215,49 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		args.CreateNodePool = true
 	}
 
-	// Track the TTL that will be used for the node identity.
-	var identityTTL time.Duration
+	// Only perform the node identity work if all the servers meet the minimum
+	// version that supports it.
+	if ServersMeetMinimumVersion(
+		n.srv.Members(),
+		n.srv.Region(),
+		minVersionNodeIdentity,
+		false,
+	) {
 
-	// The identity TTL is determined by the node pool the node is registered
-	// in. In the event the node registration is triggering creation of a new
-	// node pool, it will be created with the default TTL, so we use this for
-	// the identity.
-	nodePool, err := snap.NodePoolByName(ws, args.Node.NodePool)
-	if err != nil {
-		return fmt.Errorf("failed to query node pool: %v", err)
-	}
-	if nodePool == nil {
-		identityTTL = structs.DefaultNodePoolNodeIdentityTTL
-	} else {
-		identityTTL = nodePool.NodeIdentityTTL
-	}
+		// Track the TTL that will be used for the node identity.
+		var identityTTL time.Duration
 
-	// Check if we need to generate a node identity. This must happen before we
-	// send the Raft message, as the signing key ID is set on the node if we
-	// generate one.
-	if args.ShouldGenerateNodeIdentity(authErr, timeNow.UTC(), identityTTL) {
-
-		claims := structs.GenerateNodeIdentityClaims(args.Node, n.srv.Region(), identityTTL)
-
-		signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+		// The identity TTL is determined by the node pool the node is registered
+		// in. In the event the node registration is triggering creation of a new
+		// node pool, it will be created with the default TTL, so we use this for
+		// the identity.
+		nodePool, err := snap.NodePoolByName(ws, args.Node.NodePool)
 		if err != nil {
-			return fmt.Errorf("failed to sign node identity claims: %v", err)
+			return fmt.Errorf("failed to query node pool: %v", err)
+		}
+		if nodePool == nil {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else {
+			identityTTL = nodePool.NodeIdentityTTL
 		}
 
-		reply.SignedIdentity = &signedJWT
-		args.Node.IdentitySigningKeyID = signingKeyID
-	} else if originalNode != nil {
-		args.Node.IdentitySigningKeyID = originalNode.IdentitySigningKeyID
+		// Check if we need to generate a node identity. This must happen before we
+		// send the Raft message, as the signing key ID is set on the node if we
+		// generate one.
+		if args.ShouldGenerateNodeIdentity(authErr, timeNow.UTC(), identityTTL) {
+
+			claims := structs.GenerateNodeIdentityClaims(args.Node, n.srv.Region(), identityTTL)
+
+			signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+			if err != nil {
+				return fmt.Errorf("failed to sign node identity claims: %v", err)
+			}
+
+			reply.SignedIdentity = &signedJWT
+			args.Node.IdentitySigningKeyID = signingKeyID
+		} else if originalNode != nil {
+			args.Node.IdentitySigningKeyID = originalNode.IdentitySigningKeyID
+		}
 	}
 
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
@@ -723,9 +733,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	timeNow := time.Now()
 	args.UpdatedAt = timeNow.Unix()
 
-	// Track the TTL that will be used for the node identity.
-	var identityTTL time.Duration
-
 	// The identity TTL is determined by the node pool the node is registered
 	// in. The pool should already exist, as the node is already registered. If
 	// it does not, we use the default TTL as we have no better value to use.
@@ -736,38 +743,51 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if err != nil {
 		return fmt.Errorf("failed to query node pool: %v", err)
 	}
-	if nodePool == nil {
-		identityTTL = structs.DefaultNodePoolNodeIdentityTTL
-	} else {
-		identityTTL = nodePool.NodeIdentityTTL
-	}
 
-	// Check and generate a node identity if needed.
-	if args.ShouldGenerateNodeIdentity(node, timeNow.UTC(), identityTTL) {
+	// Only perform the node identity work if all the servers meet the minimum
+	// version that supports it.
+	if ServersMeetMinimumVersion(
+		n.srv.Members(),
+		n.srv.Region(),
+		minVersionNodeIdentity,
+		false,
+	) {
+		// Track the TTL that will be used for the node identity.
+		var identityTTL time.Duration
 
-		claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
-
-		// Sign the claims with the encrypter and conditionally handle the
-		// error. The IdentitySigningErrorTerminal method has a description of
-		// why we do this.
-		signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
-		if err != nil {
-			if args.IdentitySigningErrorIsTerminal(timeNow) {
-				return fmt.Errorf("failed to sign node identity claims: %v", err)
-			} else {
-				n.logger.Warn(
-					"failed to sign node identity claims, will retry on next heartbeat",
-					"error", err, "node_id", node.ID)
-			}
+		if nodePool == nil {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else {
+			identityTTL = nodePool.NodeIdentityTTL
 		}
 
-		reply.SignedIdentity = &signedJWT
-		args.IdentitySigningKeyID = signingKeyID
-	} else {
-		// Ensure the IdentitySigningKeyID is cleared if we are not generating a
-		// new identity. This is important to ensure that we do not cause Raft
-		// updates unless we need to.
-		args.IdentitySigningKeyID = ""
+		// Check and generate a node identity if needed.
+		if args.ShouldGenerateNodeIdentity(node, timeNow.UTC(), identityTTL) {
+
+			claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
+
+			// Sign the claims with the encrypter and conditionally handle the
+			// error. The IdentitySigningErrorTerminal method has a description of
+			// why we do this.
+			signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+			if err != nil {
+				if args.IdentitySigningErrorIsTerminal(timeNow) {
+					return fmt.Errorf("failed to sign node identity claims: %v", err)
+				} else {
+					n.logger.Warn(
+						"failed to sign node identity claims, will retry on next heartbeat",
+						"error", err, "node_id", node.ID)
+				}
+			}
+
+			reply.SignedIdentity = &signedJWT
+			args.IdentitySigningKeyID = signingKeyID
+		} else {
+			// Ensure the IdentitySigningKeyID is cleared if we are not generating a
+			// new identity. This is important to ensure that we do not cause Raft
+			// updates unless we need to.
+			args.IdentitySigningKeyID = ""
+		}
 	}
 
 	// Compute next status.
