@@ -3147,6 +3147,15 @@ func (a *ACL) CreateClientIntroductionToken(
 		return err
 	}
 	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
+
+	// This endpoint can only be used once all servers in the local region have
+	// been upgraded to minVersionNodeIntro or greater.
+	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minVersionNodeIntro, false) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use client intro tokens",
+			minVersionNodeIntro)
+	}
+
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
