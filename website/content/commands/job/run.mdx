@@ -80,7 +80,7 @@ that volume.
   updating a job.
 
 - `-preserve-resources`: If set, the existing task resources are preserved when
-  updating a job, such as during autoscaling.
+  updating a job, so that autoscaling changes are not overwritten.
 
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` block reading from Consul KV will
