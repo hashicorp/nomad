@@ -474,7 +474,7 @@ func TestEventStream_validateNsOp(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 
-			p, err := acl.Parse(tc.Policy)
+			p, err := acl.Parse(tc.Policy, acl.PolicyParseStrict)
 			require.NoError(err)
 
 			testACL, err := acl.NewACL(tc.Management, []*acl.Policy{p})
@@ -501,7 +501,7 @@ func TestEventStream_validateACL(t *testing.T) {
 	testEvent := &Event{srv: s1}
 
 	t.Run("single namespace ACL errors on wildcard", func(t *testing.T) {
-		policy, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+		policy, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}), acl.PolicyParseStrict)
 		must.NoError(t, err)
 
 		// does not contain policy for default NS
@@ -516,9 +516,9 @@ func TestEventStream_validateACL(t *testing.T) {
 	})
 
 	t.Run("all namespace ACL succeeds on wildcard", func(t *testing.T) {
-		policy1, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}))
+		policy1, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}), acl.PolicyParseStrict)
 		must.NoError(t, err)
-		policy2, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+		policy2, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}), acl.PolicyParseStrict)
 		must.NoError(t, err)
 
 		testAcl, err := acl.NewACL(false, []*acl.Policy{policy1, policy2})
@@ -533,7 +533,7 @@ func TestEventStream_validateACL(t *testing.T) {
 	})
 
 	t.Run("single namespace ACL succeeds with correct NS", func(t *testing.T) {
-		policy, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}))
+		policy, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}), acl.PolicyParseStrict)
 		must.NoError(t, err)
 
 		testAcl, err := acl.NewACL(false, []*acl.Policy{policy})

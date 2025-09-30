@@ -12,6 +12,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.10.6
+
+#### ACL policies no longer silently ignore duplicate or invalid keys
+
+Nomad 1.10.6 introduces stricter validation for ACL policies. Policy writes that
+include duplicate or invalid keys will be rejected with an error instead of
+being silently ignored. Any existing policies with duplicate or invalid keys
+will continue to work, but the source policy document will need to be updated
+to be valid before it can be written to Nomad.
+
 ## Nomad 1.10.2
 
 #### Clients respect `telemetry.publish_allocation_metrics`
@@ -169,6 +179,16 @@ labels = [
   }
 ]
 ```
+
+## Nomad 1.8.18
+
+#### ACL policies no longer silently ignore duplicate or invalid keys
+
+Nomad 1.8.18 introduces stricter validation for ACL policies. Policy writes that
+include duplicate or invalid keys will be rejected with an error instead of
+being silently ignored. Any existing policies with duplicate or invalid keys
+will continue to work, but the source policy document will need to be updated
+to be valid before it can be written to Nomad.
 
 ## Nomad 1.8.4
 
