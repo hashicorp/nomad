@@ -275,5 +275,5 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 
 	// deployment must not be terminal and needs to have the right status
 	// description set
-	must.Eq(t, deployment.StatusDescription, structs.DeploymentStatusDescriptionRunningNeedsPromotion)
+	must.Eq(t, structs.DeploymentStatusDescriptionRunningNeedsPromotion, deployment.StatusDescription, )
 }
