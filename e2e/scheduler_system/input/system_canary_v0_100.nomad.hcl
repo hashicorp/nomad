@@ -12,8 +12,6 @@ job "system_job" {
   }
 
   group "system_job_group" {
-    count = 1
-
     update {
       max_parallel     = 1
       min_healthy_time = "1s"
