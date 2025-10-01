@@ -1166,6 +1166,10 @@
         "path": "job-specification/schedule"
       },
       {
+        "title": "secret",
+        "path": "job-specification/secret"
+      },
+      {
         "title": "service",
         "path": "job-specification/service"
       },
