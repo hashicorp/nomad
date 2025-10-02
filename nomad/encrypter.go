@@ -120,31 +120,34 @@ func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 // fields
 func fallbackVaultConfig(provider *structs.KEKProviderConfig, vaultcfg *config.VaultConfig) {
 
-	setFallback := func(key, fallback, env string) {
+	setFallback := func(key, cfg, env, fallback string) {
 		if provider.Config == nil {
 			provider.Config = map[string]string{}
 		}
 		if _, ok := provider.Config[key]; !ok {
-			if fallback != "" {
-				provider.Config[key] = fallback
+			if cfg != "" {
+				provider.Config[key] = cfg
+			} else if envVal := os.Getenv(env); envVal != "" {
+				provider.Config[key] = envVal
 			} else {
-				provider.Config[key] = os.Getenv(env)
+				provider.Config[key] = fallback
 			}
 		}
 	}
 
-	setFallback("address", vaultcfg.Addr, "VAULT_ADDR")
-	setFallback("token", vaultcfg.Token, "VAULT_TOKEN")
-	setFallback("tls_ca_cert", vaultcfg.TLSCaPath, "VAULT_CACERT")
-	setFallback("tls_client_cert", vaultcfg.TLSCertFile, "VAULT_CLIENT_CERT")
-	setFallback("tls_client_key", vaultcfg.TLSKeyFile, "VAULT_CLIENT_KEY")
-	setFallback("tls_server_name", vaultcfg.TLSServerName, "VAULT_TLS_SERVER_NAME")
+	setFallback("address", vaultcfg.Addr, "VAULT_ADDR", "")
+	setFallback("token", vaultcfg.Token, "VAULT_TOKEN", "")
+	setFallback("tls_ca_cert", vaultcfg.TLSCaPath, "VAULT_CACERT", "")
+	setFallback("tls_client_cert", vaultcfg.TLSCertFile, "VAULT_CLIENT_CERT", "")
+	setFallback("tls_client_key", vaultcfg.TLSKeyFile, "VAULT_CLIENT_KEY", "")
+	setFallback("tls_server_name", vaultcfg.TLSServerName, "VAULT_TLS_SERVER_NAME", "")
 
+	// default to false as this will be parsed by the go-kms-wrapping package
 	skipVerify := ""
 	if vaultcfg.TLSSkipVerify != nil {
 		skipVerify = fmt.Sprintf("%v", *vaultcfg.TLSSkipVerify)
 	}
-	setFallback("tls_skip_verify", skipVerify, "VAULT_SKIP_VERIFY")
+	setFallback("tls_skip_verify", skipVerify, "VAULT_SKIP_VERIFY", "false")
 }
 
 func (e *Encrypter) loadKeystore() error {
