@@ -34,6 +34,14 @@ func Test_jobValidate_Validate(t *testing.T) {
 		_, err := impl.Validate(job)
 		must.NoError(t, err)
 	})
+
+	t.Run("no error if job_max_count is zero (i.e. unlimited)", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 0, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = structs.JobDefaultMaxCount + 1
+		_, err := impl.Validate(job)
+		must.NoError(t, err)
+	})
 }
 
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
