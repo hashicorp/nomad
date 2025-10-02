@@ -17,7 +17,7 @@ job "system_job" {
       min_healthy_time = "1s"
       healthy_deadline = "1m"
       auto_revert      = false
-      canary           = 50
+      canary           = 100
     }
 
     restart {
