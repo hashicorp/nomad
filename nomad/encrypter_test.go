@@ -817,11 +817,15 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 				},
 				{
 					Provider: "transit",
-					Name:     "fallback-to-vault-block",
+					Name:     "use-vault-config-if-set",
 				},
 				{
 					Provider: "transit",
-					Name:     "fallback-to-env",
+					Name:     "use-env-if-no-config",
+				},
+				{
+					Provider: "transit",
+					Name:     "use-fallback-if-no-env",
 				},
 			},
 		},
@@ -846,6 +850,10 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 
 	fallbackVaultConfig(providers[2], &config.VaultConfig{})
 	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
+
+	t.Setenv("VAULT_SKIP_VERIFY", "")
+	fallbackVaultConfig(providers[3], &config.VaultConfig{})
+	must.Eq(t, "false", providers[3].Config["tls_skip_verify"])
 }
 
 func TestEncrypter_IsReady_noTasks(t *testing.T) {
