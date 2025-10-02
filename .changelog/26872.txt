@@ -1,0 +1,3 @@
+```release-note:bug
+state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker
+```
