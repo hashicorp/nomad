@@ -9,24 +9,22 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
-// FIXME: these tests are temporarily disabled until a bug in the scheduler that
-// fails to account for constraints is fixed.
-//
-// func TestSystemScheduler(t *testing.T) {
-// 	cluster3.Establish(t,
-// 		cluster3.Leader(),
-// 		cluster3.LinuxClients(3),
-// 	)
-//
-// 	t.Run("testJobUpdateOnIneligibleNode", testJobUpdateOnIneligbleNode)
-// 	t.Run("testCanaryUpdate", testCanaryUpdate)
-// 	t.Run("testCanaryDeploymentToAllEligibleNodes", testCanaryDeploymentToAllEligibleNodes)
-// }
+func TestSystemScheduler(t *testing.T) {
+	cluster3.Establish(t,
+		cluster3.Leader(),
+		cluster3.LinuxClients(3),
+	)
+
+	t.Run("testJobUpdateOnIneligibleNode", testJobUpdateOnIneligbleNode)
+	t.Run("testCanaryUpdate", testCanaryUpdate)
+	t.Run("testCanaryDeploymentToAllEligibleNodes", testCanaryDeploymentToAllEligibleNodes)
+}
 
 func testJobUpdateOnIneligbleNode(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
