@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: fixes an issue with Vault transit configuration where tls_skip_verify was not defaulting to false
+```
