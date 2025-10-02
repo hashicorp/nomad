@@ -1034,7 +1034,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 				"eval_id", evalID, "error", err)
 			return err
 		}
-		if !eval.ShouldEnqueue() {
+		if eval != nil && !eval.ShouldEnqueue() {
 			n.evalBroker.DropWaiting(eval)
 		}
 	}
