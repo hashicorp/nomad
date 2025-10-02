@@ -5,6 +5,7 @@ package scheduler_system
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -93,12 +94,16 @@ func testJobUpdateOnIneligbleNode(t *testing.T) {
 }
 
 func testCanaryUpdate(t *testing.T) {
-	_, cleanup := jobs3.Submit(t,
+	job, cleanup := jobs3.Submit(t,
 		"./input/system_canary_v0.nomad.hcl",
 		jobs3.DisableRandomJobID(),
 		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup)
+
+	// Get initial allocations
+	initialAllocs := job.Allocs()
+	must.SliceNotEmpty(t, initialAllocs)
 
 	// Update job
 	job2, cleanup2 := jobs3.Submit(t,
@@ -108,12 +113,6 @@ func testCanaryUpdate(t *testing.T) {
 		jobs3.Detach(),
 	)
 	t.Cleanup(cleanup2)
-
-	// how many eligible nodes do we have?
-	nodesApi := job2.NodesApi()
-	nodesList, _, err := nodesApi.List(nil)
-	must.Nil(t, err)
-	must.SliceNotEmpty(t, nodesList)
 
 	// Get updated allocations
 	allocs := job2.Allocs()
@@ -145,7 +144,7 @@ func testCanaryUpdate(t *testing.T) {
 	})
 
 	// find allocations from v1 version of the job, they should all be canaries
-	// and there should be exactly 2
+	// and there should be exactly 50% (rounded up) of v0 allocations
 	count := 0
 	for _, a := range allocs {
 		if a.JobVersion == 1 {
@@ -153,7 +152,7 @@ func testCanaryUpdate(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, 2, count, must.Sprint("expected canaries to be placed on 50% of eligible nodes"))
+	must.Eq(t, int(math.Ceil(float64(len(initialAllocs)/2))), count, must.Sprint("expected canaries to be placed on 50% of feasible nodes"))
 
 	// promote canaries
 	deployments, _, err := deploymentsApi.List(nil)
@@ -185,7 +184,7 @@ func testCanaryUpdate(t *testing.T) {
 	})
 
 	// expect the number of allocations for promoted deployment to be the same
-	// as the number of feasible nodes
+	// as the number of initial allocations
 	newAllocs := job2.Allocs()
 	must.SliceNotEmpty(t, newAllocs)
 
@@ -195,16 +194,20 @@ func testCanaryUpdate(t *testing.T) {
 			promotedAllocs += 1
 		}
 	}
-	must.Eq(t, 3, promotedAllocs)
+	must.Eq(t, len(initialAllocs), promotedAllocs)
 }
 
 func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
-	_, cleanup := jobs3.Submit(t,
+	job, cleanup := jobs3.Submit(t,
 		"./input/system_canary_v0_100.nomad.hcl",
 		jobs3.DisableRandomJobID(),
 		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup)
+
+	// Get initial allocations
+	initialAllocs := job.Allocs()
+	must.SliceNotEmpty(t, initialAllocs)
 
 	// Update job
 	job2, cleanup2 := jobs3.Submit(t,
@@ -258,7 +261,7 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, 3, count, must.Sprint("expected canaries to be placed on all eligible nodes"))
+	must.Eq(t, len(initialAllocs), count, must.Sprint("expected canaries to be placed on all eligible nodes"))
 
 	// deployment must not be terminal and needs to have the right status
 	// description set
