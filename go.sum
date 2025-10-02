@@ -524,6 +524,8 @@ github.com/hashicorp/hcl v1.0.1-nomad-1 h1:0hOV+/m12cRBAfvHpVOgGdM68XU7uTxGafEuU
 github.com/hashicorp/hcl v1.0.1-nomad-1/go.mod h1:gwlu9+/P9MmKtYrMsHeFRZPXj2CTPm11TDnMeaRHS7g=
 github.com/hashicorp/hcl/v2 v2.20.2-nomad-1 h1:FVr/cgKVheQ9KGEq4sFAiDqls5Yp2Y5+K/WL1Wm5l/s=
 github.com/hashicorp/hcl/v2 v2.20.2-nomad-1/go.mod h1:62ZYHrXgPoX8xBnzl8QzbWq4dyDsDtfCRgIq1rbJEvA=
+github.com/hashicorp/hcl/v2 v2.24.1-0.20251002145941-758176390f22 h1:rLdrpX6ZNisXLysJ2IeKR2V22ujxVRn2dI/Hc+cQV70=
+github.com/hashicorp/hcl/v2 v2.24.1-0.20251002145941-758176390f22/go.mod h1:oGoO1FIQYfn/AgyOhlg9qLC6/nOJPX3qGbkZpYAcqfM=
 github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40 h1:ExwaL+hUy1ys2AWDbsbh/lxQS2EVCYxuj0LoyLTdB3Y=
 github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40/go.mod h1:n2TSygSNwsLJ76m8qFXTSc7beTb+auJxYdqrnoqwZWE=
 github.com/hashicorp/mdns v1.0.6 h1:SV8UcjnQ/+C7KeJ/QeVD/mdN2EmzYfcGfufcuzxfCLQ=
