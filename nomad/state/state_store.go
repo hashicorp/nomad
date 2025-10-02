@@ -1737,7 +1737,7 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, sub *structs.JobSubmission, job *structs.Job) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
-	if err := s.upsertJobImpl(index, sub, job, false, txn); err != nil {
+	if err := s.upsertJobImpl(index, sub, job, false, txn, nil); err != nil {
 		return err
 	}
 	return txn.Commit()
@@ -1746,11 +1746,23 @@ func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, sub *s
 // UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
 // but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertJobTxn(index uint64, sub *structs.JobSubmission, job *structs.Job, txn Txn) error {
-	return s.upsertJobImpl(index, sub, job, false, txn)
+	return s.upsertJobImpl(index, sub, job, false, txn, nil)
+}
+
+// UpsertJobWithRequest is used to register a job or update a job definition
+// using the JobRegisterRequest. It allows flags to be set and used within the
+// upsert job action
+func (s *StateStore) UpsertJobWithRequest(msgType structs.MessageType, index uint64, req *structs.JobRegisterRequest) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+	if err := s.upsertJobImpl(index, req.Submission, req.Job, false, txn, req); err != nil {
+		return err
+	}
+	return txn.Commit()
 }
 
 // upsertJobImpl is the implementation for registering a job or updating a job definition
-func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job *structs.Job, keepVersion bool, txn *txn) error {
+func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job *structs.Job, keepVersion bool, txn *txn, req *structs.JobRegisterRequest) error {
 	// Assert the namespace exists
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err
@@ -1845,6 +1857,10 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 
 	if err := s.updateJobSubmission(index, sub, job.Namespace, job.ID, job.Version, txn); err != nil {
 		return fmt.Errorf("unable to update job submission: %v", err)
+	}
+
+	if err := s.updatePreservedValues(job, existingJob, req); err != nil {
+		return fmt.Errorf("unable to update preserved values: %v", err)
 	}
 
 	// Insert the job
@@ -4694,7 +4710,7 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 	// On failed deployments with auto_revert set to true, a new eval and job will be included on the request.
 	// We should upsert them both
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn, nil); err != nil {
 			return err
 		}
 	}
@@ -4780,7 +4796,7 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 	copy := job.Copy()
 	copy.Stable = stable
-	return s.upsertJobImpl(index, nil, copy, true, txn)
+	return s.upsertJobImpl(index, nil, copy, true, txn, nil)
 }
 
 func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *structs.JobApplyTagRequest) error {
@@ -5102,7 +5118,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn, nil); err != nil {
 			return err
 		}
 	}
@@ -5573,6 +5589,46 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		}
 		if err := txn.Insert("job_summary", summary); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// updatePreservedValues preserves the existing task group counts and resources,
+// if requested. This avoids race conditions when registering and scaling jobs.
+func (s *StateStore) updatePreservedValues(job *structs.Job, prev *structs.Job, req *structs.JobRegisterRequest) error {
+	if req == nil || prev == nil {
+		return nil
+	}
+	if req.PreserveCounts || req.PreserveResources {
+		if req.PreserveCounts {
+			prevCounts := make(map[string]int)
+			for _, tg := range prev.TaskGroups {
+				prevCounts[tg.Name] = tg.Count
+			}
+			for _, tg := range job.TaskGroups {
+				if count, ok := prevCounts[tg.Name]; ok {
+					tg.Count = count
+				}
+			}
+		}
+
+		if req.PreserveResources {
+			prevResources := make(map[string]map[string]*structs.Resources)
+			for _, tg := range prev.TaskGroups {
+				prevResources[tg.Name] = make(map[string]*structs.Resources)
+				for _, task := range tg.Tasks {
+					prevResources[tg.Name][task.Name] = task.Resources
+				}
+			}
+			for _, tg := range job.TaskGroups {
+				for _, task := range tg.Tasks {
+					if res, ok := prevResources[tg.Name][task.Name]; ok {
+						task.Resources = res.Copy()
+					}
+				}
+			}
 		}
 	}
 

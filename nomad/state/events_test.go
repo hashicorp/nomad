@@ -113,7 +113,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
@@ -157,7 +157,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -234,7 +234,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion

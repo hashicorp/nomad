@@ -285,19 +285,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	// Preserve the existing task group counts, if so requested
-	if existingJob != nil && args.PreserveCounts {
-		prevCounts := make(map[string]int)
-		for _, tg := range existingJob.TaskGroups {
-			prevCounts[tg.Name] = tg.Count
-		}
-		for _, tg := range args.Job.TaskGroups {
-			if count, ok := prevCounts[tg.Name]; ok {
-				tg.Count = count
-			}
-		}
-	}
-
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.
 	var newVersion uint64
