@@ -41,6 +41,7 @@ func (nr *NodeReconciler) Compute(
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
+	desiredUpdates map[string]*structs.DesiredUpdates, // desired updates per tg from plan annotations
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
@@ -73,7 +74,7 @@ func (nr *NodeReconciler) Compute(
 	for nodeID, allocs := range nodeAllocs {
 		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
 			notReadyNodes, taintedNodes, canaryNodes[nodeID], canariesPerTG, required,
-			allocs, terminal, serverSupportsDisconnectedClients)
+			allocs, terminal, desiredUpdates, serverSupportsDisconnectedClients)
 		deploymentComplete = deploymentComplete && deploymentCompleteForNode
 		result.Append(diff)
 	}
@@ -200,6 +201,7 @@ func (nr *NodeReconciler) computeForNode(
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
+	desiredUpdates map[string]*structs.DesiredUpdates, // desired updates per tg from plan annotations
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) (*NodeReconcileResult, bool) {
 	result := new(NodeReconcileResult)
@@ -438,9 +440,19 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
+		// make sure we account for any updates from plan annotations
+		_, updatesFromPlannAnnotations := desiredUpdates[tg.Name]
+
 		dstate.DesiredTotal = len(eligibleNodes)
+		if updatesFromPlannAnnotations {
+			dstate.DesiredTotal = int(min(desiredUpdates[tg.Name].Place))
+		}
+
 		if isCanarying[tg.Name] && !dstate.Promoted {
 			dstate.DesiredCanaries = canariesPerTG[tg.Name]
+			if updatesFromPlannAnnotations {
+				dstate.DesiredCanaries = int(min(desiredUpdates[tg.Name].Canary))
+			}
 		}
 
 		// Check for an existing allocation

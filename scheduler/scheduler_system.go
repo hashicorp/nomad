@@ -279,6 +279,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
 	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+		s.planAnnotations.DesiredTGUpdates,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
@@ -444,8 +445,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 				// placements based on whether the node meets the constraints
 				if s.planAnnotations != nil &&
 					s.planAnnotations.DesiredTGUpdates != nil {
-					desired := s.planAnnotations.DesiredTGUpdates[tgName]
-					desired.Place -= 1
+					s.planAnnotations.DesiredTGUpdates[tgName].Place -= 1
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
