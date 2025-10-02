@@ -433,7 +433,7 @@ type Config struct {
 	// JobTrackedVersions is the number of historic Job versions that are kept.
 	JobTrackedVersions int
 
-	// JobMaxCount is the maximum number of task group instances for a single Job.
+	// JobMaxCount is the maximum total task group counts for a single Job.
 	JobMaxCount int
 
 	Reporting *config.ReportingConfig

@@ -289,8 +289,13 @@ server {
 - `job_default_priority` `(int: 50)` - Specifies the default priority assigned to a job.
    A valid value must be between `50` and `job_max_priority`.
 
-- `jax_max_count` `(int: 50000)` - Specifies the maximum number of task group instances for
-   a single job. The value must be non-negative.
+- `job_max_count` `(int: 50000)` - Specifies the maximum number of allocations
+   for a job, as represented by the sum of its task group `count` fields. Jobs
+   of type `system` ignore this value. The child jobs of dispatched batch jobs
+   or periodic jobs are counted separately from their parent job. This value
+   must be non-negative. If set to 0, no limit is enforced. This value is enforced
+   at the time the job is submitted or scaled, and updating the value will not
+   impact existing jobs.
 
 - `job_max_source_size` `(string: "1M")` - Specifies the size limit of the associated
   job source content when registering a job. Note this is not a limit on the actual
