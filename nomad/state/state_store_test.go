@@ -2500,6 +2500,84 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
 }
 
+func TestStateStore_UpsertJobWithRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	job := mock.Job()
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.JobByID(ws, job.Namespace, job.ID)
+	must.NoError(t, err)
+
+	must.NoError(t, state.UpsertJobWithRequest(structs.MsgTypeTestSetup, 1000, &structs.JobRegisterRequest{Job: job}))
+	must.True(t, watchFired(ws), must.Sprint("expected watch to fire"))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Eq(t, job, out)
+
+	index, err := state.Index("jobs")
+	must.NoError(t, err)
+	must.Eq(t, 1000, index)
+
+	summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.NotNil(t, summary)
+	must.Eq(t, job.ID, summary.JobID, must.Sprint("bad summary id"))
+	_, ok := summary.Summary["web"]
+	must.True(t, ok, must.Sprint("nil summary for task group"))
+	must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
+
+	// Check the job versions
+	allVersions, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Len(t, 1, allVersions)
+
+	a := allVersions[0]
+	must.Eq(t, a.ID, job.ID)
+	must.Eq(t, a.Version, 0)
+
+	// Test the looking up the job by version returns the same results
+	vout, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
+	must.NoError(t, err)
+	must.Eq(t, out, vout)
+}
+
+func TestStateStore_UpsertJobWithRequest_PreserveCount(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 10
+	job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      500,
+		MemoryMB: 256,
+	}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+
+	job2 := job.Copy()
+	job2.TaskGroups[0].Count = 5
+	job2.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      750,
+		MemoryMB: 500,
+	}
+
+	must.NoError(t, state.UpsertJobWithRequest(structs.MsgTypeTestSetup, 1001, &structs.JobRegisterRequest{PreserveCounts: true, PreserveResources: true, Job: job2}))
+
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	must.NoError(t, err)
+
+	must.Eq(t, 10, out.TaskGroups[0].Count)
+	must.Eq(t, out.TaskGroups[0].Tasks[0].Resources.CPU, 500)
+	must.Eq(t, out.TaskGroups[0].Tasks[0].Resources.MemoryMB, 256)
+}
+
 func TestStateStore_DeleteJob_Job(t *testing.T) {
 	ci.Parallel(t)
 
