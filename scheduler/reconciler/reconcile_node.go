@@ -41,7 +41,6 @@ func (nr *NodeReconciler) Compute(
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
-	desiredUpdates map[string]*structs.DesiredUpdates, // desired updates per tg from plan annotations
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
@@ -70,13 +69,17 @@ func (nr *NodeReconciler) Compute(
 	compatHadExistingDeployment := nr.DeploymentCurrent != nil
 
 	result := new(NodeReconcileResult)
-	deploymentComplete := true
+	var deploymentComplete bool
 	for nodeID, allocs := range nodeAllocs {
 		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
 			notReadyNodes, taintedNodes, canaryNodes[nodeID], canariesPerTG, required,
-			allocs, terminal, desiredUpdates, serverSupportsDisconnectedClients)
-		deploymentComplete = deploymentComplete && deploymentCompleteForNode
+			allocs, terminal, serverSupportsDisconnectedClients)
 		result.Append(diff)
+
+		deploymentComplete = deploymentCompleteForNode
+		if deploymentComplete {
+			break
+		}
 	}
 
 	// COMPAT(1.14.0) prevent a new deployment from being created in the case
@@ -201,7 +204,6 @@ func (nr *NodeReconciler) computeForNode(
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
-	desiredUpdates map[string]*structs.DesiredUpdates, // desired updates per tg from plan annotations
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) (*NodeReconcileResult, bool) {
 	result := new(NodeReconcileResult)
@@ -438,21 +440,11 @@ func (nr *NodeReconciler) computeForNode(
 				dstate.AutoPromote = tg.Update.AutoPromote
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
-		}
-
-		// make sure we account for any updates from plan annotations
-		_, updatesFromPlannAnnotations := desiredUpdates[tg.Name]
-
-		dstate.DesiredTotal = len(eligibleNodes)
-		if updatesFromPlannAnnotations {
-			dstate.DesiredTotal = int(min(desiredUpdates[tg.Name].Place))
+			dstate.DesiredTotal = len(eligibleNodes)
 		}
 
 		if isCanarying[tg.Name] && !dstate.Promoted {
 			dstate.DesiredCanaries = canariesPerTG[tg.Name]
-			if updatesFromPlannAnnotations {
-				dstate.DesiredCanaries = int(min(desiredUpdates[tg.Name].Canary))
-			}
 		}
 
 		// Check for an existing allocation
@@ -516,8 +508,12 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
 		deploymentComplete = nr.isDeploymentComplete(tg.Name, result, isCanarying[tg.Name])
 
-		// in this case there's nothing to do
-		if existingDeployment || tg.Update.IsEmpty() || (dstate.DesiredTotal == 0 && dstate.DesiredCanaries == 0) || !deploymentPlaceReady {
+		// check if perhaps there's nothing else to do for this TG
+		if existingDeployment ||
+			tg.Update.IsEmpty() ||
+			(dstate.DesiredTotal == 0 && dstate.DesiredCanaries == 0) ||
+			!deploymentPlaceReady ||
+			deploymentComplete {
 			continue
 		}
 
@@ -550,12 +546,11 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 		return a.Job.ID == job.ID && a.Job.Version == job.Version && a.Job.CreateIndex == job.CreateIndex
 	}
 
-	for _, alloc := range allocs {
-		if hadRunningCondition(alloc) {
-			nr.compatHasSameVersionAllocs = true
-			hadRunning = true
-			break
-		}
+	if slices.ContainsFunc(allocs, func(alloc *structs.Allocation) bool {
+		return hadRunningCondition(alloc)
+	}) {
+		nr.compatHasSameVersionAllocs = true
+		hadRunning = true
 	}
 
 	// if there's a terminal allocation it means we're doing a reschedule.
