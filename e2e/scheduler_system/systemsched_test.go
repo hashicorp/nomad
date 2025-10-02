@@ -115,13 +115,6 @@ func testCanaryUpdate(t *testing.T) {
 	must.Nil(t, err)
 	must.SliceNotEmpty(t, nodesList)
 
-	numberOfEligibleNodes := 0
-	for _, n := range nodesList {
-		if n.SchedulingEligibility == api.NodeSchedulingEligible {
-			numberOfEligibleNodes += 1
-		}
-	}
-
 	// Get updated allocations
 	allocs := job2.Allocs()
 	must.SliceNotEmpty(t, allocs)
@@ -160,7 +153,7 @@ func testCanaryUpdate(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, numberOfEligibleNodes/2, count, must.Sprint("expected canaries to be placed on 50% of eligible nodes"))
+	must.Eq(t, 2, count, must.Sprint("expected canaries to be placed on 50% of eligible nodes"))
 
 	// promote canaries
 	deployments, _, err := deploymentsApi.List(nil)
@@ -192,7 +185,7 @@ func testCanaryUpdate(t *testing.T) {
 	})
 
 	// expect the number of allocations for promoted deployment to be the same
-	// as the number of eligible nodes
+	// as the number of feasible nodes
 	newAllocs := job2.Allocs()
 	must.SliceNotEmpty(t, newAllocs)
 
@@ -202,7 +195,7 @@ func testCanaryUpdate(t *testing.T) {
 			promotedAllocs += 1
 		}
 	}
-	must.Eq(t, numberOfEligibleNodes, promotedAllocs)
+	must.Eq(t, 3, promotedAllocs)
 }
 
 func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
@@ -227,13 +220,6 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 	nodesList, _, err := nodesApi.List(nil)
 	must.Nil(t, err)
 	must.SliceNotEmpty(t, nodesList)
-
-	numberOfEligibleNodes := 0
-	for _, n := range nodesList {
-		if n.SchedulingEligibility == api.NodeSchedulingEligible {
-			numberOfEligibleNodes += 1
-		}
-	}
 
 	// Get updated allocations
 	allocs := job2.Allocs()
@@ -272,7 +258,7 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, numberOfEligibleNodes, count, must.Sprint("expected canaries to be placed on all eligible nodes"))
+	must.Eq(t, 3, count, must.Sprint("expected canaries to be placed on all eligible nodes"))
 
 	// deployment must not be terminal and needs to have the right status
 	// description set
