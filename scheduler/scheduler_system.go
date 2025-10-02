@@ -444,8 +444,11 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 				// placements based on whether the node meets the constraints
 				if s.planAnnotations != nil &&
 					s.planAnnotations.DesiredTGUpdates != nil {
-					desired := s.planAnnotations.DesiredTGUpdates[tgName]
-					desired.Place -= 1
+					s.planAnnotations.DesiredTGUpdates[tgName].Place -= 1
+				}
+
+				if s.plan.Deployment != nil {
+					s.deployment.TaskGroups[tgName].DesiredTotal -= 1
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
