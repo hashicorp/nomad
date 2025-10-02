@@ -7728,7 +7728,6 @@ func TestJobEndpoint_Scale_TaskGroupOutOfBounds(t *testing.T) {
 
 func TestJobEndpoint_Scale_JobOutOfBounds(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(config *Config) {
 		config.JobMaxCount = 4
@@ -7744,7 +7743,7 @@ func TestJobEndpoint_Scale_JobOutOfBounds(t *testing.T) {
 
 	// register the job
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	var resp structs.JobRegisterResponse
 	scale := &structs.JobScaleRequest{
@@ -7761,8 +7760,8 @@ func TestJobEndpoint_Scale_JobOutOfBounds(t *testing.T) {
 		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "total count was greater than configured job_max_count: 6 > 4")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "total count was greater than configured job_max_count: 6 > 4")
 }
 
 func TestJobEndpoint_Scale_NoEval(t *testing.T) {
