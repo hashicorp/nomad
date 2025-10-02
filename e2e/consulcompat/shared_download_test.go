@@ -27,6 +27,18 @@ const (
 	exactConsulVersionEnv = "NOMAD_E2E_CONSULCOMPAT_CONSUL_VERSION"
 )
 
+var (
+	// skipped versions are specific versions we skip due to known issues with
+	// that version.
+	//
+	// 1.22.0-rc1 is skipped as it introduced a dual stack check in the connect
+	// envoy command that did not use passed HTTP API flags to construct the
+	// config object and would always use defaults.
+	skippedVersions = []*version.Version{
+		version.Must(version.NewVersion("1.22.0-rc1")),
+	}
+)
+
 func downloadConsulBuild(t *testing.T, b build, baseDir string) {
 	path := filepath.Join(baseDir, binDir, b.Version)
 	must.NoError(t, os.MkdirAll(path, 0755))
@@ -56,6 +68,15 @@ func getMinimumVersion(t *testing.T) *version.Version {
 	v, err := version.NewVersion(minConsulVersion)
 	must.NoError(t, err)
 	return v
+}
+
+func skipVersion(v *version.Version) bool {
+	for _, sv := range skippedVersions {
+		if v.Equal(sv) {
+			return true
+		}
+	}
+	return false
 }
 
 type build struct {
@@ -132,6 +153,9 @@ func scanConsulVersions(t *testing.T, minimum *version.Version) *set.Set[build] 
 		v, err := version.NewVersion(s)
 		must.NoError(t, err, must.Sprint("unable to parse consul version"))
 		if !usable(v, minimum) {
+			continue
+		}
+		if skipVersion(v) {
 			continue
 		}
 		for _, build := range obj.Builds {
