@@ -634,7 +634,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(msgType, index, req.Submission, req.Job); err != nil {
+	if err := n.state.UpsertJobWithRequest(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
