@@ -3958,3 +3958,151 @@ func TestSystemScheduler_UpdateBlock(t *testing.T) {
 	}
 
 }
+
+func TestSystemSched_NoOpEvalWithInfeasibleNodes(t *testing.T) {
+	ci.Parallel(t)
+	h := tests.NewHarness(t)
+
+	nodes := make([]*structs.Node, 4)
+	eligible := []string{}
+	for i := range 4 {
+		node := mock.Node()
+		if i%2 == 0 {
+			node.Attributes["kernel.name"] = "not-linux"
+		} else {
+			eligible = append(eligible, node.ID)
+		}
+		nodes[i] = node
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	job := mock.SystemJob()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	existingAllocIDs := []string{}
+	allocs := []*structs.Allocation{}
+	for i := range 4 {
+		if i%2 != 0 {
+			alloc := mock.MinAllocForJob(job)
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.NodeID = nodes[i].ID
+			alloc.Name = structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)
+			existingAllocIDs = append(existingAllocIDs, alloc.ID)
+			allocs = append(allocs, alloc)
+		}
+	}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	d := mock.Deployment()
+	d.JobID = job.ID
+	d.JobVersion = job.Version
+	d.Status = structs.DeploymentStatusSuccessful
+	must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
+
+	eval := &structs.Evaluation{
+		Namespace:    job.Namespace,
+		ID:           uuid.Generate(),
+		Priority:     job.Priority,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        job.ID,
+		Status:       structs.EvalStatusPending,
+		AnnotatePlan: true,
+	}
+	must.NoError(t, h.State.UpsertEvals(
+		structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	job = job.Copy()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+	must.Len(t, 1, h.Plans)
+	plan := h.Plans[0]
+	must.Nil(t, plan.Deployment, must.Sprintf("expected no new deployment"))
+	must.Eq(t, 2, plan.Annotations.DesiredTGUpdates["web"].InPlaceUpdate)
+	must.MapLen(t, 0, plan.NodeUpdate, must.Sprintf("expected no stops"))
+	must.MapLen(t, 2, plan.NodeAllocation)
+	for nodeID, allocs := range plan.NodeAllocation {
+		must.SliceContains(t, eligible, nodeID)
+		must.Len(t, 1, allocs)
+		must.SliceContains(t, existingAllocIDs, allocs[0].ID,
+			must.Sprintf("expected existing alloc to be updated in-place"))
+	}
+}
+
+func TestSystemSched_CanariesWithInfeasibleNodes(t *testing.T) {
+	ci.Parallel(t)
+	h := tests.NewHarness(t)
+
+	nodes := make([]*structs.Node, 4)
+	eligible := []string{}
+	for i := range 4 {
+		node := mock.Node()
+		if i%2 == 0 {
+			node.Attributes["kernel.name"] = "not-linux"
+		} else {
+			eligible = append(eligible, node.ID)
+		}
+		nodes[i] = node
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	job := mock.SystemJob()
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel: 4,
+		Canary:      100, // blue-green
+	}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	existingAllocIDs := []string{}
+	allocs := []*structs.Allocation{}
+	for i := range 4 {
+		if i%2 != 0 {
+			alloc := mock.MinAllocForJob(job)
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.NodeID = nodes[i].ID
+			alloc.Name = structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)
+			existingAllocIDs = append(existingAllocIDs, alloc.ID)
+			allocs = append(allocs, alloc)
+		}
+	}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	d := mock.Deployment()
+	d.JobID = job.ID
+	d.JobVersion = job.Version
+	d.Status = structs.DeploymentStatusSuccessful
+	must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
+
+	// destructively update the job
+
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].Resources.CPU++
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:    job.Namespace,
+		ID:           uuid.Generate(),
+		Priority:     job.Priority,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        job.ID,
+		Status:       structs.EvalStatusPending,
+		AnnotatePlan: true,
+	}
+	must.NoError(t, h.State.UpsertEvals(
+		structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+	must.Len(t, 1, h.Plans)
+	plan := h.Plans[0]
+	must.NotNil(t, plan.Deployment, must.Sprintf("expected a new deployment"))
+
+	dstate := plan.Deployment.TaskGroups["web"]
+	test.Len(t, 2, dstate.PlacedCanaries)
+	test.Eq(t, 2, dstate.DesiredCanaries)
+	test.Eq(t, 2, dstate.DesiredTotal)
+
+	must.Eq(t, 2, plan.Annotations.DesiredTGUpdates["web"].Canary,
+		must.Sprintf("expected canaries: %#v", plan.Annotations.DesiredTGUpdates))
+}
