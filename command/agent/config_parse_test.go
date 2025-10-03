@@ -159,6 +159,7 @@ var basicConfig = &Config{
 		LicensePath:        "/tmp/nomad.hclic",
 		JobDefaultPriority: pointer.Of(100),
 		JobMaxPriority:     pointer.Of(200),
+		JobMaxCount:        pointer.Of(1000),
 		StartTimeout:       "1m",
 		ClientIntroduction: &ClientIntroduction{
 			Enforcement:           "warn",

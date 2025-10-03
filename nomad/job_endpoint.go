@@ -1040,8 +1040,19 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			}
 		}
 
+		// Ensure that JobMaxCount is respected.
+		newCount := int(*args.Count)
+		totalCount := 0
+		for _, tg := range job.TaskGroups {
+			totalCount += tg.Count
+		}
+		totalCount = totalCount - group.Count + newCount
+		if j.srv.config.JobMaxCount > 0 && totalCount > j.srv.config.JobMaxCount {
+			return fmt.Errorf("total count was greater than configured job_max_count: %d > %d", totalCount, j.srv.config.JobMaxCount)
+		}
+
 		// Update group count
-		group.Count = int(*args.Count)
+		group.Count = newCount
 		job.SubmitTime = now
 
 		// Block scaling event if there's an active deployment

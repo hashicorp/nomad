@@ -388,6 +388,7 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			JobMaxPriority:     pointer.Of(200),
 			JobDefaultPriority: pointer.Of(100),
+			JobMaxCount:        pointer.Of(1000),
 			OIDCIssuer:         "https://oidc.test.nomadproject.io",
 			StartTimeout:       "1m",
 		},

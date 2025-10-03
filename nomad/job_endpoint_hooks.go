@@ -521,7 +521,10 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	okForIdentity := v.isEligibleForMultiIdentity()
 
+	totalCount := 0
 	for _, tg := range job.TaskGroups {
+		totalCount += tg.Count
+
 		for _, s := range tg.Services {
 			serviceErrs := v.validateServiceIdentity(
 				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
@@ -542,6 +545,10 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 			multierror.Append(validationErrors, vaultErrs)
 			warnings = append(warnings, vaultWarns...)
 		}
+	}
+	if v.srv.config.JobMaxCount > 0 && totalCount > v.srv.config.JobMaxCount {
+		err := fmt.Errorf("total count was greater than configured job_max_count: %d > %d", totalCount, v.srv.config.JobMaxCount)
+		multierror.Append(validationErrors, err)
 	}
 
 	return warnings, validationErrors.ErrorOrNil()
