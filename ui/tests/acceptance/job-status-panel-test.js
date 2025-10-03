@@ -1013,5 +1013,55 @@ module('Acceptance | job status panel', function (hooks) {
 
       assert.dom('.running-allocs-title').hasText('4 Allocations Running');
     });
+
+    test('System jobs display deployments', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      server.db.nodes.remove();
+
+      server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      await visit(`/jobs/${job.id}`);
+
+      assert.dom('.job-status-panel').exists().hasClass('active-deployment');
+      assert.dom('[data-test-tab="deployments"]').exists();
+
+      assert.dom('.job-status-panel h2').hasTextContaining('Status: Deploying');
+
+      const allocCount = server.schema.allocations.where({
+        jobId: job.id,
+        clientStatus: 'running',
+      }).length;
+
+      assert
+        .dom('.previous-allocations .represented-allocation')
+        .exists({ count: allocCount });
+
+      assert.dom('.job-status-panel').exists();
+
+      assert
+        .dom('.previous-allocations-heading')
+        .hasTextContaining(`Previous allocations: ${allocCount} running`);
+    });
   });
 });
