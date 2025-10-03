@@ -9,6 +9,7 @@ package nomad
 import (
 	autopilot "github.com/hashicorp/raft-autopilot"
 
+	"github.com/hashicorp/nomad/nomad/peer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,7 +19,7 @@ func (s *Server) autopilotPromoter() autopilot.Promoter {
 
 // autopilotServerExt returns the autopilot-enterprise.Server extensions needed
 // for ENT feature support, but this is the empty OSS implementation.
-func (s *Server) autopilotServerExt(_ *serverParts) interface{} {
+func (s *Server) autopilotServerExt(_ *peer.Parts) interface{} {
 	return nil
 }
 
