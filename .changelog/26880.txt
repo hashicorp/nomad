@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fix unique identifiers for templates with same content
+```
