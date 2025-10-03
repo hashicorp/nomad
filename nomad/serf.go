@@ -59,7 +59,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 			s.logger.Warn("non-server in gossip pool", "member", m.Name)
 			continue
 		}
-		s.logger.Info("adding server", "server", parts)
+		s.logger.Info("adding server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
 		// Check if this server is known
 		found := false
@@ -243,7 +243,7 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 		if !ok {
 			continue
 		}
-		s.logger.Info("removing server", "server", parts)
+		s.logger.Info("removing server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
 		// Remove the server if known
 		s.peerLock.Lock()
