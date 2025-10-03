@@ -466,6 +466,8 @@ copywriteheaders:
 
 .PHONY: cni
 cni: ## Install CNI plugins. Run this as root.
+	@# Detect architecture: x86_64 -> amd64, aarch64 -> arm64
+	$(eval CNI_ARCH := $(shell if [ "$(THIS_ARCH)" = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi))
 	mkdir -p /opt/cni/bin
-	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
-	tar -C /opt/cni/bin -xf cni-plugins-linux-amd64-v1.3.0.tgz
+	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-$(CNI_ARCH)-v1.3.0.tgz"
+	tar -C /opt/cni/bin -xf cni-plugins-linux-$(CNI_ARCH)-v1.3.0.tgz
