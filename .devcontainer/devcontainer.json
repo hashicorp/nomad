@@ -1,0 +1,41 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+{
+	"name": "Hashicorp - Nomad",
+	
+	// Docker image to use
+	"image": "ubuntu:latest",
+	
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	// "build": {
+	//   // Path is relative to the devcontainer.json file.
+	//   "dockerfile": "../Dockerfile"
+	// }
+
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"enableNonRootDocker": "true",
+			"moby": "true"
+		}
+	},
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [4646],
+	"portsAttributes": {
+		"4646": {
+			"label": "Nomad UI",
+			"onAutoForward": "notify"
+		}
+	},
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bash .devcontainer/install-nomad.sh",
+
+	// Use 'postStartCommand' to run commands after the container is created like starting nomad.
+	"postStartCommand": "bash -c 'nomad -version && nomad agent -dev'"
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}
