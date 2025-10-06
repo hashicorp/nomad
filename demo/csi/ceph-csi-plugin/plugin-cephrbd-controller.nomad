@@ -27,6 +27,7 @@ job "plugin-cephrbd-controller" {
     service {
       name = "prometheus"
       port = "prometheus"
+      provider = "nomad"
       tags = ["ceph-csi"]
     }
 

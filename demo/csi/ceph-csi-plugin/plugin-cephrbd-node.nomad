@@ -20,6 +20,7 @@ job "plugin-cephrbd-node" {
     service {
       name = "prometheus"
       port = "prometheus"
+      provider = "nomad"
       tags = ["ceph-csi"]
     }
 
@@ -42,6 +43,10 @@ job "plugin-cephrbd-node" {
 
         privileged = true
         ports      = ["prometheus"]
+
+
+        # TODO: this is... interesting?
+        security_opt = ["label=disable"]
       }
 
       template {
