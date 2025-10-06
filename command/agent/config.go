@@ -761,6 +761,9 @@ type ServerConfig struct {
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority *int `hcl:"job_max_priority"`
 
+	// JobMaxCount is an upper bound on the number of instances in a Job.
+	JobMaxCount *int `hcl:"job_max_count"`
+
 	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
 	// before being discarded automatically. If unset, the maximum size defaults
 	// to 1 MB. If the value is zero, no job sources will be stored.
@@ -810,6 +813,7 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
 	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
 	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
+	ns.JobMaxCount = pointer.Copy(s.JobMaxCount)
 	ns.JobTrackedVersions = pointer.Copy(s.JobTrackedVersions)
 	ns.ClientIntroduction = s.ClientIntroduction.Copy()
 	return &ns
@@ -2504,6 +2508,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.JobMaxPriority != nil {
 		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
+	}
+	if b.JobMaxCount != nil {
+		result.JobMaxCount = pointer.Of(*b.JobMaxCount)
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold

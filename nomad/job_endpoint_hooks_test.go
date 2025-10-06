@@ -16,6 +16,34 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func Test_jobValidate_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("error if task group count exceeds job_max_count", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 10, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = 11
+		_, err := impl.Validate(job)
+		must.ErrorContains(t, err, "total count was greater than configured job_max_count: 11 > 10")
+	})
+
+	t.Run("no error if task group count equals job_max_count", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 10, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = 10
+		_, err := impl.Validate(job)
+		must.NoError(t, err)
+	})
+
+	t.Run("no error if job_max_count is zero (i.e. unlimited)", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 0, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = structs.JobDefaultMaxCount + 1
+		_, err := impl.Validate(job)
+		must.NoError(t, err)
+	})
+}
+
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 

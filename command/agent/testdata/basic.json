@@ -370,6 +370,7 @@
       "license_path": "/tmp/nomad.hclic",
       "job_default_priority": 100,
       "job_max_priority": 200,
+      "job_max_count": 1000,
       "start_timeout": "1m"
     }
   ],

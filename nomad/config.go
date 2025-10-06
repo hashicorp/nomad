@@ -433,6 +433,9 @@ type Config struct {
 	// JobTrackedVersions is the number of historic Job versions that are kept.
 	JobTrackedVersions int
 
+	// JobMaxCount is the maximum total task group counts for a single Job.
+	JobMaxCount int
+
 	Reporting *config.ReportingConfig
 
 	// OIDCIssuer is the URL for the OIDC Issuer field in Workload Identity JWTs.
@@ -664,6 +667,7 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
+		JobMaxCount:              structs.JobDefaultMaxCount,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 		StartTimeout:             30 * time.Second,
 		NodeIntroductionConfig:   structs.DefaultNodeIntroductionConfig(),
