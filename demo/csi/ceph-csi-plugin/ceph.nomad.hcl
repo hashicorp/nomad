@@ -14,51 +14,57 @@ variable "cluster_id" {
 variable "hostname" {
   type        = string
   default     = "linux" # hostname of the Nomad repo's Vagrant box
-  description = "hostname of the demo host"
+  description = "hostname of the Ceph container"
 }
 
 job "ceph" {
-  datacenters = ["dc1"]
 
   group "ceph" {
 
     network {
-      # we can't configure networking in a way that will both satisfy the Ceph
-      # monitor's requirement to know its own IP address *and* be routable
-      # between containers, without either CNI or fixing
-      # https://github.com/hashicorp/nomad/issues/9781
-      #
-      # So for now we'll use host networking to keep this demo understandable.
-      # That also means the controller plugin will need to use host addresses.
-      mode = "host"
+      mode     = "bridge"
+      hostname = var.hostname
+
+      port "ceph_mon" {
+        to = 3300
+      }
+      port "ceph_dashboard" {
+        to = 5000
+      }
     }
 
     service {
-      name = "ceph-mon"
-      port = 3300
+      name     = "ceph-mon"
+      port     = "ceph_mon"
+      provider = "nomad"
     }
 
-    # service {
-    #   name = "ceph-dashboard"
-    #   port = 5000
+    service {
+      name     = "ceph-dashboard"
+      port     = "ceph_dashboard"
+      provider = "nomad"
 
-    #   check {
-    #     type           = "http"
-    #     interval       = "5s"
-    #     timeout        = "1s"
-    #     path           = "/"
-    #     initial_status = "warning"
-    #   }
-    # }
+      # TODO: dashboard is never coming up!
+      #
+      # check {
+      #   type           = "http"
+      #   interval       = "5s"
+      #   timeout        = "1s"
+      #   path           = "/"
+      #   initial_status = "warning"
+      # }
+    }
 
     task "ceph" {
       driver = "docker"
 
       config {
+        # TODO: this should be moved to "quay.io/ceph/ceph:latest" but that
+        # image doesn't have the "demo" command
         image        = "ceph/daemon:latest-octopus"
-        args         = ["demo"]
-        network_mode = "host"
-        privileged   = true
+        args       = ["demo"]
+        privileged = true
+        ports      = ["ceph_mon", "ceph_dashboard"]
 
         mount {
           type   = "bind"
@@ -72,18 +78,20 @@ job "ceph" {
         cpu    = 256
       }
 
+      env {
+        CEPH_PUBLIC_NETWORK = "0.0.0.0/0"
+        CEPH_DEMO_UID       = "demo"
+        CEPH_DEMO_BUCKET    = "foobar"
+      }
+
       template {
-
         data = <<EOT
-MON_IP={{ sockaddr "with $ifAddrs := GetDefaultInterfaces | include \"type\" \"IPv4\" | limit 1 -}}{{- range $ifAddrs -}}{{ attr \"address\" . }}{{ end }}{{ end " }}
-CEPH_PUBLIC_NETWORK=0.0.0.0/0
-CEPH_DEMO_UID=demo
-CEPH_DEMO_BUCKET=foobar
+MON_IP={{ env "NOMAD_ALLOC_IP_ceph_mon" }}
 EOT
-
 
         destination = "${NOMAD_TASK_DIR}/env"
         env         = true
+        once        = true
       }
 
       template {
@@ -91,7 +99,7 @@ EOT
 [global]
 fsid = ${var.cluster_id}
 mon initial members = ${var.hostname}
-mon host = v2:{{ sockaddr "with $ifAddrs := GetDefaultInterfaces | include \"type\" \"IPv4\" | limit 1 -}}{{- range $ifAddrs -}}{{ attr \"address\" . }}{{ end }}{{ end " }}:3300/0
+mon host = v2:{{ env "NOMAD_ALLOC_IP_ceph_mon" }}:3300/0
 
 osd crush chooseleaf type = 0
 osd journal size = 100
@@ -120,6 +128,7 @@ rgw frontends = beast  endpoint=0.0.0.0:8080
 
 EOT
         destination = "${NOMAD_TASK_DIR}/ceph/ceph.conf"
+        once        = true
       }
     }
   }
