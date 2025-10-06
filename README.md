@@ -39,6 +39,10 @@ See [Developer: Getting Started](https://developer.hashicorp.com/nomad/tutorials
 
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
+You can also run Nomad in a Gihub Codespace for Development or Evaluation purposes
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/hashicorp/nomad?quickstart=1)
+
 #### Production
 See [Developer: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
 
