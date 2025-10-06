@@ -41,5 +41,5 @@ parameters {
   clusterID     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
   pool          = "rbd"
   imageFeatures = "layering"
-  fsName = "foo"
+  fsName        = "foo"
 }
