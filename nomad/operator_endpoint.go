@@ -20,6 +20,7 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -68,14 +69,14 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 
 	// Index the Nomad information about the servers.
 	serverMap := make(map[raft.ServerAddress]serf.Member)
-	for _, member := range op.srv.serf.Members() {
-		valid, parts := isNomadServer(member)
+	for _, serfMem := range op.srv.serf.Members() {
+		valid, parts := peers.IsNomadServer(serfMem)
 		if !valid {
 			continue
 		}
 
-		addr := (&net.TCPAddr{IP: member.Addr, Port: parts.Port}).String()
-		serverMap[raft.ServerAddress(addr)] = member
+		addr := (&net.TCPAddr{IP: serfMem.Addr, Port: parts.Port}).String()
+		serverMap[raft.ServerAddress(addr)] = serfMem
 	}
 
 	// Fill out the reply.
@@ -357,7 +358,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	}
 
 	// All servers should be at or above 0.8.0 to apply this operation
-	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minAutopilotVersion, false) {
+	if !op.srv.peersPartCache.ServersMeetMinimumVersion(op.srv.Region(), minAutopilotVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update autopilot config", minAutopilotVersion)
 	}
 
@@ -433,8 +434,15 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	}
 
 	// All servers should be at or above 0.9.0 to apply this operation
-	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minSchedulerConfigVersion, false) {
-		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
+	if !op.srv.peersPartCache.ServersMeetMinimumVersion(
+		op.srv.Region(),
+		minSchedulerConfigVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"All servers should be running version %v to update scheduler config",
+			minSchedulerConfigVersion,
+		)
 	}
 
 	// Apply the update
@@ -511,7 +519,7 @@ func (op *Operator) forwardStreamingRPC(region string, method string, args inter
 	return op.forwardStreamingRPCToServer(server, method, args, in)
 }
 
-func (op *Operator) forwardStreamingRPCToServer(server *serverParts, method string, args interface{}, in io.ReadWriteCloser) error {
+func (op *Operator) forwardStreamingRPCToServer(server *peers.Parts, method string, args interface{}, in io.ReadWriteCloser) error {
 	srvConn, err := op.srv.streamingRpc(server, method)
 	if err != nil {
 		return err

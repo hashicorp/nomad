@@ -192,8 +192,15 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "create"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeCreate)
@@ -294,8 +301,15 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "register"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRegister)
@@ -629,8 +643,15 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "delete"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	// Note that all deleted volumes need to be in the same namespace

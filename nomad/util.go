@@ -6,17 +6,13 @@ package nomad
 import (
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
-	"slices"
-	"strconv"
 
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/serf/serf"
 )
 
 const (
@@ -38,136 +34,6 @@ func ensurePath(path string, dir bool) error {
 		path = filepath.Dir(path)
 	}
 	return os.MkdirAll(path, 0755)
-}
-
-// serverParts is used to return the parts of a server role
-type serverParts struct {
-	Name        string
-	ID          string
-	Region      string
-	Datacenter  string
-	Port        int
-	Bootstrap   bool
-	Expect      int
-	Build       version.Version
-	RaftVersion int
-	Addr        net.Addr
-	RPCAddr     net.Addr
-	Status      serf.MemberStatus
-	NonVoter    bool
-
-	// Deprecated: Functionally unused but needs to always be set by 1 for
-	// compatibility with v1.2.x and earlier.
-	MajorVersion int
-}
-
-func (s *serverParts) String() string {
-	return fmt.Sprintf("%s (Addr: %s) (DC: %s)",
-		s.Name, s.Addr, s.Datacenter)
-}
-
-func (s *serverParts) Copy() *serverParts {
-	ns := new(serverParts)
-	*ns = *s
-	return ns
-}
-
-// Returns if a member is a Nomad server. Returns a boolean,
-// and a struct with the various important components
-func isNomadServer(m serf.Member) (bool, *serverParts) {
-	if m.Tags["role"] != "nomad" {
-		return false, nil
-	}
-
-	id := "unknown"
-	if v, ok := m.Tags["id"]; ok {
-		id = v
-	}
-	region := m.Tags["region"]
-	datacenter := m.Tags["dc"]
-	_, bootstrap := m.Tags["bootstrap"]
-
-	expect := 0
-	expectStr, ok := m.Tags["expect"]
-	var err error
-	if ok {
-		expect, err = strconv.Atoi(expectStr)
-		if err != nil {
-			return false, nil
-		}
-	}
-
-	// If the server is missing the rpc_addr tag, default to the serf advertise addr
-	rpcIP := net.ParseIP(m.Tags["rpc_addr"])
-	if rpcIP == nil {
-		rpcIP = m.Addr
-	}
-
-	portStr := m.Tags["port"]
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return false, nil
-	}
-
-	buildVersion, err := version.NewVersion(m.Tags["build"])
-	if err != nil {
-		return false, nil
-	}
-
-	raftVsn := 0
-	raftVsnString, ok := m.Tags["raft_vsn"]
-	if ok {
-		raftVsn, err = strconv.Atoi(raftVsnString)
-		if err != nil {
-			return false, nil
-		}
-	}
-
-	// Check if the server is a non voter
-	_, nonVoter := m.Tags["nonvoter"]
-
-	addr := &net.TCPAddr{IP: m.Addr, Port: port}
-	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
-	parts := &serverParts{
-		Name:         m.Name,
-		ID:           id,
-		Region:       region,
-		Datacenter:   datacenter,
-		Port:         port,
-		Bootstrap:    bootstrap,
-		Expect:       expect,
-		Addr:         addr,
-		RPCAddr:      rpcAddr,
-		Build:        *buildVersion,
-		RaftVersion:  raftVsn,
-		Status:       m.Status,
-		NonVoter:     nonVoter,
-		MajorVersion: deprecatedAPIMajorVersion,
-	}
-	return true, parts
-}
-
-const AllRegions = ""
-
-// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
-// given Nomad version. The checkFailedServers parameter specifies whether version
-// for the failed servers should be verified.
-func ServersMeetMinimumVersion(members []serf.Member, region string, minVersion *version.Version, checkFailedServers bool) bool {
-	for _, member := range members {
-		valid, parts := isNomadServer(member)
-		if valid &&
-			(parts.Region == region || region == AllRegions) &&
-			(parts.Status == serf.StatusAlive || (checkFailedServers && parts.Status == serf.StatusFailed)) {
-			// Check if the versions match - version.LessThan will return true for
-			// 0.8.0-rc1 < 0.8.0, so we want to ignore the metadata
-			versionsMatch := slices.Equal(minVersion.Segments(), parts.Build.Segments())
-			if parts.Build.LessThan(minVersion) && !versionsMatch {
-				return false
-			}
-		}
-	}
-
-	return true
 }
 
 // shuffleStrings randomly shuffles the list of strings

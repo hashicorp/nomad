@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/lib/auth"
 	"github.com/hashicorp/nomad/lib/auth/jwt"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1063,8 +1064,15 @@ func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply 
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "upsert_one_time_token"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(
+		a.srv.Region(),
+		minOneTimeAuthenticationTokenVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"All servers should be running version %v or later to use one-time authentication tokens",
+			minOneTimeAuthenticationTokenVersion,
+		)
 	}
 
 	// Snapshot the state
@@ -1115,8 +1123,15 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "exchange_one_time_token"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(
+		a.srv.Region(),
+		minOneTimeAuthenticationTokenVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"All servers should be running version %v or later to use one-time authentication tokens",
+			minOneTimeAuthenticationTokenVersion,
+		)
 	}
 
 	// Snapshot the state
@@ -1177,8 +1192,15 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "expire_one_time_tokens"}, time.Now())
 
-	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minOneTimeAuthenticationTokenVersion, false) {
-		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minOneTimeAuthenticationTokenVersion)
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(
+		a.srv.Region(),
+		minOneTimeAuthenticationTokenVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"All servers should be running version %v or later to use one-time authentication tokens",
+			minOneTimeAuthenticationTokenVersion,
+		)
 	}
 
 	// Check management level permissions
@@ -1227,7 +1249,7 @@ func (a *ACL) UpsertRoles(
 
 	// ACL roles can only be used once all servers, in all federated regions
 	// have been upgraded to 1.4.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minACLRoleVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
 			minACLRoleVersion)
 	}
@@ -1371,7 +1393,7 @@ func (a *ACL) DeleteRolesByID(
 
 	// ACL roles can only be used once all servers, in all federated regions
 	// have been upgraded to 1.4.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minACLRoleVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL roles",
 			minACLRoleVersion)
 	}
@@ -1871,7 +1893,7 @@ func (a *ACL) UpsertAuthMethods(
 
 	// ACL auth methods can only be used once all servers in all federated
 	// regions have been upgraded to 1.5.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLAuthMethodVersion, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minACLAuthMethodVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
 			minACLAuthMethodVersion)
 	}
@@ -1986,7 +2008,7 @@ func (a *ACL) DeleteAuthMethods(
 
 	// ACL auth methods can only be used once all servers in all federated
 	// regions have been upgraded to 1.5.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLRoleVersion, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minACLRoleVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL auth methods",
 			minACLAuthMethodVersion)
 	}
@@ -2246,9 +2268,15 @@ func (a *ACL) UpsertBindingRules(
 
 	// ACL binding rules can only be used once all servers in all federated
 	// regions have been upgraded to 1.5.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLBindingRuleVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use ACL binding rules",
-			minACLBindingRuleVersion)
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(
+		peers.AllRegions,
+		minACLBindingRuleVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use ACL binding rules",
+			minACLBindingRuleVersion,
+		)
 	}
 
 	// Check management level permissions
@@ -2373,7 +2401,7 @@ func (a *ACL) DeleteBindingRules(
 
 	// ACL binding rules can only be used once all servers in all federated
 	// regions have been upgraded to 1.5.0 or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLBindingRuleVersion, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minACLBindingRuleVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use ACL binding rules",
 			minACLBindingRuleVersion)
 	}
@@ -2891,9 +2919,15 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// This endpoint can only be used once all servers in all federated regions
 	// have been upgraded to minACLJWTAuthMethodVersion or greater, since JWT Auth
 	// method was introduced then.
-	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLJWTAuthMethodVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use JWT ACL auth methods",
-			minACLJWTAuthMethodVersion)
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(
+		peers.AllRegions,
+		minACLJWTAuthMethodVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use JWT ACL auth methods",
+			minACLJWTAuthMethodVersion,
+		)
 	}
 
 	// Validate the request arguments to ensure it contains all the data it
@@ -3150,7 +3184,7 @@ func (a *ACL) CreateClientIntroductionToken(
 
 	// This endpoint can only be used once all servers in the local region have
 	// been upgraded to minVersionNodeIntro or greater.
-	if !ServersMeetMinimumVersion(a.srv.Members(), a.srv.Region(), minVersionNodeIntro, false) {
+	if !a.srv.peersPartCache.ServersMeetMinimumVersion(a.srv.Region(), minVersionNodeIntro, false) {
 		return fmt.Errorf(
 			"all servers should be running version %v or later to use client intro tokens",
 			minVersionNodeIntro)

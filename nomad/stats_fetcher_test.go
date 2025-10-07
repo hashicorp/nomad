@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 )
@@ -38,9 +39,9 @@ func TestStatsFetcher(t *testing.T) {
 		t.Fatalf("bad len: %d", len(members))
 	}
 
-	var servers []*serverParts
+	var servers []*peers.Parts
 	for _, member := range members {
-		ok, server := isNomadServer(member)
+		ok, server := peers.IsNomadServer(member)
 		if !ok {
 			t.Fatalf("bad: %#v", member)
 		}

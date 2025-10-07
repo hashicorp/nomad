@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -693,8 +694,7 @@ func (s *Server) replicateNodePools(stopCh chan struct{}) {
 		// Rate limit how often we attempt replication
 		limiter.Wait(context.Background())
 
-		if !ServersMeetMinimumVersion(
-			s.serf.Members(), s.Region(), minNodePoolsVersion, true) {
+		if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minNodePoolsVersion, true) {
 			s.logger.Trace(
 				"all servers must be upgraded to 1.6.0 before Node Pools can be replicated")
 			if s.replicationBackoffContinue(stopCh) {
@@ -990,7 +990,11 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
 		case <-oneTimeTokenGC.C:
-			if !ServersMeetMinimumVersion(s.Members(), s.Region(), minOneTimeAuthenticationTokenVersion, false) {
+			if !s.peersPartCache.ServersMeetMinimumVersion(
+				s.Region(),
+				minOneTimeAuthenticationTokenVersion,
+				false,
+			) {
 				continue
 			}
 
@@ -1480,38 +1484,38 @@ func (s *Server) reconcile() error {
 }
 
 // reconcileMember is used to do an async reconcile of a single serf member
-func (s *Server) reconcileMember(member serf.Member) error {
+func (s *Server) reconcileMember(serfMem serf.Member) error {
 	// Check if this is a member we should handle
-	valid, parts := isNomadServer(member)
+	valid, parts := peers.IsNomadServer(serfMem)
 	if !valid || parts.Region != s.config.Region {
 		return nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "leader", "reconcileMember"}, time.Now())
 
 	var err error
-	switch member.Status {
+	switch serfMem.Status {
 	case serf.StatusAlive:
-		err = s.addRaftPeer(member, parts)
+		err = s.addRaftPeer(serfMem, parts)
 	case serf.StatusLeft, StatusReap:
-		err = s.removeRaftPeer(member, parts)
+		err = s.removeRaftPeer(serfMem, parts)
 	}
 	if err != nil {
-		s.logger.Error("failed to reconcile member", "member", member, "error", err)
+		s.logger.Error("failed to reconcile member", "member", serfMem, "error", err)
 		return err
 	}
 	return nil
 }
 
 // addRaftPeer is used to add a new Raft peer when a Nomad server joins
-func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
+func (s *Server) addRaftPeer(m serf.Member, parts *peers.Parts) error {
 	// Check for possibility of multiple bootstrap nodes
-	members := s.serf.Members()
+	serfMems := s.serf.Members()
 	if parts.Bootstrap {
-		for _, member := range members {
-			valid, p := isNomadServer(member)
-			if valid && member.Name != m.Name && p.Bootstrap {
+		for _, serfMem := range serfMems {
+			valid, p := peers.IsNomadServer(serfMem)
+			if valid && serfMem.Name != m.Name && p.Bootstrap {
 				s.logger.Error("skipping adding Raft peer because an existing peer is in bootstrap mode and only one server should be in bootstrap mode",
-					"existing_peer", member.Name, "joining_peer", m.Name)
+					"existing_peer", serfMem.Name, "joining_peer", m.Name)
 				return nil
 			}
 		}
@@ -1596,7 +1600,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 
 // removeRaftPeer is used to remove a Raft peer when a Nomad server leaves
 // or is reaped
-func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
+func (s *Server) removeRaftPeer(m serf.Member, parts *peers.Parts) error {
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 
 	// See if it's already in the configuration. It's harmless to re-remove it
@@ -1965,8 +1969,7 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !ServersMeetMinimumVersion(
-				s.serf.Members(), s.Region(), minACLRoleVersion, true) {
+			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLRoleVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2174,8 +2177,7 @@ func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !ServersMeetMinimumVersion(
-				s.serf.Members(), s.Region(), minACLAuthMethodVersion, true) {
+			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLAuthMethodVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.5.0 or later before ACL Auth Methods can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2380,8 +2382,7 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !ServersMeetMinimumVersion(
-				s.serf.Members(), s.Region(), minACLBindingRuleVersion, true) {
+			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLBindingRuleVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.5.0 or later before ACL Binding Rules can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2585,7 +2586,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 		return config
 	}
 
-	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minAutopilotVersion, false) {
+	if !s.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minAutopilotVersion, false) {
 		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
@@ -2612,7 +2613,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	if config != nil {
 		return config
 	}
-	if !ServersMeetMinimumVersion(s.Members(), s.Region(), minSchedulerConfigVersion, false) {
+	if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minSchedulerConfigVersion, false) {
 		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
 		return nil
 	}
@@ -2655,7 +2656,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		default:
 		}
 
-		if ServersMeetMinimumVersion(s.serf.Members(), s.Region(), minVersionKeyring, true) {
+		if s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minVersionKeyring, true) {
 			break
 		}
 	}
@@ -2673,8 +2674,8 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		return
 	}
 
-	isClusterUpgraded := ServersMeetMinimumVersion(
-		s.serf.Members(), s.Region(), minVersionKeyringInRaft, true)
+	isClusterUpgraded := s.peersPartCache.ServersMeetMinimumVersion(
+		s.Region(), minVersionKeyringInRaft, true)
 
 	wrappedKeys, err := s.encrypter.AddUnwrappedKey(rootKey, isClusterUpgraded)
 	if err != nil {
@@ -2705,7 +2706,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 }
 
 func (s *Server) generateClusterMetadata() (structs.ClusterMetadata, error) {
-	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minClusterIDVersion, false) {
+	if !s.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
 		return structs.ClusterMetadata{}, fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}

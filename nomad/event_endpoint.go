@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -211,7 +212,7 @@ func (e *Event) forwardStreamingRPC(region string, method string, args interface
 	return e.forwardStreamingRPCToServer(server, method, args, in)
 }
 
-func (e *Event) forwardStreamingRPCToServer(server *serverParts, method string, args interface{}, in io.ReadWriteCloser) error {
+func (e *Event) forwardStreamingRPCToServer(server *peers.Parts, method string, args interface{}, in io.ReadWriteCloser) error {
 	srvConn, err := e.srv.streamingRpc(server, method)
 	if err != nil {
 		return err

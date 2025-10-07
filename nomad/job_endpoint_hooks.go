@@ -551,8 +551,8 @@ func (v *jobValidate) isEligibleForMultiIdentity() bool {
 	if v.srv == nil || v.srv.serf == nil {
 		return true // handle tests w/o real servers safely
 	}
-	return ServersMeetMinimumVersion(
-		v.srv.Members(), v.srv.Region(), minVersionMultiIdentities, true)
+	return v.srv.peersPartCache.ServersMeetMinimumVersion(
+		v.srv.Region(), minVersionMultiIdentities, true)
 }
 
 func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {

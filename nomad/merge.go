@@ -6,6 +6,7 @@ package nomad
 import (
 	"fmt"
 
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -17,7 +18,7 @@ type serfMergeDelegate struct {
 
 func (md *serfMergeDelegate) NotifyMerge(members []*serf.Member) error {
 	for _, m := range members {
-		ok, _ := isNomadServer(*m)
+		ok, _ := peers.IsNomadServer(*m)
 		if !ok {
 			return fmt.Errorf("member '%s' is not a server", m.Name)
 		}

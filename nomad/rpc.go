@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -621,7 +622,7 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 // nil if this server is the current leader.  If the local server is the leader
 // it blocks until it is ready to handle consistent RPC invocations.  If leader
 // is not known or consistency isn't guaranteed, an error is returned.
-func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
+func (r *rpcHandler) getLeaderForRPC() (*peers.Parts, error) {
 	var firstCheck time.Time
 
 CHECK_LEADER:
@@ -663,7 +664,7 @@ CHECK_LEADER:
 // getLeader returns if the current node is the leader, and if not
 // then it returns the leader which is potentially nil if the cluster
 // has not yet elected a leader.
-func (s *Server) getLeader() (bool, *serverParts) {
+func (s *Server) getLeader() (bool, *peers.Parts) {
 	// Check if we are the leader
 	if s.IsLeader() {
 		return true, nil
@@ -685,7 +686,7 @@ func (s *Server) getLeader() (bool, *serverParts) {
 }
 
 // forwardLeader is used to forward an RPC call to the leader, or fail if no leader
-func (r *rpcHandler) forwardLeader(server *serverParts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardLeader(server *peers.Parts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
@@ -694,7 +695,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 }
 
 // forwardServer is used to forward an RPC call to a particular server
-func (r *rpcHandler) forwardServer(server *serverParts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardServer(server *peers.Parts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return errors.New("must be given a valid server address")
@@ -702,7 +703,7 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	return r.srv.connPool.RPC(r.srv.config.Region, server.Addr, method, args, reply)
 }
 
-func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
+func (r *rpcHandler) findRegionServer(region string) (*peers.Parts, error) {
 	r.srv.peerLock.RLock()
 	defer r.srv.peerLock.RUnlock()
 
@@ -729,7 +730,7 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 	return r.srv.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
-func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
+func (r *rpcHandler) getServer(region, serverID string) (*peers.Parts, error) {
 	// Bail if we can't find any servers
 	r.srv.peerLock.RLock()
 	defer r.srv.peerLock.RUnlock()
@@ -753,7 +754,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // streamingRpc creates a connection to the given server and conducts the
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
-func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
+func (r *rpcHandler) streamingRpc(server *peers.Parts, method string) (net.Conn, error) {
 	c, err := r.srv.connPool.StreamingRPC(r.srv.config.Region, server.Addr)
 	if err != nil {
 		return nil, err
