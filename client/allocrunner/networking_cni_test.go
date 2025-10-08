@@ -498,6 +498,34 @@ func TestCNI_cniToAllocNet_Dualstack(t *testing.T) {
 	test.Eq(t, "eth0", allocNet.InterfaceName)
 }
 
+// TestCNI_cniToAllocNet_IPv6Only asserts that CNI results containing only IPv6
+// addresses work correctly. This is a regression test for a bug introduced in
+// GH-23882 where IPv6-only interfaces would fail with "no interface with an address".
+func TestCNI_cniToAllocNet_IPv6Only(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:a110:c8::b")}, // only IPv6
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "", allocNet.Address)
+	test.Eq(t, "fd00:a110:c8::b", allocNet.AddressIPv6)
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
 func TestCNI_addCustomCNIArgs(t *testing.T) {
 	ci.Parallel(t)
 	cniArgs := map[string]string{
