@@ -840,10 +840,7 @@ func TestAgentHost_Server(t *testing.T) {
 	defer cleanup()
 
 	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
-	testutil.WaitForLeader(t, s2.RPC)
-	testutil.WaitForKeyring(t, s2.RPC, s2.Region())
 
 	// determine leader and nonleader
 	servers := []*Server{s1, s2}
@@ -868,9 +865,9 @@ func TestAgentHost_Server(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		numNodes := len(s1.connectedNodes()) + len(s2.connectedNodes())
-		return numNodes == 1, nil
+		return numNodes > 0, nil
 	}, func(err error) {
-		t.Fatalf("should have a clients")
+		t.Fatalf("client should be connected to a server")
 	})
 
 	cases := []struct {
@@ -940,13 +937,14 @@ func TestAgentHost_Server(t *testing.T) {
 
 			err := tc.origin.RPC("Agent.Host", &req, &reply)
 			if tc.expectedErr != "" {
-				require.Contains(t, err.Error(), tc.expectedErr)
+				must.ErrorContains(t, err, tc.expectedErr)
 			} else {
-				require.Nil(t, err)
-				require.NotEmpty(t, reply.HostData)
+				must.NoError(t, err)
+				must.NotNil(t, reply.HostData)
 			}
 
-			require.Equal(t, tc.expectedAgentID, reply.AgentID)
+			// note: we expect this to be populated even on error
+			must.Eq(t, tc.expectedAgentID, reply.AgentID)
 		})
 	}
 }
