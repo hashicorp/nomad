@@ -6,6 +6,7 @@ package scheduler
 import (
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"time"
 
@@ -886,6 +887,17 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 	if prev == nil {
 		return nil, nil
 	}
+
+	// when a jobs nodepool or datacenter are updated, we should ignore setting a preferred node
+	// even if a task has ephemeral disk, as this would bypass the normal nodepool/datacenter node
+	// selection logic, which would result in the alloc being place incorrectly.
+	if prev.Job != nil && prev.Job.NodePool != s.job.NodePool {
+		return nil, nil
+	}
+	if !slices.Equal(prev.Job.Datacenters, s.job.Datacenters) {
+		return nil, nil
+	}
+
 	if place.TaskGroup().EphemeralDisk.Sticky || place.TaskGroup().EphemeralDisk.Migrate {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
