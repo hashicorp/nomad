@@ -183,9 +183,9 @@ type Server struct {
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
-	// peersPartsCache is used to cache the parsed Nomad server member peer
-	// parts. This is used to avoid re-parsing the Serf tags on every access.
-	peersPartCache *peers.PartCache
+	// peersCache is used to cache the parsed Nomad server member peer parts.
+	// This is used to avoid re-parsing the Serf tags on every access.
+	peersCache *peers.PeerCache
 
 	// bootstrapped indicates if Server has bootstrapped or not.
 	bootstrapped *atomic.Bool
@@ -359,7 +359,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		nodeConns:               make(map[string][]*nodeConnState),
 		peers:                   make(map[string][]*peers.Parts),
 		localPeers:              make(map[raft.ServerAddress]*peers.Parts),
-		peersPartCache:          peers.NewPartsCache(),
+		peersCache:              peers.NewPeerCache(),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
 		reconcileCh:             make(chan serf.Member, 32),

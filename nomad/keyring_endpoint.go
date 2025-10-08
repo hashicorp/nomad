@@ -67,7 +67,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		unwrappedKey.Meta.State = structs.RootKeyStateActive
 	}
 
-	isClusterUpgraded := k.srv.peersPartCache.ServersMeetMinimumVersion(
+	isClusterUpgraded := k.srv.peersCache.ServersMeetMinimumVersion(
 		k.srv.Region(), minVersionKeyringInRaft, true)
 
 	// wrap/encrypt the key before we write it to Raft
@@ -191,7 +191,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 		return err
 	}
 
-	isClusterUpgraded := k.srv.peersPartCache.ServersMeetMinimumVersion(
+	isClusterUpgraded := k.srv.peersCache.ServersMeetMinimumVersion(
 		k.srv.Region(), minVersionKeyringInRaft, true)
 
 	// make sure it's been added to the local keystore before we write

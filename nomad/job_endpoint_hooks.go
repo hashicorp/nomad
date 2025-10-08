@@ -551,7 +551,7 @@ func (v *jobValidate) isEligibleForMultiIdentity() bool {
 	if v.srv == nil || v.srv.serf == nil {
 		return true // handle tests w/o real servers safely
 	}
-	return v.srv.peersPartCache.ServersMeetMinimumVersion(
+	return v.srv.peersCache.ServersMeetMinimumVersion(
 		v.srv.Region(), minVersionMultiIdentities, true)
 }
 

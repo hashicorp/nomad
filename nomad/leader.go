@@ -694,7 +694,7 @@ func (s *Server) replicateNodePools(stopCh chan struct{}) {
 		// Rate limit how often we attempt replication
 		limiter.Wait(context.Background())
 
-		if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minNodePoolsVersion, true) {
+		if !s.peersCache.ServersMeetMinimumVersion(s.Region(), minNodePoolsVersion, true) {
 			s.logger.Trace(
 				"all servers must be upgraded to 1.6.0 before Node Pools can be replicated")
 			if s.replicationBackoffContinue(stopCh) {
@@ -990,7 +990,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
 		case <-oneTimeTokenGC.C:
-			if !s.peersPartCache.ServersMeetMinimumVersion(
+			if !s.peersCache.ServersMeetMinimumVersion(
 				s.Region(),
 				minOneTimeAuthenticationTokenVersion,
 				false,
@@ -1969,7 +1969,7 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLRoleVersion, true) {
+			if !s.peersCache.ServersMeetMinimumVersion(s.Region(), minACLRoleVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2177,7 +2177,7 @@ func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLAuthMethodVersion, true) {
+			if !s.peersCache.ServersMeetMinimumVersion(s.Region(), minACLAuthMethodVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.5.0 or later before ACL Auth Methods can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2382,7 +2382,7 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
-			if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minACLBindingRuleVersion, true) {
+			if !s.peersCache.ServersMeetMinimumVersion(s.Region(), minACLBindingRuleVersion, true) {
 				s.logger.Trace(
 					"all servers must be upgraded to 1.5.0 or later before ACL Binding Rules can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
@@ -2586,7 +2586,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 		return config
 	}
 
-	if !s.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minAutopilotVersion, false) {
+	if !s.peersCache.ServersMeetMinimumVersion(peers.AllRegions, minAutopilotVersion, false) {
 		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
@@ -2613,7 +2613,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	if config != nil {
 		return config
 	}
-	if !s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minSchedulerConfigVersion, false) {
+	if !s.peersCache.ServersMeetMinimumVersion(s.Region(), minSchedulerConfigVersion, false) {
 		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
 		return nil
 	}
@@ -2656,7 +2656,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		default:
 		}
 
-		if s.peersPartCache.ServersMeetMinimumVersion(s.Region(), minVersionKeyring, true) {
+		if s.peersCache.ServersMeetMinimumVersion(s.Region(), minVersionKeyring, true) {
 			break
 		}
 	}
@@ -2674,7 +2674,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		return
 	}
 
-	isClusterUpgraded := s.peersPartCache.ServersMeetMinimumVersion(
+	isClusterUpgraded := s.peersCache.ServersMeetMinimumVersion(
 		s.Region(), minVersionKeyringInRaft, true)
 
 	wrappedKeys, err := s.encrypter.AddUnwrappedKey(rootKey, isClusterUpgraded)
@@ -2706,7 +2706,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 }
 
 func (s *Server) generateClusterMetadata() (structs.ClusterMetadata, error) {
-	if !s.peersPartCache.ServersMeetMinimumVersion(peers.AllRegions, minClusterIDVersion, false) {
+	if !s.peersCache.ServersMeetMinimumVersion(peers.AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
 		return structs.ClusterMetadata{}, fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}

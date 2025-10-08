@@ -57,7 +57,7 @@ func (s *ServiceRegistration) Upsert(
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !s.srv.peersPartCache.ServersMeetMinimumVersion(
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
 		s.srv.Region(),
 		minNomadServiceRegistrationVersion,
 		false,
@@ -114,7 +114,7 @@ func (s *ServiceRegistration) DeleteByID(
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !s.srv.peersPartCache.ServersMeetMinimumVersion(
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
 		s.srv.Region(),
 		minNomadServiceRegistrationVersion,
 		false,

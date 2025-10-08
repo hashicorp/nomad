@@ -643,7 +643,7 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 // other packages to perform server version checks without direct references to
 // the Nomad server.
 func (w *Worker) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
-	return w.srv.peersPartCache.ServersMeetMinimumVersion(w.srv.Region(), minVersion, checkFailedServers)
+	return w.srv.peersCache.ServersMeetMinimumVersion(w.srv.Region(), minVersion, checkFailedServers)
 }
 
 // SubmitPlan is used to submit a plan for consideration. This allows
@@ -664,7 +664,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	plan.SnapshotIndex = w.snapshotIndex
 
 	// Normalize stopped and preempted allocs before RPC
-	normalizePlan := w.srv.peersPartCache.ServersMeetMinimumVersion(
+	normalizePlan := w.srv.peersCache.ServersMeetMinimumVersion(
 		w.srv.Region(),
 		MinVersionPlanNormalization,
 		true,

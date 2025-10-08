@@ -86,7 +86,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		args.Var.Namespace = targetNS
 	}
 
-	if !sv.srv.peersPartCache.ServersMeetMinimumVersion(sv.srv.Region(), minVersionKeyring, true) {
+	if !sv.srv.peersCache.ServersMeetMinimumVersion(sv.srv.Region(), minVersionKeyring, true) {
 		return fmt.Errorf("all servers must be running version %v or later to apply variables", minVersionKeyring)
 	}
 

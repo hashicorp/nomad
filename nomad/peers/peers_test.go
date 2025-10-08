@@ -112,7 +112,7 @@ func TestIsNomadServer(t *testing.T) {
 func TestPartsCache_PeerSet(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPartsCache()
+	peerCache := NewPeerCache()
 	must.MapLen(t, 0, peerCache.peers)
 
 	// Add an initial set of peers in the same region.
@@ -158,7 +158,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 func TestPartsCache_PeerDelete(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPartsCache()
+	peerCache := NewPeerCache()
 	must.MapLen(t, 0, peerCache.peers)
 
 	// Add an initial set of peers in the same region.
@@ -436,7 +436,7 @@ func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			peerCache := NewPartsCache()
+			peerCache := NewPeerCache()
 
 			for _, p := range tc.inputParts {
 				peerCache.PeerSet(p)

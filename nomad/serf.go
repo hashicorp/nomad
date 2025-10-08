@@ -40,7 +40,7 @@ func (s *Server) serfEventHandler() {
 				s.nodeFailed(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberReap:
-				s.peersPartCache.PeerDelete(e.(serf.MemberEvent))
+				s.peersCache.PeerDelete(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
 			default:
@@ -65,7 +65,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 		// A peer is joining, so we should update the cache to reflect its
 		// status.
-		s.peersPartCache.PeerSet(parts)
+		s.peersCache.PeerSet(parts)
 
 		// Check if this server is known
 		found := false
@@ -253,7 +253,7 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 
 		// The peer is failed, so we should update the cache to reflect its
 		// status.
-		s.peersPartCache.PeerSet(parts)
+		s.peersCache.PeerSet(parts)
 
 		// Remove the server if known
 		s.peerLock.Lock()

@@ -190,7 +190,7 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		}
 	}
 
-	if !n.srv.peersPartCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
+	if !n.srv.peersCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
 		return fmt.Errorf("all servers must be running version %v or later to upsert node pools", minNodePoolsVersion)
 	}
 
@@ -255,7 +255,7 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 	// licensed, so they are allowed to be deleted.
 	_ = n.validateLicense(nil)
 
-	if !n.srv.peersPartCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
+	if !n.srv.peersCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
 		return fmt.Errorf("all servers must be running version %v or later to delete node pools", minNodePoolsVersion)
 	}
 

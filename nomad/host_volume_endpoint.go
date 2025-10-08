@@ -192,7 +192,7 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "create"}, time.Now())
 
-	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
 		v.srv.Region(),
 		minVersionDynamicHostVolumes,
 		false,
@@ -301,7 +301,7 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "register"}, time.Now())
 
-	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
 		v.srv.Region(),
 		minVersionDynamicHostVolumes,
 		false,
@@ -643,7 +643,7 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "delete"}, time.Now())
 
-	if !v.srv.peersPartCache.ServersMeetMinimumVersion(
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
 		v.srv.Region(),
 		minVersionDynamicHostVolumes,
 		false,

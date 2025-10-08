@@ -133,10 +133,10 @@ func IsNomadServer(m serf.Member) (bool, *Parts) {
 	return true, parts
 }
 
-// PartCache is a threadsafe cache of known Nomad server peers parsed from Serf
+// PeerCache is a threadsafe cache of known Nomad server peers parsed from Serf
 // members. It avoids the need to re-parse Serf members each time the peers
 // need to be inspected.
-type PartCache struct {
+type PeerCache struct {
 
 	// peers is a map of region names to the list of known server peers in that
 	// region. All access must be protected by peersLock.
@@ -144,16 +144,16 @@ type PartCache struct {
 	peersLock sync.RWMutex
 }
 
-// NewPartsCache returns a new instance of a PartsCache ready for use.
-func NewPartsCache() *PartCache {
-	return &PartCache{
+// NewPeerCache returns a new instance of a PeerCache ready for use.
+func NewPeerCache() *PeerCache {
+	return &PeerCache{
 		peers: make(map[string][]*Parts),
 	}
 }
 
 // PeerSet adds or updates the given parts in the cache. This should be called
 // when a new peer is detected or an existing peer changes is status.
-func (p *PartCache) PeerSet(parts *Parts) {
+func (p *PeerCache) PeerSet(parts *Parts) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
@@ -178,26 +178,23 @@ func (p *PartCache) PeerSet(parts *Parts) {
 
 // PeerDelete removes the given members from the cache. This should be called
 // when a peer is reaped from the Serf cluster.
-func (p *PartCache) PeerDelete(event serf.MemberEvent) {
+func (p *PeerCache) PeerDelete(event serf.MemberEvent) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
 	for _, m := range event.Members {
 		if ok, parts := IsNomadServer(m); ok {
+
 			existing := p.peers[parts.Region]
-			n := len(existing)
-			for i := 0; i < n; i++ {
-				if existing[i].Name == parts.Name {
-					existing[i], existing[n-1] = existing[n-1], nil
-					existing = existing[:n-1]
-					n--
-					break
-				}
-			}
+
+			existing = slices.DeleteFunc(
+				existing,
+				func(member *Parts) bool { return member.Name == parts.Name },
+			)
 
 			// If all peers in the region are gone, remove the region entry
 			// entirely. Otherwise, update the list.
-			if n < 1 {
+			if len(existing) < 1 {
 				delete(p.peers, parts.Region)
 			} else {
 				p.peers[parts.Region] = existing
@@ -211,7 +208,7 @@ func (p *PartCache) PeerDelete(event serf.MemberEvent) {
 // or to AllRegions to check all known regions. If checkFailedServers is true
 // then servers in the Failed state will also be checked, otherwise only servers
 // in the Alive state are considered.
-func (p *PartCache) ServersMeetMinimumVersion(
+func (p *PeerCache) ServersMeetMinimumVersion(
 	region string,
 	minVersion *version.Version,
 	checkFailedServers bool,

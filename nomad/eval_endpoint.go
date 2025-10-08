@@ -465,7 +465,7 @@ func (e *Eval) Delete(
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Filter != "" && !e.srv.peersPartCache.ServersMeetMinimumVersion(
+	if args.Filter != "" && !e.srv.peersCache.ServersMeetMinimumVersion(
 		e.srv.Region(), minVersionEvalDeleteByFilter, true) {
 		return fmt.Errorf(
 			"all servers must be running version %v or later to delete evals by filter",

@@ -1206,7 +1206,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 		return fmt.Errorf("failed to fetch key from any peer: %v", err)
 	}
 
-	isClusterUpgraded := krr.srv.peersPartCache.ServersMeetMinimumVersion(
+	isClusterUpgraded := krr.srv.peersCache.ServersMeetMinimumVersion(
 		krr.srv.Region(), minVersionKeyringInRaft, true)
 
 	// In the legacy replication, we toss out the wrapped key because it's
