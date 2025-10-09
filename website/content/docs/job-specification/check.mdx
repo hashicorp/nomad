@@ -55,27 +55,27 @@ job "example" {
   alloc IPv6 or driver-specific) this service should use to make checks, similar
   to `address_mode` on `service`. When the service uses the Consul provider,
   Consul needs access to the address for any HTTP or TCP checks. Unlike `port`,
-  this setting is _not_ inherited from the `service`. If the service `address`
+  this setting is **not** inherited from the `service`. If the service `address`
   is set, the service `address_mode` is `"auto"`, and the check `address_mode`
-  is not set, the service `address` value will be used for the check address.
+  is not set, Nomad uses the service `address` value for the check address.
 
   Valid options are:
 
   - `alloc` - For allocations which create a network namespace, this address
-    mode uses the IP address inside the namespace. Can only be used with
-    "bridge" and "cni" [networking modes][network_mode]. A numeric port may be
-    specified for situations where no port mapping is necessary. This mode can
-    only be set for checks which are defined in a "group" service block.
+     mode uses the IP address inside the namespace. Use only with "bridge" and
+    "cni" [networking modes][network_mode]. You may specify a numeric port for
+    situations where no port mapping is necessary. Set this mode only for checks
+    which are defined in a "group" service block.
 
   - `alloc_ipv6` - Same as `alloc` but use the IPv6 address in case of
     dual-stack or IPv6-only.
 
   - `driver` - Use the IP specified by the driver, and the port specified in a
-    port map. A numeric port may be specified since port maps aren't required by
-    all network plugins. Useful for checking SDN and overlay network
-    addresses. Task will fail if driver network cannot be determined. Only
-    implemented for Docker. This mode can only be set for checks which are
-    defined in a "task" service block. Refer to [Using driver address
+    port map. You may specify a numeric port since port maps aren't required by
+    all network plugins. Useful for checking SDN and overlay network addresses.
+    Task fails if driver network cannot be determined. Only implemented for
+    Docker. Set this mode only for checks which are defined in a "task" service
+    block. Refer to [Using driver address
     mode](/nomad/docs/job-specification/service#using-driver-address-mode) for
     an example of use.
 
