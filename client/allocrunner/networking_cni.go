@@ -507,6 +507,13 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 
 	}
 
+	// Fallback: if no IPv4 address but we have IPv6, copy it to Address field
+	// for backward compatibility with code that only checks Address field
+	// (e.g. service registration with address_mode="alloc")
+	if netStatus.Address == "" && netStatus.AddressIPv6 != "" {
+		netStatus.Address = netStatus.AddressIPv6
+	}
+
 	// Use the first DNS results, if non-empty
 	if len(res.DNS) > 0 {
 		cniDNS := res.DNS[0]
