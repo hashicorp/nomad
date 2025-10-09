@@ -73,7 +73,9 @@ func TestStatsFetcher(t *testing.T) {
 	// Fake an in-flight request to server 3 and make sure we don't fetch
 	// from it.
 	func() {
+		s1.statsFetcher.inflightLock.Lock()
 		s1.statsFetcher.inflight[raft.ServerID(s3.config.NodeID)] = struct{}{}
+		s1.statsFetcher.inflightLock.Unlock()
 		defer func() {
 			s1.statsFetcher.inflightLock.Lock()
 			delete(s1.statsFetcher.inflight, raft.ServerID(s3.config.NodeID))
