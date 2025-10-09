@@ -567,7 +567,12 @@ export default class Job extends Model {
     return undefined;
   }
 
-  @equal('type', 'service') supportsDeployments;
+  @computed('type')
+  get supportsDeployments() {
+    const { type } = this;
+    if (type === 'service' || type === 'system') return true;
+    return false;
+  }
 
   @belongsTo('deployment', { inverse: 'jobForLatest' }) latestDeployment;
 
