@@ -10,6 +10,7 @@ import (
 
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
@@ -100,7 +101,7 @@ func (d *AutopilotDelegate) RemoveFailedServer(failedSrv *autopilot.Server) {
 // MinRaftProtocol returns the lowest supported Raft protocol among alive
 // servers
 func (s *Server) MinRaftProtocol() (int, error) {
-	return minRaftProtocol(s.serf.Members(), isNomadServer)
+	return minRaftProtocol(s.serf.Members(), peers.IsNomadServer)
 }
 
 // GetClusterHealth is used to get the current health of the servers, as known
@@ -171,7 +172,7 @@ func stringIDs(ids []raft.ServerID) []string {
 	return helper.ConvertSlice(ids, func(id raft.ServerID) string { return string(id) })
 }
 
-func minRaftProtocol(members []serf.Member, serverFunc func(serf.Member) (bool, *serverParts)) (int, error) {
+func minRaftProtocol(members []serf.Member, serverFunc func(serf.Member) (bool, *peers.Parts)) (int, error) {
 	minVersion := -1
 	for _, m := range members {
 		if m.Status != serf.StatusAlive {
@@ -227,7 +228,7 @@ func (s *Server) autopilotServers() map[raft.ServerID]*autopilot.Server {
 }
 
 func (s *Server) autopilotServer(m serf.Member) (*autopilot.Server, error) {
-	ok, srv := isNomadServer(m)
+	ok, srv := peers.IsNomadServer(m)
 	if !ok {
 		return nil, nil
 	}
@@ -238,7 +239,7 @@ func (s *Server) autopilotServer(m serf.Member) (*autopilot.Server, error) {
 	return s.autopilotServerFromMetadata(srv)
 }
 
-func (s *Server) autopilotServerFromMetadata(srv *serverParts) (*autopilot.Server, error) {
+func (s *Server) autopilotServerFromMetadata(srv *peers.Parts) (*autopilot.Server, error) {
 	server := &autopilot.Server{
 		Name:        srv.Name,
 		ID:          raft.ServerID(srv.ID),

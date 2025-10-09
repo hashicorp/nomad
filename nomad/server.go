@@ -44,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/reporting"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -173,14 +174,18 @@ type Server struct {
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
-	peers      map[string][]*serverParts
-	localPeers map[raft.ServerAddress]*serverParts
+	peers      map[string][]*peers.Parts
+	localPeers map[raft.ServerAddress]*peers.Parts
 	peerLock   sync.RWMutex
 
 	// serf is the Serf cluster containing only Nomad
 	// servers. This is used for multi-region federation
 	// and automatic clustering within regions.
 	serf *serf.Serf
+
+	// peersCache is used to cache the parsed Nomad server member peer parts.
+	// This is used to avoid re-parsing the Serf tags on every access.
+	peersCache *peers.PeerCache
 
 	// bootstrapped indicates if Server has bootstrapped or not.
 	bootstrapped *atomic.Bool
@@ -352,8 +357,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		rpcServer:               rpc.NewServer(),
 		streamingRpcs:           structs.NewStreamingRpcRegistry(),
 		nodeConns:               make(map[string][]*nodeConnState),
-		peers:                   make(map[string][]*serverParts),
-		localPeers:              make(map[raft.ServerAddress]*serverParts),
+		peers:                   make(map[string][]*peers.Parts),
+		localPeers:              make(map[raft.ServerAddress]*peers.Parts),
+		peersCache:              peers.NewPeerCache(),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
 		reconcileCh:             make(chan serf.Member, 32),

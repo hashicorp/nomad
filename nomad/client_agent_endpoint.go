@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -387,8 +388,8 @@ func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 // forwardFor returns a serverParts for a request to be forwarded to.
 // A response of nil, nil indicates that the current server is equal to the
 // serverID and region so the request should not be forwarded.
-func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
-	var target *serverParts
+func (a *Agent) forwardFor(serverID, region string) (*peers.Parts, error) {
+	var target *peers.Parts
 	var err error
 
 	if serverID == "leader" {
@@ -461,7 +462,7 @@ func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args any, encoder 
 	structs.Bridge(conn, clientConn)
 }
 
-func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverParts, args any, encoder *codec.Encoder, decoder *codec.Decoder, endpoint string) {
+func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *peers.Parts, args any, encoder *codec.Encoder, decoder *codec.Decoder, endpoint string) {
 	serverConn, err := a.srv.streamingRpc(server, "Agent.Monitor")
 	if err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
@@ -568,7 +569,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 // findClientConn is a helper that returns a connection to the client node or, if the client
 // is connected to a different server, a serverParts describing the server to which the
 // client bound RPC should be forwarded.
-func (a *Agent) findClientConn(nodeID string) (*nodeConnState, *serverParts, error) {
+func (a *Agent) findClientConn(nodeID string) (*nodeConnState, *peers.Parts, error) {
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return nil, nil, structs.NewErrRPCCoded(500, err.Error())

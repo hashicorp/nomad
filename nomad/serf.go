@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -39,6 +40,7 @@ func (s *Server) serfEventHandler() {
 				s.nodeFailed(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberReap:
+				s.peersCache.PeerDelete(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
 			default:
@@ -54,12 +56,16 @@ func (s *Server) serfEventHandler() {
 // nodeJoin is used to handle join events on the serf cluster
 func (s *Server) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		ok, parts := isNomadServer(m)
+		ok, parts := peers.IsNomadServer(m)
 		if !ok {
 			s.logger.Warn("non-server in gossip pool", "member", m.Name)
 			continue
 		}
 		s.logger.Info("adding server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
+
+		// A peer is joining, so we should update the cache to reflect its
+		// status.
+		s.peersCache.PeerSet(parts)
 
 		// Check if this server is known
 		found := false
@@ -125,10 +131,10 @@ func (s *Server) maybeBootstrap() {
 
 	// Scan for all the known servers
 	members := s.serf.Members()
-	var servers []serverParts
+	var servers []peers.Parts
 	voters := 0
-	for _, member := range members {
-		valid, p := isNomadServer(member)
+	for _, serfMem := range members {
+		valid, p := peers.IsNomadServer(serfMem)
 		if !valid {
 			continue
 		}
@@ -136,11 +142,11 @@ func (s *Server) maybeBootstrap() {
 			continue
 		}
 		if p.Expect != 0 && p.Expect != s.config.BootstrapExpect {
-			s.logger.Error("peer has a conflicting expect value. All nodes should expect the same number", "member", member)
+			s.logger.Error("peer has a conflicting expect value. All nodes should expect the same number", "member", serfMem)
 			return
 		}
 		if p.Bootstrap {
-			s.logger.Error("peer has bootstrap mode. Expect disabled", "member", member)
+			s.logger.Error("peer has bootstrap mode. Expect disabled", "member", serfMem)
 			return
 		}
 		if !p.NonVoter {
@@ -239,11 +245,15 @@ func (s *Server) maybeBootstrap() {
 // nodeFailed is used to handle fail events on the serf cluster
 func (s *Server) nodeFailed(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		ok, parts := isNomadServer(m)
+		ok, parts := peers.IsNomadServer(m)
 		if !ok {
 			continue
 		}
 		s.logger.Info("removing server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
+
+		// The peer is failed, so we should update the cache to reflect its
+		// status.
+		s.peersCache.PeerSet(parts)
 
 		// Remove the server if known
 		s.peerLock.Lock()

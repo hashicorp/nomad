@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/joseutil"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -1208,8 +1209,8 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 		return fmt.Errorf("failed to fetch key from any peer: %v", err)
 	}
 
-	isClusterUpgraded := ServersMeetMinimumVersion(
-		krr.srv.serf.Members(), krr.srv.Region(), minVersionKeyringInRaft, true)
+	isClusterUpgraded := krr.srv.peersCache.ServersMeetMinimumVersion(
+		krr.srv.Region(), minVersionKeyringInRaft, true)
 
 	// In the legacy replication, we toss out the wrapped key because it's
 	// always persisted to disk
@@ -1222,10 +1223,10 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 	return nil
 }
 
-func (krr *KeyringReplicator) getAllPeers() []*serverParts {
+func (krr *KeyringReplicator) getAllPeers() []*peers.Parts {
 	krr.srv.peerLock.RLock()
 	defer krr.srv.peerLock.RUnlock()
-	peers := make([]*serverParts, 0, len(krr.srv.localPeers))
+	peers := make([]*peers.Parts, 0, len(krr.srv.localPeers))
 	for _, peer := range krr.srv.localPeers {
 		peers = append(peers, peer.Copy())
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -338,7 +339,7 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 
 	s1.peerLock.RLock()
-	ok, parts := isNomadServer(s2.LocalMember())
+	ok, parts := peers.IsNomadServer(s2.LocalMember())
 	require.True(ok)
 	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
 	require.NotNil(server)
@@ -397,7 +398,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.peerLock.RLock()
-	ok, parts := isNomadServer(s2.LocalMember())
+	ok, parts := peers.IsNomadServer(s2.LocalMember())
 	require.True(ok)
 	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
 	require.NotNil(server)
@@ -434,7 +435,7 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.peerLock.RLock()
-	ok, parts := isNomadServer(s2.LocalMember())
+	ok, parts := peers.IsNomadServer(s2.LocalMember())
 	require.True(ok)
 	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
 	require.NotNil(server)
@@ -507,7 +508,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.peerLock.RLock()
-	ok, parts := isNomadServer(s2.LocalMember())
+	ok, parts := peers.IsNomadServer(s2.LocalMember())
 	require.True(ok)
 	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
 	require.NotNil(server)

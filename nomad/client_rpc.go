@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
@@ -142,7 +143,7 @@ func (s *Server) removeNodeConn(ctx *RPCContext) {
 // ErrNoNodeConn is returned if all local peers could be queried but did not
 // have a connection to the node. Otherwise if a connection could not be found
 // and there were RPC errors, an error is returned.
-func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error) {
+func (s *Server) serverWithNodeConn(nodeID, region string) (*peers.Parts, error) {
 	// We skip ourselves.
 	selfAddr := s.LocalMember().Addr.String()
 
@@ -157,9 +158,9 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 	// Select the list of servers to check based on what region we are querying
 	s.peerLock.RLock()
 
-	var rawTargets []*serverParts
+	var rawTargets []*peers.Parts
 	if region == s.Region() {
-		rawTargets = make([]*serverParts, 0, len(s.localPeers))
+		rawTargets = make([]*peers.Parts, 0, len(s.localPeers))
 		for _, srv := range s.localPeers {
 			rawTargets = append(rawTargets, srv)
 		}
@@ -172,7 +173,7 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 		rawTargets = peers
 	}
 
-	targets := make([]*serverParts, 0, len(rawTargets))
+	targets := make([]*peers.Parts, 0, len(rawTargets))
 	for _, target := range rawTargets {
 		targets = append(targets, target.Copy())
 	}
@@ -180,7 +181,7 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 
 	// connections is used to store the servers that have connections to the
 	// requested node.
-	var mostRecentServer *serverParts
+	var mostRecentServer *peers.Parts
 	var mostRecent time.Time
 
 	var rpcErr multierror.Error

@@ -217,8 +217,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Only perform the node identity work if all the servers meet the minimum
 	// version that supports it.
-	if ServersMeetMinimumVersion(
-		n.srv.Members(),
+	if n.srv.peersCache.ServersMeetMinimumVersion(
 		n.srv.Region(),
 		minVersionNodeIdentity,
 		false,
@@ -746,8 +745,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Only perform the node identity work if all the servers meet the minimum
 	// version that supports it.
-	if ServersMeetMinimumVersion(
-		n.srv.Members(),
+	if n.srv.peersCache.ServersMeetMinimumVersion(
 		n.srv.Region(),
 		minVersionNodeIdentity,
 		false,

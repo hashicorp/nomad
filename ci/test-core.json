@@ -1,9 +1,6 @@
 {
   "nomad": ["nomad"],
-  "client": [
-    "client",
-    "client/allocrunner/..."
-  ],
+  "client": ["client", "client/allocrunner/..."],
   "command": ["command"],
   "drivers": ["drivers/..."],
   "quick": [
@@ -41,6 +38,7 @@
     "nomad/drainer/...",
     "nomad/reporting/...",
     "nomad/lock/...",
+    "nomad/peers/...",
     "nomad/state/...",
     "nomad/stream/...",
     "nomad/structs/...",

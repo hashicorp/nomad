@@ -57,9 +57,15 @@ func (s *ServiceRegistration) Upsert(
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
-			minNomadServiceRegistrationVersion)
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
+		s.srv.Region(),
+		minNomadServiceRegistrationVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion,
+		)
 	}
 
 	// Use a multierror, so we can capture all validation errors and pass this
@@ -108,9 +114,15 @@ func (s *ServiceRegistration) DeleteByID(
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
-			minNomadServiceRegistrationVersion)
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
+		s.srv.Region(),
+		minNomadServiceRegistrationVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion,
+		)
 	}
 
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {

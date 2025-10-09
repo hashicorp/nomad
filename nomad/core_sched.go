@@ -530,7 +530,11 @@ OUTER:
 func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
 	// For old clusters, send single deregistration messages COMPAT(0.11)
 	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
-	if !ServersMeetMinimumVersion(c.srv.Members(), c.srv.Region(), minVersionBatchNodeDeregister, true) {
+	if !c.srv.peersCache.ServersMeetMinimumVersion(
+		c.srv.Region(),
+		minVersionBatchNodeDeregister,
+		true,
+	) {
 		for _, id := range nodeIDs {
 			req := structs.NodeDeregisterRequest{
 				NodeID: id,
@@ -1068,8 +1072,8 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 //
 // COMPAT(1.12.0): remove this function in 1.12.0 LTS
 func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
-	if !ServersMeetMinimumVersion(
-		c.srv.serf.Members(), c.srv.Region(), minVersionKeyringInRaft, true) {
+	if !c.srv.peersCache.ServersMeetMinimumVersion(
+		c.srv.Region(), minVersionKeyringInRaft, true) {
 		return false, nil
 	}
 
