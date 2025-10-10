@@ -498,6 +498,162 @@ func TestCNI_cniToAllocNet_Dualstack(t *testing.T) {
 	test.Eq(t, "eth0", allocNet.InterfaceName)
 }
 
+// TestCNI_cniToAllocNet_IPv6Only asserts that CNI results containing only IPv6
+// addresses work correctly. This is a regression test for a bug introduced in
+// GH-23882 where IPv6-only interfaces would fail with "no interface with an address".
+func TestCNI_cniToAllocNet_IPv6Only(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:a110:c8::b")}, // only IPv6
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "fd00:a110:c8::b", allocNet.Address) // fallback to IPv6
+	test.Eq(t, "fd00:a110:c8::b", allocNet.AddressIPv6)
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
+// TestCNI_cniToAllocNet_IPv6Only_MultipleAddresses asserts that when a CNI result
+// contains multiple IPv6 addresses on a single interface, the first address is selected.
+// This ensures consistent behavior with the IPv4 case.
+func TestCNI_cniToAllocNet_IPv6Only_MultipleAddresses(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:a110:c8::1")}, // first IPv6 - should be selected
+					{IP: net.ParseIP("fd00:a110:c8::2")}, // second IPv6
+					{IP: net.ParseIP("fd00:a110:c8::3")}, // third IPv6
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "fd00:a110:c8::1", allocNet.Address)     // fallback to IPv6
+	test.Eq(t, "fd00:a110:c8::1", allocNet.AddressIPv6) // should select first IPv6 address
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
+// TestCNI_cniToAllocNet_Dualstack_MultipleAddresses asserts that when a CNI result
+// contains multiple IPv4 and IPv6 addresses, the first address of each type is selected.
+func TestCNI_cniToAllocNet_Dualstack_MultipleAddresses(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.IPv4(192, 168, 1, 10)},      // first IPv4 - should be selected
+					{IP: net.ParseIP("fd00:a110:c8::1")}, // first IPv6 - should be selected
+					{IP: net.IPv4(192, 168, 1, 11)},      // second IPv4
+					{IP: net.ParseIP("fd00:a110:c8::2")}, // second IPv6
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "192.168.1.10", allocNet.Address)        // should select first IPv4 address
+	test.Eq(t, "fd00:a110:c8::1", allocNet.AddressIPv6) // should select first IPv6 address
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
+// TestCNI_cniToAllocNet_MultipleInterfaces_IPv6First asserts that when multiple
+// interfaces exist, the first interface (lexicographically) with an address is selected,
+// even if it only has IPv6 and a later interface has IPv4.
+func TestCNI_cniToAllocNet_MultipleInterfaces_IPv6First(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:a110:c8::1")}, // IPv6 only on first interface
+				},
+			},
+			"eth1": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.IPv4(192, 168, 1, 10)}, // IPv4 on second interface
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "fd00:a110:c8::1", allocNet.Address)     // fallback to IPv6
+	test.Eq(t, "fd00:a110:c8::1", allocNet.AddressIPv6) // IPv6 from first interface
+	test.Eq(t, "eth0", allocNet.InterfaceName)          // first interface should be selected
+}
+
+// TestCNI_cniToAllocNet_MultipleInterfaces_IPv6OnMultiple asserts that when multiple
+// interfaces each have IPv6 addresses, the first interface is selected.
+func TestCNI_cniToAllocNet_MultipleInterfaces_IPv6OnMultiple(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:a110:c8::1")},
+					{IP: net.ParseIP("fd00:a110:c8::2")}, // multiple on first interface
+				},
+			},
+			"eth1": {
+				Sandbox: "nomad-sandbox",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.ParseIP("fd00:b220:c8::1")}, // different IPv6 on second interface
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "fd00:a110:c8::1", allocNet.Address)     // fallback to IPv6
+	test.Eq(t, "fd00:a110:c8::1", allocNet.AddressIPv6) // first address from first interface
+	test.Eq(t, "eth0", allocNet.InterfaceName)          // first interface
+}
+
 func TestCNI_addCustomCNIArgs(t *testing.T) {
 	ci.Parallel(t)
 	cniArgs := map[string]string{

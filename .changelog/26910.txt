@@ -1,0 +1,3 @@
+```release-note:bug
+networking: Fixed network interface detection failure with bridge or CNI mode on IPv6-only interfaces
+```

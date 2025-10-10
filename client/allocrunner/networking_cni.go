@@ -480,8 +480,8 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 				}
 			}
 
-			// found a good interface, so we're done
-			if netStatus.Address != "" {
+			// found a good interface (with either IPv4 or IPv6), so we're done
+			if netStatus.Address != "" || netStatus.AddressIPv6 != "" {
 				netStatus.InterfaceName = name
 				return
 			}
@@ -493,7 +493,7 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 
 	// If no IP address was found, use the first interface with an address
 	// found as a fallback
-	if netStatus.Address == "" {
+	if netStatus.Address == "" && netStatus.AddressIPv6 == "" {
 		setStatus(false)
 		c.logger.Debug("no sandbox interface with an address found CNI result, using first available",
 			"interface", netStatus.InterfaceName,
@@ -501,10 +501,17 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 		)
 	}
 
-	// If no IP address could be found, return an error
-	if netStatus.Address == "" {
+	// If no IP address (IPv4 or IPv6) could be found, return an error
+	if netStatus.Address == "" && netStatus.AddressIPv6 == "" {
 		return nil, fmt.Errorf("failed to configure network: no interface with an address")
 
+	}
+
+	// Fallback: if no IPv4 address but we have IPv6, copy it to Address field
+	// for backward compatibility with code that only checks Address field
+	// (e.g. service registration with address_mode="alloc")
+	if netStatus.Address == "" && netStatus.AddressIPv6 != "" {
+		netStatus.Address = netStatus.AddressIPv6
 	}
 
 	// Use the first DNS results, if non-empty

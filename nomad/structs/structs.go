@@ -12292,7 +12292,7 @@ func (a *AllocNetworkStatus) IsZero() bool {
 	if a == nil {
 		return true
 	}
-	if a.InterfaceName != "" || a.Address != "" {
+	if a.InterfaceName != "" || a.Address != "" || a.AddressIPv6 != "" {
 		return false
 	}
 	if !a.DNS.IsZero() {
