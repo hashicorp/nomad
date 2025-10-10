@@ -107,12 +107,11 @@ a future release.
   remaining allocations at a rate of `max_parallel`. Canary deployments cannot
   be used with volumes when `per_alloc = true`.
 
-  In system jobs, `canary` setting indicates the percentage of eligible nodes to
-  which allocations will be deployed. System job updates are always destructive
-  and we do not support more than one allocation per node, so effectively
-  setting `canary` to a positive integer means this amount of eligible nodes
-  will get a new version of the job. Setting `canary` to 100 updates the job on
-  all nodes. Percentage of nodes is always rounded up to the nearest integer.
+  In system jobs, the `canary` setting indicates the percentage of eligible nodes to
+  which allocations will be deployed. System jobs do not support more than one allocation
+  per node, so effectively setting `canary` to a positive integer means this percentage of 
+  eligible nodes will get a new version of the job. Setting `canary` to 100 updates the job 
+  on all nodes. Percentage of nodes is always rounded up to the nearest integer.
 
 - `stagger` `(string: "30s")` - Specifies the delay between each set of
   [`max_parallel`](#max_parallel) updates when updating system jobs. This
