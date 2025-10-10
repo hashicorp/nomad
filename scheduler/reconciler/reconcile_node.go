@@ -32,13 +32,14 @@ func NewNodeReconciler(deployment *structs.Deployment) *NodeReconciler {
 	}
 }
 
-// Compute is like diffSystemAllocsForNode however, the allocations in the
-// diffResult contain the specific nodeID they should be allocated on.
+// Compute is like computeCanaryNodes however, the allocations in the
+// NodeReconcileResult contain the specific nodeID they should be allocated on.
 func (nr *NodeReconciler) Compute(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
+	infeasibleNodes map[string][]string, // maps task groups to node IDs that are not feasible for them
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
@@ -64,7 +65,7 @@ func (nr *NodeReconciler) Compute(
 	// Canary deployments deploy to the TaskGroup.UpdateStrategy.Canary
 	// percentage of eligible nodes, so we create a mapping of task group name
 	// to a list of nodes that canaries should be placed on.
-	canaryNodes, canariesPerTG := nr.computeCanaryNodes(required, nodeAllocs, terminal, eligibleNodes)
+	canaryNodes, canariesPerTG := nr.computeCanaryNodes(required, nodeAllocs, terminal, eligibleNodes, infeasibleNodes)
 
 	compatHadExistingDeployment := nr.DeploymentCurrent != nil
 
@@ -102,7 +103,7 @@ func (nr *NodeReconciler) Compute(
 // many total canaries are to be placed for a TG.
 func (nr *NodeReconciler) computeCanaryNodes(required map[string]*structs.TaskGroup,
 	liveAllocs map[string][]*structs.Allocation, terminalAllocs structs.TerminalByNodeByName,
-	eligibleNodes map[string]*structs.Node) (map[string]map[string]bool, map[string]int) {
+	eligibleNodes map[string]*structs.Node, infeasibleNodes map[string][]string) (map[string]map[string]bool, map[string]int) {
 
 	canaryNodes := map[string]map[string]bool{}
 	eligibleNodesList := slices.Collect(maps.Values(eligibleNodes))
@@ -114,7 +115,17 @@ func (nr *NodeReconciler) computeCanaryNodes(required map[string]*structs.TaskGr
 		}
 
 		// round up to the nearest integer
-		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary) * float64(len(eligibleNodes)) / 100))
+		numberOfCanaryNodes := int(math.Ceil(float64(tg.Update.Canary)*float64(len(eligibleNodes))/100)) - len(infeasibleNodes[tg.Name])
+
+		// check if there's a current deployment present. It could be that the
+		// desired amount of canaries has to be reduced due to infeasible nodes.
+		// if nr.DeploymentCurrent != nil {
+		// 	if dstate, ok := nr.DeploymentCurrent.TaskGroups[tg.Name]; ok {
+		// 		numberOfCanaryNodes = dstate.DesiredCanaries
+		// 		fmt.Printf("existing deploy, setting number of canary nodes to %v\n", dstate.DesiredCanaries)
+		// 	}
+		// }
+
 		canariesPerTG[tg.Name] = numberOfCanaryNodes
 
 		// check if there are any live allocations on any nodes that are/were
@@ -135,6 +146,10 @@ func (nr *NodeReconciler) computeCanaryNodes(required map[string]*structs.TaskGr
 		}
 
 		for i, n := range eligibleNodesList {
+			// infeasible nodes can never become canary candidates
+			if slices.Contains(infeasibleNodes[tg.Name], n.ID) {
+				continue
+			}
 			if i > numberOfCanaryNodes-1 {
 				break
 			}
@@ -441,10 +456,10 @@ func (nr *NodeReconciler) computeForNode(
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
 			dstate.DesiredTotal = len(eligibleNodes)
-		}
 
-		if isCanarying[tg.Name] && !dstate.Promoted {
-			dstate.DesiredCanaries = canariesPerTG[tg.Name]
+			if isCanarying[tg.Name] && !dstate.Promoted {
+				dstate.DesiredCanaries = canariesPerTG[tg.Name]
+			}
 		}
 
 		// Check for an existing allocation
@@ -587,7 +602,13 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 }
 
 func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult, isCanarying bool) bool {
+	fmt.Printf("\n===========\n")
+	fmt.Println("isDeploymentComplete call")
 	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
+
+	fmt.Printf("\nis complete? %v buckets.Place: %v buckets.Update: %v\n", complete, len(buckets.Place), len(buckets.Update))
+	fmt.Printf("\nnr.deploymentCurrent == nil? %v isCanarying?: %v\n", nr.DeploymentCurrent == nil, isCanarying)
+	fmt.Println("===========")
 
 	if !complete || nr.DeploymentCurrent == nil || isCanarying {
 		return false
@@ -595,6 +616,7 @@ func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeRe
 
 	// ensure everything is healthy
 	if dstate, ok := nr.DeploymentCurrent.TaskGroups[groupName]; ok {
+		fmt.Printf("\nhealthy allocs %v desiredtotal: %v desired canaries: %v\n", dstate.HealthyAllocs, dstate.DesiredTotal, dstate.DesiredCanaries)
 		if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
 			complete = false
 		}
