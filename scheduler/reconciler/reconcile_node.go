@@ -69,11 +69,22 @@ func (nr *NodeReconciler) Compute(
 	compatHadExistingDeployment := nr.DeploymentCurrent != nil
 
 	result := new(NodeReconcileResult)
+	result.Required = required
 	var deploymentComplete bool
 	for nodeID, allocs := range nodeAllocs {
-		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, canaryNodes[nodeID], canariesPerTG, required,
-			allocs, terminal, serverSupportsDisconnectedClients)
+		diff, deploymentCompleteForNode := nr.computeForNode(
+			job,
+			nodeID,
+			eligibleNodes,
+			notReadyNodes,
+			taintedNodes,
+			canaryNodes[nodeID],
+			canariesPerTG,
+			required,
+			allocs,
+			terminal,
+			serverSupportsDisconnectedClients,
+		)
 		result.Append(diff)
 
 		deploymentComplete = deploymentCompleteForNode
@@ -90,7 +101,10 @@ func (nr *NodeReconciler) Compute(
 		nr.DeploymentCurrent = nil
 	}
 
-	nr.DeploymentUpdates = append(nr.DeploymentUpdates, nr.setDeploymentStatusAndUpdates(deploymentComplete, job)...)
+	nr.DeploymentUpdates = append(
+		nr.DeploymentUpdates,
+		DeploymentStatusAndUpdates(deploymentComplete, nr.DeploymentCurrent, job)...,
+	)
 
 	return result
 }
@@ -440,8 +454,14 @@ func (nr *NodeReconciler) computeForNode(
 				dstate.AutoPromote = tg.Update.AutoPromote
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
-			dstate.DesiredTotal = len(eligibleNodes)
 		}
+
+		// The total desired allocations needs to be recalculated on each
+		// reconciliation rather than just once. This is because the number of
+		// eligible nodes may change between reconciliations, or nodes may fail
+		// feasibility checking which happens within the scheduler processing
+		// loop and mutates deployment numbers.
+		dstate.DesiredTotal = len(eligibleNodes)
 
 		if isCanarying[tg.Name] && !dstate.Promoted {
 			dstate.DesiredCanaries = canariesPerTG[tg.Name]
@@ -527,6 +547,8 @@ func (nr *NodeReconciler) computeForNode(
 		}
 	}
 
+	result.Canarying = isCanarying
+
 	return result, deploymentComplete
 }
 
@@ -603,10 +625,18 @@ func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeRe
 	return complete
 }
 
-func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, job *structs.Job) []*structs.DeploymentStatusUpdate {
+// DeploymentStatusAndUpdates returns any status updates that should be applied
+// to the deployment based on its current state and whether the deployment is
+// complete or not.
+func DeploymentStatusAndUpdates(
+	deploymentComplete bool,
+	deploymentCurrent *structs.Deployment,
+	job *structs.Job,
+) []*structs.DeploymentStatusUpdate {
+
 	statusUpdates := []*structs.DeploymentStatusUpdate{}
 
-	if d := nr.DeploymentCurrent; d != nil {
+	if d := deploymentCurrent; d != nil {
 
 		// Deployments that require promotion should have appropriate status set
 		// immediately, no matter their completness.
@@ -627,14 +657,14 @@ func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool,
 				if d.Status != structs.DeploymentStatusUnblocking &&
 					d.Status != structs.DeploymentStatusSuccessful {
 					statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      nr.DeploymentCurrent.ID,
+						DeploymentID:      d.ID,
 						Status:            structs.DeploymentStatusBlocked,
 						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
 					})
 				}
 			} else {
 				statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-					DeploymentID:      nr.DeploymentCurrent.ID,
+					DeploymentID:      d.ID,
 					Status:            structs.DeploymentStatusSuccessful,
 					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 				})
@@ -644,7 +674,7 @@ func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool,
 		// Mark the deployment as pending since its state is now computed.
 		if d.Status == structs.DeploymentStatusInitializing {
 			statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-				DeploymentID:      nr.DeploymentCurrent.ID,
+				DeploymentID:      d.ID,
 				Status:            structs.DeploymentStatusPending,
 				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
 			})
@@ -682,6 +712,17 @@ type AllocTuple struct {
 // NodeReconcileResult is used to return the sets that result from the diff
 type NodeReconcileResult struct {
 	Place, Update, Migrate, Stop, Ignore, Lost, Disconnecting, Reconnecting []AllocTuple
+
+	// Canarying indicates whether the node is currently canarying for any task
+	// group. It is included in the result so that the system scheduler can
+	// recalculate the deployment status once feasability checking has taken
+	// place.
+	Canarying map[string]bool
+
+	// Required is the set of task groups that are required to be running. It is
+	// included in the result so that the system scheduler can recalculate the
+	// deployment status once feasability checking has taken place.
+	Required map[string]*structs.TaskGroup
 }
 
 func (d *NodeReconcileResult) Fields() []any {

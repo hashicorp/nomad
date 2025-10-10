@@ -355,7 +355,17 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	return s.computePlacements(r.Place, allocExistsForTaskGroup)
+	if err := s.computePlacements(r.Place, allocExistsForTaskGroup); err != nil {
+		return err
+	}
+
+	// If we are performing a deployment, re-compute the deployment status to
+	// account for any mutations as a result of feasiibility checks.
+	if s.deployment != nil {
+		s.computeDeploymentStatus(r)
+	}
+
+	return nil
 }
 
 func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
@@ -610,6 +620,37 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 		}
 	}
 	return true
+}
+
+func (s *SystemScheduler) computeDeploymentStatus(result *reconciler.NodeReconcileResult) {
+
+	// A deployment is considered complete if all task groups are complete.
+	deploymentComplete := false
+
+	for _, taskGroup := range result.Required {
+		deploymentComplete = s.isDeploymentComplete(taskGroup.Name, result)
+	}
+
+	s.plan.DeploymentUpdates = append(
+		s.plan.DeploymentUpdates,
+		reconciler.DeploymentStatusAndUpdates(deploymentComplete, s.deployment, s.job)...,
+	)
+}
+
+func (s *SystemScheduler) isDeploymentComplete(groupName string, buckets *reconciler.NodeReconcileResult) bool {
+
+	if s.deployment == nil || buckets.Canarying[groupName] {
+		return false
+	}
+
+	// ensure everything is healthy
+	if dstate, ok := s.deployment.TaskGroups[groupName]; ok {
+		if dstate.HealthyAllocs >= dstate.DesiredTotal {
+			return true
+		}
+	}
+
+	return false
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
