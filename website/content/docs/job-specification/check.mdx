@@ -51,14 +51,37 @@ job "example" {
 
 ### `check` Parameters
 
-- `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
-  Unlike services, checks do not have an `auto` address mode as there's no way
-  for Nomad to know which is the best address to use for checks. Consul needs
-  access to the address for any HTTP or TCP checks. See
-  [below for details.](#using-driver-address-mode) Unlike `port`, this setting
-  is _not_ inherited from the `service`.
-  If the service `address` is set and the check `address_mode` is not set, the
-  service `address` value will be used for the check address.
+- `address_mode` `(string: "host")` - Specifies which address (host, alloc,
+  alloc IPv6 or driver-specific) this service should use to make checks, similar
+  to `address_mode` on `service`. When the service uses the Consul provider,
+  Consul needs access to the address for any HTTP or TCP checks. Unlike `port`,
+  this setting is **not** inherited from the `service`. If the service `address`
+  is set, the service `address_mode` is `"auto"`, and the check `address_mode`
+  is not set, Nomad uses the service `address` value for the check address.
+
+  Valid options are:
+
+  - `alloc` - For allocations which create a network namespace, this address
+     mode uses the IP address inside the namespace. Use only with "bridge" and
+    "cni" [networking modes][network_mode]. You may specify a numeric port for
+    situations where no port mapping is necessary. Set this mode only for checks
+    which are defined in a "group" service block.
+
+  - `alloc_ipv6` - Same as `alloc` but use the IPv6 address in case of
+    dual-stack or IPv6-only.
+
+  - `driver` - Use the IP specified by the driver, and the port specified in a
+    port map. You may specify a numeric port since port maps aren't required by
+    all network plugins. Useful for checking SDN and overlay network addresses.
+    Task fails if driver network cannot be determined. Only implemented for
+    Docker. Set this mode only for checks which are defined in a "task" service
+    block. Refer to [Using driver address
+    mode](/nomad/docs/job-specification/service#using-driver-address-mode) for
+    an example of use.
+
+  - `host` - Use the host IP and the exposed port.
+
+  Note there is no `"auto"` mode for checks, unlike services.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -474,3 +497,4 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
 [service]: /nomad/docs/job-specification/service
 [service_task]: /nomad/docs/job-specification/service#task-1
 [on_update]: /nomad/docs/job-specification/service#on_update
+[network_mode]: /nomad/docs/job-specification/network#mode
