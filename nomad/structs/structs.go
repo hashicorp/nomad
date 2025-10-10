@@ -3244,8 +3244,8 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		return nil
 	}
 
-	usableCores := n.Processors.Topology.UsableCores().Slice()
-	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
+	totalCores := n.Processors.Topology.TotalCores().Slice()
+	cores := helper.ConvertSlice(totalCores, func(id hw.CoreID) uint16 {
 		return uint16(id)
 	})
 
@@ -3253,7 +3253,7 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares:     int64(n.Processors.Topology.TotalCompute()),
-				ReservedCores: reservableCores,
+				ReservedCores: cores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
