@@ -39,12 +39,6 @@ job "docs" {
 }
 ```
 
-~> For `system` jobs, only [`max_parallel`](#max_parallel) and
-[`stagger`](#stagger) are enforced. The job is updated at a rate of
-`max_parallel`, waiting `stagger` duration before the next set of updates.
-The `system` scheduler will be updated to support the new `update` block in
-a future release.
-
 ## Parameters
 
 - `max_parallel` `(int: 1)` - Specifies the number of allocations within a task group that can be
@@ -109,8 +103,8 @@ a future release.
 
   In system jobs, the `canary` setting indicates the percentage of eligible nodes to
   which allocations will be deployed. System jobs do not support more than one allocation
-  per node, so effectively setting `canary` to a positive integer means this percentage of 
-  eligible nodes will get a new version of the job. Setting `canary` to 100 updates the job 
+  per node, so effectively setting `canary` to a positive integer means this percentage of
+  eligible nodes will get a new version of the job. Setting `canary` to 100 updates the job
   on all nodes. Percentage of nodes is always rounded up to the nearest integer.
 
 - `stagger` `(string: "30s")` - Specifies the delay between each set of
