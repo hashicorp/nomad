@@ -113,7 +113,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.66.1
+	github.com/prometheus/common v0.67.1
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
@@ -132,7 +132,7 @@ require (
 	golang.org/x/sys v0.36.0
 	golang.org/x/time v0.13.0
 	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/protobuf v1.36.10
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
 	pgregory.net/rapid v1.2.0
@@ -341,10 +341,10 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
 	golang.org/x/net v0.44.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
 	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
