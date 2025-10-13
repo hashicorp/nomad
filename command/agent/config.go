@@ -2702,6 +2702,9 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.HostVolumePluginDir != "" {
 		result.HostVolumePluginDir = b.HostVolumePluginDir
 	}
+	if b.CommonPluginDir != "" {
+		result.CommonPluginDir = b.CommonPluginDir
+	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
 	}
