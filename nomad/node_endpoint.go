@@ -220,7 +220,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if n.srv.peersCache.ServersMeetMinimumVersion(
 		n.srv.Region(),
 		minVersionNodeIdentity,
-		false,
+		true,
 	) {
 
 		// Track the TTL that will be used for the node identity.
@@ -748,7 +748,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if n.srv.peersCache.ServersMeetMinimumVersion(
 		n.srv.Region(),
 		minVersionNodeIdentity,
-		false,
+		true,
 	) {
 		// Track the TTL that will be used for the node identity.
 		var identityTTL time.Duration
