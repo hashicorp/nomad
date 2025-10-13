@@ -15,6 +15,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+* consul: Fixed a bug where restarting the Nomad agent would cause Consul ACL tokens to be recreated [[GH-26604](https://github.com/hashicorp/nomad/pull/26604)]
 * csi: fix EOF error when registering volumes [[GH-26642](https://github.com/hashicorp/nomad/issues/26642)]
 * dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
 * exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
@@ -211,6 +212,7 @@ SECURITY:
 
 IMPROVEMENTS:
 
+* consul: Fixed a bug where restarting the Nomad agent would cause Consul ACL tokens to be recreated [[GH-26604](https://github.com/hashicorp/nomad/pull/26604)]
 * config: Validate the `keyring` configuration block label against supported values on agent startup [[GH-26673](https://github.com/hashicorp/nomad/issues/26673)]
 * scheduling: Improve performance of scheduling when checking reserved ports usage [[GH-26712](https://github.com/hashicorp/nomad/issues/26712)]
 * ui: Updated icons to the newest design system [[GH-25353](https://github.com/hashicorp/nomad/issues/25353)]
@@ -571,6 +573,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+* consul: Fixed a bug where restarting the Nomad agent would cause Consul ACL tokens to be recreated [[GH-26604](https://github.com/hashicorp/nomad/pull/26604)]
 * dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
 * exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
 * exec: Correctly set the `LOGNAME` env var when the job specification user value is set [[GH-26703](https://github.com/hashicorp/nomad/issues/26703)]
