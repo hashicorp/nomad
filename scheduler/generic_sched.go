@@ -124,7 +124,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
 		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerAllocStop,
+		structs.EvalTriggerAllocStop, structs.EvalTriggerAllocReschedule,
 		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,

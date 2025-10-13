@@ -28,12 +28,12 @@ func (set allocSet) filterAndStopAll(cs ClusterState) (uint64, []AllocStopResult
 	return uint64(len(set)), allocsToStop
 }
 
-// filterServerTerminalAllocs returns a new allocSet the includes only
-// non-server-terminal allocations.
+// filterServerTerminalAllocs returns a new allocSet that includes only
+// batch job type or non-server-terminal allocations.
 func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
 	remaining = make(allocSet)
 	for id, alloc := range set {
-		if !alloc.ServerTerminalStatus() {
+		if alloc.Job.Type == structs.JobTypeBatch || !alloc.ServerTerminalStatus() {
 			remaining[id] = alloc
 		}
 	}
@@ -324,7 +324,7 @@ func (set allocSet) filterByRescheduleable(isBatch, isDisconnecting bool,
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
-		if isUntainted && !isDisconnecting {
+		if isUntainted && !isDisconnecting && !alloc.DesiredTransition.ShouldReschedule() {
 			untainted[alloc.ID] = alloc
 			continue // these allocs can never be rescheduled, so skip checking
 		}

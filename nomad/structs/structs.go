@@ -11461,6 +11461,7 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+	isBatch := a.Job.Type == JobTypeBatch
 
 	// If reschedule is disabled, return early
 	if reschedulePolicy == nil || (reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited) {
@@ -11468,7 +11469,7 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	}
 
 	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
-		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
+		(!isBatch && a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
 		failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -11485,6 +11486,7 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 		attempted, attempts := a.RescheduleTracker.rescheduleInfo(reschedulePolicy, failTime)
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
+
 	return nextRescheduleTime, rescheduleEligible
 }
 
@@ -12421,6 +12423,7 @@ const (
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 	EvalTriggerReconnect            = "reconnect"
+	EvalTriggerAllocReschedule      = "alloc-reschedule"
 )
 
 const (
