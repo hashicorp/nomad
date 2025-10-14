@@ -53,7 +53,9 @@ func TestHeartbeatStop_allocHook(t *testing.T) {
 	err := client.addAlloc(alloc, "")
 	must.NoError(t, err)
 	testutil.WaitForResult(func() (bool, error) {
+		client.heartbeatLock.Lock()
 		_, ok := client.heartbeatStop.allocInterval[alloc.ID]
+		client.heartbeatLock.Unlock()
 		return ok, nil
 	}, func(err error) {
 		must.NoError(t, err)

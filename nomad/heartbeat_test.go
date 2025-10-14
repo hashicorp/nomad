@@ -97,15 +97,19 @@ func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 
 	s1.heartbeatTimersLock.Lock()
 	s1.resetHeartbeatTimerLocked("foo", 5*time.Millisecond)
+	_, ok := s1.heartbeatTimers["foo"]
 	s1.heartbeatTimersLock.Unlock()
 
-	if _, ok := s1.heartbeatTimers["foo"]; !ok {
+	if !ok {
 		t.Fatalf("missing timer")
 	}
 
 	time.Sleep(time.Duration(testutil.TestMultiplier()*10) * time.Millisecond)
 
-	if _, ok := s1.heartbeatTimers["foo"]; ok {
+	s1.heartbeatTimersLock.Lock()
+	_, ok = s1.heartbeatTimers["foo"]
+	s1.heartbeatTimersLock.Unlock()
+	if ok {
 		t.Fatalf("timer should be gone")
 	}
 }
@@ -119,9 +123,10 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 
 	s1.heartbeatTimersLock.Lock()
 	s1.resetHeartbeatTimerLocked("foo", 30*time.Millisecond)
+	_, ok := s1.heartbeatTimers["foo"]
 	s1.heartbeatTimersLock.Unlock()
 
-	if _, ok := s1.heartbeatTimers["foo"]; !ok {
+	if !ok {
 		t.Fatalf("missing timer")
 	}
 
@@ -283,7 +288,11 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 		}
 
 		// Ensure heartbeat timer is restored
-		if _, ok := leader.heartbeatTimers[node.ID]; !ok {
+		leader.heartbeatTimersLock.Lock()
+		_, ok := leader.heartbeatTimers[node.ID]
+		leader.heartbeatTimersLock.Unlock()
+
+		if !ok {
 			return false, fmt.Errorf("missing heartbeat timer")
 		}
 
