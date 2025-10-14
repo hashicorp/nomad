@@ -34,7 +34,7 @@ jobs:
   tests:
     needs:
       - pre-test
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-ubuntu-22.04-medium' }}
     timeout-minutes: 30
     defaults:
       run:
