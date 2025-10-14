@@ -1,0 +1,3 @@
+```release-note:feature
+Client Introduction: Nomad clients can now be introduced to the cluster using a token-based approach. Nomad servers can be configured with introduction enforcement levels which dictate how clients can join the cluster resulting in logs and metrics to detail introduction violations.
+```
