@@ -1,0 +1,3 @@
+```release-note:feature
+Client Identity: Nomad clients use identities for authenticating and authorizing itself when performing RPC calls. The identities are generated and rotated automatically by Nomad servers with configurable TTLs.
+```
