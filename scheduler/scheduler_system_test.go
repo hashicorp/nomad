@@ -2060,17 +2060,6 @@ func TestSystemSched_Preemption(t *testing.T) {
 	nodes := make([]*structs.Node, 0)
 	for i := 0; i < 2; i++ {
 		node := mock.Node()
-		// TODO: remove in 0.11
-		node.Resources = &structs.Resources{
-			CPU:      3072,
-			MemoryMB: 5034,
-			DiskMB:   20 * 1024,
-			Networks: []*structs.NetworkResource{{
-				Device: "eth0",
-				CIDR:   "192.168.0.100/32",
-				MBits:  1000,
-			}},
-		}
 		node.NodeResources = &structs.NodeResources{
 			Processors: processorResources,
 			Cpu:        legacyCpuResources,

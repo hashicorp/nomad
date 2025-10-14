@@ -584,7 +584,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
 		Interval:            cfg.GCInterval,
 		ParallelDestroys:    cfg.GCParallelDestroys,
-		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
+		ReservedDiskMB:      int(cfg.Node.ReservedResources.Disk.DiskMB),
 	}
 	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
 	go c.garbageCollector.Run()
@@ -1658,12 +1658,6 @@ func (c *Client) setupNode() error {
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
-	}
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-	if node.Reserved == nil {
-		node.Reserved = &structs.Resources{}
 	}
 	if node.Datacenter == "" {
 		node.Datacenter = "dc1"
@@ -3452,7 +3446,7 @@ func (c *Client) labels() []metrics.Label {
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
 	// Unfortunately the allocs only have IP so we need to match them to the
 	// device
-	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.Resources.Networks))
+	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.NodeResources.Networks))
 	for _, n := range selfNode.NodeResources.Networks {
 		_, ipnet, err := net.ParseCIDR(n.CIDR)
 		if err != nil {

@@ -542,14 +542,19 @@ type DrainMetadata struct {
 
 // Node is used to deserialize a node entry.
 type Node struct {
-	ID                    string
-	Datacenter            string
-	Name                  string
-	HTTPAddr              string
-	TLSEnabled            bool
-	Attributes            map[string]string
-	Resources             *Resources
-	Reserved              *Resources
+	ID         string
+	Datacenter string
+	Name       string
+	HTTPAddr   string
+	TLSEnabled bool
+	Attributes map[string]string
+
+	// DEPRECATED: will be removed in Nomad 1.12.0. Use NodeResources.
+	Resources *Resources
+
+	// DEPRECATED: will be removed in Nomad 1.12.0. Use ReservedResources.
+	Reserved *Resources
+
 	NodeResources         *NodeResources
 	ReservedResources     *NodeReservedResources
 	Links                 map[string]string
