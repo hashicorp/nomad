@@ -25,10 +25,10 @@ job "plugin-cephrbd-controller" {
     }
 
     service {
-      name = "prometheus"
-      port = "prometheus"
+      name     = "prometheus"
+      port     = "prometheus"
       provider = "nomad"
-      tags = ["ceph-csi"]
+      tags     = ["ceph-csi"]
     }
 
     task "plugin" {
