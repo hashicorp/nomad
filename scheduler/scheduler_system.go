@@ -339,7 +339,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Initially, if the job requires canaries, we place all of them on all
 	// eligible nodes. At this point we know which nodes are feasible, so we
 	// evict unnedded canaries.
-	s.evictCanaries(s.job, s.nodes, r)
+	if err := s.evictCanaries(s.job, s.nodes, r); err != nil {
+		return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
+	}
 
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
