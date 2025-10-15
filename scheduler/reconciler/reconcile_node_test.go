@@ -73,7 +73,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, nil, nil, required, live, terminal, true)
+		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
 		if len(diff.Ignore) > 0 {
@@ -96,7 +96,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, nil, nil, required, live, terminal, true)
+		diff, _ := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
 
@@ -160,7 +160,7 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 			nr := NewNodeReconciler(nil)
 			diff, _ := nr.computeForNode(
 				job, tc.nodeID, eligible, nil,
-				tainted, nil, nil, required, allocsForNode, terminal, true)
+				tainted, required, allocsForNode, terminal, true)
 
 			assertDiffCount(t, tc.expected, diff)
 		})
@@ -218,7 +218,7 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 
 	nr := NewNodeReconciler(nil)
 	diff, _ := nr.computeForNode(
-		job, node.ID, eligible, nil, tainted, nil, nil, required, allocs, terminal, true)
+		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
 	if len(diff.Update) > 0 {
@@ -288,7 +288,7 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 
 			nr := NewNodeReconciler(nil)
 			diff, _ := nr.computeForNode(
-				job, tc.nodeID, eligible, ineligible, tainted, nil, nil,
+				job, tc.nodeID, eligible, ineligible, tainted,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, diff)
@@ -346,7 +346,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 	nr := NewNodeReconciler(nil)
 	diff, _ := nr.computeForNode(
 		job, drainNode.ID, map[string]*structs.Node{}, nil,
-		tainted, nil, nil, required, allocs, terminal, true)
+		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{migrate: 1, ignore: 1}, diff)
 	if len(diff.Migrate) > 0 {
@@ -398,7 +398,7 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 	nr := NewNodeReconciler(nil)
 	diff, _ := nr.computeForNode(
 		job, deadNode.ID, map[string]*structs.Node{}, nil,
-		tainted, nil, nil, required, allocs, terminal, true)
+		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{lost: 2}, diff)
 	if len(diff.Migrate) > 0 {
@@ -523,7 +523,7 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 
 			nr := NewNodeReconciler(nil)
 			got, _ := nr.computeForNode(
-				job, tc.node.ID, eligibleNodes, nil, taintedNodes, nil, nil,
+				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
 				required, []*structs.Allocation{alloc}, terminal, true,
 			)
 			assertDiffCount(t, tc.expect, got)
@@ -777,209 +777,6 @@ func TestNodeDeployments(t *testing.T) {
 						return a.StatusDescription == status
 					},
 				)
-			}
-		})
-	}
-}
-
-func Test_computeCanaryNodes(t *testing.T) {
-	ci.Parallel(t)
-
-	// generate an odd number of nodes
-	fiveEligibleNodes := map[string]*structs.Node{}
-	// name them so we can refer to their names while testing pre-existing
-	// canary allocs
-	fiveEligibleNodeNames := []string{"node1", "node2", "node3", "node4", "node5"}
-	for _, name := range fiveEligibleNodeNames {
-		node := mock.Node()
-		node.ID = name
-		fiveEligibleNodes[name] = node
-	}
-
-	// generate an even number of nodes
-	fourEligibleNodes := map[string]*structs.Node{}
-	for range 4 {
-		nodeID := uuid.Generate()
-		node := mock.Node()
-		node.ID = nodeID
-		fourEligibleNodes[nodeID] = node
-	}
-
-	testCases := []struct {
-		name                 string
-		nodes                map[string]*structs.Node
-		liveAllocs           map[string][]*structs.Allocation
-		terminalAllocs       structs.TerminalByNodeByName
-		required             map[string]*structs.TaskGroup
-		existingDeployment   *structs.Deployment
-		expectedCanaryNodes  map[string]int    // number of nodes per tg
-		expectedCanaryNodeID map[string]string // sometimes we want to make sure a particular node ID is a canary
-	}{
-		{
-			name:                 "no required task groups",
-			nodes:                fourEligibleNodes,
-			liveAllocs:           nil,
-			terminalAllocs:       nil,
-			required:             nil,
-			existingDeployment:   nil,
-			expectedCanaryNodes:  map[string]int{},
-			expectedCanaryNodeID: nil,
-		},
-		{
-			name:           "one task group with no update strategy",
-			nodes:          fourEligibleNodes,
-			liveAllocs:     nil,
-			terminalAllocs: nil,
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-				}},
-			existingDeployment:   nil,
-			expectedCanaryNodes:  map[string]int{},
-			expectedCanaryNodeID: nil,
-		},
-		{
-			name:           "one task group with 33% canary deployment",
-			nodes:          fourEligibleNodes,
-			liveAllocs:     nil,
-			terminalAllocs: nil,
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-					Update: &structs.UpdateStrategy{
-						Canary:      33,
-						MaxParallel: 1, // otherwise the update strategy will be considered nil
-					},
-				},
-			},
-			existingDeployment: nil,
-			expectedCanaryNodes: map[string]int{
-				"foo": 2, // we always round up
-			},
-			expectedCanaryNodeID: nil,
-		},
-		{
-			name:           "one task group with 100% canary deployment, four nodes",
-			nodes:          fourEligibleNodes,
-			liveAllocs:     nil,
-			terminalAllocs: nil,
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-					Update: &structs.UpdateStrategy{
-						Canary:      100,
-						MaxParallel: 1, // otherwise the update strategy will be considered nil
-					},
-				},
-			},
-			existingDeployment: nil,
-			expectedCanaryNodes: map[string]int{
-				"foo": 4,
-			},
-			expectedCanaryNodeID: nil,
-		},
-		{
-			name:           "one task group with 50% canary deployment, even nodes",
-			nodes:          fourEligibleNodes,
-			liveAllocs:     nil,
-			terminalAllocs: nil,
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-					Update: &structs.UpdateStrategy{
-						Canary:      50,
-						MaxParallel: 1, // otherwise the update strategy will be considered nil
-					},
-				},
-			},
-			existingDeployment: nil,
-			expectedCanaryNodes: map[string]int{
-				"foo": 2,
-			},
-			expectedCanaryNodeID: nil,
-		},
-		{
-			name:  "two task groups: one with 50% canary deploy, second one with 2% canary deploy, pre-existing canary alloc",
-			nodes: fiveEligibleNodes,
-			liveAllocs: map[string][]*structs.Allocation{
-				"foo": {mock.Alloc()}, // should be disregarded since it's not one of our nodes
-				fiveEligibleNodeNames[0]: {
-					{DeploymentStatus: nil},
-					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false}},
-					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true}, TaskGroup: "foo"},
-				},
-				fiveEligibleNodeNames[1]: {
-					{DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true}, TaskGroup: "bar"},
-				},
-			},
-			terminalAllocs: structs.TerminalByNodeByName{
-				fiveEligibleNodeNames[2]: map[string]*structs.Allocation{
-					"foo": {
-						DeploymentStatus: &structs.AllocDeploymentStatus{
-							Canary: true,
-						},
-						TaskGroup: "foo",
-					},
-				},
-			},
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-					Update: &structs.UpdateStrategy{
-						Canary:      50,
-						MaxParallel: 1, // otherwise the update strategy will be considered nil
-					},
-				},
-				"bar": {
-					Name: "bar",
-					Update: &structs.UpdateStrategy{
-						Canary:      2,
-						MaxParallel: 1, // otherwise the update strategy will be considered nil
-					},
-				},
-			},
-			existingDeployment: structs.NewDeployment(mock.SystemJob(), 100, time.Now().Unix()),
-			expectedCanaryNodes: map[string]int{
-				"foo": 3, // we always round up
-				"bar": 1, // we always round up
-			},
-			expectedCanaryNodeID: map[string]string{
-				fiveEligibleNodeNames[0]: "foo",
-				fiveEligibleNodeNames[1]: "bar",
-				fiveEligibleNodeNames[2]: "foo",
-			},
-		},
-		{
-			name:           "task group with 100% canary deploy, 1 eligible node",
-			nodes:          map[string]*structs.Node{"foo": mock.Node()},
-			liveAllocs:     nil,
-			terminalAllocs: nil,
-			required: map[string]*structs.TaskGroup{
-				"foo": {
-					Name: "foo",
-					Update: &structs.UpdateStrategy{
-						Canary:      100,
-						MaxParallel: 1,
-					},
-				},
-			},
-			existingDeployment: nil,
-			expectedCanaryNodes: map[string]int{
-				"foo": 1,
-			},
-			expectedCanaryNodeID: nil,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			nr := NewNodeReconciler(tc.existingDeployment)
-			canaryNodes, canariesPerTG := nr.computeCanaryNodes(tc.required, tc.liveAllocs, tc.terminalAllocs, tc.nodes)
-			must.Eq(t, tc.expectedCanaryNodes, canariesPerTG)
-			if tc.liveAllocs != nil {
-				for nodeID, tgName := range tc.expectedCanaryNodeID {
-					must.True(t, canaryNodes[nodeID][tgName])
-				}
 			}
 		})
 	}

@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	"fmt"
+	"math"
 	"runtime/debug"
 
 	log "github.com/hashicorp/go-hclog"
@@ -335,6 +336,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// be limited by max_parallel
 	s.limitReached = evictAndPlace(s.ctx, s.job, r, sstructs.StatusAllocUpdating)
 
+	// Initially, if the job requires canaries, we place all of them on all
+	// eligible nodes. At this point we know which nodes are feasible, so we
+	// evict unnedded canaries.
+	s.evictCanaries(s.job, s.nodes, r)
+
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
 		if !s.job.Stopped() {
@@ -645,4 +651,83 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 		}
 	}
 	return limited
+}
+
+// evictAndPlaceCanaries checks how many canaries are needed against the amount
+// of feasible nodes, and evicts unnecessary placements.
+func (s *SystemScheduler) evictCanaries(job *structs.Job, readyNodes []*structs.Node,
+	reconcileResult *reconciler.NodeReconcileResult) error {
+
+	if job.Stopped() {
+		return nil
+	}
+
+	// calculate how many canary placement we expect each task group to have: it
+	// should be the tg.update.canary percentage of eligible nodes, rounded up
+	// to the nearest integer
+	requiredCanaries := make(map[string]int)
+	for _, tg := range job.TaskGroups {
+		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
+			continue
+		}
+
+		requiredCanaries[tg.Name] = int(math.Ceil(float64(tg.Update.Canary) * float64(len(readyNodes)) / 100))
+	}
+
+	nodeByID := make(map[string]*structs.Node, len(s.nodes))
+	for _, node := range s.nodes {
+		nodeByID[node.ID] = node
+	}
+
+	nodes := make([]*structs.Node, 1)
+	updatedPlacements := make([]reconciler.AllocTuple, 0)
+	for _, r := range reconcileResult.Update {
+		if !r.Canary {
+			// if this isn't a canary placement, add it to the updated array but
+			// don't perform any checks on it
+			updatedPlacements = append(updatedPlacements, r)
+			continue
+		}
+
+		// are there still canaries to be placed? if not, don't perform a costly
+		// feasibility check
+		count, ok := requiredCanaries[r.TaskGroup.Name]
+		if !ok {
+			// programming error
+			return fmt.Errorf(
+				"we are trying to place a task group %s that appears not to be present in job %s!",
+				r.TaskGroup.Name, job.Name,
+			)
+		}
+
+		// disregard this placement
+		if count == 0 {
+			continue
+		}
+
+		node, ok := nodeByID[r.Alloc.NodeID]
+		if !ok {
+			// should never happen
+			return fmt.Errorf("can't find node %s", r.Alloc.NodeID)
+		}
+
+		// Update the set of placement nodes
+		nodes[0] = node
+		s.stack.SetNodes(nodes)
+
+		// Attempt to match the task group
+		option := s.stack.Select(r.TaskGroup, &feasible.SelectOptions{AllocName: r.Name})
+
+		if option != nil {
+			// we found a feasible node for this update. Decrease the counter
+			// for that TG, and add this placement to the new array.
+			requiredCanaries[r.TaskGroup.Name] -= 1
+			updatedPlacements = append(updatedPlacements, r)
+		}
+	}
+
+	// update placements
+	reconcileResult.Update = updatedPlacements
+
+	return nil
 }
