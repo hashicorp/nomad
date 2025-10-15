@@ -61,8 +61,9 @@ job "ceph" {
       config {
         # TODO: this should be moved to "quay.io/ceph/ceph:latest" but that
         # image doesn't have the "demo" command
-        image        = "ceph/daemon:latest-octopus"
-        args       = ["demo"]
+        #image        = "ceph/daemon:latest-octopus"
+        image = "quay.io/benjamin_holmes/ceph-aio:v19"
+        #args       = ["demo"]
         privileged = true
         ports      = ["ceph_mon", "ceph_dashboard"]
 
