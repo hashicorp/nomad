@@ -178,7 +178,8 @@ func TestNode_Register_Identity(t *testing.T) {
 				node.NodePool = "custom-pool"
 
 				req := structs.NodeRegisterRequest{
-					Node: node,
+					CreateNodePool: true,
+					Node:           node,
 					WriteRequest: structs.WriteRequest{
 						Region: "global",
 					},
@@ -188,6 +189,13 @@ func TestNode_Register_Identity(t *testing.T) {
 				must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Register", &req, &resp))
 				must.NotNil(t, resp.SignedIdentity)
 				verifyIdentityFn(t, srv, *resp.SignedIdentity, req.Node, structs.DefaultNodePoolNodeIdentityTTL)
+
+				// Verify the node pool was created correctly.
+				statePool, err := srv.State().NodePoolByName(nil, node.NodePool)
+				must.NoError(t, err)
+				must.NotNil(t, statePool)
+				must.StrEqFold(t, node.NodePool, statePool.Name)
+				must.Eq(t, structs.DefaultNodePoolNodeIdentityTTL, statePool.NodeIdentityTTL)
 			},
 		},
 		{

@@ -159,8 +159,12 @@ func (s *StateStore) fetchOrCreateNodePoolTxn(txn *txn, index uint64, name strin
 		return nil, err
 	}
 
+	// If the node pool does not exist within state already, hydrate the object
+	// with the supplied name. Ensure we canonicalize the object before, so we
+	// set critical default values.
 	if pool == nil {
 		pool = &structs.NodePool{Name: name}
+		pool.Canonicalize()
 		err = s.upsertNodePoolTxn(txn, index, pool)
 		if err != nil {
 			return nil, err
