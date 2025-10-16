@@ -285,6 +285,38 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
 	}
 
+	// track if any of the task groups is doing a canary update now
+	isCanarying := map[string]bool{}
+	for _, tg := range s.job.TaskGroups {
+		if s.deployment == nil {
+			break
+		}
+
+		dstate, ok := s.deployment.TaskGroups[tg.Name]
+		if !ok {
+			continue
+		}
+
+		isCanarying[tg.Name] = !tg.Update.IsEmpty() && tg.Update.Canary > 0 && dstate != nil && !dstate.Promoted
+	}
+
+	// Initially, if the job requires canaries, we place all of them on all
+	// eligible nodes. At this point we know which nodes are feasible, so we
+	// evict unnedded canaries.
+	if err := s.evictUnneededCanaries(s.job, s.nodes, r); err != nil {
+		return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
+	}
+
+	// check if the deployment is complete
+	deploymentComplete := false
+	for _, tg := range s.job.TaskGroups {
+		groupComplete := s.isDeploymentComplete(tg.Name, r, isCanarying[tg.Name])
+		deploymentComplete = deploymentComplete && groupComplete
+	}
+
+	// adjust the deployment updates and set the right deployment status
+	nr.DeploymentUpdates = append(nr.DeploymentUpdates, s.setDeploymentStatusAndUpdates(deploymentComplete, s.job)...)
+
 	// Add the deployment changes to the plan
 	s.plan.Deployment = nr.DeploymentCurrent
 	s.plan.DeploymentUpdates = nr.DeploymentUpdates
@@ -335,13 +367,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
 	s.limitReached = evictAndPlace(s.ctx, s.job, r, sstructs.StatusAllocUpdating)
-
-	// Initially, if the job requires canaries, we place all of them on all
-	// eligible nodes. At this point we know which nodes are feasible, so we
-	// evict unnedded canaries.
-	if err := s.evictCanaries(s.job, s.nodes, r); err != nil {
-		return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
-	}
 
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
@@ -571,6 +596,13 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 		}
 
 		s.plan.AppendAlloc(alloc, nil)
+
+		// we only now the total amountn of placements once we filter out
+		// infeasible nodes, so for system jobs we do it backwards a bit: the
+		// "desired" total is the total we were able to place.
+		if s.deployment != nil {
+			s.deployment.TaskGroups[tgName].DesiredTotal += 1
+		}
 	}
 
 	return nil
@@ -657,7 +689,7 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and evicts unnecessary placements.
-func (s *SystemScheduler) evictCanaries(job *structs.Job, readyNodes []*structs.Node,
+func (s *SystemScheduler) evictUnneededCanaries(job *structs.Job, readyNodes []*structs.Node,
 	reconcileResult *reconciler.NodeReconcileResult) error {
 
 	if job.Stopped() {
@@ -732,4 +764,72 @@ func (s *SystemScheduler) evictCanaries(job *structs.Job, readyNodes []*structs.
 	reconcileResult.Update = updatedPlacements
 
 	return nil
+}
+
+func (s *SystemScheduler) isDeploymentComplete(groupName string, buckets *reconciler.NodeReconcileResult, isCanarying bool) bool {
+	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
+
+	if !complete || s.deployment == nil || isCanarying {
+		return false
+	}
+
+	// ensure everything is healthy
+	if dstate, ok := s.deployment.TaskGroups[groupName]; ok {
+		if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
+			complete = false
+		}
+	}
+
+	return complete
+}
+
+func (s *SystemScheduler) setDeploymentStatusAndUpdates(deploymentComplete bool, job *structs.Job) []*structs.DeploymentStatusUpdate {
+	statusUpdates := []*structs.DeploymentStatusUpdate{}
+
+	if d := s.deployment; d != nil {
+
+		// Deployments that require promotion should have appropriate status set
+		// immediately, no matter their completness.
+		if d.RequiresPromotion() {
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+			return statusUpdates
+		}
+
+		// Mark the deployment as complete if possible
+		if deploymentComplete {
+			if job.IsMultiregion() {
+				// the unblocking/successful states come after blocked, so we
+				// need to make sure we don't revert those states
+				if d.Status != structs.DeploymentStatusUnblocking &&
+					d.Status != structs.DeploymentStatusSuccessful {
+					statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      s.deployment.ID,
+						Status:            structs.DeploymentStatusBlocked,
+						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					})
+				}
+			} else {
+				statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      s.deployment.ID,
+					Status:            structs.DeploymentStatusSuccessful,
+					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+				})
+			}
+		}
+
+		// Mark the deployment as pending since its state is now computed.
+		if d.Status == structs.DeploymentStatusInitializing {
+			statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      s.deployment.ID,
+				Status:            structs.DeploymentStatusPending,
+				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+			})
+		}
+	}
+
+	return statusUpdates
 }

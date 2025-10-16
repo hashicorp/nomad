@@ -62,17 +62,11 @@ func (nr *NodeReconciler) Compute(
 	compatHadExistingDeployment := nr.DeploymentCurrent != nil
 
 	result := new(NodeReconcileResult)
-	var deploymentComplete bool
 	for nodeID, allocs := range nodeAllocs {
-		diff, deploymentCompleteForNode := nr.computeForNode(job, nodeID, eligibleNodes,
+		diff := nr.computeForNode(job, nodeID, eligibleNodes,
 			notReadyNodes, taintedNodes, required, allocs, terminal,
 			serverSupportsDisconnectedClients)
 		result.Append(diff)
-
-		deploymentComplete = deploymentCompleteForNode
-		if deploymentComplete {
-			break
-		}
 	}
 
 	// COMPAT(1.14.0) prevent a new deployment from being created in the case
@@ -82,8 +76,6 @@ func (nr *NodeReconciler) Compute(
 	if !compatHadExistingDeployment && nr.compatHasSameVersionAllocs {
 		nr.DeploymentCurrent = nil
 	}
-
-	nr.DeploymentUpdates = append(nr.DeploymentUpdates, nr.setDeploymentStatusAndUpdates(deploymentComplete, job)...)
 
 	return result
 }
@@ -102,8 +94,7 @@ func (nr *NodeReconciler) Compute(
 // 8. those that may still be running on a node that has resumed reconnected.
 //
 // This method mutates the NodeReconciler fields, and returns a new
-// NodeReconcilerResult object and a boolean to indicate wither the deployment
-// is complete or not.
+// NodeReconcilerResult object.
 func (nr *NodeReconciler) computeForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
@@ -114,7 +105,7 @@ func (nr *NodeReconciler) computeForNode(
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
-) (*NodeReconcileResult, bool) {
+) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
 
 	// cancel deployments that aren't needed anymore
@@ -322,10 +313,6 @@ func (nr *NodeReconciler) computeForNode(
 		})
 	}
 
-	// as we iterate over require groups, we'll keep track of whether the
-	// deployment is complete or not
-	deploymentComplete := false
-
 	// Scan the required groups
 	for name, tg := range required {
 
@@ -343,7 +330,6 @@ func (nr *NodeReconciler) computeForNode(
 				dstate.AutoPromote = tg.Update.AutoPromote
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
-			dstate.DesiredTotal = len(eligibleNodes)
 		}
 
 		// Check for an existing allocation
@@ -405,7 +391,6 @@ func (nr *NodeReconciler) computeForNode(
 
 		// check if deployment is place ready or complete
 		deploymentPlaceReady := !deploymentPaused && !deploymentFailed
-		deploymentComplete = nr.isDeploymentComplete(tg.Name, result, isCanarying[tg.Name])
 
 		// check if perhaps there's nothing else to do for this TG
 		if existingDeployment ||
@@ -426,7 +411,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 	}
 
-	return result, deploymentComplete
+	return result
 }
 
 func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGroup,
@@ -483,74 +468,6 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	}
 
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
-}
-
-func (nr *NodeReconciler) isDeploymentComplete(groupName string, buckets *NodeReconcileResult, isCanarying bool) bool {
-	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
-
-	if !complete || nr.DeploymentCurrent == nil || isCanarying {
-		return false
-	}
-
-	// ensure everything is healthy
-	if dstate, ok := nr.DeploymentCurrent.TaskGroups[groupName]; ok {
-		if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
-			complete = false
-		}
-	}
-
-	return complete
-}
-
-func (nr *NodeReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, job *structs.Job) []*structs.DeploymentStatusUpdate {
-	statusUpdates := []*structs.DeploymentStatusUpdate{}
-
-	if d := nr.DeploymentCurrent; d != nil {
-
-		// Deployments that require promotion should have appropriate status set
-		// immediately, no matter their completness.
-		if d.RequiresPromotion() {
-			if d.HasAutoPromote() {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
-			} else {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-			}
-			return statusUpdates
-		}
-
-		// Mark the deployment as complete if possible
-		if deploymentComplete {
-			if job.IsMultiregion() {
-				// the unblocking/successful states come after blocked, so we
-				// need to make sure we don't revert those states
-				if d.Status != structs.DeploymentStatusUnblocking &&
-					d.Status != structs.DeploymentStatusSuccessful {
-					statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      nr.DeploymentCurrent.ID,
-						Status:            structs.DeploymentStatusBlocked,
-						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
-					})
-				}
-			} else {
-				statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-					DeploymentID:      nr.DeploymentCurrent.ID,
-					Status:            structs.DeploymentStatusSuccessful,
-					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
-				})
-			}
-		}
-
-		// Mark the deployment as pending since its state is now computed.
-		if d.Status == structs.DeploymentStatusInitializing {
-			statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
-				DeploymentID:      nr.DeploymentCurrent.ID,
-				Status:            structs.DeploymentStatusPending,
-				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
-			})
-		}
-	}
-
-	return statusUpdates
 }
 
 // materializeSystemTaskGroups is used to materialize all the task groups
