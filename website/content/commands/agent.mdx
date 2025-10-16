@@ -45,6 +45,13 @@ You may, however, may pass the following configuration options as CLI arguments:
 
 - `-client`: Enable client mode on the local agent.
 
+- `-client-intro-token`: The JWT token used to authenticate with servers during
+  the client's initial registration. The token can also be set via the
+  `NOMAD_CLIENT_INTRO_TOKEN` environment variable which will override this flag.
+  If neither are set, the agent will look for a `intro_token.jwt` file within
+  the [`client_state_dir`][]. It is not possible to set the intro token via a
+  configuration file.
+
 - `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
 
@@ -231,6 +238,7 @@ You may, however, may pass the following configuration options as CLI arguments:
 [server_failures_before_critical]: /nomad/docs/configuration/consul#server_failures_before_critical
 [server_failures_before_warning]: /nomad/docs/configuration/consul#server_failures_before_warning
 [client_service_name]: /nomad/docs/configuration/consul#client_service_name
+[`client_state_dir`]: /nomad/docs/configuration/client#state_dir
 [data_dir]: /nomad/docs/configuration#data_dir
 [datacenter]: /nomad/docs/configuration#datacenter
 [enabled]: /nomad/docs/configuration/acl#enabled
@@ -264,4 +272,3 @@ You may, however, may pass the following configuration options as CLI arguments:
 [state_dir]: /nomad/docs/configuration/client#state_dir
 [token]: /nomad/docs/configuration/consul#token
 [verify_ssl]: /nomad/docs/configuration/consul#verify_ssl
-
