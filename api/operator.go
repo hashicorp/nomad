@@ -208,6 +208,18 @@ type SchedulerSetConfigurationResponse struct {
 	WriteMeta
 }
 
+// SetNumSchedulersRequest is used to set the number of schedulers
+type SetNumSchedulersRequest struct {
+	Schedulers int
+	WriteRequest
+}
+
+// GetNumSchedulersResponse is used to get number of schedulers
+type GetNumSchedulersResponse struct {
+	Schedulers int
+	QueryMeta
+}
+
 // SchedulerAlgorithm is an enum string that encapsulates the valid options for a
 // SchedulerConfiguration block's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
@@ -236,6 +248,16 @@ func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfig
 	return &resp, qm, nil
 }
 
+// SchedulerGetNumSchedulers is used to query the current number of schedulers
+func (op *Operator) SchedulerGetNumSchedulers(q *QueryOptions) (*GetNumSchedulersResponse, *QueryMeta, error) {
+	var resp GetNumSchedulersResponse
+	qm, err := op.c.query("/v1/operator/scheduler/schedulers", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
 func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
 	var out SchedulerSetConfigurationResponse
@@ -256,6 +278,16 @@ func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *W
 		return nil, nil, err
 	}
 
+	return &out, wm, nil
+}
+
+// SchedulerSetNumSchedulers is used to set the current number of schedulers
+func (op *Operator) SchedulerSetNumSchedulers(number int, q *WriteOptions) (*GenericResponse, *WriteMeta, error) {
+	var out GenericResponse
+	wm, err := op.c.put("/v1/operator/scheduler/schedulers", SetNumSchedulersRequest{Schedulers: number}, &out, q)
+	if err != nil {
+		return nil, nil, err
+	}
 	return &out, wm, nil
 }
 
