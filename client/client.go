@@ -1816,8 +1816,19 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 
 		// update config with total cpu compute if it was detected
-		if cpu := response.NodeResources.Processors.TotalCompute(); cpu > 0 {
-			newConfig.CpuCompute = cpu
+		totalCompute := response.NodeResources.Processors.TotalCompute()
+		usableCompute := response.NodeResources.Processors.UsableCompute()
+		if totalCompute > 0 {
+			if newConfig.CpuCompute != totalCompute {
+				newConfig.CpuCompute = totalCompute
+				nodeHasChanged = true
+			}
+
+			reservedCompute := int64(totalCompute - usableCompute)
+			if newConfig.Node.ReservedResources.Cpu.CpuShares != reservedCompute {
+				newConfig.Node.ReservedResources.Cpu.CpuShares = reservedCompute
+				nodeHasChanged = true
+			}
 		}
 	}
 
@@ -3323,8 +3334,8 @@ func (c *Client) setGaugeForDiskStats(hStats *hoststats.HostStats, baseLabels []
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
 func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	node := c.GetConfig().Node
-	total := node.NodeResources
-	res := node.ReservedResources
+
+	available := node.Comparable()
 	allocated := c.getAllocatedResources(node)
 
 	// Emit allocated
@@ -3342,20 +3353,15 @@ func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	}
 
 	// Emit unallocated
-	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
-	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-
-	// The UsableCompute function call already subtracts and accounts for any
-	// reserved CPU within the client configuration. Therefore, we do not need
-	// to subtract that here.
-	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - allocated.Flattened.Cpu.CpuShares
+	unallocatedMem := available.Flattened.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
+	unallocatedDisk := available.Shared.DiskMB - allocated.Shared.DiskMB
+	unallocatedCpu := available.Flattened.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), baseLabels)
 
-	totalComparable := total.Comparable()
-	for _, n := range totalComparable.Flattened.Networks {
+	for _, n := range available.Flattened.Networks {
 		// Determined the used resources
 		var usedMbits int
 		totalIdx := allocated.Flattened.Networks.NetIndex(n)
