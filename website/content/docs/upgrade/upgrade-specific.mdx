@@ -47,6 +47,13 @@ determined from the sum of the job's task group `count` fields. This limit is
 enforced at the time the job is submitted or scaled, and updating the value will
 not impact existing jobs.
 
+#### Deprecated resource fields on Node API
+
+The `Resources` and `Reserved` fields on the Go API's `Node` struct, as well as
+the equivalent fileds on the [Read Node](/nomad/api-docs/nodes#read-node) API,
+are deprecated. These fields are never populated. Use the `NodeResources` and
+`ReservedResources` fields instead.
+
 ## Nomad 1.10.6
 
 #### ACL policies no longer silently ignore duplicate or invalid keys

@@ -1,0 +1,3 @@
+```release-note:deprecation
+api: the `Resources` and `Reserved` fields on the `Node` struct in the Go API are deprecated and will be removed in Nomad 1.12.0. Use the `NodeResources` and `ReservedResources` fields instead
+```

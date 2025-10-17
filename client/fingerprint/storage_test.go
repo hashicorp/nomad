@@ -44,6 +44,6 @@ func TestStorageFingerprint(t *testing.T) {
 	}
 
 	if response.NodeResources == nil || response.NodeResources.Disk.DiskMB == 0 {
-		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
+		t.Errorf("Expected node.NodeResources.DiskMB.DiskMB to be non-zero")
 	}
 }

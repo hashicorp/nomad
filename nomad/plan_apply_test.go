@@ -961,7 +961,6 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
-	node.Reserved = nil
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -993,7 +992,6 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
-	node.Reserved = nil
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)

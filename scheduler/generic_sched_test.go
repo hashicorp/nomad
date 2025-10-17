@@ -6787,8 +6787,6 @@ func TestServiceSched_Preemption(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	node.Resources = nil
-	node.ReservedResources = nil
 	node.NodeResources = &structs.NodeResources{
 		Processors: processorResources,
 		Cpu:        legacyCpuResources,

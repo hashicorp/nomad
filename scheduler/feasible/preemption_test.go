@@ -1313,8 +1313,8 @@ func TestPreemption_Normal(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			node := mock.Node()
-			node.NodeResources = tc.nodeCapacity
-			node.ReservedResources = tc.nodeReservedCapacity
+			node.NodeResources = tc.nodeCapacity.Copy()
+			node.ReservedResources = tc.nodeReservedCapacity.Copy()
 
 			state, ctx := MockContext(t)
 

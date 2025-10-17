@@ -7286,8 +7286,6 @@ func TestNode_Copy(t *testing.T) {
 	node2 := node.Copy()
 
 	must.Eq(t, node.Attributes, node2.Attributes)
-	must.Eq(t, node.Resources, node2.Resources)
-	must.Eq(t, node.Reserved, node2.Reserved)
 	must.Eq(t, node.Links, node2.Links)
 	must.Eq(t, node.Meta, node2.Meta)
 	must.Eq(t, node.Events, node2.Events)
