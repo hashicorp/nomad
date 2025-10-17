@@ -297,18 +297,22 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
-		isCanarying[tg.Name] = !tg.Update.IsEmpty() && tg.Update.Canary > 0 && dstate != nil && !dstate.Promoted
-	}
-
-	// Initially, if the job requires canaries, we place all of them on all
-	// eligible nodes. At this point we know which nodes are feasible, so we
-	// evict unnedded canaries.
-	if err := s.evictUnneededCanaries(s.job, s.nodes, r); err != nil {
-		return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
+		// a system job is canarying if:
+		// - it has a non-empty update block (just a sanity check, all submitted
+		// jobs should have a non-empty update block as part of
+		// canonicalization)
+		// - canary parameter in the update block has to be positive
+		// - deployment has to be non-nil and it cannot have been promoted
+		// - this cannot be the initial job version
+		isCanarying[tg.Name] = !tg.Update.IsEmpty() &&
+			tg.Update.Canary > 0 &&
+			dstate != nil &&
+			!dstate.Promoted &&
+			s.job.Version != 0
 	}
 
 	// check if the deployment is complete
-	deploymentComplete := false
+	deploymentComplete := true
 	for _, tg := range s.job.TaskGroups {
 		groupComplete := s.isDeploymentComplete(tg.Name, r, isCanarying[tg.Name])
 		deploymentComplete = deploymentComplete && groupComplete
@@ -388,7 +392,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	return s.computePlacements(r.Place, allocExistsForTaskGroup)
+	return s.computePlacements(r.Place, allocExistsForTaskGroup, isCanarying)
 }
 
 func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
@@ -416,7 +420,10 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 }
 
 // computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, existingByTaskGroup map[string]bool) error {
+func (s *SystemScheduler) computePlacements(
+	place []reconciler.AllocTuple, existingByTaskGroup map[string]bool,
+	isCanarying map[string]bool) error {
+
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
@@ -431,6 +438,7 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 	}
 
 	nodes := make([]*structs.Node, 1)
+	feasibleNodesCount := 0 // count the nodes that pass feasibility selection
 	for _, missing := range place {
 		tgName := missing.TaskGroup.Name
 
@@ -603,6 +611,16 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 		if s.deployment != nil {
 			s.deployment.TaskGroups[tgName].DesiredTotal += 1
 		}
+
+		// count this node as feasible
+		feasibleNodesCount += 1
+	}
+
+	// Initially, if the job requires canaries, we place all of them on all
+	// eligible nodes. At this point we know which nodes are feasible, so we
+	// evict unnedded canaries.
+	if err := s.evictUnneededCanaries(feasibleNodesCount, isCanarying); err != nil {
+		return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
 	}
 
 	return nil
@@ -688,80 +706,47 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 }
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
-// of feasible nodes, and evicts unnecessary placements.
-func (s *SystemScheduler) evictUnneededCanaries(job *structs.Job, readyNodes []*structs.Node,
-	reconcileResult *reconciler.NodeReconcileResult) error {
-
-	if job.Stopped() {
-		return nil
-	}
+// of feasible nodes, and removes unnecessary placements from the plan.
+func (s *SystemScheduler) evictUnneededCanaries(feasibleNodes int, isCanarying map[string]bool) error {
 
 	// calculate how many canary placement we expect each task group to have: it
 	// should be the tg.update.canary percentage of eligible nodes, rounded up
 	// to the nearest integer
 	requiredCanaries := make(map[string]int)
-	for _, tg := range job.TaskGroups {
-		if tg.Update.IsEmpty() || tg.Update.Canary == 0 {
+	for _, tg := range s.job.TaskGroups {
+		if !isCanarying[tg.Name] {
 			continue
 		}
-
-		requiredCanaries[tg.Name] = int(math.Ceil(float64(tg.Update.Canary) * float64(len(readyNodes)) / 100))
+		requiredCanaries[tg.Name] = int(math.Ceil(float64(tg.Update.Canary) * float64(feasibleNodes) / 100))
 	}
 
-	nodeByID := make(map[string]*structs.Node, len(s.nodes))
-	for _, node := range s.nodes {
-		nodeByID[node.ID] = node
+	// no canaries to consider, quit early
+	if len(requiredCanaries) == 0 {
+		return nil
 	}
 
-	nodes := make([]*structs.Node, 1)
-	updatedPlacements := make([]reconciler.AllocTuple, 0)
-	for _, r := range reconcileResult.Update {
-		if !r.Canary {
-			// if this isn't a canary placement, add it to the updated array but
-			// don't perform any checks on it
-			updatedPlacements = append(updatedPlacements, r)
-			continue
-		}
-
-		// are there still canaries to be placed? if not, don't perform a costly
-		// feasibility check
-		count, ok := requiredCanaries[r.TaskGroup.Name]
-		if !ok {
-			// programming error
-			return fmt.Errorf(
-				"we are trying to place a task group %s that appears not to be present in job %s!",
-				r.TaskGroup.Name, job.Name,
-			)
-		}
-
-		// disregard this placement
-		if count == 0 {
-			continue
-		}
-
-		node, ok := nodeByID[r.Alloc.NodeID]
-		if !ok {
-			// should never happen
-			return fmt.Errorf("can't find node %s", r.Alloc.NodeID)
-		}
-
-		// Update the set of placement nodes
-		nodes[0] = node
-		s.stack.SetNodes(nodes)
-
-		// Attempt to match the task group
-		option := s.stack.Select(r.TaskGroup, &feasible.SelectOptions{AllocName: r.Name})
-
-		if option != nil {
-			// we found a feasible node for this update. Decrease the counter
-			// for that TG, and add this placement to the new array.
-			requiredCanaries[r.TaskGroup.Name] -= 1
-			updatedPlacements = append(updatedPlacements, r)
-		}
+	// set the correct desired canary counts
+	for tgName, desired := range requiredCanaries {
+		s.deployment.TaskGroups[tgName].DesiredCanaries = desired
 	}
 
-	// update placements
-	reconcileResult.Update = updatedPlacements
+	// iterate over node allocations to find canary allocs
+	for node, allocations := range s.plan.NodeAllocation {
+		n := 0
+		for _, alloc := range allocations {
+			if alloc.DeploymentStatus == nil {
+				continue
+			}
+			if alloc.DeploymentStatus.Canary {
+				if requiredCanaries[alloc.TaskGroup] != 0 {
+					requiredCanaries[alloc.TaskGroup] -= 1
+					allocations[n] = alloc // we do this in order to avoid allocating another slice
+					n += 1
+				}
+			}
+		}
+		s.plan.NodeAllocation[node] = allocations[:n]
+	}
 
 	return nil
 }
