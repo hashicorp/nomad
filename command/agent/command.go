@@ -1644,7 +1644,7 @@ Client Options:
   -client-intro-token
     The JWT token used to authenticate with servers during the client's initial
     registration. You may also set the token via the "NOMAD_CLIENT_INTRO_TOKEN"
-    environment variable, which override this flags. If neither are set, the
+    environment variable, which overrides this flag. If neither are set, the
     agent looks for an "intro_token.jwt" file within the client state
     directory.
 
