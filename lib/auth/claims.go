@@ -152,16 +152,23 @@ func getClaim(all map[string]interface{}, claim string) interface{} {
 // stringifyClaimValue will try to convert the provided raw value into a
 // faithful string representation of that value per these rules:
 //
-// - strings      => unchanged
-// - bool         => "true" / "false"
-// - json.Number  => String()
-// - float32/64   => truncated to int64 and then formatted as an ascii string
-// - intXX/uintXX => casted to int64 and then formatted as an ascii string
+// - []interface{} => marshaling to JSON string
+// - strings       => unchanged
+// - bool          => "true" / "false"
+// - json.Number   => String()
+// - float32/64    => truncated to int64 and then formatted as an ascii string
+// - intXX/uintXX  => casted to int64 and then formatted as an ascii string
 //
 // If successful the string value and true are returned. otherwise an empty
 // string and false are returned.
 func stringifyClaimValue(rawValue interface{}) (string, bool) {
 	switch v := rawValue.(type) {
+	case []interface{}:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "", false
+		}
+		return string(b), true
 	case string:
 		return v, true
 	case bool:
