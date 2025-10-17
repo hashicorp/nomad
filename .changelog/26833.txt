@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where action fly-outs would fail to open due to a missing module
+```
