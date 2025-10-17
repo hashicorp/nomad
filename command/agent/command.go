@@ -1506,8 +1506,8 @@ General Options (clients and servers):
    Enable sending Nomad agent logs to the Windows Event Log.
 
   -eventlog-level
-	Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
-	include ERROR, WARN, or INFO in  order of verbosity. Level must be
+    Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
+    include ERROR, WARN, or INFO in  order of verbosity. Level must be
     of equal or less verbosity as defined for the -log-level parameter.
 
   -node=<name>
