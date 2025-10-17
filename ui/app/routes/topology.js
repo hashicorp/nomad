@@ -16,6 +16,7 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
   @service system;
 
   model() {
+    console.log('re-firing model');
     return RSVP.hash({
       allocations: this.store.query('allocation', {
         resources: true,
