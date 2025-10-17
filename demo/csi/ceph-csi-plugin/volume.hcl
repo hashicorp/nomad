@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 id        = "testvolume"
-name      = "3c86c5b2-a836-4e07-ba38-01c1702cd8a7"
+name      = "2e1064ef-4ed3-48a8-af27-9d29611ee967"
 type      = "csi"
 plugin_id = "cephrbd"
 
@@ -32,13 +32,16 @@ capability {
 # /etc/ceph/ceph.client.admin.keyring
 
 secrets {
-  userID  = "admin"
-  userKey = "AQBN9Mpoycc9JhAAQmzirsWH7k2U7x74hFVcWA=="
+  userID  = "YWRtaW4="
+  userKey = "QVFEalFzMW9RTGhDSWhBQTBBZHpHdFFzL01XVUhaTUZtRDFaaXc9PQ=="
 }
+# secrets {
+#   userID  = "admin"
+#   userKey = "AQBN9Mpoycc9JhAAQmzirsWH7k2U7x74hFVcWA=="
+# }
 
 parameters {
-  # seeded from uuid5(ceph.example.com)
-  clusterID     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
+  clusterID     = "0e019840-717a-4e45-a192-d9adf3d7410c"
   pool          = "rbd"
   imageFeatures = "layering"
   fsName        = "foo"

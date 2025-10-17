@@ -3,13 +3,12 @@
 
 variable "cluster_id" {
   type = string
-  # generated from uuid5(dns) with ceph.example.com as the seed
-  default     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
+  default     = ""
   description = "cluster ID for the Ceph monitor"
 }
 
 job "plugin-cephrbd-controller" {
-  datacenters = ["dc1", "dc2"]
+  #datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -88,7 +87,7 @@ EOT
 [{
     "clusterID": "${var.cluster_id}",
     "monitors": [
-        {{range $index, $service := service "ceph-mon"}}{{if gt $index 0}}, {{end}}"{{.Address}}"{{end}}
+        {{range $index, $service := nomadService "ceph-mon"}}{{if gt $index 0}}, {{end}}"{{.Address}}"{{end}}
     ]
 }]
 EOF

@@ -1,0 +1,12 @@
+#!/usr/bin/env bpftrace
+
+uprobe:/proc/94630/root/usr/local/bin/cephcsi:"github.com/ceph/ceph-csi/internal/rbd.(*ControllerServer).parseVolCreateRequest" {
+    @counts[sarg0] = count();
+}
+
+END
+{
+	printf("\nTop 10 arguments by count:\n");
+	print(@counts, 10);
+	clear(@counts);
+}
