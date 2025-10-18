@@ -33,7 +33,7 @@ func (set allocSet) filterAndStopAll(cs ClusterState) (uint64, []AllocStopResult
 func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
 	remaining = make(allocSet)
 	for id, alloc := range set {
-		if alloc.Job.Type == structs.JobTypeBatch || !alloc.ServerTerminalStatus() {
+		if (alloc.Job.Type == structs.JobTypeBatch && !alloc.DesiredTransition.ShouldReschedule()) || !alloc.ServerTerminalStatus() {
 			remaining[id] = alloc
 		}
 	}
