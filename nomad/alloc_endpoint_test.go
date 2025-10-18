@@ -1185,6 +1185,8 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	require.NotNil(e2)
 	require.True(*out1.DesiredTransition.Migrate)
 	require.True(*out2.DesiredTransition.Migrate)
+	require.True(out1.DesiredTransition.ShouldReschedule())
+	require.True(out2.DesiredTransition.ShouldReschedule())
 }
 
 func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
