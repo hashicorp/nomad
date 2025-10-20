@@ -943,17 +943,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	// Canonicalize Node struct
 	conf.Node.Canonicalize()
 
-	// Reserve resources on the node.
-	// COMPAT(0.10): Remove in 0.10
-	r := conf.Node.Reserved
-	if r == nil {
-		r = new(structs.Resources)
-		conf.Node.Reserved = r
-	}
-	r.CPU = agentConfig.Client.Reserved.CPU
-	r.MemoryMB = agentConfig.Client.Reserved.MemoryMB
-	r.DiskMB = agentConfig.Client.Reserved.DiskMB
-
 	res := conf.Node.ReservedResources
 	if res == nil {
 		res = new(structs.NodeReservedResources)

@@ -208,8 +208,6 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 	var taskNetworks []*NetworkResource
 	if node.NodeResources != nil && len(node.NodeResources.Networks) != 0 {
 		taskNetworks = node.NodeResources.Networks
-	} else if node.Resources != nil {
-		taskNetworks = node.Resources.Networks
 	}
 
 	// Reserved ports get merged downward. For example given an agent
@@ -235,30 +233,6 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 		globalResPorts = make([]uint, len(resPorts))
 		for i, p := range resPorts {
 			globalResPorts[i] = uint(p)
-		}
-	} else if node.Reserved != nil {
-		// COMPAT(0.11): Remove after 0.11. Nodes stopped reporting
-		// reserved ports under Node.Reserved.Resources in #4750 / v0.9
-		for _, n := range node.Reserved.Networks {
-			used := idx.getUsedPortsFor(n.IP)
-			for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
-				for _, p := range ports {
-					if p.Value > MaxValidPort || p.Value < 0 {
-						// This is a fatal error that
-						// should have been prevented
-						// by validation upstream.
-						return fmt.Errorf("invalid port %d for reserved_ports", p.Value)
-					}
-
-					globalResPorts = append(globalResPorts, uint(p.Value))
-					used.Set(uint(p.Value))
-				}
-			}
-
-			// Reserve mbits
-			if n.Device != "" {
-				idx.UsedBandwidth[n.Device] += n.MBits
-			}
 		}
 	}
 

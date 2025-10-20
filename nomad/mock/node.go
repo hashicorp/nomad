@@ -33,21 +33,6 @@ func Node() *structs.Node {
 			"driver.mock_driver": "1",
 			"consul.version":     "1.11.4",
 		},
-
-		Reserved: &structs.Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
-
 		NodeResources: &structs.NodeResources{
 			Processors: structs.NodeProcessorResources{
 				Topology: structs.MockBasicTopology(),
