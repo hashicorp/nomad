@@ -214,17 +214,19 @@ func (p *PeerCache) ServersMeetMinimumVersion(
 	checkFailedServers bool,
 ) bool {
 
-	// Copy the peers under lock to avoid holding the lock while doing the check
-	// which could be slow if there are many peers.
+	// Acquire the read lock to access the peers map. It would be possible to
+	// copy the map and slices to avoid holding the lock for the entire function
+	// duration, but the time overhead of iterating the map and slices for the
+	// copy would be close to the time taken to just hold the lock for the
+	// duration of this function.
 	p.peersLock.RLock()
-	peers := p.peers
-	p.peersLock.RUnlock()
+	defer p.peersLock.RUnlock()
 
 	// If the caller wants to check all regions, do so, otherwise test against
 	// the specific region.
 	switch region {
 	case AllRegions:
-		for _, peerList := range peers {
+		for _, peerList := range p.peers {
 			if !regionServersMeetMinimumVersion(peerList, minVersion, checkFailedServers) {
 				return false
 			}
@@ -235,7 +237,7 @@ func (p *PeerCache) ServersMeetMinimumVersion(
 		// local region or all regions only. It's not possible that the server
 		// is querying its own region but that region is not known. However, in
 		// the future we may change this, so guard against it here just in case.
-		peerList, ok := peers[region]
+		peerList, ok := p.peers[region]
 		if !ok {
 			return false
 		}
