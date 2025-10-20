@@ -25,7 +25,7 @@ import (
 //
 // TODO(jrasell): Update this when we have a stable release with node identity
 // support.
-var minNodeIdentityNomadNodeVersion = version.Must(version.NewVersion("1.10.6-dev"))
+var minNodeIdentityNomadNodeVersion = version.Must(version.NewVersion("1.11.0-beta.1"))
 
 // meetsMinimumVersion identifies whether the node meets the minimum version as
 // specified by vrsn. The node version is determined by the nomad.version
