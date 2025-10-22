@@ -25,7 +25,7 @@ secrets {
 # these via HCL2
 parameters {
   clusterID     = "540cdda2-84fe-4a41-8115-59c79b450536"
-  pool          = "cephfs"
+  pool          = "rbd"
   imageFeatures = "layering"
   fsName        = "foo"
 }

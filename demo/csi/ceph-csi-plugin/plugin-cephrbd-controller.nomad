@@ -37,15 +37,14 @@ job "plugin-cephrbd-controller" {
         image = "quay.io/cephcsi/cephcsi:canary"
 
         args = [
-          "--drivername=cephfs.csi.ceph.com",
+          "--drivername=rbd.csi.ceph.com",
           "--v=5",
-          "--type=cephfs",
+          "--type=rbd",
           "--controllerserver=true",
           "--nodeid=${NODE_ID}",
           "--instanceid=${POD_ID}",
           "--endpoint=${CSI_ENDPOINT}",
           "--metricsport=${NOMAD_PORT_prometheus}",
-
         ]
 
         ports = ["prometheus"]
