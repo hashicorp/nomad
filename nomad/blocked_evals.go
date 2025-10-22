@@ -692,6 +692,8 @@ func (b *BlockedEvals) Flush() {
 	b.stats.TotalEscaped = 0
 	b.stats.TotalBlocked = 0
 	b.stats.TotalQuotaLimit = 0
+	b.stats.CountBlocked = 0
+	b.stats.CountUnblocked = 0
 	b.stats.BlockedResources = NewBlockedResourcesStats()
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
@@ -717,6 +719,8 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 	stats.TotalBlocked = b.stats.TotalBlocked
 	stats.TotalQuotaLimit = b.stats.TotalQuotaLimit
 	stats.BlockedResources = b.stats.BlockedResources.Copy()
+	stats.CountBlocked = b.stats.CountBlocked
+	stats.CountUnblocked = b.stats.CountUnblocked
 
 	return stats
 }
@@ -726,15 +730,33 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	timer, stop := helper.NewSafeTimer(period)
 	defer stop()
 
+	// TODO: this is a terrible design required by the stats being written in a
+	// separate goroutine. can we make these nicer to track?
+	lastCountBlocked := 0
+	lastCountUnblocked := 0
+
 	for {
 		timer.Reset(period)
 
 		select {
 		case <-timer.C:
 			stats := b.Stats()
+
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_escaped"}, float32(stats.TotalEscaped))
+
+			// the stats.CountBlocked will represent the total we've seen, but
+			// we can only increment counters, not set them to a new value. So
+			// track the last value seen but increment the difference
+			incBlocked := stats.CountBlocked - lastCountBlocked
+			lastCountBlocked = stats.CountBlocked
+			incUnblocked := stats.CountUnblocked - lastCountUnblocked
+			lastCountUnblocked = stats.CountUnblocked
+			metrics.IncrCounter([]string{
+				"nomad", "blocked_evals", "total_blocked_count"}, float32(incBlocked))
+			metrics.IncrCounter([]string{
+				"nomad", "blocked_evals", "total_unblocked_count"}, float32(incUnblocked))
 
 			for k, v := range stats.BlockedResources.ByJob {
 				labels := []metrics.Label{

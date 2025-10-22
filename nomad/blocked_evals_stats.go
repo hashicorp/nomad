@@ -25,6 +25,14 @@ type BlockedStats struct {
 	// BlockedResources stores the amount of resources requested by blocked
 	// evaluations.
 	BlockedResources *BlockedResourcesStats
+
+	// CountBlocked is a counter that stores the total number of evals that have
+	// been blocked during this process lifetime.
+	CountBlocked int
+
+	// CountUnblocked is a counter that stores the total number of evals that
+	// have been unblocked during this process lifetime.
+	CountUnblocked int
 }
 
 // classInDC is a coordinate of a specific class in a specific datacenter
@@ -44,6 +52,7 @@ func NewBlockedStats() *BlockedStats {
 // Block updates the stats for the blocked eval tracker with the details of the
 // evaluation being blocked.
 func (b *BlockedStats) Block(eval *structs.Evaluation) {
+	b.CountBlocked++
 	b.TotalBlocked++
 	resourceStats := generateResourceStats(eval)
 	b.BlockedResources = b.BlockedResources.Add(resourceStats)
@@ -52,6 +61,7 @@ func (b *BlockedStats) Block(eval *structs.Evaluation) {
 // Unblock updates the stats for the blocked eval tracker with the details of the
 // evaluation being unblocked.
 func (b *BlockedStats) Unblock(eval *structs.Evaluation) {
+	b.CountUnblocked++
 	b.TotalBlocked--
 	resourceStats := generateResourceStats(eval)
 	b.BlockedResources = b.BlockedResources.Subtract(resourceStats)
