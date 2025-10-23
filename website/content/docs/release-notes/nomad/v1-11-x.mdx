@@ -1,0 +1,60 @@
+---
+layout: docs
+page_title: Nomad v1.11.x release notes
+description: >-
+  HashiCorp Nomad version 1.11.x release notes.
+---
+
+# Nomad 1.11.x release notes
+
+We are pleased to announce the following Nomad updates.
+
+## 1.11.0 release highlights
+
+- **Client node identity**. Nomad's client node identity feature uniquely
+  identities each Nomad client node and provides an authentication mechanism for
+  nodes to make RPC calls to the Nomad servers. Refer to [Node identity](/docs/architecture/cluster/node-identity) for details.
+- **Client node introduction**. Introduce Nomad clients to the cluster with a
+  token-based approach. Configure Nomad servers with introduction enforcement
+  levels that dictate how clients join the cluster. This approach results in logs and metrics to detail introduction violations.
+- **Job specification secrets block**. Job Specification Secrets Block: A new
+  job specification block allows for fetching and interpolating secrets within
+  the specification.
+- **System job deployment**. System Job Deployments: Job of type “system” now support deployment functionality.
+
+### Improvements
+
+- api: The `Evaluations.Info` method of the Go API now populates the `RelatedEvals` field. [[GH-26156](https://github.com/hashicorp/nomad/issues/26156)]
+- build: Add tzdata to Docker container final image [[GH-26794](https://github.com/hashicorp/nomad/issues/26794)]
+- build: Updated Go to 1.25.1 [[GH-26823](https://github.com/hashicorp/nomad/issues/26823)]
+- cli: Add -preserve-resources flag for keeping resource block when updating jobs [[GH-26841](https://github.com/hashicorp/nomad/issues/26841)]
+- cli: Added related evals and placed allocations tables to the eval status command, and exposed more fields without requiring the `-verbose` flag. [[GH-26156](https://github.com/hashicorp/nomad/issues/26156)]
+- config: Added job_max_count option to limit number of allocs for a single job [[GH-26858](https://github.com/hashicorp/nomad/issues/26858)]
+- consul connect: Allow cni/- network mode; use at your own risk [[GH-26449](https://github.com/hashicorp/nomad/issues/26449)]
+- install (Enterprise): Updated license information displayed during post-install [[GH-26791](https://github.com/hashicorp/nomad/issues/26791)]
+- metrics: Reduce memory usage on the Nomad leader for collecting eval broker metrics. [[GH-26737](https://github.com/hashicorp/nomad/issues/26737)]
+- scheduler: Add reconciler annotations to the output of the `eval status` command [[GH-26188](https://github.com/hashicorp/nomad/issues/26188)]
+- scheduler: Debug-level logs emitted by the scheduler are now single-line structured logs [[GH-26169](https://github.com/hashicorp/nomad/issues/26169)]
+- scheduler: For service and batch jobs, the scheduler no longer includes stops for already-stopped canaries in plans it submits. [[GH-26292](https://github.com/hashicorp/nomad/issues/26292)]
+- scheduler: For service and batch jobs, the scheduler treats a group.count=0 identically to removing the task group from the job, and will stop all non-terminal allocations. [[GH-26292](https://github.com/hashicorp/nomad/issues/26292)]
+
+### Breaking changes
+
+- metrics: Eval broker metrics that previously used the job ID as a label now use the parent ID of dispatch and periodic jobs [[GH-26737](https://github.com/hashicorp/nomad/issues/26737)]
+- sysbatch: Submitting a sysbatch job with a `reschedule` block now returns an error instead of being silently ignored [[GH-26279](https://github.com/hashicorp/nomad/issues/26279)]
+
+
+### Upgrade details
+
+For more detailed information, refer to the [upgrade details
+page][upgrade] and the [GitHub releases changelogs][github-releases].
+
+
+### Changelog
+
+- [v1.11.0](https://github.com/hashicorp/nomad/releases/tag/v1.11.0)
+
+
+
+[upgrade]: /nomad/docs/upgrade/upgrade-specific#nomad-1-11-0
+[github-releases]: https://github.com/hashicorp/nomad/releases/
