@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -37,6 +38,7 @@ func (nr *NodeReconciler) Compute(
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
+	feasibleNodes map[string]*set.Set[string], // nodes that are eligible and feasible, per TG
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
@@ -64,7 +66,7 @@ func (nr *NodeReconciler) Compute(
 	result := new(NodeReconcileResult)
 	for nodeID, allocs := range nodeAllocs {
 		diff := nr.computeForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, required, allocs, terminal,
+			notReadyNodes, taintedNodes, feasibleNodes, required, allocs, terminal,
 			serverSupportsDisconnectedClients)
 		result.Append(diff)
 	}
@@ -101,6 +103,7 @@ func (nr *NodeReconciler) computeForNode(
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
 	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
+	feasibleNodes map[string]*set.Set[string], // nodes that are eligible and feasible, per TG
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
@@ -152,7 +155,7 @@ func (nr *NodeReconciler) computeForNode(
 		// deployment
 		var dstate = new(structs.DeploymentState)
 		if nr.DeploymentCurrent != nil {
-			dstate, _ = nr.DeploymentCurrent.TaskGroups[tg.Name]
+			dstate = nr.DeploymentCurrent.TaskGroups[tg.Name]
 		}
 
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
@@ -330,6 +333,17 @@ func (nr *NodeReconciler) computeForNode(
 				dstate.AutoPromote = tg.Update.AutoPromote
 				dstate.ProgressDeadline = tg.Update.ProgressDeadline
 			}
+		}
+
+		if feasibleCount, ok := feasibleNodes[tg.Name]; ok {
+			dstate.DesiredTotal = feasibleCount.Size()
+		}
+
+		// if we're canarying, we initially set the value of desired canaries to all
+		// feasible nodes, and at a later stage we evict those placements that aren't
+		// needed
+		if isCanarying[tg.Name] {
+			dstate.DesiredCanaries = feasibleNodes[tg.Name].Size()
 		}
 
 		// Check for an existing allocation
