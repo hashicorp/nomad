@@ -26,8 +26,8 @@ require (
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v28.5.0+incompatible
-	github.com/docker/docker v28.4.0+incompatible
+	github.com/docker/cli v28.5.1+incompatible
+	github.com/docker/docker v28.5.1+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/docker/go-units v0.5.0
 	github.com/dustin/go-humanize v1.0.1
@@ -58,7 +58,7 @@ require (
 	github.com/hashicorp/go-getter v1.8.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
-	github.com/hashicorp/go-kms-wrapping/v2 v2.0.18
+	github.com/hashicorp/go-kms-wrapping/v2 v2.0.19
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13
@@ -114,7 +114,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.66.1
+	github.com/prometheus/common v0.67.1
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
@@ -128,12 +128,12 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.43.0
-	golang.org/x/mod v0.28.0
+	golang.org/x/mod v0.29.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.37.0
-	golang.org/x/time v0.13.0
-	google.golang.org/grpc v1.75.1
-	google.golang.org/protobuf v1.36.8
+	golang.org/x/time v0.14.0
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.10
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
 )
@@ -230,7 +230,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -340,7 +340,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
 	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/oauth2 v0.31.0 // indirect
