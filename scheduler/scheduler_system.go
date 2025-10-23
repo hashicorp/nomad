@@ -10,6 +10,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
@@ -51,7 +52,7 @@ type SystemScheduler struct {
 	nodesByDC     map[string]int
 
 	deployment         *structs.Deployment
-	feasibleNodesForTG map[string][]string // used to track which nodes passed the feasibility check for TG
+	feasibleNodesForTG map[string]*set.Set[string] // used to track which nodes passed the feasibility check for TG
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -278,10 +279,14 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Split out terminal allocations
 	live, term := structs.SplitTerminalAllocs(allocs)
 
+	// Find which of the eligible nodes are actually feasible for which TG. This way
+	// we get correct DesiredTotal and DesiredCanaries counts in the reconciler.
+	s.feasibleNodesForTG = s.findFeasibleNodesForTG(allocs)
+
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
-	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
-		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, s.feasibleNodesForTG,
+		live, term, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", reconciliationResult.Fields()...)
 	}
@@ -353,7 +358,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	s.feasibleNodesForTG = make(map[string][]string)
 	if err := s.computePlacements(reconciliationResult, allocExistsForTaskGroup); err != nil {
 		return err
 	}
@@ -374,6 +378,16 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		feasibleNodes, ok := s.feasibleNodesForTG[tg.Name]
+		if !ok {
+			// this will happen if we're seeing a TG that shouldn't be placed; we only ever
+			// get feasible node counts for placements. These TGs get their DesiredTotal set
+			// in the reconciler and we don't touch it.
+			continue
+		}
+
+		s.deployment.TaskGroups[tg.Name].DesiredTotal = feasibleNodes.Size()
+
 		// a system job is canarying if:
 		// - it has a non-empty update block (just a sanity check, all submitted
 		// jobs should have a non-empty update block as part of
@@ -387,8 +401,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			!dstate.Promoted &&
 			s.job.Version != 0
 
-		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(s.feasibleNodesForTG[tg.Name])
-
 		if !isCanarying[tg.Name] {
 			continue
 		}
@@ -397,7 +409,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// all eligible nodes. At this point we know which nodes are
 		// feasible, so we evict unnedded canaries.
 		s.deployment.TaskGroups[tg.Name].DesiredCanaries, err = s.evictUnneededCanaries(
-			len(s.feasibleNodesForTG[tg.Name]),
+			s.feasibleNodesForTG[tg.Name].Size(),
 			tg.Update.Canary,
 		)
 		if err != nil {
@@ -444,6 +456,33 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	}
 	acc.AllocationTime += curr.AllocationTime
 	return acc
+}
+
+func (s *SystemScheduler) findFeasibleNodesForTG(allocs []*structs.Allocation) map[string]*set.Set[string] {
+	if s.job == nil {
+		return nil
+	}
+
+	feasibleNodes := make(map[string]*set.Set[string])
+
+	for _, a := range allocs {
+		if a.Job == nil {
+			continue
+		}
+		for _, tg := range a.Job.TaskGroups {
+			if f := s.stack.Select(tg, &feasible.SelectOptions{AllocName: a.Name}); f != nil {
+
+				// count this node as feasible
+				if feasibleNodes[tg.Name] == nil {
+					feasibleNodes[tg.Name] = set.New[string](0)
+				}
+
+				feasibleNodes[tg.Name].Insert(a.NodeID)
+			}
+		}
+	}
+
+	return feasibleNodes
 }
 
 // computePlacements computes placements for allocations
@@ -633,9 +672,10 @@ func (s *SystemScheduler) computePlacements(
 
 		// count this node as feasible
 		if s.feasibleNodesForTG[tgName] == nil {
-			s.feasibleNodesForTG[tgName] = make([]string, 1)
+			s.feasibleNodesForTG[tgName] = set.New[string](0)
 		}
-		s.feasibleNodesForTG[tgName] = append(s.feasibleNodesForTG[tgName], alloc.NodeID)
+
+		s.feasibleNodesForTG[tgName].Insert(alloc.NodeID)
 	}
 
 	return nil
