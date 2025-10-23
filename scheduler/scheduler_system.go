@@ -443,11 +443,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// adjust the deployment updates and set the right deployment status
-	deploymentUpdates := append(nr.DeploymentUpdates, s.setDeploymentStatusAndUpdates(deploymentComplete, s.job)...)
+	nr.DeploymentUpdates = append(nr.DeploymentUpdates, s.setDeploymentStatusAndUpdates(deploymentComplete, s.job)...)
 
 	// Add the deployment changes to the plan
 	s.plan.Deployment = s.deployment
-	s.plan.DeploymentUpdates = deploymentUpdates
+	s.plan.DeploymentUpdates = nr.DeploymentUpdates
 
 	return nil
 }
