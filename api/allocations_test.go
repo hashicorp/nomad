@@ -5,6 +5,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestAllocations_List(t *testing.T) {
@@ -60,46 +62,60 @@ func TestAllocations_List(t *testing.T) {
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
 
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	a := c.Allocations()
+	testAPIClient, testServer := makeClient(t, nil, func(c *testutil.TestServerConfig) { c.DevMode = true })
+	t.Cleanup(testServer.Stop)
+	_ = oneNodeFromNodeList(t, testAPIClient.Nodes())
 
 	// Querying when no allocs exist returns nothing
-	allocs, qm, err := a.PrefixList("")
+	allocs, qm, err := testAPIClient.Allocations().PrefixList("")
 	must.NoError(t, err)
 	must.Zero(t, qm.LastIndex)
 	must.Len(t, 0, allocs)
 
-	// TODO: do something that causes an allocation to actually happen
-	// so we can query for them.
-	return
+	// Create a job and register it
+	job := testJob()
+	resp, wm, err := testAPIClient.Jobs().Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
+	must.UUIDv4(t, resp.EvalID)
+	assertWriteMeta(t, wm)
 
-	//job := &Job{
-	//ID:   stringToPtr("job1"),
-	//Name: stringToPtr("Job #1"),
-	//Type: stringToPtr(JobTypeService),
-	//}
+	// Get a list of the job allocations, so we have data to move onto prefix
+	// matching.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(
+			func() error {
+				allocs, _, err := testAPIClient.Jobs().Allocations(*job.ID, false, nil)
+				if err != nil {
+					return err
+				}
+				if len(allocs) != 1 {
+					return errors.New("waiting for job allocations")
+				}
+				return nil
+			},
+		),
+		wait.Timeout(5*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+	jobAllocs, _, err := testAPIClient.Jobs().Allocations(*job.ID, false, nil)
+	must.NoError(t, err)
+	must.Len(t, 1, jobAllocs)
 
-	//eval, _, err := c.Jobs().Register(job, nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
+	// Perform a test of prefix matching by using the first 4 characters which
+	// should be more than enoigh to be unique and give a consistent result.
+	allocs, _, err = testAPIClient.Allocations().PrefixList(jobAllocs[0].ID[:4])
+	must.NoError(t, err)
+	must.Len(t, 1, allocs)
+	must.Eq(t, jobAllocs[0].ID, allocs[0].ID)
 
-	//// List the allocations by prefix
-	//allocs, qm, err = a.PrefixList("foobar")
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
-	//if qm.LastIndex == 0 {
-	//t.Fatalf("bad index: %d", qm.LastIndex)
-	//}
-
-	//// Check that we got the allocation back
-	//if len(allocs) == 0 || allocs[0].EvalID != eval {
-	//t.Fatalf("bad: %#v", allocs)
-	//}
+	// Test a prefix that does not match anything.
+	allocs, _, err = testAPIClient.Allocations().PrefixList(generateUUID())
+	must.NoError(t, err)
+	must.Len(t, 0, allocs)
 }
 
 func TestAllocations_List_Resources(t *testing.T) {

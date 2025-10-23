@@ -216,8 +216,10 @@ OUTER:
 
 // jobReap contacts the leader and issues a reap on the passed jobs
 func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
-	// Call to the leader to issue the reap
-	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
+	// Call to the leader to issue the reap with a batch size intended to be
+	// similar to the GC by batches of UUIDs for evals, allocs, and nodes
+	// (limited by structs.MaxUUIDsPerWriteRequest)
+	for _, req := range c.partitionJobReap(jobs, leaderACL, 2048) {
 		var resp structs.JobBatchDeregisterResponse
 		if err := c.srv.RPC(structs.JobBatchDeregisterRPCMethod, req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)

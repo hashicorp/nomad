@@ -2062,19 +2062,6 @@ type Node struct {
 	// reserved from scheduling.
 	ReservedResources *NodeReservedResources
 
-	// Resources is the available resources on the client.
-	// For example 'cpu=2' 'memory=2048'
-	// COMPAT(0.10): Remove after 0.10
-	Resources *Resources
-
-	// Reserved is the set of resources that are reserved,
-	// and should be subtracted from the total resources for
-	// the purposes of scheduling. This may be provide certain
-	// high-watermark tolerances or because of external schedulers
-	// consuming resources.
-	// COMPAT(0.10): Remove after 0.10
-	Reserved *Resources
-
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
@@ -2255,8 +2242,6 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = maps.Clone(nn.Links)
 	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()

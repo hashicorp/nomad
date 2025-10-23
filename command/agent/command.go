@@ -1513,8 +1513,8 @@ General Options (clients and servers):
    Enable sending Nomad agent logs to the Windows Event Log.
 
   -eventlog-level
-	Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
-	include ERROR, WARN, or INFO in  order of verbosity. Level must be
+    Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
+    include ERROR, WARN, or INFO in  order of verbosity. Level must be
     of equal or less verbosity as defined for the -log-level parameter.
 
   -node=<name>
@@ -1640,6 +1640,13 @@ Client Options:
   -host-volume-plugin-dir
     Directory containing dynamic host volume plugins. The default is
     <data-dir>/host_volume_plugins.
+
+  -client-intro-token
+    The JWT token used to authenticate with servers during the client's initial
+    registration. You may also set the token via the "NOMAD_CLIENT_INTRO_TOKEN"
+    environment variable, which overrides this flag. If neither are set, the
+    agent looks for an "intro_token.jwt" file within the client state
+    directory.
 
 ACL Options:
 
