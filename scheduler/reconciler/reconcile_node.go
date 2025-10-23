@@ -337,13 +337,13 @@ func (nr *NodeReconciler) computeForNode(
 
 		if feasibleCount, ok := feasibleNodes[tg.Name]; ok {
 			dstate.DesiredTotal = feasibleCount.Size()
-		}
 
-		// if we're canarying, we initially set the value of desired canaries to all
-		// feasible nodes, and at a later stage we evict those placements that aren't
-		// needed
-		if isCanarying[tg.Name] {
-			dstate.DesiredCanaries = feasibleNodes[tg.Name].Size()
+			// if we're canarying, we initially set the value of desired canaries to all
+			// feasible nodes, and at a later stage we evict those placements that aren't
+			// needed
+			if isCanarying[tg.Name] {
+				dstate.DesiredCanaries = feasibleNodes[tg.Name].Size()
+			}
 		}
 
 		// Check for an existing allocation
