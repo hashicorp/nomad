@@ -45,9 +45,10 @@ type SystemScheduler struct {
 	ctx        *feasible.EvalContext
 	stack      *feasible.SystemStack
 
-	nodes         []*structs.Node
-	notReadyNodes map[string]struct{}
-	nodesByDC     map[string]int
+	nodes           []*structs.Node
+	notReadyNodes   map[string]struct{}
+	nodesByDC       map[string]int
+	infeasibleNodes map[string][]string // maps task group names to node IDs that aren't feasible for these TGs
 
 	deployment *structs.Deployment
 
@@ -278,7 +279,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
-	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, s.infeasibleNodes, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
@@ -447,9 +448,22 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 					s.planAnnotations.DesiredTGUpdates[tgName].Place -= 1
 				}
 
-				if s.plan.Deployment != nil {
-					s.deployment.TaskGroups[tgName].DesiredTotal -= 1
+				// Store this node's ID as infeasible, so that when we need to make
+				// another deployment, we know to avoid it.
+				if s.infeasibleNodes == nil {
+					s.infeasibleNodes = make(map[string][]string)
 				}
+				if s.infeasibleNodes[tgName] == nil {
+					s.infeasibleNodes[tgName] = make([]string, 1)
+				}
+				s.infeasibleNodes[tgName] = append(s.infeasibleNodes[tgName], node.ID)
+
+				// if s.plan.Deployment != nil {
+				// 	s.deployment.TaskGroups[tgName].DesiredTotal -= 1
+				// 	if s.deployment.TaskGroups[tgName].DesiredCanaries != 0 {
+				// 		s.deployment.TaskGroups[tgName].DesiredCanaries -= 1
+				// 	}
+				// }
 
 				// Filtered nodes are not reported to users, just omitted from the job status
 				continue
@@ -613,13 +627,14 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies the diffResult. It returns true if
-// the limit has been reached for any task group.
-func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.NodeReconcileResult, desc string) bool {
+// placement queue. evictAndPlace modifies the NodeReconcilerResult. It returns
+// true if the limit has been reached for any task group.
+func evictAndPlace(ctx feasible.Context, job *structs.Job,
+	result *reconciler.NodeReconcileResult, desc string) bool {
 
 	limits := map[string]int{} // per task group limits
 	if !job.Stopped() {
-		jobLimit := len(diff.Update)
+		jobLimit := len(result.Update)
 		if job.Update.MaxParallel > 0 {
 			jobLimit = job.Update.MaxParallel
 		}
@@ -633,10 +648,10 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 	}
 
 	limited := false
-	for _, a := range diff.Update {
+	for _, a := range result.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
-			diff.Place = append(diff.Place, a)
+			result.Place = append(result.Place, a)
 			if !a.Canary {
 				limits[a.Alloc.TaskGroup]--
 			}
