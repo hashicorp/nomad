@@ -335,6 +335,9 @@ func (nr *NodeReconciler) computeForNode(
 			}
 		}
 
+		// TODO: should we be messing with this at all in the reconciler
+		// anymore, rather than setting it on the basis of the output of the
+		// reconciler?
 		if feasibleCount, ok := feasibleNodes[tg.Name]; ok {
 			dstate.DesiredTotal = feasibleCount.Size()
 

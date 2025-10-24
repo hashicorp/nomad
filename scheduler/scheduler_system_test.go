@@ -3374,7 +3374,10 @@ func TestEvictAndPlace(t *testing.T) {
 			diff := &reconciler.NodeReconcileResult{Update: allocs}
 			_, ctx := feasible.MockContext(t)
 
-			must.Eq(t, tc.expectLimited, evictAndPlace(ctx, job, diff, ""),
+			h := tests.NewHarness(t)
+			s := h.Scheduler(NewSystemScheduler).(*SystemScheduler)
+
+			must.Eq(t, tc.expectLimited, s.evictAndPlace(ctx, job, diff, ""),
 				must.Sprintf("limited"))
 			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
 				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
@@ -3585,20 +3588,20 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 			},
 			existingPrevious: map[string][]int{
 				tg1: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-				tg2: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+				tg2: {0, 1, 2, 3, 4, 5, 6, 7}, // previously only 7 eligible
 			},
 			existingOldDState: map[string]*structs.DeploymentState{
 				tg1: {DesiredTotal: 10, PlacedAllocs: 10},
-				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
+				tg2: {DesiredTotal: 7, PlacedAllocs: 7},
 			},
 			expectAllocs: map[string]int{tg1: 3, tg2: 5},
-			expectStop:   map[string]int{tg1: 3, tg2: 5},
+			expectStop:   map[string]int{tg1: 2, tg2: 5},
 			expectDState: map[string]*structs.DeploymentState{
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					// PlacedCanaries:  []string{"0", "1", "2"},
-					PlacedAllocs: 2,
+					PlacedCanaries:  []string{"0", "1"},
+					PlacedAllocs:    2,
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 5},
 			},
