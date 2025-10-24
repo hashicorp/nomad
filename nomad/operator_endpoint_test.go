@@ -327,11 +327,8 @@ func (tc testcluster) anyFollowerRaftServerID() raft.ServerID {
 
 	var tgtID raft.ServerID
 
-	s1.peerLock.Lock()
-	defer s1.peerLock.Unlock()
-
 	// Find the first non-leader server in the list.
-	for _, sp := range s1.localPeers {
+	for _, sp := range s1.peersCache.LocalPeers() {
 		tgtID = raft.ServerID(sp.ID)
 		if tgtID != ldrID {
 			break
@@ -346,12 +343,9 @@ func (tc testcluster) anyFollowerRaftServerAddress() raft.ServerAddress {
 
 	var addr raft.ServerAddress
 
-	s1.peerLock.Lock()
-	defer s1.peerLock.Unlock()
-
 	// Find the first non-leader server in the list.
-	for a := range s1.localPeers {
-		addr = a
+	for _, a := range s1.peersCache.LocalPeers() {
+		addr = raft.ServerAddress(a.Addr.String())
 		if addr != lAddr {
 			break
 		}

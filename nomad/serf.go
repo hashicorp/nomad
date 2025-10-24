@@ -65,30 +65,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 		// A peer is joining, so we should update the cache to reflect its
 		// status.
-		s.peersCache.PeerSet(parts)
-
-		// Check if this server is known
-		found := false
-		s.peerLock.Lock()
-		existing := s.peers[parts.Region]
-		for idx, e := range existing {
-			if e.Name == parts.Name {
-				existing[idx] = parts
-				found = true
-				break
-			}
-		}
-
-		// Add ot the list if not known
-		if !found {
-			s.peers[parts.Region] = append(existing, parts)
-		}
-
-		// Check if a local peer
-		if parts.Region == s.config.Region {
-			s.localPeers[raft.ServerAddress(parts.Addr.String())] = parts
-		}
-		s.peerLock.Unlock()
+		s.peersCache.PeerSet(parts, s.Region())
 
 		// If we still expecting to bootstrap, may need to handle this
 		if s.config.BootstrapExpect != 0 && !s.bootstrapped.Load() {
@@ -253,33 +230,7 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 
 		// The peer is failed, so we should update the cache to reflect its
 		// status.
-		s.peersCache.PeerSet(parts)
-
-		// Remove the server if known
-		s.peerLock.Lock()
-		existing := s.peers[parts.Region]
-		n := len(existing)
-		for i := 0; i < n; i++ {
-			if existing[i].Name == parts.Name {
-				existing[i], existing[n-1] = existing[n-1], nil
-				existing = existing[:n-1]
-				n--
-				break
-			}
-		}
-
-		// Trim the list there are no known servers in a region
-		if n == 0 {
-			delete(s.peers, parts.Region)
-		} else {
-			s.peers[parts.Region] = existing
-		}
-
-		// Check if local peer
-		if parts.Region == s.config.Region {
-			delete(s.localPeers, raft.ServerAddress(parts.Addr.String()))
-		}
-		s.peerLock.Unlock()
+		s.peersCache.PeerSet(parts, s.Region())
 	}
 }
 
