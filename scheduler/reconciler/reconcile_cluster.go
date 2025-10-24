@@ -319,10 +319,12 @@ func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.Desired
 	result := make(map[string]*structs.DesiredUpdates)
 	allocsToStop := []AllocStopResult{}
 
+	var toStop []AllocStopResult
 	for group, as := range m {
 		as = as.filterByTerminal()
 		desiredChanges := new(structs.DesiredUpdates)
-		desiredChanges.Stop, allocsToStop = as.filterAndStopAll(a.clusterState)
+		desiredChanges.Stop, toStop = as.filterAndStopAll(a.clusterState)
+		allocsToStop = append(allocsToStop, toStop...)
 		result[group] = desiredChanges
 	}
 	return result, allocsToStop

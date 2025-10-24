@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1545,6 +1546,77 @@ func TestReconciler_JobStopped(t *testing.T) {
 			assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.Stop))
 		})
 	}
+}
+
+// Tests the reconciler properly handles a job in stopped state with
+// multiple task groups
+func TestReconciler_JobStopped_multiple_groups(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups = append(job.TaskGroups, mock.Job().TaskGroups[0])
+	job.TaskGroups[1].Name = "web2"
+	job.Stop = true
+	taskGroups := []string{"web", "web2"}
+
+	// Create 20 allocations
+	var allocs []*structs.Allocation
+	for _, taskGroup := range taskGroups {
+		for i := 0; i < 10; i++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, taskGroup, uint(i))
+			alloc.TaskGroup = taskGroup
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes:                nil,
+			SupportsDisconnectedClients: true,
+			Now:                         time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	desiredUpdates := map[string]*structs.DesiredUpdates{}
+	for _, taskGroup := range taskGroups {
+		desiredUpdates[taskGroup] = &structs.DesiredUpdates{
+			Stop: 10,
+		}
+	}
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              20,
+		desiredTGUpdates:  desiredUpdates,
+	})
+
+	// Gather names for both task groups to test
+	webTG := []string{}
+	web2TG := []string{}
+	for _, stop := range r.Stop {
+		if strings.Contains(stop.Alloc.Name, "web2") {
+			web2TG = append(web2TG, stop.Alloc.Name)
+		} else {
+			webTG = append(webTG, stop.Alloc.Name)
+		}
+	}
+
+	assertNamesHaveIndexes(t, intRange(0, 9), webTG)
+	assertNamesHaveIndexes(t, intRange(0, 9), web2TG)
 }
 
 // Tests the reconciler doesn't update allocs in terminal state
