@@ -1,0 +1,43 @@
+---
+layout: docs
+page_title: Nomad v1.11.x release notes
+description: >-
+  HashiCorp Nomad version 1.11.x release notes. Release highlights include client node identity, client node introduction, job specification secret block, and system job deployment support.
+---
+
+# Nomad 1.11.x release notes
+
+We are pleased to announce the following Nomad updates.
+
+## 1.11.0 release highlights
+
+- **Client node identity**. Nomad's client node identity feature uniquely
+  identities each Nomad client node and provides an authentication mechanism for
+  nodes to make RPC calls to the Nomad servers. Refer to [Node identity](/nomad/docs/architecture/cluster/node-identity) for details.
+- **Client node introduction**. Introduce Nomad clients to the cluster with a
+  token-based approach. Configure Nomad servers with introduction enforcement
+  levels that dictate how clients join the cluster. This approach results in
+  logs and metrics to detail introduction violations. Refer to `nomad agent`
+  command's [`-client-intro-token`
+  parameter](/nomad/commands/agent#client-intro-token) for more information.
+- **Job specification secrets block**. Use the new [`secrets`
+  block](/nomad/docs/job-specification/secret) to fetch and interpolate secrets
+  from a specified location. Nomad automatically retrieves the contents of the
+  secret, which you may reference as a variable within the task specification.
+  Nomad provides built-in support to fetch secrets from Nomad and Vault.
+  Alternately, you may build your own custom secret provider. Refer to the
+  [Create a secret provider plugin](/nomad/plugins/author/secret-provider) guide
+  for more information.
+- **System job deployment**. Jobs of type “system” now support deployment
+  functionality. You may now view system job deployment status in the web UI.
+
+### Upgrade details
+
+Refer to the [upgrade details
+page](/nomad/docs/upgrade/upgrade-specific#nomad-1-11-0) for more information.
+
+### Changelog
+
+Review improvements, security fixes, and breaking changes in the changelog.
+
+- [v1.11.0](https://github.com/hashicorp/nomad/releases/tag/v1.11.0)
