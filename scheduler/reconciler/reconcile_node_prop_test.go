@@ -101,7 +101,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
-			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.notReadyNodes, nr.taintedNodes, nil, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
@@ -113,7 +113,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
-			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
+			nr.notReadyNodes, nr.taintedNodes, nil, nr.allocs, nr.terminal,
 			nr.serverSupportsDisconnectedClients)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
