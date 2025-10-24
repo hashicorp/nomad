@@ -420,6 +420,15 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		a.jobState.JobIsBatch, false, a.clusterState.Now,
 		a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
+	// Determine what set of migrating allocations need to be rescheduled. These
+	// will be batch job allocations that were stopped using the `stop alloc` command.
+	_, migrateRescheduleNow, migrateRescheduleLater := migrate.filterByRescheduleable(
+		a.jobState.JobIsBatch, false, a.clusterState.Now,
+		a.jobState.EvalID, a.jobState.DeploymentCurrent)
+
+	rescheduleNow = rescheduleNow.union(migrateRescheduleNow)
+	rescheduleLater = append(rescheduleLater, migrateRescheduleLater...)
+
 	// If there are allocations reconnecting we need to reconcile them and their
 	// replacements first because there is specific logic when deciding which
 	// ones to keep that can only be applied when the client reconnects.
@@ -460,7 +469,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(lost) > 0 {
 		lostLater = lost.delayByStopAfter()
 		var followupEvals []*structs.Evaluation
-		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater)
+		lostLaterEvals, followupEvals = a.createLaterEvals(lostLater, structs.EvalTriggerRetryFailedAlloc)
 		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 	}
 
@@ -472,8 +481,9 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
 		// reschedulable later and mark the allocations for in place updating
-		a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name, result)
+		a.createRescheduleLaterEvals(rescheduleLater, all, migrate, tg.Name, result)
 	}
+
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
@@ -527,7 +537,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	deploymentPlaceReady := !a.jobState.DeploymentPaused && !a.jobState.DeploymentFailed && !isCanarying
 
 	underProvisionedBy, replacements, replacementsAllocsToStop := a.placeAllocs(
-		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, result.DisconnectUpdates, underProvisionedBy)
+		deploymentPlaceReady, result.DesiredTGUpdates[group], place, migrate, rescheduleNow, lost, result.DisconnectUpdates, underProvisionedBy)
 	result.Stop = append(result.Stop, replacementsAllocsToStop...)
 	result.Place = append(result.Place, replacements...)
 
@@ -843,16 +853,17 @@ func computePlacements(group *structs.TaskGroup,
 // is not paused, failed, or canarying. It returns the number of allocs still
 // needed, allocations to place, and allocations to stop.
 func (a *AllocReconciler) placeAllocs(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
-	place []AllocPlaceResult, rescheduleNow, lost allocSet, disconnectUpdates allocSet,
+	place []AllocPlaceResult, migrate, rescheduleNow, lost allocSet, disconnectUpdates allocSet,
 	underProvisionedBy int) (int, []AllocPlaceResult, []AllocStopResult) {
 
-	// Disconnecting allocs are not failing, but are included in rescheduleNow.
-	// Create a new set that only includes the actual failures and compute
-	// replacements based off that.
+	// Disconnecting and migrating allocs are not failing, but may be included
+	// in rescheduleNow. Create a new set that only includes the actual failures
+	// and compute replacements based off that.
 	failed := make(allocSet)
 	for id, alloc := range rescheduleNow {
-		_, ok := disconnectUpdates[id]
-		if !ok && alloc.ClientStatus != structs.AllocClientStatusUnknown {
+		_, isDisconnecting := disconnectUpdates[id]
+		_, isMigrating := migrate[id]
+		if !isDisconnecting && !isMigrating && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			failed[id] = alloc
 		}
 	}
@@ -954,6 +965,17 @@ func (a *AllocReconciler) computeMigrations(migrate allocSet, isCanarying bool,
 			Alloc:             alloc,
 			StatusDescription: sstructs.StatusAllocMigrating,
 		})
+
+		// If this is a batch job allocation, check if the allocation should
+		// be placed. If the allocation should be rescheduled, the reschedule
+		// logic will handle placement and it should not be done here (used
+		// by the `alloc stop` command). If the allocation should disable
+		// migration placement, then placment should not be done here (used
+		// when draining batch allocations).
+		if alloc.Job.Type == structs.JobTypeBatch && (alloc.DesiredTransition.ShouldReschedule() || alloc.DesiredTransition.ShouldDisableMigrationPlacement()) {
+			continue
+		}
+
 		result.Place = append(result.Place, AllocPlaceResult{
 			name:          alloc.Name,
 			canary:        alloc.DeploymentStatus.IsCanary(),
@@ -1346,25 +1368,27 @@ func (a *AllocReconciler) computeUpdates(
 func (a *AllocReconciler) createRescheduleLaterEvals(
 	rescheduleLater []*delayedRescheduleInfo,
 	all allocSet,
+	migrate allocSet,
 	group string,
 	result *ReconcileResults) {
 
-	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater)
-
+	allocIDToFollowupEvalID, followupEvals := a.createLaterEvals(
+		rescheduleLater, structs.EvalTriggerAllocReschedule)
 	attributeUpdates := make(allocSet)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for _, laterAlloc := range rescheduleLater {
-		existingAlloc := all[laterAlloc.alloc.ID]
-		updatedAlloc := existingAlloc.Copy()
-		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
-
-		// Can't updated an allocation that is disconnected
-		if d, ok := result.DisconnectUpdates[laterAlloc.allocID]; !ok {
-			attributeUpdates[laterAlloc.allocID] = updatedAlloc
-		} else {
+		// Update the allocation if possible
+		if d, ok := result.DisconnectUpdates[laterAlloc.allocID]; ok {
 			d.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+		} else if m, ok := migrate[laterAlloc.allocID]; ok {
+			m.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+		} else {
+			// Can't update an allocation that is disconnected
+			existingAlloc := all[laterAlloc.alloc.ID]
+			updatedAlloc := existingAlloc.Copy()
+			updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+			attributeUpdates[laterAlloc.allocID] = updatedAlloc
 		}
 	}
 
@@ -1414,10 +1438,10 @@ func (a *AllocReconciler) appendReconnectingUpdates(reconnecting allocSet) alloc
 	return reconnectingUpdates
 }
 
-// createLostLaterEvals creates batched followup evaluations with the WaitUntil
-// field set for lost allocations. followupEvals are appended to a.result as a
-// side effect, we return a map of alloc IDs to their followupEval IDs.
-func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo) (map[string]string, []*structs.Evaluation) {
+// createLaterEvals creates batched followup evaluations with the WaitUntil
+// field set for lost or rescheduled allocations. returns a map of alloc IDs
+// to their followupEval IDs and the list of followup evaluations.
+func (a *AllocReconciler) createLaterEvals(rescheduleLater []*delayedRescheduleInfo, triggeredBy string) (map[string]string, []*structs.Evaluation) {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}, nil
 	}
@@ -1437,7 +1461,7 @@ func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 		Namespace:         a.jobState.Job.Namespace,
 		Priority:          a.jobState.EvalPriority,
 		Type:              a.jobState.Job.Type,
-		TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
+		TriggeredBy:       triggeredBy,
 		JobID:             a.jobState.Job.ID,
 		JobModifyIndex:    a.jobState.Job.ModifyIndex,
 		Status:            structs.EvalStatusPending,

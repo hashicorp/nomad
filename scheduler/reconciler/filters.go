@@ -28,12 +28,23 @@ func (set allocSet) filterAndStopAll(cs ClusterState) (uint64, []AllocStopResult
 	return uint64(len(set)), allocsToStop
 }
 
-// filterServerTerminalAllocs returns a new allocSet the includes only
-// non-server-terminal allocations.
+// filterServerTerminalAllocs returns a new allocSet that includes only
+// non-server-terminal allocations, and batch job allocs that are not marked
+// for rescheduling.
+//
+// NOTE: Batch jobs need to always be included so the placements can
+// be computed correctly (completed allocations are not replaced). For
+// batch job allocations found, any that have been marked to be
+// rescheduled should be filtered. If those allocations are not filtered,
+// they will be used within the total count for the batch allocations and
+// will result in batch allocations stopped with the `alloc stop` command
+// not being properly placed after rescheduling.
 func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
 	remaining = make(allocSet)
 	for id, alloc := range set {
-		if !alloc.ServerTerminalStatus() {
+		// check if the allocation is non-server-terminal or if it is a
+		// batch job allocation that has not been marked for rescheduling.
+		if !alloc.ServerTerminalStatus() || (alloc.Job.Type == structs.JobTypeBatch && !alloc.DesiredTransition.ShouldReschedule()) {
 			remaining[id] = alloc
 		}
 	}
@@ -369,6 +380,13 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// status is failed so that they will be replaced. If they are
 	// complete but not failed, they shouldn't be replaced.
 	if isBatch {
+		// if the batch job allocation is flagged for being rescheduled,
+		// which happens when stopped with the `alloc stop` command, the
+		// allocation should not be untainted nor ignored.
+		if alloc.DesiredTransition.ShouldReschedule() {
+			return false, false
+		}
+
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop:
 			if alloc.RanSuccessfully() {

@@ -1282,6 +1282,357 @@ func TestReconciler_DrainNode(t *testing.T) {
 	assertPlacementsAreRescheduled(t, 0, r.Place)
 }
 
+// Tests that the reconciler properly handles batch job allocations that
+// are flagged as should migrate. This behavior is used by the `job restart`
+// command when the `-reschedule` flag is provided.
+func TestReconciler_MigrateBatchAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+
+	// Create 10 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.BatchAlloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	// Flag two allocations to migrate
+	for i := 0; i < 2; i++ {
+		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+	}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			SupportsDisconnectedClients: true,
+			Now:                         time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		inplace:           0,
+		stop:              2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Migrate: 2,
+				Ignore:  8,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.Place))
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.Place)
+}
+
+// Tests that the reconciler properly handles batch job allocations that
+// are flagged as should migrate. This behavior is used when draining
+// a node. Batch allocations should be stopped, but the allocations should
+// not be placed/rescheduled elsewhere.
+func TestReconciler_MigrateDisablePlacementBatchAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+
+	// Create 10 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.BatchAlloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	// Flag two allocations to migrate
+	for i := 0; i < 2; i++ {
+		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+		allocs[i].DesiredTransition.MigrateDisablePlacement = pointer.Of(true)
+	}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			SupportsDisconnectedClients: true,
+			Now:                         time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Migrate: 2,
+				Ignore:  8,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.Place)
+}
+
+// Tests that the reconciler properly handles batch job allocations that
+// are flagged as should migrate and should reschedule. This behavior is
+// used when stopping a batch allocation using the `alloc stop` command.
+// Batch allocations should be stopped and rescheduled based on the
+// reschedule block.
+func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("unset reschedule", func(t *testing.T) {
+		job := mock.BatchJob()
+
+		// Disable rescheduling
+		job.TaskGroups[0].ReschedulePolicy = nil
+
+		// Create 10 existing allocations
+		var allocs []*structs.Allocation
+		for i := 0; i < 10; i++ {
+			alloc := mock.BatchAlloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+			allocs = append(allocs, alloc)
+		}
+
+		// Flag two allocations to migrate and reschedule
+		for i := 0; i < 2; i++ {
+			allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+			allocs[i].DesiredTransition.Reschedule = pointer.Of(true)
+		}
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobIsBatch:        true,
+				JobID:             job.ID,
+				Job:               job,
+				DeploymentCurrent: nil,
+				ExistingAllocs:    allocs,
+				EvalPriority:      50,
+				EvalID:            uuid.Generate(),
+			}, ClusterState{
+				SupportsDisconnectedClients: true,
+				Now:                         time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Assert the correct results
+		assertResults(t, r, &resultExpectation{
+			createDeployment:  nil,
+			deploymentUpdates: nil,
+			place:             0,
+			inplace:           0,
+			stop:              2,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Migrate: 2,
+					Ignore:  8,
+				},
+			},
+		})
+
+		assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+	})
+
+	t.Run("disabled reschedule", func(t *testing.T) {
+		job := mock.BatchJob()
+
+		// Disable rescheduling
+		job.TaskGroups[0].ReschedulePolicy.Attempts = 0
+
+		// Create 10 existing allocations
+		var allocs []*structs.Allocation
+		for i := 0; i < 10; i++ {
+			alloc := mock.BatchAlloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+			allocs = append(allocs, alloc)
+		}
+
+		// Flag two allocations to migrate and reschedule
+		for i := 0; i < 2; i++ {
+			allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+			allocs[i].DesiredTransition.Reschedule = pointer.Of(true)
+		}
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobIsBatch:        true,
+				JobID:             job.ID,
+				Job:               job,
+				DeploymentCurrent: nil,
+				ExistingAllocs:    allocs,
+				EvalPriority:      50,
+				EvalID:            uuid.Generate(),
+			}, ClusterState{
+				SupportsDisconnectedClients: true,
+				Now:                         time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Assert the correct results
+		assertResults(t, r, &resultExpectation{
+			createDeployment:  nil,
+			deploymentUpdates: nil,
+			place:             0,
+			inplace:           0,
+			stop:              2,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Migrate: 2,
+					Ignore:  8,
+				},
+			},
+		})
+
+		assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+	})
+
+	t.Run("reschedules now", func(t *testing.T) {
+		job := mock.BatchJob()
+
+		// Create 10 existing allocations
+		var allocs []*structs.Allocation
+		for i := 0; i < 10; i++ {
+			alloc := mock.BatchAlloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+			allocs = append(allocs, alloc)
+		}
+
+		// Flag two allocations to migrate and reschedule
+		for i := 0; i < 2; i++ {
+			allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+			allocs[i].DesiredTransition.Reschedule = pointer.Of(true)
+		}
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobIsBatch:        true,
+				JobID:             job.ID,
+				Job:               job,
+				DeploymentCurrent: nil,
+				ExistingAllocs:    allocs,
+				EvalPriority:      50,
+				EvalID:            uuid.Generate(),
+			}, ClusterState{
+				SupportsDisconnectedClients: true,
+				Now:                         time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Assert the correct results
+		assertResults(t, r, &resultExpectation{
+			createDeployment:  nil,
+			deploymentUpdates: nil,
+			place:             2,
+			inplace:           0,
+			stop:              2,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Migrate: 2,
+					Ignore:  8,
+					Place:   2,
+				},
+			},
+		})
+
+		assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+		// These should have the reschedule field set
+		assertPlacementsAreRescheduled(t, 2, r.Place)
+	})
+
+	t.Run("reschedules later", func(t *testing.T) {
+		job := mock.BatchJob()
+
+		// Create 10 existing allocations
+		var allocs []*structs.Allocation
+		for i := 0; i < 10; i++ {
+			alloc := mock.BatchAlloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+			alloc.ModifyTime = time.Now().UnixNano()
+			allocs = append(allocs, alloc)
+		}
+
+		// Flag two allocations to migrate and reschedule
+		for i := 0; i < 2; i++ {
+			allocs[i].DesiredTransition.Migrate = pointer.Of(true)
+			allocs[i].DesiredTransition.Reschedule = pointer.Of(true)
+		}
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobIsBatch:        true,
+				JobID:             job.ID,
+				Job:               job,
+				DeploymentCurrent: nil,
+				ExistingAllocs:    allocs,
+				EvalPriority:      50,
+				EvalID:            uuid.Generate(),
+			}, ClusterState{
+				SupportsDisconnectedClients: true,
+				Now:                         time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Assert the correct results
+		assertResults(t, r, &resultExpectation{
+			createDeployment:  nil,
+			deploymentUpdates: nil,
+			place:             0,
+			inplace:           0,
+			stop:              2,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Migrate:         2,
+					Ignore:          8,
+					RescheduleLater: 2,
+				},
+			},
+		})
+
+		assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.Stop))
+	})
+}
+
 // Tests the reconciler properly handles draining nodes with allocations while
 // scaling up
 func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
@@ -5461,7 +5812,7 @@ func TestReconciler_Batch_Rerun(t *testing.T) {
 			job.TaskGroups[0].Name: {
 				Place:             10,
 				DestructiveUpdate: 0,
-				Ignore:            5, // half are server-terminal
+				Ignore:            10,
 			},
 		},
 	})

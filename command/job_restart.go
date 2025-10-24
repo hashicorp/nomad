@@ -950,6 +950,7 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	))
 
 	var q *api.QueryOptions
+
 	if c.noShutdownDelay {
 		q = &api.QueryOptions{
 			Params: map[string]string{"no_shutdown_delay": "true"},

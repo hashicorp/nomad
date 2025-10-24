@@ -1152,6 +1152,7 @@ type AllocUpdateDesiredTransitionRequest struct {
 type AllocStopRequest struct {
 	AllocID         string
 	NoShutdownDelay bool
+	Reschedule      bool
 
 	WriteRequest
 }
@@ -10966,6 +10967,11 @@ type DesiredTransition struct {
 	// task shutdown_delay configuration and ignore the delay for any
 	// allocations stopped as a result of this Deregister call.
 	NoShutdownDelay *bool
+
+	// MigrateDisablePlacement is used to disable the placement of the allocation
+	// when Migrate is set. This field is used to prevent batch job allocations
+	// from being placed after being stopped.
+	MigrateDisablePlacement *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -10973,6 +10979,10 @@ type DesiredTransition struct {
 func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
+	}
+
+	if o.MigrateDisablePlacement != nil {
+		d.MigrateDisablePlacement = o.MigrateDisablePlacement
 	}
 
 	if o.Reschedule != nil {
@@ -10990,12 +11000,18 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d *DesiredTransition) ShouldMigrate() bool {
+	if d == nil {
+		return false
+	}
 	return d.Migrate != nil && *d.Migrate
 }
 
 // ShouldReschedule returns whether the transition object dictates a
 // rescheduling.
 func (d *DesiredTransition) ShouldReschedule() bool {
+	if d == nil {
+		return false
+	}
 	return d.Reschedule != nil && *d.Reschedule
 }
 
@@ -11015,6 +11031,15 @@ func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
 		return false
 	}
 	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
+}
+
+// ShouldDisableMigrationPlacement returns whether the transition object dictates
+// that the migration should place allocation.
+func (d *DesiredTransition) ShouldDisableMigrationPlacement() bool {
+	if d == nil {
+		return false
+	}
+	return d.MigrateDisablePlacement != nil && *d.MigrateDisablePlacement
 }
 
 const (
@@ -11446,6 +11471,7 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+	isRescheduledBatch := a.Job.Type == JobTypeBatch && a.DesiredTransition.ShouldReschedule()
 
 	// If reschedule is disabled, return early
 	if reschedulePolicy == nil || (reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited) {
@@ -11453,7 +11479,7 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	}
 
 	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
-		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
+		(!isRescheduledBatch && a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
 		failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -11470,6 +11496,7 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 		attempted, attempts := a.RescheduleTracker.rescheduleInfo(reschedulePolicy, failTime)
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
+
 	return nextRescheduleTime, rescheduleEligible
 }
 
@@ -12406,6 +12433,7 @@ const (
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 	EvalTriggerReconnect            = "reconnect"
+	EvalTriggerAllocReschedule      = "alloc-reschedule"
 )
 
 const (

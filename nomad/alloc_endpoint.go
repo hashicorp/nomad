@@ -307,6 +307,7 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 			args.AllocID: {
 				Migrate:         pointer.Of(true),
 				NoShutdownDelay: pointer.Of(args.NoShutdownDelay),
+				Reschedule:      pointer.Of(args.Reschedule),
 			},
 		},
 	}
