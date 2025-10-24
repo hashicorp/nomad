@@ -281,7 +281,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Find which of the eligible nodes are actually feasible for which TG. This way
 	// we get correct DesiredTotal and DesiredCanaries counts in the reconciler.
-	s.feasibleNodesForTG = s.findFeasibleNodesForTG(live)
+	s.feasibleNodesForTG = s.findIgnorableNodes(live)
 
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
@@ -334,6 +334,32 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		DesiredTGUpdates: desiredUpdates(reconciliationResult, inplaceUpdates, destructiveUpdates),
 	}
 
+	// any further logic depends on whether we're canarying or not
+	isCanarying := map[string]bool{}
+	if s.job != nil && s.deployment != nil {
+		for _, tg := range s.job.TaskGroups {
+			dstate, ok := s.deployment.TaskGroups[tg.Name]
+			if !ok {
+				continue
+			}
+			// a system job is canarying if:
+			// - it has a non-empty update block (just a sanity check, all
+			// submitted jobs should have a non-empty update block as part of
+			// canonicalization)
+			// - canary parameter in the update block has to be positive
+			// - deployment has to be non-nil and it cannot have been promoted
+			// - this cannot be the initial job version
+			isCanarying[tg.Name] = !tg.Update.IsEmpty() &&
+				tg.Update.Canary > 0 &&
+				dstate != nil &&
+				!dstate.Promoted &&
+				s.job.Version != 0
+		}
+	}
+
+	// find feasible nodes for each TG before we do any maxParallel evictions
+	s.findFeasibleNodesForTG(reconciliationResult.Update)
+
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
 	s.limitReached = evictAndPlace(s.ctx, s.job, reconciliationResult, sstructs.StatusAllocUpdating)
@@ -358,6 +384,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		return err
 	}
 
+	for k, v := range s.feasibleNodesForTG {
+		fmt.Printf("found %d feasible nodes for tg %v: %v\n", v.Size(), k, v.String())
+	}
+
 	// if there is not deployment we're done at this point
 	if s.deployment == nil {
 		return nil
@@ -367,13 +397,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// nodes, so for system jobs we do it backwards a bit: the "desired" total
 	// is the total we were able to place.
 	// track if any of the task groups is doing a canary update now
-	isCanarying := map[string]bool{}
 	for _, tg := range s.job.TaskGroups {
-		dstate, ok := s.deployment.TaskGroups[tg.Name]
-		if !ok {
-			continue
-		}
-
 		feasibleNodes, ok := s.feasibleNodesForTG[tg.Name]
 		if !ok {
 			// this will happen if we're seeing a TG that shouldn't be placed; we only ever
@@ -384,19 +408,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 		s.deployment.TaskGroups[tg.Name].DesiredTotal = feasibleNodes.Size()
 
-		// a system job is canarying if:
-		// - it has a non-empty update block (just a sanity check, all submitted
-		// jobs should have a non-empty update block as part of
-		// canonicalization)
-		// - canary parameter in the update block has to be positive
-		// - deployment has to be non-nil and it cannot have been promoted
-		// - this cannot be the initial job version
-		isCanarying[tg.Name] = !tg.Update.IsEmpty() &&
-			tg.Update.Canary > 0 &&
-			dstate != nil &&
-			!dstate.Promoted &&
-			s.job.Version != 0
-
+		// if this TG isn't canarying, we're done
 		if !isCanarying[tg.Name] {
 			continue
 		}
@@ -476,7 +488,10 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	return acc
 }
 
-func (s *SystemScheduler) findFeasibleNodesForTG(allocs []*structs.Allocation) map[string]*set.Set[string] {
+// findIgnorableNodes checks if there are allocations deployed to nodes that are
+// from the same job version as ours, and can thus be omitted from feasibility
+// checks
+func (s *SystemScheduler) findIgnorableNodes(allocs []*structs.Allocation) map[string]*set.Set[string] {
 	if s.job == nil {
 		return nil
 	}
@@ -503,6 +518,31 @@ func (s *SystemScheduler) findFeasibleNodesForTG(allocs []*structs.Allocation) m
 	return feasibleNodes
 }
 
+func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple) {
+	for _, a := range updates {
+		tgName := a.TaskGroup.Name
+		fmt.Printf("looking for feasible node for tg %s\n", tgName)
+
+		s.stack.SetNodes(s.nodes)
+
+		// Attempt to match the task group
+		option := s.stack.Select(a.TaskGroup, &feasible.SelectOptions{AllocName: a.Name})
+
+		if option == nil {
+			fmt.Printf("no feasible node found for %v!\n", a.Alloc)
+			continue
+		}
+
+		fmt.Printf("found feasible node %v for tg %v\n", option.Node.ID, tgName)
+		// count this node as feasible
+		if s.feasibleNodesForTG[tgName] == nil {
+			s.feasibleNodesForTG[tgName] = set.New[string](0)
+		}
+
+		s.feasibleNodesForTG[tgName].Insert(option.Node.ID)
+	}
+}
+
 // computePlacements computes placements for allocations
 func (s *SystemScheduler) computePlacements(
 	reconcilerResult *reconciler.NodeReconcileResult, existingByTaskGroup map[string]bool,
@@ -519,6 +559,10 @@ func (s *SystemScheduler) computePlacements(
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
+	}
+
+	for _, r := range reconcilerResult.Place {
+		fmt.Println(r.Name)
 	}
 
 	nodes := make([]*structs.Node, 1)
@@ -569,10 +613,6 @@ func (s *SystemScheduler) computePlacements(
 				if s.planAnnotations != nil &&
 					s.planAnnotations.DesiredTGUpdates != nil {
 					s.planAnnotations.DesiredTGUpdates[tgName].Place -= 1
-				}
-
-				if s.plan.Deployment != nil {
-					s.deployment.TaskGroups[tgName].DesiredTotal -= 1
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
@@ -744,13 +784,13 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 }
 
 // evictAndPlace is used to mark allocations for evicts and add them to the
-// placement queue. evictAndPlace modifies the diffResult. It returns true if
-// the limit has been reached for any task group.
-func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.NodeReconcileResult, desc string) bool {
+// placement queue. evictAndPlace modifies the reconciler result. It returns
+// true if the limit has been reached for any task group.
+func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconciler.NodeReconcileResult, desc string) bool {
 
 	limits := map[string]int{} // per task group limits
 	if !job.Stopped() {
-		jobLimit := len(diff.Update)
+		jobLimit := len(reconciled.Update)
 		if job.Update.MaxParallel > 0 {
 			jobLimit = job.Update.MaxParallel
 		}
@@ -764,13 +804,11 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, diff *reconciler.Node
 	}
 
 	limited := false
-	for _, a := range diff.Update {
+	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
-			diff.Place = append(diff.Place, a)
-			if !a.Canary {
-				limits[a.Alloc.TaskGroup]--
-			}
+			reconciled.Place = append(reconciled.Place, a)
+			limits[a.Alloc.TaskGroup]--
 		} else {
 			limited = true
 		}
