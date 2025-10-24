@@ -1955,6 +1955,41 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 			resLater: []*delayedRescheduleInfo{},
 		},
 		{
+			name:            "batch successfully complete with desired transition reschedule",
+			isDisconnecting: false,
+			isBatch:         true,
+			all: allocSet{
+				"batchCompleteReschedule": {
+					ID:           "batchCompleteReschedule",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+					DesiredTransition: structs.DesiredTransition{
+						Reschedule: pointer.Of(true),
+					},
+					ModifyTime: now.Unix(),
+					TaskStates: map[string]*structs.TaskState{
+						"task": {State: structs.TaskStateDead, Failed: false, FinishedAt: now}},
+				},
+			},
+			untainted: allocSet{},
+			resNow: allocSet{
+				"batchCompleteReschedule": {
+					ID:           "batchCompleteReschedule",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+					DesiredTransition: structs.DesiredTransition{
+						Reschedule: pointer.Of(true),
+					},
+					ModifyTime: now.Unix(),
+					TaskStates: map[string]*structs.TaskState{
+						"task": {State: structs.TaskStateDead, Failed: false, FinishedAt: now}},
+				},
+			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
 			name:            "service disconnecting allocation no reschedule",
 			isDisconnecting: true,
 			isBatch:         false,
@@ -2078,6 +2113,11 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.isBatch {
+				testJob.Type = structs.JobTypeBatch
+			} else {
+				testJob.Type = structs.JobTypeService
+			}
 			untainted, resNow, resLater := tc.all.filterByRescheduleable(tc.isBatch,
 				tc.isDisconnecting, now, "evailID", tc.deployment)
 			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))

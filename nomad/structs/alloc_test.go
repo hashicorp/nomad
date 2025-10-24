@@ -4,10 +4,12 @@
 package structs
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
 )
 
@@ -388,6 +390,248 @@ func TestAllocation_Expired_Disconnected(t *testing.T) {
 			now = now.Add(ellapsedDuration)
 
 			must.Eq(t, tc.expected, alloc.Expired(now))
+		})
+	}
+}
+
+func TestAllocation_NextRescheduleTime(t *testing.T) {
+	now := time.Now()
+	makeTestAlloc := func(batch bool) *Allocation {
+		j := &Job{
+			Region:    "global",
+			Name:      "mock-job",
+			Namespace: DefaultNamespace,
+			Priority:  50,
+			Status:    JobStatusPending,
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "MockTaskGroup",
+					ReschedulePolicy: &ReschedulePolicy{
+						Attempts:      2,
+						Interval:      time.Hour,
+						Delay:         2 * time.Minute,
+						DelayFunction: "constant",
+						MaxDelay:      -1,
+						Unlimited:     false,
+					},
+				},
+			},
+		}
+		if batch {
+			j.Type = JobTypeBatch
+			j.ID = fmt.Sprintf("mock-batch-%s", uuid.Generate())
+		} else {
+			j.Type = JobTypeService
+			j.ID = fmt.Sprintf("mock-service-%s", uuid.Generate())
+		}
+		j.Canonicalize()
+
+		alloc := &Allocation{
+			ID:            uuid.Generate(),
+			EvalID:        uuid.Generate(),
+			NodeID:        "12345678-abcd-efab-cdef-123456789abc",
+			Namespace:     DefaultNamespace,
+			TaskGroup:     "MockTaskGroup",
+			Job:           j,
+			DesiredStatus: AllocDesiredStatusRun,
+			ClientStatus:  AllocClientStatusFailed,
+			TaskStates: map[string]*TaskState{
+				"task": {State: TaskStateDead, Failed: true, FinishedAt: now},
+			},
+		}
+		alloc.Canonicalize()
+
+		return alloc
+	}
+
+	testCases := []struct {
+		name       string
+		allocFn    func(*Allocation)
+		isBatch    bool
+		isEligible bool
+	}{
+		{
+			name:       "client status is failed",
+			isEligible: true,
+		},
+		{
+			name:       "client status is lost",
+			allocFn:    func(a *Allocation) { a.ClientStatus = AllocClientStatusLost },
+			isEligible: true,
+		},
+		{
+			name:       "client status is pending",
+			allocFn:    func(a *Allocation) { a.ClientStatus = AllocClientStatusPending },
+			isEligible: false,
+		},
+		{
+			name:       "client status is running",
+			allocFn:    func(a *Allocation) { a.ClientStatus = AllocClientStatusRunning },
+			isEligible: false,
+		},
+		{
+			name:       "client status is complete",
+			allocFn:    func(a *Allocation) { a.ClientStatus = AllocClientStatusComplete },
+			isEligible: false,
+		},
+		{
+			name:       "client status is unknown",
+			allocFn:    func(a *Allocation) { a.ClientStatus = AllocClientStatusUnknown },
+			isEligible: false,
+		},
+		{
+			name: "failed service without reschedule policy",
+			allocFn: func(a *Allocation) {
+				a.Job.TaskGroups[0].ReschedulePolicy = nil
+			},
+			isEligible: false,
+		},
+		{
+			name: "failed service with policy not unlimited and no attempts",
+			allocFn: func(a *Allocation) {
+				a.Job.TaskGroups[0].ReschedulePolicy.Attempts = 0
+			},
+			isEligible: false,
+		},
+		{
+			name: "failed service with policy unlimited and no attempts",
+			allocFn: func(a *Allocation) {
+				a.Job.TaskGroups[0].ReschedulePolicy.Attempts = 0
+				a.Job.TaskGroups[0].ReschedulePolicy.Unlimited = true
+			},
+			isEligible: true,
+		},
+		{
+			name: "service with desired stop and last reschedule did not fail",
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{LastReschedule: LastRescheduleSuccess}
+			},
+			isEligible: false,
+		},
+		{
+			name: "service with desired stop and last reschedule is failed without events",
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{LastReschedule: LastRescheduleFailedToPlace}
+			},
+			isEligible: false,
+		},
+		{
+			name: "service with desired stop and last reschedule is failed with events",
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events:         []*RescheduleEvent{},
+				}
+			},
+			isEligible: true,
+		},
+		{
+			name: "service has not exceeded reschedule attempts",
+			allocFn: func(a *Allocation) {
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events: []*RescheduleEvent{
+						{RescheduleTime: now.Add(-10 * time.Minute).UnixNano()},
+					},
+				}
+			},
+			isEligible: true,
+		},
+		{
+			name: "service has exceeded reschedule attempts",
+			allocFn: func(a *Allocation) {
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events: []*RescheduleEvent{
+						{RescheduleTime: now.Add(-10 * time.Minute).UnixNano()},
+						{RescheduleTime: now.Add(-5 * time.Minute).UnixNano()},
+					},
+				}
+			},
+			isEligible: false,
+		},
+		{
+			name:       "batch without reschedule",
+			isBatch:    true,
+			allocFn:    func(a *Allocation) { a.Job.TaskGroups[0].ReschedulePolicy = nil },
+			isEligible: false,
+		},
+		{
+			name:    "batch with desired stop and last reschedule did not fail",
+			isBatch: true,
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{LastReschedule: LastRescheduleSuccess}
+			},
+			isEligible: false,
+		},
+		{
+			name:    "batch with desired stop and last reschedule is failed without events",
+			isBatch: true,
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{LastReschedule: LastRescheduleFailedToPlace}
+			},
+			isEligible: false,
+		},
+		{
+			name:    "batch with desired stop and last reschedule is failed with events",
+			isBatch: true,
+			allocFn: func(a *Allocation) {
+				a.DesiredStatus = AllocDesiredStatusStop
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events:         []*RescheduleEvent{},
+				}
+			},
+			isEligible: true,
+		},
+		{
+			name:    "batch has not exceeded reschedule attempts",
+			isBatch: true,
+			allocFn: func(a *Allocation) {
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events: []*RescheduleEvent{
+						{RescheduleTime: now.Add(-10 * time.Minute).UnixNano()},
+					},
+				}
+			},
+			isEligible: true,
+		},
+		{
+			name:    "batch has exceeded reschedule attempts",
+			isBatch: true,
+			allocFn: func(a *Allocation) {
+				a.RescheduleTracker = &RescheduleTracker{
+					LastReschedule: LastRescheduleFailedToPlace,
+					Events: []*RescheduleEvent{
+						{RescheduleTime: now.Add(-10 * time.Minute).UnixNano()},
+						{RescheduleTime: now.Add(-5 * time.Minute).UnixNano()},
+					},
+				}
+			},
+			isEligible: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := makeTestAlloc(tc.isBatch)
+			if tc.allocFn != nil {
+				tc.allocFn(alloc)
+			}
+
+			nextTime, eligible := alloc.NextRescheduleTime()
+			if tc.isEligible {
+				must.True(t, eligible)
+				must.Eq(t, now.Add(2*time.Minute), nextTime)
+			} else {
+				must.False(t, eligible)
+			}
 		})
 	}
 }
