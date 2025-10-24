@@ -332,7 +332,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 .PHONY: integration-test
 integration-test: dev ## Run Nomad integration tests
 	@echo "==> Running Nomad integration test suites:"
-	NOMAD_E2E_VAULTCOMPAT=1 go test \
+	NOMAD_E2E_VAULTCOMPAT=1 gotestsum --format=testname -- \
 		-v \
 		-race \
 		-timeout=900s \
@@ -343,7 +343,7 @@ integration-test: dev ## Run Nomad integration tests
 .PHONY: integration-test-consul
 integration-test-consul: dev ## Run Nomad integration tests
 	@echo "==> Running Nomad integration test suite for Consul:"
-	NOMAD_E2E_CONSULCOMPAT=1 go test \
+	NOMAD_E2E_CONSULCOMPAT=1 gotestsum --format=testname -- \
 		-v \
 		-race \
 		-timeout=900s \
