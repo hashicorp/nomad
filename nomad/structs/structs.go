@@ -7813,6 +7813,9 @@ type Task struct {
 	// List of service definitions exposed by the Task
 	Services []*Service
 
+	// List of upstream service names
+	Upstreams []string
+
 	// Vault is used to define the set of Vault policies that this task should
 	// have access to.
 	Vault *Vault
