@@ -384,7 +384,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	if err := s.computePlacements(reconciliationResult, allocExistsForTaskGroup); err != nil {
+	if err := s.computePlacements(reconciliationResult.Place, allocExistsForTaskGroup); err != nil {
 		return err
 	}
 
@@ -514,7 +514,7 @@ func (s *SystemScheduler) findIgnorableNodes(allocs []*structs.Allocation) map[s
 
 // computePlacements computes placements for allocations
 func (s *SystemScheduler) computePlacements(
-	reconcilerResult *reconciler.NodeReconcileResult, existingByTaskGroup map[string]bool,
+	place []reconciler.AllocTuple, existingByTaskGroup map[string]bool,
 ) error {
 
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
@@ -531,8 +531,8 @@ func (s *SystemScheduler) computePlacements(
 	}
 
 	nodes := make([]*structs.Node, 1)
-	for _, missing := range reconcilerResult.Place {
-		fmt.Println("placing", missing.Name, missing.Alloc.ID[:8])
+	for _, missing := range place {
+		fmt.Printf("placing %s = %q\n", missing.Name, missing.Alloc.ID)
 
 		tgName := missing.TaskGroup.Name
 
@@ -551,7 +551,7 @@ func (s *SystemScheduler) computePlacements(
 
 		if option == nil {
 			fmt.Printf("missing.Alloc=%s cannot be placed on node=%s\n",
-				missing.Alloc.ID[:8], node.ID[:8])
+				missing.Alloc.ID, node.ID[:8])
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
@@ -695,6 +695,11 @@ func (s *SystemScheduler) computePlacements(
 				}
 			}
 			alloc.PreemptedAllocations = preemptedAllocIDs
+		}
+
+		// count this node as feasible
+		if s.feasibleNodesForTG[tgName] == nil {
+			s.feasibleNodesForTG[tgName] = set.New[string](0)
 		}
 
 		//s.plan.AppendAlloc(alloc, nil)
