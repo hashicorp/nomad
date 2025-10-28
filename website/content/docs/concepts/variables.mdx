@@ -1,24 +1,23 @@
 ---
 layout: docs
-page_title: Nomad Variables
+page_title: Nomad variables
 description: Nomad's variables feature lets you store and use encrypted configuration data in your job specifications. Learn how Access Control List (ACL) policies restrict access to variables within a namespace, how a job task's workload identity grants access to variables, and how locking a variable blocks access to that variable.
 ---
 
-# Nomad Variables
+# Nomad variables
 
 This page contains conceptual information about the Nomad variables feature,
 which lets you store and use encrypted configuration data in your job
 specifications. Learn how Access Control List (ACL) policies restrict access to variables within a namespace, how a job task's workload identity grants access to variables, and how locking a variable blocks access to that variable.
 
-Most Nomad workloads need access to config values or secrets. Nomad has a
-`template` block to [provide such configuration to tasks](/nomad/docs/job-specification/template#nomad-variables),
-but prior to Nomad 1.4 has left the role of storing that configuration to
-external services such as [HashiCorp Consul] and [HashiCorp Vault].
+## Introduction
 
-Nomad variables provide the option to store configuration at file-like paths
-directly in Nomad's state store. [Access these variables](/nomad/docs/job-specification/template#nomad-variables) directly from
-your task templates. The contents of these variables are encrypted
-and replicated between servers via raft. Access to variables is controlled by
+Most Nomad workloads need access to configuration values or secrets. Nomad has a
+`template` block to [provide such configuration to
+tasks](/nomad/docs/job-specification/template#nomad-variables). Nomad variables
+provide the option to store configuration at file-like paths
+directly in Nomad's state store. Access these variables directly from
+your task templates. Nomad encrypts and replicates the contents of these variables between servers via Raft. Access to variables is controlled by
 ACL policies, and tasks have implicit ACL policies that allow them to access
 their own variables. You can create, read, update, or delete variables via the
 command line, the Nomad API, or in the Nomad web UI.
@@ -26,25 +25,27 @@ command line, the Nomad API, or in the Nomad web UI.
 Note that the variables feature is intended for small pieces of configuration
 data needed by workloads. Because writing to the Nomad state store uses
 resources needed by Nomad, it is not well-suited for large or fast-changing
-data. For example, do not store batch job results as variables - these should be
+data. For example, do not store batch job results as variables. These should be
 stored in an external database. Variables are also not intended to be a full
 replacement for HashiCorp Vault. Unlike Vault, Nomad stores the root encryption
-key on the servers. See [Key Management][] for details.
+key on the servers. Refer to [Key Management][] for details.
 
-## ACL for Variables
+## Policies
 
 Every variable belongs to a specific Nomad namespace. ACL policies can restrict
 access to variables within a namespace on a per-path basis, using a list of
-`path` blocks, located under `namespace.variables`. See the [ACL policy
-specification] docs for details about the syntax and structure of an ACL policy.
+`path` blocks, located under `namespace.variables`. Refer to the [ACL policy
+specification] for details about the syntax and structure of an ACL policy.
 
-Path definitions may also include wildcard symbols, also called globs, allowing
+Path definitions may also include a wildcard symbol that allows
 a single path policy definition to apply to a set of paths within that
-namespace. For example, the policy below allows full access to variables at all
-paths in the "dev" namespace that are prefixed with "project/" (including child
-paths) but only read access to paths prefixed with "system/". Note that the glob
+namespace.
+
+In the following example, the policy allows full access to variables at all
+paths in the `dev` namespace that are prefixed with `project/`, including child
+paths, but only read access to paths prefixed with `system/`. Note that the wildcard
 can match an empty string and all other characters. This policy grants read
-access to paths prefixed with "system/" but not a path named "system" (without a
+access to paths prefixed with `system/` but not a path named `system` (without a
 trailing slash).
 
 ```hcl
@@ -76,7 +77,7 @@ The available capabilities for variables are as follows:
 | list       | List the metadata but not contents of variables at this path.                                                         |
 | destroy    | Delete variables at this path.                                                                                        |
 
-## Task Access to Variables
+## Task access to variables
 
 Tasks can access variables with the [`template`] block or using the [Task API].
 The [workload identity] for each task grants it automatic read and list access to
@@ -210,7 +211,7 @@ and no renew or release calls were made, the variable will remain locked for at
 least the lock delay duration, to avoid a possible split-brain situation, where
 there are two holders at the same time.
 
-### Leader election backed by Nomad Variable Locks
+### Leader election backed by Nomad variable locks
 
 For some applications, like HDFS or the Nomad Autoscaler, it is necessary to
 have multiple instances running to ensure redundancy in case of a failure, but

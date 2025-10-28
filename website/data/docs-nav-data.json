@@ -325,7 +325,7 @@
       },
       {
         "title": "Nomad variables",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/variables/variables-create"
+        "path": "manage/manage-variables"
       },
       {
         "title": "Recovery",

@@ -1,0 +1,19 @@
+This example retrieves the variable stored at path `secret/foo`.
+
+```shell-session
+$ nomad var get secret/foo
+Namespace   = default
+Path        = secret/foo
+Create Time = 2025-11-23T11:14:37-04:00
+Check Index = 116
+
+Items
+passcode = my-long-passcode
+```
+
+Return only the `passcode` item from the variable stored at `secret/foo`.
+
+```shell-session
+$ nomad var get -item=passcode secret/foo
+my-long-passcode
+```
