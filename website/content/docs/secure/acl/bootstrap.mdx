@@ -296,7 +296,8 @@ bootstrap unless the file's contents match the actual reset index.
 ## Access an ACL-enabled web UI
 
 If you access the web UI without specifying an ACL token, you will be granted
-the permissions of the anonymous policy. An ACL token can be set in the web UI or with the CLI.
+the permissions of the anonymous policy. An ACL token can be set in the web UI
+or with the CLI.
 
 ### Provide a token in the web UI
 
@@ -309,7 +310,7 @@ navigating to the `/ui/settings/tokens` path.
 
 ### Provide a token with the CLI
 
-You can use the [`nomad ui` command](nomad/commands/ui) and the token you have
+You can use the [`nomad ui` command](/nomad/commands/ui) and the token you have
 set for the Nomad CLI to authenticate to the web UI. This exchanges your ACL
 token for a one-time token in the web UI.
 
