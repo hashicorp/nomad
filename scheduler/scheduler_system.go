@@ -331,7 +331,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// find feasible nodes for all the task groups
-	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult.Update)
+	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult)
 
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
@@ -454,7 +454,7 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	return acc
 }
 
-func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple) map[string][]*feasible.RankedNode {
+func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconcileResult) map[string][]*feasible.RankedNode {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
@@ -463,7 +463,7 @@ func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple
 	feasibleNodes := make(map[string][]*feasible.RankedNode)
 
 	nodes := make([]*structs.Node, 1)
-	for _, a := range updates {
+	for _, a := range slices.Concat(buckets.Place, buckets.Update) {
 
 		tgName := a.TaskGroup.Name
 
