@@ -208,21 +208,22 @@ documentation for the [`nomad alloc status` command].
 
 ## Monitoring a job in the web UI
 
-Clicking on a job from the list on the **Jobs** page in the web UI takes you to
-the overview page for that job. The overview page has several linked pages at
-the top for viewing information about the running job.
+To view the overview page for a job in the web UI, you can click on the job
+name from the list on the **Jobs** page. The overview page has several linked
+sub-pages at the top for viewing more details about the running job.
 
 - **Overview**: A page with general information about the job including the job
 name, type, priority, namespace, the status of all current and previous
-allocations, any placement failures, and associated task groups.
-- **Definition**: A page displaying the job definition in JSON.
-- **Versions**: A page with a timeline view of every version of the job.
-- **Deployments**: A page with health information about job deployments as well
-as associated task groups and allocations.
+allocations, any placement failures, and the associated task groups.
+- **Definition**: A page that displays the job definition in JSON.
+- **Versions**: A page with a timeline view of every version of the job. You
+can compare the differences between job versions on this page.
+- **Deployments**: A page with health information about job deployments,
+associated task groups, and allocations.
 - **Allocations**: A page with a list of associated allocations.
 - **Evaluations**: A page with a list of associated evaluations.
-- **Services**: A page with a list of services defined in the jobspec registered
-for service discovery and any associated allocations.
+- **Services**: A page with a list of services registered for service discover
+and any associated allocations.
 - **Variables**: A page with associated Nomad Variables used by the job.
 
 [accessing logs]: /nomad/docs/job-run/logs
