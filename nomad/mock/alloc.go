@@ -24,29 +24,29 @@ func Alloc() *structs.Allocation {
 			CPU:      500,
 			MemoryMB: 256,
 			DiskMB:   150,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
-				},
-			},
+			// Networks: []*structs.NetworkResource{
+			// 	{
+			// 		Device:        "eth0",
+			// 		IP:            "192.168.0.100",
+			// 		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+			// 		MBits:         50,
+			// 		DynamicPorts:  []structs.Port{{Label: "http"}},
+			// 	},
+			// },
 		},
 		TaskResources: map[string]*structs.Resources{
 			"web": {
 				CPU:      500,
 				MemoryMB: 256,
-				Networks: []*structs.NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-					},
-				},
+				// Networks: []*structs.NetworkResource{
+				// 	{
+				// 		Device:        "eth0",
+				// 		IP:            "192.168.0.100",
+				// 		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+				// 		MBits:         50,
+				// 		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+				// 	},
+				// },
 			},
 		},
 		SharedResources: &structs.Resources{
@@ -62,15 +62,15 @@ func Alloc() *structs.Allocation {
 					Memory: structs.AllocatedMemoryResources{
 						MemoryMB: 256,
 					},
-					Networks: []*structs.NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "192.168.0.100",
-							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-							MBits:         50,
-							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
-						},
-					},
+					// Networks: []*structs.NetworkResource{
+					// 	{
+					// 		Device:        "eth0",
+					// 		IP:            "192.168.0.100",
+					// 		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					// 		MBits:         50,
+					// 		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					// 	},
+					// },
 				},
 			},
 			Shared: structs.AllocatedSharedResources{
@@ -131,22 +131,22 @@ func AllocWithoutReservedPort() *structs.Allocation {
 }
 
 func AllocForNode(n *structs.Node) *structs.Allocation {
-	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
+	// nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
 
-	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
-	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
+	// dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
+	// randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
 
 	alloc := Alloc()
 	alloc.NodeID = n.ID
 
 	// Set node IP address.
-	alloc.Resources.Networks[0].IP = nodeIP
-	alloc.TaskResources["web"].Networks[0].IP = nodeIP
-	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
+	// alloc.Resources.Networks[0].IP = nodeIP
+	// alloc.TaskResources["web"].Networks[0].IP = nodeIP
+	// alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
 
 	// Set dynamic port to a random value.
-	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
-	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	// alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	// alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 
 	return alloc
 

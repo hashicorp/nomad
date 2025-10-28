@@ -474,12 +474,12 @@ func SystemJob() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*structs.NetworkResource{
-								{
-									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}},
-								},
-							},
+							// Networks: []*structs.NetworkResource{
+							// 	{
+							// 		MBits:        50,
+							// 		DynamicPorts: []structs.Port{{Label: "http"}},
+							// 	},
+							// },
 						},
 						LogConfig: structs.DefaultLogConfig(),
 					},
