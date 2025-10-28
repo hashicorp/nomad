@@ -3383,8 +3383,8 @@ func TestEvictAndPlace(t *testing.T) {
 
 }
 
-// TestSystemScheduler_UpdateBlock tests various permutations of the update block
-func TestSystemScheduler_UpdateBlock(t *testing.T) {
+// TestSystemSched_UpdateBlock tests various permutations of the update block
+func TestSystemSched_UpdateBlock(t *testing.T) {
 	ci.Parallel(t)
 
 	collect := func(planned map[string][]*structs.Allocation) map[string]int {
@@ -3799,6 +3799,15 @@ func TestSystemScheduler_UpdateBlock(t *testing.T) {
 			taskGroup2.Name = tg2
 			oldJob.TaskGroups = append(oldJob.TaskGroups, taskGroup2)
 
+			// make sure tg1 network matches AllocForNode
+			taskGroup1 := oldJob.TaskGroups[0]
+			taskGroup1.Networks = []*structs.NetworkResource{{
+				ReservedPorts: []structs.Port{{
+					Label: "admin", Value: 5000, HostNetwork: "default"}},
+				DynamicPorts: []structs.Port{{
+					Label: "http", Value: 9876, HostNetwork: "default"}},
+			}}
+
 			must.NoError(t, h.State.UpsertJob(
 				structs.MsgTypeTestSetup, h.NextIndex(), nil, oldJob))
 
@@ -3829,7 +3838,14 @@ func TestSystemScheduler_UpdateBlock(t *testing.T) {
 			for _, tg := range []string{tg1, tg2} {
 				nodesToAllocs := map[string]string{}
 				for _, nodeIdx := range tc.existingPrevious[tg] {
-					alloc := mock.AllocForNode(nodes[nodeIdx])
+					var alloc *structs.Allocation
+					if tg == tg2 {
+						alloc = mock.AllocForNodeWithoutReservedPort(nodes[nodeIdx])
+					} else {
+						// make sure alloc matches tg1.Networks
+						alloc = mock.AllocForNode(nodes[nodeIdx])
+						alloc.TaskResources["web"].Networks = nil
+					}
 					alloc.Job = oldJob
 					alloc.JobID = job.ID
 					alloc.TaskGroup = tg
@@ -3839,7 +3855,14 @@ func TestSystemScheduler_UpdateBlock(t *testing.T) {
 					existAllocs = append(existAllocs, alloc)
 				}
 				for _, nodeIdx := range tc.existingRunning[tg] {
-					alloc := mock.AllocForNode(nodes[nodeIdx])
+					var alloc *structs.Allocation
+					if tg == tg2 {
+						alloc = mock.AllocForNodeWithoutReservedPort(nodes[nodeIdx])
+					} else {
+						// make sure alloc matches tg1.Networks
+						alloc = mock.AllocForNode(nodes[nodeIdx])
+						alloc.TaskResources["web"].Networks = nil
+					}
 					alloc.Job = job
 					alloc.JobID = job.ID
 					alloc.TaskGroup = tg
@@ -3861,7 +3884,14 @@ func TestSystemScheduler_UpdateBlock(t *testing.T) {
 					existAllocs = append(existAllocs, alloc)
 				}
 				for _, nodeIdx := range tc.existingFailed[tg] {
-					alloc := mock.AllocForNode(nodes[nodeIdx])
+					var alloc *structs.Allocation
+					if tg == tg2 {
+						alloc = mock.AllocForNodeWithoutReservedPort(nodes[nodeIdx])
+					} else {
+						// make sure alloc matches tg1.Networks
+						alloc = mock.AllocForNode(nodes[nodeIdx])
+						alloc.TaskResources["web"].Networks = nil
+					}
 					alloc.Job = job
 					alloc.JobID = job.ID
 					alloc.TaskGroup = tg
