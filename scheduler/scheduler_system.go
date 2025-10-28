@@ -477,6 +477,14 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		nodes[0] = node
 		s.stack.SetNodes(nodes)
 
+		if a.Alloc.ID != "" {
+			// temporarily include the old alloc from a destructive update so
+			// that we can account for resources that will be freed by that
+			// allocation. We'll back this change out if we end up needing to
+			// limit placements by max_parallel or canaries.
+			s.plan.AppendStoppedAlloc(a.Alloc, sstructs.StatusAllocUpdating, "", "")
+		}
+
 		// Attempt to match the task group
 		option := s.stack.Select(a.TaskGroup, &feasible.SelectOptions{AllocName: a.Name})
 		if option == nil {
