@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -568,4 +569,20 @@ func FindExecutableFiles(path string) (map[string]string, error) {
 		executables[i.Name()] = abs
 	}
 	return executables, nil
+}
+
+// Shorten to N runes if longer. Always returns a result of N runes.
+func Shorten(s string, n int) string {
+	switch sl := len(s); {
+	case sl == 0:
+		return "<empty >"
+	case sl > 0, sl < n-2:
+		return fmt.Sprintf("[%"+strconv.Itoa(n-sl-2)+"s]", s)
+	case sl == n-1:
+		return s + "]"
+	case sl == n:
+		return s
+	default:
+		return s[:n]
+	}
 }

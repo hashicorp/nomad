@@ -90,6 +90,43 @@ func (h *Harness) Scheduler(factory sstructs.Factory) sstructs.Scheduler {
 			switch event := e.(type) {
 			case *sstructs.PortCollisionEvent:
 				h.t.Errorf("unexpected worker eval event: %v", event.Reason)
+
+				for _, alloc := range event.Allocations {
+					sp := alloc.AllocatedResources.Shared.Ports
+					h.t.Errorf(" \\--> %s shared ports: %d", alloc.ID, len(sp))
+					for _, p := range sp {
+						h.t.Errorf("    %s %d -> %d %T", p.Label, p.Value, p.To, p.IgnoreCollision)
+					}
+
+					sn := alloc.AllocatedResources.Shared.Networks
+					h.t.Errorf(" \\--> %s shared networks: %d", alloc.ID, len(sn))
+					for _, net := range sn {
+						h.t.Errorf("   \\--> mode %q | resvd ports: %d", net.Mode, len(net.ReservedPorts))
+						for _, p := range net.ReservedPorts {
+							h.t.Errorf("      %s %d -> %d %T", p.Label, p.Value, p.To, p.IgnoreCollision)
+						}
+						h.t.Errorf("   \\--> mode %q | dyn   ports: %d", net.Mode, len(net.DynamicPorts))
+						for _, p := range net.DynamicPorts {
+							h.t.Errorf("      %s %d -> %d %T", p.Label, p.Value, p.To, p.IgnoreCollision)
+						}
+					}
+
+					tr := alloc.AllocatedResources.Tasks
+					h.t.Errorf(" \\--> %s task resources: %d", alloc.ID, len(tr))
+					for k, v := range tr {
+						h.t.Errorf("   \\--> task %q | networks: %d", k, len(v.Networks))
+						for _, net := range v.Networks {
+							h.t.Errorf("    \\--> mode %q | resvd ports: %d", net.Mode, len(net.ReservedPorts))
+							for _, p := range net.ReservedPorts {
+								h.t.Errorf("      %s %d -> %d %T", p.Label, p.Value, p.To, p.IgnoreCollision)
+							}
+							h.t.Errorf("    \\--> mode %q | dyn   ports: %d", net.Mode, len(net.DynamicPorts))
+							for _, p := range net.DynamicPorts {
+								h.t.Errorf("      %s %d -> %d %T", p.Label, p.Value, p.To, p.IgnoreCollision)
+							}
+						}
+					}
+				}
 			}
 		}
 	}()

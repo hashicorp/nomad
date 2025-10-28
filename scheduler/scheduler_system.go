@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
@@ -532,7 +533,7 @@ func (s *SystemScheduler) computePlacements(
 
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range reconcilerResult.Place {
-		fmt.Println("placing", missing.Name, missing.Alloc.ID[:8])
+		fmt.Println("placing", missing.Name, helper.Shorten(missing.Alloc.ID, 8))
 
 		tgName := missing.TaskGroup.Name
 
@@ -699,6 +700,10 @@ func (s *SystemScheduler) computePlacements(
 
 		//s.plan.AppendAlloc(alloc, nil)
 		s.addMaybePlace(alloc)
+		// count this node as feasible
+		if s.feasibleNodesForTG[tgName] == nil {
+			s.feasibleNodesForTG[tgName] = set.New[string](0)
+		}
 		s.feasibleNodesForTG[tgName].Insert(alloc.NodeID)
 	}
 

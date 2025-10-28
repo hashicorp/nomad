@@ -6011,6 +6011,9 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
+			// All allocs should be created as pending first, and then updated to one
+			// of these states. Tests may trigger this log line by using this method
+			// to inject allocs.
 			s.logger.Error("new allocation inserted into state store with bad client status",
 				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}

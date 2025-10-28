@@ -247,6 +247,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 			// Reserve ports
 			used := idx.getUsedPortsFor(n.IP)
 			for _, p := range globalResPorts {
+				fmt.Printf("Node %q Task Device %s Reserved Port: %d\n", node.ID, n.Device, p)
 				used.Set(p)
 			}
 		}
@@ -270,6 +271,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 			// host_network.
 			used := idx.getUsedPortsFor(a.Address)
 			for _, p := range globalResPorts {
+				fmt.Printf("Node %q Node Device %s Reserved Port: %d\n", node.ID, n.Device, p)
 				used.Set(p)
 			}
 
@@ -284,6 +286,7 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 					return fmt.Errorf("error parsing reserved_ports for network %q: %w", a.Alias, err)
 				}
 				for _, p := range rp {
+					fmt.Printf("Node %q Reserved Port: %d\n", node.ID, p)
 					used.Set(uint(p))
 				}
 			}
@@ -347,6 +350,7 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason s
 				}
 			}
 		} else {
+			panic("compat(0.11)")
 			// COMPAT(0.11): Remove in 0.11
 			for task, resources := range alloc.TaskResources {
 				if len(resources.Networks) == 0 {
@@ -674,6 +678,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, portsInOffer []int, minDynamicPort,
 	}
 
 	for _, port := range reserved {
+		fmt.Printf("getDynamicPortsPrecise: in use? %t port: %d\n", usedSet.Check(uint(port.Value)), port.Value)
 		usedSet.Set(uint(port.Value))
 	}
 
