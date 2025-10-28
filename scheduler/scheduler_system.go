@@ -190,17 +190,6 @@ func (s *SystemScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// If the limit of placements was reached we need to create an evaluation
-	// to pickup from here after the stagger period.
-	if s.limitReached && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.job.Update.MinHealthyTime)
-		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Error("failed to make next eval for rolling update", "error", err)
-			return false, err
-		}
-		s.logger.Debug("rolling update limit reached, next eval created", "next_eval_id", s.nextEval.ID)
-	}
-
 	// Submit the plan
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = s.planAnnotations
