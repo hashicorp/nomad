@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"math"
 	"runtime/debug"
+	"slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
@@ -52,7 +52,7 @@ type SystemScheduler struct {
 	nodesByDC     map[string]int
 
 	deployment         *structs.Deployment
-	feasibleNodesForTG map[string]*set.Set[string] // used to track which nodes passed the feasibility check for TG
+	feasibleNodesForTG map[string][]*feasible.RankedNode // used to track which nodes passed the feasibility check for TG
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -279,13 +279,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Split out terminal allocations
 	live, term := structs.SplitTerminalAllocs(allocs)
 
-	// Find which of the eligible nodes are actually feasible for which TG. This way
-	// we get correct DesiredTotal and DesiredCanaries counts in the reconciler.
-	s.feasibleNodesForTG = s.findIgnorableNodes(live)
-
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
-	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, s.feasibleNodesForTG,
+	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted,
 		live, term, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", reconciliationResult.Fields()...)
@@ -334,6 +330,17 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		DesiredTGUpdates: desiredUpdates(reconciliationResult, inplaceUpdates, destructiveUpdates),
 	}
 
+	// find feasible nodes for all the task groups
+	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult.Update, s.ctx, sstructs.StatusAllocUpdating)
+
+	fmt.Printf("found the following feasible nodes:\n")
+	for k, v := range s.feasibleNodesForTG {
+		for _, node := range v {
+			fmt.Printf("tg %s has nodes: %v\n", k, node.Node.ID)
+		}
+		fmt.Printf("in total, tg %s has %d feasible nodes\n", k, len(v))
+	}
+
 	// any further logic depends on whether we're canarying or not
 	isCanarying := map[string]bool{}
 	if s.job != nil && s.deployment != nil {
@@ -356,9 +363,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 				s.job.Version != 0
 		}
 	}
-
-	// find feasible nodes for each TG before we do any maxParallel evictions
-	s.findFeasibleNodesForTG(reconciliationResult.Update)
 
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
@@ -384,10 +388,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		return err
 	}
 
-	for k, v := range s.feasibleNodesForTG {
-		fmt.Printf("found %d feasible nodes for tg %v: %v\n", v.Size(), k, v.String())
-	}
-
 	// if there is not deployment we're done at this point
 	if s.deployment == nil {
 		return nil
@@ -406,7 +406,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
-		s.deployment.TaskGroups[tg.Name].DesiredTotal = feasibleNodes.Size()
+		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(feasibleNodes)
 
 		// if this TG isn't canarying, we're done
 		if !isCanarying[tg.Name] {
@@ -417,7 +417,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// all eligible nodes. At this point we know which nodes are
 		// feasible, so we evict unnedded canaries.
 		placedCanaries, err := s.evictUnneededCanaries(
-			s.feasibleNodesForTG[tg.Name].Size(),
+			len(s.feasibleNodesForTG[tg.Name]),
 			tg.Update.Canary,
 		)
 		if err != nil {
@@ -488,59 +488,52 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	return acc
 }
 
-// findIgnorableNodes checks if there are allocations deployed to nodes that are
-// from the same job version as ours, and can thus be omitted from feasibility
-// checks
-func (s *SystemScheduler) findIgnorableNodes(allocs []*structs.Allocation) map[string]*set.Set[string] {
-	if s.job == nil {
-		return nil
+func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple, ctx feasible.Context, desc string) map[string][]*feasible.RankedNode {
+	nodeByID := make(map[string]*structs.Node, len(s.nodes))
+	for _, node := range s.nodes {
+		nodeByID[node.ID] = node
 	}
 
-	feasibleNodes := make(map[string]*set.Set[string])
+	feasibleNodes := make(map[string][]*feasible.RankedNode)
 
-	for _, a := range allocs {
-		if a.Job == nil {
+	nodes := make([]*structs.Node, 1)
+	for _, a := range updates {
+
+		// stop everything here
+		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+
+		tgName := a.TaskGroup.Name
+
+		node, ok := nodeByID[a.Alloc.NodeID]
+		if !ok {
+			s.logger.Debug("could not find node", "node", a.Alloc.NodeID)
 			continue
 		}
 
-		// if there's an existing alloc for this version of the job, there
-		// must've been an eval that checked its feasibility already
-		if a.Job.Version == s.job.Version {
-			// count this node as feasible
-			if feasibleNodes[a.TaskGroup] == nil {
-				feasibleNodes[a.TaskGroup] = set.New[string](0)
-			}
+		// Update the set of placement nodes
+		nodes[0] = node
+		s.stack.SetNodes(nodes)
 
-			feasibleNodes[a.TaskGroup].Insert(a.NodeID)
+		// Attempt to match the task group
+		option := s.stack.Select(a.TaskGroup, &feasible.SelectOptions{AllocName: a.Name})
+		if option == nil {
+			continue
+		}
+
+		// count this node as feasible
+		if feasibleNodes[tgName] == nil {
+			feasibleNodes[tgName] = []*feasible.RankedNode{option}
+		} else {
+			if !slices.ContainsFunc(
+				feasibleNodes[tgName],
+				func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
+			) {
+				feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
+			}
 		}
 	}
 
 	return feasibleNodes
-}
-
-func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple) {
-	for _, a := range updates {
-		tgName := a.TaskGroup.Name
-		fmt.Printf("looking for feasible node for tg %s\n", tgName)
-
-		s.stack.SetNodes(s.nodes)
-
-		// Attempt to match the task group
-		option := s.stack.Select(a.TaskGroup, &feasible.SelectOptions{AllocName: a.Name})
-
-		if option == nil {
-			fmt.Printf("no feasible node found for %v!\n", a.Alloc)
-			continue
-		}
-
-		fmt.Printf("found feasible node %v for tg %v\n", option.Node.ID, tgName)
-		// count this node as feasible
-		if s.feasibleNodesForTG[tgName] == nil {
-			s.feasibleNodesForTG[tgName] = set.New[string](0)
-		}
-
-		s.feasibleNodesForTG[tgName].Insert(option.Node.ID)
-	}
 }
 
 // computePlacements computes placements for allocations
@@ -569,18 +562,26 @@ func (s *SystemScheduler) computePlacements(
 	for _, missing := range reconcilerResult.Place {
 		tgName := missing.TaskGroup.Name
 
+		var option *feasible.RankedNode
+
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
 			s.logger.Debug("could not find node", "node", missing.Alloc.NodeID)
 			continue
 		}
 
+		// if we've already seen a feasible node for this tg, skip feasibility
+		// checks for it
+		// option = s.feasibleNodesForTG[tgName]
+
+		// if option == nil {
 		// Update the set of placement nodes
 		nodes[0] = node
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option := s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
+		option = s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
+		// }
 
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data
@@ -727,13 +728,6 @@ func (s *SystemScheduler) computePlacements(
 		}
 
 		s.plan.AppendAlloc(alloc, nil)
-
-		// count this node as feasible
-		if s.feasibleNodesForTG[tgName] == nil {
-			s.feasibleNodesForTG[tgName] = set.New[string](0)
-		}
-
-		s.feasibleNodesForTG[tgName].Insert(alloc.NodeID)
 	}
 
 	return nil
