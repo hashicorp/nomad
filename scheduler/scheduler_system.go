@@ -390,6 +390,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		if _, ok := s.deployment.TaskGroups[tg.Name]; !ok {
+			fmt.Printf("no deployment for task group: %q\n", tg.Name)
+			continue
+		}
+
 		fmt.Printf("desired total for task group %q: %d\n", tg.Name, len(feasibleNodes))
 
 		// we can set the desired total now, it's always the amount of all
