@@ -3598,6 +3598,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
 					PlacedAllocs:    2,
+					PlacedCanaries:  []string{"0", "1"},
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 5},
 			},

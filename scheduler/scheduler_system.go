@@ -187,6 +187,11 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, err
 	}
 
+	fmt.Printf("before plan information ---\n")
+	for key, val := range s.plan.NodeAllocation {
+		fmt.Printf("total for %q: %d\n", key, len(val))
+	}
+
 	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
 	// anyways to get the annotations.
 	if s.plan.IsNoOp() && !s.eval.AnnotatePlan {
@@ -214,6 +219,10 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, err
 	}
 
+	fmt.Printf("after plan information ---\n")
+	for key, val := range result.NodeAllocation {
+		fmt.Printf("total for %q: %d\n", key, len(val))
+	}
 	// Decrement the number of allocations pending per task group based on the
 	// number of allocations successfully placed
 	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
@@ -294,17 +303,20 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range reconciliationResult.Stop {
+		fmt.Printf("adding stopped alloc: %s\n", e.Alloc.ID)
 		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocNotNeeded, "", "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range reconciliationResult.Migrate {
+		fmt.Printf("adding stopped alloc (migrate): %s\n", e.Alloc.ID)
 		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocNodeTainted, "", "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range reconciliationResult.Lost {
+		fmt.Printf("adding stopped alloc (lost): %s\n", e.Alloc.ID)
 		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocLost, structs.AllocClientStatusLost, "")
 	}
 
@@ -345,6 +357,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Record the number of allocations that needs to be placed per Task Group
 	for _, allocTuple := range reconciliationResult.Place {
+		fmt.Printf("alloc being placed in rec result - tg: %s alloc: %s\n", allocTuple.TaskGroup.Name, allocTuple.Name)
 		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
@@ -370,11 +383,14 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	for _, tg := range s.job.TaskGroups {
 		feasibleNodes, ok := s.feasibleNodesForTG[tg.Name]
 		if !ok {
+			fmt.Printf("no feasible nodes reported for task group: %s\n", tg.Name)
 			// this will happen if we're seeing a TG that shouldn't be placed; we only ever
 			// get feasible node counts for placements. These TGs get their DesiredTotal set
 			// in the reconciler and we don't touch it.
 			continue
 		}
+
+		fmt.Printf("desired total for task group %q: %d\n", tg.Name, len(feasibleNodes))
 
 		// we can set the desired total now, it's always the amount of all
 		// feasible nodes
@@ -382,6 +398,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 		dstate, ok := s.deployment.TaskGroups[tg.Name]
 		if !ok {
+			fmt.Printf("no dstate for task group: %s\n", tg.Name)
 			continue
 		}
 		// a system job is canarying if:
@@ -399,7 +416,13 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 		// if this TG isn't canarying, we're done
 		if !isCanarying {
+			fmt.Printf("no canary for this task group: %s\n", tg.Name)
 			continue
+		}
+
+		fmt.Printf("before the canaries ---\n")
+		for key, val := range s.plan.NodeAllocation {
+			fmt.Printf("total for %q: %d\n", key, len(val))
 		}
 
 		// we can now also set the desired canaries: it's the tg.Update.Canary
@@ -410,11 +433,17 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// Initially, if the job requires canaries, we place all of them on
 		// all eligible nodes. At this point we know which nodes are
 		// feasible, so we evict unnedded canaries.
-		placedCanaries, err := s.evictUnneededCanaries(requiredCanaries)
+		placedCanaries, err := s.evictUnneededCanaries(requiredCanaries, tg.Name)
 		if err != nil {
 			return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
 		}
+		fmt.Printf("placed canaries for task group %s: %d\n", tg.Name, len(placedCanaries))
 		s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
+
+		fmt.Printf("after the canaries ---\n")
+		for key, val := range s.plan.NodeAllocation {
+			fmt.Printf("total for %q: %d\n", key, len(val))
+		}
 
 		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying)
 		deploymentComplete = deploymentComplete && groupComplete
@@ -482,6 +511,7 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 			// that we can account for resources that will be freed by that
 			// allocation. We'll back this change out if we end up needing to
 			// limit placements by max_parallel or canaries.
+			fmt.Printf("adding stopped alloc in find feasible: %s\n", a.Alloc.ID)
 			s.plan.AppendStoppedAlloc(a.Alloc, sstructs.StatusAllocUpdating, "", "")
 		}
 
@@ -501,6 +531,11 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 			) {
 				feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
 			}
+		}
+
+		if a.Alloc.ID != "" {
+			fmt.Printf("removing stopped alloc in find feasible: %s\n", a.Alloc.ID)
+			s.plan.NodeUpdate[a.Alloc.NodeID] = s.plan.NodeUpdate[a.Alloc.NodeID][0 : len(s.plan.NodeUpdate[a.Alloc.NodeID])-1]
 		}
 	}
 
@@ -546,6 +581,7 @@ func (s *SystemScheduler) computePlacements(
 		}
 
 		if option == nil {
+			println("do we need to care about this?")
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
@@ -689,6 +725,8 @@ func (s *SystemScheduler) computePlacements(
 			alloc.PreemptedAllocations = preemptedAllocIDs
 		}
 
+		fmt.Printf("appending allocation in placement - tg: %s alloc: %s\n", alloc.TaskGroup, alloc.ID)
+
 		s.plan.AppendAlloc(alloc, nil)
 	}
 
@@ -762,10 +800,13 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconcile
 	limited := false
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
+			fmt.Printf("stopping alloc in evict and place: tg: %s alloc: %s\n", a.Alloc.TaskGroup, a.Alloc.ID)
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+			fmt.Printf("placing alloc in evict and place: tg: %s alloc: %s\n", a.Alloc.TaskGroup, a.Alloc.ID)
 			reconciled.Place = append(reconciled.Place, a)
 			limits[a.Alloc.TaskGroup]--
 		} else {
+			fmt.Printf("skipping placement due to limit reached in %q\n", a.Alloc.TaskGroup)
 			limited = true
 		}
 	}
@@ -774,7 +815,7 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconcile
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and removes unnecessary placements from the plan.
-func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string, error) {
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tg string) ([]string, error) {
 
 	desiredCanaries := []string{} // FIXME: make this better
 
@@ -785,11 +826,20 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string,
 
 	canaryCounter := requiredCanaries
 
+	fmt.Printf("required number of canaries: %d\n", requiredCanaries)
+
+	allocsToUse := map[string][]*structs.Allocation{}
+
 	// iterate over node allocations to find canary allocs
 	for node, allocations := range s.plan.NodeAllocation {
+		if _, ok := allocsToUse[node]; !ok {
+			allocsToUse[node] = []*structs.Allocation{}
+		}
+
 		n := 0
 		for _, alloc := range allocations {
 			if alloc.DeploymentStatus == nil {
+				allocsToUse[node] = append(allocsToUse[node], alloc)
 				continue
 			}
 			if alloc.DeploymentStatus.Canary {
@@ -798,11 +848,13 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string,
 
 					desiredCanaries = append(desiredCanaries, alloc.ID)
 					allocations[n] = alloc // we do this in order to avoid allocating another slice
+					allocsToUse[node] = append(allocsToUse[node], alloc)
 					n += 1
 				}
 			}
 		}
-		s.plan.NodeAllocation[node] = allocations[:n]
+		//s.plan.NodeAllocation[node] = allocations[:n]
+		s.plan.NodeAllocation = allocsToUse
 	}
 
 	return desiredCanaries, nil
