@@ -366,6 +366,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// nodes, so for system jobs we do it backwards a bit: the "desired" total
 	// is the total we were able to place.
 	// track if any of the task groups is doing a canary update now
+	deploymentComplete := true
 	for _, tg := range s.job.TaskGroups {
 		feasibleNodes, ok := s.feasibleNodesForTG[tg.Name]
 		if !ok {
@@ -414,12 +415,8 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
 		}
 		s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
-	}
 
-	// check if the deployment is complete
-	deploymentComplete := true
-	for _, tg := range s.job.TaskGroups {
-		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying[tg.Name])
+		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying)
 		deploymentComplete = deploymentComplete && groupComplete
 	}
 
