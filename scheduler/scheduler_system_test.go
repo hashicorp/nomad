@@ -3495,8 +3495,8 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 			expectAllocs: map[string]int{tg1: 2, tg2: 3},
 			expectStop:   map[string]int{tg1: 2, tg2: 3},
 			expectDState: map[string]*structs.DeploymentState{
-				tg1: {DesiredTotal: 10, PlacedAllocs: 4},
-				tg2: {DesiredTotal: 10, PlacedAllocs: 6},
+				tg1: {DesiredTotal: 10, PlacedAllocs: 4}, // 2 previous + 2 destructive
+				tg2: {DesiredTotal: 10, PlacedAllocs: 6}, // 3 previous + 3 destructive
 			},
 		},
 
@@ -3569,8 +3569,8 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 			expectAllocs: map[string]int{tg1: 7, tg2: 10},
 			expectStop:   map[string]int{tg1: 2, tg2: 3},
 			expectDState: map[string]*structs.DeploymentState{
-				tg1: {DesiredTotal: 10, PlacedAllocs: 7},
-				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
+				tg1: {DesiredTotal: 10, PlacedAllocs: 7},  // 2 destructive + 5 new
+				tg2: {DesiredTotal: 10, PlacedAllocs: 10}, // 3 destructive + 7 new
 			},
 		},
 
@@ -3585,11 +3585,11 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 			},
 			existingPrevious: map[string][]int{
 				tg1: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-				tg2: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+				tg2: {0, 1, 2, 3, 4, 5, 6, 7}, // only 8 were previously eligible
 			},
 			existingOldDState: map[string]*structs.DeploymentState{
 				tg1: {DesiredTotal: 10, PlacedAllocs: 10},
-				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
+				tg2: {DesiredTotal: 8, PlacedAllocs: 8},
 			},
 			expectAllocs: map[string]int{tg1: 2, tg2: 5},
 			expectStop:   map[string]int{tg1: 2, tg2: 5},
@@ -3597,9 +3597,13 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					PlacedAllocs:    2,
+					PlacedCanaries:  []string{"0", "1"},
+					PlacedAllocs:    2, // want 3 canaries, limited by max_parallel
 				},
-				tg2: {DesiredTotal: 10, PlacedAllocs: 5},
+				tg2: {
+					DesiredTotal: 10,
+					PlacedAllocs: 7, // 2 new + 5 destructive updates
+				},
 			},
 		},
 
@@ -3645,7 +3649,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
 					PlacedCanaries:  []string{"7", "8", "9"},
-					PlacedAllocs:    5,
+					PlacedAllocs:    5, // 2 failed + 2 replacements + 1 new
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
@@ -3690,7 +3694,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
 					PlacedCanaries:  []string{"7", "8", "9"},
-					PlacedAllocs:    3,
+					PlacedAllocs:    3, // 1 existing canary + 2 new canaries
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
@@ -3735,7 +3739,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
 					PlacedCanaries:  []string{"7", "8", "9"},
-					PlacedAllocs:    3,
+					PlacedAllocs:    3, // unchanged because we're not promoted
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
@@ -3777,7 +3781,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
 					PlacedCanaries:  []string{"7", "8", "9"},
-					PlacedAllocs:    5,
+					PlacedAllocs:    5, // 3 running canaries + 2 new limited by max_parallel
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
