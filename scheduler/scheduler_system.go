@@ -331,15 +331,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// find feasible nodes for all the task groups
-	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult.Update, s.ctx, sstructs.StatusAllocUpdating)
-
-	fmt.Printf("found the following feasible nodes:\n")
-	for k, v := range s.feasibleNodesForTG {
-		for _, node := range v {
-			fmt.Printf("tg %s has nodes: %v\n", k, node.Node.ID)
-		}
-		fmt.Printf("in total, tg %s has %d feasible nodes\n", k, len(v))
-	}
+	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult.Update)
 
 	// any further logic depends on whether we're canarying or not
 	isCanarying := map[string]bool{}
@@ -488,7 +480,7 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	return acc
 }
 
-func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple, ctx feasible.Context, desc string) map[string][]*feasible.RankedNode {
+func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple) map[string][]*feasible.RankedNode {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
@@ -498,9 +490,6 @@ func (s *SystemScheduler) findFeasibleNodesForTG(updates []reconciler.AllocTuple
 
 	nodes := make([]*structs.Node, 1)
 	for _, a := range updates {
-
-		// stop everything here
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 
 		tgName := a.TaskGroup.Name
 
@@ -554,10 +543,6 @@ func (s *SystemScheduler) computePlacements(
 		deploymentID = s.deployment.ID
 	}
 
-	for _, r := range reconcilerResult.Place {
-		fmt.Println(r.Name)
-	}
-
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range reconcilerResult.Place {
 		tgName := missing.TaskGroup.Name
@@ -572,17 +557,24 @@ func (s *SystemScheduler) computePlacements(
 
 		// if we've already seen a feasible node for this tg, skip feasibility
 		// checks for it
-		// option = s.feasibleNodesForTG[tgName]
+		optionsForTG := s.feasibleNodesForTG[tgName]
+		if existing := slices.IndexFunc(optionsForTG, func(rn *feasible.RankedNode) bool { return rn.Node == node }); existing != -1 {
+			option = optionsForTG[existing]
+		}
 
-		// if option == nil {
-		// Update the set of placement nodes
-		nodes[0] = node
-		s.stack.SetNodes(nodes)
+		// if we couldn't find any in the feasible nodes map, perform a
+		// feasibility check for that node and TG
+		if option == nil {
+			// Update the set of placement nodes
+			nodes[0] = node
+			s.stack.SetNodes(nodes)
 
-		// Attempt to match the task group
-		option = s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
-		// }
+			// Attempt to match the task group
+			option = s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
+		}
 
+		// if we're still getting nothing, it means we don't have a feasible
+		// node
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
