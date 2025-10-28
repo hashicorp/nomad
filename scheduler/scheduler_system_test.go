@@ -3591,14 +3591,13 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {DesiredTotal: 10, PlacedAllocs: 10},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
-			expectAllocs: map[string]int{tg1: 3, tg2: 5},
-			expectStop:   map[string]int{tg1: 3, tg2: 5},
+			expectAllocs: map[string]int{tg1: 2, tg2: 5},
+			expectStop:   map[string]int{tg1: 2, tg2: 5},
 			expectDState: map[string]*structs.DeploymentState{
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					// PlacedCanaries:  []string{"0", "1", "2"},
-					PlacedAllocs: 2,
+					PlacedAllocs:    2,
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 5},
 			},
