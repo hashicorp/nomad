@@ -41,10 +41,17 @@ reporting {
   state store. You can export these snapshots with the [`nomad operator
   utilization`][] command.
 
+- `disable_product_usage_reporting` `(bool: false)` - Specifies whether detailed
+  product usage metrics should be disabled. Review the
+  [full list of metrics](/nomad/docs/enterprise/license/utilization-reporting#full-list-of-metrics)
+  before disabling this option, and share any concerns you may have
+  with your account manager.
+
 ## `license` Block
 
 - `enabled` `(bool: true)` - Specifies whether automated license utilization
-  reporting should be enabled and run.
+  reporting should be enabled and run. License utilization metrics are still
+  gathered for offline reporting.
 
 [server_mode_enabled]: /nomad/docs/configuration/server#enabled
 [automated_license_utilization_reporting]: /nomad/docs/enterprise/license/utilization-reporting
