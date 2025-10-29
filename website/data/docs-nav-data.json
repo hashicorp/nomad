@@ -1302,6 +1302,10 @@
         "path": "reference/runtime-variable-interpolation"
       },
       {
+        "title": "Web UI keyboard shortcuts",
+        "path": "reference/keyboard-commands"
+      },
+      {
         "title": "Sentinel policy",
         "badge": {
           "text": "ENT",

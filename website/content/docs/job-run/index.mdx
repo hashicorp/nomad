@@ -44,3 +44,48 @@ file. The general flow for updating an existing job in Nomad is:
 Because the job specification defines the deployment strategy, the workflow
 remains the same regardless of whether this is an initial deployment or a
 long-running job.
+
+## Run a job in the web UI
+
+1. From the **Jobs** page in the web UI, click on the **Run Job** button in the
+top right of the page. 
+1. Enter the job definition in HCL into the **Job Definition** field, upload
+a jobspec file with the **Upload file** button, or choose from a set of
+templated jobspecs with the **Choose from template** button.
+1. Click on the **Plan** button at the bottom of the page. Nomad plans the job
+and displays the scheduler dry-run results.
+1. Click on the **Run** button at the bottom of the page.
+
+## View a running job in the web UI
+
+Nomad serves the web UI alongside the API. You can open the web UI in a web
+browser with the [`nomad ui` command](/nomad/commands/ui) or you can use the
+cluster address and navigate to the `/ui` path.
+
+```shell-session
+$ nomad ui
+Opening URL "https://127.0.0.1:4646"
+```
+
+When accessing the web UI, the first page you see is a listing of all the jobs
+for the default namespace. Clicking on a job takes you to the Job details page.
+
+### View a job from the CLI
+
+You can open the details page for a job by providing the job name to the
+`nomad ui` command.
+
+```shell-session
+$ nomad ui example-job-name
+Opening URL "https://127.0.0.1:4646/ui/jobs/example-job-name"
+```
+
+### View an allocation from the CLI
+
+You can open the details page for an allocation by providing the allocation ID
+to the `nomad ui` command.
+
+```shell-session
+$ nomad ui 7dc9f2d6
+Opening URL "https://127.0.0.1:4646/ui/allocations/7dc9f2d6-15fc-7c39-4692-70fe653d960e"
+```
