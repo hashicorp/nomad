@@ -411,10 +411,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			// Initially, if the job requires canaries, we place all of them on
 			// all eligible nodes. At this point we know which nodes are
 			// feasible, so we evict unnedded canaries.
-			placedCanaries, err := s.evictUnneededCanaries(requiredCanaries)
-			if err != nil {
-				return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
-			}
+			placedCanaries := s.evictUnneededCanaries(requiredCanaries)
 			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
 		}
 
@@ -792,13 +789,13 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and removes unnecessary placements from the plan.
-func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string, error) {
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) []string {
 
 	desiredCanaries := make([]string, 0)
 
 	// no canaries to consider, quit early
 	if requiredCanaries == 0 {
-		return desiredCanaries, nil
+		return desiredCanaries
 	}
 
 	canaryCounter := requiredCanaries
@@ -831,7 +828,7 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string,
 		s.plan.NodeAllocation[node] = allocations[:n]
 	}
 
-	return desiredCanaries, nil
+	return desiredCanaries
 }
 
 func (s *SystemScheduler) isDeploymentComplete(groupName string, buckets *reconciler.NodeReconcileResult, isCanarying bool) bool {
