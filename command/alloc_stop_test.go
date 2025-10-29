@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -65,35 +67,123 @@ func TestAllocStop_Fails(t *testing.T) {
 func TestAllocStop_Run(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	t.Run("default", func(t *testing.T) {
+		srv, client, url := testServer(t, true, nil)
+		defer srv.Shutdown()
 
-	// Wait for a node to be ready
-	waitForNodes(t, client)
+		// Wait for a node to be ready
+		waitForNodes(t, client)
 
-	ui := cli.NewMockUi()
-	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
+		ui := cli.NewMockUi()
+		cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
 
-	jobID := "job1_sfx"
-	job1 := testJob(jobID)
-	resp, _, err := client.Jobs().Register(job1, nil)
-	must.NoError(t, err)
+		jobID := "job1_sfx"
+		job1 := testJob(jobID)
+		job1.Type = pointer.Of("sysbatch")
+		resp, _, err := client.Jobs().Register(job1, nil)
+		must.NoError(t, err)
 
-	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	must.Zero(t, code)
+		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+		must.Zero(t, code)
 
-	// get an alloc id
-	allocID := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
-		if len(allocs) > 0 {
-			allocID = allocs[0].ID
+		// get an alloc id
+		allocID := ""
+		if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+			if len(allocs) > 0 {
+				allocID = allocs[0].ID
+			}
 		}
-	}
-	must.NotEq(t, "", allocID)
+		must.NotEq(t, "", allocID)
 
-	// Wait for alloc to be running
-	waitForAllocRunning(t, client, allocID)
+		// Wait for alloc to be running
+		waitForAllocRunning(t, client, allocID)
 
-	code = cmd.Run([]string{"-address=" + url, allocID})
-	must.Zero(t, code)
+		code = cmd.Run([]string{"-address=" + url, allocID})
+		must.Zero(t, code)
+
+		chkAlloc, _, err := client.Allocations().Info(allocID, &api.QueryOptions{})
+		must.NoError(t, err)
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate(), must.Sprint("alloc should be flagged to migrate"))
+		// only batch jobs get flagged to be rescheduled
+		must.False(t, chkAlloc.DesiredTransition.ShouldReschedule(), must.Sprint("alloc should not be flagged to reschedule"))
+	})
+
+	t.Run("batch job", func(t *testing.T) {
+		srv, client, url := testServer(t, true, nil)
+		defer srv.Shutdown()
+
+		// Wait for a node to be ready
+		waitForNodes(t, client)
+
+		ui := cli.NewMockUi()
+		cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
+
+		jobID := "job1_sfx"
+		job1 := testJob(jobID)
+		resp, _, err := client.Jobs().Register(job1, nil)
+		must.NoError(t, err)
+
+		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+		must.Zero(t, code)
+
+		// get an alloc id
+		allocID := ""
+		if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+			if len(allocs) > 0 {
+				allocID = allocs[0].ID
+			}
+		}
+		must.NotEq(t, "", allocID)
+
+		// Wait for alloc to be running
+		waitForAllocRunning(t, client, allocID)
+
+		code = cmd.Run([]string{"-address=" + url, allocID})
+		must.Zero(t, code)
+
+		chkAlloc, _, err := client.Allocations().Info(allocID, &api.QueryOptions{})
+		must.NoError(t, err)
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate(), must.Sprint("alloc should be flagged to migrate"))
+		// this is a batch job so alloc should be rescheduled
+		must.True(t, chkAlloc.DesiredTransition.ShouldReschedule(), must.Sprint("alloc should be flagged to reschedule"))
+	})
+
+	t.Run("no shutdown delay", func(t *testing.T) {
+		srv, client, url := testServer(t, true, nil)
+		defer srv.Shutdown()
+
+		// Wait for a node to be ready
+		waitForNodes(t, client)
+
+		ui := cli.NewMockUi()
+		cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
+
+		jobID := "job1_sfx"
+		job1 := testJob(jobID)
+		resp, _, err := client.Jobs().Register(job1, nil)
+		must.NoError(t, err)
+
+		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+		must.Zero(t, code)
+
+		// get an alloc id
+		allocID := ""
+		if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+			if len(allocs) > 0 {
+				allocID = allocs[0].ID
+			}
+		}
+		must.NotEq(t, "", allocID)
+
+		// Wait for alloc to be running
+		waitForAllocRunning(t, client, allocID)
+
+		code = cmd.Run([]string{"-address=" + url, "-no-shutdown-delay", allocID})
+		must.Zero(t, code)
+
+		chkAlloc, _, err := client.Allocations().Info(allocID, &api.QueryOptions{})
+		must.NoError(t, err)
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate(), must.Sprint("alloc should be flagged to migrate"))
+		must.True(t, chkAlloc.DesiredTransition.ShouldIgnoreShutdownDelay(), must.Sprint("alloc should be flagged to ignore shutdown delay"))
+	})
 }

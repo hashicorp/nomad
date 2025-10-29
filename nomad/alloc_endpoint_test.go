@@ -1125,6 +1125,92 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	require.True(*out2.DesiredTransition.Migrate)
 }
 
+func TestAllocEndpoint_Stop(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("default", func(t *testing.T) {
+		srv, cleanup := TestServer(t, nil)
+		defer cleanup()
+		codec := rpcClient(t, srv)
+		testutil.WaitForLeader(t, srv.RPC)
+
+		alloc := mock.Alloc()
+		state := srv.fsm.State()
+		must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+		req := &structs.AllocStopRequest{
+			AllocID: alloc.ID,
+			WriteRequest: structs.WriteRequest{
+				Namespace: structs.DefaultNamespace,
+				Region:    alloc.Job.Region,
+			},
+		}
+		var resp structs.AllocStopResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp))
+
+		chkAlloc, err := state.AllocByID(nil, alloc.ID)
+		must.NoError(t, err)
+
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate())
+	})
+
+	t.Run("with reschedule", func(t *testing.T) {
+		srv, cleanup := TestServer(t, nil)
+		defer cleanup()
+		codec := rpcClient(t, srv)
+		testutil.WaitForLeader(t, srv.RPC)
+
+		alloc := mock.Alloc()
+		state := srv.fsm.State()
+		must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+		req := &structs.AllocStopRequest{
+			AllocID:    alloc.ID,
+			Reschedule: true,
+			WriteRequest: structs.WriteRequest{
+				Namespace: structs.DefaultNamespace,
+				Region:    alloc.Job.Region,
+			},
+		}
+		var resp structs.AllocStopResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp))
+
+		chkAlloc, err := state.AllocByID(nil, alloc.ID)
+		must.NoError(t, err)
+
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate())
+		must.True(t, chkAlloc.DesiredTransition.ShouldReschedule())
+	})
+
+	t.Run("with no shutdown delay", func(t *testing.T) {
+		srv, cleanup := TestServer(t, nil)
+		defer cleanup()
+		codec := rpcClient(t, srv)
+		testutil.WaitForLeader(t, srv.RPC)
+
+		alloc := mock.Alloc()
+		state := srv.fsm.State()
+		must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+		req := &structs.AllocStopRequest{
+			AllocID:         alloc.ID,
+			NoShutdownDelay: true,
+			WriteRequest: structs.WriteRequest{
+				Namespace: structs.DefaultNamespace,
+				Region:    alloc.Job.Region,
+			},
+		}
+		var resp structs.AllocStopResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp))
+
+		chkAlloc, err := state.AllocByID(nil, alloc.ID)
+		must.NoError(t, err)
+
+		must.True(t, chkAlloc.DesiredTransition.ShouldMigrate())
+		must.True(t, chkAlloc.DesiredTransition.ShouldIgnoreShutdownDelay())
+	})
+}
+
 func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
