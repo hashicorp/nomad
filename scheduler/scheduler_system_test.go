@@ -3987,3 +3987,141 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 	}
 
 }
+
+func TestSystemSched_evictUnneededCanaries(t *testing.T) {
+	tests := []struct {
+		name                    string
+		requiredCanaries        int
+		tgName                  string
+		nodeAllocation          map[string][]*structs.Allocation
+		expectedDesiredCanaries []string
+		expectedNodeAllocation  map[string][]*structs.Allocation
+	}{
+		{
+			name:                    "no required canaries",
+			requiredCanaries:        0,
+			tgName:                  "foo",
+			nodeAllocation:          nil,
+			expectedDesiredCanaries: []string{},
+			expectedNodeAllocation:  nil,
+		},
+		{
+			name:             "existing allocs for 2 task groups: tg1 with no canaries, tg2 with canaries, calling for tg1",
+			requiredCanaries: 1,
+			tgName:           "tg1",
+			nodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+			expectedDesiredCanaries: []string{},
+			expectedNodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+		},
+		{
+			name:             "existing allocs for 2 task groups with canaries",
+			requiredCanaries: 1,
+			tgName:           "tg1",
+			nodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+			expectedDesiredCanaries: []string{"tg1_alloc1"},
+			expectedNodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg2_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := SystemScheduler{
+				plan: mock.Plan(),
+			}
+			s.plan.NodeAllocation = tt.nodeAllocation
+
+			must.Eq(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName), must.Sprint("unexpected desired canaries"))
+			must.Eq(t, tt.expectedNodeAllocation, s.plan.NodeAllocation, must.Sprintf("unexpected node allocation"))
+		})
+	}
+}

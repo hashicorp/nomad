@@ -411,7 +411,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			// Initially, if the job requires canaries, we place all of them on
 			// all eligible nodes. At this point we know which nodes are
 			// feasible, so we evict unnedded canaries.
-			placedCanaries := s.evictUnneededCanaries(requiredCanaries)
+			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name)
 			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
 		}
 
@@ -789,7 +789,7 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and removes unnecessary placements from the plan.
-func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) []string {
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName string) []string {
 
 	desiredCanaries := make([]string, 0)
 
@@ -806,7 +806,7 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) []string {
 		for _, alloc := range allocations {
 
 			// these are the allocs we keep
-			if alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.Canary {
+			if alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.Canary || alloc.TaskGroup != tgName {
 				allocations[n] = alloc
 				n += 1
 				continue
