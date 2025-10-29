@@ -3700,7 +3700,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					PlacedCanaries:  []string{"7", "8", "9"},
+					PlacedCanaries:  []string{"8", "9"},
 					PlacedAllocs:    3, // 1 existing canary + 2 new canaries
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
