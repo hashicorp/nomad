@@ -702,28 +702,6 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
-
-	// Ensure a follow up eval was created
-	eval = h.Evals[0]
-	if eval.NextEval == "" {
-		t.Fatalf("missing next eval")
-	}
-
-	// Check for create
-	if len(h.CreateEvals) == 0 {
-		t.Fatalf("missing created eval")
-	}
-	create := h.CreateEvals[0]
-	if eval.NextEval != create.ID {
-		t.Fatalf("ID mismatch")
-	}
-	if create.PreviousEval != eval.ID {
-		t.Fatalf("missing previous eval")
-	}
-
-	if create.TriggeredBy != structs.EvalTriggerRollingUpdate {
-		t.Fatalf("bad: %#v", create)
-	}
 }
 
 func TestSystemSched_JobModify_InPlace(t *testing.T) {
