@@ -357,7 +357,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		return err
 	}
 
-	// if there is not deployment we're done at this point
+	// if there is no deployment we're done at this point
 	if s.deployment == nil {
 		return nil
 	}
@@ -776,7 +776,7 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconcile
 // of feasible nodes, and removes unnecessary placements from the plan.
 func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string, error) {
 
-	desiredCanaries := []string{} // FIXME: make this better
+	desiredCanaries := make([]string, requiredCanaries)
 
 	// no canaries to consider, quit early
 	if requiredCanaries == 0 {
