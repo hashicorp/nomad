@@ -3598,7 +3598,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {DesiredTotal: 10, PlacedAllocs: 10},
 				tg2: {DesiredTotal: 8, PlacedAllocs: 8},
 			},
-			expectAllocs: map[string]int{tg1: 2, tg2: 5},
+			expectAllocs: map[string]int{tg1: 2, tg2: 7},
 			expectStop:   map[string]int{tg1: 2, tg2: 5},
 			expectDState: map[string]*structs.DeploymentState{
 				tg1: {
