@@ -335,7 +335,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
-	s.limitReached = evictAndPlace(s.ctx, s.job, reconciliationResult, sstructs.StatusAllocUpdating)
+	s.limitReached = s.evictAndPlace(reconciliationResult, sstructs.StatusAllocUpdating)
 
 	if !s.job.Stopped() {
 		for _, tg := range s.job.TaskGroups {
@@ -742,15 +742,15 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies the reconciler result. It returns
 // true if the limit has been reached for any task group.
-func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconciler.NodeReconcileResult, desc string) bool {
+func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResult, desc string) bool {
 
 	limits := map[string]int{} // per task group limits
-	if !job.Stopped() {
+	if !s.job.Stopped() {
 		jobLimit := len(reconciled.Update)
-		if job.Update.MaxParallel > 0 {
-			jobLimit = job.Update.MaxParallel
+		if s.job.Update.MaxParallel > 0 {
+			jobLimit = s.job.Update.MaxParallel
 		}
-		for _, tg := range job.TaskGroups {
+		for _, tg := range s.job.TaskGroups {
 			if tg.Update != nil && tg.Update.MaxParallel > 0 {
 				limits[tg.Name] = tg.Update.MaxParallel
 			} else {
@@ -759,16 +759,34 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconcile
 		}
 	}
 
+	// findFeasibleNodesForTG method marks all old allocs from a destructive
+	// update as stopped in order to get an accurate feasible nodes count
+	// (accounting for resources that would be freed). Now we need to remove all
+	// the allocs that have StatusAllocUpdating from NodeAllocation, and only
+	// place the ones that correspond to updates limited by max parallel.
+	for node, allocations := range s.plan.NodeAllocation {
+		n := 0
+		for _, alloc := range allocations {
+			if alloc.DesiredDescription == sstructs.StatusAllocUpdating {
+				allocations[n] = alloc
+				n += 1
+			}
+		}
+		s.plan.NodeAllocation[node] = allocations[:n]
+	}
+
 	limited := false
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
-			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+			s.ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 			reconciled.Place = append(reconciled.Place, a)
+
 			limits[a.Alloc.TaskGroup]--
 		} else {
 			limited = true
 		}
 	}
+
 	return limited
 }
 
