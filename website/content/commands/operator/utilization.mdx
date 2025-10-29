@@ -1,0 +1,79 @@
+---
+layout: docs
+page_title: nomad operator utilization command reference
+description: |-
+  The "operator utilization" generates utilization reporting bundles for Nomad Enterprise users.
+---
+
+# `nomad operator utilization` command reference
+
+The `operator utilization` command allows Nomad Enterprise users to generate
+utilization reporting bundles. If you have disabled [automated
+reporting](/nomad/docs/enterprise/license/utilization-reporting), use
+this command to manually generate the report and send it to HashiCorp. Nomad
+takes a new snapshot when there are no snapshots from the past twenty-four
+hours.
+
+If ACLs are enabled, this command requires a token with the `operator:write`
+capability.
+
+<EnterpriseAlert />
+
+## Options
+
+- `-message` `(string; "")` - Provide context about the conditions under which
+  the report was generated and submitted. This message is not included in the
+  utilization bundle but is included in the Nomad server logs.
+
+- `-output` `(string; "")` - Specifies the output path for the bundle. Defaults
+  to a time-based generated file name in the current working directory.
+
+- `-today-only` `(bool: false)` - Include snapshots from the previous 24 hours,
+  not historical snapshots.
+
+## Examples
+
+Create a utilization reporting bundle that includes all persisted historical
+snapshots and has the default bundle name
+(`nomad-utilization-<time_stamp>.json`).
+
+```shell-session
+$ nomad operator utilization
+Success! Utilization reporting bundle written to: nomad-utilization-2024-02-16T22-23-25Z.json
+```
+
+Create a utilization reporting bundle with a message about the bundle, and
+output the file at the specified path, `/utilization/reports/latest.json`.
+
+```shell-session
+$ nomad operator utilization \
+    -message="Change Control 654987" \
+    -output="/utilization/reports/latest.json"
+```
+
+**Example output**
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+Success! Utilization reporting bundle written to: /utilization/reports/latest.json
+```
+
+</CodeBlockConfig>
+
+The message, `Change Control 654987`, is included in the _server log_, but not
+in the bundle.
+
+**Example entry in the server log**
+
+<CodeBlockConfig hideClipboard>
+
+```plaintext
+[INFO]  reporting: reporting bundle generated: message="Change Control 654987"
+```
+
+</CodeBlockConfig>
+
+## General options
+
+@include 'general_options.mdx'
