@@ -762,15 +762,15 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 	// (accounting for resources that would be freed). Now we need to remove all
 	// the allocs that have StatusAllocUpdating from NodeAllocation, and only
 	// place the ones that correspond to updates limited by max parallel.
-	for node, allocations := range s.plan.NodeAllocation {
+	for node, allocations := range s.plan.NodeUpdate {
 		n := 0
 		for _, alloc := range allocations {
-			if alloc.DesiredDescription == sstructs.StatusAllocUpdating {
+			if alloc.DesiredDescription != sstructs.StatusAllocUpdating {
 				allocations[n] = alloc
 				n += 1
 			}
 		}
-		s.plan.NodeAllocation[node] = allocations[:n]
+		s.plan.NodeUpdate[node] = allocations[:n]
 	}
 
 	limited := false
