@@ -395,7 +395,7 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 
 	// Wait for allocs to be replaced
 	finalAllocs := waitForAllocsStop(t, store, n1.ID, nil)
-	waitForPlacedAllocs(t, store, n2.ID, 5)
+	waitForPlacedAllocs(t, store, n2.ID, 3)
 
 	// Assert that the service finished before the batch and system
 	var serviceMax, batchMax uint64 = 0, 0
@@ -653,7 +653,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 
 	// Wait for the allocs to be replaced
 	waitForAllocsStop(t, store, n1.ID, errCh)
-	waitForPlacedAllocs(t, store, n2.ID, 5)
+	waitForPlacedAllocs(t, store, n2.ID, 3)
 
 	// Wait for the node drain to be marked complete with the events we expect
 	waitForNodeDrainComplete(t, store, n1.ID, errCh, 3, drainer.NodeDrainEventDetailDeadlined)

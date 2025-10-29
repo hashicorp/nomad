@@ -472,6 +472,13 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// status is failed so that they will be replaced. If they are
 	// complete but not failed, they shouldn't be replaced.
 	if isBatch {
+		// if the batch job allocation is flagged for being rescheduled,
+		// which happens when stopped with the `alloc stop` command, the
+		// allocation should not be untainted nor ignored.
+		if alloc.DesiredTransition.ShouldReschedule() {
+			return false, false
+		}
+
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop:
 			if alloc.RanSuccessfully() {
@@ -548,6 +555,21 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		rescheduleLater = true
 	}
 
+	return
+}
+
+// filterRescheduledBatchAllocs returns a new allocSet that removes batch job allocations
+// that are server terminal and have been rescheduled. This is used to ensure that the
+// batch job allocation counts are correct and allocations are placed as expected when
+// using the `alloc stop` command.
+func (a allocSet) filterRescheduledBatchAllocs() (remaining allocSet) {
+	remaining = make(allocSet)
+	for id, alloc := range a {
+		if alloc.ServerTerminalStatus() && alloc.Job.Type == structs.JobTypeBatch && alloc.DesiredTransition.ShouldReschedule() {
+			continue
+		}
+		remaining[id] = alloc
+	}
 	return
 }
 
