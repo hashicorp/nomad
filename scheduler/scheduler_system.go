@@ -364,6 +364,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		// no deployment for this TG
+		if _, ok := s.deployment.TaskGroups[tg.Name]; !ok {
+			continue
+		}
+
 		// we can set the desired total now, it's always the amount of all
 		// feasible nodes
 		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(feasibleNodes)
@@ -385,24 +390,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			!dstate.Promoted &&
 			s.job.Version != 0
 
-		// if this TG isn't canarying, we're done
-		if !isCanarying {
-			continue
-		}
+		if isCanarying {
+			// we can now also set the desired canaries: it's the tg.Update.Canary
+			// percent of all the feasible nodes, rounded up to the nearest int
+			requiredCanaries := int(math.Ceil(float64(tg.Update.Canary) * float64(len(feasibleNodes)) / 100))
+			s.deployment.TaskGroups[tg.Name].DesiredCanaries = requiredCanaries
 
-		// we can now also set the desired canaries: it's the tg.Update.Canary
-		// percent of all the feasible nodes, rounded up to the nearest int
-		requiredCanaries := int(math.Ceil(float64(tg.Update.Canary) * float64(len(feasibleNodes)) / 100))
-		s.deployment.TaskGroups[tg.Name].DesiredCanaries = requiredCanaries
-
-		// Initially, if the job requires canaries, we place all of them on
-		// all eligible nodes. At this point we know which nodes are
-		// feasible, so we evict unnedded canaries.
-		placedCanaries, err := s.evictUnneededCanaries(requiredCanaries)
-		if err != nil {
-			return fmt.Errorf("failed to evict canaries for job '%s': %v", s.eval.JobID, err)
+			// Initially, if the job requires canaries, we place all of them on
+			// all eligible nodes. At this point we know which nodes are
+			// feasible, so we evict unnedded canaries.
+			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name)
+			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
 		}
-		s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
 
 		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying)
 		deploymentComplete = deploymentComplete && groupComplete
@@ -451,7 +450,7 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 	feasibleNodes := make(map[string][]*feasible.RankedNode)
 
 	nodes := make([]*structs.Node, 1)
-	for _, a := range slices.Concat(buckets.Place, buckets.Update) {
+	for _, a := range slices.Concat(buckets.Place, buckets.Update, buckets.Ignore) {
 
 		tgName := a.TaskGroup.Name
 
@@ -482,13 +481,11 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		// count this node as feasible
 		if feasibleNodes[tgName] == nil {
 			feasibleNodes[tgName] = []*feasible.RankedNode{option}
-		} else {
-			if !slices.ContainsFunc(
-				feasibleNodes[tgName],
-				func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
-			) {
-				feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
-			}
+		} else if !slices.ContainsFunc(
+			feasibleNodes[tgName],
+			func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
+		) {
+			feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
 		}
 	}
 
@@ -752,15 +749,15 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 	// (accounting for resources that would be freed). Now we need to remove all
 	// the allocs that have StatusAllocUpdating from NodeAllocation, and only
 	// place the ones that correspond to updates limited by max parallel.
-	for node, allocations := range s.plan.NodeAllocation {
+	for node, allocations := range s.plan.NodeUpdate {
 		n := 0
 		for _, alloc := range allocations {
-			if alloc.DesiredDescription == sstructs.StatusAllocUpdating {
+			if alloc.DesiredDescription != sstructs.StatusAllocUpdating {
 				allocations[n] = alloc
 				n += 1
 			}
 		}
-		s.plan.NodeAllocation[node] = allocations[:n]
+		s.plan.NodeUpdate[node] = allocations[:n]
 	}
 
 	limited := false
@@ -780,13 +777,13 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and removes unnecessary placements from the plan.
-func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string, error) {
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName string) []string {
 
-	desiredCanaries := make([]string, requiredCanaries)
+	desiredCanaries := make([]string, 0)
 
 	// no canaries to consider, quit early
 	if requiredCanaries == 0 {
-		return desiredCanaries, nil
+		return desiredCanaries
 	}
 
 	canaryCounter := requiredCanaries
@@ -795,23 +792,31 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int) ([]string,
 	for node, allocations := range s.plan.NodeAllocation {
 		n := 0
 		for _, alloc := range allocations {
-			if alloc.DeploymentStatus == nil {
+
+			// these are the allocs we keep
+			if alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.Canary || alloc.TaskGroup != tgName {
+				allocations[n] = alloc
+				n += 1
 				continue
 			}
+
+			// if it's a canary, we only keep up to desiredCanaries amount of
+			// them
 			if alloc.DeploymentStatus.Canary {
 				if canaryCounter != 0 {
 					canaryCounter -= 1
-
 					desiredCanaries = append(desiredCanaries, alloc.ID)
-					allocations[n] = alloc // we do this in order to avoid allocating another slice
+
+					allocations[n] = alloc
 					n += 1
 				}
 			}
 		}
+		// because of this nifty trick we don't need to allocate an extra slice
 		s.plan.NodeAllocation[node] = allocations[:n]
 	}
 
-	return desiredCanaries, nil
+	return desiredCanaries
 }
 
 func (s *SystemScheduler) isDeploymentComplete(groupName string, buckets *reconciler.NodeReconcileResult, isCanarying bool) bool {
