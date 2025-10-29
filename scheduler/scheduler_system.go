@@ -376,6 +376,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		// no deployment for this TG
+		if _, ok := s.deployment.TaskGroups[tg.Name]; !ok {
+			continue
+		}
+
 		// we can set the desired total now, it's always the amount of all
 		// feasible nodes
 		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(feasibleNodes)
@@ -460,7 +465,7 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 	feasibleNodes := make(map[string][]*feasible.RankedNode)
 
 	nodes := make([]*structs.Node, 1)
-	for _, a := range slices.Concat(buckets.Place, buckets.Update) {
+	for _, a := range slices.Concat(buckets.Place, buckets.Update, buckets.Ignore) {
 
 		tgName := a.TaskGroup.Name
 
