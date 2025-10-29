@@ -3352,7 +3352,14 @@ func TestEvictAndPlace(t *testing.T) {
 			diff := &reconciler.NodeReconcileResult{Update: allocs}
 			_, ctx := feasible.MockContext(t)
 
-			must.Eq(t, tc.expectLimited, evictAndPlace(ctx, job, diff, ""),
+			s := SystemScheduler{ctx: ctx, job: job, plan: &structs.Plan{
+				EvalID:          uuid.Generate(),
+				NodeUpdate:      make(map[string][]*structs.Allocation),
+				NodeAllocation:  make(map[string][]*structs.Allocation),
+				NodePreemptions: make(map[string][]*structs.Allocation),
+			}}
+
+			must.Eq(t, tc.expectLimited, s.evictAndPlace(diff, ""),
 				must.Sprintf("limited"))
 			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
 				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
@@ -3569,7 +3576,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {DesiredTotal: 10, PlacedAllocs: 10},
 				tg2: {DesiredTotal: 8, PlacedAllocs: 8},
 			},
-			expectAllocs: map[string]int{tg1: 2, tg2: 5},
+			expectAllocs: map[string]int{tg1: 2, tg2: 7},
 			expectStop:   map[string]int{tg1: 2, tg2: 5},
 			expectDState: map[string]*structs.DeploymentState{
 				tg1: {
@@ -3671,7 +3678,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					PlacedCanaries:  []string{"7", "8", "9"},
+					PlacedCanaries:  []string{"8", "9"},
 					PlacedAllocs:    3, // 1 existing canary + 2 new canaries
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
@@ -3957,4 +3964,142 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 		})
 	}
 
+}
+
+func TestSystemSched_evictUnneededCanaries(t *testing.T) {
+	tests := []struct {
+		name                    string
+		requiredCanaries        int
+		tgName                  string
+		nodeAllocation          map[string][]*structs.Allocation
+		expectedDesiredCanaries []string
+		expectedNodeAllocation  map[string][]*structs.Allocation
+	}{
+		{
+			name:                    "no required canaries",
+			requiredCanaries:        0,
+			tgName:                  "foo",
+			nodeAllocation:          nil,
+			expectedDesiredCanaries: []string{},
+			expectedNodeAllocation:  nil,
+		},
+		{
+			name:             "existing allocs for 2 task groups: tg1 with no canaries, tg2 with canaries, calling for tg1",
+			requiredCanaries: 1,
+			tgName:           "tg1",
+			nodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+			expectedDesiredCanaries: []string{},
+			expectedNodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
+						TaskGroup:        "tg1",
+					},
+					{
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+		},
+		{
+			name:             "existing allocs for 2 task groups with canaries",
+			requiredCanaries: 1,
+			tgName:           "tg1",
+			nodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg1_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+			expectedDesiredCanaries: []string{"tg1_alloc1"},
+			expectedNodeAllocation: map[string][]*structs.Allocation{
+				"node1": {
+					{
+						ID:               "tg1_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg1",
+					},
+					{
+						ID:               "tg2_alloc1",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+				"node2": {
+					{
+						ID:               "tg2_alloc2",
+						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
+						TaskGroup:        "tg2",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := SystemScheduler{
+				plan: mock.Plan(),
+			}
+			s.plan.NodeAllocation = tt.nodeAllocation
+
+			must.Eq(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName), must.Sprint("unexpected desired canaries"))
+			must.Eq(t, tt.expectedNodeAllocation, s.plan.NodeAllocation, must.Sprintf("unexpected node allocation"))
+		})
+	}
 }
