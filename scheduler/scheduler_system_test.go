@@ -3374,7 +3374,14 @@ func TestEvictAndPlace(t *testing.T) {
 			diff := &reconciler.NodeReconcileResult{Update: allocs}
 			_, ctx := feasible.MockContext(t)
 
-			must.Eq(t, tc.expectLimited, evictAndPlace(ctx, job, diff, ""),
+			s := SystemScheduler{ctx: ctx, job: job, plan: &structs.Plan{
+				EvalID:          uuid.Generate(),
+				NodeUpdate:      make(map[string][]*structs.Allocation),
+				NodeAllocation:  make(map[string][]*structs.Allocation),
+				NodePreemptions: make(map[string][]*structs.Allocation),
+			}}
+
+			must.Eq(t, tc.expectLimited, s.evictAndPlace(diff, ""),
 				must.Sprintf("limited"))
 			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
 				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
