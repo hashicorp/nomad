@@ -293,6 +293,31 @@ This is because the reset file is in place, but with the former index. The reset
 file can be deleted. However, if it is left behind, Nomad will not reset the
 bootstrap unless the file's contents match the actual reset index.
 
+## Access an ACL-enabled web UI
+
+If you access the web UI without specifying an ACL token, Nomad grants you
+the permissions of the anonymous policy. You can set an ACL token in the web UI
+or with the CLI.
+
+### Provide a token in the web UI
+
+Open the web UI in your web browser with the cluster address and navigate to
+the `/ui` path. Click on the user icon in the top-right of the page to open the
+**Settings** page. Enter your ACL token in the **Secret ID** field and click
+the **Sign in with secret** button. You can also open this page directly by
+navigating to the `/ui/settings/tokens` path.
+
+### Provide a token with the CLI
+
+You can use the [`nomad ui` command](/nomad/commands/ui) and the token you have
+set for the Nomad CLI to authenticate to the web UI. This exchanges your ACL
+token for a one-time token in the web UI.
+
+```shell-session
+$ nomad ui -authenticate
+Opening URL "https://127.0.0.1:4646" with one-time token
+```
+
 ## Next steps
 
 For a single cluster, the process is complete. For multi-region clusters, you
