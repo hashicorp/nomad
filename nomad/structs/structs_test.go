@@ -2211,6 +2211,10 @@ func TestTask_Validate(t *testing.T) {
 		"task level: distinct_hosts",
 		"task level: distinct_property",
 	)
+
+	// Ensure the task name "alloc" is invalid.
+	invalidAllocName := &Task{Name: "alloc"}
+	must.ErrorContains(t, invalidAllocName.Validate(JobTypeBatch, tg), "Task cannot be named")
 }
 
 func TestTask_Validate_Resources(t *testing.T) {
