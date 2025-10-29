@@ -496,8 +496,10 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 
 	feasibleNodes := make(map[string][]*feasible.RankedNode)
 
+	fmt.Printf("total allocs for node check: %d\n", len(buckets.Place)+len(buckets.Update))
+
 	nodes := make([]*structs.Node, 1)
-	for _, a := range slices.Concat(buckets.Place, buckets.Update) {
+	for _, a := range slices.Concat(buckets.Place, buckets.Update, buckets.Ignore) {
 
 		tgName := a.TaskGroup.Name
 
@@ -516,7 +518,6 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 			// that we can account for resources that will be freed by that
 			// allocation. We'll back this change out if we end up needing to
 			// limit placements by max_parallel or canaries.
-			fmt.Printf("adding stopped alloc in find feasible: %s\n", a.Alloc.ID)
 			s.plan.AppendStoppedAlloc(a.Alloc, sstructs.StatusAllocUpdating, "", "")
 		}
 
@@ -539,7 +540,6 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		}
 
 		if a.Alloc.ID != "" {
-			fmt.Printf("removing stopped alloc in find feasible: %s\n", a.Alloc.ID)
 			s.plan.NodeUpdate[a.Alloc.NodeID] = s.plan.NodeUpdate[a.Alloc.NodeID][0 : len(s.plan.NodeUpdate[a.Alloc.NodeID])-1]
 		}
 	}
@@ -805,13 +805,10 @@ func evictAndPlace(ctx feasible.Context, job *structs.Job, reconciled *reconcile
 	limited := false
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
-			fmt.Printf("stopping alloc in evict and place: tg: %s alloc: %s\n", a.Alloc.TaskGroup, a.Alloc.ID)
 			ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
-			fmt.Printf("placing alloc in evict and place: tg: %s alloc: %s\n", a.Alloc.TaskGroup, a.Alloc.ID)
 			reconciled.Place = append(reconciled.Place, a)
 			limits[a.Alloc.TaskGroup]--
 		} else {
-			fmt.Printf("skipping placement due to limit reached in %q\n", a.Alloc.TaskGroup)
 			limited = true
 		}
 	}
