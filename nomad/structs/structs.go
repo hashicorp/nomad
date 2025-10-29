@@ -8113,6 +8113,12 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
 	}
+
+	// Tasks cannot be named "alloc" as this conflicts with and breaks task
+	// filesystem isolation features.
+	if t.Name == "alloc" {
+		mErr.Errors = append(mErr.Errors, errors.New("Task cannot be named \"alloc\""))
+	}
 	if strings.ContainsAny(t.Name, `/\`) {
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
