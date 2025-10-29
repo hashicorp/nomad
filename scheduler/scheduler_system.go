@@ -494,13 +494,11 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		// count this node as feasible
 		if feasibleNodes[tgName] == nil {
 			feasibleNodes[tgName] = []*feasible.RankedNode{option}
-		} else {
-			if !slices.ContainsFunc(
-				feasibleNodes[tgName],
-				func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
-			) {
-				feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
-			}
+		} else if !slices.ContainsFunc(
+			feasibleNodes[tgName],
+			func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
+		) {
+			feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
 		}
 	}
 
