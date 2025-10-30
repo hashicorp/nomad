@@ -241,19 +241,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
@@ -649,19 +649,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
