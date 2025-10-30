@@ -2293,7 +2293,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 func TestSystemSched_canHandle(t *testing.T) {
 	ci.Parallel(t)
 
-	s := SystemScheduler{sysbatch: false}
+	s := SystemScheduler{}
 	t.Run("system register", func(t *testing.T) {
 		must.True(t, s.canHandle(structs.EvalTriggerJobRegister))
 	})
@@ -3106,8 +3106,12 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
-			err := h.Process(NewSystemScheduler, eval)
-			must.NoError(t, err)
+			if tc.jobType == structs.JobTypeSystem {
+				must.NoError(t, h.Process(NewSystemScheduler, eval))
+			}
+			if tc.jobType == structs.JobTypeSysBatch {
+				must.NoError(t, h.Process(NewSysBatchScheduler, eval))
+			}
 
 			// Ensure a single plan
 			must.Len(t, tc.expectedPlanCount, h.Plans)
