@@ -315,7 +315,6 @@ func (nr *NodeReconciler) computeForNode(
 
 	// Scan the required groups
 	for name, tg := range required {
-
 		// populate deployment state for this task group
 		var dstate = new(structs.DeploymentState)
 		var existingDeployment bool
@@ -334,7 +333,6 @@ func (nr *NodeReconciler) computeForNode(
 
 		// Check for an existing allocation
 		if _, ok := existing[name]; !ok {
-
 			// Check for a terminal sysbatch allocation, which should be not placed
 			// again unless the job has been updated.
 			if job.Type == structs.JobTypeSysBatch {
@@ -377,6 +375,11 @@ func (nr *NodeReconciler) computeForNode(
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     termOnNode,
+			}
+
+			// If the terminal allocation was a canary, mark it as such.
+			if termOnNode != nil && termOnNode.DeploymentStatus != nil && termOnNode.DeploymentStatus.Canary {
+				allocTuple.Canary = true
 			}
 
 			// If the new allocation isn't annotated with a previous allocation
