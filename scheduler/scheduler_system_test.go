@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
@@ -1276,11 +1275,11 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 	must.Zero(t, val)
 }
 
-// This test ensures that the scheduler correctly ignores ineligible
-// nodes when scheduling due to a new node being added. The job has two
-// task groups constrained to a particular node class. The desired behavior
-// should be that the TaskGroup constrained to the newly added node class is
-// added and that the TaskGroup constrained to the ineligible node is ignored.
+// This test ensures that the scheduler correctly ignores ineligible nodes when
+// scheduling due to a new node being added. The job has two task groups
+// constrained to a particular node class. The desired behavior should be that
+// the TaskGroup constrained to the newly added node class is added and that the
+// TaskGroup constrained to the ineligible node is ignored.
 func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1754,10 +1753,7 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["web"]
 	must.True(t, ok)
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			return val == 0
-		})))
+	must.Eq(t, 0, val)
 
 	// The plan has two NodeAllocations
 	must.Eq(t, 1, len(h.Plans))
