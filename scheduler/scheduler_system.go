@@ -496,6 +496,9 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		} else {
 			feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
 		}
+
+		// update the plan annotations for this task group
+		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(len(feasibleNodes[tgName]))
 	}
 
 	return feasibleNodes
