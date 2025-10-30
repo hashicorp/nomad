@@ -3700,7 +3700,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg1: {
 					DesiredTotal:    10,
 					DesiredCanaries: 3,
-					PlacedCanaries:  []string{"8", "9"},
+					PlacedCanaries:  []string{"7", "8", "9"},
 					PlacedAllocs:    3, // 1 existing canary + 2 new canaries
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
@@ -4120,7 +4120,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			}
 			s.plan.NodeAllocation = tt.nodeAllocation
 
-			must.Eq(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName), must.Sprint("unexpected desired canaries"))
+			must.Eq(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName, &reconciler.NodeReconcileResult{}), must.Sprint("unexpected desired canaries"))
 			must.Eq(t, tt.expectedNodeAllocation, s.plan.NodeAllocation, must.Sprintf("unexpected node allocation"))
 		})
 	}

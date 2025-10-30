@@ -411,7 +411,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			// Initially, if the job requires canaries, we place all of them on
 			// all eligible nodes. At this point we know which nodes are
 			// feasible, so we evict unnedded canaries.
-			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name)
+			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name, reconciliationResult)
 			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
 		}
 
@@ -789,7 +789,7 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
 // of feasible nodes, and removes unnecessary placements from the plan.
-func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName string) []string {
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName string, buckets *reconciler.NodeReconcileResult) []string {
 
 	desiredCanaries := make([]string, 0)
 
@@ -800,11 +800,45 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName str
 
 	canaryCounter := requiredCanaries
 
+	// Start with finding any existing failed canaries
+	failedCanaries := map[string]struct{}{}
+	for _, alloc := range buckets.Place {
+		if alloc.Alloc != nil && alloc.Alloc.DeploymentStatus != nil && alloc.Alloc.DeploymentStatus.Canary {
+			failedCanaries[alloc.Alloc.ID] = struct{}{}
+		}
+	}
+
+	// Generate a list of preferred allocations for
+	// canaries. These are existing canary applications
+	// that are failed.
+	preferCanary := map[string]struct{}{}
+	for _, allocations := range s.plan.NodeAllocation {
+		for _, alloc := range allocations {
+			if _, ok := failedCanaries[alloc.PreviousAllocation]; ok {
+				preferCanary[alloc.ID] = struct{}{}
+			}
+		}
+	}
+
+	// Remove the number of preferred canaries found
+	// from the counter.
+	canaryCounter -= len(preferCanary)
+
+	// Check for any canaries that are already running. For any
+	// that are found, add to the desired list and decrement
+	// the counter.
+	for _, tuple := range buckets.Ignore {
+		if tuple.TaskGroup.Name == tgName && tuple.Alloc != nil &&
+			tuple.Alloc.DeploymentStatus != nil && tuple.Alloc.DeploymentStatus.Canary {
+			desiredCanaries = append(desiredCanaries, tuple.Alloc.ID)
+			canaryCounter--
+		}
+	}
+
 	// iterate over node allocations to find canary allocs
 	for node, allocations := range s.plan.NodeAllocation {
 		n := 0
 		for _, alloc := range allocations {
-
 			// these are the allocs we keep
 			if alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.Canary || alloc.TaskGroup != tgName {
 				allocations[n] = alloc
@@ -815,15 +849,30 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName str
 			// if it's a canary, we only keep up to desiredCanaries amount of
 			// them
 			if alloc.DeploymentStatus.Canary {
-				if canaryCounter != 0 {
+				// Check if this is a preferred allocation for the canary
+				_, preferred := preferCanary[alloc.ID]
+
+				// If it is a preferred allocation, or the counter is not exhausted,
+				// keep the allocation
+				if canaryCounter > 0 || preferred {
 					canaryCounter -= 1
 					desiredCanaries = append(desiredCanaries, alloc.ID)
-
 					allocations[n] = alloc
 					n += 1
+				} else {
+					// If the counter has been exhausted the allocation will not be
+					// placed, but a stop will have been appended for the update.
+					// Locate it and remove it.
+					idx := slices.IndexFunc(s.plan.NodeUpdate[alloc.NodeID], func(a *structs.Allocation) bool {
+						return a.ID == alloc.PreviousAllocation
+					})
+					if idx > -1 {
+						s.plan.NodeUpdate[alloc.NodeID] = append(s.plan.NodeUpdate[alloc.NodeID][0:idx], s.plan.NodeUpdate[alloc.NodeID][idx+1:]...)
+					}
 				}
 			}
 		}
+
 		// because of this nifty trick we don't need to allocate an extra slice
 		s.plan.NodeAllocation[node] = allocations[:n]
 	}
