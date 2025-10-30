@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"runtime/debug"
 	"slices"
@@ -721,6 +722,13 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 			limited = true
 		}
 	}
+
+	// it may be the case that there are keys in the NodeUpdate that are empty.
+	// We should delete them, otherwise the plan won't be correctly recognize as
+	// a no-op.
+	maps.DeleteFunc(s.plan.NodeUpdate, func(k string, v []*structs.Allocation) bool {
+		return len(v) == 0
+	})
 
 	return limited
 }

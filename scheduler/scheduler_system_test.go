@@ -1276,11 +1276,11 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 	must.Zero(t, val)
 }
 
-// This test ensures that the scheduler correctly ignores ineligible
-// nodes when scheduling due to a new node being added. The job has two
-// task groups constrained to a particular node class. The desired behavior
-// should be that the TaskGroup constrained to the newly added node class is
-// added and that the TaskGroup constrained to the ineligible node is ignored.
+// This test ensures that the scheduler correctly ignores ineligible nodes when
+// scheduling due to a new node being added. The job has two task groups
+// constrained to a particular node class. The desired behavior should be that
+// the TaskGroup constrained to the newly added node class is added and that the
+// TaskGroup constrained to the ineligible node is ignored.
 func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1341,11 +1341,17 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["groupA"]
 	must.True(t, ok)
-	must.Eq(t, 0, val)
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return val == 0
+		})))
 
 	val, ok = h.Evals[0].QueuedAllocations["groupB"]
 	must.True(t, ok)
-	must.Eq(t, 0, val)
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return val == 0
+		})))
 
 	// Single plan with two NodeAllocations
 	must.Len(t, 1, h.Plans)
