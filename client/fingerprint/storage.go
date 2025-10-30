@@ -48,7 +48,7 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		total = uint64(cfg.DiskTotalMB) * bytesPerMegabyte
 	}
 
-	free := total - uint64(req.Node.ReservedResources.Disk.DiskMB)
+	free := total - f.reservedDisk(req)
 
 	// DEPRECATED: remove in 1.13.0
 	if cfg.DiskFreeMB > 0 {
@@ -68,4 +68,15 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	resp.Detected = true
 
 	return nil
+}
+
+func (f *StorageFingerprint) reservedDisk(req *FingerprintRequest) uint64 {
+	switch {
+	case req.Config.Node == nil:
+		return 0
+	case req.Config.Node.ReservedResources == nil:
+		return 0
+	default:
+		return uint64(req.Config.Node.ReservedResources.Disk.DiskMB)
+	}
 }
