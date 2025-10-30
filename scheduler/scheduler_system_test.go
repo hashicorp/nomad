@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
@@ -1341,21 +1340,11 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["groupA"]
 	must.True(t, ok)
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			return val == 0
-		}),
-		wait.Timeout(10*time.Second),
-	))
+	must.Eq(t, 0, val)
 
 	val, ok = h.Evals[0].QueuedAllocations["groupB"]
 	must.True(t, ok)
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			return val == 0
-		}),
-		wait.Timeout(10*time.Second),
-	))
+	must.Eq(t, 0, val)
 
 	// Single plan with two NodeAllocations
 	must.Len(t, 1, h.Plans)
@@ -1764,12 +1753,7 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["web"]
 	must.True(t, ok)
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			return val == 0
-		}),
-		wait.Timeout(10*time.Second),
-	))
+	must.Eq(t, 0, val)
 
 	// The plan has two NodeAllocations
 	must.Eq(t, 1, len(h.Plans))
