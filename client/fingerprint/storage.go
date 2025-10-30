@@ -52,6 +52,7 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 
 	// DEPRECATED: remove in 1.13.0
 	if cfg.DiskFreeMB > 0 {
+		f.logger.Warn("disk_free_mb is deprecated, please use reserved.disk")
 		free = uint64(cfg.DiskFreeMB) * bytesPerMegabyte
 	}
 
