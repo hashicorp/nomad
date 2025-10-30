@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/client/testutil"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -301,7 +300,6 @@ type envoyConfig struct {
 // Envoy contains a Consul SI token.
 func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	ci.Parallel(t)
-	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
@@ -399,7 +397,6 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 // registered for the task.
 func TestEnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	ci.Parallel(t)
-	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
@@ -607,7 +604,6 @@ func TestEnvoyBootstrapHook_Noop(t *testing.T) {
 // that we retry the appropriate number of times
 func TestEnvoyBootstrapHook_CommandFailed(t *testing.T) {
 	ci.Parallel(t)
-	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
@@ -705,10 +701,11 @@ func (m *mockSleeper) Sleep(d time.Duration) {
 
 func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
 	ci.Parallel(t)
-	logger := testlog.HCLogger(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()
+
+	logger := testlog.HCLogger(t)
 
 	begin := time.Now()
 

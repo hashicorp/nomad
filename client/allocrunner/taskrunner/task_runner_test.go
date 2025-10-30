@@ -210,6 +210,7 @@ func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string)
 }
 
 func TestTaskRunner_BuildTaskConfig_CPU_Memory(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	cases := []struct {
@@ -333,6 +334,7 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 // TestTaskRunner_Restore_Running asserts restoring a running task does not
 // rerun the task.
 func TestTaskRunner_Restore_Running(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -388,6 +390,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 // back in the correct state. If the task was waiting for an alloc restart it
 // must be able to be restarted after restore, otherwise a restart must fail.
 func TestTaskRunner_Restore_Dead(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -547,6 +550,7 @@ func setupRestoreFailureTest(t *testing.T, alloc *structs.Allocation) (*TaskRunn
 // TestTaskRunner_Restore_Restart asserts restoring a dead task blocks until
 // MarkAlive is called. #1795
 func TestTaskRunner_Restore_Restart(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	newTR, conf, cleanup := setupRestoreFailureTest(t, mock.Alloc())
@@ -566,6 +570,7 @@ func TestTaskRunner_Restore_Restart(t *testing.T) {
 // TestTaskRunner_Restore_Kill asserts restoring a dead task blocks until
 // the task is killed. #1795
 func TestTaskRunner_Restore_Kill(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	newTR, _, cleanup := setupRestoreFailureTest(t, mock.Alloc())
@@ -593,6 +598,7 @@ func TestTaskRunner_Restore_Kill(t *testing.T) {
 // TestTaskRunner_Restore_Update asserts restoring a dead task blocks until
 // Update is called. #1795
 func TestTaskRunner_Restore_Update(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	newTR, conf, cleanup := setupRestoreFailureTest(t, mock.Alloc())
@@ -619,6 +625,7 @@ func TestTaskRunner_Restore_Update(t *testing.T) {
 // TestTaskRunner_Restore_System asserts restoring a dead system task does not
 // block.
 func TestTaskRunner_Restore_System(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -697,6 +704,7 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 // TestTaskRunner_MarkFailedKill asserts that MarkFailedKill marks the task as failed
 // and cancels the killCtx so a subsequent Run() will do any necessary task cleanup.
 func TestTaskRunner_MarkFailedKill(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	// set up some taskrunner
@@ -752,6 +760,7 @@ func TestTaskRunner_MarkFailedKill(t *testing.T) {
 // TestTaskRunner_TaskEnv_Interpolated asserts driver configurations are
 // interpolated.
 func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -790,6 +799,7 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 
 // TestTaskRunner_TaskEnv_None asserts raw_exec uses host paths and env vars.
 func TestTaskRunner_TaskEnv_None(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -839,6 +849,7 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 
 // Test that devices get sent to the driver
 func TestTaskRunner_DevicePropogation(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -933,6 +944,7 @@ func (h *mockEnvHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 // hook environments set restores the environment without re-running done
 // hooks.
 func TestTaskRunner_Restore_HookEnv(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -970,6 +982,7 @@ func TestTaskRunner_Restore_HookEnv(t *testing.T) {
 // This test asserts that we can recover from an "external" plugin exiting by
 // retrieving a new instance of the driver and recovering the task.
 func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -1043,6 +1056,7 @@ func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
 // TestTaskRunner_ShutdownDelay asserts services are removed from Consul
 // ${shutdown_delay} seconds before killing the process.
 func TestTaskRunner_ShutdownDelay(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -1127,6 +1141,7 @@ WAIT:
 // Consul and tasks are killed without waiting for ${shutdown_delay}
 // when the alloc has the NoShutdownDelay transition flag set.
 func TestTaskRunner_NoShutdownDelay(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	// don't set this too high so that we don't block the test runner
@@ -1212,6 +1227,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 // TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
 // payload was written to disk.
 func TestTaskRunner_Dispatch_Payload(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -1258,6 +1274,7 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 // TestTaskRunner_SignalFailure asserts that signal errors are properly
 // propagated from the driver to TaskRunner.
 func TestTaskRunner_SignalFailure(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -1280,6 +1297,7 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 // TestTaskRunner_RestartTask asserts that restarting a task works and emits a
 // Restarting event.
 func TestTaskRunner_RestartTask(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -1332,6 +1350,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 // TestTaskRunner_CheckWatcher_Restart asserts that when enabled an unhealthy
 // Consul check will cause a task to restart following restart policy rules.
 func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -1448,6 +1467,7 @@ func useMockEnvoyBootstrapHook(tr *TaskRunner) {
 // TestTaskRunner_BlockForVaultToken asserts tasks do not start until a vault token
 // is derived.
 func TestTaskRunner_BlockForVaultToken(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -1555,6 +1575,7 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 }
 
 func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	// Create test allocation with a Vault block disabling the token file in
@@ -1629,6 +1650,7 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 // returned when deriving a vault token a task will continue to block while
 // it's retried.
 func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1719,6 +1741,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 // TestTaskRunner_DeriveToken_Unrecoverable asserts that an unrecoverable error
 // from deriving a vault token will fail a task.
 func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	// Use a batch job with no restarts
@@ -1833,6 +1856,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 // TestTaskRunner_Download_List asserts that multiple artificats are downloaded
 // before a task is run.
 func TestTaskRunner_Download_List(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
 	defer ts.Close()
@@ -1878,6 +1902,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 // TestTaskRunner_Download_Retries asserts that failed artifact downloads are
 // retried according to the task's restart policy.
 func TestTaskRunner_Download_Retries(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	// Create an allocation that has a task with bad artifacts.
@@ -1920,6 +1945,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 // TestTaskRunner_DriverNetwork asserts that a driver's network is properly
 // used in services and checks.
 func TestTaskRunner_DriverNetwork(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -2059,6 +2085,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 // TestTaskRunner_RestartSignalTask_NotRunning asserts resilience to failures
 // when a restart or signal is triggered and the task is not running.
 func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2145,6 +2172,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 // TestTaskRunner_Run_RecoverableStartError asserts tasks are restarted if they
 // return a recoverable error from StartTask.
 func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2183,6 +2211,7 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 
 // TestTaskRunner_Template_Artifact asserts that tasks can use artifacts as templates.
 func TestTaskRunner_Template_Artifact(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	ts := httptest.NewServer(http.FileServer(http.Dir(".")))
@@ -2239,6 +2268,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 // that fails to render in PreStart can gracefully be shutdown by
 // either killCtx or shutdownCtx
 func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2301,6 +2331,7 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 }
 
 func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	expectedConsulValue := "consul-value"
@@ -2449,6 +2480,7 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 // TestTaskRunner_Template_NewVaultToken asserts that a new vault token is
 // created when rendering template and that it is revoked on alloc completion
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2552,6 +2584,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 // the alloc derived vault token expires, when task is configured with Restart
 // change mode.
 func TestTaskRunner_VaultManager_Restart(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2647,6 +2680,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 // the alloc derived vault token expires, when task is configured with signal
 // change mode.
 func TestTaskRunner_VaultManager_Signal(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2731,6 +2765,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 // TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
 // Consul when waiting to be retried.
 func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -2803,6 +2838,7 @@ func testWaitForTaskToDie(t *testing.T, tr *TaskRunner) {
 // TestTaskRunner_BaseLabels tests that the base labels for the task metrics
 // are set appropriately.
 func TestTaskRunner_BaseLabels(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -2834,6 +2870,7 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 // TestTaskRunner_BaseLabels_IncludesAllocMetadata tests that the base labels include
 // the allocation metadata fields using the provided allowed list of keys
 func TestTaskRunner_BaseLabels_IncludesAllocMetadata(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2868,6 +2905,7 @@ func TestTaskRunner_BaseLabels_IncludesAllocMetadata(t *testing.T) {
 // TestTaskRunner_IdentityHook_Enabled asserts that the identity hook exposes a
 // workload identity to a task.
 func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2920,6 +2958,7 @@ func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {
 // TestTaskRunner_IdentityHook_Disabled asserts that the identity hook does not
 // expose a workload identity to a task by default.
 func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2946,6 +2985,7 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 }
 
 func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
+	ctestutil.RequireRoot(t)
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
