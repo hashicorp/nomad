@@ -759,8 +759,8 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 	// findFeasibleNodesForTG method marks all old allocs from a destructive
 	// update as stopped in order to get an accurate feasible nodes count
 	// (accounting for resources that would be freed). Now we need to remove all
-	// the allocs that have StatusAllocUpdating from NodeAllocation, and only
-	// place the ones that correspond to updates limited by max parallel.
+	// the allocs that have StatusAllocUpdating from the set we're stopping (NodeUpdate) and
+	// only place and stop the ones the ones that correspond to updates limited by max parallel.
 	for node, allocations := range s.plan.NodeUpdate {
 		n := 0
 		for _, alloc := range allocations {
