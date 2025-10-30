@@ -13,11 +13,11 @@ specifications. Learn how Access Control List (ACL) policies restrict access to 
 ## Introduction
 
 Most Nomad workloads need access to configuration values or secrets. Nomad has a
-`template` block to [provide such configuration to
+`template` block to [provide these values to
 tasks](/nomad/docs/job-specification/template#nomad-variables). Nomad variables
 provide the option to store configuration at file-like paths
-directly in Nomad's state store. Access these variables directly from
-your task templates. Nomad encrypts and replicates the contents of these variables between servers via Raft. Access to variables is controlled by
+directly in Nomad's state store so that you can access these variables directly from
+your task templates. Nomad encrypts and replicates the contents of these variables between servers with Raft communication. Access to variables is controlled by
 ACL policies, and tasks have implicit ACL policies that allow them to access
 their own variables. You can create, read, update, or delete variables via the
 command line, the Nomad API, or in the Nomad web UI.
