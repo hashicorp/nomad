@@ -23,22 +23,17 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
 	maxSystemScheduleAttempts = 5
-
-	// maxSysBatchScheduleAttempts is used to limit the number of times we will
-	// attempt to schedule if we continue to hit conflicts for sysbatch jobs.
-	maxSysBatchScheduleAttempts = 2
 )
 
-// SystemScheduler is used for 'system' and 'sysbatch' jobs. This scheduler is
-// designed for jobs that should be run on every client. The 'system' mode
-// will ensure those jobs continuously run regardless of successful task exits,
-// whereas 'sysbatch' considers the task complete on success.
+// SystemScheduler is used for 'system' jobs. This scheduler is designed for
+// jobs that should be run on every client. The 'system' mode will ensure those
+// jobs continuously run regardless of successful task exits, whereas 'sysbatch'
+// considers the task complete on success.
 type SystemScheduler struct {
 	logger   log.Logger
 	eventsCh chan<- interface{}
 	state    sstructs.State
 	planner  sstructs.Planner
-	sysbatch bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -69,17 +64,6 @@ func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state ss
 		eventsCh: eventsCh,
 		state:    state,
 		planner:  planner,
-		sysbatch: false,
-	}
-}
-
-func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
-	return &SystemScheduler{
-		logger:   logger.Named("sysbatch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		sysbatch: true,
 	}
 }
 
@@ -108,9 +92,6 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	}
 
 	limit := maxSystemScheduleAttempts
-	if s.sysbatch {
-		limit = maxSysBatchScheduleAttempts
-	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
@@ -155,15 +136,13 @@ func (s *SystemScheduler) process() (bool, error) {
 		}
 	}
 
-	if !s.sysbatch {
-		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
-		if err != nil {
-			return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
-		}
-		// system deployments may be mutated in the reconciler because the node
-		// count can change between evaluations
-		s.deployment = s.deployment.Copy()
+	s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
 	}
+	// system deployments may be mutated in the reconciler because the node
+	// count can change between evaluations
+	s.deployment = s.deployment.Copy()
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
@@ -175,7 +154,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.ctx = feasible.NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = feasible.NewSystemStack(s.sysbatch, s.ctx)
+	s.stack = feasible.NewSystemStack(false, s.ctx)
 	if !s.job.Stopped() {
 		s.setJob(s.job)
 	}
@@ -415,30 +394,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	s.plan.DeploymentUpdates = nr.DeploymentUpdates
 
 	return nil
-}
-
-func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
-	if acc == nil {
-		return curr.Copy()
-	}
-
-	acc.NodesEvaluated += curr.NodesEvaluated
-	acc.NodesFiltered += curr.NodesFiltered
-
-	if acc.ClassFiltered == nil {
-		acc.ClassFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ClassFiltered {
-		acc.ClassFiltered[k] += v
-	}
-	if acc.ConstraintFiltered == nil {
-		acc.ConstraintFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ConstraintFiltered {
-		acc.ConstraintFiltered[k] += v
-	}
-	acc.AllocationTime += curr.AllocationTime
-	return acc
 }
 
 func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconcileResult) map[string][]*feasible.RankedNode {
@@ -714,12 +669,7 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 	case structs.EvalTriggerScaling:
 	case structs.EvalTriggerReconnect:
 	default:
-		switch s.sysbatch {
-		case true:
-			return trigger == structs.EvalTriggerPeriodicJob
-		case false:
-			return false
-		}
+		return false
 	}
 	return true
 }
