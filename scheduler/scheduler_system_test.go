@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
@@ -1793,7 +1794,10 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["web"]
 	must.True(t, ok)
-	must.Eq(t, 0, val)
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return val == 0
+		})))
 
 	// The plan has two NodeAllocations
 	must.Eq(t, 1, len(h.Plans))
