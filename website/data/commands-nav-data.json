@@ -635,6 +635,10 @@
             "path": "operator/snapshot/state"
           }
         ]
+      },
+      {
+        "title": "utilization",
+        "path": "operator/utilization"
       }
     ]
   },

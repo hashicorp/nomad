@@ -13,6 +13,30 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.8.18
+
+#### ACL policies no longer silently ignore duplicate or invalid keys
+
+Nomad 1.8.18 introduces stricter validation for ACL policies. Policy writes that
+include duplicate or invalid keys will be rejected with an error instead of
+being silently ignored. Any existing policies with duplicate or invalid keys
+will continue to work, but the source policy document will need to be updated
+to be valid before it can be written to Nomad.
+
+#### Enterprise product usage reporting <EnterpriseAlert inline />
+
+Nomad Enterprise 1.8.18 adds detailed product usage information to
+[automated license utilization reporting](/nomad/docs/enterprise/license/utilization-reporting).
+
+## Nomad 1.8.4
+
+#### Default Docker `infra_image` changed
+
+Due to the deprecation of the third-party `gcr.io` registry, the default Docker
+[`infra_image`](/nomad/docs/v1.8.x/drivers/docker#infra_image) is now `registry.k8s.io/pause-<arch>:3.3`. If you do not
+override the default, clients using the `docker` driver will make outbound
+requests to the new registry.
+
 ## Nomad 1.8.3
 
 #### Nomad keyring rotation

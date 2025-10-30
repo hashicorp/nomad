@@ -19,9 +19,11 @@ For more information about automated license utilization reporting, please see t
 
 ```hcl
 reporting {
-    license {
-      enabled = true
-    }
+  license {
+    enabled = true
+  }
+
+  snapshot_retention_time = "9600h"
 }
 ```
 
@@ -30,10 +32,23 @@ reporting {
 - `license` <code>([license](#license-block): default)</code> - Configures
   automated license utilization reporting.
 
+- `snapshot_retention_time` `(string: "9600h")` - Configures the maximum amount
+  of time that Nomad retains a utilization reporting snapshot in the Nomad
+  state store. You can export these snapshots with the [`nomad operator
+  utilization`][] command.
+
+- `disable_product_usage_reporting` `(bool: false)` - Specifies whether detailed
+  product usage metrics should be disabled. Review the
+  [full list of metrics](/nomad/docs/enterprise/license/utilization-reporting#full-list-of-metrics)
+  before disabling this option, and share any concerns you may have
+  with your account manager.
+
 ## `license` Block
 
 - `enabled` `(bool: true)` - Specifies whether automated license utilization
-  reporting should be enabled and run.
+  reporting should be enabled and run. License utilization metrics are still
+  gathered for offline reporting.
 
 [server_mode_enabled]: /nomad/docs/configuration/server#enabled
 [automated_license_utilization_reporting]: /nomad/docs/enterprise/license/utilization-reporting
+[`nomad operator utilization`]: /nomad/docs/commands/operator/utilization

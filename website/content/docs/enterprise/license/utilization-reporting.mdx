@@ -2,32 +2,41 @@
 layout: docs
 page_title: Automated license utilization reporting
 description: >-
-  Learn what data HashiCorp collects to meter Enterprise license utilization. Enable or disable reporting. Review sample payloads and logs.
+  Learn what data HashiCorp collects to monitor Enterprise product usage and license utilization. Enable or opt out of automatic reporting. Review sample payloads and logs.
 ---
 
 # Automated license utilization reporting
 
-Automated license utilization reporting sends license utilization data to HashiCorp without requiring you 
-to manually collect and report them. It also lets you review your license usage with the monitoring 
-solution you already use (for example Splunk, Datadog, or others) so you can optimize and manage your 
-deployments. Use these reports to understand how much more you can deploy under your current contract, 
-protect against overutilization, and budget for predicted consumption.  
+<EnterpriseAlert product="nomad" />
 
-Automated reporting shares the minimum data required to validate license utilization as defined in our 
-contracts. They consist of mostly computed metrics and will never contain Personal Identifiable Information 
-(PII) or other sensitive information. Automated reporting shares the data with HashiCorp using a secure, 
-unidirectional HTTPS API and makes an auditable record in the product logs each time it submits a report. 
-The reporting process is GDPR compliant and submits reports roughly once every 24 hours.
+This page provides information on the data HashiCorp collects to monitor
+Enterprise product usage and license utilization. Learn how to enable or
+opt out of automatic reporting. Review sample payloads and logs.
+
+## Introduction
+
+Automated reporting sends product and license utilization data to HashiCorp without
+requiring you to manually collect and report them.
+
+It shares data required to validate license utilization as defined in our contracts.
+The detailed product usage metrics also inform our feature roadmap. They consist of computed
+metrics and never contain Personal Identifiable Information (PII) or other sensitive information,
+which you can verify by reviewing the full [list of metrics](#full-list-of-metrics).
+Inform your account manager if you have concerns with any of the data.
+
+Automated reporting shares the data with HashiCorp using a secure, unidirectional HTTPS API and makes
+an auditable record in the product logs each time it submits a report. The reporting process is GDPR
+compliant and submits reports roughly once every 24 hours.
 
 ## Enable automated reporting
 
-To enable automated reporting, you need to make sure that outbound network traffic is configured correctly 
-and upgrade your enterprise product to a version that supports it. If your installation is air-gapped or 
-network settings are not in place, automated reporting will not work. 
+To enable automated reporting, you need to make sure that outbound network traffic is configured correctly
+and upgrade your enterprise product to a version that supports it. If your installation is air-gapped or
+network settings are not in place, automated reporting will not work.
 
 ### 1. Allow outbound HTTPS traffic on port 443
 
-Make sure that your network allows HTTPS egress on port 443 from https://reporting.hashicorp.services by 
+Make sure that your network allows HTTPS egress on port 443 from https://reporting.hashicorp.services by
 allow-listing the following IP addresses:
 
 - 100.20.70.12
@@ -42,10 +51,10 @@ Upgrade to a release that supports license utilization reporting. These releases
 
 ### 3. Check logs
 
-Automatic license utilization reporting will start sending data within roughly 24 hours. Check the product 
+Automatic license utilization reporting will start sending data within roughly 24 hours. Check the product
 logs for records that the data sent successfully.
 
-Instructions on how to check logs. 
+Instructions on how to check logs.
 
 ```
 [DEBUG] core.reporting: beginning snapshot export
@@ -61,8 +70,8 @@ Instructions on how to check logs.
 [DEBUG] core.reporting: export finished successfully
 ```
 
-If your installation is air-gapped or your network doesn’t allow the correct egress, logs will show an 
-error. 
+If your installation is air-gapped or your network doesn’t allow the correct egress, logs will show an
+error.
 
 ```
 [DEBUG] core.reporting: beginning snapshot export
@@ -75,65 +84,262 @@ error.
 [DEBUG] core.reporting: error status code received: statusCode=403
 ```
 
-In this case, reconfigure your network to allow egress and check back in 24 hours. 
+In this case, reconfigure your network to allow egress and check back in 24 hours.
 
 ## Opt out
 
-If your installation is air-gapped or you want to manually collect and report on the same license 
-utilization metrics, you can opt-out of automated reporting. 
+If your installation is air-gapped or you want to manually collect and report on the same license
+utilization metrics, you can opt-out of automated reporting.
 
-Manually reporting these metrics can be time consuming. Opting out of automated reporting does not mean that 
-you also opt out from sending license utilization metrics. Customers who opt out of automated reporting will 
-still be required to manually collect and send license utilization metrics to HashiCorp. 
+Manually reporting these metrics can be time consuming. Opting out of automated reporting does not mean that
+you also opt out from sending license utilization metrics. Customers who opt out of automated reporting are
+still required to manually collect and send license utilization metrics to HashiCorp by using the
+[`nomad operator utilization`](/nomad/commands/operator/utilization) command.
 
-If you are considering opting out because you’re worried about the data, we strongly recommend that you 
-review the [example payloads](#example-payloads) before opting out. If you have concerns with any of the 
-automatically-reported data please bring them to your account manager. 
+You may disable product usage metrics separately from license utilization reporting, so your
+automated license reporting can exclude product usage metrics, or you can include product usage
+metrics in offline reports.
 
-You have two options to opt out of automated reporting: HCL configuration (recommended) and Environment 
-variable (requires restart).
+You have two ways to opt out of automated reporting: HCL configuration or environment variables.
 
-Opting out in your product’s configuration file doesn’t require a system restart, and is the method we 
-recommend. Add the following block to your `server.hcl` file.
+For HCL configuration, use the [`reporting`](/nomad/docs/configuration/reporting) block
+in your Nomad server agent config file.
 
 ```hcl
 reporting {
-	license {
-		enabled = false
-    }
+  license {
+    enabled = false
+  }
 }
 ```
 
-If you need to, you can also opt out using an environment variable, which will provide a startup message 
-confirming that you have disabled automated reporting. This option requires a system restart. 
+The `reporting.license.enabled` option toggles automated reporting.
+Nomad still gathers license utilization data for manual reporting.
 
-Set the following environment variable.
+To disable detailed product usage metrics for both automated and offline reporting,
+use the `reporting.disable_product_usage_reporting` option.
+
+```hcl
+reporting {
+  disable_product_usage_reporting = true
+}
+```
+
+Alternatively, you can use the following environment variables in your Nomad server agent's environment.
+
+```shell
+export OPTOUT_LICENSE_REPORTING=true
+export OPTOUT_PRODUCT_USAGE_REPORTING=true
+```
+
+If your configuration file and environment variable differ, the environment variable takes precedence.
+
+After changing configuration, follow the ["Run an agent"
+instructions](/nomad/docs/deploy/nomad-agentt#run-an-agent)
+to restart your Nomad server and apply your changes.
+
+The Nomad agent emits logs at startup confirming your settings. This example shows
+automated reporting enabled, but without product usage metrics.
 
 ```
-$ export OPTOUT_LICENSE_REPORTING=true
+[INFO]  nomad.reporting: reporting agent is enabled and configured
+[DEBUG] nomad.reporting: product usage reporting disabled via agent configuration
+[INFO]  nomad.reporting: product usage reporting is disabled; usage metrics data will not be collected
 ```
 
-Now restart your system by following [these instructions](/nomad/docs/operations/nomad-agent). 
+You can also check your product logs roughly 24 hours after opting out to make sure that the
+system isn’t trying to send reports, or that the detailed usage metrics are all reporting `0`.
 
-Check your product logs roughly 24 hours after opting out to make sure that the system isn’t trying to send 
-reports.
+## Full list of metrics
 
-If your configuration file and environment variable differ, the environment variable setting will take 
-precedence.
+This table lists all the metrics that we collect.
 
-## Example payloads
+Only `nomad.billable.*` metrics are collected if product usage metrics are disabled.
 
-HashiCorp collects the following utilization data as JSON payloads:
+The values are all integers for pre-determined values. We do not collect any strings
+that might identify proprietary information.
 
-`billable.nodes` - Number of billable nodes in Nomad
+<!-- NOTE to maintainers: Generate this table with a CLI tool in the registry repo
+     https://github.com/hashicorp/hashicorp-census-registry/tree/main/nomad/v2/cmd
+-->
+
+| Key                                       | Description                                               |
+|-------------------------------------------|-----------------------------------------------------------|
+| acl.auth.method.count                     | ACL Auth Methods                                          |
+| acl.auth.method.jwt.count                 | ACL Auth Methods of type JWT                              |
+| acl.auth.method.oidc.count                | ACL Auth Methods of type OIDC                             |
+| acl.policy.count                          | ACL policies                                              |
+| acl.role.count                            | ACL roles                                                 |
+| acl.token.count                           | ACL tokens                                                |
+| alloc.count                               | All allocations                                           |
+| alloc.status.complete.count               | Allocations with client status "complete"                 |
+| alloc.status.failed.count                 | Allocations with client status "failed"                   |
+| alloc.status.lost.count                   | Allocations with client status "lost"                     |
+| alloc.status.pending.count                | Allocations with client status "pending"                  |
+| alloc.status.running.count                | Allocations with client status "running"                  |
+| alloc.status.unknown.count                | Allocations with client status "unknown"                  |
+| alloc.task.count                          | All tasks in allocations                                  |
+| alloc.task.running.count                  | Running tasks in allocations                              |
+| client.count                              | Client nodes in the cluster                               |
+| client.driver.docker.count                | Clients with the "docker" driver                          |
+| client.driver.exec.count                  | Clients with the "exec" driver                            |
+| client.driver.exec2.count                 | Clients with the "exec2" driver                           |
+| client.driver.java.count                  | Clients with the "java" driver                            |
+| client.driver.nomad-driver-virt.count     | Clients with the "nomad-driver-virt" driver               |
+| client.driver.other.count                 | Clients with some other driver                            |
+| client.driver.pledge.count                | Clients with the "pledge" driver                          |
+| client.driver.podman.count                | Clients with the "podman" driver                          |
+| client.driver.qemu.count                  | Clients with the "qemu" driver                            |
+| client.driver.raw_exec.count              | Clients with the "raw_exec" driver                        |
+| client.plugin.cni.unique.count            | Unique CNI plugins on client nodes                        |
+| client.plugin.driver.unique.count         | Unique task drivers on client nodes                       |
+| client.plugin.host_volume.unique.count    | Unique host volume plugins on client nodes                |
+| client.plugin.secret.unique.count         | Unique secret plugins on client nodes                     |
+| client.resources.compute                  | Total client compute                                      |
+| client.resources.core.count               | Total client CPU cores                                    |
+| client.resources.memory                   | Total client memory in MB                                 |
+| client.vault.enabled.count                | Clients with Vault enabled                                |
+| job.count                                 | All jobs                                                  |
+| job.driver.docker.count                   | Jobs with the "docker" driver                             |
+| job.driver.exec.count                     | Jobs with the "exec" driver                               |
+| job.driver.exec2.count                    | Jobs with the "exec2" driver                              |
+| job.driver.java.count                     | Jobs with the "java" driver                               |
+| job.driver.nomad-driver-virt.count        | Jobs with the "nomad-driver-virt" driver                  |
+| job.driver.other.count                    | Jobs with some other driver                               |
+| job.driver.pledge.count                   | Jobs with the "pledge" driver                             |
+| job.driver.podman.count                   | Jobs with the "podman" driver                             |
+| job.driver.qemu.count                     | Jobs with the "qemu" driver                               |
+| job.driver.raw_exec.count                 | Jobs with the "raw_exec" driver                           |
+| job.group.count                           | Task groups in jobs                                       |
+| job.network.cni.args.count                | Networks in jobs with custom CNI args                     |
+| job.network.mode.bridge.count             | Networks in jobs with mode "bridge"                       |
+| job.network.mode.cni.count                | Networks in jobs with mode "cni"                          |
+| job.network.mode.host.count               | Networks in jobs with mode "host"                         |
+| job.network.mode.other.count              | Networks in jobs with some other mode                     |
+| job.parameterized.count                   | Parameterized jobs                                        |
+| job.parameterized.dispatched.count        | Dispatched parameterized jobs                             |
+| job.periodic.count                        | Periodic jobs                                             |
+| job.periodic.dispatched.count             | Dispatched periodic jobs                                  |
+| job.service.consul.connect.count          | Connect services in jobs                                  |
+| job.service.consul.count                  | Consul services in jobs                                   |
+| job.service.nomad.count                   | Nomad provider services in jobs                           |
+| job.task.identity.count                   | Tasks in jobs with identity enabled                       |
+| job.task.template.count                   | Tasks in jobs with templates                              |
+| job.task.vault.count                      | Tasks in jobs with Vault enabled                          |
+| job.type.batch.count                      | Jobs of type "batch"                                      |
+| job.type.service.count                    | Jobs of type "service"                                    |
+| job.type.sysbatch.count                   | Jobs of type "sysbatch"                                   |
+| job.type.system.count                     | Jobs of type "system"                                     |
+| job.volume.csi.count                      | CSI volumes in jobs                                       |
+| job.volume.host.count                     | Host volumes in jobs                                      |
+| job.volume.sticky.count                   | Sticky volumes in jobs                                    |
+| namespace.count                           | Namespaces                                                |
+| namespace.quotas.count                    | Quotas                                                    |
+| node.cpu.arch.amd64.count                 | Clients with "amd64" CPU architecture                     |
+| node.cpu.arch.arm64.count                 | Clients with "arm64" CPU architecture                     |
+| node.cpu.arch.other.count                 | Clients with some other CPU architecture                  |
+| node.cpu.arch.s390x.count                 | Clients with "s390x" CPU architecture                     |
+| node.cpu.arch.unique.count                | Unique CPU architectures on client nodes                  |
+| node.kernel.name.aix.count                | Clients with "aix" kernel                                 |
+| node.kernel.name.darwin.count             | Clients with "darwin" kernel                              |
+| node.kernel.name.freebsd.count            | Clients with "freebsd" kernel                             |
+| node.kernel.name.linux.count              | Clients with "linux" kernel                               |
+| node.kernel.name.other.count              | Clients with some other kernel                            |
+| node.kernel.name.plan9.count              | Clients with "plan9" kernel                               |
+| node.kernel.name.solaris.count            | Clients with "solaris" kernel                             |
+| node.kernel.name.unique.count             | Unique kernels on client nodes                            |
+| node.os.name.alpine.count                 | Clients with "alpine" operating system                    |
+| node.os.name.amazon.count                 | Clients with "amazon" operating system                    |
+| node.os.name.arch.count                   | Clients with "arch" operating system                      |
+| node.os.name.centos.count                 | Clients with "centos" operating system                    |
+| node.os.name.cloudlinux.count             | Clients with "cloudlinux" operating system                |
+| node.os.name.coreos.count                 | Clients with "coreos" operating system                    |
+| node.os.name.darwin.count                 | Clients with "darwin" operating system                    |
+| node.os.name.debian.count                 | Clients with "debian" operating system                    |
+| node.os.name.fedora.count                 | Clients with "fedora" operating system                    |
+| node.os.name.gentoo.count                 | Clients with "gentoo" operating system                    |
+| node.os.name.opensuse.count               | Clients with "opensuse" operating system                  |
+| node.os.name.oracle.count                 | Clients with "oracle" operating system                    |
+| node.os.name.other.count                  | Clients with some other operating system                  |
+| node.os.name.raspbian.count               | Clients with "raspbian" operating system                  |
+| node.os.name.redhat.count                 | Clients with "redhat" operating system                    |
+| node.os.name.suse.count                   | Clients with "suse" operating system                      |
+| node.os.name.ubuntu.count                 | Clients with "ubuntu" operating system                    |
+| node.os.name.unique.count                 | Unique operating systems on client nodes                  |
+| node.os.name.windows.count                | Clients with "windows" operating system                   |
+| node.pool.count                           | Node pools                                                |
+| node.status.disconnected.count            | Clients with status "disconnected"                        |
+| node.status.down.count                    | Clients with status "down"                                |
+| node.status.initializing.count            | Clients with status "initializing"                        |
+| node.status.ready.count                   | Clients with status "ready"                               |
+| node.status.unknown.count                 | Clients with status "unknown"                             |
+| nomad.billable.clients                    | Number of client nodes in the cluster                     |
+| nomad.billable.cores.s390x                | Active client s390x CPU cores in the cluster              |
+| nomad.billable.cores.total                | Active client CPU cores in the cluster                    |
+| plugin.csi.unique.count                   | Unique CSI plugins                                        |
+| policy.sentinel.count                     | Sentinel policies                                         |
+| sentinel.enforcement.advisory.count       | Sentinel policies with "advisory" enforcement level       |
+| sentinel.enforcement.hard-mandatory.count | Sentinel policies with "hard-mandatory" enforcement level |
+| sentinel.enforcement.soft-mandatory.count | Sentinel policies with "soft-mandatory" enforcement level |
+| sentinel.scope.submit-csi-volume.count    | Sentinel policies with "submit-csi-volume" scope          |
+| sentinel.scope.submit-host-volume.count   | Sentinel policies with "submit-host-volume" scope         |
+| sentinel.scope.submit-job.count           | Sentinel policies with "submit-job" scope                 |
+| task.driver.docker.count                  | Tasks with the "docker" driver                            |
+| task.driver.exec.count                    | Tasks with the "exec" driver                              |
+| task.driver.exec2.count                   | Tasks with the "exec2" driver                             |
+| task.driver.java.count                    | Tasks with the "java" driver                              |
+| task.driver.nomad-driver-virt.count       | Tasks with the "nomad-driver-virt" driver                 |
+| task.driver.other.count                   | Tasks with some other driver                              |
+| task.driver.pledge.count                  | Tasks with the "pledge" driver                            |
+| task.driver.podman.count                  | Tasks with the "podman" driver                            |
+| task.driver.qemu.count                    | Tasks with the "qemu" driver                              |
+| task.driver.raw_exec.count                | Tasks with the "raw_exec" driver                          |
+| variable.count                            | Nomad Variables                                           |
+| variable.lock.count                       | Nomad Variable Locks                                      |
+| volume.csi.capacity                       | Capacity of all CSI volumes in MB                         |
+| volume.csi.count                          | Number of "csi" volumes                                   |
+| volume.dhv.capacity                       | Capacity of all dynamic host volumes in MB                |
+| volume.dhv.plugin.other.count             | Dynamic host volumes with non-standard plugins            |
+| volume.dynamic.count                      | Number of "dynamic" volumes                               |
+| volume.static.count                       | Number of "static" volumes                                |
+
+
+## Example payload
+
+HashiCorp collects utilization data in the following JSON format.
 
 ```json
-"metrics": {
-    "nomad.billable.nodes": {
-        "key": "nomad.billable.nodes",
-        "kind": "counter",
-        "mode": "write",
-        "value": 33
+{
+  "version": "2",
+  "mode": "manual",
+  "timestamp": "2025-09-26T17:20:41.189292719Z",
+  "signature": "...",
+  "checksum": ...,
+  "snapshots": [
+    {
+      "snapshot_version": 2,
+      "id": "0001MDDJT442VWX01R4K21A22D",
+      "timestamp": "2025-09-26T13:20:04.598859749-04:00",
+      "schema_version": "2.1.0",
+      "product": "nomad",
+      "process_id": "01K63GH92XVS1V95RM7509N303",
+      "metrics": {
+        ...
+        "nomad.billable.clients": {
+          "key": "nomad.billable.clients",
+          "value": 25,
+          "mode": "write"
+        },
+        ...
+      },
+      "product_version": "1.10.6",
+      "license_id": "...",
+      "checksum": ...,
+      "metadata": {}
     }
+  ]
 }
 ```
+
+You can inspect the full payload in the server logs, or by running the
+[`nomad operator utilization`](/nomad/commands/operator/utilization) command.
