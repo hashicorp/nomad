@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
@@ -330,7 +331,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		node := mock.Node()
 		if i < 9 {
 			node.NodeClass = "foo"
@@ -364,15 +365,10 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewSystemScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, h.Process(NewSystemScheduler, eval))
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	must.SliceLen(t, 1, h.Plans)
 	plan := h.Plans[0]
 
 	// Ensure the plan allocated
@@ -380,9 +376,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 9 {
-		t.Fatalf("bad: %#v %d", planned, len(planned))
-	}
+	must.SliceLen(t, 9, planned)
 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
@@ -390,9 +384,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	must.NoError(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 9 {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.SliceLen(t, 9, out)
 
 	// Check the available nodes
 	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 10 {
@@ -404,23 +396,14 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
 	// Ensure the plan had annotations.
-	if plan.Annotations == nil {
-		t.Fatalf("expected annotations")
-	}
+	must.NotNil(t, plan.Annotations)
 
 	desiredTGs := plan.Annotations.DesiredTGUpdates
-	if l := len(desiredTGs); l != 1 {
-		t.Fatalf("incorrect number of task groups; got %v; want %v", l, 1)
-	}
+	must.MapLen(t, 1, desiredTGs, must.Sprint("incorrect number of task groups"))
 
 	desiredChanges, ok := desiredTGs["web"]
-	if !ok {
-		t.Fatalf("expected task group web to have desired changes")
-	}
-
-	expected := &structs.DesiredUpdates{Place: 9}
-	must.Eq(t, desiredChanges, expected)
-
+	must.True(t, ok, must.Sprint("expected task group web to have desired changes"))
+	must.Eq(t, 9, desiredChanges.Place)
 }
 
 func TestSystemSched_JobRegister_AddNode(t *testing.T) {
@@ -1771,7 +1754,10 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 	// QueuedAllocations is drained
 	val, ok := h.Evals[0].QueuedAllocations["web"]
 	must.True(t, ok)
-	must.Eq(t, 0, val)
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return val == 0
+		})))
 
 	// The plan has two NodeAllocations
 	must.Eq(t, 1, len(h.Plans))
@@ -3717,8 +3703,8 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				},
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10, HealthyAllocs: 10},
 			},
-			expectAllocs: nil,
-			expectStop:   nil,
+			expectAllocs: map[string]int{},
+			expectStop:   map[string]int{},
 			expectDState: map[string]*structs.DeploymentState{
 				tg1: {
 					DesiredTotal:    10,

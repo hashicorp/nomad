@@ -481,12 +481,12 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 		// count this node as feasible
 		if feasibleNodes[tgName] == nil {
 			feasibleNodes[tgName] = []*feasible.RankedNode{option}
-		} else if !slices.ContainsFunc(
-			feasibleNodes[tgName],
-			func(rn *feasible.RankedNode) bool { return rn.Node.ID == option.Node.ID },
-		) {
+		} else {
 			feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
 		}
+
+		// update the plan annotations for this task group
+		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(len(feasibleNodes[tgName]))
 	}
 
 	return feasibleNodes
@@ -747,8 +747,8 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 	// findFeasibleNodesForTG method marks all old allocs from a destructive
 	// update as stopped in order to get an accurate feasible nodes count
 	// (accounting for resources that would be freed). Now we need to remove all
-	// the allocs that have StatusAllocUpdating from NodeAllocation, and only
-	// place the ones that correspond to updates limited by max parallel.
+	// the allocs that have StatusAllocUpdating from the set we're stopping (NodeUpdate) and
+	// only place and stop the ones the ones that correspond to updates limited by max parallel.
 	for node, allocations := range s.plan.NodeUpdate {
 		n := 0
 		for _, alloc := range allocations {
