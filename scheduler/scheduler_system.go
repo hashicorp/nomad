@@ -373,9 +373,15 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	for _, tg := range s.job.TaskGroups {
 		feasibleNodes := s.nodesForTG[tg.Name].feasible()
 		if len(feasibleNodes) < 1 {
-			// this will happen if we're seeing a TG that shouldn't be placed; we only ever
-			// get feasible node counts for placements. These TGs get their DesiredTotal set
-			// in the reconciler and we don't touch it.
+			// this will happen if we're seeing a TG that shouldn't be placed.
+			//
+			// in case the deployment is in a successful state, this indicate a
+			// noop eval due to infeasible nodes. In this case we set the dstate
+			// for this task group to nil.
+			if s.deployment.Status == structs.DeploymentStatusSuccessful {
+				s.deployment.TaskGroups[tg.Name] = nil
+			}
+
 			continue
 		}
 
@@ -424,6 +430,20 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// adjust the deployment updates and set the right deployment status
 	nr.DeploymentUpdates = append(nr.DeploymentUpdates, s.setDeploymentStatusAndUpdates(deploymentComplete, s.job)...)
+
+	// Check if perhaps we're dealing with a nil deployment, i.e., a deployment
+	// which is in successful state and where all task groups have a nil dstate.
+	// In this case, set the deployment to nil.
+	nilDstates := true
+	for _, tg := range s.deployment.TaskGroups {
+		if tg != nil {
+			nilDstates = false
+		}
+	}
+	if nilDstates {
+		s.deployment = nil
+		nr.DeploymentUpdates = nil
+	}
 
 	// Add the deployment changes to the plan
 	s.plan.Deployment = s.deployment
