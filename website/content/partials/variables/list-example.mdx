@@ -1,0 +1,113 @@
+List the variables in the namespace `prod`.
+
+```shell-session
+$ nomad var list -namespace prod
+Namespace  Path                     Last Updated
+prod       project/another-example  2025-09-19T11:21:56-04:00
+prod       project/example          2025-09-19T11:29:03-04:00
+```
+
+List the variables in namespace `prod` that match the prefix filter `project/ex`.
+
+```shell-session
+$ nomad var list -namespace prod project/ex
+Namespace  Path             Last Updated
+prod       project/example  2025-09-19T11:29:03-04:00
+```
+
+Use the wildcard namespace indicator (`*`) to list all the variables you have
+access to. For many shells, the `*` character is significant, so you might need
+to wrap it in double (`"`) or single (`'`) quotation marks.
+
+```shell-session
+$ nomad var list -namespace '*'
+Namespace  Path                     Last Updated
+dev        another-project/example  2022-09-19T11:29:54-04:00
+dev        project/example          2022-09-19T11:29:54-04:00
+dev        system/config            2022-09-19T11:29:54-04:00
+prod       project/another-example  2022-09-19T11:21:56-04:00
+prod       project/example          2022-09-19T11:29:03-04:00
+```
+
+List values under the key `nomad/jobs`.
+
+```shell-session
+$ nomad var list nomad/jobs
+Namespace  Path                           Last Updated
+default    nomad/jobs/example             2022-08-23T10:35:47-04:00
+default    nomad/jobs/variable            2022-08-23T10:24:45-04:00
+default    nomad/jobs/variable/www        2022-08-23T10:24:45-04:00
+default    nomad/jobs/variable/www/nginx  2022-08-23T10:24:46-04:00
+```
+
+List values under the key `nomad/jobs/variable/www` in JSON format.
+
+```shell-session
+$ nomad var list -out=json -namespace="*" nomad/jobs/variable/www
+[
+  {
+    "Namespace": "default",
+    "Path": "nomad/jobs/variable/www",
+    "CreateIndex": 1457,
+    "ModifyIndex": 1457,
+    "CreateTime": 1662061225600373000,
+    "ModifyTime": 1662061225600373000
+  },
+  {
+    "Namespace": "default",
+    "Path": "nomad/jobs/variable/www/nginx",
+    "CreateIndex": 800,
+    "ModifyIndex": 1000,
+    "CreateTime": 1662061717905426000,
+    "ModifyTime": 1662062162982630000
+  }
+]
+```
+
+Perform a paginated query.
+
+```shell-session
+$ nomad var list -per-page=3
+Namespace  Path                           Last Updated
+default    nomad/jobs/example             2022-08-23T10:35:47-04:00
+default    nomad/jobs/variable            2022-08-23T10:24:45-04:00
+default    nomad/jobs/variable/www        2022-08-23T10:24:45-04:00
+Next page token: default.nomad/jobs/variable/www/nginx
+```
+
+To fetch the next page, include the next page token.
+
+```shell-session
+$ nomad var list -per-page=3 \
+  -page-token=default.nomad/jobs/variable/www/nginx
+Namespace  Path                 Last Updated
+default    nomad/jobs/variable/www/nginx  2022-08-23T10:24:46-04:00
+```
+
+Perform a paginated query with JSON formatting.
+
+```shell-session
+$ nomad var list -out=json -namespace="*" -per-page=1 nomad/jobs/variable/www
+{
+    "Data": [
+        {
+           "Namespace": "default",
+            "Path": "nomad/jobs/variable/www",
+            "CreateIndex": 1457,
+            "ModifyIndex": 1457,
+            "CreateTime": 1662061225600373000,
+            "ModifyTime": 1662061225600373000
+        }
+    ],
+    "QueryMeta": {
+        "KnownLeader": true,
+        "LastContact": 0,
+        "LastIndex": 43,
+        "NextToken": "default.nomad/jobs/variable/www/nginx",
+        "RequestTime": 875792
+    }
+}
+```
+
+As with the tabular version, provide the `QueryMeta.NextToken` value as the
+`-page-token` value to fetch the next page.

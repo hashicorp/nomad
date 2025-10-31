@@ -1,0 +1,93 @@
+---
+layout: docs
+page_title: Create and update Nomad variables
+description: |-
+  Use the Nomad CLI or API to create, store, and update Nomad variables.
+---
+
+# Create and update Nomad variables
+
+This page describes the processes for interacting with Nomad variables. Use the
+[`nomad var` command reference](/nomad/commands/var) or the [Vars HTTP
+API](/nomad/api-docs/variables) to manage Nomad variables.
+
+## Background
+
+Nomad variables provide the option to securely store configuration at
+file-like paths directly in Nomad's state store. For complete documentation on
+the Nomad variables feature and related concepts, refer to the following:
+
+- [Nomad variables concepts](/nomad/docs/concepts/variables)
+- [Nomad variable specification](/nomad/docs/other-specifications/variables)
+- [Key management](/nomad/docs/manage/key-management)
+- [Workload identity](/nomad/docs/concepts/workload-identity)
+
+Nomad scopes a Nomad variable to a namespace and allows access to Nomad
+variables according to ACL policies.
+
+## Generate a Nomad variable specification
+
+Use the [`nomad var init` command](/nomad/commands/var/init) to generate a Nomad
+variable specification that you can customize.
+
+@include 'variables/init-example.mdx'
+
+## Add and update Nomad variables
+
+Use the [`nomad var put` command](/nomad/commands/var/put) to create and update
+Nomad variables. Supply variable items by including a Nomad variable
+specification file, a series of key-value pairs, or both. Refer to the [`nomad
+var put` command reference](/nomad/commands/var/put) for details on formatting
+keys and values. Values that you supply as command line arguments supersede
+values provided in any variable specification piped into the command or loaded
+from file.
+
+You may also use  the `nomad var put` command to overwrite all items in a
+variable. To avoid conflicting with other writes that may have happened since
+you last read the variable, you must use the `-check-index` flag and set it to
+the last modified index.
+
+@include 'variables/put-example.mdx'
+
+## Delete Nomad variables
+
+Use the [`nomad var purge` command](/nomad/commands/var/purge) to permanently
+delete an existing variable.
+
+@include 'variables/purge-example.mdx'
+
+## Query Nomad variables
+
+### Get
+
+Use the [`nomad var get` command](/nomad/commands/var/get) to fetch the contents of an existing variable.
+
+@include 'variables/get-example.mdx'
+
+### List
+
+Use the [`nomad var list` command](/nomad/commands/var/list) to fetch a list of
+variable paths accessible to you.
+
+@include 'variables/list-example.mdx'
+
+## Lock access to a Nomad variable
+
+The [`nomad var lock` command](/nomad/commands/var/lock) provides a mechanism
+for distributed locking. Nomad creates a lock in the given variable, and only
+when held, invokes the specified child process.
+
+@include 'variables/lock-example.mdx'
+
+## Next steps
+
+Refer to the following Nomad variables tutorials for in-depth learning:
+
+- [Create and update Nomad
+  variables](/nomad/tutorials/variables/variables-create) contains advanced
+  examples for updating Nomad variables.
+- [Configure access control for Nomad
+  variables](/nomad/tutorials/variables/variables-acls) shows how to configure
+  ACL policies for Nomad variables.
+
+To learn how to access Nomad variables in your job specification, refer to [Use Nomad variables in tasks](/nomad/docs/job-declare/nomad-variables).
