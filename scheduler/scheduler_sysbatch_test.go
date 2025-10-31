@@ -1122,7 +1122,7 @@ func TestSysBatch_JobConstraint_RunMultiple(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewSystemScheduler, eval)
+	err := h.Process(NewSysBatchScheduler, eval)
 	must.NoError(t, err)
 
 	// Create a mock evaluation to run the job again, which will not place any
@@ -1138,7 +1138,7 @@ func TestSysBatch_JobConstraint_RunMultiple(t *testing.T) {
 	}
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval2}))
 
-	err = h.Process(NewSystemScheduler, eval2)
+	err = h.Process(NewSysBatchScheduler, eval2)
 	must.NoError(t, err)
 
 	// Ensure a single plan
@@ -1822,7 +1822,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 func TestSysBatch_canHandle(t *testing.T) {
 	ci.Parallel(t)
 
-	s := SystemScheduler{sysbatch: true}
+	s := SysBatchScheduler{}
 	t.Run("sysbatch register", func(t *testing.T) {
 		must.True(t, s.canHandle(structs.EvalTriggerJobRegister))
 	})

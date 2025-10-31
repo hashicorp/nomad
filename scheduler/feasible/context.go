@@ -252,6 +252,13 @@ func NewEvalEligibility() *EvalEligibility {
 	}
 }
 
+// Reset clears the contents of the eval eligibility
+func (e *EvalEligibility) Reset() {
+	e.job = make(map[string]ComputedClassFeasibility)
+	e.taskGroups = make(map[string]map[string]ComputedClassFeasibility)
+	e.tgEscapedConstraints = make(map[string]bool)
+}
+
 // SetJob takes the job being evaluated and calculates the escaped constraints
 // at the job and task group level.
 func (e *EvalEligibility) SetJob(job *structs.Job) {

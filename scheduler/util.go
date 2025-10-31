@@ -918,3 +918,28 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 		return false, false, newAlloc
 	}
 }
+
+// mergeNodeFiltered merges allocation metrics for task group
+func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
+	if acc == nil {
+		return curr.Copy()
+	}
+
+	acc.NodesEvaluated += curr.NodesEvaluated
+	acc.NodesFiltered += curr.NodesFiltered
+
+	if acc.ClassFiltered == nil {
+		acc.ClassFiltered = make(map[string]int)
+	}
+	for k, v := range curr.ClassFiltered {
+		acc.ClassFiltered[k] += v
+	}
+	if acc.ConstraintFiltered == nil {
+		acc.ConstraintFiltered = make(map[string]int)
+	}
+	for k, v := range curr.ConstraintFiltered {
+		acc.ConstraintFiltered[k] += v
+	}
+	acc.AllocationTime += curr.AllocationTime
+	return acc
+}
