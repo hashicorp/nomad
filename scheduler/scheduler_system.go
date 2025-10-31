@@ -47,14 +47,43 @@ type SystemScheduler struct {
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
-	deployment         *structs.Deployment
-	feasibleNodesForTG map[string][]*feasible.RankedNode // used to track which nodes passed the feasibility check for TG
+	deployment               *structs.Deployment
+	nodesForTG               map[string]taskGroupNodes       // used to track node feasibility information for each TG
+	filteredNodeMetricsForTG map[string]*structs.AllocMetric // used to track filtered node metrics for each TG
 
 	limitReached bool
 
 	failedTGAllocs  map[string]*structs.AllocMetric
 	queuedAllocs    map[string]int
 	planAnnotations *structs.PlanAnnotations
+}
+
+// taskGroupNodes are a collection of taskGroupNode which include
+// node feasibility information for a task group.
+type taskGroupNodes []*taskGroupNode
+
+// feasible returns all taskGroupNode that are feasible for placement
+func (t taskGroupNodes) feasible() (feasibleNodes []*taskGroupNode) {
+	for _, tgn := range t {
+		if tgn.isFeasible() {
+			feasibleNodes = append(feasibleNodes, tgn)
+		}
+	}
+
+	return
+}
+
+// taskGroupNode is a container for holding node feasibility
+// information for a task group.
+type taskGroupNode struct {
+	NodeID     string
+	RankedNode *feasible.RankedNode
+	Metrics    *structs.AllocMetric
+}
+
+// isFeasible returns if the node is feasible for the task group.
+func (t *taskGroupNode) isFeasible() bool {
+	return t.RankedNode != nil
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -298,8 +327,14 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		DesiredTGUpdates: desiredUpdates(reconciliationResult, inplaceUpdates, destructiveUpdates),
 	}
 
-	// find feasible nodes for all the task groups
-	s.feasibleNodesForTG = s.findFeasibleNodesForTG(reconciliationResult)
+	// Gather node information for all the task groups.
+	s.nodesForTG, s.filteredNodeMetricsForTG = s.findNodesForTG(reconciliationResult)
+
+	// Set placement totals for task groups. The totals will be the available
+	// feasible nodes for each group.
+	for tgName := range s.nodesForTG {
+		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(len(s.nodesForTG[tgName].feasible()))
+	}
 
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
@@ -336,8 +371,8 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// track if any of the task groups is doing a canary update now
 	deploymentComplete := true
 	for _, tg := range s.job.TaskGroups {
-		feasibleNodes, ok := s.feasibleNodesForTG[tg.Name]
-		if !ok {
+		feasibleNodes := s.nodesForTG[tg.Name].feasible()
+		if len(feasibleNodes) < 1 {
 			// this will happen if we're seeing a TG that shouldn't be placed; we only ever
 			// get feasible node counts for placements. These TGs get their DesiredTotal set
 			// in the reconciler and we don't touch it.
@@ -397,18 +432,23 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	return nil
 }
 
-func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconcileResult) map[string][]*feasible.RankedNode {
+// findNodesForTG runs feasibility checks on nodes. The result includes all nodes for each
+// task group (feasible and infeasible) along with metrics information on the checks.
+func (s *SystemScheduler) findNodesForTG(buckets *reconciler.NodeReconcileResult) (tgNodes map[string]taskGroupNodes, filteredMetrics map[string]*structs.AllocMetric) {
+	tgNodes = make(map[string]taskGroupNodes)
+	filteredMetrics = make(map[string]*structs.AllocMetric)
+
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
 	}
 
-	feasibleNodes := make(map[string][]*feasible.RankedNode)
-
 	nodes := make([]*structs.Node, 1)
 	for _, a := range slices.Concat(buckets.Place, buckets.Update, buckets.Ignore) {
-
 		tgName := a.TaskGroup.Name
+		if tgNodes[tgName] == nil {
+			tgNodes[tgName] = taskGroupNodes{}
+		}
 
 		node, ok := nodeByID[a.Alloc.NodeID]
 		if !ok {
@@ -430,22 +470,19 @@ func (s *SystemScheduler) findFeasibleNodesForTG(buckets *reconciler.NodeReconci
 
 		// Attempt to match the task group
 		option := s.stack.Select(a.TaskGroup, &feasible.SelectOptions{AllocName: a.Name})
+
+		// Always store the results. Keep the metrics that were generated
+		// for the match attempt so they can be used during placement.
+		tgNodes[tgName] = append(tgNodes[tgName], &taskGroupNode{node.ID, option, s.ctx.Metrics().Copy()})
+
 		if option == nil {
-			continue
+			// When no match is found, merge the filter metrics for the task
+			// group so proper reporting can be done during placement.
+			filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
 		}
-
-		// count this node as feasible
-		if feasibleNodes[tgName] == nil {
-			feasibleNodes[tgName] = []*feasible.RankedNode{option}
-		} else {
-			feasibleNodes[tgName] = append(feasibleNodes[tgName], option)
-		}
-
-		// update the plan annotations for this task group
-		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(len(feasibleNodes[tgName]))
 	}
 
-	return feasibleNodes
+	return
 }
 
 // computePlacements computes placements for allocations
@@ -457,9 +494,6 @@ func (s *SystemScheduler) computePlacements(
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
 	}
-
-	// track node filtering, to only report an error if all nodes have been filtered
-	var filteredMetrics map[string]*structs.AllocMetric
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
@@ -475,15 +509,24 @@ func (s *SystemScheduler) computePlacements(
 			continue
 		}
 
-		// we're already performed feasibility check for all the task groups and
+		// we've already performed feasibility check for all the task groups and
 		// nodes, so look up
 		var option *feasible.RankedNode
-		optionsForTG := s.feasibleNodesForTG[tgName]
+		var metrics *structs.AllocMetric
+		optionsForTG := s.nodesForTG[tgName]
 		if existing := slices.IndexFunc(
 			optionsForTG,
-			func(rn *feasible.RankedNode) bool { return rn.Node == node },
+			func(rn *taskGroupNode) bool { return rn.NodeID == node.ID },
 		); existing != -1 {
-			option = optionsForTG[existing]
+			option = optionsForTG[existing].RankedNode
+			metrics = optionsForTG[existing].Metrics
+		} else {
+			// we should have an entry for every node that is looked
+			// up. if we don't, something must be wrong
+			s.logger.Error("failed to locate node feasibility information",
+				"node-id", node.ID, "task_group", tgName)
+			// provide a stubbed metric to work with
+			metrics = &structs.AllocMetric{}
 		}
 
 		if option == nil {
@@ -493,14 +536,9 @@ func (s *SystemScheduler) computePlacements(
 			// If this node was filtered because of constraint
 			// mismatches and we couldn't create an allocation then
 			// decrement queuedAllocs for that task group.
-			if s.ctx.Metrics().NodesFiltered > 0 {
+			if metrics.NodesFiltered > 0 {
 				queued := s.queuedAllocs[tgName] - 1
 				s.queuedAllocs[tgName] = queued
-
-				if filteredMetrics == nil {
-					filteredMetrics = map[string]*structs.AllocMetric{}
-				}
-				filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
 
 				// If no tasks have been placed and there aren't any previously
 				// existing (ignored or updated) tasks on the node, mark the alloc as failed to be placed
@@ -509,14 +547,7 @@ func (s *SystemScheduler) computePlacements(
 					if s.failedTGAllocs == nil {
 						s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 					}
-					s.failedTGAllocs[tgName] = filteredMetrics[tgName]
-				}
-
-				// If we are annotating the plan, then decrement the desired
-				// placements based on whether the node meets the constraints
-				if s.planAnnotations != nil &&
-					s.planAnnotations.DesiredTGUpdates != nil {
-					s.planAnnotations.DesiredTGUpdates[tgName].Place -= 1
+					s.failedTGAllocs[tgName] = s.filteredNodeMetricsForTG[tgName]
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
@@ -531,12 +562,12 @@ func (s *SystemScheduler) computePlacements(
 			}
 
 			// Store the available nodes by datacenter
-			s.ctx.Metrics().NodesAvailable = s.nodesByDC
-			s.ctx.Metrics().NodesInPool = len(s.nodes)
-			s.ctx.Metrics().NodePool = s.job.NodePool
+			metrics.NodesAvailable = s.nodesByDC
+			metrics.NodesInPool = len(s.nodes)
+			metrics.NodePool = s.job.NodePool
 
 			// Compute top K scoring node metadata
-			s.ctx.Metrics().PopulateScoreMetaData()
+			metrics.PopulateScoreMetaData()
 
 			// Lazy initialize the failed map
 			if s.failedTGAllocs == nil {
@@ -544,21 +575,21 @@ func (s *SystemScheduler) computePlacements(
 			}
 
 			// Update metrics with the resources requested by the task group.
-			s.ctx.Metrics().ExhaustResources(missing.TaskGroup)
+			metrics.ExhaustResources(missing.TaskGroup)
 
 			// Actual failure to start this task on this candidate node, report it individually
-			s.failedTGAllocs[tgName] = s.ctx.Metrics()
+			s.failedTGAllocs[tgName] = metrics
 			s.addBlocked(node)
 
 			continue
 		}
 
 		// Store the available nodes by datacenter
-		s.ctx.Metrics().NodesAvailable = s.nodesByDC
-		s.ctx.Metrics().NodesInPool = len(s.nodes)
+		metrics.NodesAvailable = s.nodesByDC
+		metrics.NodesInPool = len(s.nodes)
 
 		// Compute top K scoring node metadata
-		s.ctx.Metrics().PopulateScoreMetaData()
+		metrics.PopulateScoreMetaData()
 
 		// Set fields based on if we found an allocation option
 		resources := &structs.AllocatedResources{
@@ -582,7 +613,7 @@ func (s *SystemScheduler) computePlacements(
 			Name:               missing.Name,
 			JobID:              s.job.ID,
 			TaskGroup:          tgName,
-			Metrics:            s.ctx.Metrics(),
+			Metrics:            metrics,
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
 			DeploymentID:       deploymentID,
