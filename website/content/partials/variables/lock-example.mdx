@@ -1,0 +1,13 @@
+Lock the variable at path `secret/foo` for a time of
+fifteen seconds. Execute `nomad job run webapp.nomad.hcl` if the lock succeeds.
+
+```shell-session
+$ nomad var lock -ttl=15s secret/foo "nomad job run webapp.nomad.hcl"
+```
+
+You may also pass in file, prefixed with the "@" symbol. This example store and
+locks the variables in the `spec.nv.json` file. Execute `nomad job run webapp.nomad.hcl` if the lock succeeds.
+
+```shell-session
+$ nomad var lock secret/foo @spec.nv.json `nomad job run webapp.nomad.hcl`
+```
