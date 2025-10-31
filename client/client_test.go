@@ -1688,6 +1688,56 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 }
 
+func TestClient_UpdateNodeFromFingerprintCalculatesReservedResources(t *testing.T) {
+	ci.Parallel(t)
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		// Parsed version of the client reserved field
+		c.Node.ReservedResources.Cpu = structs.NodeReservedCpuResources{
+			CpuShares:        100,
+			ReservedCpuCores: []uint16{0},
+		}
+	})
+	defer cleanup()
+
+	// Set up a basic topology where the first core is reserved and
+	// an additionally 100 MHz are reserved
+	basicTopology := structs.MockBasicTopology()
+	basicTopology.Cores[0].Disable = true
+	basicTopology.OverrideWitholdCompute = 100
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		// overrides the detected hardware in TestClient
+		NodeResources: &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{MemoryMB: 1024},
+			Processors: structs.NodeProcessorResources{
+				Topology: basicTopology,
+			},
+		},
+	})
+
+	// initial check
+	conf := client.GetConfig()
+
+	expectedReservedResources := &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			// set by fingerprinting callback, once the total compute has been detected, it should have converted the
+			// client reserved configuration into the effective reserved bandwidth (1 core * 3500 MHz + 100 MHz)
+			CpuShares:        3_600,
+			ReservedCpuCores: []uint16{0},
+		},
+		Memory: structs.NodeReservedMemoryResources{
+			MemoryMB: 256,
+		},
+		Disk: structs.NodeReservedDiskResources{
+			DiskMB: 4096,
+		},
+		Networks: structs.NodeReservedNetworkResources{
+			ReservedHostPorts: "22",
+		},
+	}
+	must.Eq(t, expectedReservedResources, conf.Node.ReservedResources)
+}
+
 // TestClient_UpdateNodeFromFingerprintKeepsConfig asserts manually configured
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
