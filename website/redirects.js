@@ -1035,7 +1035,7 @@ module.exports = [
   },
   /* redirects to commands prior to version 1.8 for version pick list entries */
   {
-    source: '/nomad/commands/:version(v1\\.(?:7|6|5|4|3|2|1)\\.x)/:path*',
+    source: '/nomad/commands/:version(v1\\.(?:7|6|5|4|3|2|1|0)\\.x)/:path*',
     destination: '/nomad/docs/:version/commands/:path*',
     permanent: true,
   },
