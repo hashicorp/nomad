@@ -83,25 +83,7 @@ taking the sum of the length in bytes of all of the unencrypted keys and values.
 
 ## Examples
 
-Writes the data to the path "secret/creds":
-
-```shell-session
-$ nomad var put secret/creds passcode=my-long-passcode
-```
-
-The data can also be consumed from a file on disk by prefixing with the "@"
-symbol. For example, you can store a variable using a specification created with
-the `nomad var init` command.
-
-```shell-session
-$ nomad var put secret/foo @spec.nv.json
-```
-
-Or it can be read from standard input using the "-" symbol:
-
-```shell-session
-$ echo "abcd1234" | nomad var put secret/foo bar=-
-```
+@include 'variables/put-example.mdx'
 
 ## General options
 
