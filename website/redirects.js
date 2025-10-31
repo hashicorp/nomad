@@ -32,7 +32,7 @@ module.exports = [
 
   /**
    * /s/* redirects for useful links that need a stable URL but we may need to
-   * change its destination in the future.
+   * change its destination in the future. Some of these used in CLI output.
    */
   {
     source: '/nomad/s/envoy-bootstrap-error',
@@ -44,6 +44,11 @@ module.exports = [
     source: '/nomad/s/vault-workload-identity-migration',
     destination:
       'https://developer.hashicorp.com/nomad/docs/v1.8.x/integrations/vault/acl#migrating-to-using-workload-identity-with-vault',
+    permanent: false,
+  },
+  {
+    source: '/nomad/s/port-plan-failure',
+    destination: 'https://github.com/hashicorp/nomad/issues/9506',
     permanent: false,
   },
   {
