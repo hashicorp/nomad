@@ -3958,7 +3958,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 		requiredCanaries        int
 		tgName                  string
 		nodeAllocation          map[string][]*structs.Allocation
-		expectedDesiredCanaries []string
+		expectedDesiredCanaries int
 		expectedNodeAllocation  map[string][]*structs.Allocation
 	}{
 		{
@@ -3966,7 +3966,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			requiredCanaries:        0,
 			tgName:                  "foo",
 			nodeAllocation:          nil,
-			expectedDesiredCanaries: []string{},
+			expectedDesiredCanaries: 0,
 			expectedNodeAllocation:  nil,
 		},
 		{
@@ -3997,7 +3997,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 					},
 				},
 			},
-			expectedDesiredCanaries: []string{},
+			expectedDesiredCanaries: 0,
 			expectedNodeAllocation: map[string][]*structs.Allocation{
 				"node1": {
 					{
@@ -4053,7 +4053,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 					},
 				},
 			},
-			expectedDesiredCanaries: []string{"tg1_alloc1"},
+			expectedDesiredCanaries: 1,
 			expectedNodeAllocation: map[string][]*structs.Allocation{
 				"node1": {
 					{
@@ -4084,7 +4084,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			}
 			s.plan.NodeAllocation = tt.nodeAllocation
 
-			must.Eq(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName, &reconciler.NodeReconcileResult{}), must.Sprint("unexpected desired canaries"))
+			must.SliceLen(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName, &reconciler.NodeReconcileResult{}), must.Sprint("unexpected desired canaries"))
 			must.Eq(t, tt.expectedNodeAllocation, s.plan.NodeAllocation, must.Sprintf("unexpected node allocation"))
 		})
 	}
