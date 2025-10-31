@@ -919,6 +919,7 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 	}
 }
 
+// mergeNodeFiltered merges allocation metrics for task group
 func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	if acc == nil {
 		return curr.Copy()

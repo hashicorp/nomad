@@ -385,8 +385,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		dstate, ok := s.deployment.TaskGroups[tg.Name]
 		// no deployment for this TG
-		if _, ok := s.deployment.TaskGroups[tg.Name]; !ok {
+		if !ok {
 			continue
 		}
 
@@ -394,10 +395,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// feasible nodes
 		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(feasibleNodes)
 
-		dstate, ok := s.deployment.TaskGroups[tg.Name]
-		if !ok {
-			continue
-		}
 		// a system job is canarying if:
 		// - it has a non-empty update block (just a sanity check, all
 		// submitted jobs should have a non-empty update block as part of
