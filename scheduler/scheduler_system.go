@@ -424,7 +424,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			s.planAnnotations.DesiredTGUpdates[tg.Name].Canary = uint64(len(placedCanaries))
 		}
 
-		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying)
+		groupComplete := s.isDeploymentComplete(dstate, isCanarying)
 		deploymentComplete = deploymentComplete && groupComplete
 	}
 
@@ -877,18 +877,16 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName str
 	return desiredCanaries
 }
 
-func (s *SystemScheduler) isDeploymentComplete(groupName string, buckets *reconciler.NodeReconcileResult, isCanarying bool) bool {
-	complete := len(buckets.Place)+len(buckets.Migrate)+len(buckets.Update) == 0
-
-	if !complete || s.deployment == nil || isCanarying {
+func (s *SystemScheduler) isDeploymentComplete(dstate *structs.DeploymentState, isCanarying bool) bool {
+	if s.deployment == nil || isCanarying {
 		return false
 	}
 
+	complete := true
+
 	// ensure everything is healthy
-	if dstate, ok := s.deployment.TaskGroups[groupName]; ok {
-		if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
-			complete = false
-		}
+	if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
+		complete = false
 	}
 
 	return complete
