@@ -4187,15 +4187,13 @@ func TestSystemSched_CanariesWithInfeasibleNodes(t *testing.T) {
 
 	existingAllocIDs := []string{}
 	allocs := []*structs.Allocation{}
-	for i := range 4 {
-		if i%2 != 0 {
-			alloc := mock.MinAllocForJob(job)
-			alloc.ClientStatus = structs.AllocClientStatusRunning
-			alloc.NodeID = nodes[i].ID
-			alloc.Name = structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)
-			existingAllocIDs = append(existingAllocIDs, alloc.ID)
-			allocs = append(allocs, alloc)
-		}
+	for _, eligibleNode := range eligible {
+		alloc := mock.MinAllocForJob(job)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.NodeID = eligibleNode
+		alloc.Name = structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)
+		existingAllocIDs = append(existingAllocIDs, alloc.ID)
+		allocs = append(allocs, alloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 

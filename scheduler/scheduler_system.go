@@ -418,7 +418,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			// all eligible nodes. At this point we know which nodes are
 			// feasible, so we evict unnedded canaries.
 			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name, reconciliationResult)
+
+			// Update deployment and plan annotation with canaries that were placed
 			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
+			s.planAnnotations.DesiredTGUpdates[tg.Name].Canary = uint64(len(placedCanaries))
 		}
 
 		groupComplete := s.isDeploymentComplete(tg.Name, reconciliationResult, isCanarying)
