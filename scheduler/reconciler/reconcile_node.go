@@ -109,9 +109,7 @@ func (nr *NodeReconciler) computeForNode(
 	result := new(NodeReconcileResult)
 
 	// cancel deployments that aren't needed anymore
-	var deploymentUpdates []*structs.DeploymentStatusUpdate
-	nr.DeploymentOld, nr.DeploymentCurrent, deploymentUpdates = cancelUnneededDeployments(job, nr.DeploymentCurrent)
-	nr.DeploymentUpdates = append(nr.DeploymentUpdates, deploymentUpdates...)
+	nr.cancelUnnededSystemDeployments(job)
 
 	// set deployment paused and failed, if we currently have a deployment
 	var deploymentPaused, deploymentFailed bool
@@ -416,11 +414,60 @@ func (nr *NodeReconciler) computeForNode(
 	return result
 }
 
+// cancelUnneededServiceDeployments cancels any deployment that is not needed.
+// A deployment update will be staged for jobs that should stop or have the
+// wrong version. Unneeded deployments include:
+// 1. Jobs that are marked for stop, but there is a non-terminal deployment.
+// 2. Deployments that are active, but referencing a different job version.
+// 3. Deployments that are already successful.
+func (nr *NodeReconciler) cancelUnnededSystemDeployments(j *structs.Job) {
+	// If the job is stopped and there is a non-terminal deployment, cancel it
+	if j.Stopped() {
+		if nr.DeploymentCurrent != nil && nr.DeploymentCurrent.Active() {
+			nr.DeploymentUpdates = append(nr.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      nr.DeploymentCurrent.ID,
+				Status:            structs.DeploymentStatusCancelled,
+				StatusDescription: structs.DeploymentStatusDescriptionStoppedJob,
+			})
+		}
+
+		// Nothing else to do
+		return
+	}
+
+	if nr.DeploymentCurrent == nil {
+		return
+	}
+
+	// Check if the deployment is active and referencing an older job and cancel it
+	if nr.DeploymentCurrent.JobCreateIndex != j.CreateIndex || nr.DeploymentCurrent.JobVersion != j.Version {
+		if nr.DeploymentCurrent.Active() {
+			nr.DeploymentUpdates = append(nr.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      nr.DeploymentCurrent.ID,
+				Status:            structs.DeploymentStatusCancelled,
+				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
+			})
+		}
+	}
+
+	// Clear it as the current deployment if it is successful
+	if nr.DeploymentCurrent.Status == structs.DeploymentStatusSuccessful {
+		nr.DeploymentOld = nr.DeploymentCurrent
+		nr.DeploymentCurrent = nil
+	}
+}
+
 func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGroup,
 	dstate *structs.DeploymentState, updates int, allocs []*structs.Allocation, terminal map[string]*structs.Allocation) {
 
 	// programming error
 	if dstate == nil {
+		return
+	}
+
+	// if there's an old deployment for the same job version as we're
+	// processing, never create a new one
+	if nr.DeploymentOld != nil && nr.DeploymentOld.JobVersion == job.Version {
 		return
 	}
 
