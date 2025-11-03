@@ -29,14 +29,3 @@ updates:
     labels:
       - "theme/dependencies"
       - "theme/ui"
-  - package-ecosystem: npm
-    directory: "/website"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
-    assignees:
-      - "@hashicorp/web-presence"
-    labels:
-      - "theme/dependencies"
-      - "theme/website"
