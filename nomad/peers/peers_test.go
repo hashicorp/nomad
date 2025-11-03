@@ -94,6 +94,7 @@ func TestIsNomadServer(t *testing.T) {
 	must.Eq(t, 7, parts.Build.Segments()[1])
 	must.Eq(t, 0, parts.Build.Segments()[2])
 	must.True(t, parts.NonVoter)
+	must.MapEq(t, m.Tags, parts.Tags)
 
 	m.Tags["bootstrap"] = "1"
 	valid, parts = IsNomadServer(m)
