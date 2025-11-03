@@ -3345,8 +3345,7 @@ func TestEvictAndPlace(t *testing.T) {
 				NodePreemptions: make(map[string][]*structs.Allocation),
 			}}
 
-			must.Eq(t, tc.expectLimited, s.evictAndPlace(diff, ""),
-				must.Sprintf("limited"))
+			s.evictAndPlace(diff, "")
 			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
 				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
 		})

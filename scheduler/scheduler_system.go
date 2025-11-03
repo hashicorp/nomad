@@ -51,8 +51,6 @@ type SystemScheduler struct {
 	nodesForTG               map[string]taskGroupNodes       // used to track node feasibility information for each TG
 	filteredNodeMetricsForTG map[string]*structs.AllocMetric // used to track filtered node metrics for each TG
 
-	limitReached bool
-
 	failedTGAllocs  map[string]*structs.AllocMetric
 	queuedAllocs    map[string]int
 	planAnnotations *structs.PlanAnnotations
@@ -338,7 +336,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Treat non in-place updates as an eviction and new placement, which will
 	// be limited by max_parallel
-	s.limitReached = s.evictAndPlace(reconciliationResult, sstructs.StatusAllocUpdating)
+	s.evictAndPlace(reconciliationResult, sstructs.StatusAllocUpdating)
 
 	if !s.job.Stopped() {
 		for _, tg := range s.job.TaskGroups {
@@ -729,7 +727,7 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies the reconciler result. It returns
 // true if the limit has been reached for any task group.
-func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResult, desc string) bool {
+func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResult, desc string) {
 
 	limits := map[string]int{} // per task group limits
 	if !s.job.Stopped() {
@@ -762,15 +760,12 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 		s.plan.NodeUpdate[node] = allocations[:n]
 	}
 
-	limited := false
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			s.ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 			reconciled.Place = append(reconciled.Place, a)
 
 			limits[a.Alloc.TaskGroup]--
-		} else {
-			limited = true
 		}
 	}
 
@@ -780,8 +775,6 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 	maps.DeleteFunc(s.plan.NodeUpdate, func(k string, v []*structs.Allocation) bool {
 		return len(v) == 0
 	})
-
-	return limited
 }
 
 // evictAndPlaceCanaries checks how many canaries are needed against the amount
