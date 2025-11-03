@@ -446,8 +446,8 @@ github.com/hashicorp/go-envparse v0.1.0 h1:bE++6bhIsNCPLvgDZkYqo3nA+/PFI51pkrHdm
 github.com/hashicorp/go-envparse v0.1.0/go.mod h1:OHheN1GoygLlAkTlXLXvAdnXdZxy8JUweQ1rAXx1xnc=
 github.com/hashicorp/go-gatedio v0.5.0 h1:Jm1X5yP4yCqqWj5L1TgW7iZwCVPGtVc+mro5r/XX7Tg=
 github.com/hashicorp/go-gatedio v0.5.0/go.mod h1:Lr3t8L6IyxD3DAeaUxGcgl2JnRUpWMCsmBl4Omu/2t4=
-github.com/hashicorp/go-getter v1.8.2 h1:CGCK+bZQLl44PYiwJweVzfpjg7bBwtuXu3AGcLiod2o=
-github.com/hashicorp/go-getter v1.8.2/go.mod h1:CUTt9x2bCtJ/sV8ihgrITL3IUE+0BE1j/e4n5P/GIM4=
+github.com/hashicorp/go-getter v1.8.3 h1:gIS+oTNv3kyYAvlUVgMR46MiG0bM0KuSON/KZEvRoRg=
+github.com/hashicorp/go-getter v1.8.3/go.mod h1:CUTt9x2bCtJ/sV8ihgrITL3IUE+0BE1j/e4n5P/GIM4=
 github.com/hashicorp/go-hclog v0.9.1/go.mod h1:5CU+agLiy3J7N7QjHK5d05KxGsuXiQLrjA0H7acj2lQ=
 github.com/hashicorp/go-hclog v0.14.1/go.mod h1:whpDNt7SSdeAju8AWKIWsul05p54N/39EeqMAyrmvFQ=
 github.com/hashicorp/go-hclog v0.16.2/go.mod h1:whpDNt7SSdeAju8AWKIWsul05p54N/39EeqMAyrmvFQ=
