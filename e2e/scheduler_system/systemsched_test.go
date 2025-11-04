@@ -218,16 +218,6 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 	)
 	t.Cleanup(cleanup2)
 
-	// how many eligible nodes do we have?
-	nodesApi := job2.NodesApi()
-	nodesList, _, err := nodesApi.List(nil)
-	must.Nil(t, err)
-	must.SliceNotEmpty(t, nodesList)
-
-	// Get updated allocations
-	allocs := job2.Allocs()
-	must.SliceNotEmpty(t, allocs)
-
 	deploymentsApi := job2.DeploymentsApi()
 	deploymentsList, _, err := deploymentsApi.List(nil)
 	must.NoError(t, err)
@@ -253,6 +243,10 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 		return false
 	})
 
+	// Get updated allocations
+	allocs := job2.Allocs()
+	must.SliceNotEmpty(t, allocs)
+
 	// find allocations from v1 version of the job, they should all be canaries
 	count := 0
 	for _, a := range allocs {
@@ -263,7 +257,10 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 	}
 	must.Eq(t, len(initialAllocs), count, must.Sprint("expected canaries to be placed on all eligible nodes"))
 
+	updatedDeployment, _, err := deploymentsApi.Info(deployment.ID, nil)
+	must.NoError(t, err)
+
 	// deployment must not be terminal and needs to have the right status
 	// description set
-	must.Eq(t, structs.DeploymentStatusDescriptionRunningNeedsPromotion, deployment.StatusDescription)
+	must.Eq(t, structs.DeploymentStatusDescriptionRunningNeedsPromotion, updatedDeployment.StatusDescription)
 }
