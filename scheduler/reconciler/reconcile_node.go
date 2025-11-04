@@ -265,8 +265,20 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// For an existing allocation, if the nodeID is no longer
-		// eligible, the diff should be ignored
+		// eligible, the diff should be ignored unless the job
+		// definition has been updated. If the definition has been
+		// updated, stop the allocation.
 		if _, ineligible := notReadyNodes[nodeID]; ineligible {
+			if job.ModifyIndex != alloc.Job.JobModifyIndex {
+				result.Stop = append(result.Stop, AllocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     alloc,
+				})
+
+				continue
+			}
+
 			goto IGNORE
 		}
 
