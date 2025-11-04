@@ -58,7 +58,7 @@ same `disconnect` block.
 
   Refer to [the Lost After section][lost-after] for more details.
 
-- `replace` `(bool: false)` - Specifies if Nomad should replace the disconnected
+- `replace` `(bool: true)` - Specifies if Nomad should replace the disconnected
   allocation with a new one rescheduled on a different node. Nomad considers the
   replacement allocation a reschedule and obeys the job's [`reschedule`][]
   block. If false and the node the allocation is running on disconnects
