@@ -269,7 +269,7 @@ func (nr *NodeReconciler) computeForNode(
 		// definition has been updated. If the definition has been
 		// updated, stop the allocation.
 		if _, ineligible := notReadyNodes[nodeID]; ineligible {
-			if job.ModifyIndex != alloc.Job.JobModifyIndex {
+			if job.JobModifyIndex != alloc.Job.JobModifyIndex {
 				result.Stop = append(result.Stop, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,
