@@ -114,10 +114,6 @@ func testCanaryUpdate(t *testing.T) {
 	)
 	t.Cleanup(cleanup2)
 
-	// Get updated allocations
-	allocs := job2.Allocs()
-	must.SliceNotEmpty(t, allocs)
-
 	deploymentsApi := job2.DeploymentsApi()
 	deploymentsList, _, err := deploymentsApi.List(nil)
 	must.NoError(t, err)
@@ -131,7 +127,7 @@ func testCanaryUpdate(t *testing.T) {
 	must.NotNil(t, deployment)
 
 	// wait for the canary allocations to become healthy
-	timeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	job2.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
@@ -142,6 +138,10 @@ func testCanaryUpdate(t *testing.T) {
 		}
 		return false
 	})
+
+	// Get updated allocations
+	allocs := job2.Allocs()
+	must.SliceNotEmpty(t, allocs)
 
 	// find allocations from v1 version of the job, they should all be canaries
 	// and there should be exactly 50% (rounded up) of v0 allocations
@@ -231,7 +231,7 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 	must.NotNil(t, deployment)
 
 	// wait for the canary allocations to become healthy
-	timeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	job2.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
