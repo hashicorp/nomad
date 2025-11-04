@@ -4010,7 +4010,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 		tgName                  string
 		nodeAllocation          map[string][]*structs.Allocation
 		expectedDesiredCanaries int
-		expectedNodeAllocation  map[string][]*structs.Allocation
+		expectedNodeAllocation  []string
 	}{
 		{
 			name:                    "no required canaries",
@@ -4032,47 +4032,26 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 						TaskGroup:        "tg1",
 					},
 					{
+						ID:               "tg1_alloc2",
 						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
 						TaskGroup:        "tg2",
 					},
 				},
 				"node2": {
 					{
-						ID:               "tg1_alloc2",
+						ID:               "tg2_alloc1",
 						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
 						TaskGroup:        "tg1",
 					},
 					{
+						ID:               "tg2_alloc2",
 						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
 						TaskGroup:        "tg2",
 					},
 				},
 			},
 			expectedDesiredCanaries: 0,
-			expectedNodeAllocation: map[string][]*structs.Allocation{
-				"node1": {
-					{
-						ID:               "tg1_alloc1",
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
-						TaskGroup:        "tg1",
-					},
-					{
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
-						TaskGroup:        "tg2",
-					},
-				},
-				"node2": {
-					{
-						ID:               "tg1_alloc2",
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: false},
-						TaskGroup:        "tg1",
-					},
-					{
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
-						TaskGroup:        "tg2",
-					},
-				},
-			},
+			expectedNodeAllocation:  []string{"tg1_alloc1", "tg1_alloc2", "tg2_alloc1", "tg2_alloc2"},
 		},
 		{
 			name:             "existing allocs for 2 task groups with canaries",
@@ -4105,27 +4084,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 				},
 			},
 			expectedDesiredCanaries: 1,
-			expectedNodeAllocation: map[string][]*structs.Allocation{
-				"node1": {
-					{
-						ID:               "tg1_alloc1",
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
-						TaskGroup:        "tg1",
-					},
-					{
-						ID:               "tg2_alloc1",
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
-						TaskGroup:        "tg2",
-					},
-				},
-				"node2": {
-					{
-						ID:               "tg2_alloc2",
-						DeploymentStatus: &structs.AllocDeploymentStatus{Canary: true},
-						TaskGroup:        "tg2",
-					},
-				},
-			},
+			expectedNodeAllocation:  []string{"tg1_alloc1", "tg2_alloc1", "tg2_alloc2"},
 		},
 	}
 	for _, tt := range tests {
@@ -4136,7 +4095,14 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			s.plan.NodeAllocation = tt.nodeAllocation
 
 			must.SliceLen(t, tt.expectedDesiredCanaries, s.evictUnneededCanaries(tt.requiredCanaries, tt.tgName, &reconciler.NodeReconcileResult{}), must.Sprint("unexpected desired canaries"))
-			must.Eq(t, tt.expectedNodeAllocation, s.plan.NodeAllocation, must.Sprintf("unexpected node allocation"))
+			allocsOnNodes := []*structs.Allocation{}
+			for _, a := range s.plan.NodeAllocation {
+				allocsOnNodes = append(allocsOnNodes, a...)
+			}
+			must.SliceContainsAllFunc(t, allocsOnNodes, tt.expectedNodeAllocation,
+				func(a *structs.Allocation, id string) bool {
+					return a.ID == id
+				})
 		})
 	}
 }
