@@ -3416,6 +3416,8 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 		expectAllocs map[string]int // plan NodeAllocations group -> count
 		expectStop   map[string]int // plan NodeUpdates group -> count
 		expectDState map[string]*structs.DeploymentState
+
+		ineligibleNodes int // number of nodes to mark as ineligible
 	}{
 		{
 			name:         "legacy upgrade non-deployment",
@@ -3756,6 +3758,52 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 				tg2: {DesiredTotal: 10, PlacedAllocs: 10},
 			},
 		},
+
+		{
+			name: "deployment complete with ineligible nodes",
+			tg1UpdateBlock: &structs.UpdateStrategy{
+				MaxParallel: 10,
+				Canary:      30,
+				AutoPromote: true,
+			},
+			existingPrevious: map[string][]int{
+				tg1: {0, 1, 2, 3, 4, 5, 6},
+			},
+			existingRunning: map[string][]int{
+				tg1: {7, 8, 9},
+				tg2: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+			},
+			existingCanary: map[string][]int{
+				tg1: {7, 8, 9},
+			},
+			existingCurrentDState: map[string]*structs.DeploymentState{
+				tg1: {
+					Promoted:        true,
+					PlacedCanaries:  []string{"7", "8", "9"},
+					DesiredCanaries: 3,
+					DesiredTotal:    10,
+					PlacedAllocs:    3,
+					HealthyAllocs:   3,
+					UnhealthyAllocs: 0,
+				},
+				tg2: {DesiredTotal: 10, PlacedAllocs: 10, HealthyAllocs: 10},
+			},
+			expectAllocs: map[string]int{tg1: 5}, // 7 to replace minus 2 on ineligible nodes
+			expectStop:   map[string]int{tg1: 7}, // stop all previous versions
+			expectDState: map[string]*structs.DeploymentState{
+				tg1: {
+					DesiredTotal:    8, // 10 nodes minus 2 ineligble nodes
+					DesiredCanaries: 3,
+					PlacedCanaries:  []string{"7", "8", "9"},
+					PlacedAllocs:    8,
+				},
+				tg2: {
+					DesiredTotal: 8,  // 10 nodes minus 2 ineligble nodes
+					PlacedAllocs: 10, // New allocations were already placed
+				},
+			},
+			ineligibleNodes: 2,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -3763,6 +3811,10 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 
 			h := tests.NewHarness(t)
 			nodes := createNodes(t, h, 10)
+
+			for i := range tc.ineligibleNodes {
+				nodes[i].SchedulingEligibility = structs.NodeSchedulingIneligible
+			}
 
 			oldJob := mock.SystemJob()
 			oldJob.TaskGroups[0].Update = tc.tg1UpdateBlock
