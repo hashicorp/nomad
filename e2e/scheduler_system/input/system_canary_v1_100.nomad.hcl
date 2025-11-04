@@ -28,18 +28,11 @@ job "system_job" {
       mode  = "delay"
     }
 
-    task "system_task" {
-      driver = "docker"
-
+    task "sleepy" {
+      driver = "raw_exec"
       config {
-        image = "busybox:1"
-
-        command = "/bin/sh"
-        args    = ["-c", "sleep 150000"]
-      }
-
-      env {
-        version = "1"
+        command = "/bin/sleep"
+        args    = ["100m"]
       }
     }
   }
