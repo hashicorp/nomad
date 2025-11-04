@@ -1,3 +1,3 @@
 ```release-note:bug
-fingerprint: simplify storage t calculation to just (total disk space - reserved disk)
+fingerprint: simplify storage fingerprint calculation to just (total disk space - reserved disk)
 ```
