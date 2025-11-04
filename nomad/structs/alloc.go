@@ -454,7 +454,7 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 
 	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
 		(!isRescheduledBatch && a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
-		failTime.IsZero() || reschedulePolicy == nil {
+		failTime.IsZero() {
 		return time.Time{}, false
 	}
 
@@ -484,16 +484,6 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	}
 
 	return a.nextRescheduleTime(t, reschedulePolicy)
-}
-
-func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
-		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
-		return a.NextRescheduleTimeByTime(now)
-	}
-
-	return now, *tg.Disconnect.Replace
 }
 
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
@@ -550,7 +540,7 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	timeout := tg.GetDisconnectLostTimeout()
+	timeout := tg.GetDisconnectLostAfter()
 	if timeout == 0 {
 		return now
 	}
@@ -569,24 +559,24 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.GetDisconnectLostTimeout() != 0
+			return tg.GetDisconnectLostAfter() != 0
 		}
 	}
 
 	return false
 }
 
-// PreventReplaceOnDisconnect determines if an alloc allows to have a replacement
+// ReplaceOnDisconnect determines if an alloc can be replaced
 // when Disconnected.
-func (a *Allocation) PreventReplaceOnDisconnect() bool {
+func (a *Allocation) ReplaceOnDisconnect() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return !tg.Replace()
+			return tg.Replace()
 		}
 	}
 
-	return false
+	return true
 }
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
@@ -802,12 +792,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	timeout := tg.GetDisconnectLostTimeout()
-	if timeout == 0 && tg.Replace() {
-		return false
-	}
-
-	expiry := lastUnknown.Add(timeout)
+	expiry := lastUnknown.Add(tg.GetDisconnectLostAfter())
 	return expiry.Sub(now) <= 0
 }
 
@@ -815,12 +800,18 @@ func (a *Allocation) Expired(now time.Time) bool {
 // transitioned into the unknown client status.
 func (a *Allocation) LastUnknown() time.Time {
 	var lastUnknown time.Time
+	foundUnknown := false
 
-	for _, s := range a.AllocStates {
-		if s.Field == AllocStateFieldClientStatus &&
-			s.Value == AllocClientStatusUnknown {
-			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+	// Traverse backwards
+	for i := len(a.AllocStates) - 1; i >= 0; i-- {
+		s := a.AllocStates[i]
+		if s.Field == AllocStateFieldClientStatus {
+			if s.Value == AllocClientStatusUnknown {
 				lastUnknown = s.Time
+				foundUnknown = true
+			} else if foundUnknown {
+				// We found the transition from non-unknown to unknown
+				break
 			}
 		}
 	}

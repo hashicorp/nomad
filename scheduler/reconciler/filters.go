@@ -4,7 +4,6 @@
 package reconciler
 
 import (
-	"errors"
 	"slices"
 	"time"
 
@@ -119,66 +118,29 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 	expiring = make(allocSet)
 
 	for _, alloc := range set {
-		// make sure we don't apply any reconnect logic to task groups
-		// without max_client_disconnect
-		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(state.SupportsDisconnectedClients)
-
-		reconnect := false
+		shouldReconnect := false
 
 		// Only compute reconnect for unknown, running, and failed since they
 		// need to go through the reconnect logic.
-		if supportsDisconnectedClients &&
-			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
-				alloc.ClientStatus == structs.AllocClientStatusRunning ||
-				alloc.ClientStatus == structs.AllocClientStatusFailed) {
-			reconnect = alloc.NeedsToReconnect()
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
+			alloc.ClientStatus == structs.AllocClientStatusRunning ||
+			alloc.ClientStatus == structs.AllocClientStatusFailed {
+			shouldReconnect = alloc.NeedsToReconnect() && state.SupportsDisconnectedClients
 		}
 
 		// Failed allocs that need to be reconnected must be added to
 		// reconnecting so that they can be handled as a failed reconnect.
-		if supportsDisconnectedClients &&
-			reconnect &&
+		if shouldReconnect &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
 			reconnecting[alloc.ID] = alloc
 			continue
 		}
 
-		taintedNode, nodeIsTainted := state.TaintedNodes[alloc.NodeID]
-		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
-			// Group disconnecting
-			if supportsDisconnectedClients {
-				// Filter running allocs on a node that is disconnected to be marked as unknown.
-				if alloc.ClientStatus == structs.AllocClientStatusRunning {
-					disconnecting[alloc.ID] = alloc
-					continue
-				}
-				// Filter pending allocs on a node that is disconnected to be marked as lost.
-				if alloc.ClientStatus == structs.AllocClientStatusPending {
-					lost[alloc.ID] = alloc
-					continue
-				}
-
-			} else {
-				if alloc.PreventReplaceOnDisconnect() {
-					if alloc.ClientStatus == structs.AllocClientStatusRunning {
-						disconnecting[alloc.ID] = alloc
-						continue
-					}
-
-					untainted[alloc.ID] = alloc
-					continue
-				}
-
-				lost[alloc.ID] = alloc
-				continue
-			}
-		}
-
-		if alloc.TerminalStatus() && !reconnect {
-			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
+		if alloc.TerminalStatus() && !shouldReconnect {
+			// Server-terminal allocs, if they should reconnect,
 			// are probably stopped replacements and should be ignored
-			if supportsDisconnectedClients && alloc.ServerTerminalStatus() {
+			if alloc.ServerTerminalStatus() {
 				ignore[alloc.ID] = alloc
 				continue
 			}
@@ -197,46 +159,56 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 			continue
 		}
 
-		// Non-terminal allocs that should migrate should always migrate
-		if alloc.DesiredTransition.ShouldMigrate() {
-			migrate[alloc.ID] = alloc
-			continue
-		}
-
-		if supportsDisconnectedClients && alloc.Expired(state.Now) {
+		// The alloc is expired. These end up getting added to "lost" but this
+		// skips having to evaluate the reconnecting logic for these allocs.
+		if alloc.Expired(state.Now) {
 			expiring[alloc.ID] = alloc
-			continue
-		}
-
-		// Acknowledge unknown allocs that we want to reconnect eventually.
-		if supportsDisconnectedClients &&
-			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
-			untainted[alloc.ID] = alloc
 			continue
 		}
 
 		// Ignore failed allocs that need to be reconnected and that have been
 		// marked to stop by the server.
-		if supportsDisconnectedClients &&
-			reconnect &&
+		if shouldReconnect &&
 			alloc.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusStop {
 			ignore[alloc.ID] = alloc
 			continue
 		}
 
+		taintedNode, nodeIsTainted := state.TaintedNodes[alloc.NodeID]
+		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
+			if !state.SupportsDisconnectedClients {
+				lost[alloc.ID] = alloc
+				continue
+			}
+			// ignore allocs already marked unknown, they should already have a followup eval
+			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				untainted[alloc.ID] = alloc
+				continue
+			}
+			// If the alloc is pending mark it lost so it is replaced immediately.
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
+				lost[alloc.ID] = alloc
+				continue
+			}
+			// Allocs with nil disconnect blocks or disconnect.lost_after == 0 are lost
+			if alloc.DisconnectTimeout(state.Now) == state.Now {
+				lost[alloc.ID] = alloc
+				continue
+			}
+			disconnecting[alloc.ID] = alloc
+			continue
+		}
+
+		// Non-terminal allocs that should migrate should always migrate
+		if alloc.DesiredTransition.ShouldMigrate() {
+			migrate[alloc.ID] = alloc
+			continue
+		}
+
 		if !nodeIsTainted || (taintedNode != nil && taintedNode.Status == structs.NodeStatusReady) {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if reconnect {
-				// Expired unknown allocs should be processed depending on the max client disconnect
-				// and/or avoid reschedule on lost configurations, they are both treated as
-				// expiring.
-				if alloc.Expired(state.Now) {
-					expiring[alloc.ID] = alloc
-					continue
-				}
-
+			if shouldReconnect {
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
@@ -255,7 +227,7 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 		// Allocs on terminal nodes that can't be rescheduled need to be treated
 		// differently than those that can.
 		if taintedNode.TerminalStatus() {
-			if alloc.PreventReplaceOnDisconnect() {
+			if !alloc.ReplaceOnDisconnect() {
 				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 					untainted[alloc.ID] = alloc
 					continue
@@ -440,16 +412,19 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		rescheduleNow = true
 	}
 
+	// We never want to reschedule unknown allocs that have `replace = false`
+	if isDisconnecting && !alloc.ReplaceOnDisconnect() {
+		return
+	}
+
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	var eligible bool
 	switch {
 	case isDisconnecting:
-		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
-
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
 	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
 		lastDisconnectTime := alloc.LastUnknown()
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
-
 	default:
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
@@ -459,7 +434,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
-	if eligible && (alloc.FollowupEvalID == "" || isDisconnecting) {
+	if eligible && alloc.FollowupEvalID == "" {
 		rescheduleLater = true
 	}
 
@@ -494,15 +469,10 @@ func (set allocSet) delayByLostAfter(now time.Time) ([]*delayedRescheduleInfo, e
 	var later []*delayedRescheduleInfo
 
 	for _, alloc := range set {
-		timeout := alloc.DisconnectTimeout(now)
-		if !timeout.After(now) {
-			return nil, errors.New("unable to computing disconnecting timeouts")
-		}
-
 		later = append(later, &delayedRescheduleInfo{
 			allocID:        alloc.ID,
 			alloc:          alloc,
-			rescheduleTime: timeout,
+			rescheduleTime: alloc.DisconnectTimeout(now),
 		})
 	}
 

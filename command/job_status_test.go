@@ -371,6 +371,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 
 	e := mock.Eval()
 	e.WaitUntil = time.Now().Add(1 * time.Hour)
+	e.TriggeredBy = structs.EvalTriggerAllocReschedule
 	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 902, []*structs.Evaluation{e}))
 	a := mock.Alloc()
 	a.Job = j

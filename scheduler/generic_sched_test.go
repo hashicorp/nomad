@@ -5136,13 +5136,13 @@ func TestServiceSched_BlockedDisconnectReplace(t *testing.T) {
 	followupEval0 := h.CreateEvals[0]
 	followupEval1 := h.CreateEvals[1]
 
-	must.Eq(t, structs.EvalStatusBlocked, followupEval0.Status)
-	must.Eq(t, structs.EvalStatusPending, followupEval1.Status)
+	must.Eq(t, structs.EvalStatusPending, followupEval0.Status) // max-client-disconnect
+	must.Eq(t, structs.EvalStatusPending, followupEval1.Status) // alloc-reschedule
 
 	// TODO: the top-level scheduler calls its own time.Now not shared with the
 	// reconciler
 	//	must.Eq(t, now.Add(lostAfterDuration), followupEval1.WaitUntil)
-	must.True(t, followupEval1.WaitUntil.After(now.Add(lostAfterDuration)))
+	must.True(t, followupEval0.WaitUntil.After(now.Add(lostAfterDuration)))
 
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Evaluation{followupEval0, followupEval1}))
