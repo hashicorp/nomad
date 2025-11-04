@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed scheduling behavior of batch job allocations
+```

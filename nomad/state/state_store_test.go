@@ -1263,13 +1263,14 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 	nodeWithoutPoolID := uuid.Generate()
 
 	testCases := []struct {
-		name               string
-		nodeID             string
-		pool               string
-		createPool         bool
-		expectedPool       string
-		expectedPoolExists bool
-		validateFn         func(*testing.T, *structs.Node, *structs.NodePool)
+		name                        string
+		nodeID                      string
+		pool                        string
+		createPool                  bool
+		expectedPool                string
+		expectedPoolNodeIdentityTTL time.Duration
+		expectedPoolExists          bool
+		validateFn                  func(*testing.T, *structs.Node, *structs.NodePool)
 	}{
 		{
 			name:               "register new node in new node pool",
@@ -1285,11 +1286,12 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			},
 		},
 		{
-			name:               "register new node in existing node pool",
-			nodeID:             "",
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
+			name:                        "register new node in existing node pool",
+			nodeID:                      "",
+			pool:                        devPoolName,
+			expectedPool:                devPoolName,
+			expectedPoolNodeIdentityTTL: 720 * time.Hour,
+			expectedPoolExists:          true,
 			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
 				// Verify node pool was not modified.
 				must.NotEq(t, pool.CreateIndex, node.ModifyIndex)
@@ -1320,11 +1322,12 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			},
 		},
 		{
-			name:               "move existing node to existing node pool",
-			nodeID:             nodeWithPoolID,
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
+			name:                        "move existing node to existing node pool",
+			nodeID:                      nodeWithPoolID,
+			pool:                        devPoolName,
+			expectedPool:                devPoolName,
+			expectedPoolNodeIdentityTTL: 720 * time.Hour,
+			expectedPoolExists:          true,
 		},
 		{
 			name:               "move existing node to built-in node pool",
@@ -1342,11 +1345,12 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			expectedPoolExists: true,
 		},
 		{
-			name:               "update node without pool to existing node pool",
-			nodeID:             nodeWithoutPoolID,
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
+			name:                        "update node without pool to existing node pool",
+			nodeID:                      nodeWithoutPoolID,
+			pool:                        devPoolName,
+			expectedPool:                devPoolName,
+			expectedPoolNodeIdentityTTL: 720 * time.Hour,
+			expectedPoolExists:          true,
 		},
 		{
 			name:               "update node without pool with empty string to default",
@@ -1419,6 +1423,15 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			must.NoError(t, err)
 			if tc.expectedPoolExists {
 				must.NotNil(t, pool)
+
+				// Ensure the pool identitiy TTL is correctly set depending on
+				// whether a custom value was expected, or whether the default
+				// should be applied.
+				if tc.expectedPoolNodeIdentityTTL == 0 {
+					must.Eq(t, structs.DefaultNodePoolNodeIdentityTTL, pool.NodeIdentityTTL)
+				} else {
+					must.Eq(t, tc.expectedPoolNodeIdentityTTL, pool.NodeIdentityTTL)
+				}
 			} else {
 				must.Nil(t, pool)
 			}

@@ -41,8 +41,6 @@ func testMixedFollow(t *testing.T) {
 	// error. We want to ignore this, as it's expected. Any other error is
 	// terminal.
 	out, err := e2eutil.Command("nomad", "alloc", "logs", "-f", allocStubs[0].ID)
-	if err != nil {
-		must.ErrorContains(t, err, "failed: signal: killed")
-	}
+	must.ErrorContains(t, err, "failed: signal: killed")
 	must.StrContains(t, out, "stdout\nstderr")
 }

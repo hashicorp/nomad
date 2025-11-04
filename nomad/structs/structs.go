@@ -1152,6 +1152,7 @@ type AllocUpdateDesiredTransitionRequest struct {
 type AllocStopRequest struct {
 	AllocID         string
 	NoShutdownDelay bool
+	Reschedule      bool
 
 	WriteRequest
 }
@@ -2062,19 +2063,6 @@ type Node struct {
 	// reserved from scheduling.
 	ReservedResources *NodeReservedResources
 
-	// Resources is the available resources on the client.
-	// For example 'cpu=2' 'memory=2048'
-	// COMPAT(0.10): Remove after 0.10
-	Resources *Resources
-
-	// Reserved is the set of resources that are reserved,
-	// and should be subtracted from the total resources for
-	// the purposes of scheduling. This may be provide certain
-	// high-watermark tolerances or because of external schedulers
-	// consuming resources.
-	// COMPAT(0.10): Remove after 0.10
-	Reserved *Resources
-
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
@@ -2255,8 +2243,6 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = maps.Clone(nn.Links)
 	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
@@ -8128,6 +8114,12 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
 	}
+
+	// Tasks cannot be named "alloc" as this conflicts with and breaks task
+	// filesystem isolation features.
+	if t.Name == "alloc" {
+		mErr.Errors = append(mErr.Errors, errors.New("Task cannot be named \"alloc\""))
+	}
 	if strings.ContainsAny(t.Name, `/\`) {
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
@@ -10981,6 +10973,11 @@ type DesiredTransition struct {
 	// task shutdown_delay configuration and ignore the delay for any
 	// allocations stopped as a result of this Deregister call.
 	NoShutdownDelay *bool
+
+	// MigrateDisablePlacement is used to disable the placement of the allocation
+	// when Migrate is set. This field is used to prevent batch job allocations
+	// from being placed after being stopped.
+	MigrateDisablePlacement *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -10988,6 +10985,10 @@ type DesiredTransition struct {
 func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
+	}
+
+	if o.MigrateDisablePlacement != nil {
+		d.MigrateDisablePlacement = o.MigrateDisablePlacement
 	}
 
 	if o.Reschedule != nil {
@@ -11005,12 +11006,18 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d *DesiredTransition) ShouldMigrate() bool {
+	if d == nil {
+		return false
+	}
 	return d.Migrate != nil && *d.Migrate
 }
 
 // ShouldReschedule returns whether the transition object dictates a
 // rescheduling.
 func (d *DesiredTransition) ShouldReschedule() bool {
+	if d == nil {
+		return false
+	}
 	return d.Reschedule != nil && *d.Reschedule
 }
 
@@ -11030,6 +11037,15 @@ func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
 		return false
 	}
 	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
+}
+
+// ShouldDisableMigrationPlacement returns whether the transition object dictates
+// that the migration should place allocation.
+func (d *DesiredTransition) ShouldDisableMigrationPlacement() bool {
+	if d == nil {
+		return false
+	}
+	return d.MigrateDisablePlacement != nil && *d.MigrateDisablePlacement
 }
 
 const (
@@ -11461,6 +11477,7 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+	isRescheduledBatch := a.Job.Type == JobTypeBatch && a.DesiredTransition.ShouldReschedule()
 
 	// If reschedule is disabled, return early
 	if reschedulePolicy == nil || (reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited) {
@@ -11468,7 +11485,7 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	}
 
 	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
-		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
+		(!isRescheduledBatch && a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
 		failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -11485,6 +11502,7 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 		attempted, attempts := a.RescheduleTracker.rescheduleInfo(reschedulePolicy, failTime)
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
+
 	return nextRescheduleTime, rescheduleEligible
 }
 
@@ -12421,6 +12439,7 @@ const (
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 	EvalTriggerReconnect            = "reconnect"
+	EvalTriggerAllocReschedule      = "alloc-reschedule"
 )
 
 const (

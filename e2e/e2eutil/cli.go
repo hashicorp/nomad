@@ -20,7 +20,9 @@ import (
 )
 
 // Command sends a command line argument to Nomad and returns the unbuffered
-// stdout as a string (or, if there's an error, the stderr)
+// stdout as a string (or, if there's an error, the stderr).
+// If the timeout expires, exec.CommandContext will send a kill signal to the process,
+// so the error will contain the string "signal: killed".
 func Command(cmd string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()

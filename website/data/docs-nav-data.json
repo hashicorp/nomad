@@ -241,19 +241,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
@@ -325,7 +325,7 @@
       },
       {
         "title": "Nomad variables",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/variables/variables-create"
+        "path": "manage/variables"
       },
       {
         "title": "Recovery",
@@ -649,19 +649,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/exec2"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/podman"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/virt"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "http://developer.hashicorp.com/nomad/plugins/drivers/community"
+                "href": "https://developer.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }
@@ -1300,6 +1300,10 @@
       {
         "title": "Runtime variable interpolation",
         "path": "reference/runtime-variable-interpolation"
+      },
+      {
+        "title": "Web UI keyboard shortcuts",
+        "path": "reference/keyboard-commands"
       },
       {
         "title": "Sentinel policy",

@@ -5,6 +5,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestAllocations_List(t *testing.T) {
@@ -60,46 +62,60 @@ func TestAllocations_List(t *testing.T) {
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
 
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	a := c.Allocations()
+	testAPIClient, testServer := makeClient(t, nil, func(c *testutil.TestServerConfig) { c.DevMode = true })
+	t.Cleanup(testServer.Stop)
+	_ = oneNodeFromNodeList(t, testAPIClient.Nodes())
 
 	// Querying when no allocs exist returns nothing
-	allocs, qm, err := a.PrefixList("")
+	allocs, qm, err := testAPIClient.Allocations().PrefixList("")
 	must.NoError(t, err)
 	must.Zero(t, qm.LastIndex)
 	must.Len(t, 0, allocs)
 
-	// TODO: do something that causes an allocation to actually happen
-	// so we can query for them.
-	return
+	// Create a job and register it
+	job := testJob()
+	resp, wm, err := testAPIClient.Jobs().Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
+	must.UUIDv4(t, resp.EvalID)
+	assertWriteMeta(t, wm)
 
-	//job := &Job{
-	//ID:   stringToPtr("job1"),
-	//Name: stringToPtr("Job #1"),
-	//Type: stringToPtr(JobTypeService),
-	//}
+	// Get a list of the job allocations, so we have data to move onto prefix
+	// matching.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(
+			func() error {
+				allocs, _, err := testAPIClient.Jobs().Allocations(*job.ID, false, nil)
+				if err != nil {
+					return err
+				}
+				if len(allocs) != 1 {
+					return errors.New("waiting for job allocations")
+				}
+				return nil
+			},
+		),
+		wait.Timeout(5*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+	jobAllocs, _, err := testAPIClient.Jobs().Allocations(*job.ID, false, nil)
+	must.NoError(t, err)
+	must.Len(t, 1, jobAllocs)
 
-	//eval, _, err := c.Jobs().Register(job, nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
+	// Perform a test of prefix matching by using the first 4 characters which
+	// should be more than enoigh to be unique and give a consistent result.
+	allocs, _, err = testAPIClient.Allocations().PrefixList(jobAllocs[0].ID[:4])
+	must.NoError(t, err)
+	must.Len(t, 1, allocs)
+	must.Eq(t, jobAllocs[0].ID, allocs[0].ID)
 
-	//// List the allocations by prefix
-	//allocs, qm, err = a.PrefixList("foobar")
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
-	//if qm.LastIndex == 0 {
-	//t.Fatalf("bad index: %d", qm.LastIndex)
-	//}
-
-	//// Check that we got the allocation back
-	//if len(allocs) == 0 || allocs[0].EvalID != eval {
-	//t.Fatalf("bad: %#v", allocs)
-	//}
+	// Test a prefix that does not match anything.
+	allocs, _, err = testAPIClient.Allocations().PrefixList(generateUUID())
+	must.NoError(t, err)
+	must.Len(t, 0, allocs)
 }
 
 func TestAllocations_List_Resources(t *testing.T) {
@@ -319,34 +335,100 @@ func TestAllocations_Stop(t *testing.T) {
 	testutil.RequireRoot(t)
 	testutil.Parallel(t)
 
-	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
+	t.Run("default", func(t *testing.T) {
+		c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+			c.DevMode = true
+		})
+		defer s.Stop()
+		a := c.Allocations()
+
+		// wait for node
+		_ = oneNodeFromNodeList(t, c.Nodes())
+
+		// Create a job and register it
+		job := testJob()
+		_, wm, err := c.Jobs().Register(job, nil)
+		must.NoError(t, err)
+
+		// List allocations.
+		stubs, qm, err := a.List(&QueryOptions{WaitIndex: wm.LastIndex})
+		must.NoError(t, err)
+		must.SliceLen(t, 1, stubs)
+
+		// Stop the first allocation.
+		resp, err := a.Stop(&Allocation{ID: stubs[0].ID}, &QueryOptions{WaitIndex: qm.LastIndex})
+		must.NoError(t, err)
+		test.UUIDv4(t, resp.EvalID)
+		test.NonZero(t, resp.LastIndex)
+
+		// Stop allocation that doesn't exist.
+		resp, err = a.Stop(&Allocation{ID: "invalid"}, &QueryOptions{WaitIndex: qm.LastIndex})
+		must.Error(t, err)
 	})
-	defer s.Stop()
-	a := c.Allocations()
 
-	// wait for node
-	_ = oneNodeFromNodeList(t, c.Nodes())
+	t.Run("rescheduled", func(t *testing.T) {
+		c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+			c.DevMode = true
+		})
+		defer s.Stop()
+		a := c.Allocations()
 
-	// Create a job and register it
-	job := testJob()
-	_, wm, err := c.Jobs().Register(job, nil)
-	must.NoError(t, err)
+		// wait for node
+		_ = oneNodeFromNodeList(t, c.Nodes())
 
-	// List allocations.
-	stubs, qm, err := a.List(&QueryOptions{WaitIndex: wm.LastIndex})
-	must.NoError(t, err)
-	must.SliceLen(t, 1, stubs)
+		// Create a job and register it
+		job := testJob()
+		_, wm, err := c.Jobs().Register(job, nil)
+		must.NoError(t, err)
 
-	// Stop the first allocation.
-	resp, err := a.Stop(&Allocation{ID: stubs[0].ID}, &QueryOptions{WaitIndex: qm.LastIndex})
-	must.NoError(t, err)
-	test.UUIDv4(t, resp.EvalID)
-	test.NonZero(t, resp.LastIndex)
+		// List allocations.
+		stubs, qm, err := a.List(&QueryOptions{WaitIndex: wm.LastIndex})
+		must.NoError(t, err)
+		must.SliceLen(t, 1, stubs)
 
-	// Stop allocation that doesn't exist.
-	resp, err = a.Stop(&Allocation{ID: "invalid"}, &QueryOptions{WaitIndex: qm.LastIndex})
-	must.Error(t, err)
+		// Stop the first allocation.
+		resp, err := a.Stop(&Allocation{ID: stubs[0].ID}, &QueryOptions{
+			Params:    map[string]string{"reschedule": "true"},
+			WaitIndex: qm.LastIndex,
+		})
+		must.NoError(t, err)
+
+		alloc, _, err := a.Info(stubs[0].ID, &QueryOptions{WaitIndex: resp.LastIndex})
+		must.NoError(t, err)
+		must.True(t, alloc.DesiredTransition.ShouldReschedule(), must.Sprint("allocation should be marked for rescheduling"))
+	})
+
+	t.Run("no shutdown delay", func(t *testing.T) {
+		c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+			c.DevMode = true
+		})
+		defer s.Stop()
+		a := c.Allocations()
+
+		// wait for node
+		_ = oneNodeFromNodeList(t, c.Nodes())
+
+		// Create a job and register it
+		job := testJob()
+		_, wm, err := c.Jobs().Register(job, nil)
+		must.NoError(t, err)
+
+		// List allocations.
+		stubs, qm, err := a.List(&QueryOptions{WaitIndex: wm.LastIndex})
+		must.NoError(t, err)
+		must.SliceLen(t, 1, stubs)
+
+		// Stop the first allocation.
+		resp, err := a.Stop(&Allocation{ID: stubs[0].ID}, &QueryOptions{
+			Params:    map[string]string{"no_shutdown_delay": "true"},
+			WaitIndex: qm.LastIndex,
+		})
+		must.NoError(t, err)
+
+		alloc, _, err := a.Info(stubs[0].ID, &QueryOptions{WaitIndex: resp.LastIndex})
+		must.NoError(t, err)
+		must.True(t, alloc.DesiredTransition.ShouldIgnoreShutdownDelay(), must.Sprint("allocation should be marked for no shutdown delay"))
+	})
 }
 
 // TestAllocations_ExecErrors ensures errors are properly formatted
@@ -478,6 +560,38 @@ func TestAllocations_ShouldMigrate(t *testing.T) {
 	must.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
 	must.False(t, DesiredTransition{}.ShouldMigrate())
 	must.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
+}
+
+func TestAllocations_ShouldReschedule(t *testing.T) {
+	testutil.Parallel(t)
+
+	must.True(t, DesiredTransition{Reschedule: pointerOf(true)}.ShouldReschedule())
+	must.False(t, DesiredTransition{}.ShouldReschedule())
+	must.False(t, DesiredTransition{Reschedule: pointerOf(false)}.ShouldReschedule())
+}
+
+func TestAllocations_ShouldForceReschedule(t *testing.T) {
+	testutil.Parallel(t)
+
+	must.True(t, DesiredTransition{ForceReschedule: pointerOf(true)}.ShouldForceReschedule())
+	must.False(t, DesiredTransition{}.ShouldForceReschedule())
+	must.False(t, DesiredTransition{ForceReschedule: pointerOf(false)}.ShouldForceReschedule())
+}
+
+func TestAllocations_ShouldIgnoreShutdownDelay(t *testing.T) {
+	testutil.Parallel(t)
+
+	must.True(t, DesiredTransition{NoShutdownDelay: pointerOf(true)}.ShouldIgnoreShutdownDelay())
+	must.False(t, DesiredTransition{}.ShouldIgnoreShutdownDelay())
+	must.False(t, DesiredTransition{NoShutdownDelay: pointerOf(false)}.ShouldIgnoreShutdownDelay())
+}
+
+func TestAllocations_ShouldDisableMigrationPlacement(t *testing.T) {
+	testutil.Parallel(t)
+
+	must.True(t, DesiredTransition{MigrateDisablePlacement: pointerOf(true)}.ShouldDisableMigrationPlacement())
+	must.False(t, DesiredTransition{}.ShouldDisableMigrationPlacement())
+	must.False(t, DesiredTransition{MigrateDisablePlacement: pointerOf(false)}.ShouldDisableMigrationPlacement())
 }
 
 func TestAllocations_Services(t *testing.T) {

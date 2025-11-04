@@ -1,0 +1,3 @@
+```release-note:bug
+build: Updated toolchain to Go 1.25.3 to address bug in TLS certificate validation
+```

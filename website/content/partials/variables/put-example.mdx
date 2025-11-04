@@ -1,0 +1,53 @@
+
+This example writes the Nomad variables `passcode=my-long-passcode` and
+`user=me` to the path `secret/foo`. The variables are scoped to the `prod`
+namespace.
+
+```shell-session
+$ nomad var put -namespace prod secret/foo passcode=my-long-passcode user=me
+```
+
+This example uses a Nomad variable specification file, prefixed with the "@"
+symbol.
+
+```shell-session
+$ nomad var put -namespace prod secret/foo @spec.nv.json
+```
+
+Use a hyphen (`-`) to instruct the command to read the variable value from
+standard input. The `-out` option displays the command's output.
+
+```shell-session
+$ echo "abcd1234" | nomad var put -namespace prod -out secret/foo bar=-
+Namespace   = prod
+Path        = secret/foo
+Create Time = 2025-11-19T11:21:56-04:00
+Check Index = 28
+
+Items
+bar = abcd1234
+```
+
+This example updates the `bar` value in the `secret/foo` path and outputs the
+updated variable in JSON format. You must include the `check-index` value when
+you update a Nomad variable.
+
+```shell-session
+$ nomad var put -namespace prod -out json -check-index 28 secret/foo bar=efgh5678
+```
+
+Output is similar to this snippet.
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "secret/foo",
+  "CreateIndex": 28,
+  "ModifyIndex": 39,
+  "CreateTime": 1663600883130070567,
+  "ModifyTime": 1663601343585644939,
+  "Items": {
+    "bar": "efgh5678",
+  }
+}
+```

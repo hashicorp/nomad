@@ -185,24 +185,10 @@ func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error 
 // Note: for cluster topologies where API consumers don't have network access to
 // Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
 // long pauses on this API call.
-//
-// BREAKING: This method will have the following signature in 1.6.0
-// func (a *Allocations) Stop(allocID string, w *WriteOptions) (*AllocStopResponse, error) {
 func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopResponse, error) {
-	// COMPAT: Remove in 1.6.0
-	var w *WriteOptions
-	if q != nil {
-		w = &WriteOptions{
-			Region:    q.Region,
-			Namespace: q.Namespace,
-			AuthToken: q.AuthToken,
-			Headers:   q.Headers,
-			ctx:       q.ctx,
-		}
-	}
-
 	var resp AllocStopResponse
-	wm, err := a.client.put("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, w)
+
+	wm, err := a.client.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
 	if wm != nil {
 		resp.LastIndex = wm.LastIndex
 		resp.RequestTime = wm.RequestTime
@@ -590,11 +576,44 @@ type DesiredTransition struct {
 	// Reschedule is used to indicate that this allocation is eligible to be
 	// rescheduled.
 	Reschedule *bool
+
+	// ForceReschedule is used to indicate that this allocation must be
+	// rescheduled.
+	ForceReschedule *bool
+
+	// NoShutdownDelay is used to indicate any configured shutdown delay
+	// should be ignored.
+	NoShutdownDelay *bool
+
+	// MigrateDisablePlacement is used to indicate that this allocation
+	// should not be placed during migration.
+	MigrateDisablePlacement *bool
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d DesiredTransition) ShouldMigrate() bool {
 	return d.Migrate != nil && *d.Migrate
+}
+
+// ShouldReschedule returns whether the transition object dictates a reschedule.
+func (d DesiredTransition) ShouldReschedule() bool {
+	return d.Reschedule != nil && *d.Reschedule
+}
+
+// ShouldIgnoreShutdownDelay returns whether the transition object dictates
+// ignoring the configured shutdown delay.
+func (d DesiredTransition) ShouldIgnoreShutdownDelay() bool {
+	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
+}
+
+// ShouldForceReschedule returns whether the transition object dictates a forced reschedule.
+func (d DesiredTransition) ShouldForceReschedule() bool {
+	return d.ForceReschedule != nil && *d.ForceReschedule
+}
+
+// ShouldDisableMigrationPlacement returns whether the transition object dictates placement during migration
+func (d DesiredTransition) ShouldDisableMigrationPlacement() bool {
+	return d.MigrateDisablePlacement != nil && *d.MigrateDisablePlacement
 }
 
 // ExecStreamingIOOperation represents a stream write operation: either appending data or close (exclusively)

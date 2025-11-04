@@ -147,6 +147,33 @@ func TestNodeIdentity_Get(t *testing.T) {
 			testClient.Node().NodePool,
 		})
 	})
+
+	t.Run("identity_not_set", func(t *testing.T) {
+
+		// Start a test client that does not have any servers to connect to and artifically
+		// close the registration channel, so RPCs can be served.
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		close(testClient.registeredCh)
+
+		req := structs.NodeIdentityGetReq{
+			NodeID:       testClient.NodeID(),
+			QueryOptions: structs.QueryOptions{},
+		}
+
+		var resp structs.NodeIdentityGetResp
+
+		must.ErrorContains(
+			t,
+			testClient.ClientRPC(
+				structs.NodeIdentityGetRPCMethod,
+				&req,
+				&resp,
+			),
+			"node does not have a JWT identity token",
+		)
+	})
 }
 
 func TestNodeIdentity_Renew(t *testing.T) {

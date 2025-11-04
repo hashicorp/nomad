@@ -2237,6 +2237,10 @@ func TestTask_Validate(t *testing.T) {
 		"task level: distinct_hosts",
 		"task level: distinct_property",
 	)
+
+	// Ensure the task name "alloc" is invalid.
+	invalidAllocName := &Task{Name: "alloc"}
+	must.ErrorContains(t, invalidAllocName.Validate(JobTypeBatch, tg), "Task cannot be named")
 }
 
 func TestTask_Validate_Resources(t *testing.T) {
@@ -7286,8 +7290,6 @@ func TestNode_Copy(t *testing.T) {
 	node2 := node.Copy()
 
 	must.Eq(t, node.Attributes, node2.Attributes)
-	must.Eq(t, node.Resources, node2.Resources)
-	must.Eq(t, node.Reserved, node2.Reserved)
 	must.Eq(t, node.Links, node2.Links)
 	must.Eq(t, node.Meta, node2.Meta)
 	must.Eq(t, node.Events, node2.Events)
