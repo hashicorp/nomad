@@ -447,6 +447,10 @@ func (nr *NodeReconciler) cancelUnnededSystemDeployments(j *structs.Job) {
 				Status:            structs.DeploymentStatusCancelled,
 				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
 			})
+
+			nr.DeploymentOld = nr.DeploymentCurrent
+			nr.DeploymentCurrent = nil
+			return
 		}
 	}
 
@@ -478,9 +482,7 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 		return a.Job.ID == job.ID && a.Job.Version == job.Version && a.Job.CreateIndex == job.CreateIndex
 	}
 
-	if slices.ContainsFunc(allocs, func(alloc *structs.Allocation) bool {
-		return hadRunningCondition(alloc)
-	}) {
+	if slices.ContainsFunc(allocs, hadRunningCondition) {
 		nr.compatHasSameVersionAllocs = true
 		hadRunning = true
 	}
