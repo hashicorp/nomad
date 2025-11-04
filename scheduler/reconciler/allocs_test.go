@@ -60,8 +60,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			ID:            "draining",
 			DrainStrategy: mock.DrainNode().DrainStrategy,
 		},
-		"lost": {
-			ID:     "lost",
+		"down": {
+			ID:     "down",
 			Status: structs.NodeStatusDown,
 		},
 		"nil": nil,
@@ -162,12 +162,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							Job:          testJob,
 							NodeID:       "draining",
 						},
-						// Terminal allocs are always untainted, even on lost nodes
+						// Terminal allocs are always untainted, even on down nodes
 						"untainted4": {
 							ID:           "untainted4",
 							ClientStatus: structs.AllocClientStatusComplete,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 						// Non-terminal alloc with migrate=true should migrate on a draining node
 						"migrating1": {
@@ -207,12 +207,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							Job:          testJob,
 							NodeID:       "draining",
 						},
-						// Terminal allocs are always untainted, even on lost nodes
+						// Terminal allocs are always untainted, even on down nodes
 						"untainted4": {
 							ID:           "untainted4",
 							ClientStatus: structs.AllocClientStatusComplete,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					migrate: allocSet{
@@ -247,19 +247,19 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// false failures, so don't perform that test if in this case.
 					skipNilNodeTest: true,
 					all: allocSet{
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost1": {
 							ID:           "lost1",
 							ClientStatus: structs.AllocClientStatusPending,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost2": {
 							ID:           "lost2",
 							ClientStatus: structs.AllocClientStatusRunning,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					untainted:     allocSet{},
@@ -268,19 +268,19 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					reconnecting:  allocSet{},
 					ignore:        allocSet{},
 					lost: allocSet{
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost1": {
 							ID:           "lost1",
 							ClientStatus: structs.AllocClientStatusPending,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost2": {
 							ID:           "lost2",
 							ClientStatus: structs.AllocClientStatusRunning,
 							Job:          testJob,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					expiring: allocSet{},
@@ -864,12 +864,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							Job:          testJobSingle,
 							NodeID:       "draining",
 						},
-						// Terminal allocs are always untainted, even on lost nodes
+						// Terminal allocs are always untainted, even on down nodes
 						"untainted4": {
 							ID:           "untainted4",
 							ClientStatus: structs.AllocClientStatusComplete,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 						// Non-terminal alloc with migrate=true should migrate on a draining node
 						"migrating1": {
@@ -909,12 +909,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							Job:          testJobSingle,
 							NodeID:       "draining",
 						},
-						// Terminal allocs are always untainted, even on lost nodes
+						// Terminal allocs are always untainted, even on down nodes
 						"untainted4": {
 							ID:           "untainted4",
 							ClientStatus: structs.AllocClientStatusComplete,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					migrate: allocSet{
@@ -949,19 +949,19 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// false failures, so don't perform that test if in this case.
 					skipNilNodeTest: true,
 					all: allocSet{
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost1": {
 							ID:           "lost1",
 							ClientStatus: structs.AllocClientStatusPending,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost2": {
 							ID:           "lost2",
 							ClientStatus: structs.AllocClientStatusRunning,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					untainted:     allocSet{},
@@ -970,19 +970,19 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					reconnecting:  allocSet{},
 					ignore:        allocSet{},
 					lost: allocSet{
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost1": {
 							ID:           "lost1",
 							ClientStatus: structs.AllocClientStatusPending,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
-						// Non-terminal allocs on lost nodes are lost
+						// Non-terminal allocs on lost nodes are down
 						"lost2": {
 							ID:           "lost2",
 							ClientStatus: structs.AllocClientStatusRunning,
 							Job:          testJobSingle,
-							NodeID:       "lost",
+							NodeID:       "down",
 						},
 					},
 					expiring: allocSet{},
