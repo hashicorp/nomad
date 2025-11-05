@@ -97,8 +97,8 @@ client {
 
 - `disk_free_mb` `(int:0)` - Specifies the disk space free for scheduling
   allocations. If set, this value overrides any detected free disk space. This
-  value can be seen in `nomad node status` under Allocated Resources. Deprecated -
-  please use client.reserved.disk instead.
+  value can be seen in `nomad node status` under Allocated Resources. Deprecated.
+  Use [`client.reserved.disk`](#reserved-parameters) instead.
 
 - `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
   assigned. Individual ports and ranges of ports may be excluded from dynamic

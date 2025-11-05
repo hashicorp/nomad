@@ -19,8 +19,9 @@ used to document those details separately from the standard upgrade flow.
 Nomad now calculates the storage available for scheduling using only
 `totalBytes - client.reserved.disk`. The previous strategy using free disk
 space could lead to incorrect values when clients with running allocations
-restarted. We recommend that you reserve at least the amount of disk that
-is used by the host OS.
+restarted. The `unique.storage.bytesfree` attribute has also been removed.
+We recommend that you reserve at least the amount of disk that is used
+by the host OS.
 
 #### Sysbatch jobs will no longer accept `reschedule` blocks
 

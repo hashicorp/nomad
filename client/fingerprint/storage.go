@@ -48,17 +48,8 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		total = uint64(cfg.DiskTotalMB) * bytesPerMegabyte
 	}
 
-	free := total - f.reservedDisk(req)
-
-	// DEPRECATED: remove in 1.13.0
-	if cfg.DiskFreeMB > 0 {
-		f.logger.Warn("disk_free_mb is deprecated, please use reserved.disk")
-		free = uint64(cfg.DiskFreeMB) * bytesPerMegabyte
-	}
-
 	resp.AddAttribute("unique.storage.volume", volume)
 	resp.AddAttribute("unique.storage.bytestotal", strconv.FormatUint(total, 10))
-	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))
 
 	// set the disk size for the response
 	resp.NodeResources = &structs.NodeResources{
@@ -69,15 +60,4 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	resp.Detected = true
 
 	return nil
-}
-
-func (f *StorageFingerprint) reservedDisk(req *FingerprintRequest) uint64 {
-	switch {
-	case req.Config.Node == nil:
-		return 0
-	case req.Config.Node.ReservedResources == nil:
-		return 0
-	default:
-		return uint64(req.Config.Node.ReservedResources.Disk.DiskMB)
-	}
 }
