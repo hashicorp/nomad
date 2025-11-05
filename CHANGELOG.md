@@ -14,7 +14,9 @@ BREAKING CHANGES:
 
 SECURITY:
 
+* build: Update go-getter to 1.8.3 that prevents a partially written file from remaining on disk with permissions that didn't include the umask. [[GH-27034](https://github.com/hashicorp/nomad/issues/27034)]
 * build: Update toolchain to Go 1.25.2 to address Go stdlib CVE-2025-61724, CVE-2025-61725, CVE-2025-58187, CVE-2025-61723, CVE-2025-47912, CVE-2025-58185, CVE-2025-58186, CVE-2025-58188, and CVE-2025-58183 [[GH-26909](https://github.com/hashicorp/nomad/issues/26909)]
+* job: Disallow tasks using the name "alloc" which breaks inter-task filesystem isolation [[GH-27001](https://github.com/hashicorp/nomad/issues/27001)]
 
 IMPROVEMENTS:
 
@@ -27,10 +29,15 @@ IMPROVEMENTS:
 * consul connect: Allow cni/* network mode; use at your own risk [[GH-26449](https://github.com/hashicorp/nomad/issues/26449)]
 * install (Enterprise): Updated license information displayed during post-install [[GH-26791](https://github.com/hashicorp/nomad/issues/26791)]
 * metrics: Reduce memory usage on the Nomad leader for collecting eval broker metrics. [[GH-26737](https://github.com/hashicorp/nomad/issues/26737)]
+* reporting (Enterprise): Include product usage metrics with license utilization reports [[GH-27005](https://github.com/hashicorp/nomad/issues/27005)]
 * scheduler: Add reconciler annotations to the output of the `eval status` command [[GH-26188](https://github.com/hashicorp/nomad/issues/26188)]
 * scheduler: Debug-level logs emitted by the scheduler are now single-line structured logs [[GH-26169](https://github.com/hashicorp/nomad/issues/26169)]
 * scheduler: For service and batch jobs, the scheduler no longer includes stops for already-stopped canaries in plans it submits. [[GH-26292](https://github.com/hashicorp/nomad/issues/26292)]
 * scheduler: For service and batch jobs, the scheduler treats a group.count=0 identically to removing the task group from the job, and will stop all non-terminal allocations. [[GH-26292](https://github.com/hashicorp/nomad/issues/26292)]
+
+DEPRECATIONS:
+
+* api: the `Resources` and `Reserved` fields on the `Node` struct in the Go API are deprecated and will be removed in Nomad 1.12.0. Use the `NodeResources` and `ReservedResources` fields instead [[GH-26951](https://github.com/hashicorp/nomad/issues/26951)]
 
 BUG FIXES:
 
@@ -40,14 +47,17 @@ BUG FIXES:
 * client: Fix unique identifiers for templates with same content [[GH-26880](https://github.com/hashicorp/nomad/issues/26880)]
 * client: restore task network status on client restart so restarted tasks receive proper networking environment variables, hosts file, and resolv.conf. [[GH-26699](https://github.com/hashicorp/nomad/issues/26699)]
 * consul (Enterprise): Fixed a bug where Consul fingerprinting would generate warning logs if there was no default cluster [[GH-26787](https://github.com/hashicorp/nomad/issues/26787)]
+* core: Fixed a bug where GC batch sizes for jobs resulted in excessively large Raft logs [[GH-26974](https://github.com/hashicorp/nomad/issues/26974)]
 * csi: Fixed a bug where multiple node plugin RPCs could be in-flight for a single volume [[GH-26832](https://github.com/hashicorp/nomad/issues/26832)]
 * csi: Fixed a bug where volumes could be unmounted while in use by a task that was shutting down [[GH-26831](https://github.com/hashicorp/nomad/issues/26831)]
 * docker: Fixed a bug where cpu usage percentage was incorrectly measured when container was stopped [[GH-26902](https://github.com/hashicorp/nomad/issues/26902)]
 * keyring: fixes an issue with Vault transit configuration where tls_skip_verify was not defaulting to false [[GH-26664](https://github.com/hashicorp/nomad/issues/26664)]
 * networking: Fixed network interface detection failure with bridge or CNI mode on IPv6-only interfaces [[GH-26910](https://github.com/hashicorp/nomad/issues/26910)]
+* scheduler: Fixed scheduling behavior of batch job allocations [[GH-26961](https://github.com/hashicorp/nomad/issues/26961)]
 * scheduler: allow use of different vendor/models when checking for device counts while filtering feasible nodes [[GH-26649](https://github.com/hashicorp/nomad/issues/26649)]
 * scheduler: fixes a bug selecting nodes for updated jobs with ephemeral disks when nodepool changes [[GH-26662](https://github.com/hashicorp/nomad/issues/26662)]
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
+* ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
 
 ## 1.10.5 (September 09, 2025)
