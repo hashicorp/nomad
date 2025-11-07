@@ -265,7 +265,7 @@ func (s *SysBatchScheduler) computeJobAllocs() error {
 	updates := make([]reconciler.AllocTuple, 0, len(r.Update)+len(r.Reconnecting))
 	updates = append(updates, r.Update...)
 	updates = append(updates, r.Reconnecting...)
-	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates)
+	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates, "")
 	r.Update = destructiveUpdates
 
 	for _, inplaceUpdate := range inplaceUpdates {

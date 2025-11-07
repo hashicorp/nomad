@@ -47,41 +47,14 @@ type SystemScheduler struct {
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
-	deployment               *structs.Deployment
-	nodesForTG               map[string]taskGroupNodes       // used to track node feasibility information for each TG
-	filteredNodeMetricsForTG map[string]*structs.AllocMetric // used to track filtered node metrics for each TG
-
+	deployment      *structs.Deployment
 	failedTGAllocs  map[string]*structs.AllocMetric
 	queuedAllocs    map[string]int
 	planAnnotations *structs.PlanAnnotations
-}
 
-// taskGroupNodes are a collection of taskGroupNode which include
-// node feasibility information for a task group.
-type taskGroupNodes []*taskGroupNode
-
-// feasible returns all taskGroupNode that are feasible for placement
-func (t taskGroupNodes) feasible() (feasibleNodes []*taskGroupNode) {
-	for _, tgn := range t {
-		if tgn.isFeasible() {
-			feasibleNodes = append(feasibleNodes, tgn)
-		}
-	}
-
-	return
-}
-
-// taskGroupNode is a container for holding node feasibility
-// information for a task group.
-type taskGroupNode struct {
-	NodeID     string
-	RankedNode *feasible.RankedNode
-	Metrics    *structs.AllocMetric
-}
-
-// isFeasible returns if the node is feasible for the task group.
-func (t *taskGroupNode) isFeasible() bool {
-	return t.RankedNode != nil
+	tgCandidateNodeCounts     map[string]int // count of candidate nodes for the task group
+	tgDestructiveUpdateCounts map[string]int // count of destructive updates for the task group
+	tgExistingCanaryCount     map[string]int // count of currently running canaries for the task group
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -314,24 +287,58 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	updates := make([]reconciler.AllocTuple, 0, len(reconciliationResult.Update)+len(reconciliationResult.Reconnecting))
 	updates = append(updates, reconciliationResult.Update...)
 	updates = append(updates, reconciliationResult.Reconnecting...)
-	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates)
+	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates, s.deployment.GetID())
 	reconciliationResult.Update = destructiveUpdates
-
-	for _, inplaceUpdate := range inplaceUpdates {
-		allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
-	}
 
 	s.planAnnotations = &structs.PlanAnnotations{
 		DesiredTGUpdates: desiredUpdates(reconciliationResult, inplaceUpdates, destructiveUpdates),
 	}
 
-	// Gather node information for all the task groups.
-	s.nodesForTG, s.filteredNodeMetricsForTG = s.findNodesForTG(reconciliationResult)
+	// Initialize all the counts to track and generate
+	// the node mapping so we can use it throughout.
+	// Then loop through the various buckets to set
+	// our initial counts.
+	s.tgCandidateNodeCounts = make(map[string]int)
+	s.tgExistingCanaryCount = make(map[string]int)
+	s.tgDestructiveUpdateCounts = make(map[string]int)
+	nodeByID := make(map[string]*structs.Node, len(s.nodes))
+	for _, node := range s.nodes {
+		nodeByID[node.ID] = node
+	}
 
-	// Set placement totals for task groups. The totals will be the available
-	// feasible nodes for each group.
-	for tgName := range s.nodesForTG {
-		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(len(s.nodesForTG[tgName].feasible()))
+	// Add every allocation within the place bucket to the
+	// candidate node count
+	for _, allocTuple := range reconciliationResult.Place {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+	}
+
+	// Add every allocation that was updated in place to the
+	// candidate node count. Also add them to the inplace
+	// update count so they can be included in the deployment's
+	// healthy alloc count.
+	for _, allocTuple := range inplaceUpdates {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		allocExistsForTaskGroup[allocTuple.TaskGroup.Name] = true
+	}
+
+	// Add every allcation within the ignore bucket to the
+	// candidate node count. Find any canaries within the
+	// bucket and add them to the existing canary count so
+	// we can properly calculate required canaries.
+	for _, allocTuple := range reconciliationResult.Ignore {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		if allocTuple.Alloc.DeploymentStatus != nil && allocTuple.Alloc.DeploymentStatus.Canary {
+			s.tgExistingCanaryCount[allocTuple.TaskGroup.Name]++
+		}
+	}
+
+	// Add every allcation within the update bucket to the
+	// candidate node count. The allocations within the
+	// update bucket are destructive updates, so add them
+	// to the destructive update count.
+	for _, allocTuple := range reconciliationResult.Update {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		s.tgDestructiveUpdateCounts[allocTuple.TaskGroup.Name]++
 	}
 
 	// Treat non in-place updates as an eviction and new placement, which will
@@ -349,13 +356,19 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
 	}
 
+	// Record that allocs currently exist for a Task Group
 	for _, ignoredAlloc := range reconciliationResult.Ignore {
 		allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] = true
 	}
 
 	// Compute the placements
-	if err := s.computePlacements(reconciliationResult, allocExistsForTaskGroup); err != nil {
+	if err := s.computePlacements(reconciliationResult, nodeByID, allocExistsForTaskGroup); err != nil {
 		return err
+	}
+
+	// Set the desired placements into the annotation using the computed counts.
+	for tgName := range s.tgCandidateNodeCounts {
+		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(s.tgCandidateNodeCounts[tgName])
 	}
 
 	// if there is no deployment we're done at this point
@@ -369,8 +382,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// track if any of the task groups is doing a canary update now
 	deploymentComplete := true
 	for _, tg := range s.job.TaskGroups {
-		feasibleNodes := s.nodesForTG[tg.Name].feasible()
-		if len(feasibleNodes) < 1 {
+		candidateCount := s.tgCandidateNodeCounts[tg.Name]
+
+		if candidateCount < 1 {
 			// this will happen if we're seeing a TG that shouldn't be placed.
 			//
 			// in case the deployment is in a successful state, this indicate a
@@ -389,10 +403,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
-		// we can set the desired total now, it's always the amount of all
-		// feasible nodes
-		s.deployment.TaskGroups[tg.Name].DesiredTotal = len(feasibleNodes)
-
 		// a system job is canarying if:
 		// - it has a non-empty update block (just a sanity check, all
 		// submitted jobs should have a non-empty update block as part of
@@ -404,12 +414,21 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			tg.Update.Canary > 0 &&
 			dstate != nil &&
 			!dstate.Promoted &&
-			s.job.Version != 0
+			s.job.Version != 0 &&
+			s.tgDestructiveUpdateCounts[tg.Name] > 0
+
+		// we can set the desired total now
+		s.deployment.TaskGroups[tg.Name].DesiredTotal = candidateCount
 
 		if isCanarying {
-			// we can now also set the desired canaries: it's the tg.Update.Canary
-			// percent of all the feasible nodes, rounded up to the nearest int
-			requiredCanaries := int(math.Ceil(float64(tg.Update.Canary) * float64(len(feasibleNodes)) / 100))
+			// we can now also set the desired canaries: it's the
+			// tg.Update.Canary percent of allocations that will
+			// be destructively updated, rounded up to the nearest
+			// int capped by the max_parallel
+			destructiveCount := s.tgDestructiveUpdateCounts[tg.Name] + s.tgExistingCanaryCount[tg.Name]
+			requiredCanaries := int(math.Ceil(float64(tg.Update.Canary) * float64(destructiveCount) / 100))
+			requiredCanaries = min(requiredCanaries, tg.Update.MaxParallel)
+
 			s.deployment.TaskGroups[tg.Name].DesiredCanaries = requiredCanaries
 
 			// Initially, if the job requires canaries, we place all of them on
@@ -452,18 +471,16 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 // computePlacements computes placements for allocations
 func (s *SystemScheduler) computePlacements(
-	reconcilerResult *reconciler.NodeReconcileResult, existingByTaskGroup map[string]bool,
+	reconcilerResult *reconciler.NodeReconcileResult, nodeByID map[string]*structs.Node, existingByTaskGroup map[string]bool,
 ) error {
-
-	nodeByID := make(map[string]*structs.Node, len(s.nodes))
-	for _, node := range s.nodes {
-		nodeByID[node.ID] = node
-	}
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
 	}
+
+	filteredMetrics := map[string]*structs.AllocMetric{}
+	nodes := make([]*structs.Node, 1)
 
 	for _, missing := range reconcilerResult.Place {
 		tgName := missing.TaskGroup.Name
@@ -474,45 +491,41 @@ func (s *SystemScheduler) computePlacements(
 			continue
 		}
 
-		// we've already performed feasibility check for all the task groups and
-		// nodes, so look up
-		var option *feasible.RankedNode
-		var metrics *structs.AllocMetric
-		optionsForTG := s.nodesForTG[tgName]
-		if existing := slices.IndexFunc(
-			optionsForTG,
-			func(rn *taskGroupNode) bool { return rn.NodeID == node.ID },
-		); existing != -1 {
-			option = optionsForTG[existing].RankedNode
-			metrics = optionsForTG[existing].Metrics
-		} else {
-			// we should have an entry for every node that is looked
-			// up. if we don't, something must be wrong
-			s.logger.Error("failed to locate node feasibility information",
-				"node-id", node.ID, "task_group", tgName)
-			// provide a stubbed metric to work with
-			metrics = &structs.AllocMetric{}
-		}
+		nodes[0] = node
+		s.stack.SetNodes(nodes)
+
+		option := s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
 
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
+			// Since we are here, the node was not feasible. Decrement
+			// the candidate node counts for this task group.
+			s.tgCandidateNodeCounts[tgName]--
+
+			// If this was an allocation being updated and there are no feasible
+			// nodes, then it does not count as a destructive update so decrement
+			// the count.
+			if missing.Alloc.ID != "" {
+				s.tgDestructiveUpdateCounts[tgName]--
+			}
+
 			// If this node was filtered because of constraint
 			// mismatches and we couldn't create an allocation then
 			// decrement queuedAllocs for that task group.
-			if metrics.NodesFiltered > 0 {
-				queued := s.queuedAllocs[tgName] - 1
-				s.queuedAllocs[tgName] = queued
+			if s.ctx.Metrics().NodesFiltered > 0 {
+				s.queuedAllocs[tgName]--
+				filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
 
 				// If no tasks have been placed and there aren't any previously
-				// existing (ignored or updated) tasks on the node, mark the alloc as failed to be placed
-				// if queued <= 0 && !existingByTaskGroup[tgName] {
-				if queued <= 0 && !existingByTaskGroup[tgName] {
+				// existing (ignored or updated) tasks on the node, mark the alloc
+				// as failed to be placed
+				if s.queuedAllocs[tgName] <= 0 && !existingByTaskGroup[tgName] {
 					if s.failedTGAllocs == nil {
 						s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 					}
-					s.failedTGAllocs[tgName] = s.filteredNodeMetricsForTG[tgName]
+					s.failedTGAllocs[tgName] = filteredMetrics[tgName]
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
@@ -527,12 +540,12 @@ func (s *SystemScheduler) computePlacements(
 			}
 
 			// Store the available nodes by datacenter
-			metrics.NodesAvailable = s.nodesByDC
-			metrics.NodesInPool = len(s.nodes)
-			metrics.NodePool = s.job.NodePool
+			s.ctx.Metrics().NodesAvailable = s.nodesByDC
+			s.ctx.Metrics().NodesInPool = len(s.nodes)
+			s.ctx.Metrics().NodePool = s.job.NodePool
 
 			// Compute top K scoring node metadata
-			metrics.PopulateScoreMetaData()
+			s.ctx.Metrics().PopulateScoreMetaData()
 
 			// Lazy initialize the failed map
 			if s.failedTGAllocs == nil {
@@ -540,21 +553,21 @@ func (s *SystemScheduler) computePlacements(
 			}
 
 			// Update metrics with the resources requested by the task group.
-			metrics.ExhaustResources(missing.TaskGroup)
+			s.ctx.Metrics().ExhaustResources(missing.TaskGroup)
 
 			// Actual failure to start this task on this candidate node, report it individually
-			s.failedTGAllocs[tgName] = metrics
+			s.failedTGAllocs[tgName] = s.ctx.Metrics()
 			s.addBlocked(node)
 
 			continue
 		}
 
 		// Store the available nodes by datacenter
-		metrics.NodesAvailable = s.nodesByDC
-		metrics.NodesInPool = len(s.nodes)
+		s.ctx.Metrics().NodesAvailable = s.nodesByDC
+		s.ctx.Metrics().NodesInPool = len(s.nodes)
 
 		// Compute top K scoring node metadata
-		metrics.PopulateScoreMetaData()
+		s.ctx.Metrics().PopulateScoreMetaData()
 
 		// Set fields based on if we found an allocation option
 		resources := &structs.AllocatedResources{
@@ -578,7 +591,7 @@ func (s *SystemScheduler) computePlacements(
 			Name:               missing.Name,
 			JobID:              s.job.ID,
 			TaskGroup:          tgName,
-			Metrics:            metrics,
+			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
 			DeploymentID:       deploymentID,
@@ -691,29 +704,15 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 		}
 	}
 
-	// findFeasibleNodesForTG method marks all old allocs from a destructive
-	// update as stopped in order to get an accurate feasible nodes count
-	// (accounting for resources that would be freed). Now we need to remove all
-	// the allocs that have StatusAllocUpdating from the set we're stopping
-	// (NodeUpdate) and only place and stop the ones the ones that correspond to
-	// updates limited by max parallel.
-	for node, allocations := range s.plan.NodeUpdate {
-		n := 0
-		for _, alloc := range allocations {
-			if alloc.DesiredDescription != sstructs.StatusAllocUpdating {
-				allocations[n] = alloc
-				n += 1
-			}
-		}
-		s.plan.NodeUpdate[node] = allocations[:n]
-	}
-
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			s.ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 			reconciled.Place = append(reconciled.Place, a)
 
-			limits[a.Alloc.TaskGroup]--
+			// canaries will get limited when we cancel unneeded canaries later on
+			if !a.Canary {
+				limits[a.Alloc.TaskGroup]--
+			}
 		}
 	}
 
@@ -787,6 +786,11 @@ func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName str
 			// if it's a canary, we only keep up to desiredCanaries amount of
 			// them
 			if alloc.DeploymentStatus.Canary {
+				// Check that the canary is on an eligble node
+				if _, ineligibleNode := s.notReadyNodes[alloc.NodeID]; ineligibleNode {
+					continue
+				}
+
 				// Check if this is a preferred allocation for the canary
 				_, preferred := preferCanary[alloc.ID]
 
