@@ -123,9 +123,6 @@ func (nr *NodeReconciler) computeForNode(
 		deploymentFailed = nr.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
-	// Track whether we're during a canary update
-	isCanarying := map[string]bool{}
-
 	// Scan the existing updates
 	existing := make(map[string]struct{}) // set of alloc names
 	for _, alloc := range liveAllocs {
@@ -295,8 +292,9 @@ func (nr *NodeReconciler) computeForNode(
 
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != alloc.Job.JobModifyIndex {
+			// If configured for canaries and not yet promoted, mark
+			// alloc update as a canary
 			if !tg.Update.IsEmpty() && tg.Update.Canary > 0 && dstate != nil && !dstate.Promoted {
-				isCanarying[tg.Name] = true
 				result.Update = append(result.Update, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,
@@ -385,11 +383,6 @@ func (nr *NodeReconciler) computeForNode(
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     termOnNode,
-			}
-
-			// If the terminal allocation was a canary, mark it as such.
-			if termOnNode != nil && termOnNode.DeploymentStatus != nil && termOnNode.DeploymentStatus.Canary {
-				allocTuple.Canary = true
 			}
 
 			// If the new allocation isn't annotated with a previous allocation
