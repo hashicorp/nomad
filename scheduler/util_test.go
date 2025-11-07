@@ -728,7 +728,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
-	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 	must.MapEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
@@ -782,7 +782,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
-	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate incorrectly did not perform an inplace update"))
 	must.MapNotEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
@@ -840,7 +840,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
-	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 	must.MapEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
@@ -910,7 +910,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	stack.SetJob(job)
 
 	// Do the inplace update.
-	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate did not do an inplace update"))
 	must.Eq(t, 1, len(ctx.Plan().NodeAllocation), must.Sprint("inplaceUpdate did not do an inplace update"))
@@ -957,7 +957,7 @@ func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 
 	updates := []reconciler.AllocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
 	stack := feasible.NewGenericStack(false, ctx)
-	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.Len(t, 1, inplace,
 		must.Sprintf("inplaceUpdate should have an inplace update"))
@@ -1002,7 +1002,7 @@ func TestInplaceUpdate_NodePools(t *testing.T) {
 		{Alloc: alloc2, TaskGroup: job.TaskGroups[0]},
 	}
 	stack := feasible.NewGenericStack(false, ctx)
-	destructive, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+	destructive, inplace := inplaceUpdate(ctx, eval, job, stack, updates, "")
 
 	must.Len(t, 1, inplace, must.Sprint("should have an inplace update"))
 	must.Eq(t, alloc1.ID, inplace[0].Alloc.ID)
