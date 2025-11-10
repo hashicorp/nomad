@@ -5,7 +5,6 @@ package scheduler_system
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
@@ -152,7 +151,7 @@ func testCanaryUpdate(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, int(math.Ceil(float64(len(initialAllocs)/2))), count, must.Sprint("expected canaries to be placed on 1 node only since max_parallel is set to 1"))
+	must.Eq(t, 1, count, must.Sprint("expected canaries to be placed on 1 node only since max_parallel is set to 1"))
 
 	// promote canaries
 	deployments, _, err := deploymentsApi.List(nil)
@@ -236,7 +235,9 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 
 	job2.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
 		for _, tg := range d.TaskGroups { // we only have 1 tg in this job
-			if d.JobVersion == 1 && tg.HealthyAllocs >= tg.DesiredCanaries {
+			if d.JobVersion == 1 &&
+				tg.HealthyAllocs >= tg.DesiredCanaries &&
+				d.StatusDescription == structs.DeploymentStatusDescriptionRunningNeedsPromotion {
 				return true
 			}
 		}
@@ -256,11 +257,4 @@ func testCanaryDeploymentToAllEligibleNodes(t *testing.T) {
 		}
 	}
 	must.Eq(t, len(initialAllocs), count, must.Sprint("expected canaries to be placed on all eligible nodes"))
-
-	updatedDeployment, _, err := deploymentsApi.Info(deployment.ID, nil)
-	must.NoError(t, err)
-
-	// deployment must not be terminal and needs to have the right status
-	// description set
-	must.Eq(t, structs.DeploymentStatusDescriptionRunningNeedsPromotion, updatedDeployment.StatusDescription)
 }
