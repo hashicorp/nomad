@@ -573,6 +573,10 @@
             "path": "release-notes/nomad/upcoming"
           },
           {
+            "title": "v1.11.x",
+            "path": "release-notes/nomad/v1-11-x"
+          },
+          {
             "title": "v1.10.x",
             "path": "release-notes/nomad/v1-10-x"
           },
