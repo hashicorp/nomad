@@ -17,10 +17,11 @@ Nomad's client node identity feature uniquely identities each Nomad client node
 and provides an authentication mechanism for nodes to make RPC calls to the
 Nomad servers.
 
-Introduce Nomad clients to the cluster with JWT tokens. Configure
-Nomad servers with introduction enforcement levels that dictate how clients join
-the cluster. This approach results in logs and metrics to detail introduction
-violations. Once registered, Nomad clients are now provided with an identity token, used for RPC communication which is periodically renewed.
+Introduce Nomad clients to the cluster with JWT tokens. Configure Nomad servers
+with introduction enforcement levels that dictate how clients join the cluster.
+This approach results in logs and metrics to detail introduction violations.
+Once registered, Nomad clients are now provided with an identity token, used for
+RPC communication which is periodically renewed.
 
 #### Relevant documentation
 
@@ -89,7 +90,7 @@ We improved Nomad's scheduler observability for job authors.
      checks nodes for feasibility. This can help you narrow down where in the
      scheduling pipeline unexpected results are coming from.
    - The [Nomad repository scheduler
-     README](https://github.com/hashicorp/nomad/blob/main/scheduler/README.md)
+     README](https://github.com/hashicorp/nomad/blob/v1.11.0/scheduler/README.md)
      has architectural details.
 - [`nomad alloc status` command](/nomad/commands/alloc/status): When you run the
   command with the `-verbose` flag, the output includes information about the
@@ -98,7 +99,7 @@ We improved Nomad's scheduler observability for job authors.
 
 ### Additional census usage metrics <EnterpriseAlert inline/>
 
-We added several Enterprise reporting metrics, which Nomad exports with Census.
+We added several Enterprise reporting metrics.
 
 #### Relevant documentation
 
