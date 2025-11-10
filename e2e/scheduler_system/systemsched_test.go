@@ -152,7 +152,7 @@ func testCanaryUpdate(t *testing.T) {
 			count += 1
 		}
 	}
-	must.Eq(t, int(math.Ceil(float64(len(initialAllocs)/2))), count, must.Sprint("expected canaries to be placed on 50% of feasible nodes"))
+	must.Eq(t, int(math.Ceil(float64(len(initialAllocs)/2))), count, must.Sprint("expected canaries to be placed on 1 node only since max_parallel is set to 1"))
 
 	// promote canaries
 	deployments, _, err := deploymentsApi.List(nil)

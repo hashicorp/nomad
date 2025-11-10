@@ -13,7 +13,7 @@ job "system_job" {
 
   group "system_job_group" {
     update {
-      max_parallel     = 1
+      max_parallel     = 5
       min_healthy_time = "1s"
       healthy_deadline = "1m"
       auto_revert      = false
