@@ -1,0 +1,124 @@
+---
+layout: docs
+page_title: Nomad v1.11.x release notes
+description: >-
+  HashiCorp Nomad version 1.11.x release notes. Release highlights include client node identity, client node introduction, job specification secret block, and system job deployment support.
+---
+
+# Nomad 1.11.x release notes
+
+We are pleased to announce the following Nomad updates.
+
+## 1.11.0 release highlights
+
+### Client node introduction and identity
+
+Nomad's client node identity feature uniquely identities each Nomad client node
+and provides an authentication mechanism for nodes to make RPC calls to the
+Nomad servers.
+
+Introduce Nomad clients to the cluster with JWT tokens. Configure Nomad servers
+with introduction enforcement levels that dictate how clients join the cluster.
+This approach results in logs and metrics to detail introduction violations.
+Once registered, Nomad clients are now provided with an identity token, used for
+RPC communication which is periodically renewed.
+
+#### Relevant documentation
+
+- [Client node identity concepts](/nomad/docs/architecture/cluster/node-identity)
+- [Client identity node pool TTL configuration option](/nomad/docs/other-specifications/node-pool#node_identity_ttl)
+- [Client Introduction server configuration options](/nomad/docs/configuration/server#client_introduction-parameters)
+- [Client introduction monitoring detail](/nomad/docs/monitor#client-introduction)
+- [Client introduction agent CLI token flag](/nomad/commands/agent#client-intro-token)
+
+Commands:
+
+- [`nomad node intro create`](/nomad/commands/node/intro/create): Generates a node introduction token which is a signed JWT.
+- [`nomad node identity get`](/nomad/commands/node/identity/get): View the identity claims for a node.
+- [`nomad node identity renew`](/nomad/commands/node/identity/renew):  Instruct a node to renew its identity of its next heartbeat.
+- [`nomad node pool info`](/nomad/commands/node-pool/info): View the identity TTL for nodes in the provided pool.
+- [`nomad operator client-state`](/nomad/commands/operator/client-state): View
+  the client persistent state in JSON, which includes the client identity.
+- [`nomad agent` command's `-client-intro-token` parameter](/nomad/commands/agent#client-intro-token): Set the JWT token used  to authenticate with servers during the client's initial registration.
+
+API:
+
+- [`/v1/acl/identity/client-introduction-token`](/nomad/api-docs/acl/identities#create-client-introduction-identity): Generates a node introduction token which is a signed JWT.
+- [`/v1/client/identity`](/nomad/api-docs/client#read-a-node-s-identity-claims): View the identity claims for a node.
+- [`/v1/client/identity/renew`](/nomad/api-docs/client#renew-a-node-s-identity): Instruct a node to renew its identity of its next heartbeat.
+- [`/v1/node/pool/:node_pool`](/nomad/api-docs/node-pools#read-node-pool): View the identity TTL for nodes in the provided pool.
+
+### Artifact secrets
+
+Use the new job specification secrets block to fetch and interpolate secrets
+from a specified location. Nomad automatically retrieves the contents of the
+secret. In your task specification, reference the variable with
+`${secret.secret_name.key}` format.
+
+Nomad provides built-in support to fetch secrets from Nomad and
+Vault. Alternately, you may build your own custom secret provider.
+
+#### Relevant documentation
+
+- [Job specification `secret` block](/nomad/docs/job-specification/secret)
+- [Secret provider plugin authoring guide](/nomad/plugins/author/secret-provider)
+
+
+### System job deployments
+
+Jobs of type “system” now support deployment functionality, so you may roll out
+job updates in a more controlled manner. Additionally, you may now view system
+job deployment status in the web UI.
+
+#### Relevant documentation
+
+- [Job specification `update` block](/nomad/docs/job-specification/update)
+- [Blue/Green deployment detail](/nomad/docs/job-declare/strategy/blue-green-canary)
+- [`nomad deployment` commands](/nomad/commands/deployment) for interacting with Nomad job deployments
+
+### Scheduler improvements
+
+We improved Nomad's scheduler observability for job authors.
+
+#### Relevant documentation
+
+- [`nomad eval status` command](/nomad/commands/eval/status): View more details
+  on an evaluation including related evaluations, successful placements,
+  scheduler annotations, failed placements, and preemptions.
+
+   - The **Plan Annotations** table represents the intended plan before Nomad
+     checks nodes for feasibility. This can help you narrow down where in the
+     scheduling pipeline unexpected results are coming from.
+   - The [Nomad repository scheduler
+     README](https://github.com/hashicorp/nomad/blob/v1.11.0/scheduler/README.md)
+     has architectural details.
+- [`nomad alloc status` command](/nomad/commands/alloc/status): When you run the
+  command with the `-verbose` flag, the output includes information about the
+  scheduler's placement decision, including the number of nodes evaluated and
+  rejected, and the scoring of each node considered.
+
+### Additional census usage metrics <EnterpriseAlert inline/>
+
+We added several Enterprise reporting metrics.
+
+#### Relevant documentation
+
+- [Automated license utilization
+  reporting](/nomad/docs/enterprise/license/utilization-reporting)
+- Agent reporting configuration [`disable_product_usage_reporting`
+  parameter](/nomad/docs/configuration/reporting#disable_product_usage_reporting):
+  Disable detailed product usage metrics.
+- [`nomad operator utilization` command](/nomad/commands/operator/utilization):
+  If you have disabled automated reporting, use this command to manually
+  generate the report and send it to HashiCorp.
+
+### Upgrade details
+
+Refer to the [upgrade details
+page](/nomad/docs/upgrade/upgrade-specific#nomad-1-11-0) for more information.
+
+### Changelog
+
+Review improvements, security fixes, and breaking changes in the changelog.
+
+- [v1.11.0](https://github.com/hashicorp/nomad/releases/tag/v1.11.0)

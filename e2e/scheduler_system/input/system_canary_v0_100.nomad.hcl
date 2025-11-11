@@ -13,7 +13,7 @@ job "system_job" {
 
   group "system_job_group" {
     update {
-      max_parallel     = 1
+      max_parallel     = 5
       min_healthy_time = "1s"
       healthy_deadline = "1m"
       auto_revert      = false
@@ -28,18 +28,11 @@ job "system_job" {
       mode  = "delay"
     }
 
-    task "system_task" {
-      driver = "docker"
-
+    task "sleepy" {
+      driver = "raw_exec"
       config {
-        image = "busybox:1"
-
-        command = "/bin/sh"
-        args    = ["-c", "sleep 15000"]
-      }
-
-      env {
-        version = "0"
+        command = "/bin/sleep"
+        args    = ["1000m"]
       }
     }
   }
