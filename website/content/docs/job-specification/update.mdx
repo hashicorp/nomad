@@ -48,8 +48,8 @@ job "docs" {
   - `max_parallel = 0` - Specifies that the allocation should use forced updates
     instead of deployments
 
-  ~> **Note:** System jobs only support 1 allocation per node. Updates when
-  `canary` is set will make up to `max_parallel` destructive updates *or*
+  ~> **Note:** System jobs only support one allocation per node. When `canary`
+  is set, system job updates make up to `max_parallel` destructive updates *or*
   destructively update enough allocations to place on `canary` percent of
   feasible nodes, whichever is lower. You should adjust the `max_parallel` value
   to allow deploying all desired canaries.
@@ -110,16 +110,16 @@ job "docs" {
   be used with volumes when `per_alloc = true`.
 
   In system jobs, the `canary` setting indicates the percentage of feasible
-  nodes to which Nomad will make destructive allocation updates. System jobs do
+  nodes to which Nomad makes destructive allocation updates. System jobs do
   not support more than one allocation per node, so effectively setting `canary`
-  to a positive integer means this percentage of feasible nodes will get a new
+  to a positive integer means this percentage of feasible nodes gets a new
   version of the job if the update is destructive. Non-destructive updates
   ignore the `canary` field. Setting `canary` to 100 updates the job on all
   nodes. Percentage of nodes is always rounded up to the nearest integer. If
-  `canary` is set, nodes that register during a deployment will not receive
+  `canary` is set, nodes that register during a deployment do not receive
   placements until after the deployment is promoted.
 
-  ~> **Note:** Updates when `canary` is set will make up to `max_parallel`
+  ~> **Note:** Updates when `canary` is set make up to `max_parallel`
   destructive updates *or* destructively update enough allocations to place on
   `canary` percent of feasible nodes, whichever is lower. You should adjust the
   `max_parallel` value to allow deploying all desired canaries.
