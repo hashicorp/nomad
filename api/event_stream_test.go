@@ -66,8 +66,24 @@ func TestTopic_String(t *testing.T) {
 func TestEvent_Stream(t *testing.T) {
 	testutil.Parallel(t)
 
-	c, s := makeClient(t, nil, nil)
+	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
+
+	aclPolicy := ACLPolicy{
+		Name:  "read-events-policy",
+		Rules: `namespace "default" { policy = "read" }`,
+	}
+	_, err := c.ACLPolicies().Upsert(&aclPolicy, nil)
+	must.NoError(t, err)
+
+	at := c.ACLTokens()
+	tokenSpec := &ACLToken{
+		Name:     "read-events-token",
+		Type:     "client",
+		Policies: []string{"read-events-policy"},
+	}
+	token, _, err := at.Create(tokenSpec, nil)
+	must.NoError(t, err)
 
 	// register job to generate events
 	jobs := c.Jobs()
@@ -76,11 +92,14 @@ func TestEvent_Stream(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, resp2)
 
+	// downscope our client
+	c.SetSecretID(token.SecretID)
+
 	// build event stream request
 	events := c.EventStream()
 	q := &QueryOptions{}
 	topics := map[Topic][]string{
-		TopicEvaluation: {"*"},
+		TopicEvaluation: {},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
