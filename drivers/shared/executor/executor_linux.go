@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -33,9 +34,9 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/opencontainers/cgroups"
+	_ "github.com/opencontainers/cgroups/devices"
 	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	_ "github.com/opencontainers/runc/libcontainer/cgroups/devices"
 	runc "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -229,13 +230,15 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	if command.User != "" {
-		process.User = command.User
-
 		// Override HOME and USER environment variables
 		u, err := users.Lookup(command.User)
 		if err != nil {
 			return nil, err
 		}
+		process.UID = func() int {
+			u, _ := strconv.Atoi(u.Uid)
+			return u
+		}()
 		process.Env = append(process.Env, fmt.Sprintf("USER=%s", u.Username))
 		process.Env = append(process.Env, fmt.Sprintf("LOGNAME=%s", u.Username))
 		process.Env = append(process.Env, fmt.Sprintf("HOME=%s", u.HomeDir))
@@ -577,7 +580,7 @@ func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, 
 	process := &libcontainer.Process{
 		Args: cmd,
 		Env:  l.userProc.Env,
-		User: l.userProc.User,
+		UID:  l.userProc.UID,
 		Init: false,
 		Cwd:  l.command.WorkDir,
 	}
