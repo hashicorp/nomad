@@ -108,9 +108,10 @@ require (
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/term v0.5.2
 	github.com/muesli/reflow v0.3.0
+	github.com/opencontainers/cgroups v0.0.6
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/opencontainers/runc v1.2.8
-	github.com/opencontainers/runtime-spec v1.2.1
+	github.com/opencontainers/runc v1.3.3
+	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.2
@@ -209,7 +210,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.5 // indirect
-	github.com/cilium/ebpf v0.16.0 // indirect
+	github.com/cilium/ebpf v0.17.3 // indirect
 	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible // indirect
 	github.com/circonus-labs/circonusllhist v0.1.3 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
@@ -217,7 +218,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
@@ -317,14 +318,13 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go v1.0.162 // indirect
 	github.com/tj/go-spin v1.1.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
+	github.com/vishvananda/netlink v1.3.0 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

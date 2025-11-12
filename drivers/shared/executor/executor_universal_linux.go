@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/cgroups"
 	"golang.org/x/sys/unix"
 )
 
