@@ -96,12 +96,12 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 					Parameters: map[string]string{
 						"uid":  currentUser.Uid,
 						"gid":  currentUser.Gid,
-						"mode": "0400",
+						"mode": "0777",
 					},
 				})
 			must.NoError(t, err)
 			must.DirExists(t, target)
-			must.DirMode(t, target, 0o400+os.ModeDir)
+			must.DirMode(t, target, 0o777+os.ModeDir)
 		}
 
 		err = plug.Delete(timeout(t),
