@@ -117,6 +117,7 @@ The `policy` field for namespace rules can have one of the following values:
 - `write`: allow the resource to be read and modified
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
+- `scale`: allow the resource to be scaled by the nomad-autoscaler
 
 In addition to the coarse-grained `policy`, you can provide a fine-grained list
 of `capabilities`. This includes:
@@ -171,7 +172,7 @@ The coarse-grained policy permissions are shorthand for these fine-grained names
 | `deny`  | deny                                                                                                                                                                                                                                                                                                      |
 | `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />host-volume-read<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                |
 | `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />host-volume-write<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
-| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                       |
+| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />read-job<br />submit-recommendation                                                                                                                                                                                                                 |
 
 
 
