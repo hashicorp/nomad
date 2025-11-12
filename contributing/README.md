@@ -5,7 +5,7 @@ This directory contains some documentation about the Nomad codebase,
 aimed at readers who are interested in making code contributions.
 
 If you're looking for information on _using_ Nomad, please instead refer
-to the [Nomad website](https://developer.hashicorp.com/nomad).
+to the [Nomad product documentation](https://developer.hashicorp.com/nomad).
 
 The [good first issue label](https://github.com/hashicorp/nomad/issues?q=is:issue+is:open+label:%22good+first+issue%22)
 is used to identify issues which are suited to first time contributors.

@@ -21,9 +21,12 @@ merged.
 - [ ] **Testing** Please add tests to cover any new functionality or to demonstrate bug fixes and
   ensure regressions will be caught.
 - [ ] **Documentation** If the change impacts user-facing functionality such as the CLI, API, UI,
-  and job configuration, please update the  Nomad website documentation to reflect this. Refer to
-  the [website README](../website/README.md) for docs guidelines. Please also consider whether the
-  change requires notes within the [upgrade guide](../website/content/docs/upgrade/upgrade-specific.mdx).
+  and job configuration, please update the Nomad product documentation, which is
+  stored in the [`web-unifed-docs` repo](https://github.com/hashicorp/web-unified-docs/). Refer to
+  the [`web-unified-docs` contributor
+  guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+  docs guidelines. Please also consider whether the
+  change requires notes within the [upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific).
 
 ### Reviewer Checklist
 - [ ] **Backport Labels** Please add the correct backport labels as described by the internal
