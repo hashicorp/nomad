@@ -181,6 +181,10 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 
 	// Build topic query params
 	for topic, keys := range topics {
+		if len(keys) == 0 {
+			r.params.Add("topic", fmt.Sprintf("%s", topic))
+			continue
+		}
 		for _, k := range keys {
 			r.params.Add("topic", fmt.Sprintf("%s:%s", topic, k))
 		}
