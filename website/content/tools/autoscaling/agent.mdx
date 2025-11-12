@@ -26,7 +26,8 @@ The Nomad Autoscaler can be configured to interact with an ACL-enabled Nomad
 cluster. Nomad includes the `scale` ACL policy disposition specifically for
 supporting the operations of the Nomad Autoscaler. Therefore, the
 following policy is sufficient for creating an ACL token that can be used by
-the autoscaler for fetching scaling policies and scaling jobs:
+the autoscaler for fetching scaling policies, scaling jobs, and submitting
+recommendations when applicable:
 
 ```hcl
 namespace "default" {
