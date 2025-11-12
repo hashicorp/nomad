@@ -158,7 +158,7 @@ func TestExecDriver_WorkDir(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 660))
+	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 0660))
 
 	handle, _, err := harness.StartTask(task)
 	must.NoError(t, err)
