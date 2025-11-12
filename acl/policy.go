@@ -299,6 +299,8 @@ func expandNamespacePolicy(policy string) []string {
 			NamespaceCapabilityReadScalingPolicy,
 			NamespaceCapabilityReadJobScaling,
 			NamespaceCapabilityScaleJob,
+			NamespaceCapabilityReadJob,
+			NamespaceCapabilitySubmitRecommendation,
 		}
 	default:
 		return nil

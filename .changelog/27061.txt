@@ -1,0 +1,3 @@
+```release-note:bug
+acl: include additional necessary permissions in the course-grained "scale" policy for nomad-autoscaler
+```
