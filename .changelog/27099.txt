@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Made /agent/self endpoint workload-identity-aware
+```
