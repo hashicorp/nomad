@@ -613,9 +613,12 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, err.Error())
 	}
 
-	// Notify success
-	//
-	return nil, nil
+	// Simple return for now, errors would give a clearer picture
+	// if something went sideways.
+	// Logs already output some information about the reload.
+	reloadResponse := map[string]string{"message": "reload signaled"}
+
+	return reloadResponse, nil
 }
 
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
