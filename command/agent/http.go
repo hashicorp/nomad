@@ -366,9 +366,10 @@ func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
 	var err error
 
 	if srv := s.agent.Server(); srv != nil {
-		r := &structs.WriteRequest{AuthToken: secret}
+		r := &structs.GenericRequest{}
+		r.AuthToken = secret
 		if authErr := srv.Authenticate(nil, r); authErr != nil {
-			return nil, fmt.Errorf("ACL token not found or invalid workload identity: %v", err)
+			return nil, fmt.Errorf("ACL token not found or invalid workload identity: %v", authErr)
 		}
 
 		aclObj, err = srv.ResolveACL(r)
