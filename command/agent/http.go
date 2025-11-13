@@ -366,7 +366,12 @@ func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
 	var err error
 
 	if srv := s.agent.Server(); srv != nil {
-		aclObj, err = srv.ResolveToken(secret)
+		r := &structs.WriteRequest{AuthToken: secret}
+		if authErr := srv.Authenticate(nil, r); authErr != nil {
+			return nil, fmt.Errorf("failed to authenticate: %v", err)
+		}
+
+		aclObj, err = srv.ResolveACL(r)
 	} else {
 		// Not a Server, so use the Client for token resolution. Note
 		// this gets forwarded to a server with AllowStale = true if
