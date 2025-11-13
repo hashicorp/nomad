@@ -219,6 +219,12 @@ func (a *Agent) ListKeys() (*KeyringResponse, error) {
 	return &resp, nil
 }
 
+// Reload requests the agent to reload its configuration.
+func (a *Agent) Reload() error {
+	_, err := a.client.put("/v1/agent/reload", nil, nil, nil)
+	return err
+}
+
 // InstallKey installs a key in the keyrings of all the serf members
 func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
 	args := KeyringRequest{

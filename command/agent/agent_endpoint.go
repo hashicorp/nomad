@@ -564,6 +564,60 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// Resolve ACL token
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+	if !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	// Get current config
+	// Primarily to get the list of config files
+	currConf := s.agent.GetConfig().Copy()
+
+	// Initialize with default configs
+	newConf := DefaultConfig()
+	if ent := DefaultEntConfig(); ent != nil {
+		newConf = newConf.Merge(ent)
+	}
+
+	// Load each config file in order
+	// based on what is in the current config
+	for _, path := range currConf.Files {
+		if path == "" {
+			// Skip empty paths
+			continue
+		}
+		if cfgFromFile, err := LoadConfig(path); err != nil {
+			// log and continue
+			s.logger.Warn("failed to load config", "config", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
+			continue
+		} else if cfgFromFile != nil {
+			newConf = newConf.Merge(cfgFromFile)
+		}
+	}
+
+	// Update the list of config files, if new ones were added.
+	newConf.Files = append([]string(nil), currConf.Files...)
+
+	// Reloading from the existing Reload method
+	// Agent.Reload
+	if err := s.agent.Reload(newConf); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	// Notify success
+	//
+	return nil, nil
+}
+
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	client := s.agent.Client()
 	if client == nil {
