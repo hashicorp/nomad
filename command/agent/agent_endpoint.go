@@ -573,7 +573,6 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Resolve ACL token
 	aclObj, err := s.ResolveToken(req)
 	if err != nil {
 		return nil, err
@@ -582,24 +581,18 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, structs.ErrPermissionDenied
 	}
 
-	// Get current config
-	// Primarily to get the list of config files
 	currConf := s.agent.GetConfig().Copy()
 
-	// Initialize with default configs
 	newConf := DefaultConfig()
 	if ent := DefaultEntConfig(); ent != nil {
 		newConf = newConf.Merge(ent)
 	}
 
-	// Load each config file in order
-	// based on what is in the current config
 	for _, path := range currConf.Files {
 		if path == "" {
 			continue
 		}
 		if cfgFromFile, err := LoadConfig(path); err != nil {
-			// Notify bad config file
 			s.logger.Error("failed to load config", "config", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
 			return nil, CodedError(400, error.Error(err))
 		} else if cfgFromFile != nil {
@@ -607,17 +600,12 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	// Update the list of config files, if new ones were added.
 	newConf.Files = append([]string(nil), currConf.Files...)
 
-	// Reloading from the existing Reload method
-	// Agent.Reload
 	if err := s.agent.Reload(newConf); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 
-	// Simple return for now.
-	// In the future may want to return what changed -- log_level, tls
 	response := reloadResponse{
 		Message: "agent configuration reloaded",
 	}
