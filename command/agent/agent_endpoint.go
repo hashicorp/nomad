@@ -418,7 +418,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
 	}
 
@@ -606,7 +606,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
 	}
 
@@ -854,7 +854,7 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
 		return nil, err
 	}
 
@@ -906,7 +906,7 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
 		return nil, err
 	}
 
@@ -930,7 +930,7 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
 	}
 
@@ -959,11 +959,14 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	return response, nil
 }
 
-func checkPermissions(srv *nomad.Server, secret string, perm func(acl *acl.ACL) bool) error {
+// aclPermissionCheckHelper takes a token string and checks it with Authenticate
+// and ResolveACL methods. If the token doesn't satisfy perm function, an error
+// is returned.
+func aclPermissionCheckHelper(srv *nomad.Server, secret string, perm func(acl *acl.ACL) bool) error {
 	r := &structs.GenericRequest{}
 	r.AuthToken = secret
 	if authErr := srv.Authenticate(nil, r); authErr != nil {
-		return CodedError(http.StatusInternalServerError, authErr.Error())
+		return CodedError(http.StatusForbidden, authErr.Error())
 	}
 
 	aclObj, err := srv.ResolveACL(r)
