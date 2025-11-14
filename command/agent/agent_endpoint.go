@@ -564,6 +564,10 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
+type reloadResponse struct {
+	Message string `json:"message"`
+}
+
 func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -614,10 +618,12 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	// Simple return for now.
-	// Logs already output information about the reload.
-	reloadResponse := map[string]string{"message": "reload signaled"}
+	// In the future may want to return what changed -- log_level, tls
+	response := reloadResponse{
+		Message: "agent configuration reloaded",
+	}
 
-	return reloadResponse, nil
+	return response, nil
 }
 
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
