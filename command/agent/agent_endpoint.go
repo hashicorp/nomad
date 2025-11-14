@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
@@ -417,10 +418,8 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, structs.ErrPermissionDenied
 	}
 
 	// Get the node to eject
@@ -607,10 +606,8 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := srv.ResolveToken(secret); err != nil {
+	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, structs.ErrPermissionDenied
 	}
 
 	kmgr := srv.KeyManager()
@@ -857,10 +854,8 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentRead() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+		return nil, err
 	}
 
 	schedulersInfo := srv.GetSchedulerWorkersInfo()
@@ -911,10 +906,8 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentRead() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+		return nil, err
 	}
 
 	config := srv.GetSchedulerWorkerConfig()
@@ -937,10 +930,8 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := srv.ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := checkPermissions(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+		return nil, err
 	}
 
 	var args api.AgentSchedulerWorkerConfigRequest
@@ -966,4 +957,21 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 
 	return response, nil
+}
+
+func checkPermissions(srv *nomad.Server, secret string, perm func(acl *acl.ACL) bool) error {
+	r := &structs.GenericRequest{}
+	r.AuthToken = secret
+	if authErr := srv.Authenticate(nil, r); authErr != nil {
+		return CodedError(http.StatusInternalServerError, authErr.Error())
+	}
+
+	aclObj, err := srv.ResolveACL(r)
+	if err != nil {
+		return CodedError(http.StatusInternalServerError, err.Error())
+	} else if !perm(aclObj) {
+		return CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	return nil
 }
