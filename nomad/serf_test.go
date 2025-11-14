@@ -41,26 +41,22 @@ func TestNomad_JoinPeer(t *testing.T) {
 	})
 
 	testutil.WaitForResult(func() (bool, error) {
-		s1.peerLock.Lock()
-		n1 := len(s1.peers)
-		local1 := len(s1.localPeers)
-		s1.peerLock.Unlock()
+		n1 := s1.peersCache.RegionNum()
+		local1 := len(s1.peersCache.LocalPeers())
 		if n1 != 2 {
-			return false, fmt.Errorf("bad: %#v", n1)
+			return false, fmt.Errorf("bad1: %#v", n1)
 		}
 		if local1 != 1 {
-			return false, fmt.Errorf("bad: %#v", local1)
+			return false, fmt.Errorf("bad2: %#v", local1)
 		}
 
-		s2.peerLock.Lock()
-		n2 := len(s2.peers)
-		local2 := len(s2.localPeers)
-		s2.peerLock.Unlock()
+		n2 := s2.peersCache.RegionNum()
+		local2 := len(s2.peersCache.LocalPeers())
 		if n2 != 2 {
-			return false, fmt.Errorf("bad: %#v", n2)
+			return false, fmt.Errorf("bad3: %#v", n2)
 		}
 		if local2 != 1 {
-			return false, fmt.Errorf("bad: %#v", local2)
+			return false, fmt.Errorf("bad4: %#v", local2)
 		}
 		return true, nil
 	}, func(err error) {
@@ -96,11 +92,11 @@ func TestNomad_RemovePeer(t *testing.T) {
 	s2.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
-		if len(s1.peers) != 1 {
-			return false, fmt.Errorf("bad: %#v", s1.peers)
+		if s1Peers := s1.peersCache.RegionPeers(s1.Region()); len(s1Peers) != 1 {
+			return false, fmt.Errorf("bad: %#v", s1Peers)
 		}
-		if len(s2.peers) != 1 {
-			return false, fmt.Errorf("bad: %#v", s2.peers)
+		if s2Peers := s2.peersCache.RegionPeers(s2.Region()); len(s2Peers) != 1 {
+			return false, fmt.Errorf("bad: %#v", s2Peers)
 		}
 		return true, nil
 	}, func(err error) {
@@ -176,9 +172,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 	s3.reconcileCh <- s2mem
 
 	testutil.WaitForResult(func() (bool, error) {
-		s1.peerLock.Lock()
-		n1 := len(s1.peers["global"])
-		s1.peerLock.Unlock()
+		n1 := len(s1.peersCache.RegionPeers("global"))
 		if n1 != 2 {
 			return false, fmt.Errorf("bad: %#v", n1)
 		}
@@ -190,9 +184,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 			return false, fmt.Errorf("bad: %#v", peers)
 		}
 
-		s3.peerLock.Lock()
-		n3 := len(s3.peers["global"])
-		s3.peerLock.Unlock()
+		n3 := len(s3.peersCache.RegionPeers("global"))
 		if n3 != 2 {
 			return false, fmt.Errorf("bad: %#v", n3)
 		}
@@ -364,8 +356,11 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 			if peers != expect {
 				return false, fmt.Errorf("expected %d peers, got %d", expect, peers)
 			}
-			if len(s.localPeers) != expect {
-				return false, fmt.Errorf("expected %d local peers, got %d: %#v", expect, len(s.localPeers), s.localPeers)
+			if localPeers := s.peersCache.LocalPeers(); len(localPeers) != expect {
+				return false, fmt.Errorf(
+					"expected %d local peers, got %d: %#v",
+					expect, len(localPeers), localPeers,
+				)
 			}
 
 		}
@@ -431,9 +426,7 @@ func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
 	defer cleanupS1()
 
 	testutil.WaitForResult(func() (bool, error) {
-		s1.peerLock.Lock()
-		p := len(s1.localPeers)
-		s1.peerLock.Unlock()
+		p := len(s1.peersCache.LocalPeers())
 		if p != 1 {
 			return false, fmt.Errorf("%d", p)
 		}

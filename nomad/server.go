@@ -172,19 +172,15 @@ type Server struct {
 	nodeConns     map[string][]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
-	// peers is used to track the known Nomad servers. This is
-	// used for region forwarding and clustering.
-	peers      map[string][]*peers.Parts
-	localPeers map[raft.ServerAddress]*peers.Parts
-	peerLock   sync.RWMutex
-
 	// serf is the Serf cluster containing only Nomad
 	// servers. This is used for multi-region federation
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
-	// peersCache is used to cache the parsed Nomad server member peer parts.
-	// This is used to avoid re-parsing the Serf tags on every access.
+	// peersPartsCache is used to cache the parsed Nomad server member peer
+	// parts. This is used to avoid re-parsing the Serf tags on every access and
+	// is used for RPC connection management, discovery, and server version
+	// checking.
 	peersCache *peers.PeerCache
 
 	// bootstrapped indicates if Server has bootstrapped or not.
@@ -357,8 +353,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		rpcServer:               rpc.NewServer(),
 		streamingRpcs:           structs.NewStreamingRpcRegistry(),
 		nodeConns:               make(map[string][]*nodeConnState),
-		peers:                   make(map[string][]*peers.Parts),
-		localPeers:              make(map[raft.ServerAddress]*peers.Parts),
 		peersCache:              peers.NewPeerCache(),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
@@ -1984,13 +1978,7 @@ func (s *Server) isReadyForConsistentReads() bool {
 
 // Regions returns the known regions in the cluster.
 func (s *Server) Regions() []string {
-	s.peerLock.RLock()
-	defer s.peerLock.RUnlock()
-
-	regions := make([]string, 0, len(s.peers))
-	for region := range s.peers {
-		regions = append(regions, region)
-	}
+	regions := s.peersCache.RegionNames()
 	sort.Strings(regions)
 	return regions
 }
@@ -2026,7 +2014,7 @@ func (s *Server) Stats() map[string]map[string]string {
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"leader_addr":   string(leader),
 			"bootstrap":     fmt.Sprintf("%v", s.isSingleServerCluster()),
-			"known_regions": toString(uint64(len(s.peers))),
+			"known_regions": toString(uint64(s.peersCache.RegionNum())),
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
