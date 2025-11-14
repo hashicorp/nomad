@@ -596,13 +596,12 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	// based on what is in the current config
 	for _, path := range currConf.Files {
 		if path == "" {
-			// Skip empty paths
 			continue
 		}
 		if cfgFromFile, err := LoadConfig(path); err != nil {
-			// log and continue
-			s.logger.Warn("failed to load config", "config", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
-			continue
+			// Notify bad config file
+			s.logger.Error("failed to load config", "config", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
+			return nil, CodedError(400, error.Error(err))
 		} else if cfgFromFile != nil {
 			newConf = newConf.Merge(cfgFromFile)
 		}
