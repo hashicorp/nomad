@@ -7634,9 +7634,9 @@ func (tg *TaskGroup) Replace() bool {
 	return *tg.Disconnect.Replace
 }
 
-// GetDisconnectLostTimeout is a helper meant to simplify the logic for
+// GetDisconnectLostAfter is a helper meant to simplify the logic for
 // getting the Disconnect.LostAfter field of a task group.
-func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
+func (tg *TaskGroup) GetDisconnectLostAfter() time.Duration {
 	if tg.Disconnect != nil {
 		return tg.Disconnect.LostAfter
 	}
@@ -11582,12 +11582,24 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	timeout := tg.GetDisconnectLostTimeout()
+	timeout := tg.GetDisconnectLostAfter()
 	if timeout == 0 {
 		return now
 	}
 
 	return now.Add(timeout)
+}
+
+// DisconnectLostAfter is a helper to get the Disconnect.LostAfter for an allocation
+func (a *Allocation) DisconnectLostAfter() time.Duration {
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.GetDisconnectLostAfter()
+		}
+	}
+
+	return 0
 }
 
 // SupportsDisconnectedClients determines whether both the server and the task group
@@ -11601,24 +11613,24 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.GetDisconnectLostTimeout() != 0
+			return tg.GetDisconnectLostAfter() != 0
 		}
 	}
 
 	return false
 }
 
-// PreventReplaceOnDisconnect determines if an alloc allows to have a replacement
+// ReplaceOnDisconnect determines if an alloc can be replaced
 // when Disconnected.
-func (a *Allocation) PreventReplaceOnDisconnect() bool {
+func (a *Allocation) ReplaceOnDisconnect() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return !tg.Replace()
+			return tg.Replace()
 		}
 	}
 
-	return false
+	return true
 }
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
@@ -11834,8 +11846,12 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	timeout := tg.GetDisconnectLostTimeout()
-	if timeout == 0 && tg.Replace() {
+	if !tg.Replace() {
+		return false
+	}
+
+	timeout := tg.GetDisconnectLostAfter()
+	if timeout == 0 {
 		return false
 	}
 
