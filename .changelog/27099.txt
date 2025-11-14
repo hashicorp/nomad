@@ -1,3 +1,3 @@
 ```release-note:bug
-acl: Made /agent/self endpoint workload-identity-aware
+acl: Made /agent and /recommendations endpoints workload-identity-aware
 ```
