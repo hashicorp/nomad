@@ -36,8 +36,16 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 
 ## Docs
 
-* [ ] Changelog
+* [ ] Changelog entry in your code PR.
+
+Find Nomad product docs in the `web-unified-docs` repo. Refer to the
+[`web-unified-docs` contributor
+guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+instructions. If you need help with docs, [create an issue in the web-unified
+docs repo](https://github.com/hashicorp/web-unified-docs/issues). On the Issue
+form, choose "Nomad" as the product so that your issue is assigned to the
+nomad-docs team.
+
 * [ ] API docs https://developer.hashicorp.com/nomad/api
 * [ ] CLI docs https://developer.hashicorp.com/nomad/commands
-* [ ] If adding new docs see [website README](../website/README.md#editing-navigation-sidebars)
-* [ ] Consider if it needs a guide https://developer.hashicorp.com/nomad/guides/index.html
+* [ ] Consider if your change needs a user guide.
