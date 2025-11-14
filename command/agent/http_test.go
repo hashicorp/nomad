@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -1441,8 +1442,8 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 	defer ACLServer.Shutdown()
 
 	// Register sample token.
-	state := ACLServer.Agent.server.State()
-	token := mock.CreatePolicyAndToken(t, state, 1000, "node", mock.NodePolicy(acl.PolicyWrite))
+	store := ACLServer.Agent.server.State()
+	token := mock.CreatePolicyAndToken(t, store, 1000, "node", mock.NodePolicy(acl.PolicyWrite))
 
 	// Tests cases.
 	t.Run("acl disabled", func(t *testing.T) {
@@ -1459,9 +1460,9 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 		}
 		setToken(req, mock.ACLToken())
 		got, err := ACLServer.Server.ResolveToken(req)
-		require.Nil(t, got)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "ACL token not found")
+		must.Nil(t, got)
+		must.Error(t, err)
+		must.ErrorContains(t, err, "ACL token not found")
 	})
 
 	t.Run("set token", func(t *testing.T) {
@@ -1471,9 +1472,53 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 		}
 		setToken(req, token)
 		got, err := ACLServer.Server.ResolveToken(req)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.True(t, got.AllowNodeWrite())
+		must.NoError(t, err)
+		must.NotNil(t, got)
+		must.True(t, got.AllowNodeWrite())
+	})
+
+	t.Run("WI token", func(t *testing.T) {
+		srv, _, encrypter, cleanup := nomad.TestACLServerWithEncrypter(t, nil)
+		t.Cleanup(cleanup)
+
+		job := mock.Job()
+		policy := mock.ACLPolicy()
+		policy.JobACL = &structs.JobACL{
+			Namespace: "default",
+			JobID:     job.ID,
+		}
+
+		alloc := mock.Alloc()
+		alloc.Job = job
+		task := alloc.LookupTask("web")
+		identity := task.Identity
+		wih := task.IdentityHandle(identity)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+
+		must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+		must.NoError(t, srv.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy}))
+		must.NoError(t, srv.State().UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
+
+		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wih, identity).
+			WithTask(task).Build(time.Now())
+
+		testutil.WaitForKeyring(t, srv.RPC, "global")
+
+		jwtToken, _, err := encrypter.SignClaims(claims)
+		must.NoError(t, err)
+		must.NotEq(t, jwtToken, "")
+
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, &structs.ACLToken{SecretID: jwtToken})
+
+		ACLServer.server = srv
+
+		got, err := ACLServer.Server.ResolveToken(req)
+		must.NotNil(t, got)
+		must.NoError(t, err)
 	})
 }
 

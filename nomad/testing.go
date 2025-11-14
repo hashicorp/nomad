@@ -40,6 +40,21 @@ func TestACLServer(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, 
 	return server, token, cleanup
 }
 
+func TestACLServerWithEncrypter(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, *Encrypter, func()) {
+	server, cleanup := TestServer(t, func(c *Config) {
+		c.ACLEnabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	token := mock.ACLManagementToken()
+	err := server.State().BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, token)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACL token: %v", err)
+	}
+	return server, token, server.encrypter, cleanup
+}
+
 func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
 	must.NoError(t, err, must.Sprint("failed to start test server"))
