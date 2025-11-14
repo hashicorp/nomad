@@ -38,6 +38,15 @@ being silently ignored. Any existing policies with duplicate or invalid keys
 will continue to work, but the source policy document will need to be updated
 to be valid before it can be written to Nomad.
 
+#### Artifact unpacking behavior changes when inspection enabled
+
+Nomad 1.11.0 updates how artifact contents are unpacked and inspected. Artifact
+inspection is applied when `client.disable_filesystem_isolation` is set to `true`
+or the host platform does not support filesystem isolation. When applied, the
+unpacked contents of the artifact will be merged into the destination path if
+it already exists. Depending on the remote source being used, this may be different
+behavior than seen when the artifact is unpacked without inspection.
+
 #### Maximum number of allocations per job is limited by default
 
 Nomad 1.11.0 limits the maximum number of allocations for a job to the value of
@@ -68,6 +77,15 @@ include duplicate or invalid keys will be rejected with an error instead of
 being silently ignored. Any existing policies with duplicate or invalid keys
 will continue to work, but the source policy document will need to be updated
 to be valid before it can be written to Nomad.
+
+#### Artifact unpacking behavior changes when inspection enabled
+
+Nomad 1.10.6 updates how artifact contents are unpacked and inspected. Artifact
+inspection is applied when `client.disable_filesystem_isolation` is set to `true`
+or the host platform does not support filesystem isolation. When applied, the
+unpacked contents of the artifact will be merged into the destination path if
+it already exists. Depending on the remote source being used, this may be different
+behavior than seen when the artifact is unpacked without inspection.
 
 #### Enterprise product usage reporting <EnterpriseAlert inline />
 
@@ -241,6 +259,15 @@ include duplicate or invalid keys will be rejected with an error instead of
 being silently ignored. Any existing policies with duplicate or invalid keys
 will continue to work, but the source policy document will need to be updated
 to be valid before it can be written to Nomad.
+
+#### Artifact unpacking behavior changes when inspection enabled
+
+Nomad 1.8.18 updates how artifact contents are unpacked and inspected. Artifact
+inspection is applied when `client.disable_filesystem_isolation` is set to `true`
+or the host platform does not support filesystem isolation. When applied, the
+unpacked contents of the artifact will be merged into the destination path if
+it already exists. Depending on the remote source being used, this may be different
+behavior than seen when the artifact is unpacked without inspection.
 
 #### Enterprise product usage reporting <EnterpriseAlert inline />
 

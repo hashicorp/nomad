@@ -502,11 +502,16 @@ refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
 - `disable_artifact_inspection` `(bool: false)` - Specifies whether to disable
   artifact inspection for sandbox escapes. If the platform supports filesystem
   isolation, and it is not disabled, artifact inspection will not be performed
-  regardless of this value.
+  regardless of this value. When artifact inspection is performed, Nomad will
+  merge the unpacked contents of the artifact into the destination path if it
+  already exists. Depending on the remote source used, this may be different
+  behavior than when the artifact is unpacked without inspection.
 
 - `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
+  When applied, Nomad will inspect the unpacked contents unless inspection is
+  disabled with `disable_filesystem_isolation`.
 
 - `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
   in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
