@@ -388,7 +388,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	readfs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS)
 	logs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadLogs)
 	if !readfs && !logs {
-		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(http.StatusForbidden)), encoder)
 		return
 	}
 
