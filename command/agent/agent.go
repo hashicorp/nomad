@@ -1530,6 +1530,7 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 // Reload handles configuration changes for the agent. Provides a method that
 // is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
+	a.logger.Debug("starting reload of agent")
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
