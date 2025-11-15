@@ -584,9 +584,6 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	currConf := s.agent.GetConfig().Copy()
 
 	newConf := DefaultConfig()
-	if ent := DefaultEntConfig(); ent != nil {
-		newConf = newConf.Merge(ent)
-	}
 
 	for _, path := range currConf.Files {
 		if path == "" {
