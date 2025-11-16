@@ -88,7 +88,7 @@ var (
 	}
 )
 
-var ipv6NetNSPluginAllowlist = map[string]struct{}{
+var ipv6NetNSPluginLookuplist = map[string]struct{}{
 	"macvlan": {},
 	"dhcp":    {},
 }
@@ -570,7 +570,7 @@ func (c *cniNetworkConfigurator) shouldInspectNetNSForIPv6() bool {
 		return false
 	}
 	for _, pluginType := range c.confParser.pluginTypeList() {
-		if _, ok := ipv6NetNSPluginAllowlist[pluginType]; ok {
+		if _, ok := ipv6NetNSPluginLookuplist[pluginType]; ok {
 			return true
 		}
 	}

@@ -723,17 +723,17 @@ func TestCNI_shouldInspectNetNSForIPv6(t *testing.T) {
 		expect      bool
 	}{
 		{
-			name:        "allowlisted",
+			name:        "lookuplisted",
 			pluginTypes: []string{"macvlan"},
 			expect:      true,
 		},
 		{
-			name:        "mixedAllowlist",
+			name:        "mixedLookuplist",
 			pluginTypes: []string{"bridge", "dhcp"},
 			expect:      true,
 		},
 		{
-			name:        "notAllowlisted",
+			name:        "notLookuplisted",
 			pluginTypes: []string{"bridge"},
 			expect:      false,
 		},
