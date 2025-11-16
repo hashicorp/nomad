@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,6 +30,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
@@ -61,6 +63,34 @@ type cniNetworkConfigurator struct {
 	logger                  log.Logger
 	nsOpts                  *nsOpts
 	newIPTables             func(structs.NodeNetworkAF) (IPTablesCleanup, error)
+}
+
+type interfaceAddrProvider interface {
+	Addrs() ([]net.Addr, error)
+}
+
+type netInterfaceWrapper struct {
+	iface *net.Interface
+}
+
+func (n *netInterfaceWrapper) Addrs() ([]net.Addr, error) {
+	return n.iface.Addrs()
+}
+
+var (
+	withNetNSPathFunc = nsutil.WithNetNSPath
+	interfaceByName   = func(name string) (interfaceAddrProvider, error) {
+		iface, err := net.InterfaceByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return &netInterfaceWrapper{iface: iface}, nil
+	}
+)
+
+var ipv6NetNSPluginAllowlist = map[string]struct{}{
+	"macvlan": {},
+	"dhcp":    {},
 }
 
 func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool, node *structs.Node) (*cniNetworkConfigurator, error) {
@@ -243,6 +273,12 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	allocNet, err := c.cniToAllocNet(res)
 	if err != nil {
 		return nil, err
+	}
+
+	if allocNet.AddressIPv6 == "" && spec != nil && spec.Path != "" && c.shouldInspectNetNSForIPv6() {
+		if err := c.populateMissingIPv6Address(spec.Path, allocNet); err != nil {
+			c.logger.Debug("failed to discover IPv6 address from netns", "error", err)
+		}
 	}
 
 	// overwrite the nameservers with Consul DNS, if we have it; we don't need
@@ -529,10 +565,97 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 	return netStatus, nil
 }
 
+func (c *cniNetworkConfigurator) shouldInspectNetNSForIPv6() bool {
+	if c == nil || c.confParser == nil {
+		return false
+	}
+	for _, pluginType := range c.confParser.pluginTypeList() {
+		if _, ok := ipv6NetNSPluginAllowlist[pluginType]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *cniNetworkConfigurator) populateMissingIPv6Address(netnsPath string, netStatus *structs.AllocNetworkStatus) error {
+	if netnsPath == "" {
+		return fmt.Errorf("network namespace path is empty")
+	}
+	if netStatus == nil {
+		return fmt.Errorf("allocation network status is nil")
+	}
+	if netStatus.InterfaceName == "" {
+		return fmt.Errorf("allocation network status missing interface name")
+	}
+
+	return withNetNSPathFunc(netnsPath, func(ns nsutil.NetNS) error {
+		iface, err := interfaceByName(netStatus.InterfaceName)
+		if err != nil {
+			return fmt.Errorf("failed to find interface %q: %w", netStatus.InterfaceName, err)
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return fmt.Errorf("failed to list addresses for interface %q: %w", netStatus.InterfaceName, err)
+		}
+
+		for _, addr := range addrs {
+			ip := ipFromAddr(addr)
+			if ip == nil {
+				continue
+			}
+
+			if ip.To4() != nil {
+				if netStatus.Address == "" {
+					netStatus.Address = ip.String()
+				}
+				continue
+			}
+
+			if !isUsableIPv6(ip) {
+				continue
+			}
+
+			netStatus.AddressIPv6 = ip.String()
+			if netStatus.Address == "" {
+				netStatus.Address = netStatus.AddressIPv6
+			}
+			return nil
+		}
+
+		return fmt.Errorf("no IPv6 address found on interface %q", netStatus.InterfaceName)
+	})
+}
+
+func ipFromAddr(addr net.Addr) net.IP {
+	switch v := addr.(type) {
+	case *net.IPNet:
+		return v.IP
+	case *net.IPAddr:
+		return v.IP
+	default:
+		if ip := net.ParseIP(addr.String()); ip != nil {
+			return ip
+		}
+	}
+	return nil
+}
+
+func isUsableIPv6(ip net.IP) bool {
+	if ip == nil || ip.To4() != nil {
+		return false
+	}
+	if ip.IsLoopback() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		return false
+	}
+	return true
+}
+
 // cniConfParser parses different config formats as appropriate
 type cniConfParser struct {
-	listBytes []byte
-	confBytes []byte
+	listBytes   []byte
+	confBytes   []byte
+	pluginTypes []string
 }
 
 // getOpt produces a cni.Opt to load with cni.CNI.Load()
@@ -567,9 +690,7 @@ func loadCNIConf(confDir, name string) (*cniConfParser, error) {
 				return nil, fmt.Errorf("failed to load CNI config list file %s: %v", confFile, err)
 			}
 			if confList.Name == name {
-				return &cniConfParser{
-					listBytes: confList.Bytes,
-				}, nil
+				return newCNIConfParserFromList(confList), nil
 			}
 		} else {
 			conf, err := cnilibrary.ConfFromFile(confFile)
@@ -577,14 +698,65 @@ func loadCNIConf(confDir, name string) (*cniConfParser, error) {
 				return nil, fmt.Errorf("failed to load CNI config file %s: %v", confFile, err)
 			}
 			if conf.Network.Name == name {
-				return &cniConfParser{
-					confBytes: conf.Bytes,
-				}, nil
+				return newCNIConfParserFromConf(conf), nil
 			}
 		}
 	}
 
 	return nil, fmt.Errorf("CNI network config not found for name %q", name)
+}
+
+func newCNIConfParserFromList(confList *cnilibrary.NetworkConfigList) *cniConfParser {
+	return &cniConfParser{
+		listBytes:   confList.Bytes,
+		pluginTypes: pluginTypesFromList(confList),
+	}
+}
+
+func newCNIConfParserFromConf(conf *cnilibrary.NetworkConfig) *cniConfParser {
+	return &cniConfParser{
+		confBytes:   conf.Bytes,
+		pluginTypes: pluginTypesFromConf(conf),
+	}
+}
+
+func pluginTypesFromList(confList *cnilibrary.NetworkConfigList) []string {
+	seen := make(map[string]struct{})
+	var types []string
+	for _, plugin := range confList.Plugins {
+		if plugin == nil || plugin.Network == nil {
+			continue
+		}
+		pluginType := strings.ToLower(plugin.Network.Type)
+		if pluginType == "" {
+			continue
+		}
+		if _, ok := seen[pluginType]; ok {
+			continue
+		}
+		seen[pluginType] = struct{}{}
+		types = append(types, pluginType)
+	}
+	return types
+}
+
+func pluginTypesFromConf(conf *cnilibrary.NetworkConfig) []string {
+	if conf == nil || conf.Network == nil {
+		return nil
+	}
+	if conf.Network.Type == "" {
+		return nil
+	}
+	return []string{strings.ToLower(conf.Network.Type)}
+}
+
+func (c *cniConfParser) pluginTypeList() []string {
+	if c == nil || len(c.pluginTypes) == 0 {
+		return nil
+	}
+	out := make([]string, len(c.pluginTypes))
+	copy(out, c.pluginTypes)
+	return out
 }
 
 // Teardown calls the CNI plugins with the delete action

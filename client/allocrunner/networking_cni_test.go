@@ -12,12 +12,14 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/containerd/go-cni"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/hashicorp/consul/sdk/iptables"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,6 +44,7 @@ func TestLoadCNIConf_confParser(t *testing.T) {
 	cases := []struct {
 		name, file, content string
 		expectErr           string
+		expectTypes         []string
 	}{
 		{
 			name: "good-conflist",
@@ -53,6 +56,7 @@ func TestLoadCNIConf_confParser(t *testing.T) {
     "type": "cool-plugin"
   }]
 }`,
+			expectTypes: []string{"cool-plugin"},
 		},
 		{
 			name: "good-conf",
@@ -62,6 +66,7 @@ func TestLoadCNIConf_confParser(t *testing.T) {
   "name": "good-conf",
   "type": "cool-plugin"
 }`,
+			expectTypes: []string{"cool-plugin"},
 		},
 		{
 			name: "good-json",
@@ -71,6 +76,23 @@ func TestLoadCNIConf_confParser(t *testing.T) {
   "name": "good-json",
   "type": "cool-plugin"
 }`,
+			expectTypes: []string{"cool-plugin"},
+		},
+		{
+			name: "multi-plugin-conflist",
+			file: "multi.conflist", content: `
+{
+  "cniVersion": "1.0.0",
+  "name": "multi-plugin-conflist",
+  "plugins": [{
+    "type": "macvlan"
+  },{
+    "type": "dhcp"
+  },{
+    "type": "macvlan"
+  }]
+}`,
+			expectTypes: []string{"macvlan", "dhcp"},
 		},
 		{
 			name:      "no-config",
@@ -113,8 +135,12 @@ func TestLoadCNIConf_confParser(t *testing.T) {
 			config := c.GetConfig()
 			must.Len(t, 1, config.Networks, must.Sprint("expect 1 network in config"))
 			plugins := config.Networks[0].Config.Plugins
-			must.Len(t, 1, plugins, must.Sprint("expect 1 plugin in network"))
-			must.Eq(t, "cool-plugin", plugins[0].Network.Type)
+			must.True(t, len(plugins) > 0, must.Sprint("expect at least 1 plugin in network"))
+
+			if len(tc.expectTypes) > 0 {
+				must.Eq(t, tc.expectTypes[0], strings.ToLower(plugins[0].Network.Type))
+				test.Eq(t, tc.expectTypes, parser.pluginTypeList())
+			}
 		})
 	}
 }
@@ -652,6 +678,91 @@ func TestCNI_cniToAllocNet_MultipleInterfaces_IPv6OnMultiple(t *testing.T) {
 	test.Eq(t, "fd00:a110:c8::1", allocNet.Address)     // fallback to IPv6
 	test.Eq(t, "fd00:a110:c8::1", allocNet.AddressIPv6) // first address from first interface
 	test.Eq(t, "eth0", allocNet.InterfaceName)          // first interface
+}
+
+func TestCNI_populateMissingIPv6Address(t *testing.T) {
+	origWithNetNS := withNetNSPathFunc
+	origInterfaceByName := interfaceByName
+	t.Cleanup(func() {
+		withNetNSPathFunc = origWithNetNS
+		interfaceByName = origInterfaceByName
+	})
+
+	withNetNSPathFunc = func(path string, fn func(nsutil.NetNS) error) error {
+		require.Equal(t, "/var/run/netns/test-ns", path)
+		return fn(nil)
+	}
+
+	fakeIface := &fakeInterfaceAddrs{
+		addrs: []net.Addr{
+			&net.IPNet{IP: net.ParseIP("fe80::1"), Mask: net.CIDRMask(64, 128)},          // skip link-local
+			&net.IPNet{IP: net.ParseIP("fd00:a110:c8::99"), Mask: net.CIDRMask(64, 128)}, // usable IPv6
+		},
+	}
+
+	interfaceByName = func(name string) (interfaceAddrProvider, error) {
+		require.Equal(t, "eth0", name)
+		return fakeIface, nil
+	}
+
+	status := &structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.1.7",
+	}
+
+	c := &cniNetworkConfigurator{}
+	err := c.populateMissingIPv6Address("/var/run/netns/test-ns", status)
+	require.NoError(t, err)
+	test.Eq(t, "fd00:a110:c8::99", status.AddressIPv6)
+}
+
+func TestCNI_shouldInspectNetNSForIPv6(t *testing.T) {
+	cases := []struct {
+		name        string
+		pluginTypes []string
+		expect      bool
+	}{
+		{
+			name:        "allowlisted",
+			pluginTypes: []string{"macvlan"},
+			expect:      true,
+		},
+		{
+			name:        "mixedAllowlist",
+			pluginTypes: []string{"bridge", "dhcp"},
+			expect:      true,
+		},
+		{
+			name:        "notAllowlisted",
+			pluginTypes: []string{"bridge"},
+			expect:      false,
+		},
+		{
+			name:        "noPlugins",
+			pluginTypes: nil,
+			expect:      false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &cniNetworkConfigurator{
+				confParser: &cniConfParser{
+					pluginTypes: tc.pluginTypes,
+				},
+			}
+			test.Eq(t, tc.expect, c.shouldInspectNetNSForIPv6())
+		})
+	}
+}
+
+type fakeInterfaceAddrs struct {
+	addrs []net.Addr
+	err   error
+}
+
+func (f *fakeInterfaceAddrs) Addrs() ([]net.Addr, error) {
+	return f.addrs, f.err
 }
 
 func TestCNI_addCustomCNIArgs(t *testing.T) {
