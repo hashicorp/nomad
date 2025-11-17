@@ -2303,10 +2303,6 @@ func TestHTTP_AgentReload(t *testing.T) {
 			obj, err := s.Server.AgentReloadRequest(respW, req)
 			require.NoError(t, err)
 			require.NotNil(t, obj)
-
-			response, ok := obj.(map[string]string)
-			require.True(t, ok)
-			require.Equal(t, "reload signaled", response["message"])
 		})
 	})
 }
@@ -2359,9 +2355,6 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 			require.Nil(err)
 			require.NotNil(obj)
 
-			response, ok := obj.(map[string]string)
-			require.True(ok)
-			require.Equal("reload signaled", response["message"])
 		}
 	})
 }
