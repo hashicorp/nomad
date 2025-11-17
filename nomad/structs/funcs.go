@@ -163,7 +163,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		cr := alloc.AllocatedResources.Comparable()
 		used.Add(cr)
 
-		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
+		// Adding the comparable resource unions reserved core sets, need to
+		// check if reserved cores overlap
 		for _, core := range cr.Flattened.Cpu.ReservedCores {
 			if _, ok := reservedCores[core]; ok {
 				coreOverlap = true

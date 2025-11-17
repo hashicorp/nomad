@@ -330,6 +330,11 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_network")
 	}
 
+	for _, cr := range c.Client.CustomResources {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "custom_resource")
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, cr.Name)
+	}
+
 	// Remove Template extra keys
 	for _, t := range []string{"function_denylist", "disable_file_sandbox", "max_stale", "wait", "wait_bounds", "block_query_wait", "consul_retry", "vault_retry", "nomad_retry"} {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, t)

@@ -2386,6 +2386,7 @@ type Resources struct {
 	Devices     ResourceDevices
 	NUMA        *NUMA
 	SecretsMB   int
+	Custom      CustomResources `hcl:"custom,block"`
 }
 
 const (
@@ -2480,6 +2481,13 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("SecretsMB value (%d) cannot be negative", r.SecretsMB))
 	}
 
+	for _, resource := range r.Custom {
+		err := resource.Validate()
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2510,6 +2518,10 @@ func (r *Resources) Merge(other *Resources) {
 	if other.SecretsMB != 0 {
 		r.SecretsMB = other.SecretsMB
 	}
+	if len(other.Custom) != 0 {
+		// TODO(tgross): this looks wrong but matches devices behavior
+		r.Custom = other.Custom
+	}
 }
 
 // Equal Resources.
@@ -2530,7 +2542,11 @@ func (r *Resources) Equal(o *Resources) bool {
 		r.IOPS == o.IOPS &&
 		r.Networks.Equal(&o.Networks) &&
 		r.Devices.Equal(&o.Devices) &&
-		r.SecretsMB == o.SecretsMB
+		r.SecretsMB == o.SecretsMB &&
+		slices.EqualFunc(r.Custom, o.Custom,
+			func(l, r *CustomResource) bool {
+				return l.Equal(r)
+			})
 }
 
 // ResourceDevices are part of Resources.
@@ -2619,6 +2635,7 @@ func (r *Resources) Copy() *Resources {
 	if r == nil {
 		return nil
 	}
+
 	return &Resources{
 		CPU:         r.CPU,
 		Cores:       r.Cores,
@@ -2630,6 +2647,7 @@ func (r *Resources) Copy() *Resources {
 		Devices:     r.Devices.Copy(),
 		NUMA:        r.NUMA.Copy(),
 		SecretsMB:   r.SecretsMB,
+		Custom:      helper.CopySlice(r.Custom),
 	}
 }
 
@@ -3188,6 +3206,12 @@ type NodeResources struct {
 	// to select dynamic ports from across all networks.
 	MinDynamicPort int
 	MaxDynamicPort int
+
+	// Custom defines any custom resources this node advertises
+	//
+	// TODO(tgross): we may want to split this out to a CustomNodeResources if
+	// we want more ability to define a schema for the resource request?
+	Custom CustomResources
 }
 
 func (n *NodeResources) Copy() *NodeResources {
@@ -3215,6 +3239,8 @@ func (n *NodeResources) Copy() *NodeResources {
 			newN.Devices[i] = n.Devices[i].Copy()
 		}
 	}
+
+	newN.Custom = n.Custom.Copy()
 
 	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
@@ -3245,9 +3271,11 @@ func (n *NodeResources) Comparable() *ComparableResources {
 				MemoryMB: n.Memory.MemoryMB,
 			},
 			Networks: n.Networks,
+			Custom:   n.Custom.CopyTaskOnly(),
 		},
 		Shared: AllocatedSharedResources{
 			DiskMB: n.Disk.DiskMB,
+			Custom: n.Custom.CopySharedOnly(),
 		},
 	}
 	return c
@@ -3279,6 +3307,8 @@ func (n *NodeResources) Merge(o *NodeResources) {
 			}
 		}
 	}
+
+	n.Custom.Merge(o.Custom)
 
 	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
@@ -3887,6 +3917,7 @@ type AllocatedTaskResources struct {
 	Memory   AllocatedMemoryResources
 	Networks Networks
 	Devices  []*AllocatedDeviceResource
+	Custom   CustomResources
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -3907,6 +3938,8 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 			newA.Devices[i] = a.Devices[i].Copy()
 		}
 	}
+
+	newA.Custom = a.Custom.Copy()
 
 	return newA
 }
@@ -3943,6 +3976,8 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 			a.Devices[idx].Add(d)
 		}
 	}
+
+	_ = a.Custom.Add(&delta.Custom)
 }
 
 func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
@@ -3972,6 +4007,9 @@ func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
 			a.Devices[idx].Add(d)
 		}
 	}
+
+	// TODO(tgross): what does this even mean here?
+	// a.CustomResources.Max(delta.CustomResources)
 }
 
 // Comparable turns AllocatedTaskResources into ComparableResources
@@ -4002,6 +4040,7 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 	a.Cpu.Subtract(&delta.Cpu)
 	a.Memory.Subtract(&delta.Memory)
+	_ = a.Custom.Subtract(&delta.Custom)
 }
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
@@ -4009,6 +4048,7 @@ type AllocatedSharedResources struct {
 	Networks Networks
 	DiskMB   int64
 	Ports    AllocatedPorts
+	Custom   CustomResources
 }
 
 func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
@@ -4016,6 +4056,7 @@ func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
 		Networks: a.Networks.Copy(),
 		DiskMB:   a.DiskMB,
 		Ports:    a.Ports,
+		Custom:   a.Custom.Copy(),
 	}
 }
 
@@ -4025,7 +4066,7 @@ func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	}
 	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
-
+	_ = a.Custom.Add(&delta.Custom)
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -4045,6 +4086,7 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 	}
 	a.Networks = nets
 	a.DiskMB -= delta.DiskMB
+	_ = a.Custom.Subtract(&delta.Custom)
 }
 
 func (a *AllocatedSharedResources) Canonicalize() {
@@ -4276,6 +4318,16 @@ func (c *ComparableResources) Superset(other *ComparableResources) (bool, string
 	if c.Shared.DiskMB < other.Shared.DiskMB {
 		return false, "disk"
 	}
+
+	ok, exhaustedResource := c.Flattened.Custom.Superset(other.Flattened.Custom)
+	if !ok {
+		return false, exhaustedResource
+	}
+	ok, exhaustedResource = c.Shared.Custom.Superset(other.Shared.Custom)
+	if !ok {
+		return false, exhaustedResource
+	}
+
 	return true, ""
 }
 

@@ -8,6 +8,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -258,6 +259,12 @@ NEXTNODE:
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
 		devAllocator.AddAllocs(proposed)
 
+		customAllocator := customResourceChecker{
+			available: &option.Node.NodeResources.Custom,
+		}
+
+		customAllocator.addProposed(proposed)
+
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
 		sumMatchingAffinities := 0.0
@@ -379,7 +386,21 @@ NEXTNODE:
 					MemoryMB: safemath.Add(
 						int64(task.Resources.MemoryMB), int64(task.Resources.SecretsMB)),
 				},
+				// TODO(tgross): how do we populate the AllocatedSharedResources here?
+				Custom: task.Resources.Custom.CopyTaskOnly(),
 			}
+
+			if len(taskResources.Custom) > 0 {
+				// TODO(tgross): probably need to check option.AllocResources for group scope too?
+				spew.Dump(option)
+				err := customAllocator.Select(&taskResources.Custom)
+
+				if err != nil {
+					iter.ctx.Metrics().ExhaustedNode(option.Node, err.Error())
+					continue NEXTNODE
+				}
+			}
+
 			if iter.memoryOversubscription {
 				taskResources.Memory.MemoryMaxMB = safemath.Add(
 					int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))

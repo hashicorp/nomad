@@ -395,6 +395,8 @@ type Config struct {
 
 	// LogFile is used by MonitorExport to stream a server's log file
 	LogFile string `hcl:"log_file"`
+
+	CustomResources structs.CustomResources
 }
 
 type APIListenerRegistrar interface {
@@ -896,6 +898,7 @@ func (c *Config) Copy() *Config {
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
 	nc.Users = c.Users.Copy()
+	nc.CustomResources = c.CustomResources.Copy()
 	return &nc
 }
 
