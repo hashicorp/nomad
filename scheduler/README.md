@@ -159,7 +159,39 @@ simpler than the service reconciler which takes into account a whole cluster,
 and has jobs that can run on arbitrary subset of clients. 
 
 Node reconciliation removes tainted nodes, updates terminal allocations to lost,
-deals with disconnected nodes and computes placements.
+deals with disconnected nodes and computes placements. The following diagram
+illustrates the node reconciler internals:
+
+```
++---------+
+|Compute()|  builds maps of nodes to their
++---------+  allocs and eligible (ready) nodes
+     |
+     |
+     |
+     |
+     |
+     |             called for
+     |             each node
+     |          +---------------+
+     +--------->|computeForNode |
+     |          +---------------+
+     |
+     |   computeForNode has two for loops:
+     |
+     |   1. over all live allocations, where it checks which
+     |   allocs should be stopped, ignored, or updated; handles
+     |   tainted nodes/disconnected clients, and sets canary
+     |   flags on resulting AllocTuples if needed.
+     |
+     |   2. over all required task groups, where it checks for
+     |   existing allocations and deployments, and creates
+     |   deployments if necessary.
+     v
+  +---------------------------+
+  |return *NodeReconcileResult|
+  +---------------------------+
+```
 
 ## Finding the right node
 
