@@ -1,0 +1,3 @@
+```release-note:bug
+drain: Fixed a bug where clients configured with `leave_on_terminate` or `leave_on_interrupt` and `drain_on_shutdown` would receive a permission denied error when attempting to leave the cluster and drain themselves
+```

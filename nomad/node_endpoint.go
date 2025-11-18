@@ -916,9 +916,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNodeWrite() &&
-		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
-		return structs.ErrPermissionDenied
+	} else if err := n.checkNodeDrainAuth(aclObj, args); err != nil {
+		return err
 	}
 
 	// Verify the arguments
@@ -1001,6 +1000,40 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Set the reply index
 	reply.Index = index
 	return nil
+}
+
+// checkNodeDrainAuth is a helper function to provide the authentication logic
+// for the UpdateDrain RPC.
+func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrainRequest) error {
+
+	if aclObj.AllowNodeWrite() {
+		return nil
+	}
+
+	// If the ACL object has client operations allowed, check if the identity
+	// matches the node being drained. This allows nodes to drain themselves.
+	if aclObj.AllowClientOp() {
+
+		identity := args.GetIdentity()
+
+		// If the client ID is set and matches the node ID, allow the operation
+		// to proceed. This covers the case where a node is using its secret ID
+		// to authenticate.
+		if identity.ClientID == args.NodeID {
+			return nil
+		}
+
+		identityClaims := identity.GetClaims()
+
+		// If the request is using a node identity, check and ensure the node ID
+		// claim matches the node being drained. This covers the case where a
+		// node is using its node identity JWT to authenticate.
+		if identityClaims.IsNode() && identityClaims.NodeIdentityClaims.NodeID == args.NodeID {
+			return nil
+		}
+	}
+
+	return structs.ErrPermissionDenied
 }
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
