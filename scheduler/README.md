@@ -168,14 +168,12 @@ illustrates the node reconciler internals:
 +---------+  allocs and eligible (ready) nodes
      |
      |
-     |
-     |
-     |
      |             called for
      |             each node
      |          +---------------+
      +--------->|computeForNode |
      |          +---------------+
+     |
      |
      |   computeForNode has two for loops:
      |
