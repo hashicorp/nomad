@@ -2123,51 +2123,135 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
-	// Update the status without a token and expect failure
-	dereg := &structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		DrainStrategy: &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: 10 * time.Second,
+	testCases := []struct {
+		name   string
+		testFn func(t *testing.T)
+	}{
+		{
+			name: "no token",
+			testFn: func(t *testing.T) {
+				dereg := &structs.NodeUpdateDrainRequest{
+					NodeID: node.ID,
+					DrainStrategy: &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline: 10 * time.Second,
+						},
+					},
+					WriteRequest: structs.WriteRequest{Region: "global"},
+				}
+
+				var resp structs.NodeDrainUpdateResponse
+				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+				require.NotNil(err, "RPC")
+				require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 			},
 		},
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-	{
-		var resp structs.NodeDrainUpdateResponse
-		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
-		require.NotNil(err, "RPC")
-		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		{
+			name: "valid token",
+			testFn: func(t *testing.T) {
+				dereg := &structs.NodeUpdateDrainRequest{
+					NodeID: node.ID,
+					DrainStrategy: &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline: 10 * time.Second,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: validToken.SecretID,
+						Region:    "global",
+					},
+				}
+
+				var resp structs.NodeDrainUpdateResponse
+				require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+				out, err := state.NodeByID(nil, node.ID)
+				require.NoError(err)
+				require.Equal("token:"+validToken.AccessorID, out.LastDrain.AccessorID)
+			},
+		},
+		{
+			name: "invalid token",
+			testFn: func(t *testing.T) {
+				dereg := &structs.NodeUpdateDrainRequest{
+					NodeID: node.ID,
+					DrainStrategy: &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline: 10 * time.Second,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: invalidToken.SecretID,
+						Region:    "global",
+					},
+				}
+
+				var resp structs.NodeDrainUpdateResponse
+				err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+				require.NotNil(err, "RPC")
+				require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			},
+		},
+		{
+			name: "root token",
+			testFn: func(t *testing.T) {
+				dereg := &structs.NodeUpdateDrainRequest{
+					NodeID: node.ID,
+					DrainStrategy: &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline: 20 * time.Second,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: root.SecretID,
+						Region:    "global",
+					},
+				}
+
+				var resp structs.NodeDrainUpdateResponse
+				require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+				out, err := state.NodeByID(nil, node.ID)
+				require.NoError(err)
+				require.Equal("token:"+root.AccessorID, out.LastDrain.AccessorID)
+			},
+		},
+		{
+			name: "identity token",
+			testFn: func(t *testing.T) {
+
+				identityClaims := structs.GenerateNodeIdentityClaims(
+					node,
+					"global",
+					structs.DefaultNodePoolNodeIdentityTTL,
+				)
+				signedToken, _, err := s1.encrypter.SignClaims(identityClaims)
+				must.NoError(t, err)
+
+				dereg := &structs.NodeUpdateDrainRequest{
+					NodeID: node.ID,
+					DrainStrategy: &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline: 20 * time.Second,
+						},
+					},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: signedToken,
+						Region:    "global",
+					},
+				}
+
+				var resp structs.NodeDrainUpdateResponse
+				must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp))
+				out, err := state.NodeByID(nil, node.ID)
+				must.NoError(t, err)
+				must.Eq(t, "client:"+node.ID, out.LastDrain.AccessorID)
+			},
+		},
 	}
 
-	// Try with a valid token
-	dereg.AuthToken = validToken.SecretID
-	{
-		var resp structs.NodeDrainUpdateResponse
-		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
-		out, err := state.NodeByID(nil, node.ID)
-		require.NoError(err)
-		require.Equal("token:"+validToken.AccessorID, out.LastDrain.AccessorID)
-	}
-
-	// Try with a invalid token
-	dereg.AuthToken = invalidToken.SecretID
-	{
-		var resp structs.NodeDrainUpdateResponse
-		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
-		require.NotNil(err, "RPC")
-		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-	}
-
-	// Try with a root token
-	dereg.DrainStrategy.DrainSpec.Deadline = 20 * time.Second
-	dereg.AuthToken = root.SecretID
-	{
-		var resp structs.NodeDrainUpdateResponse
-		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
-		out, err := state.NodeByID(nil, node.ID)
-		require.NoError(err)
-		require.Equal("token:"+root.AccessorID, out.LastDrain.AccessorID)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn(t)
+		})
 	}
 }
 
