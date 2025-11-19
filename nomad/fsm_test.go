@@ -1635,13 +1635,12 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	eval2.JobID = job2.ID
 
 	req := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{alloc},
-		},
-		Deployment:      d,
-		EvalID:          eval.ID,
-		NodePreemptions: []*structs.Allocation{alloc1, alloc2},
+		Job:           job,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Deployment:    d,
+		EvalID:        eval.ID,
+		AllocsPreempted: []*structs.AllocationDiff{
+			alloc1.AllocationDiff(), alloc2.AllocationDiff()},
 		PreemptionEvals: []*structs.Evaluation{eval1, eval2},
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
@@ -1703,11 +1702,9 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	req2 := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{evictAlloc},
-		},
-		EvalID: eval.ID,
+		Job:           job,
+		AllocsUpdated: []*structs.Allocation{evictAlloc},
+		EvalID:        eval.ID,
 	}
 	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
 	assert.Nil(err)

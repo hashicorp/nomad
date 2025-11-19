@@ -664,14 +664,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	plan.SnapshotIndex = w.snapshotIndex
 
 	// Normalize stopped and preempted allocs before RPC
-	normalizePlan := w.srv.peersCache.ServersMeetMinimumVersion(
-		w.srv.Region(),
-		MinVersionPlanNormalization,
-		true,
-	)
-	if normalizePlan {
-		plan.NormalizeAllocations()
-	}
+	plan.NormalizeAllocations()
 
 	// Setup the request
 	req := structs.PlanRequest{
