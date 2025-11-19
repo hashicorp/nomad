@@ -54,6 +54,15 @@ Prefer adding a new message to changing any existing RPC messages.
 
 ## Docs
 
-* [ ] Changelog
+* [ ] Changelog in your code PR.
+
+Find Nomad product docs in the `web-unified-docs` repo. Refer to the
+[`web-unified-docs` contributor
+guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+instructions. If you need help with docs, [create an issue in the web-unified
+docs repo](https://github.com/hashicorp/web-unified-docs/issues). On the Issue
+form, choose "Nomad" as the product so that your issue is assigned to the
+nomad-docs team.
+
 * [ ] [Metrics](https://developer.hashicorp.com/nomad/docs/reference/metrics#server-metrics)
 * [ ] [API docs](https://developer.hashicorp.com/nomad/api-docs) for RPCs with an HTTP endpoint, include ACLs, params, and example response body.

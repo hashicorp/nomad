@@ -13,8 +13,11 @@ Nomad is a simple and flexible workload orchestrator to deploy and manage contai
 
 Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://developer.hashicorp.com/nomad/docs/enterprise), is also available.
 
-* Website: https://developer.hashicorp.com/nomad
-* Tutorials: [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials)
+* [Documentation - concepts, user guides, reference](https://developer.hashicorp.com/nomad/docs)
+* [CLI docs](https://developer.hashicorp.com/nomad/commands)
+* [API docs](https://developer.hashicorp.com/nomad/api-docs)
+* [Nomad plugins docs](https://developer.hashicorp.com/nomad/plugins)
+* [Tutorials](https://developer.hashicorp.com/nomad/tutorials)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
 
 Nomad provides several key features:
@@ -35,26 +38,23 @@ Quick Start
 ---
 
 #### Testing
-See [Developer: Getting Started](https://developer.hashicorp.com/nomad/tutorials/get-started) for instructions on setting up a local Nomad cluster for non-production use.
+Refer to the [Getting Started tutorials](https://developer.hashicorp.com/nomad/tutorials/get-started) for instructions on setting up a local Nomad cluster for non-production use.
 
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
 #### Production
-See [Developer: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+Refer to [Production reference architecture](https://developer.hashicorp.com/nomad/docs/deploy/production/reference-architecture) for recommended practices and a reference architecture for production deployments.
 
-Documentation
----
-Full, comprehensive documentation is available on the Nomad website: https://developer.hashicorp.com/nomad/docs
+#### Documentation
 
-Guides are available on [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials).
+Nomad product documentation is stored in the [`web-unified-docs` repo](https://github.com/hashicorp/web-unified-docs/).
 
-Roadmap
----
+#### Roadmap
 
 A timeline of major features expected for the next release or two can be found in the [Public Roadmap](https://github.com/orgs/hashicorp/projects/202/views/1).
 
 This roadmap is a best guess at any given point, and both release dates and projects in each release are subject to change. Do not take any of these items as commitments, especially ones later than one major release away.
 
-Contributing
---------------------
+#### Contributing
+
 See the [`contributing`](contributing/) directory for more developer documentation.
