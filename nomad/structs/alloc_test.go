@@ -635,3 +635,24 @@ func TestAllocation_NextRescheduleTime(t *testing.T) {
 		})
 	}
 }
+
+func TestAllocation_Index(t *testing.T) {
+	ci.Parallel(t)
+
+	a1 := Allocation{
+		Name:      "example.cache[1]",
+		TaskGroup: "cache",
+		JobID:     "example",
+		Job: &Job{
+			ID:         "example",
+			TaskGroups: []*TaskGroup{{Name: "cache"}}},
+	}
+	e1 := uint(1)
+	a2 := a1.Copy()
+	a2.Name = "example.cache[713127]"
+	e2 := uint(713127)
+
+	if a1.Index() != e1 || a2.Index() != e2 {
+		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
+	}
+}

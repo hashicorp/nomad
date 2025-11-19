@@ -4956,27 +4956,6 @@ func TestAllocation_ReservedCores(t *testing.T) {
 
 }
 
-func TestAllocation_Index(t *testing.T) {
-	ci.Parallel(t)
-
-	a1 := Allocation{
-		Name:      "example.cache[1]",
-		TaskGroup: "cache",
-		JobID:     "example",
-		Job: &Job{
-			ID:         "example",
-			TaskGroups: []*TaskGroup{{Name: "cache"}}},
-	}
-	e1 := uint(1)
-	a2 := a1.Copy()
-	a2.Name = "example.cache[713127]"
-	e2 := uint(713127)
-
-	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
-	}
-}
-
 func TestTaskArtifact_Validate_Source(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6934,49 +6913,6 @@ func TestIsRecoverable(t *testing.T) {
 	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
 		t.Errorf("Explicitly recoverable errors *should* be recoverable")
 	}
-}
-
-func TestACLTokenSetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{
-		Name:     "foo",
-		Type:     ACLClientToken,
-		Policies: []string{"foo", "bar"},
-		Global:   false,
-	}
-	out1 := tk.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out1, tk.Hash)
-
-	tk.Policies = []string{"foo"}
-	out2 := tk.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out2, tk.Hash)
-	assert.NotEqual(t, out1, out2)
-}
-
-func TestACLPolicySetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	ap := &ACLPolicy{
-		Name:        "foo",
-		Description: "great policy",
-		Rules:       "node { policy = \"read\" }",
-	}
-	out1 := ap.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out1, ap.Hash)
-
-	ap.Rules = "node { policy = \"write\" }"
-	out2 := ap.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out2, ap.Hash)
-	assert.NotEqual(t, out1, out2)
 }
 
 func TestTaskEventPopulate(t *testing.T) {

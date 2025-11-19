@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -238,6 +239,32 @@ var (
 
 	// ValidACLAuthMethodTypes lists supported auth method types.
 	ValidACLAuthMethodTypes = []string{ACLAuthMethodTypeOIDC, ACLAuthMethodTypeJWT}
+
+	// AnonymousACLToken is used when no SecretID is provided, and the request
+	// is made anonymously.
+	AnonymousACLToken = &ACLToken{
+		AccessorID: "anonymous",
+		Name:       "Anonymous Token",
+		Type:       ACLClientToken,
+		Policies:   []string{"anonymous"},
+		Global:     false,
+	}
+
+	// LeaderACLToken is used to represent a leader's own token; this object
+	// never gets used except on the leader
+	LeaderACLToken = &ACLToken{
+		AccessorID: "leader",
+		Name:       "Leader Token",
+		Type:       ACLManagementToken,
+	}
+
+	// ACLsDisabledToken is used when ACLs are disabled.
+	ACLsDisabledToken = &ACLToken{
+		AccessorID: "acls-disabled",
+		Name:       "ACLs disabled token",
+		Type:       ACLClientToken,
+		Global:     false,
+	}
 )
 
 type ACLCacheEntry[T any] lang.Pair[T, time.Time]
@@ -276,6 +303,409 @@ func NewACLCache[T any](size int) *ACLCache[T] {
 		TwoQueueCache: c,
 		clock:         libtime.SystemClock(),
 	}
+}
+
+// ACLPolicy is used to represent an ACL policy
+type ACLPolicy struct {
+	Name        string      // Unique name
+	Description string      // Human readable
+	Rules       string      // HCL or JSON format
+	RulesJSON   *acl.Policy // Generated from Rules on read
+	JobACL      *JobACL
+	Hash        []byte
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// JobACL represents an ACL policy's attachment to a job, group, or task.
+type JobACL struct {
+	Namespace string // namespace of the job
+	JobID     string // ID of the job
+	Group     string // ID of the group
+	Task      string // ID of the task
+}
+
+// SetHash is used to compute and set the hash of the ACL policy
+func (a *ACLPolicy) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Description))
+	_, _ = hash.Write([]byte(a.Rules))
+
+	if a.JobACL != nil {
+		_, _ = hash.Write([]byte(a.JobACL.Namespace))
+		_, _ = hash.Write([]byte(a.JobACL.JobID))
+		_, _ = hash.Write([]byte(a.JobACL.Group))
+		_, _ = hash.Write([]byte(a.JobACL.Task))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	a.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLPolicy) Stub() *ACLPolicyListStub {
+	return &ACLPolicyListStub{
+		Name:        a.Name,
+		Description: a.Description,
+		JobACL:      a.JobACL,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+func (a *ACLPolicy) Validate() error {
+	var mErr multierror.Error
+	if !ValidPolicyName.MatchString(a.Name) {
+		err := fmt.Errorf("invalid name '%s'", a.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if _, err := acl.Parse(a.Rules, acl.PolicyParseStrict); err != nil {
+		err = fmt.Errorf("failed to parse rules: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(a.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if a.JobACL != nil {
+		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
+			err := fmt.Errorf("namespace must be set to set job ID")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
+			err := fmt.Errorf("job ID must be set to set group")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+		if a.JobACL.Task != "" && a.JobACL.Group == "" {
+			err := fmt.Errorf("group must be set to set task")
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// ACLPolicyListStub is used to for listing ACL policies
+type ACLPolicyListStub struct {
+	Name        string
+	Description string
+	JobACL      *JobACL
+	Hash        []byte
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLPolicyListRequest is used to request a list of policies
+type ACLPolicyListRequest struct {
+	QueryOptions
+}
+
+// ACLPolicySpecificRequest is used to query a specific policy
+type ACLPolicySpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// ACLPolicySetRequest is used to query a set of policies
+type ACLPolicySetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// ACLPolicyListResponse is used for a list request
+type ACLPolicyListResponse struct {
+	Policies []*ACLPolicyListStub
+	QueryMeta
+}
+
+// SingleACLPolicyResponse is used to return a single policy
+type SingleACLPolicyResponse struct {
+	Policy *ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicySetResponse is used to return a set of policies
+type ACLPolicySetResponse struct {
+	Policies map[string]*ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicyDeleteRequest is used to delete a set of policies
+type ACLPolicyDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLPolicyUpsertRequest is used to upsert a set of policies
+type ACLPolicyUpsertRequest struct {
+	Policies []*ACLPolicy
+	WriteRequest
+}
+
+// ACLToken represents a client token which is used to Authenticate
+type ACLToken struct {
+	AccessorID string   // Public Accessor ID (UUID)
+	SecretID   string   // Secret ID, private (UUID)
+	Name       string   // Human friendly name
+	Type       string   // Client or Management
+	Policies   []string // Policies this token ties to
+
+	// Roles represents the ACL roles that this token is tied to. The token
+	// will inherit the permissions of all policies detailed within the role.
+	Roles []*ACLTokenRoleLink
+
+	Global     bool // Global or Region local
+	Hash       []byte
+	CreateTime time.Time // Time of creation
+
+	// ExpirationTime represents the point after which a token should be
+	// considered revoked and is eligible for destruction. This time should
+	// always use UTC to account for multi-region global tokens. It is a
+	// pointer, so we can store nil, rather than the zero value of time.Time.
+	ExpirationTime *time.Time
+
+	// ExpirationTTL is a convenience field for helping set ExpirationTime to a
+	// value of CreateTime+ExpirationTTL. This can only be set during token
+	// creation. This is a string version of a time.Duration like "2m".
+	ExpirationTTL time.Duration
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *ACLToken) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.AccessorID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *ACLToken) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
+}
+
+func (a *ACLToken) Copy() *ACLToken {
+	c := new(ACLToken)
+	*c = *a
+
+	c.Policies = make([]string, len(a.Policies))
+	copy(c.Policies, a.Policies)
+
+	c.Hash = make([]byte, len(a.Hash))
+	copy(c.Hash, a.Hash)
+
+	c.Roles = make([]*ACLTokenRoleLink, len(a.Roles))
+	copy(c.Roles, a.Roles)
+
+	return c
+}
+
+var ()
+
+type ACLTokenListStub struct {
+	AccessorID     string
+	Name           string
+	Type           string
+	Policies       []string
+	Roles          []*ACLTokenRoleLink
+	Global         bool
+	Hash           []byte
+	CreateTime     time.Time
+	ExpirationTime *time.Time
+	CreateIndex    uint64
+	ModifyIndex    uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL token. It only hashes
+// fields which can be updated, and as such, does not hash fields such as
+// ExpirationTime.
+func (a *ACLToken) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Type))
+	for _, policyName := range a.Policies {
+		_, _ = hash.Write([]byte(policyName))
+	}
+	if a.Global {
+		_, _ = hash.Write([]byte("global"))
+	} else {
+		_, _ = hash.Write([]byte("local"))
+	}
+
+	// Iterate the ACL role links and hash the ID. The ID is immutable and the
+	// canonical way to reference a role. The name can be modified by
+	// operators, but won't impact the ACL token resolution.
+	for _, roleLink := range a.Roles {
+		_, _ = hash.Write([]byte(roleLink.ID))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	a.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLToken) Stub() (*ACLTokenListStub, error) {
+	return &ACLTokenListStub{
+		AccessorID:     a.AccessorID,
+		Name:           a.Name,
+		Type:           a.Type,
+		Policies:       a.Policies,
+		Roles:          a.Roles,
+		Global:         a.Global,
+		Hash:           a.Hash,
+		CreateTime:     a.CreateTime,
+		ExpirationTime: a.ExpirationTime,
+		CreateIndex:    a.CreateIndex,
+		ModifyIndex:    a.ModifyIndex,
+	}, nil
+}
+
+// ACLTokenListRequest is used to request a list of tokens
+type ACLTokenListRequest struct {
+	GlobalOnly bool
+	QueryOptions
+}
+
+// ACLTokenSpecificRequest is used to query a specific token
+type ACLTokenSpecificRequest struct {
+	AccessorID string
+	QueryOptions
+}
+
+// ACLTokenSetRequest is used to query a set of tokens
+type ACLTokenSetRequest struct {
+	AccessorIDS []string
+	QueryOptions
+}
+
+// ACLTokenListResponse is used for a list request
+type ACLTokenListResponse struct {
+	Tokens []*ACLTokenListStub
+	QueryMeta
+}
+
+// SingleACLTokenResponse is used to return a single token
+type SingleACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenSetResponse is used to return a set of token
+type ACLTokenSetResponse struct {
+	Tokens map[string]*ACLToken // Keyed by Accessor ID
+	QueryMeta
+}
+
+// ResolveACLTokenRequest is used to resolve a specific token
+type ResolveACLTokenRequest struct {
+	SecretID string
+	QueryOptions
+}
+
+// ResolveACLTokenResponse is used to resolve a single token
+type ResolveACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenDeleteRequest is used to delete a set of tokens
+type ACLTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenBootstrapRequest is used to bootstrap ACLs
+type ACLTokenBootstrapRequest struct {
+	Token           *ACLToken // Not client specifiable
+	ResetIndex      uint64    // Reset index is used to clear the bootstrap token
+	BootstrapSecret string
+	WriteRequest
+}
+
+// ACLTokenUpsertRequest is used to upsert a set of tokens
+type ACLTokenUpsertRequest struct {
+	Tokens []*ACLToken
+	WriteRequest
+}
+
+// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
+type ACLTokenUpsertResponse struct {
+	Tokens []*ACLToken
+	WriteMeta
+}
+
+// OneTimeToken is used to log into the web UI using a token provided by the
+// command line.
+type OneTimeToken struct {
+	OneTimeSecretID string
+	AccessorID      string
+	ExpiresAt       time.Time
+	CreateIndex     uint64
+	ModifyIndex     uint64
+}
+
+// OneTimeTokenUpsertRequest is the request for a UpsertOneTimeToken RPC
+type OneTimeTokenUpsertRequest struct {
+	WriteRequest
+}
+
+// OneTimeTokenUpsertResponse is the response to a UpsertOneTimeToken RPC.
+type OneTimeTokenUpsertResponse struct {
+	OneTimeToken *OneTimeToken
+	WriteMeta
+}
+
+// OneTimeTokenExchangeRequest is a request to swap the one-time token with
+// the backing ACL token
+type OneTimeTokenExchangeRequest struct {
+	OneTimeSecretID string
+	WriteRequest
+}
+
+// OneTimeTokenExchangeResponse is the response to swapping the one-time token
+// with the backing ACL token
+type OneTimeTokenExchangeResponse struct {
+	Token *ACLToken
+	WriteMeta
+}
+
+// OneTimeTokenDeleteRequest is a request to delete a group of one-time tokens
+type OneTimeTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
+type OneTimeTokenExpireRequest struct {
+	Timestamp time.Time
+	WriteRequest
 }
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
