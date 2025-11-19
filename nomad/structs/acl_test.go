@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2316,16 +2315,16 @@ func TestACLTokenSetHash(t *testing.T) {
 		Global:   false,
 	}
 	out1 := tk.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out1, tk.Hash)
+	must.NotNil(t, out1)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, out1, tk.Hash)
 
 	tk.Policies = []string{"foo"}
 	out2 := tk.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out2, tk.Hash)
-	assert.NotEqual(t, out1, out2)
+	must.NotNil(t, out2)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, out2, tk.Hash)
+	must.NotEq(t, out1, out2)
 }
 
 func TestACLPolicySetHash(t *testing.T) {
@@ -2337,14 +2336,14 @@ func TestACLPolicySetHash(t *testing.T) {
 		Rules:       "node { policy = \"read\" }",
 	}
 	out1 := ap.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out1, ap.Hash)
+	must.NotNil(t, out1)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, out1, ap.Hash)
 
 	ap.Rules = "node { policy = \"write\" }"
 	out2 := ap.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out2, ap.Hash)
-	assert.NotEqual(t, out1, out2)
+	must.NotNil(t, out2)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, out2, ap.Hash)
+	must.NotEq(t, out1, out2)
 }
