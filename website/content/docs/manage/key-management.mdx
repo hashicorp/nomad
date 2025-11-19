@@ -5,6 +5,11 @@ description: |-
   Learn how Nomad manages its keyring, which Nomad uses to encrypt variables, sign task workload identities, and sign OpenID Connect (OIDC) client assertions. Review key rotation, key decryption, and key redaction in Raft snapshots. Learn how Nomad v1.9+ can replicate keys from older Nomad versions.
 ---
 
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+> [!IMPORTANT]  
+> **Documentation Update:** Product documentation previously located in `/website` has moved to the [`hashicorp/web-unified-docs`](https://github.com/hashicorp/web-unified-docs) repository, where all product documentation is now centralized. Please make contributions directly to `web-unified-docs`, since changes to `/website` in this repository will not appear on developer.hashicorp.com.
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+
 # Key management
 
 Nomad servers maintain an encryption keyring used to encrypt [Variables][],
