@@ -518,8 +518,6 @@ func (a *ACLToken) Copy() *ACLToken {
 	return c
 }
 
-var ()
-
 type ACLTokenListStub struct {
 	AccessorID     string
 	Name           string

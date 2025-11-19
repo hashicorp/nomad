@@ -13,6 +13,18 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+// TestAllocation_Canonicalize_New asserts that an alloc with latest
+// schema isn't modified with Canonicalize
+func TestAllocation_Canonicalize_New(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := MockAlloc()
+	copy := alloc.Copy()
+
+	alloc.Canonicalize()
+	must.Eq(t, copy, alloc)
+}
+
 func TestAllocServiceRegistrationsRequest_StaleReadSupport(t *testing.T) {
 	req := &AllocServiceRegistrationsRequest{}
 	must.True(t, req.IsRead())
