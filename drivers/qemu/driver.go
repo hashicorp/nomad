@@ -90,6 +90,8 @@ var (
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"image_path":        hclspec.NewAttr("image_path", "string", true),
+		"emulator":          hclspec.NewAttr("emulator", "string", false),
+		"machine_type":      hclspec.NewAttr("machine_type", "string", false),
 		"drive_interface":   hclspec.NewAttr("drive_interface", "string", false),
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
@@ -117,6 +119,8 @@ var (
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
 	ImagePath        string             `codec:"image_path"`
+	Emulator         string             `codec:"emulator"`
+	MachineType      string             `codec:"machine_type"`
 	Accelerator      string             `codec:"accelerator"`
 	Args             []string           `codec:"args"`     // extra arguments to qemu executable
 	PortMap          hclutils.MapStrInt `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
@@ -238,13 +242,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	bin := "qemu-system-x86_64"
-	if runtime.GOOS == "windows" {
-		// On windows, the "qemu-system-x86_64" command does not respond to the
-		// version flag.
-		bin = "qemu-img"
-	}
-	outBytes, err := exec.Command(bin, "--version").Output()
+	outBytes, err := exec.Command("qemu-system-x86_64", "--version").Output()
 	if err != nil {
 		// return no error, as it isn't an error to not find qemu, it just means we
 		// can't use it.
@@ -429,9 +427,18 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	// Parse configuration arguments
 	// Create the base arguments
-	accelerator := "tcg"
+	emulator := "qemu-system-x86_64"
+	if driverConfig.Emulator != "" {
+		emulator = driverConfig.Emulator
+
+	}
+	accelerator := ""
 	if driverConfig.Accelerator != "" {
 		accelerator = driverConfig.Accelerator
+	}
+	machineType := "pc"
+	if driverConfig.MachineType != "" {
+		machineType = driverConfig.MachineType
 	}
 
 	mb := cfg.Resources.NomadResources.Memory.MemoryMB
@@ -440,7 +447,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	mem := fmt.Sprintf("%dM", mb)
 
-	absPath, err := GetAbsolutePath("qemu-system-x86_64")
+	absPath, err := GetAbsolutePath(emulator)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -455,10 +462,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	args := []string{
 		absPath,
-		"-machine", "type=pc,accel=" + accelerator,
+		"-machine", "type=" + machineType + ",accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
-		"-drive", "file=" + vmPath + ",if=" + driveInterface,
+		// setting a drive ID allows users to attach this to other devices
+		"-drive", "file=" + vmPath + ",if=" + driveInterface + ",id=image0",
 		"-nographic",
 	}
 
