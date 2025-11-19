@@ -432,7 +432,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		emulator = driverConfig.Emulator
 
 	}
-	accelerator := ""
+	accelerator := "tcg"
 	if driverConfig.Accelerator != "" {
 		accelerator = driverConfig.Accelerator
 	}
@@ -460,14 +460,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("Unsupported drive_interface")
 	}
 
-	machineCfg := fmt.Sprintf("type=%s", machineType)
-	if accelerator != "" {
-		machineCfg += ",accel=" + accelerator
-	}
-
 	args := []string{
 		absPath,
-		"-machine", machineCfg,
+		"-machine", "type=" + machineType + ",accel=" + accelerator,
 		"-name", vmID,
 		"-m", mem,
 		// setting a drive ID allows users to attach this to other devices
