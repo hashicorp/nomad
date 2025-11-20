@@ -21,14 +21,10 @@ merged.
 - [ ] **Testing** Please add tests to cover any new functionality or to demonstrate bug fixes and
   ensure regressions will be caught.
 - [ ] **Documentation** If the change impacts user-facing functionality such as the CLI, API, UI,
-  and job configuration, please update the Nomad product documentation, which is
-  stored in the [`web-unified-docs` repo](https://github.com/hashicorp/web-unified-docs/). Refer to
-  the [`web-unified-docs` contributor
-  guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
-  docs guidelines. Please also consider whether the
-  change requires notes within the [upgrade
-  guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific).
-  If you would like help with the docs, tag the `nomad-docs` team in this PR.
+  and job configuration, please update the Nomad product documentation, which is stored in the
+  [`web-unified-docs` repo](../web-unified-docs/). Refer to the [`web-unified-docs` contributor guide](../web-unified-docs/tree/docs/contribute.md) for docs guidelines.
+  Please also consider whether the change requires notes within the [upgrade
+  guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific). If you would like help with the docs, tag the `nomad-docs` team in this PR.
 
 ### Reviewer Checklist
 - [ ] **Backport Labels** Please add the correct backport labels as described by the internal
@@ -37,7 +33,7 @@ merged.
   in the majority of situations. The main exceptions are long-lived feature branches or merges where
   history should be preserved.
 - [ ] **Enterprise PRs** If this is an enterprise only PR, please add any required changelog entry
-  within the public repository. 
+  within the public repository.
 
 
 <!-- heimdall_github_prtemplate:grc-pci_dss-2024-01-05 -->
@@ -47,4 +43,3 @@ merged.
 ## Changes to Security Controls
 
 Are there any changes to security controls (access controls, encryption, logging) in this pull request? If so, explain.
-
