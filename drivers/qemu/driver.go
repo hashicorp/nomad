@@ -246,7 +246,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	fpEmulator := "qemu-system-x86-64"
+	fpEmulator := "qemu-system-x86_64"
 	if d.config.FingerprintEmulator != "" {
 		fpEmulator = d.config.FingerprintEmulator
 	}
