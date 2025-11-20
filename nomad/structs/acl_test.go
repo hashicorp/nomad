@@ -2304,3 +2304,46 @@ func TestACLCreateClientIntroductionTokenRequest_UnmarshalJSON(t *testing.T) {
 		)
 	})
 }
+
+func TestACLTokenSetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	tk := &ACLToken{
+		Name:     "foo",
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar"},
+		Global:   false,
+	}
+	out1 := tk.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, tk.Hash, out1)
+
+	tk.Policies = []string{"foo"}
+	out2 := tk.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, tk.Hash, out2)
+	must.NotEq(t, out1, out2)
+}
+
+func TestACLPolicySetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	ap := &ACLPolicy{
+		Name:        "foo",
+		Description: "great policy",
+		Rules:       "node { policy = \"read\" }",
+	}
+	out1 := ap.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, ap.Hash, out1)
+
+	ap.Rules = "node { policy = \"write\" }"
+	out2 := ap.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, ap.Hash, out2)
+	must.NotEq(t, out1, out2)
+}
