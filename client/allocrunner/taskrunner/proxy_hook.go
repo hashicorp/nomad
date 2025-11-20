@@ -75,7 +75,7 @@ func (h *proxyHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequ
 		}
 
 		go func(name string) {
-			for h.shutdownCtx.Err() != nil {
+			for h.shutdownCtx.Err() == nil {
 				uc, err := udsln.Accept()
 				if err != nil {
 					// TODO(schmichael) idk
