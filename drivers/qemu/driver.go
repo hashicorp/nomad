@@ -148,6 +148,10 @@ type Config struct {
 	// include in arguments to qemu, so that cluster operators can can
 	// prevent access to devices
 	ArgsAllowList []string `codec:"args_allowlist"`
+
+	// FingerprintEmulator specifices which QEMU binary is used
+	// for fingerprinting
+	FingerprintEmulator string `codec:"fingerprint_emulator"`
 }
 
 // Driver is a driver for running images via Qemu
@@ -242,7 +246,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	outBytes, err := exec.Command("qemu-system-x86_64", "--version").Output()
+	fpEmulator := "qemu-system-x86-64"
+	if d.config.FingerprintEmulator != "" {
+		fpEmulator = d.config.FingerprintEmulator
+	}
+	outBytes, err := exec.Command(fpEmulator, "--version").Output()
 	if err != nil {
 		// return no error, as it isn't an error to not find qemu, it just means we
 		// can't use it.
@@ -553,19 +561,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	// If using KVM, add optimization args
 	if accelerator == "kvm" {
-		if runtime.GOOS == "windows" {
-			return nil, nil, errors.New("KVM accelerator is unsupported on the Windows platform")
-		}
-		args = append(args,
-			"-enable-kvm",
-			"-cpu", "host",
-		)
-
-		if cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
-			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
-			args = append(args,
-				"-smp", fmt.Sprintf("%d", len(cores)),
-			)
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+			return nil, nil, errors.New("KVM accelerator is unsupported on the current platform")
 		}
 	}
 	d.logger.Debug("starting QEMU VM command ", "args", strings.Join(args, " "))
