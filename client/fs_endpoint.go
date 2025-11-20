@@ -6,9 +6,11 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -82,6 +84,9 @@ func NewFileSystemEndpoint(c *Client) *FileSystem {
 	f := &FileSystem{c}
 	f.c.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.c.streamingRpcs.Register("FileSystem.Stream", f.stream)
+
+	//TODO(schmichael) this doesn't belong here!
+	f.c.streamingRpcs.Register("ServiceRegistration.Proxy", f.proxy)
 	return f
 }
 
@@ -1018,4 +1023,124 @@ func parseFramerErr(err error) error {
 	}
 
 	return err
+}
+
+func (f *FileSystem) proxy(remoteConn io.ReadWriteCloser) {
+	defer metrics.MeasureSince([]string{"client", "TODO", "proxy"}, time.Now())
+	defer remoteConn.Close()
+
+	// Decode the arguments
+	var args cstructs.ServiceProxyRequest
+	decoder := codec.NewDecoder(remoteConn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(remoteConn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&args); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(http.StatusInternalServerError)), encoder)
+		return
+	}
+
+	// Verify the arguments.
+	if args.ServiceName == "" {
+		handleStreamResultError(errors.New("missing ServiceName"), pointer.Of(int64(400)), encoder)
+		return
+	}
+
+	// This is the silliest part: go from service name -> address by looking them
+	// all up again and finding one on this node
+	getArgs := structs.ServiceRegistrationByNameRequest{
+		ServiceName:  args.ServiceName,
+		QueryOptions: args.QueryOptions,
+	}
+	getReply := structs.ServiceRegistrationByNameResponse{}
+	if err := f.c.RPC("ServiceRegistration.GetService", &getArgs, &getReply); err != nil {
+		handleStreamResultError(
+			fmt.Errorf("service not found: %q", getArgs.ServiceName),
+			pointer.Of(int64(http.StatusNotFound)),
+			encoder,
+		)
+		return
+	}
+
+	self := f.c.NodeID()
+	var localReg *structs.ServiceRegistration
+	for _, sr := range getReply.Services {
+		if sr.NodeID == self {
+			localReg = sr
+			break
+		}
+	}
+
+	if localReg == nil {
+		handleStreamResultError(
+			fmt.Errorf("no local service %q on %s", getArgs.ServiceName, self),
+			pointer.Of(int64(http.StatusNotFound)),
+			encoder)
+		return
+	}
+
+	//TODO(schmichael) Check permissions?
+
+	// Connect to the local service
+	// Connect
+	localConn, err := net.Dial("tcp", net.JoinHostPort(localReg.Address, strconv.Itoa(localReg.Port)))
+	if err != nil {
+		handleStreamResultError(
+			fmt.Errorf("error connecting to local service %q on %s", getArgs.ServiceName, self),
+			pointer.Of(int64(http.StatusServiceUnavailable)),
+			encoder)
+		return
+	}
+	defer localConn.Close()
+
+	// Read from local service and write frames back
+	go func() {
+		defer localConn.Close()
+		for {
+			buf := make([]byte, streamFrameSize)
+			n, err := localConn.Read(buf)
+			if n > 0 {
+				err := encoder.Encode(&cstructs.StreamErrWrapper{
+					Payload: buf[:n],
+				})
+				if err != nil {
+					f.c.logger.Warn("error encoding payload from service", "service", getArgs.ServiceName, "error", err)
+					return
+				}
+			}
+
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+
+				handleStreamResultError(
+					fmt.Errorf("error reading from local service %q on %s", getArgs.ServiceName, self),
+					pointer.Of(int64(http.StatusServiceUnavailable)),
+					encoder)
+				return
+			}
+		}
+	}()
+
+	// Write to local service from remote
+	for {
+		var wrapper cstructs.StreamErrWrapper
+		if err := decoder.Decode(&wrapper); err != nil {
+			f.c.logger.Warn("error decoding payload for service", "service", getArgs.ServiceName, "error", err)
+			return
+		}
+
+		if wrapper.Error != nil {
+			f.c.logger.Debug("received error from remote peer", "service", getArgs.ServiceName, "error", err)
+			return
+		}
+
+		if n, err := localConn.Write(wrapper.Payload); n != len(wrapper.Payload) || err != nil {
+			handleStreamResultError(
+				fmt.Errorf("error writing to local service %q on %s", getArgs.ServiceName, self),
+				pointer.Of(int64(http.StatusServiceUnavailable)),
+				encoder)
+			return
+		}
+	}
 }

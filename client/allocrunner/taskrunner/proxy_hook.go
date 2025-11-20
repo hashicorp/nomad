@@ -7,32 +7,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// proxyHook exposes the Task API. The Task API allows task's to access the Nomad
-// HTTP API without having to discover and connect to an agent's address.
-// Instead a unix socket is provided in a standard location. To prevent access
-// by untrusted workloads the Task API always requires authentication even when
-// ACLs are disabled.
-//
-// The Task API hook largely soft-fails as there are a number of ways creating
-// the unix socket could fail (the most common one being path length
-// restrictions), and it is assumed most tasks won't require access to the Task
-// API anyway. Tasks that do require access are expected to crash and get
-// rescheduled should they land on a client who Task API hook soft-fails.
 type proxyHook struct {
+	region      string
+	namespace   string
 	shutdownCtx context.Context
-	srv         config.APIListenerRegistrar
+	rpcClient   config.RPCer
 	logger      hclog.Logger
 
 	// Lock listener as it is updated from multiple hooks.
@@ -42,18 +39,20 @@ type proxyHook struct {
 	listeners map[string]net.Listener
 }
 
-func newProxyHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger) *proxyHook {
+func newProxyHook(shutdownCtx context.Context, rpcC config.RPCer, logger hclog.Logger, alloc *structs.Allocation) *proxyHook {
 	h := &proxyHook{
 		listeners:   map[string]net.Listener{},
 		shutdownCtx: shutdownCtx,
-		srv:         srv,
+		rpcClient:   rpcC,
+		region:      alloc.Job.Region,
+		namespace:   alloc.Namespace,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
 }
 
 func (*proxyHook) Name() string {
-	return "api"
+	return "proxy"
 }
 
 func (h *proxyHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -77,15 +76,16 @@ func (h *proxyHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequ
 
 		go func(name string) {
 			for h.shutdownCtx.Err() != nil {
-				uc, err := udsln.AcceptUnix()
+				uc, err := udsln.Accept()
 				if err != nil {
 					// TODO(schmichael) idk
 					h.logger.Warn("error accepting connection for service proxy", "service", name, "error", err)
 					return
 				}
 
+				go h.serve(name, uc)
+
 			}
-			panic("TODO")
 		}(serviceName)
 
 		h.listeners[serviceName] = udsln
@@ -115,6 +115,95 @@ func (h *proxyHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, r
 	}
 
 	return nil
+}
+
+func (h *proxyHook) serve(name string, localConn net.Conn) {
+	handler, err := h.rpcClient.RemoteStreamingRpcHandler("ServiceRegistration.Proxy")
+	if err != nil {
+		h.logger.Error("unable to initiate service proxy rpc", "error", err)
+		return
+	}
+
+	localPipe, remotePipe := net.Pipe()
+	decoder := codec.NewDecoder(localPipe, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(localPipe, structs.MsgpackHandle)
+
+	// Start goroutine to read from remote peer
+	go func() {
+		defer localPipe.Close()
+		for {
+			var wrapper cstructs.StreamErrWrapper
+
+			if err := decoder.Decode(&wrapper); err != nil {
+				h.logger.Warn("error decoding payload from service", "service", name, "error", err)
+				return
+			}
+
+			if wrapper.Error != nil {
+				h.logger.Debug("received error from remote peer", "service", name, "error", err)
+				return
+			}
+
+			if n, err := localConn.Write(wrapper.Payload); n != len(wrapper.Payload) || err != nil {
+				encoder.Encode(&cstructs.StreamErrWrapper{
+					Error: cstructs.NewRpcError(
+						fmt.Errorf("error writing to local task from service %q", name),
+						pointer.Of(int64(http.StatusServiceUnavailable)),
+					),
+				})
+				return
+			}
+		}
+	}()
+
+	// Start goroutine to write to remote peer
+	go func() {
+		defer localPipe.Close()
+
+		args := &cstructs.ServiceProxyRequest{
+			ServiceName: name,
+			QueryOptions: structs.QueryOptions{
+				Region:    h.region,
+				Namespace: h.namespace,
+			},
+		}
+
+		if err := encoder.Encode(args); err != nil {
+			h.logger.Error("error encoding rpc to service", "service", name, "error", err)
+			return
+		}
+
+		// Now proxy traffic from local task as wrapped stream payloads
+		for {
+			buf := make([]byte, 64*1024)
+			n, err := localConn.Read(buf)
+			if n > 0 {
+				err := encoder.Encode(&cstructs.StreamErrWrapper{
+					Payload: buf[:n],
+				})
+				if err != nil {
+					h.logger.Warn("error encoding payload from task for service", "service", name, "error", err)
+					return
+				}
+			}
+
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+
+				encoder.Encode(&cstructs.StreamErrWrapper{
+					Error: cstructs.NewRpcError(
+						fmt.Errorf("error reading from local task for service %q", name),
+						pointer.Of(int64(http.StatusServiceUnavailable)),
+					),
+				})
+				return
+			}
+		}
+	}()
+
+	handler(remotePipe)
 }
 
 // proxySocketPath returns the path to the Task API socket.

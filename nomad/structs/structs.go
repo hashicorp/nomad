@@ -7814,6 +7814,7 @@ type Task struct {
 	Services []*Service
 
 	// List of upstream service names
+	//TODO(schmichael) this should be blocks
 	Upstreams []string
 
 	// Vault is used to define the set of Vault policies that this task should

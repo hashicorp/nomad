@@ -101,6 +101,7 @@ func (tr *TaskRunner) initHooks() {
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, tr.clientConfig.PublishAllocationMetrics, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
 		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
+		newProxyHook(tr.shutdownCtx, tr.rpcClient, hookLogger, alloc),
 		newWranglerHook(tr.wranglers, task.Name, alloc.ID, task.UsesCores(), hookLogger),
 	}...)
 

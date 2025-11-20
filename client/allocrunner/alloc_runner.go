@@ -350,6 +350,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			AllocHookResources:  ar.hookResources,
 			WIDMgr:              ar.widmgr,
 			Users:               ar.users,
+			RPCClient:           ar.rpcClient,
 		}
 
 		// Create, but do not Run, the task runner

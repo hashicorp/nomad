@@ -769,6 +769,7 @@ type Task struct {
 	Affinities      []*Affinity            `hcl:"affinity,block"`
 	Env             map[string]string      `hcl:"env,block"`
 	Services        []*Service             `hcl:"service,block"`
+	Upstreams       []string               `hcl:"upstreams,optional"`
 	Resources       *Resources             `hcl:"resources,block"`
 	RestartPolicy   *RestartPolicy         `hcl:"restart,block"`
 	Meta            map[string]string      `hcl:"meta,block"`

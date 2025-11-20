@@ -415,3 +415,10 @@ type ConsulACLToken struct {
 	TokenID  string
 	ACLToken string
 }
+
+// TODO(schmichael) put in its own file
+type ServiceProxyRequest struct {
+	ServiceName string
+
+	structs.QueryOptions
+}

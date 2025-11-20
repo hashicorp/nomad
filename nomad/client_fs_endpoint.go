@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -35,6 +36,9 @@ func NewFileSystemEndpoint(srv *Server) *FileSystem {
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)
+
+	//TODO(schmichael) this doesn't belong here!
+	f.srv.streamingRpcs.Register("ServiceRegistration.Proxy", f.proxy)
 }
 
 // handleStreamResultError is a helper for sending an error with a potential
@@ -346,6 +350,128 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	structs.Bridge(conn, clientConn)
 }
 
+// receives a ServiceProxyRequest and sends cstructs.StreamErrWrapper
+func (f *FileSystem) proxy(conn io.ReadWriteCloser) {
+	defer conn.Close()
+	defer metrics.MeasureSince([]string{"nomad", "TODO", "proxy"}, time.Now())
+
+	// Decode the arguments
+	var args cstructs.ServiceProxyRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&args); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	// Verify the arguments.
+	if args.ServiceName == "" {
+		handleStreamResultError(errors.New("missing ServiceName"), pointer.Of(int64(400)), encoder)
+		return
+	}
+
+	authErr := f.srv.Authenticate(nil, &args)
+
+	// Check if we need to forward to a different region
+	if r := args.RequestRegion(); r != f.srv.Region() {
+		//TODO(schmichael)
+		forwardRegionStreamingRpc(f.srv, conn, encoder, &args, "ServiceRegistration.Proxy",
+			args.ServiceName, &args.QueryOptions)
+		return
+	}
+	f.srv.MeasureRPCRate("TODO", structs.RateMetricRead, &args)
+	if authErr != nil {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
+	}
+
+	// Retrieve the service
+	snap, err := f.srv.State().Snapshot()
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	iter, err := snap.GetServiceRegistrationByName(nil, args.QueryOptions.Namespace, args.ServiceName)
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	var all []*structs.ServiceRegistration
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		all = append(all, raw.(*structs.ServiceRegistration))
+	}
+
+	if len(all) == 0 {
+		handleStreamResultError(fmt.Errorf("service not found: %q", args.ServiceName), pointer.Of(int64(404)), encoder)
+		return
+	}
+
+	sreg := all[rand.Intn(len(all))]
+
+	//TODO(schmichael) Check namespace  permissions
+
+	nodeID := sreg.NodeID
+
+	// Make sure Node is valid
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	if node == nil {
+		err := fmt.Errorf("Unknown node %q", nodeID)
+		handleStreamResultError(err, pointer.Of(int64(400)), encoder)
+		return
+	}
+
+	// Get the connection to the client either by forwarding to another server
+	// or creating a direct stream
+	var clientConn net.Conn
+	state, ok := f.srv.getNodeConn(nodeID)
+	if !ok {
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
+		if err != nil {
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = pointer.Of(int64(404))
+			}
+			handleStreamResultError(err, code, encoder)
+			return
+		}
+
+		// Get a connection to the server
+		conn, err := f.srv.streamingRpc(srv, "ServiceRegistration.Proxy")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		clientConn = conn
+	} else {
+		stream, err := NodeStreamingRpc(state.Session, "ServiceRegistration.Proxy")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+		clientConn = stream
+	}
+	defer clientConn.Close()
+
+	// Send the request.
+	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, clientConn)
+}
+
 // logs is used to access an task's logs for a given allocation
 func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	defer conn.Close()
@@ -472,4 +598,61 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
+}
+
+func forwardRegionProxyRpc(fsrv *Server, conn io.ReadWriteCloser,
+	encoder *codec.Encoder, args interface{}, method, service string, qo *structs.QueryOptions) {
+	// Request the allocation from the target region
+	//func (s *ServiceRegistration) GetService(
+	//args *structs.ServiceRegistrationByNameRequest,
+	//reply *structs.ServiceRegistrationByNameResponse) error {
+
+	serviceReq := &structs.ServiceRegistrationByNameRequest{
+		ServiceName:  service,
+		QueryOptions: *qo,
+	}
+	var serviceResp structs.ServiceRegistrationByNameResponse
+	if err := fsrv.forwardRegion(qo.RequestRegion(), "ServiceRegistration.GetService", serviceReq, &serviceResp); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	if len(serviceResp.Services) == 0 {
+		handleStreamResultError(fmt.Errorf("unknown service: %q", service), pointer.Of(int64(404)), encoder)
+		return
+	}
+
+	// Why are we selecting a target instance here instead of on the remote server?
+	sreg := serviceResp.Services[0]
+	if n := len(serviceResp.Services); n > 1 {
+		sreg = serviceResp.Services[rand.Intn(n)]
+	}
+
+	// Determine the Server that has a connection to the node.
+	srv, err := fsrv.serverWithNodeConn(sreg.NodeID, qo.RequestRegion())
+	if err != nil {
+		var code *int64
+		if structs.IsErrNoNodeConn(err) {
+			code = pointer.Of(int64(404))
+		}
+		handleStreamResultError(err, code, encoder)
+		return
+	}
+
+	// Get a connection to the server
+	srvConn, err := fsrv.streamingRpc(srv, method)
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+	defer srvConn.Close()
+
+	// Send the request.
+	outEncoder := codec.NewEncoder(srvConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, srvConn)
 }

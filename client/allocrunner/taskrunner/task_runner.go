@@ -293,6 +293,8 @@ type TaskRunner struct {
 	// pauser controls whether the task should be run or stopped based on a
 	// schedule. (Enterprise)
 	pauser *pauseGate
+
+	rpcClient config.RPCer
 }
 
 type Config struct {
@@ -371,6 +373,8 @@ type Config struct {
 
 	// Users manages a pool of dynamic workload users
 	Users dynamic.Pool
+
+	RPCClient config.RPCer
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -434,6 +438,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		wranglers:               config.Wranglers,
 		widmgr:                  config.WIDMgr,
 		users:                   config.Users,
+		rpcClient:               config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
