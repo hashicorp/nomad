@@ -2317,13 +2317,13 @@ func TestACLTokenSetHash(t *testing.T) {
 	out1 := tk.SetHash()
 	must.NotNil(t, out1)
 	must.NotNil(t, tk.Hash)
-	must.Eq(t, out1, tk.Hash)
+	must.Eq(t, tk.Hash, out1)
 
 	tk.Policies = []string{"foo"}
 	out2 := tk.SetHash()
 	must.NotNil(t, out2)
 	must.NotNil(t, tk.Hash)
-	must.Eq(t, out2, tk.Hash)
+	must.Eq(t, tk.Hash, out2)
 	must.NotEq(t, out1, out2)
 }
 
@@ -2338,12 +2338,12 @@ func TestACLPolicySetHash(t *testing.T) {
 	out1 := ap.SetHash()
 	must.NotNil(t, out1)
 	must.NotNil(t, ap.Hash)
-	must.Eq(t, out1, ap.Hash)
+	must.Eq(t, ap.Hash, out1)
 
 	ap.Rules = "node { policy = \"write\" }"
 	out2 := ap.SetHash()
 	must.NotNil(t, out2)
 	must.NotNil(t, ap.Hash)
-	must.Eq(t, out2, ap.Hash)
+	must.Eq(t, ap.Hash, out2)
 	must.NotEq(t, out1, out2)
 }
