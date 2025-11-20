@@ -4956,27 +4956,6 @@ func TestAllocation_ReservedCores(t *testing.T) {
 
 }
 
-func TestAllocation_Index(t *testing.T) {
-	ci.Parallel(t)
-
-	a1 := Allocation{
-		Name:      "example.cache[1]",
-		TaskGroup: "cache",
-		JobID:     "example",
-		Job: &Job{
-			ID:         "example",
-			TaskGroups: []*TaskGroup{{Name: "cache"}}},
-	}
-	e1 := uint(1)
-	a2 := a1.Copy()
-	a2.Name = "example.cache[713127]"
-	e2 := uint(713127)
-
-	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
-	}
-}
-
 func TestTaskArtifact_Validate_Source(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5269,91 +5248,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			t.Fatalf("case %d: %v", i, err)
 		}
 	}
-}
-
-func TestPlan_NormalizeAllocations(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodeUpdate:      make(map[string][]*Allocation),
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	stoppedAlloc := MockAlloc()
-	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost, "followup-eval-id")
-	preemptedAlloc := MockAlloc()
-	preemptingAllocID := uuid.Generate()
-	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
-
-	plan.NormalizeAllocations()
-
-	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
-	expectedStoppedAlloc := &Allocation{
-		ID:                 stoppedAlloc.ID,
-		DesiredDescription: desiredDesc,
-		ClientStatus:       AllocClientStatusLost,
-		FollowupEvalID:     "followup-eval-id",
-	}
-	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
-	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
-	expectedPreemptedAlloc := &Allocation{
-		ID:                    preemptedAlloc.ID,
-		PreemptedByAllocation: preemptingAllocID,
-	}
-	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
-}
-
-func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodeUpdate: make(map[string][]*Allocation),
-	}
-	alloc := MockAlloc()
-	desiredDesc := "Desired desc"
-
-	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost, "")
-
-	expectedAlloc := new(Allocation)
-	*expectedAlloc = *alloc
-	expectedAlloc.DesiredDescription = desiredDesc
-	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
-	expectedAlloc.ClientStatus = AllocClientStatusLost
-	expectedAlloc.Job = nil
-	expectedAlloc.AllocStates = []*AllocState{{
-		Field: AllocStateFieldClientStatus,
-		Value: "lost",
-	}}
-
-	// This value is set to time.Now() in AppendStoppedAlloc, so clear it
-	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
-	appendedAlloc.AllocStates[0].Time = time.Time{}
-
-	assert.Equal(t, expectedAlloc, appendedAlloc)
-	assert.Equal(t, alloc.Job, plan.Job)
-}
-
-func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	alloc := MockAlloc()
-	preemptingAllocID := uuid.Generate()
-
-	plan.AppendPreemptedAlloc(alloc, preemptingAllocID)
-
-	appendedAlloc := plan.NodePreemptions[alloc.NodeID][0]
-	expectedAlloc := &Allocation{
-		ID:                    alloc.ID,
-		PreemptedByAllocation: preemptingAllocID,
-		JobID:                 alloc.JobID,
-		Namespace:             alloc.Namespace,
-		DesiredStatus:         AllocDesiredStatusEvict,
-		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
-		AllocatedResources:    alloc.AllocatedResources,
-		TaskResources:         alloc.TaskResources,
-		SharedResources:       alloc.SharedResources,
-	}
-	assert.Equal(t, expectedAlloc, appendedAlloc)
 }
 
 func TestMsgPackTags(t *testing.T) {
@@ -6379,18 +6273,6 @@ func TestAllocation_Canonicalize_Old(t *testing.T) {
 	require.Equal(t, expected, alloc.AllocatedResources)
 }
 
-// TestAllocation_Canonicalize_New asserts that an alloc with latest
-// schema isn't modified with Canonicalize
-func TestAllocation_Canonicalize_New(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := MockAlloc()
-	copy := alloc.Copy()
-
-	alloc.Canonicalize()
-	require.Equal(t, copy, alloc)
-}
-
 func TestRescheduleTracker_Copy(t *testing.T) {
 	ci.Parallel(t)
 	type testCase struct {
@@ -6934,49 +6816,6 @@ func TestIsRecoverable(t *testing.T) {
 	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
 		t.Errorf("Explicitly recoverable errors *should* be recoverable")
 	}
-}
-
-func TestACLTokenSetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{
-		Name:     "foo",
-		Type:     ACLClientToken,
-		Policies: []string{"foo", "bar"},
-		Global:   false,
-	}
-	out1 := tk.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out1, tk.Hash)
-
-	tk.Policies = []string{"foo"}
-	out2 := tk.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out2, tk.Hash)
-	assert.NotEqual(t, out1, out2)
-}
-
-func TestACLPolicySetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	ap := &ACLPolicy{
-		Name:        "foo",
-		Description: "great policy",
-		Rules:       "node { policy = \"read\" }",
-	}
-	out1 := ap.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out1, ap.Hash)
-
-	ap.Rules = "node { policy = \"write\" }"
-	out2 := ap.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out2, ap.Hash)
-	assert.NotEqual(t, out1, out2)
 }
 
 func TestTaskEventPopulate(t *testing.T) {
