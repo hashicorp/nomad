@@ -1029,6 +1029,9 @@ func (f *FileSystem) proxy(remoteConn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "TODO", "proxy"}, time.Now())
 	defer remoteConn.Close()
 
+	f.c.logger.Debug("+++> client.proxy called")
+	defer f.c.logger.Debug("<+++ client.proxy exited")
+
 	// Decode the arguments
 	var args cstructs.ServiceProxyRequest
 	decoder := codec.NewDecoder(remoteConn, structs.MsgpackHandle)

@@ -355,6 +355,9 @@ func (f *FileSystem) proxy(conn io.ReadWriteCloser) {
 	defer conn.Close()
 	defer metrics.MeasureSince([]string{"nomad", "TODO", "proxy"}, time.Now())
 
+	f.logger.Debug("---> server proxy rpc handler entered")
+	defer f.logger.Debug("<--- server proxy rpc handler left")
+
 	// Decode the arguments
 	var args cstructs.ServiceProxyRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)

@@ -48,6 +48,7 @@ func newProxyHook(shutdownCtx context.Context, rpcC config.RPCer, logger hclog.L
 		namespace:   alloc.Namespace,
 	}
 	h.logger = logger.Named(h.Name())
+	h.logger.Debug("started proxy hook")
 	return h
 }
 
@@ -76,6 +77,7 @@ func (h *proxyHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequ
 
 		go func(name string) {
 			for h.shutdownCtx.Err() == nil {
+				h.logger.Debug("listening", "path", udsPath, "service", serviceName)
 				uc, err := udsln.Accept()
 				if err != nil {
 					// TODO(schmichael) idk
@@ -118,6 +120,7 @@ func (h *proxyHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, r
 }
 
 func (h *proxyHook) serve(name string, localConn net.Conn) {
+	defer h.logger.Debug("===> serve exiting", "service", name)
 	handler, err := h.rpcClient.RemoteStreamingRpcHandler("ServiceRegistration.Proxy")
 	if err != nil {
 		h.logger.Error("unable to initiate service proxy rpc", "error", err)
@@ -139,6 +142,8 @@ func (h *proxyHook) serve(name string, localConn net.Conn) {
 				return
 			}
 
+			h.logger.Debug("==> proxy received ...", "service", name, "bytes", len(wrapper.Payload))
+
 			if wrapper.Error != nil {
 				h.logger.Debug("received error from remote peer", "service", name, "error", err)
 				return
@@ -153,6 +158,8 @@ func (h *proxyHook) serve(name string, localConn net.Conn) {
 				})
 				return
 			}
+
+			h.logger.Debug("==> proxy received ... and wrote", "service", name, "bytes", len(wrapper.Payload))
 		}
 	}()
 
@@ -172,6 +179,8 @@ func (h *proxyHook) serve(name string, localConn net.Conn) {
 			h.logger.Error("error encoding rpc to service", "service", name, "error", err)
 			return
 		}
+
+		h.logger.Debug("==> proxy encoded rpc", "service", name)
 
 		// Now proxy traffic from local task as wrapped stream payloads
 		for {
