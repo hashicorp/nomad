@@ -149,7 +149,7 @@ type Config struct {
 	// prevent access to devices
 	ArgsAllowList []string `codec:"args_allowlist"`
 
-	// FingerprintEmulator specifices which QEMU binary is used
+	// FingerprintEmulator specifies which QEMU binary is used
 	// for fingerprinting
 	FingerprintEmulator string `codec:"fingerprint_emulator"`
 }
