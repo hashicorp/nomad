@@ -307,6 +307,7 @@ type ClientConfig struct {
 	// DiskTotalMB is used to override any detected or default total disk space.
 	DiskTotalMB int `hcl:"disk_total_mb"`
 
+	// DEPRECATED: Remove in Nomad 1.13.0. Use Reserved.Disk instead.
 	// DiskFreeMB is used to override any detected or default free disk space.
 	DiskFreeMB int `hcl:"disk_free_mb"`
 
