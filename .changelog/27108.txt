@@ -1,0 +1,3 @@
+```release-note:bug
+cni: add additional netns lookup for kernel configured IPv6 addresses based on known CNI plugins where the IPv6 address is missing from the cni result. 
+```
