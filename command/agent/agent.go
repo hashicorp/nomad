@@ -158,6 +158,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}
+
 	if err := a.setupClient(); err != nil {
 		return nil, err
 	}
@@ -936,6 +937,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Node.Meta = agentConfig.Client.Meta
 	conf.Node.NodeClass = agentConfig.Client.NodeClass
 	conf.Node.NodePool = agentConfig.Client.NodePool
+	conf.CustomResources = agentConfig.Client.CustomResources
 
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP
