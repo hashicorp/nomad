@@ -68,6 +68,24 @@ func TestSelectorData(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			"nested list claim",
+			nil,
+			map[string]string{"roles": "r"},
+			map[string]any{
+				"roles": []any{
+					[]any{"role1", "role2", "roleN"}, 42, false,
+				},
+			},
+			&structs.ACLAuthClaims{
+				Value: map[string]string{},
+				List: map[string][]string{
+					"r": {`["role1","role2","roleN"]`, "42", "false"},
+				},
+			},
+		},
+
 	}
 
 	for _, tt := range cases {
