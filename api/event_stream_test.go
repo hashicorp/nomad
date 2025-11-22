@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,6 +118,42 @@ func TestEvent_Stream(t *testing.T) {
 		must.Eq(t, "Evaluation", string(event.Events[0].Topic))
 	case <-time.After(5 * time.Second):
 		must.Unreachable(t, must.Sprint("failed waiting for event stream event"))
+	}
+
+	// Stop the server to ensure EOF is returned
+	s.Stop()
+
+	for {
+		select {
+		case event, ok := <-streamCh:
+			if !ok {
+				must.Unreachable(t, must.Sprintf("chan closed before EOF received"))
+			}
+
+			// Sadly decode doesn't return io.EOF
+			if event.Err != nil && strings.HasSuffix(event.Err.Error(), "EOF") {
+				// Succcess! Make sure chan gets closed
+				select {
+				case _, ok := <-streamCh:
+					if ok {
+						must.Unreachable(t, must.Sprintf("expected chan to close after EOF"))
+					}
+
+					// Success!
+					return
+				case <-time.After(5 * time.Second):
+					must.Unreachable(t, must.Sprint("failed waiting for event stream to close"))
+				}
+			}
+
+			if event.Err != nil {
+				must.Unreachable(t, must.Sprintf("unexpected %v (%T)", event.Err, event.Err))
+			}
+			must.Len(t, 1, event.Events)
+			must.Eq(t, "Evaluation", string(event.Events[0].Topic))
+		case <-time.After(5 * time.Second):
+			must.Unreachable(t, must.Sprint("failed waiting for event stream EOF"))
+		}
 	}
 }
 
