@@ -114,7 +114,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.2
+	github.com/prometheus/common v0.67.4
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
