@@ -44,6 +44,11 @@ type Parts struct {
 	Status      serf.MemberStatus
 	NonVoter    bool
 
+	// Tags are the full Serf tags for the member. This duplicates some of the
+	// data which is also stored in other fields for convenience, so adds a
+	// little size overhead. It is included as Autopilot uses them.
+	Tags map[string]string
+
 	// Deprecated: Functionally unused but needs to always be set by 1 for
 	// compatibility with v1.2.x and earlier.
 	MajorVersion int
@@ -133,6 +138,7 @@ func IsNomadServer(m serf.Member) (bool, *Parts) {
 		RaftVersion:  raftVsn,
 		Status:       m.Status,
 		NonVoter:     nonVoter,
+		Tags:         m.Tags,
 		MajorVersion: deprecatedAPIMajorVersion,
 	}
 	return true, parts
