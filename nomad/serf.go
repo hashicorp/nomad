@@ -65,7 +65,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 		// A peer is joining, so we should update the cache to reflect its
 		// status.
-		s.peersCache.PeerSet(parts, s.Region())
+		s.peersCache.UpdatePeerSet(parts, s.Region())
 
 		// If we still expecting to bootstrap, may need to handle this
 		if s.config.BootstrapExpect != 0 && !s.bootstrapped.Load() {
@@ -230,7 +230,7 @@ func (s *Server) nodeFailed(me serf.MemberEvent) {
 
 		// The peer is failed, so we should update the cache to reflect its
 		// status.
-		s.peersCache.PeerSet(parts, s.Region())
+		s.peersCache.UpdatePeerSet(parts, s.Region())
 	}
 }
 

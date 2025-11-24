@@ -253,9 +253,9 @@ func (p *PeerCache) RegionPeers(region string) []*Parts {
 	return peers
 }
 
-// PeerSet adds or updates the given parts in the cache. This should be called
-// when a new peer is detected or an existing peer changes is status.
-func (p *PeerCache) PeerSet(parts *Parts, localRegion string) {
+// UpdatePeerSet adds or updates the given parts in the cache. This should be
+// called when a new peer is detected or an existing peer changes is status.
+func (p *PeerCache) UpdatePeerSet(parts *Parts, localRegion string) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
@@ -298,7 +298,7 @@ func (p *PeerCache) peerSetLocked(peers map[string][]*Parts, parts *Parts) {
 		}
 	}
 
-	// Add ot the list if not known
+	// Add to the list if not known
 	if !found {
 		peers[parts.Region] = append(existing, parts)
 	}
@@ -313,6 +313,7 @@ func (p *PeerCache) PeerDelete(event serf.MemberEvent) {
 	for _, m := range event.Members {
 		if ok, parts := IsNomadServer(m); ok {
 			p.peerDeleteLocked(p.allPeers, parts)
+			p.peerDeleteLocked(p.alivePeers, parts)
 		}
 	}
 }
