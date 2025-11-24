@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -143,19 +144,21 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return nil, fmt.Errorf("error setting directory permission mode: %w", err)
 	}
 
-	// Chown note: A uid or gid of -1 means to not change that value.
-	if err = os.Chown(path, params.Uid, params.Gid); err != nil {
-		log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
+	if runtime.GOOS != "windows" {
+		// Chown note: A uid or gid of -1 means to not change that value.
+		if err = os.Chown(path, params.Uid, params.Gid); err != nil {
+			log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
 
-		// Failing to change ownership is fatal for this plugin. Since we have
-		// already created the directory, we should attempt to clean it.
-		// Otherwise, the operator must do this manually.
-		if err := os.RemoveAll(path); err != nil {
-			log.Error("failed to remove directory after create failure",
-				"error", err)
+			// Failing to change ownership is fatal for this plugin. Since we have
+			// already created the directory, we should attempt to clean it.
+			// Otherwise, the operator must do this manually.
+			if err := os.RemoveAll(path); err != nil {
+				log.Error("failed to remove directory after create failure",
+					"error", err)
+			}
+
+			return nil, fmt.Errorf("error changing owner/group: %w", err)
 		}
-
-		return nil, fmt.Errorf("error changing owner/group: %w", err)
 	}
 
 	log.Debug("plugin ran successfully")
