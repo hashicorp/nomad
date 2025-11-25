@@ -7,6 +7,8 @@ package getter
 
 import (
 	"path/filepath"
+
+	log "github.com/hashicorp/go-hclog"
 )
 
 // lockdown is not available by default
@@ -15,7 +17,7 @@ func lockdownAvailable() bool {
 }
 
 // lockdown is not implemented by default
-func lockdown(string, string, []string) error {
+func lockdown(log.Logger, string, string, []string) error {
 	return nil
 }
 
