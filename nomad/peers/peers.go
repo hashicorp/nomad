@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -52,6 +54,9 @@ func (p *Parts) String() string {
 }
 
 func (p *Parts) Copy() *Parts {
+	if p == nil {
+		return nil
+	}
 	ns := new(Parts)
 	*ns = *p
 	return ns
@@ -133,47 +138,170 @@ func IsNomadServer(m serf.Member) (bool, *Parts) {
 	return true, parts
 }
 
-// PeerCache is a threadsafe cache of known Nomad server peers parsed from Serf
-// members. It avoids the need to re-parse Serf members each time the peers
-// need to be inspected.
+// PartCache is a threadsafe cache of known Nomad server peers parsed from Serf
+// members. It avoids the need to re-parse Serf members each time the peers need
+// to be inspected and can be used for RPC routing and discovery and server
+// version checking.
+//
+// Returned peer objects are copies of the cached objects. This ensures that the
+// peer object is not mutated while being used by the caller.
 type PeerCache struct {
 
-	// peers is a map of region names to the list of known server peers in that
-	// region. All access must be protected by peersLock.
-	peers     map[string][]*Parts
+	// allPeers is a map of region names to the list of known server peers in
+	// that region. Peers stored here can be in failed states and is used for
+	// server version checking only.
+	allPeers map[string][]*Parts
+
+	// alivePeers is a map of region names to the list of known server peers in
+	// that region. Peers stored here are only those in the Alive state and is
+	// used for RPC routing and discovery.
+	alivePeers map[string][]*Parts
+
+	// localPeers is a map of the known server peers in the local region keyed
+	// by their Raft address. Peers stored here are only those in the Alive
+	// state and is used for intra-region RPC routing and discovery.
+	localPeers map[raft.ServerAddress]*Parts
+
+	// peersLock protects access to the maps above. We use a single lock so that
+	// updates are correctly applied to all maps together.
 	peersLock sync.RWMutex
 }
 
 // NewPeerCache returns a new instance of a PeerCache ready for use.
 func NewPeerCache() *PeerCache {
 	return &PeerCache{
-		peers: make(map[string][]*Parts),
+		allPeers:   make(map[string][]*Parts),
+		alivePeers: make(map[string][]*Parts),
+		localPeers: make(map[raft.ServerAddress]*Parts),
 	}
 }
 
-// PeerSet adds or updates the given parts in the cache. This should be called
-// when a new peer is detected or an existing peer changes is status.
-func (p *PeerCache) PeerSet(parts *Parts) {
+func (p *PeerCache) LocalPeer(addr raft.ServerAddress) *Parts {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+	return p.localPeers[addr].Copy()
+}
+
+// LocalPeers returns a list of known alive peers in the local region.
+func (p *PeerCache) LocalPeers() []*Parts {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+
+	peers := make([]*Parts, 0, len(p.localPeers))
+
+	for _, peer := range p.localPeers {
+		peers = append(peers, peer.Copy())
+	}
+
+	return peers
+}
+
+func (p *PeerCache) LocalPeersServerInfo() []*structs.NodeServerInfo {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+
+	peers := make([]*structs.NodeServerInfo, 0, len(p.localPeers))
+
+	for _, peer := range p.localPeers {
+		peers = append(peers, &structs.NodeServerInfo{
+			RPCAdvertiseAddr: peer.RPCAddr.String(),
+			Datacenter:       peer.Datacenter,
+		})
+	}
+
+	return peers
+}
+
+// RegionNum returns the number of known regions with at least one alive peer
+// and are therfore suitable for RPC routing.
+func (p *PeerCache) RegionNum() int {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+	return len(p.alivePeers)
+}
+
+// RegionNames returns the names of all known regions with at least one alive
+// peer and are therefore suitable for RPC routing.
+func (p *PeerCache) RegionNames() []string {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+
+	names := make([]string, 0, len(p.alivePeers))
+	for name := range p.alivePeers {
+		names = append(names, name)
+	}
+
+	return names
+}
+
+// RegionPeers returns the list of known alive peers in the given region. If the
+// region is not known or has no alive peers, an empty list is returned.
+func (p *PeerCache) RegionPeers(region string) []*Parts {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+
+	numPeers := len(p.alivePeers[region])
+	if numPeers == 0 {
+		return nil
+	}
+
+	peers := make([]*Parts, 0, numPeers)
+
+	for _, peer := range p.alivePeers[region] {
+		peers = append(peers, peer.Copy())
+	}
+	return peers
+}
+
+// UpdatePeerSet adds or updates the given parts in the cache. This should be
+// called when a new peer is detected or an existing peer changes is status.
+func (p *PeerCache) UpdatePeerSet(parts *Parts, localRegion string) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
-	existing, ok := p.peers[parts.Region]
-	if !ok {
-		p.peers[parts.Region] = []*Parts{parts}
-		return
+	// Mirror the update in the all peers mapping which tracks all known peers
+	// regardless of status.
+	p.peerSetLocked(p.allPeers, parts)
+
+	// Now update the alive peers and local peers mappings based on the status.
+	switch parts.Status {
+	case serf.StatusAlive:
+		p.peerSetLocked(p.alivePeers, parts)
+		p.peerSetLocalLocked(parts, localRegion)
+	default:
+		p.peerDeleteLocked(p.alivePeers, parts)
+		p.peerDeleteLocalLocked(parts, localRegion)
 	}
+}
+
+// peerSetLocalLocked adds or updates the given parts in the local peers map if
+// it is in the local region. The caller must hold the peersLock.
+func (p *PeerCache) peerSetLocalLocked(parts *Parts, localRegion string) {
+	if parts.Region == localRegion {
+		p.localPeers[raft.ServerAddress(parts.Addr.String())] = parts
+	}
+}
+
+func (p *PeerCache) peerSetLocked(peers map[string][]*Parts, parts *Parts) {
+
+	// Track if we found the peer already in the list.
+	var found bool
+
+	existing := peers[parts.Region]
 
 	// Replace if already present
 	for i, ep := range existing {
 		if ep.Name == parts.Name {
 			existing[i] = parts
-			return
+			found = true
+			break
 		}
 	}
 
-	// If we reached this point then it's a new member, so append it to the
-	// exiting array.
-	p.peers[parts.Region] = append(existing, parts)
+	// Add to the list if not known
+	if !found {
+		peers[parts.Region] = append(existing, parts)
+	}
 }
 
 // PeerDelete removes the given members from the cache. This should be called
@@ -184,22 +312,35 @@ func (p *PeerCache) PeerDelete(event serf.MemberEvent) {
 
 	for _, m := range event.Members {
 		if ok, parts := IsNomadServer(m); ok {
-
-			existing := p.peers[parts.Region]
-
-			existing = slices.DeleteFunc(
-				existing,
-				func(member *Parts) bool { return member.Name == parts.Name },
-			)
-
-			// If all peers in the region are gone, remove the region entry
-			// entirely. Otherwise, update the list.
-			if len(existing) < 1 {
-				delete(p.peers, parts.Region)
-			} else {
-				p.peers[parts.Region] = existing
-			}
+			p.peerDeleteLocked(p.allPeers, parts)
+			p.peerDeleteLocked(p.alivePeers, parts)
 		}
+	}
+}
+
+// peerDeleteLocalLocked removes the given parts from the local peers map if it
+// is in the local region. The caller must hold the peersLock.
+func (p *PeerCache) peerDeleteLocalLocked(parts *Parts, localRegion string) {
+	if parts.Region == localRegion {
+		delete(p.localPeers, raft.ServerAddress(parts.Addr.String()))
+	}
+}
+
+func (p *PeerCache) peerDeleteLocked(peers map[string][]*Parts, parts *Parts) {
+
+	existing := peers[parts.Region]
+
+	existing = slices.DeleteFunc(
+		existing,
+		func(member *Parts) bool { return member.Name == parts.Name },
+	)
+
+	// If all peers in the region are gone, remove the region entry
+	// entirely. Otherwise, update the list.
+	if len(existing) < 1 {
+		delete(peers, parts.Region)
+	} else {
+		peers[parts.Region] = existing
 	}
 }
 
@@ -226,7 +367,7 @@ func (p *PeerCache) ServersMeetMinimumVersion(
 	// the specific region.
 	switch region {
 	case AllRegions:
-		for _, peerList := range p.peers {
+		for _, peerList := range p.allPeers {
 			if !regionServersMeetMinimumVersion(peerList, minVersion, checkFailedServers) {
 				return false
 			}
@@ -237,7 +378,7 @@ func (p *PeerCache) ServersMeetMinimumVersion(
 		// local region or all regions only. It's not possible that the server
 		// is querying its own region but that region is not known. However, in
 		// the future we may change this, so guard against it here just in case.
-		peerList, ok := p.peers[region]
+		peerList, ok := p.allPeers[region]
 		if !ok {
 			return false
 		}

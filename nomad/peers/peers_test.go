@@ -5,12 +5,16 @@ package peers
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"net"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"github.com/shoenig/test/must"
 )
@@ -109,11 +113,146 @@ func TestIsNomadServer(t *testing.T) {
 	must.False(t, parts.NonVoter)
 }
 
+func Test_NewPartsCache(t *testing.T) {
+	ci.Parallel(t)
+
+	partsCache := NewPeerCache()
+	must.NotNil(t, partsCache)
+	must.MapLen(t, 0, partsCache.allPeers)
+	must.MapLen(t, 0, partsCache.alivePeers)
+	must.MapLen(t, 0, partsCache.localPeers)
+}
+
+func TestPartsCache_LocalPeer(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.Nil(t, peerCache.LocalPeer("127.0.0.1:4647"))
+
+	euw1Peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+	}
+
+	for _, p := range euw1Peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	must.Eq(t, euw1Peers[0], peerCache.LocalPeer(raft.ServerAddress(euw1Peers[0].Addr.String())))
+	must.Eq(t, euw1Peers[1], peerCache.LocalPeer(raft.ServerAddress(euw1Peers[1].Addr.String())))
+	must.Eq(t, euw1Peers[2], peerCache.LocalPeer(raft.ServerAddress(euw1Peers[2].Addr.String())))
+}
+
+func TestPartsCache_LocalPeersServerInfo(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.Nil(t, peerCache.LocalPeer("127.0.0.1:4647"))
+
+	euw1Peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+	}
+
+	for _, p := range euw1Peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	expected := make([]*structs.NodeServerInfo, 0, len(euw1Peers))
+	for _, p := range euw1Peers {
+		expected = append(expected, &structs.NodeServerInfo{
+			RPCAdvertiseAddr: p.RPCAddr.String(),
+			Datacenter:       p.Datacenter,
+		})
+	}
+
+	must.SliceContainsAll(t, expected, peerCache.LocalPeersServerInfo())
+}
+
+func TestPartsCache_LocalPeers(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.SliceEmpty(t, peerCache.LocalPeers())
+
+	euw1Peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+	}
+
+	for _, p := range euw1Peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	must.SliceLen(t, 3, peerCache.LocalPeers())
+}
+
+func TestPartsCache_RegionNum(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.SliceEmpty(t, peerCache.LocalPeers())
+
+	peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw2", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw3", serf.StatusAlive),
+	}
+
+	for _, p := range peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	must.Eq(t, 3, peerCache.RegionNum())
+}
+
+func TestPartsCache_RegionPeers(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.SliceEmpty(t, peerCache.LocalPeers())
+	must.Nil(t, peerCache.RegionPeers("euw1"))
+
+	euw1Peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+	}
+
+	for _, p := range euw1Peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	must.SliceLen(t, 3, peerCache.RegionPeers("euw1"))
+}
+
+func TestPartsCache_RegionNames(t *testing.T) {
+	ci.Parallel(t)
+
+	peerCache := NewPeerCache()
+	must.SliceEmpty(t, peerCache.LocalPeers())
+
+	peers := []*Parts{
+		generateTestParts(t, "1.2.3", "euw1", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw2", serf.StatusAlive),
+		generateTestParts(t, "1.2.3", "euw3", serf.StatusAlive),
+	}
+
+	for _, p := range peers {
+		peerCache.UpdatePeerSet(p, "euw1")
+	}
+
+	must.SliceContainsAll(t, []string{"euw1", "euw2", "euw3"}, peerCache.RegionNames())
+}
+
 func TestPartsCache_PeerSet(t *testing.T) {
 	ci.Parallel(t)
 
 	peerCache := NewPeerCache()
-	must.MapLen(t, 0, peerCache.peers)
+	must.MapLen(t, 0, peerCache.allPeers)
 
 	// Add an initial set of peers in the same region.
 	euw1Peers := []*Parts{
@@ -123,11 +262,14 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.PeerSet(p)
+		peerCache.UpdatePeerSet(p, "euw1")
 	}
 
-	must.MapLen(t, 1, peerCache.peers)
-	must.Len(t, 3, peerCache.peers["euw1"])
+	must.MapLen(t, 1, peerCache.allPeers)
+	must.Len(t, 3, peerCache.allPeers["euw1"])
+	must.MapLen(t, 1, peerCache.alivePeers)
+	must.Len(t, 3, peerCache.alivePeers["euw1"])
+	must.MapLen(t, 3, peerCache.localPeers)
 
 	// Add a second set of peers in a different region.
 	euw2Peers := []*Parts{
@@ -137,29 +279,43 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	}
 
 	for _, p := range euw2Peers {
-		peerCache.PeerSet(p)
+		peerCache.UpdatePeerSet(p, "euw1")
 	}
 
-	must.MapLen(t, 2, peerCache.peers)
-	must.Len(t, 3, peerCache.peers["euw1"])
-	must.Len(t, 3, peerCache.peers["euw2"])
+	must.MapLen(t, 2, peerCache.allPeers)
+	must.Len(t, 3, peerCache.allPeers["euw1"])
+	must.Len(t, 3, peerCache.allPeers["euw2"])
+	must.MapLen(t, 3, peerCache.localPeers)
 
 	// Update a peer's status and ensure it's updated in the cache.
 	changedPeer := euw2Peers[1].Copy()
 	changedPeer.Status = serf.StatusFailed
 
-	peerCache.PeerSet(changedPeer)
-	must.MapLen(t, 2, peerCache.peers)
-	must.Len(t, 3, peerCache.peers["euw1"])
-	must.Len(t, 3, peerCache.peers["euw2"])
-	must.Eq(t, serf.StatusFailed, peerCache.peers["euw2"][1].Status)
+	peerCache.UpdatePeerSet(changedPeer, "euw1")
+	must.MapLen(t, 2, peerCache.allPeers)
+	must.Len(t, 3, peerCache.allPeers["euw1"])
+	must.Len(t, 3, peerCache.allPeers["euw2"])
+	must.Len(t, 2, peerCache.alivePeers["euw2"])
+	must.Eq(t, serf.StatusFailed, peerCache.allPeers["euw2"][1].Status)
+
+	// Update a peer's status and ensure it's updated in the cache.
+	changedPeerEuw1 := euw1Peers[2].Copy()
+	changedPeerEuw1.Status = serf.StatusFailed
+
+	peerCache.UpdatePeerSet(changedPeerEuw1, "euw1")
+	must.MapLen(t, 2, peerCache.allPeers)
+	must.Len(t, 3, peerCache.allPeers["euw1"])
+	must.Len(t, 3, peerCache.allPeers["euw2"])
+	must.Len(t, 2, peerCache.alivePeers["euw1"])
+	must.Eq(t, serf.StatusFailed, peerCache.allPeers["euw1"][2].Status)
+	must.MapLen(t, 2, peerCache.localPeers)
 }
 
 func TestPartsCache_PeerDelete(t *testing.T) {
 	ci.Parallel(t)
 
 	peerCache := NewPeerCache()
-	must.MapLen(t, 0, peerCache.peers)
+	must.MapLen(t, 0, peerCache.allPeers)
 
 	// Add an initial set of peers in the same region.
 	partsList := []*Parts{
@@ -169,11 +325,11 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 	}
 
 	for _, p := range partsList {
-		peerCache.PeerSet(p)
+		peerCache.UpdatePeerSet(p, "euw1")
 	}
 
-	must.MapLen(t, 1, peerCache.peers)
-	must.Len(t, 3, peerCache.peers["euw1"])
+	must.MapLen(t, 1, peerCache.allPeers)
+	must.Len(t, 3, peerCache.allPeers["euw1"])
 
 	// Create a serf.MemberEvent to delete the second peer.
 	event := serf.MemberEvent{
@@ -194,10 +350,10 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 	}
 
 	peerCache.PeerDelete(event)
-	must.MapLen(t, 1, peerCache.peers)
-	must.Len(t, 2, peerCache.peers["euw1"])
+	must.MapLen(t, 1, peerCache.allPeers)
+	must.Len(t, 2, peerCache.allPeers["euw1"])
 
-	for _, p := range peerCache.peers["euw1"] {
+	for _, p := range peerCache.allPeers["euw1"] {
 		must.NotEq(t, partsList[1].Name, p.Name)
 	}
 
@@ -232,7 +388,7 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 	}
 
 	peerCache.PeerDelete(event)
-	must.MapLen(t, 0, peerCache.peers)
+	must.MapLen(t, 0, peerCache.allPeers)
 }
 
 func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
@@ -439,7 +595,7 @@ func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
 			peerCache := NewPeerCache()
 
 			for _, p := range tc.inputParts {
-				peerCache.PeerSet(p)
+				peerCache.UpdatePeerSet(p, "euw1")
 			}
 
 			result := peerCache.ServersMeetMinimumVersion(
@@ -462,7 +618,7 @@ func generateTestParts(t *testing.T, version, region string, status serf.MemberS
 			"role":   "nomad",
 			"region": region,
 			"dc":     "east-aws",
-			"port":   "10000",
+			"port":   strconv.Itoa(rand.IntN(10000)),
 			"build":  version,
 			"vsn":    "1",
 		},
