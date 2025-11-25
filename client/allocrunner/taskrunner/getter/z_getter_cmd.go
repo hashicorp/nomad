@@ -6,6 +6,7 @@ package getter
 import (
 	"os"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/subproc"
 )
 
@@ -17,6 +18,11 @@ const (
 
 func init() {
 	subproc.Do(SubCommand, func() int {
+		l := log.New(&log.LoggerOptions{
+			Output:      os.Stderr,
+			DisableTime: true,
+			Level:       log.Debug,
+		})
 
 		// get client and artifact configuration from standard IO
 		env := new(parameters)
@@ -34,7 +40,7 @@ func init() {
 
 		// sandbox the host filesystem for this process
 		if !env.DisableFilesystemIsolation {
-			if err := lockdown(env.AllocDir, env.TaskDir, env.FilesystemIsolationExtraPaths); err != nil {
+			if err := lockdown(l, env.AllocDir, env.TaskDir, env.FilesystemIsolationExtraPaths); err != nil {
 				subproc.Print("failed to sandbox %s process: %v", SubCommand, err)
 				return subproc.ExitFailure
 			}
