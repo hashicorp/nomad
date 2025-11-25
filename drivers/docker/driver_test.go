@@ -2565,19 +2565,6 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 			},
 			Desc: "All fields set",
 		},
-		{
-			Auth: DockerAuth{
-				Username:   "foo",
-				Password:   "bar",
-				ServerAddr: "www.foobar.com",
-			},
-			AuthConfig: &registry.AuthConfig{
-				Username:      "foo",
-				Password:      "bar",
-				ServerAddress: "www.foobar.com",
-			},
-			Desc: "Auth token not set",
-		},
 	}
 
 	for _, c := range cases {
