@@ -7,6 +7,9 @@ inputs:
   issue:
     required: true
     description: JIRA issue to transition
+  resolution:
+    required: false
+    description: Resolution name to apply to issue
   transition:
     required: true
     description: Transition name to apply to issue
@@ -20,3 +23,4 @@ runs:
     env:
       ISSUE: ${{ inputs.issue }}
       TRANSITION: ${{ inputs.transition }}
+      RESOLUTION: ${{ inputs.resolution }}

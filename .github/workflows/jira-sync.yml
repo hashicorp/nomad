@@ -58,6 +58,7 @@ jobs:
         with:
           issue: ${{ steps.search.outputs.issue }}
           transition: "Closed"
+          resolution: "Done"
       - name: Reopen ticket
         if: github.event.action == 'reopened' && steps.search.outputs.issue
         uses: ./.github/actions/jira/transition
