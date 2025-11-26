@@ -203,7 +203,6 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 		Auth: DockerAuth{
 			Username:   "myusername",
 			Password:   "mypassword",
-			Email:      "myemail@example.com",
 			ServerAddr: "https://example.com",
 		},
 		AuthSoftFail:            true,
