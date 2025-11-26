@@ -5,6 +5,7 @@ package fingerprint
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,10 @@ const (
 	// AzureMetadataTimeout is the timeout used when contacting the Azure metadata
 	// services.
 	AzureMetadataTimeout = 2 * time.Second
+
+	// azureFingerprinterName is the name of the Azure fingerprinter and used in
+	// configuration and logging.
+	azureFingerprinterName = "env_azure"
 )
 
 type AzureMetadataTag struct {
@@ -66,11 +71,17 @@ func NewEnvAzureFingerprint(logger log.Logger) Fingerprint {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	return &EnvAzureFingerprint{
-		client:      client,
-		logger:      logger.Named("env_azure"),
-		metadataURL: metadataURL,
-	}
+	namedLogger := logger.Named(azureFingerprinterName)
+
+	return NewRetryWrapper(
+		&EnvAzureFingerprint{
+			client:      client,
+			logger:      namedLogger,
+			metadataURL: metadataURL,
+		},
+		namedLogger,
+		azureFingerprinterName,
+	)
 }
 
 func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, error) {
@@ -131,8 +142,8 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 		f.client.Timeout = 1 * time.Millisecond
 	}
 
-	if !f.isAzure() {
-		return nil
+	if err := f.azureProbe(); err != nil {
+		return wrapProbeError(err)
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -209,8 +220,15 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 	return nil
 }
 
-func (f *EnvAzureFingerprint) isAzure() bool {
+func (f *EnvAzureFingerprint) azureProbe() error {
 	v, err := f.Get("compute/azEnvironment", "text")
-	v = strings.TrimSpace(v)
-	return err == nil && v != ""
+	if err != nil {
+		return err
+	}
+
+	if v = strings.TrimSpace(v); v == "" {
+		return errors.New("empty AZ Environment value")
+	}
+
+	return nil
 }

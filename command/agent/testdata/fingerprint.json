@@ -1,0 +1,40 @@
+{
+  "client": {
+    "enabled": true,
+    "fingerprint": [
+      {
+        "env_aws": [
+          {
+            "retry_interval": "5m",
+            "retry_attempts": 3,
+            "exit_on_failure": true
+          }
+        ]
+      },
+      {
+        "env_azure": [
+          {
+            "retry_interval": "10m",
+            "retry_attempts": 5,
+            "exit_on_failure": false
+          }
+        ]
+      },
+      {
+        "env_gce": [
+          {
+            "retry_interval": "2m",
+            "retry_attempts": -1
+          }
+        ]
+      },
+      {
+        "env_digitalocean": [
+          {
+            "retry_interval": "1m"
+          }
+        ]
+      }
+    ]
+  }
+}

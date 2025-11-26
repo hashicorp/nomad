@@ -11,10 +11,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
+
+func Test_NewEnvAzureFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	f := NewEnvAzureFingerprint(testlog.HCLogger(t))
+	must.NotNil(t, f)
+
+	retryWrapper, ok := f.(*RetryWrapper)
+	must.True(t, ok)
+	must.Eq(t, azureFingerprinterName, retryWrapper.name)
+
+	_, ok = retryWrapper.fingerprinter.(*EnvAzureFingerprint)
+	must.True(t, ok)
+}
 
 func TestAzureFingerprint_nonAzure(t *testing.T) {
 
@@ -45,57 +61,10 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 		Attributes: make(map[string]string),
 	}
 
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(AZURE_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in GCE ENV test: %s", err)
-	}
-	if withExternalIp {
-		networkEndpoint := &endpoint{
-			Uri:         "/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress",
-			ContentType: "text/plain",
-			Body:        "104.44.55.66",
-		}
-		routes.Endpoints = append(routes.Endpoints, networkEndpoint)
-	}
+	testMetadataServer := azureTestMetadataServer(t, withExternalIp)
+	defer testMetadataServer.Close()
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		value, ok := r.Header["Metadata"]
-		if !ok {
-			t.Fatal("Metadata not present in HTTP request header")
-		}
-		if value[0] != "true" {
-			t.Fatalf("Expected Metadata true, saw %s", value[0])
-		}
-
-		uavalue, ok := r.Header["User-Agent"]
-		if !ok {
-			t.Fatal("User-Agent not present in HTTP request header")
-		}
-		if !strings.Contains(uavalue[0], "Nomad/") {
-			t.Fatalf("Expected User-Agent to contain Nomad/, got %s", uavalue[0])
-		}
-
-		uri := r.RequestURI
-		if r.URL.RawQuery != "" {
-			uri = strings.Replace(uri, "?"+r.URL.RawQuery, "", 1)
-		}
-
-		found := false
-		for _, e := range routes.Endpoints {
-			if uri == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-				found = true
-			}
-		}
-
-		if !found {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer ts.Close()
-	t.Setenv("AZURE_ENV_URL", ts.URL+"/metadata/instance/")
+	t.Setenv("AZURE_ENV_URL", testMetadataServer.URL+"/metadata/instance/")
 	f := NewEnvAzureFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
@@ -153,6 +122,50 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 		t.Fatal("unique.platform.azure.public-ipv4 is set without an external IP")
 	}
 
+}
+
+func azureTestMetadataServer(t *testing.T, externalIP bool) *httptest.Server {
+
+	// configure mock server with fixture routes, data
+	routes := routes{}
+	must.NoError(t, json.Unmarshal([]byte(AZURE_routes), &routes))
+
+	if externalIP {
+		networkEndpoint := &endpoint{
+			Uri:         "/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress",
+			ContentType: "text/plain",
+			Body:        "104.44.55.66",
+		}
+		routes.Endpoints = append(routes.Endpoints, networkEndpoint)
+	}
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		value, ok := r.Header["Metadata"]
+		must.True(t, ok)
+		must.Eq(t, "true", value[0])
+
+		uavalue, ok := r.Header["User-Agent"]
+		must.True(t, ok)
+		must.StrContains(t, uavalue[0], "Nomad/")
+
+		uri := r.RequestURI
+		if r.URL.RawQuery != "" {
+			uri = strings.Replace(uri, "?"+r.URL.RawQuery, "", 1)
+		}
+
+		found := false
+		for _, e := range routes.Endpoints {
+			if uri == e.Uri {
+				w.Header().Set("Content-Type", e.ContentType)
+				fmt.Fprintln(w, e.Body)
+				found = true
+			}
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
 }
 
 const AZURE_routes = `
@@ -219,4 +232,45 @@ func TestFingerprint_AzureWithExternalIp(t *testing.T) {
 
 func TestFingerprint_AzureWithoutExternalIp(t *testing.T) {
 	testFingerprint_Azure(t, false)
+}
+
+func TestEnvAzureFingerprint_azureProbe(t *testing.T) {
+
+	testCases := []struct {
+		name     string
+		azureEnv bool
+	}{
+		{
+			name:     "Azure Environment",
+			azureEnv: true,
+		},
+		{
+			name:     "Non-Azure Environment",
+			azureEnv: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			if tc.azureEnv {
+				testMetadataServer := azureTestMetadataServer(t, false)
+				defer testMetadataServer.Close()
+				t.Setenv("AZURE_ENV_URL", testMetadataServer.URL+"/metadata/instance/")
+			} else {
+				// GitHub Actions run in Azure, so we point to a non-existent
+				// server to simulate a non-Azure environment.
+				t.Setenv("AZURE_ENV_URL", "http://127.0.0.1/metadata/instance/")
+			}
+
+			f := NewEnvAzureFingerprint(testlog.HCLogger(t))
+			err := f.(*RetryWrapper).fingerprinter.(*EnvAzureFingerprint).azureProbe()
+
+			if tc.azureEnv {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+			}
+		})
+	}
 }

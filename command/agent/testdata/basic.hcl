@@ -107,6 +107,12 @@ client {
   bridge_network_name        = "custom_bridge_name"
   bridge_network_subnet      = "custom_bridge_subnet"
   bridge_network_subnet_ipv6 = "custom_bridge_subnet_ipv6"
+
+  fingerprint "env_aws" {
+    retry_interval  = "1s"
+    retry_attempts  = 3
+    exit_on_failure = true
+  }
 }
 
 server {

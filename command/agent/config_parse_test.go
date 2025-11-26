@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -98,6 +99,15 @@ var basicConfig = &Config{
 		BridgeNetworkName:       "custom_bridge_name",
 		BridgeNetworkSubnet:     "custom_bridge_subnet",
 		BridgeNetworkSubnetIPv6: "custom_bridge_subnet_ipv6",
+		Fingerprinters: []*client.Fingerprint{
+			{
+				Name:             "env_aws",
+				RetryInterval:    1 * time.Second,
+				RetryIntervalHCL: "1s",
+				RetryAttempts:    3,
+				ExitOnFailure:    pointer.Of(true),
+			},
+		},
 	},
 	Server: &ServerConfig{
 		Enabled:                   true,
@@ -513,6 +523,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
 	actual.Vaults[0].ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	must.Eq(t, basicConfig.Client, actual.Client)
 	must.Eq(t, basicConfig, actual)
 
 	oldDefault := &Config{
@@ -1209,6 +1220,69 @@ func TestConfig_Template(t *testing.T) {
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.NomadRetry.Attempts)
 			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.NomadRetry.Backoff)
 			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.NomadRetry.MaxBackoff)
+		})
+	}
+}
+
+func TestConfig_Fingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, suffix := range []string{"hcl", "json"} {
+		t.Run(suffix, func(t *testing.T) {
+			cfg := DefaultConfig()
+			fc, err := LoadConfig("testdata/fingerprint." + suffix)
+			must.NoError(t, err)
+			cfg = cfg.Merge(fc)
+
+			must.True(t, cfg.Client.Enabled)
+			must.Len(t, 4, cfg.Client.Fingerprinters)
+
+			var awsConfig, azureConfig, gceConfig, doConfig *client.Fingerprint
+
+			for _, fp := range cfg.Client.Fingerprinters {
+				switch fp.Name {
+				case "env_aws":
+					awsConfig = fp
+				case "env_azure":
+					azureConfig = fp
+				case "env_gce":
+					gceConfig = fp
+				case "env_digitalocean":
+					doConfig = fp
+				default:
+					t.Fatalf("unexpected fingerprint name: %s", fp.Name)
+				}
+			}
+
+			must.NotNil(t, awsConfig)
+			must.Eq(t, "env_aws", awsConfig.Name)
+			must.Eq(t, 5*time.Minute, awsConfig.RetryInterval)
+			must.Eq(t, "5m", awsConfig.RetryIntervalHCL)
+			must.Eq(t, 3, awsConfig.RetryAttempts)
+			must.NotNil(t, awsConfig.ExitOnFailure)
+			must.True(t, *awsConfig.ExitOnFailure)
+
+			must.NotNil(t, azureConfig)
+			must.Eq(t, "env_azure", azureConfig.Name)
+			must.Eq(t, 10*time.Minute, azureConfig.RetryInterval)
+			must.Eq(t, "10m", azureConfig.RetryIntervalHCL)
+			must.Eq(t, 5, azureConfig.RetryAttempts)
+			must.NotNil(t, azureConfig.ExitOnFailure)
+			must.False(t, *azureConfig.ExitOnFailure)
+
+			must.NotNil(t, gceConfig)
+			must.Eq(t, "env_gce", gceConfig.Name)
+			must.Eq(t, 2*time.Minute, gceConfig.RetryInterval)
+			must.Eq(t, "2m", gceConfig.RetryIntervalHCL)
+			must.Eq(t, -1, gceConfig.RetryAttempts)
+			must.Nil(t, gceConfig.ExitOnFailure)
+
+			must.NotNil(t, doConfig)
+			must.Eq(t, "env_digitalocean", doConfig.Name)
+			must.Eq(t, 1*time.Minute, doConfig.RetryInterval)
+			must.Eq(t, "1m", doConfig.RetryIntervalHCL)
+			must.Eq(t, 0, doConfig.RetryAttempts)
+			must.Nil(t, doConfig.ExitOnFailure)
 		})
 	}
 }

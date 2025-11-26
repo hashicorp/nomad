@@ -2000,6 +2000,55 @@ func Test_mergeKEKProviderConfigs(t *testing.T) {
 	}, result)
 }
 
+func Test_mergeClientFingerprinterConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	left := []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryAttempts: 2,
+		},
+		{
+			Name:          "env_gce",
+			ExitOnFailure: pointer.Of(false),
+		},
+	}
+	right := []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryInterval: 10 * time.Second,
+		},
+		{
+			Name:          "env_gce",
+			RetryAttempts: 10,
+			RetryInterval: 10 * time.Second,
+			ExitOnFailure: pointer.Of(true),
+		},
+		{
+			Name:          "env_azure",
+			ExitOnFailure: pointer.Of(true),
+		},
+	}
+
+	must.Eq(t, []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryAttempts: 2,
+			RetryInterval: 10 * time.Second,
+		},
+		{
+			Name:          "env_gce",
+			RetryAttempts: 10,
+			RetryInterval: 10 * time.Second,
+			ExitOnFailure: pointer.Of(true),
+		},
+		{
+			Name:          "env_azure",
+			ExitOnFailure: pointer.Of(true),
+		},
+	}, mergeClientFingerprinterConfigs(left, right))
+}
+
 func TestConfig_LoadClientNodeMaxAllocs(t *testing.T) {
 	ci.Parallel(t)
 	testCases := []struct {

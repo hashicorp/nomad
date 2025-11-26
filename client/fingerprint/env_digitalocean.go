@@ -4,6 +4,7 @@
 package fingerprint
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,6 +28,10 @@ const (
 	// DigitalOceanMetadataTimeout is the timeout used when contacting the DigitalOcean metadata
 	// services.
 	DigitalOceanMetadataTimeout = 2 * time.Second
+
+	// digitalOceanFingerprinterName is the name of the Digital Ocean
+	// fingerprinter and used in configuration and logging.
+	digitalOceanFingerprinterName = "env_digitalocean"
 )
 
 type DigitalOceanMetadataPair struct {
@@ -57,11 +62,17 @@ func NewEnvDigitalOceanFingerprint(logger log.Logger) Fingerprint {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	return &EnvDigitalOceanFingerprint{
-		client:      client,
-		logger:      logger.Named("env_digitalocean"),
-		metadataURL: metadataURL,
-	}
+	namedLogger := logger.Named(digitalOceanFingerprinterName)
+
+	return NewRetryWrapper(
+		&EnvDigitalOceanFingerprint{
+			client:      client,
+			logger:      namedLogger,
+			metadataURL: metadataURL,
+		},
+		namedLogger,
+		digitalOceanFingerprinterName,
+	)
 }
 
 func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (string, error) {
@@ -108,8 +119,8 @@ func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, re
 		f.client.Timeout = 1 * time.Millisecond
 	}
 
-	if !f.isDigitalOcean() {
-		return nil
+	if err := f.digitalOceanProbe(); err != nil {
+		return wrapProbeError(err)
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -159,8 +170,14 @@ func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, re
 	return nil
 }
 
-func (f *EnvDigitalOceanFingerprint) isDigitalOcean() bool {
+func (f *EnvDigitalOceanFingerprint) digitalOceanProbe() error {
 	v, err := f.Get("region", "text")
-	v = strings.TrimSpace(v)
-	return err == nil && v != ""
+	if err != nil {
+		return err
+	}
+
+	if v = strings.TrimSpace(v); v == "" {
+		return errors.New("empty region value")
+	}
+	return nil
 }
