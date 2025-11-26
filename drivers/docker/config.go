@@ -518,7 +518,6 @@ type TaskConfig struct {
 type DockerAuth struct {
 	Username   string `codec:"username"`
 	Password   string `codec:"password"`
-	Email      string `codec:"email"`
 	ServerAddr string `codec:"server_address"`
 }
 
