@@ -2508,7 +2508,6 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6IjEyMzQifQ==",
 				Username:      "test",
 				Password:      "1234",
-				Email:         "",
 				ServerAddress: "https://index.docker.io/v1/",
 			},
 		},
@@ -2518,7 +2517,6 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6IjU2NzgifQ==",
 				Username:      "test",
 				Password:      "5678",
-				Email:         "",
 				ServerAddress: "quay.io",
 			},
 		},
@@ -2528,7 +2526,6 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6ImFiY2QifQ==",
 				Username:      "test",
 				Password:      "abcd",
-				Email:         "",
 				ServerAddress: "https://other.io/v1/",
 			},
 		},
@@ -2558,31 +2555,15 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 			Auth: DockerAuth{
 				Username:   "foo",
 				Password:   "bar",
-				Email:      "foo@bar.com",
 				ServerAddr: "www.foobar.com",
 			},
 			AuthConfig: &registry.AuthConfig{
 				Auth:          "eyJ1c2VybmFtZSI6ImZvbyIsInBhc3N3b3JkIjoiYmFyIn0=",
 				Username:      "foo",
 				Password:      "bar",
-				Email:         "foo@bar.com",
 				ServerAddress: "www.foobar.com",
 			},
 			Desc: "All fields set",
-		},
-		{
-			Auth: DockerAuth{
-				Username:   "foo",
-				Password:   "bar",
-				ServerAddr: "www.foobar.com",
-			},
-			AuthConfig: &registry.AuthConfig{
-				Auth:          "eyJ1c2VybmFtZSI6ImZvbyIsInBhc3N3b3JkIjoiYmFyIn0=",
-				Username:      "foo",
-				Password:      "bar",
-				ServerAddress: "www.foobar.com",
-			},
-			Desc: "Email not set",
 		},
 	}
 
