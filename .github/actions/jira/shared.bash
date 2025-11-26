@@ -7,7 +7,7 @@ TEXT_CLEAR='\e[0m'
 
 # Make a request to the Jira API
 function jira-request() {
-  curl --show-error --location --fail \
+  curl --show-error --location --fail-with-body \
     --user "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
     --header "Accept: application/json" \
     --header "Content-Type: application/json" \
