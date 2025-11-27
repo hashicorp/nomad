@@ -4,6 +4,8 @@
 package volumewatcher
 
 import (
+	"sync/atomic"
+
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -70,12 +72,12 @@ type MockRPCServer struct {
 
 	nextCSIUnpublishResponse *structs.CSIVolumeUnpublishResponse
 	nextCSIUnpublishError    error
-	countCSIUnpublish        int
+	countCSIUnpublish        atomic.Int32
 }
 
 func (srv *MockRPCServer) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *structs.CSIVolumeUnpublishResponse) error {
 	reply = srv.nextCSIUnpublishResponse
-	srv.countCSIUnpublish++
+	srv.countCSIUnpublish.Add(1)
 	return srv.nextCSIUnpublishError
 }
 
