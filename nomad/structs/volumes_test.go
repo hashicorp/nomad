@@ -96,6 +96,16 @@ func TestVolumeRequest_Validate(t *testing.T) {
 				Sticky:   true,
 			},
 		},
+		{
+			name: "incorrect host access mode",
+			expected: []string{
+				"host volumes cannot be mounted with invalid-access-mode access mode",
+			},
+			req: &VolumeRequest{
+				Type:       VolumeTypeHost,
+				AccessMode: "invalid-access-mode",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
