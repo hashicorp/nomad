@@ -109,7 +109,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 
 	vol, _ = srv.State().CSIVolumeByID(nil, vol.Namespace, vol.ID)
 	must.MapLen(t, 0, vol.PastClaims, must.Sprint("expected to have 0 PastClaims"))
-	must.Eq(t, srv.countCSIUnpublish, 0, must.Sprint("expected no CSI.Unpublish RPC calls"))
+	must.Eq(t, 0, srv.countCSIUnpublish.Load(), must.Sprint("expected no CSI.Unpublish RPC calls"))
 
 	// trying to test a dropped watch is racy, so to reliably simulate
 	// this condition, step-down the watcher first and then perform
@@ -165,7 +165,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 				return false
 			}
 
-			return srv.countCSIUnpublish == 1
+			return srv.countCSIUnpublish.Load() == 1
 		}),
 		wait.Timeout(2*time.Second),
 		wait.Gap(200*time.Millisecond),
