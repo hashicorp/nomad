@@ -1553,7 +1553,7 @@ func (t *SidecarTask) Copy() *SidecarTask {
 
 	nt.VolumeMounts = CopySliceVolumeMount(t.VolumeMounts)
 
-	nt.Identities = CopySliceWorkloadIdentity(t.Identities)
+	nt.Identities = helper.CopySlice(t.Identities)
 
 	return nt
 }
