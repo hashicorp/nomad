@@ -190,7 +190,7 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 			// validate that other access modes work for a given volume until we
 			// have access to other allocations (in the scheduler)
 		default:
-			addErr("host volumes cannot be mounted with %s access mode")
+			addErr("host volumes cannot be mounted with %s access mode", v.AccessMode)
 		}
 
 	case VolumeTypeCSI:
