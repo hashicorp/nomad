@@ -256,6 +256,7 @@ func (l *LoginCommand) loginOIDC(ctx context.Context, client *api.Client) (*api.
 		ClientNonce:    callbackServer.Nonce(),
 		Code:           req.Code,
 		State:          req.State,
+		Iss:            req.Iss,
 	}
 
 	token, _, err := client.ACLAuth().CompleteAuth(&cbArgs, nil)
