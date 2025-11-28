@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type StatusCommand struct {
@@ -194,7 +196,7 @@ func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Conte
 			continue
 		}
 
-		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
+		c.Ui.Error(fmt.Sprintf("\n%s:", cases.Title(language.English).String(string(ctx))))
 		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }
