@@ -443,6 +443,10 @@ type ClientConfig struct {
 
 	// LogFile is used by MonitorExport to stream a client's log file
 	LogFile string `hcl:"log_file"`
+
+	// CustomResources allows the user to define custom schedulable resources on
+	// this node
+	CustomResources structs.CustomResources `hcl:"custom_resource,block"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -466,6 +470,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Drain = c.Drain.Copy()
 	nc.Users = c.Users.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
+	nc.CustomResources = c.CustomResources.Copy()
 	return &nc
 }
 
@@ -2881,6 +2886,10 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.IntroToken != "" {
 		result.IntroToken = b.IntroToken
+	}
+
+	if b.CustomResources != nil {
+		result.CustomResources.Merge(b.CustomResources)
 	}
 
 	return &result
