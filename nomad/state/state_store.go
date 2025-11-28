@@ -374,12 +374,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		return err
 	}
 
-	// COMPAT 0.11: Remove this denormalization when NodePreemptions is removed
-	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions)
-	if err != nil {
-		return err
-	}
-
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -418,29 +412,17 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	}
 
 	numAllocs := 0
-	if len(results.Alloc) > 0 || len(results.NodePreemptions) > 0 {
-		// COMPAT 0.11: This branch will be removed, when Alloc is removed
-		// Attach the job to all the allocations. It is pulled out in the payload to
-		// avoid the redundancy of encoding, but should be denormalized prior to
-		// being inserted into MemDB.
-		addComputedAllocAttrs(results.Alloc, results.Job)
-		numAllocs = len(results.Alloc) + len(results.NodePreemptions)
-	} else {
-		// Attach the job to all the allocations. It is pulled out in the payload to
-		// avoid the redundancy of encoding, but should be denormalized prior to
-		// being inserted into MemDB.
-		addComputedAllocAttrs(results.AllocsUpdated, results.Job)
-		numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
-	}
+
+	// Attach the job to all the allocations. It is pulled out in the payload to
+	// avoid the redundancy of encoding, but should be denormalized prior to
+	// being inserted into MemDB.
+	addComputedAllocAttrs(results.AllocsUpdated, results.Job)
+	addComputedAllocAttrs(allocsStopped, results.Job)
+	numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
 
 	allocsToUpsert := make([]*structs.Allocation, 0, numAllocs)
-
-	// COMPAT 0.11: Both these appends should be removed when Alloc and NodePreemptions are removed
-	allocsToUpsert = append(allocsToUpsert, results.Alloc...)
-	allocsToUpsert = append(allocsToUpsert, results.NodePreemptions...)
-
-	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
 	allocsToUpsert = append(allocsToUpsert, results.AllocsUpdated...)
+	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
 	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
 	// handle upgrade path
@@ -7376,6 +7358,7 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			// If alloc is a stopped alloc
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
+			allocCopy.AllocStates = allocDiff.AllocStates
 			if allocDiff.ClientStatus != "" {
 				allocCopy.ClientStatus = allocDiff.ClientStatus
 			}

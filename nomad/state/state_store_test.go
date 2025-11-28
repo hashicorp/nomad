@@ -106,7 +106,6 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	test.True(t, resp.(bool))
 }
 
-// COMPAT 0.11: Uses AllocUpdateRequest.Alloc
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are created
@@ -128,11 +127,9 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
-		EvalID: eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Job:           job,
+		EvalID:        eval.ID,
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -198,11 +195,9 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			AllocsUpdated: []*structs.Allocation{alloc},
-			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
-			Job:           mJob,
-		},
+		AllocsUpdated:   []*structs.Allocation{alloc},
+		AllocsStopped:   []*structs.AllocationDiff{stoppedAllocDiff},
+		Job:             mJob,
 		EvalID:          eval.ID,
 		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
 	}
@@ -276,12 +271,10 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
+		Job:           job,
+		Deployment:    d,
+		EvalID:        eval.ID,
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -318,12 +311,10 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 
 	// Create another plan
 	res = structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{allocNew, allocNew2},
-			Job:   job,
-		},
-		Deployment: d2,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{allocNew, allocNew2},
+		Job:           job,
+		Deployment:    d2,
+		EvalID:        eval.ID,
 	}
 
 	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1001, &res)
@@ -382,12 +373,10 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
+		AllocsUpdated:   []*structs.Allocation{alloc},
+		Job:             job,
 		EvalID:          eval.ID,
-		NodePreemptions: []*structs.Allocation{minimalPreemptedAlloc},
+		AllocsPreempted: []*structs.AllocationDiff{minimalPreemptedAlloc.AllocationDiff()},
 		PreemptionEvals: []*structs.Evaluation{eval2},
 	}
 
@@ -462,10 +451,8 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
+		AllocsUpdated:     []*structs.Allocation{alloc},
+		Job:               job,
 		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 		EvalID:            eval.ID,
@@ -527,11 +514,9 @@ func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
-		EvalID: eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Job:           job,
+		EvalID:        eval.ID,
 	}
 
 	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))

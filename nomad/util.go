@@ -23,11 +23,6 @@ const (
 	deprecatedAPIMajorVersionStr = "1"
 )
 
-// MinVersionPlanNormalization is the minimum version to support the
-// normalization of Plan in SubmitPlan, and the denormalization raft log entry committed
-// in ApplyPlanResultsRequest
-var MinVersionPlanNormalization = version.Must(version.NewVersion("0.9.2"))
-
 // ensurePath is used to make sure a path exists
 func ensurePath(path string, dir bool) error {
 	if !dir {

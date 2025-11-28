@@ -505,12 +505,10 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
+		Job:           job,
+		Deployment:    d,
+		EvalID:        eval.ID,
 	}
 
 	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))

@@ -397,11 +397,9 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 
 	// Create a plan result and apply it with a later index
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
-		EvalID: eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Job:           job,
+		EvalID:        eval.ID,
 	}
 	assert := assert.New(t)
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
