@@ -1232,6 +1232,8 @@ type ACLOIDCCompleteAuthRequest struct {
 	State       string
 	Code        string
 
+	Iss string
+
 	// RedirectURI is the URL that authorization should redirect to. This is a
 	// required parameter.
 	RedirectURI string
