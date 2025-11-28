@@ -38,6 +38,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -927,7 +929,7 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Info(fmt.Sprintf(
 			"%s%s: %s",
 			strings.Repeat(" ", padding-len(k)),
-			strings.Title(k),
+			cases.Title(language.English).String(k),
 			info[k]))
 	}
 	c.Ui.Output("")
