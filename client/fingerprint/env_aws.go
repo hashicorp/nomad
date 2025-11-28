@@ -26,6 +26,10 @@ const (
 	// AwsMetadataTimeout is the timeout used when contacting the AWS metadata
 	// services.
 	AwsMetadataTimeout = 2 * time.Second
+
+	// awsFingerprinterName is the name of the AWS fingerprinter and used in
+	// configuration and logging.
+	awsFingerprinterName = "env_aws"
 )
 
 // map of instance type to approximate speed, in Mbits/s
@@ -59,12 +63,17 @@ type EnvAWSFingerprint struct {
 	logger log.Logger
 }
 
-// NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
+// NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata. It
+// wraps the fingerprinter in a retry wrapper.
 func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
-	f := &EnvAWSFingerprint{
-		logger: logger.Named("env_aws"),
-	}
-	return f
+	namedLogger := logger.Named(awsFingerprinterName)
+	return NewRetryWrapper(
+		&EnvAWSFingerprint{
+			logger: namedLogger,
+		},
+		namedLogger,
+		awsFingerprinterName,
+	)
 }
 
 func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
@@ -85,9 +94,8 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		return fmt.Errorf("failed to setup IMDS client: %v", err)
 	}
 
-	if !isAWS(ctx, imdsClient) {
-		f.logger.Debug("error querying AWS IDMS URL, skipping")
-		return nil
+	if err := awsProbe(ctx, imdsClient); err != nil {
+		return wrapProbeError(err)
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -271,20 +279,22 @@ func (f *EnvAWSFingerprint) imdsClient(ctx context.Context) (*imds.Client, error
 	return imdsClient, nil
 }
 
-func isAWS(ctx context.Context, client *imds.Client) bool {
-	resp, err := client.GetMetadata(ctx, &imds.GetMetadataInput{
-		Path: "ami-id",
-	})
+func awsProbe(ctx context.Context, client *imds.Client) error {
+	resp, err := client.GetMetadata(ctx, &imds.GetMetadataInput{Path: "ami-id"})
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to query AWS metadata: %w", err)
 	}
 
 	s, err := readMetadataResponse(resp)
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to read respose: %w", err)
 	}
 
-	return s != ""
+	if s == "" {
+		return errors.New("empty response from AWS metadata")
+	}
+
+	return nil
 }
 
 // readImdsResponse reads and formats the IMDS response
