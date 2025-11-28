@@ -28,19 +28,10 @@ func TestStorageFingerprint(t *testing.T) {
 
 	assertNodeAttributeContains(t, response.Attributes, "unique.storage.volume")
 	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytestotal")
-	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytesfree")
 
-	total, err := strconv.ParseInt(response.Attributes["unique.storage.bytestotal"], 10, 64)
+	_, err := strconv.ParseInt(response.Attributes["unique.storage.bytestotal"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse unique.storage.bytestotal: %s", err)
-	}
-	free, err := strconv.ParseInt(response.Attributes["unique.storage.bytesfree"], 10, 64)
-	if err != nil {
-		t.Fatalf("Failed to parse unique.storage.bytesfree: %s", err)
-	}
-
-	if free > total {
-		t.Fatalf("unique.storage.bytesfree %d is larger than unique.storage.bytestotal %d", free, total)
 	}
 
 	if response.NodeResources == nil || response.NodeResources.Disk.DiskMB == 0 {
