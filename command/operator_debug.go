@@ -34,6 +34,8 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type OperatorDebugCommand struct {
@@ -1853,7 +1855,7 @@ func parseTopic(input string) (string, string, error) {
 		return "", "", fmt.Errorf("Invalid key value pair for topic: %s", topic)
 	}
 
-	return strings.Title(topic), filter, nil
+	return cases.Title(language.English).String(topic), filter, nil
 }
 
 func allTopics() map[api.Topic][]string {
