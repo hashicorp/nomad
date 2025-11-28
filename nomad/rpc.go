@@ -301,8 +301,8 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 	}
 
 	// Enforce TLS if EnableRPC is set
-	if r.srv.config.TLSConfig.EnableRPC && !rpcCtx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
-		if !r.srv.config.TLSConfig.RPCUpgradeMode {
+	if r.srv.rpcTLSEnabled.Load() && !rpcCtx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
+		if !r.srv.rpcTLSUpgradeMode.Load() {
 			r.logger.Warn("non-TLS connection attempted with RequireTLS set", "remote_addr", conn.RemoteAddr())
 			conn.Close()
 			return
