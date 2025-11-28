@@ -56,7 +56,7 @@ AllocRange ==
 \*         => allocs[j][c] = 1
 
 SystemCoverage ==
-  <> (\A j \in curentJobs: \A c \in eligibleNodes:
+  <> (\A j \in currentJobs: \A c \in eligibleNodes:
         Eligible(j,c) => allocs[j][c] = 1)
 
 \* Choose the best eligible (job,client) pair.
@@ -73,79 +73,51 @@ BestPair(j,c) ==
                 /\ (j < jb \/ (j = jb /\ c <= cb)))
           )
 
-\* ---------- PlusCal algorithm (inside comment block) ----------
-(*
---algorithm MultiJobScheduler
-variables
-  eligibleNodes = Nodes;
-  currentJobs   = Jobs;
-  allocs        = [j \in Jobs |-> [n \in Nodes |-> 0]];
+\* Actual scheduling algorithm model
+vars == << eligibleNodes, currentJobs, allocs >>
 
-define
-  UsedCap(c) == \sum_{j \in currentJobs} (allocs[j][c] * Demand[j]);
-  Eligible(j,c) == (c \in eligibleNodes) /\ (j \in currentJobs)
-                    /\ ConstraintFn(j, Attrs[c])
-                    /\ (allocs[j][c] = 0)
-                    /\ (UsedCap(c) + Demand[j] <= Capacity[c]);
+Next == \/ /\ IF (\E j \in currentJobs, c \in eligibleNodes: Eligible(j,c))
+                 THEN /\ \E jb \in currentJobs:
+                           \E nb \in eligibleNodes:
+                             IF BestPair(jb,nb)
+                                THEN /\ allocs' = [allocs EXCEPT ![jb][nb] = 1]
+                                ELSE /\ TRUE
+                                     /\ UNCHANGED allocs
+                 ELSE /\ TRUE
+                      /\ UNCHANGED allocs
+           /\ UNCHANGED <<eligibleNodes, currentJobs>>
+        \/ /\ \E n \in Nodes:
+                IF n \notin eligibleNodes
+                   THEN /\ eligibleNodes' = (eligibleNodes \cup {n})
+                   ELSE /\ TRUE
+                        /\ UNCHANGED eligibleNodes
+           /\ UNCHANGED <<currentJobs, allocs>>
+        \/ /\ \E n \in eligibleNodes:
+                /\ eligibleNodes' = eligibleNodes \ {n}
+                /\ \E j \in Jobs:
+                     allocs' = [allocs EXCEPT ![j][n] = 0]
+           /\ UNCHANGED currentJobs
+        \/ /\ \E j \in Jobs:
+                IF j \notin currentJobs
+                   THEN /\ currentJobs' = (currentJobs \cup {j})
+                   ELSE /\ TRUE
+                        /\ UNCHANGED currentJobs
+           /\ UNCHANGED <<eligibleNodes, allocs>>
+        \/ /\ \E j \in currentJobs:
+                /\ currentJobs' = currentJobs \ {j}
+                /\ \E n \in Nodes:
+                     allocs' = [allocs EXCEPT ![j][n] = 0]
+           /\ UNCHANGED eligibleNodes
 
-  Score(j,c) == ScoreFn(j, Attrs[c]);
-end define;
+Spec == Init /\ [][Next]_vars
 
-begin
-MainLoop:
-  while TRUE do
-    either \* Place allocation on best eligible (job, node) pair
-      if (\E j \in currentJobs, c \in eligibleNodes: Eligible(j,c)) then
-        \* choose lexicographically smallest best pair to be deterministic in TLC
-        with jb \in currentJobs do
-          with nb \in eligibleNodes do
-            if BestPair(jb,nb) then
-              allocs[jb][nb] := 1;
-            end if;
-          end with;
-        end with;
-      end if;
-
-    or \* Client joins
-      with n \in Nodes do
-        if n \notin eligibleNodes then
-          eligibleNodes := eligibleNodes \cup {n};
-        end if;
-      end with;
-
-    or \* Client leaves (evict all allocs on that client)
-      with n \in eligibleNodes do
-        eligibleNodes := eligibleNodes \ {n};
-        \* free all allocations on that node
-        with j \in Jobs do
-          allocs[j][n] := 0;
-        end with;
-      end with;
-
-    or \* Job added
-      with j \in Jobs do
-        if j \notin currentJobs then
-          currentJobs := currentJobs \cup {j};
-        end if;
-      end with;
-
-    or \* Job removed (evict all allocations of that job)
-      with j \in currentJobs do
-        currentJobs := currentJobs \ {j};
-        with n \in Nodes do
-          allocs[j][n] := 0;
-        end with;
-      end with;
-    end either;
-  end while;
-end algorithm;
-*)
+\* END TRANSLATION
 
 \* ---------- Helpful invariants to check with TLC ----------
 Inv ==
   /\ AllocRange
   /\ CapacitySafety
-  /\ \A j \in currentJobs, c \in eligibleNodes:
+  /\ \A j \in currentJobs, n \in eligibleNodes:
        allocs[j][n] = 1 => ConstraintFn[j][Attrs[n]]
   /\ \A j \in currentJobs, n \in Nodes: allocs[j][n] = 1 => n \in eligibleNodes
 
