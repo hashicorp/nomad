@@ -2767,6 +2767,20 @@ func (a *ACL) OIDCCompleteAuth(
 		return fmt.Errorf("failed to generate OIDC provider: %v", err)
 	}
 
+	// Check if the OIDC provider requires the `iss` parameter to be
+	// validated
+	providerMetadata := struct {
+		AuthorizationResponseIssParameterSupported bool `json:"authorization_response_iss_parameter_supported"`
+	}{}
+	if err := oidcProvider.Claims(&providerMetadata); err != nil {
+		return fmt.Errorf("failed to retrieve OIDC provider metadata: %v", err)
+	}
+	if providerMetadata.AuthorizationResponseIssParameterSupported {
+		if args.Iss == "" || args.Iss != authMethod.Config.OIDCDiscoveryURL {
+			return errors.New("access denied: invalid issuer in callback")
+		}
+	}
+
 	// Retrieve the request generated in OIDCAuthURL()
 	oidcReq := a.oidcRequestCache.LoadAndDelete(args.ClientNonce) // I am so done with this NONCENSE
 	if oidcReq == nil {

@@ -4080,6 +4080,129 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	})
 }
 
+// TestACL_OIDCCompleteAuth_IssEnforcedProvider tests that when an OIDC provider
+// enforces the authorization_response_iss_parameter_supported configuration, the
+// `iss` parameter is properly validated.
+func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
+	ci.Parallel(t)
+
+	// setup the ACL server with verbose logging
+	var buf bytes.Buffer
+	testServer, _, testServerCleanupFn := TestACLServer(t, func(c *Config) {
+		c.Logger = hclog.NewInterceptLogger(&hclog.LoggerOptions{
+			Level:  hclog.Debug,
+			Output: io.MultiWriter(&buf, os.Stderr),
+		})
+	})
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// setup the test OIDC provider that requires iss parameter
+	oidcTestProvider := capOIDC.StartTestProvider(t)
+	defer oidcTestProvider.Stop()
+	oidcTestProvider.SetAllowedRedirectURIs([]string{"http://127.0.0.1:4649/oidc/callback"})
+	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
+	oidcTestProvider.SetExpectedAuthCode("codeABC")
+	oidcTestProvider.SetCustomAudience("mock")
+	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+		"azp":                            "mock",
+		"http://nomad.internal/policies": []string{"engineering"},
+		"http://nomad.internal/roles":    []string{"engineering"},
+	})
+	oidcTestProvider.SetAdditionalConfiguration(map[string]interface{}{
+		"authorization_response_iss_parameter_supported": true,
+	})
+
+	// setup the OIDC auth method with our test values
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
+	mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
+	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
+	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
+	mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
+	mockedAuthMethod.Config.DiscoveryCaPem = []string{oidcTestProvider.CACert()}
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
+		"http://nomad.internal/roles":    "roles",
+		"http://nomad.internal/policies": "policies",
+	}
+
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	// upsert and bind ACL policy and role for use in tests
+	mockACLPolicy := mock.ACLPolicy()
+	must.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{mockACLPolicy}))
+
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: mockACLPolicy.Name}}
+	must.NoError(t, testServer.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole}, true))
+
+	mockBindingRule := mock.ACLBindingRule()
+	mockBindingRule.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule.BindType = structs.ACLBindingRuleBindTypePolicy
+	mockBindingRule.Selector = "engineering in list.policies"
+	mockBindingRule.BindName = mockACLPolicy.Name
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		40, []*structs.ACLBindingRule{mockBindingRule}, true))
+
+	// test a missing iss parameter
+	missingIssReq := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, missingIssReq)
+
+	var missingIssResp structs.ACLLoginResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &missingIssReq, &missingIssResp)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "access denied: invalid issuer")
+
+	// test an incorrect iss parameter
+	incorrectIssReq := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		Iss:            "incorrect-issuer",
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, incorrectIssReq)
+
+	var incorrectIssResp structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &incorrectIssReq, &incorrectIssResp)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "access denied: invalid issuer")
+
+	// test a valid iss parameter
+	req := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		Iss:            oidcTestProvider.Addr(),
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, req)
+
+	var resp structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &req, &resp)
+	must.NoError(t, err)
+	must.NotNil(t, resp.ACLToken)
+	must.Eq(t, structs.ACLClientToken, resp.ACLToken.Type)
+}
+
 // mockSerializer implements the capOIDC.JWTSerializer interface,
 // which is used to provide a client assertion JWT.
 type mockSerializer struct {
