@@ -165,6 +165,31 @@ func (s *Sandbox) runCmd(env *parameters) error {
 	// find the nomad process
 	bin := subproc.Self()
 
+	// if the artifact is to be inspected, fetch it to a temporary
+	// location so inspection can be performed before moving it
+	// to its final destination
+	var finalDest string
+	if !env.DisableArtifactInspection && (env.DisableFilesystemIsolation || !lockdownAvailable()) {
+		finalDest = env.Destination
+		tmpDir, err := os.MkdirTemp(env.AllocDir, "artifact-")
+		if err != nil {
+			return err
+		}
+
+		// NOTE: use a destination path that does not actually
+		// exist to prevent unexpected errors with go-getter
+		env.Destination = filepath.Join(tmpDir, "artifact")
+
+		s.logger.Debug("artifact download destination modified for inspection",
+			"temporary", env.Destination, "final", finalDest)
+		// before leaving, set the destination back to the
+		// original value and cleanup
+		defer func() {
+			env.Destination = finalDest
+			os.RemoveAll(tmpDir)
+		}()
+	}
+
 	// final method of ensuring subprocess termination
 	ctx, cancel := subproc.Context(env.deadline())
 	defer cancel()
@@ -189,44 +214,96 @@ func (s *Sandbox) runCmd(env *parameters) error {
 	}
 	subproc.Log(output, s.logger.Debug)
 
-	// if filesystem isolation was not disabled and lockdown
-	// is available on this platform, do not continue to inspection
-	if !env.DisableFilesystemIsolation && lockdownAvailable() {
+	// if the artifact was not downloaded to a temporary
+	// location, no inspection is needed
+	if finalDest == "" {
 		return nil
 	}
 
-	// if artifact inspection is disabled, do not continue to inspection
-	if env.DisableArtifactInspection {
-		return nil
-	}
-
-	// inspect the writable directories. start with inspecting the
-	// alloc directory
-	allocInspector, err := genWalkInspector(env.AllocDir)
+	// inspect the downloaded artifact
+	artifactInspector, err := genWalkInspector(env.Destination)
 	if err != nil {
 		return err
 	}
 
-	if err := filepath.WalkDir(env.AllocDir, allocInspector); err != nil {
+	if err := filepath.WalkDir(env.Destination, artifactInspector); err != nil {
 		return err
 	}
 
-	// the task directory is within the alloc directory. however, if
-	// that ever changes for some reason, make sure it is checked as well
-	isWithin, err := isPathWithin(env.AllocDir, env.TaskDir)
+	// ensure the final destination path exists
+	if err := os.MkdirAll(finalDest, 0755); err != nil {
+		return err
+	}
+
+	// the artifact contents will have the owner set correctly
+	// but the destination directory will not, so set that now
+	// if it was configured
+	if env.Chown {
+		if err := chownDestination(finalDest, env.User); err != nil {
+			return err
+		}
+	}
+
+	if err := mergeDirectories(env.Destination, finalDest); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// mergeDirectories will merge the contents of the srcDir into
+// the dstDir. This is a destructive action; the contents of
+// srcDir are moved into dstDir.
+func mergeDirectories(srcDir, dstDir string) error {
+	entries, err := os.ReadDir(srcDir)
 	if err != nil {
 		return err
 	}
 
-	if !isWithin {
-		taskInspector, err := genWalkInspector(env.TaskDir)
+	for _, entry := range entries {
+		src := filepath.Join(srcDir, entry.Name())
+		dst := filepath.Join(dstDir, entry.Name())
+
+		srcInfo, err := os.Stat(src)
 		if err != nil {
 			return err
 		}
 
-		if err := filepath.WalkDir(env.TaskDir, taskInspector); err != nil {
+		dstInfo, err := os.Stat(dst)
+		if err != nil {
+			// if the destination does not exist, the source
+			// can be moved directly
+			if errors.Is(err, os.ErrNotExist) {
+				if err := os.Rename(src, dst); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			return err
 		}
+
+		// if both the source and destination are directories
+		// merge the source into the destination
+		if srcInfo.IsDir() && dstInfo.IsDir() {
+			if err := mergeDirectories(src, dst); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		// remove the destination and move the source
+		if err := os.RemoveAll(dst); err != nil {
+			return err
+		}
+
+		if err := os.Rename(src, dst); err != nil {
+			return err
+		}
+
 	}
 
 	return nil
