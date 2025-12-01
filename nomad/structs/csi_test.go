@@ -1093,6 +1093,30 @@ func TestTaskCSIPluginConfig_Equal(t *testing.T) {
 	}})
 }
 
+func TestCSIVolumeSanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	orig := &CSIVolume{
+		ID: "foo",
+		MountOptions: &CSIMountOptions{
+			FSType:     "ext4",
+			MountFlags: []string{"ro", "noatime"},
+		},
+		Secrets: CSISecrets{
+			"foo": "bar",
+			"baz": "qux",
+		},
+		Parameters: map[string]string{"example": "unchanged"},
+	}
+
+	sanitized := orig.Sanitize()
+	must.Eq(t, []string{"[REDACTED]"}, sanitized.MountOptions.MountFlags)
+	must.Nil(t, sanitized.Secrets)
+
+	orig.Parameters["example"] = "different"
+	must.Eq(t, "unchanged", sanitized.Parameters["example"])
+}
+
 func TestCSISecretsSanitize(t *testing.T) {
 	ci.Parallel(t)
 
