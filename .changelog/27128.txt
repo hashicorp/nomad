@@ -1,0 +1,3 @@
+```release-note:improvement
+qemu: Adds config parameters to modify qemu emulator binary and machine types. Defaults to previously used values for backwards compatability.
+```
