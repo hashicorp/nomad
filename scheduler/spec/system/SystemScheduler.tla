@@ -1,17 +1,15 @@
-------------------------- MODULE SystemScheduler -------------------------
+---- MODULE SystemScheduler ----
 EXTENDS Naturals, Sequences, FiniteSets, TLC
 
-\* ---------- Constants (to be set in TLC) ----------
 CONSTANT
   Nodes,        \* finite set of nodes
   Jobs,         \* finite set of job identifiers
   Attrs,        \* Attrs is a function Nodes -> attribute record (abstract)
   Capacity,     \* Capacity is a function Nodes -> Nat
   Demand,       \* Demand is a function Jobs -> Nat
-  ConstraintFn, \* ConstraintFn(job, attr) -> BOOLEAN
+  ConstraintFn, \* ConstraintFn(attr) -> BOOLEAN
   ScoreFn       \* ScoreFn(job, attr) -> Nat
 
-\* ---------- Helper sets ----------
 NodeSet == Nodes
 JobSet  == Jobs
 
@@ -37,7 +35,7 @@ UsedCap(c) == Sum({ allocs[j][c] * Demand[j] : j \in currentJobs })
 Eligible(j,n) ==
   /\ n \in eligibleNodes
   /\ j \in currentJobs
-  /\ ConstraintFn[j][Attrs[n]]
+  /\ ConstraintFn[Attrs[n]]
   /\ allocs[j][n] = 0
   /\ UsedCap(n) + Demand[j] <= Capacity[n]
 
@@ -118,7 +116,7 @@ Inv ==
   /\ AllocRange
   /\ CapacitySafety
   /\ \A j \in currentJobs, n \in eligibleNodes:
-       allocs[j][n] = 1 => ConstraintFn[j][Attrs[n]]
+       allocs[j][n] = 1 => ConstraintFn[Attrs[n]]
   /\ \A j \in currentJobs, n \in Nodes: allocs[j][n] = 1 => n \in eligibleNodes
 
-=============================================================================
+====
