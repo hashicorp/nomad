@@ -304,6 +304,7 @@ test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> with packages $(GOTEST_PKGS)"
 	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
 		-cover \
+		-race \
 		-timeout=25m \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
@@ -314,6 +315,7 @@ test-nomad-module: dev ## Run Nomad unit tests on sub-module
 	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
 	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
 		-cover \
+		-race \
 		-timeout=25m \
 		-count=1 \
 		-race \
@@ -459,6 +461,7 @@ test: ## Use this target as a smoke test
 	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
 	@echo "==> with packages: $(GOTEST_PKGS)"
 	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
+	    -race \
 		-cover \
 		-timeout=25m \
 		-count=1 \
