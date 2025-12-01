@@ -27,8 +27,8 @@ const (
 	// services.
 	AwsMetadataTimeout = 2 * time.Second
 
-	// awsFingerprinterName is the name of the AWS fingerprinter and used in
-	// configuration and logging.
+	// awsFingerprinterName is the name of the AWS fingerprinter and is used
+	// in configuration and logging.
 	awsFingerprinterName = "env_aws"
 )
 

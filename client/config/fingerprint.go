@@ -28,7 +28,7 @@ type Fingerprint struct {
 	// relates to. It is gathered from the HCL block label.
 	Name string `hcl:",key"`
 
-	// RetryInterval is the specifies the time to wait between fingerprint
+	// RetryInterval specifies the time to wait between fingerprint
 	// attempts.
 	RetryInterval    time.Duration
 	RetryIntervalHCL string `hcl:"retry_interval,optional"`
