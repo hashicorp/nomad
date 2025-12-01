@@ -566,6 +566,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, errors.New("KVM accelerator is unsupported on the current platform")
 		}
 
+		args = append(args, "-enable-kvm")
+
 		// If the user has not set the -smp flag, default to resources.cores
 		if !slices.Contains(args, "-smp") && cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
 			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
