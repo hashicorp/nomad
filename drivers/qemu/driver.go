@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -563,6 +564,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if accelerator == "kvm" {
 		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
 			return nil, nil, errors.New("KVM accelerator is unsupported on the current platform")
+		}
+
+		// If the user has not set the -smp flag, default to resources.cores
+		if !slices.Contains(args, "-smp") && cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
+			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
+			args = append(args,
+				"-smp", fmt.Sprintf("%d", len(cores)),
+			)
 		}
 	}
 	d.logger.Debug("starting QEMU VM command ", "args", strings.Join(args, " "))
