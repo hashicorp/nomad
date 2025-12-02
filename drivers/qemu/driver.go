@@ -354,6 +354,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+// findEmulators searches the $PATH for qemu-system binaries until they are found
+// and returns a slice of emulators that comply with the emulators allowlist.
 func findEmulators(allowList []string) []string {
 	var (
 		glob      string = "qemu-system-*"
@@ -380,12 +382,7 @@ func findEmulators(allowList []string) []string {
 
 	for _, f := range bins {
 		em := strings.TrimPrefix(filepath.Base(f), "qemu-system-")
-
-		if len(allowList) > 0 {
-			if slices.Contains(allowList, em) {
-				emulators = append(emulators, em)
-			}
-		} else {
+		if err := validateEmulator(em, allowList); err == nil {
 			emulators = append(emulators, em)
 		}
 	}
@@ -431,6 +428,7 @@ func isAllowedDriveInterface(driveInterface string) bool {
 	return false
 }
 
+// validateEmulator validate whether the specified emulator is in allowedEmulators
 func validateEmulator(emulator string, allowedEmulators []string) error {
 	if len(allowedEmulators) > 0 {
 		if !slices.Contains(allowedEmulators, emulator) {
