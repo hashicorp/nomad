@@ -112,7 +112,7 @@ func JavaCompatible(t *testing.T) {
 	}
 }
 
-// QemuCompatible skips tests unless:
+// QemuCompatible_x86_64 skips tests unless:
 // - "qemu-system-x86_64" executable is detected on $PATH
 func QemuCompatible_x86_64(t *testing.T) {
 	// Check if qemu exists
@@ -123,7 +123,7 @@ func QemuCompatible_x86_64(t *testing.T) {
 	}
 }
 
-// QemuCompatible skips tests unless:
+// QemuCompatible_aarch64 skips tests unless:
 // - "qemu-system-aarch64" executable is detected on $PATH
 func QemuCompatible_aarch64(t *testing.T) {
 	// Check if qemu exists
