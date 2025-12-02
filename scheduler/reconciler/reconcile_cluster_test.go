@@ -1828,25 +1828,26 @@ func TestReconciler_RemovedTG(t *testing.T) {
 func TestReconciler_JobStopped(t *testing.T) {
 	ci.Parallel(t)
 
-	job := mock.Job()
+	job := mock.MultiTaskGroupJob()
 	job.Stop = true
 
 	cases := []struct {
-		name             string
-		job              *structs.Job
-		jobID, taskGroup string
+		name       string
+		job        *structs.Job
+		jobID      string
+		taskGroups []string
 	}{
 		{
-			name:      "stopped job",
-			job:       job,
-			jobID:     job.ID,
-			taskGroup: job.TaskGroups[0].Name,
+			name:       "stopped job",
+			job:        job,
+			jobID:      job.ID,
+			taskGroups: []string{job.TaskGroups[0].Name, job.TaskGroups[1].Name},
 		},
 		{
-			name:      "nil job",
-			job:       nil,
-			jobID:     "foo",
-			taskGroup: "bar",
+			name:       "nil job",
+			job:        nil,
+			jobID:      "foo",
+			taskGroups: []string{"bar"},
 		},
 	}
 
@@ -1854,14 +1855,19 @@ func TestReconciler_JobStopped(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			// Create 10 allocations
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
-				alloc := mock.Alloc()
-				alloc.Job = c.job
-				alloc.JobID = c.jobID
-				alloc.NodeID = uuid.Generate()
-				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
-				alloc.TaskGroup = c.taskGroup
-				allocs = append(allocs, alloc)
+			var count int
+			for _, tg := range c.taskGroups {
+				for _ = range 5 {
+					alloc := mock.Alloc()
+					alloc.Job = c.job
+					alloc.JobID = c.jobID
+					alloc.NodeID = uuid.Generate()
+					alloc.Name = structs.AllocName(c.jobID, tg, uint(count))
+					alloc.TaskGroup = tg
+					allocs = append(allocs, alloc)
+
+					count++
+				}
 			}
 
 			reconciler := NewAllocReconciler(
@@ -1879,21 +1885,24 @@ func TestReconciler_JobStopped(t *testing.T) {
 				})
 			r := reconciler.Compute()
 
-			// Assert the correct results
-			assertResults(t, r, &resultExpectation{
+			resExp := &resultExpectation{
 				createDeployment:  nil,
 				deploymentUpdates: nil,
 				place:             0,
 				inplace:           0,
-				stop:              10,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					c.taskGroup: {
-						Stop: 10,
-					},
-				},
-			})
+				stop:              len(allocs),
+				desiredTGUpdates:  make(map[string]*structs.DesiredUpdates),
+			}
+			for _, tg := range c.taskGroups {
+				resExp.desiredTGUpdates[tg] = &structs.DesiredUpdates{
+					Stop: 5,
+				}
+			}
 
-			assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.Stop))
+			// Assert the correct results
+			assertResults(t, r, resExp)
+
+			assertNamesHaveIndexes(t, intRange(0, len(allocs)-1), stopResultsToNames(r.Stop))
 		})
 	}
 }
