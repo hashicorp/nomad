@@ -255,7 +255,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 			ok, _ := finger.Attributes["driver.qemu"].GetBool()
 			must.True(t, ok)
 
-			emulators, _ := finger.Attributes[driverEmulatorAttr].GetString()
+			emulators, _ := finger.Attributes[driverEmulatorsAttr].GetString()
 			// Don't want to hardcode the exact amount of emulators installed by qemu-system
 			// but it's definitely more than 5
 			must.True(t, len(strings.Split(emulators, ",")) > 5)
@@ -291,7 +291,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 			ok, _ := finger.Attributes[driverAttr].GetBool()
 			must.True(t, ok)
 
-			emulators, _ := finger.Attributes[driverEmulatorAttr].GetString()
+			emulators, _ := finger.Attributes[driverEmulatorsAttr].GetString()
 			must.SliceContainsAll(t, allowedEms, strings.Split(emulators, ","))
 		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 			t.Fatal("timeout receiving fingerprint")
