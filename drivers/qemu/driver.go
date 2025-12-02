@@ -83,8 +83,10 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"image_paths":    hclspec.NewAttr("image_paths", "list(string)", false),
-		"args_allowlist": hclspec.NewAttr("args_allowlist", "list(string)", false),
+		"image_paths":          hclspec.NewAttr("image_paths", "list(string)", false),
+		"args_allowlist":       hclspec.NewAttr("args_allowlist", "list(string)", false),
+		"emulator_allowlist":   hclspec.NewAttr("emulator_allowlist", "list(string)", false),
+		"fingerprint_emulator": hclspec.NewAttr("fingerprint_emulator", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -149,6 +151,11 @@ type Config struct {
 	// include in arguments to qemu, so that cluster operators can can
 	// prevent access to devices
 	ArgsAllowList []string `codec:"args_allowlist"`
+
+	// EmulatorAllowList is an allow-list of emulator binaries the
+	// jobspec and FingerprintEmulator can use, so that cluster
+	// operators can control which emulators job authors can use.
+	EmulatorAllowList []string `codec:"emulator_allowlist"`
 
 	// FingerprintEmulator specifies which QEMU binary is used
 	// for fingerprinting
@@ -251,6 +258,13 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if d.config.FingerprintEmulator != "" {
 		fpEmulator = d.config.FingerprintEmulator
 	}
+
+	if err := validateEmulator(fpEmulator, d.config.EmulatorAllowList); err != nil {
+		fingerprint.Health = drivers.HealthStateUndetected
+		fingerprint.HealthDescription = fmt.Sprintf("Fingerprint emulator is invalid: %v", err)
+		return fingerprint
+	}
+
 	outBytes, err := exec.Command(fpEmulator, "--version").Output()
 	if err != nil {
 		// return no error, as it isn't an error to not find qemu, it just means we
@@ -382,6 +396,23 @@ func isAllowedDriveInterface(driveInterface string) bool {
 	return false
 }
 
+func validateEmulator(emulator string, allowedEmulators []string) error {
+	if len(allowedEmulators) > 0 {
+		if !slices.Contains(allowedEmulators, emulator) {
+			return fmt.Errorf("emulator '%s' is not an allowed emulator", emulator)
+		}
+	} else {
+		match, err := regexp.MatchString("qemu-system-*", emulator)
+		if err != nil {
+			return err
+		}
+		if !match {
+			return fmt.Errorf("emulator '%s' is not valid", emulator)
+		}
+	}
+	return nil
+}
+
 // validateArgs ensures that all QEMU command line params are in the
 // allowlist. This function must be called after all interpolation has
 // taken place.
@@ -418,6 +449,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
+
+	if err := validateEmulator(driverConfig.Emulator, d.config.EmulatorAllowList); err != nil {
+		return nil, nil, err
+	}
 
 	if err := validateArgs(d.config.ArgsAllowList, driverConfig.Args); err != nil {
 		return nil, nil, err

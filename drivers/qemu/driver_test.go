@@ -5,6 +5,7 @@ package qemu
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -287,6 +288,46 @@ config {
 	var tc *TaskConfig
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 	must.Eq(t, expected, tc)
+}
+
+func TestValidateEmulator(t *testing.T) {
+	testcases := []struct {
+		name              string
+		validEmulators    []string
+		requestedEmulator string
+		exp               error
+	}{
+		{
+			name:              "empty valid emulators, valid request",
+			validEmulators:    nil,
+			requestedEmulator: "qemu-system-x86_64",
+			exp:               nil,
+		},
+		{
+			name:              "empty valid emulators, invalid request",
+			validEmulators:    nil,
+			requestedEmulator: "some-binary",
+			exp:               errors.New("emulator 'some-binary' is not valid"),
+		},
+		{
+			name:              "non-empty valid emulators, valid request",
+			validEmulators:    []string{"qemu-system-x86_64"},
+			requestedEmulator: "qemu-system-x86_64",
+			exp:               nil,
+		},
+		{
+			name:              "non-empty valid emulators, invalid request",
+			validEmulators:    []string{"qemu-system-x86_64"},
+			requestedEmulator: "qemu-system-aarch64",
+			exp:               errors.New("emulator 'qemu-system-aarch64' is not an allowed emulator"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, validateEmulator(tc.requestedEmulator, tc.validEmulators), tc.exp)
+		})
+	}
 }
 
 func TestIsAllowedDriveInterface(t *testing.T) {
