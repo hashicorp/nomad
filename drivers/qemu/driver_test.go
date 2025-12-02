@@ -360,7 +360,12 @@ func TestValidateEmulator(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			must.Eq(t, validateEmulator(tc.requestedEmulator, tc.validEmulators), tc.exp)
+			err := validateEmulator(tc.requestedEmulator, tc.validEmulators)
+			if tc.exp != nil {
+				must.ErrorContains(t, err, tc.exp.Error())
+			} else {
+				must.NoError(t, err)
+			}
 		})
 	}
 }
