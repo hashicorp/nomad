@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -239,22 +240,63 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 
 	ctestutil.QemuCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Run("fingerpints all emulators", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	d := NewQemuDriver(ctx, testlog.HCLogger(t))
-	harness := dtestutil.NewDriverHarness(t, d)
+		d := NewQemuDriver(ctx, testlog.HCLogger(t))
+		harness := dtestutil.NewDriverHarness(t, d)
 
-	fingerCh, err := harness.Fingerprint(context.Background())
-	must.NoError(t, err)
-	select {
-	case finger := <-fingerCh:
-		must.Eq(t, drivers.HealthStateHealthy, finger.Health)
-		ok, _ := finger.Attributes["driver.qemu"].GetBool()
-		must.True(t, ok)
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		t.Fatal("timeout receiving fingerprint")
-	}
+		fingerCh, err := harness.Fingerprint(context.Background())
+		must.NoError(t, err)
+		select {
+		case finger := <-fingerCh:
+			must.Eq(t, drivers.HealthStateHealthy, finger.Health)
+			ok, _ := finger.Attributes["driver.qemu"].GetBool()
+			must.True(t, ok)
+
+			emulators, _ := finger.Attributes[driverEmulatorAttr].GetString()
+			// Don't want to hardcode the exact amount of emulators installed by qemu-system
+			// but it's definitely more than 5
+			must.True(t, len(strings.Split(emulators, ",")) > 5)
+		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+			t.Fatal("timeout receiving fingerprint")
+		}
+	})
+
+	t.Run("fingerprints only allowed emulators", func(t *testing.T) {
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		allowedEms := []string{"x86_64", "aarch64"}
+		d := NewQemuDriver(ctx, testlog.HCLogger(t))
+		config := &Config{
+			EmulatorsAllowList: allowedEms,
+		}
+
+		var data []byte
+		must.NoError(t, base.MsgPackEncode(&data, config))
+		baseConfig := &base.Config{
+			PluginConfig: data,
+		}
+		harness := dtestutil.NewDriverHarness(t, d)
+		harness.SetConfig(baseConfig)
+
+		fingerCh, err := harness.Fingerprint(context.Background())
+		must.NoError(t, err)
+		select {
+		case finger := <-fingerCh:
+			must.Eq(t, drivers.HealthStateHealthy, finger.Health)
+			ok, _ := finger.Attributes[driverAttr].GetBool()
+			must.True(t, ok)
+
+			emulators, _ := finger.Attributes[driverEmulatorAttr].GetString()
+			must.SliceContainsAll(t, allowedEms, strings.Split(emulators, ","))
+		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+			t.Fatal("timeout receiving fingerprint")
+		}
+	})
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
