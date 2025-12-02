@@ -2777,7 +2777,7 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 	if providerMetadata.AuthorizationResponseIssParameterSupported {
 		if args.Iss == "" || args.Iss != authMethod.Config.OIDCDiscoveryURL {
-			return errors.New("access denied: invalid issuer in callback")
+			return errors.New("invalid or missing issuer parameter in callback")
 		}
 	}
 

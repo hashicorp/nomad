@@ -4163,7 +4163,7 @@ func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
 	var missingIssResp structs.ACLLoginResponse
 	err := msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &missingIssReq, &missingIssResp)
 	must.Error(t, err)
-	must.ErrorContains(t, err, "access denied: invalid issuer")
+	must.ErrorContains(t, err, "invalid or missing issuer parameter")
 
 	// test an incorrect iss parameter
 	incorrectIssReq := structs.ACLOIDCCompleteAuthRequest{
@@ -4181,7 +4181,7 @@ func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
 	var incorrectIssResp structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &incorrectIssReq, &incorrectIssResp)
 	must.Error(t, err)
-	must.ErrorContains(t, err, "access denied: invalid issuer")
+	must.ErrorContains(t, err, "invalid or missing issuer parameter")
 
 	// test a valid iss parameter
 	req := structs.ACLOIDCCompleteAuthRequest{
