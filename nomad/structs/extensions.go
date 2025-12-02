@@ -69,7 +69,7 @@ func nodeExt(v interface{}) interface{} {
 }
 
 func csiVolumeExt(v interface{}) interface{} {
-	vol := v.(*CSIVolume)
+	vol := v.(*CSIVolume).Sanitize()
 	type EmbeddedCSIVolume CSIVolume
 
 	allocCount := len(vol.ReadAllocs) + len(vol.WriteAllocs)
@@ -99,16 +99,6 @@ func csiVolumeExt(v interface{}) interface{} {
 			apiVol.Allocations = append(apiVol.Allocations, a.Stub(nil))
 		}
 	}
-
-	// MountFlags can contain secrets, so we always redact it but want
-	// to show the user that we have the value
-	if vol.MountOptions != nil && len(vol.MountOptions.MountFlags) > 0 {
-		apiVol.MountOptions.MountFlags = []string{"[REDACTED]"}
-	}
-
-	// would be better not to have at all but left in and redacted for
-	// backwards compatibility with the existing API
-	apiVol.Secrets = nil
 
 	return apiVol
 }
