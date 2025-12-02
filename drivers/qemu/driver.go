@@ -434,7 +434,7 @@ func isAllowedDriveInterface(driveInterface string) bool {
 func validateEmulator(emulator string, allowedEmulators []string) error {
 	if len(allowedEmulators) > 0 {
 		if !slices.Contains(allowedEmulators, emulator) {
-			return fmt.Errorf("emulator '%s' is not an allowed emulator", emulator)
+			return fmt.Errorf("'%s' is not an allowed emulator", emulator)
 		}
 	}
 	return nil

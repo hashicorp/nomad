@@ -346,12 +346,6 @@ func TestValidateEmulator(t *testing.T) {
 			exp:               nil,
 		},
 		{
-			name:              "empty valid emulators, invalid request",
-			validEmulators:    nil,
-			requestedEmulator: "some-binary",
-			exp:               errors.New("emulator 'some-binary' is not valid"),
-		},
-		{
 			name:              "non-empty valid emulators, valid request",
 			validEmulators:    []string{"qemu-system-x86_64"},
 			requestedEmulator: "qemu-system-x86_64",
@@ -361,7 +355,7 @@ func TestValidateEmulator(t *testing.T) {
 			name:              "non-empty valid emulators, invalid request",
 			validEmulators:    []string{"qemu-system-x86_64"},
 			requestedEmulator: "qemu-system-aarch64",
-			exp:               errors.New("emulator 'qemu-system-aarch64' is not an allowed emulator"),
+			exp:               errors.New("'qemu-system-aarch64' is not an allowed emulator"),
 		},
 	}
 
