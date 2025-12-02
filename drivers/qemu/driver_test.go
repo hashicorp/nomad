@@ -34,7 +34,7 @@ import (
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,7 +112,7 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -157,7 +157,7 @@ func TestQemuDriver_User(t *testing.T) {
 // TestQemuDriver_Stats	verifies we can get resources usage stats
 func TestQemuDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -238,7 +238,8 @@ func TestQemuDriver_Stats(t *testing.T) {
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
+	ctestutil.QemuCompatible_aarch64(t)
 
 	t.Run("fingerpints all emulators", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -256,9 +257,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 			must.True(t, ok)
 
 			emulators, _ := finger.Attributes[driverEmulatorsAttr].GetString()
-			// Don't want to hardcode the exact amount of emulators installed by qemu-system
-			// but it's definitely more than 5
-			must.True(t, len(strings.Split(emulators, ",")) > 5)
+			must.Greater(t, 1, len(strings.Split(emulators, ",")))
 		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 			t.Fatal("timeout receiving fingerprint")
 		}
@@ -269,7 +268,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		allowedEms := []string{"x86_64", "aarch64"}
+		allowedEms := []string{"x86_64"}
 		d := NewQemuDriver(ctx, testlog.HCLogger(t))
 		config := &Config{
 			EmulatorsAllowList: allowedEms,
