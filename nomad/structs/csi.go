@@ -578,6 +578,27 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	return out
 }
 
+// Sanitize returns a deep copy of the volume, with sensitive fields redacted
+func (v *CSIVolume) Sanitize() *CSIVolume {
+	if v == nil {
+		return nil
+	}
+
+	clean := v.Copy()
+
+	// would be better not to have at all but left in and redacted for backwards
+	// compatibility with the existing API
+	clean.Secrets = nil
+
+	// MountFlags can contain secrets, so we always redact it but want to show
+	// the user that we have the value
+	if v.MountOptions != nil {
+		clean.MountOptions = clean.MountOptions.Sanitize()
+	}
+
+	return clean
+}
+
 // Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
 	// COMPAT: volumes registered prior to 1.1.0 will be missing caps for the
