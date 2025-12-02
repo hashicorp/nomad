@@ -4,7 +4,6 @@
 package docklog
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	ctu "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -85,8 +85,8 @@ func TestDockerLogger_Success(t *testing.T) {
 		must.NoError(t, err)
 	})
 
-	stdout := &noopCloser{bytes.NewBuffer(nil)}
-	stderr := &noopCloser{bytes.NewBuffer(nil)}
+	stdout := &noopCloser{&executor.SafeBuffer{}}
+	stderr := &noopCloser{&executor.SafeBuffer{}}
 
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
@@ -155,8 +155,8 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 		must.NoError(t, err)
 	})
 
-	stdout := &noopCloser{bytes.NewBuffer(nil)}
-	stderr := &noopCloser{bytes.NewBuffer(nil)}
+	stdout := &noopCloser{&executor.SafeBuffer{}}
+	stderr := &noopCloser{&executor.SafeBuffer{}}
 
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
@@ -246,8 +246,8 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 		must.NoError(t, err)
 	})
 
-	stdout := &noopCloser{bytes.NewBuffer(nil)}
-	stderr := &noopCloser{bytes.NewBuffer(nil)}
+	stdout := &noopCloser{&executor.SafeBuffer{}}
+	stderr := &noopCloser{&executor.SafeBuffer{}}
 
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
@@ -264,7 +264,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 }
 
 type noopCloser struct {
-	*bytes.Buffer
+	*executor.SafeBuffer
 }
 
 func (*noopCloser) Close() error {

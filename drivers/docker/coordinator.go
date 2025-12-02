@@ -43,15 +43,15 @@ func newPullFuture() *pullFuture {
 	}
 }
 
-// wait waits till the future has a result or the context is canceled
-func (p *pullFuture) wait(ctx context.Context) *pullFuture {
+// wait waits till the future has a result or the context is canceled.
+// Returns an error if the context is canceled before the result is ready.
+func (p *pullFuture) wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		p.err = fmt.Errorf("wait aborted: %w", ctx.Err())
+		return ctx.Err()
 	case <-p.waitCh:
-		// all good
+		return nil
 	}
-	return p
 }
 
 // result returns the results of the future and should only ever be called after
@@ -166,7 +166,15 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *registry.AuthCo
 	d.imageLock.Unlock()
 
 	// passing driver context here to stop waiting at driver shutdown
-	id, user, err := future.wait(d.ctx).result()
+	if waitErr := future.wait(d.ctx); waitErr != nil {
+		// Context was canceled, clean up and return error
+		d.imageLock.Lock()
+		delete(d.pullFutures, image)
+		d.imageLock.Unlock()
+		return "", "", fmt.Errorf("wait aborted: %w", waitErr)
+	}
+
+	id, user, err := future.result()
 
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()

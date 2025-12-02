@@ -4,10 +4,13 @@
 package executor
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
@@ -155,4 +158,29 @@ func IsolationMode(plugin, task string) string {
 		return task
 	}
 	return plugin
+}
+
+// SafeBuffer wraps bytes.Buffer with a mutex for thread-safe concurrent access
+// that is used for testing.
+type SafeBuffer struct {
+	mu  sync.RWMutex
+	buf bytes.Buffer
+}
+
+func (sb *SafeBuffer) Write(p []byte) (n int, err error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.buf.Write(p)
+}
+
+func (sb *SafeBuffer) String() string {
+	sb.mu.RLock()
+	defer sb.mu.RUnlock()
+	return sb.buf.String()
+}
+
+func (sb *SafeBuffer) ReadFrom(r io.Reader) (n int64, err error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.buf.ReadFrom(r)
 }

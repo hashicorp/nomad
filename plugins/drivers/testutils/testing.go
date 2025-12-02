@@ -69,10 +69,7 @@ func NewDriverHarness(t *testing.T, d drivers.DriverPlugin) *DriverHarness {
 	}
 }
 
-func (h *DriverHarness) Kill() {
-	_ = h.client.Close()
-	h.server.Stop()
-}
+func (h *DriverHarness) Kill() { _ = h.client.Close() }
 
 // MkAllocDir creates a temporary directory and allocdir structure.
 // If enableLogs is set to true a logmon instance will be started to write logs

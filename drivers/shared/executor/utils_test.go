@@ -4,7 +4,6 @@
 package executor
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"sync"
@@ -39,8 +38,8 @@ type testExecCmd struct {
 	command  *ExecCommand
 	allocDir *allocdir.AllocDir
 
-	stdout         *bytes.Buffer
-	stderr         *bytes.Buffer
+	stdout         *SafeBuffer
+	stderr         *SafeBuffer
 	outputCopyDone *sync.WaitGroup
 }
 
@@ -49,7 +48,8 @@ type testExecCmd struct {
 // with files as Std{out|err} the buffers can be used to read command output
 func configureTLogging(t *testing.T, testcmd *testExecCmd) {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
+	stdout := &SafeBuffer{}
+	stderr := &SafeBuffer{}
 	var copyDone sync.WaitGroup
 
 	stdoutPr, stdoutPw, err := os.Pipe()
@@ -61,15 +61,15 @@ func configureTLogging(t *testing.T, testcmd *testExecCmd) {
 	copyDone.Add(2)
 	go func() {
 		defer copyDone.Done()
-		io.Copy(&stdout, stdoutPr)
+		io.Copy(stdout, stdoutPr)
 	}()
 	go func() {
 		defer copyDone.Done()
-		io.Copy(&stderr, stderrPr)
+		io.Copy(stderr, stderrPr)
 	}()
 
-	testcmd.stdout = &stdout
-	testcmd.stderr = &stderr
+	testcmd.stdout = stdout
+	testcmd.stderr = stderr
 	testcmd.outputCopyDone = &copyDone
 
 	testcmd.command.stdout = stdoutPw

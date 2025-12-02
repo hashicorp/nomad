@@ -67,6 +67,28 @@ func (m *mockImageClient) ImageRemove(ctx context.Context, id string, opts image
 	return []image.DeleteResponse{}, nil
 }
 
+func (m *mockImageClient) getPulled(image string) int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.pulled[image]
+}
+
+func (m *mockImageClient) getRemoved(id string) int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.removed[id]
+}
+
+func (m *mockImageClient) getRemovedMap() map[string]int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	result := make(map[string]int, len(m.removed))
+	for k, v := range m.removed {
+		result[k] = v
+	}
+	return result
+}
+
 type readErrorer struct {
 	readErr    error
 	closeError error
@@ -109,9 +131,7 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	}
 
 	testutil.WaitForResult(func() (bool, error) {
-		mock.lock.Lock()
-		defer mock.lock.Unlock()
-		p := mock.pulled[image]
+		p := mock.getPulled(image)
 		if p >= 10 {
 			return false, fmt.Errorf("Wrong number of pulls: %d", p)
 		}
@@ -187,9 +207,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 
 	// Check that only one delete happened
 	testutil.WaitForResult(func() (bool, error) {
-		mock.lock.Lock()
-		defer mock.lock.Unlock()
-		removes := mock.removed[id]
+		removes := mock.getRemoved(id)
 		return removes == 1, fmt.Errorf("Wrong number of removes: %d", removes)
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -251,7 +269,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 	}
 
 	// Check that only no delete happened
-	if removes := mock.removed[id]; removes != 0 {
+	if removes := mock.getRemoved(id); removes != 0 {
 		t.Fatalf("Image deleted when it shouldn't have")
 	}
 }
@@ -287,7 +305,7 @@ func TestDockerCoordinator_No_Cleanup(t *testing.T) {
 	coordinator.RemoveImage(id, callerID)
 
 	// Check that only no delete happened
-	if removes := mock.removed[id]; removes != 0 {
+	if removes := mock.getRemoved(id); removes != 0 {
 		t.Fatalf("Image deleted when it shouldn't have")
 	}
 }
@@ -326,10 +344,10 @@ func TestDockerCoordinator_Cleanup_HonorsCtx(t *testing.T) {
 	// Remove image
 	coordinator.RemoveImage(id1, callerID)
 	testutil.WaitForResult(func() (bool, error) {
-		if _, ok := mock.removed[id1]; ok {
+		if mock.getRemoved(id1) > 0 {
 			return true, nil
 		}
-		return false, fmt.Errorf("expected image to delete found %v", mock.removed)
+		return false, fmt.Errorf("expected image to delete found %v", mock.getRemovedMap())
 	}, func(err error) {
 		require.NoError(t, err)
 	})
@@ -342,7 +360,7 @@ func TestDockerCoordinator_Cleanup_HonorsCtx(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Check that only no delete happened
-	require.Equal(t, map[string]int{id1: 1}, mock.removed, "removed images")
+	require.Equal(t, map[string]int{id1: 1}, mock.getRemovedMap(), "removed images")
 }
 
 func TestDockerCoordinator_PullImage_ProgressError(t *testing.T) {
