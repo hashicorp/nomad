@@ -382,9 +382,10 @@ func findEmulators(allowList []string) []string {
 
 	for _, f := range bins {
 		em := strings.TrimPrefix(filepath.Base(f), "qemu-system-")
-		if err := validateEmulator(em, allowList); err == nil {
-			emulators = append(emulators, em)
+		if err := validateEmulator(em, allowList); err != nil {
+			continue
 		}
+		emulators = append(emulators, em)
 	}
 
 	return emulators
