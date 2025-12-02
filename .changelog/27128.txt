@@ -1,3 +1,3 @@
 ```release-note:improvement
-qemu: Adds config parameters to modify qemu emulator binary and machine types. Defaults to previously used values for backwards compatability.
+qemu: Adds config parameters to modify qemu emulator binary and machine types and removes some hardcoded KVM accelerator settings. Defaults to previously used values of qemu-system-x86_64 and pc. The driver no longer forces machine type "host", or the -smp flag when using resources.cores with the KVM accelerator.
 ```
