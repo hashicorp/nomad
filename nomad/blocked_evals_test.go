@@ -12,9 +12,8 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/wait"
 )
 
 func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
@@ -27,8 +26,6 @@ func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
 
 func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 	blocked.SetEnabled(false)
 
@@ -38,16 +35,14 @@ func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did nothing.
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create two blocked evals and add them to the blocked tracker.
@@ -58,15 +53,14 @@ func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	blocked.Block(e2)
 
 	// Verify block didn't track duplicate.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_Block_Quota(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
 
@@ -76,16 +70,14 @@ func TestBlockedEvals_Block_Quota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track eval.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(1, blockedStats.TotalQuotaLimit)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 1, stats.TotalQuotaLimit)
 }
 
 func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Do unblocks prior to blocking.
@@ -99,16 +91,14 @@ func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track eval.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create duplicate blocked evals and add them to the blocked tracker.
@@ -127,15 +117,15 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	blocked.Block(e2)
 
 	// Verify stats such that we are only tracking one.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Get the duplicates.
 	out := blocked.GetDuplicates(0)
-	require.Len(out, 1)
-	require.Equal(e, out[0])
+	must.Len(t, 1, out)
+	must.Eq(t, e, out[0])
 
 	// Call block again after a small sleep.
 	go func() {
@@ -145,31 +135,30 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 
 	// Get the duplicates.
 	out = blocked.GetDuplicates(1 * time.Second)
-	require.Len(out, 1)
-	require.Equal(e2, out[0])
+	must.Len(t, 1, out)
+	must.Eq(t, e2, out[0])
 
 	// Verify stats such that we are only tracking one.
-	blockedStats = blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats = blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Add an older evaluation and assert it gets cancelled.
 	blocked.Block(e4)
 	out = blocked.GetDuplicates(0)
-	require.Len(out, 1)
-	require.Equal(e4, out[0])
+	must.Len(t, 1, out)
+	must.Eq(t, e4, out[0])
 
 	// Verify stats such that we are only tracking one.
-	blockedStats = blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats = blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
 
@@ -180,44 +169,41 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(1, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 1, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	blocked.Unblock("v1:123", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func requireBlockedEvalsEnqueued(t *testing.T, blocked *BlockedEvals, broker *EvalBroker, enqueued int) {
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != enqueued {
-			return false, fmt.Errorf("missing enqueued evals: %#v", brokerStats)
-		}
+	t.Helper()
 
-		// Prune old and empty metrics.
-		blocked.pruneStats(time.Now().UTC())
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			brokerStats := broker.Stats()
+			if brokerStats.TotalReady != enqueued {
+				return fmt.Errorf("missing enqueued evals: %#v", brokerStats)
+			}
+			return nil
+		}),
+		wait.Timeout(500*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 
-		// Verify Unblock updates the stats
-		blockedStats := blocked.Stats()
-		ok := blockedStats.TotalBlocked == 0 &&
-			blockedStats.TotalEscaped == 0 &&
-			len(blockedStats.BlockedResources.ByJob) == 0
-		if !ok {
-			return false, fmt.Errorf("evals still blocked: %#v", blockedStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	blocked.pruneStats(time.Now().UTC())
+
+	// verfiy stats have been cleared
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is eligible on a specific node class and add
@@ -228,8 +214,8 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
 
 	blocked.Unblock("v1:123", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
@@ -237,8 +223,6 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 
 func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is ineligible on a specific node class and add
@@ -248,41 +232,29 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Should do nothing
 	blocked.Unblock("v1:123", 1000)
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock didn't cause an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 0 {
-			return false, fmt.Errorf("eval unblocked: %#v", brokerStats)
-		}
+	// Verify Unblock didn't cause an enqueue
+	brokerStats := broker.Stats()
+	must.Eq(t, 0, brokerStats.TotalReady, must.Sprintf("eval unblocked: %#v", brokerStats))
 
-		// Prune old and empty metrics.
-		blocked.pruneStats(time.Now().UTC())
+	// Prune old and empty metrics.
+	blocked.pruneStats(time.Now().UTC())
 
-		blockedStats := blocked.Stats()
-		ok := blockedStats.TotalBlocked == 1 &&
-			blockedStats.TotalEscaped == 0 &&
-			len(blockedStats.BlockedResources.ByJob) == 1
-		if !ok {
-			return false, fmt.Errorf("eval unblocked: %#v", blockedStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	stats = blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is ineligible on a specific node class and add
@@ -292,10 +264,10 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Should unblock because the eval hasn't seen this node class.
 	blocked.Unblock("v1:789", 1000)
@@ -304,7 +276,6 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 
 func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
 
@@ -314,10 +285,10 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(1, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 1, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	blocked.UnblockQuota("foo", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
@@ -327,7 +298,6 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 // e.g. cpu exhausted, but there happens to also be a quota on the namespace.
 func TestBlockedEvals_UnblockEligible_IncidentalQuota(t *testing.T) {
 	ci.Parallel(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	e := mock.BlockedEval()
@@ -336,11 +306,11 @@ func TestBlockedEvals_UnblockEligible_IncidentalQuota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked.
-	blockedStats := blocked.Stats()
-	must.Eq(t, 1, blockedStats.TotalBlocked)
-	must.MapLen(t, 1, blockedStats.BlockedResources.ByJob)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 	// but not due to quota.
-	must.Eq(t, 0, blockedStats.TotalQuotaLimit)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
 
 	// When unblocking, the quota name from the alloc is passed in,
 	// regardless of the cause of the initial blockage.
@@ -352,8 +322,6 @@ func TestBlockedEvals_UnblockEligible_IncidentalQuota(t *testing.T) {
 
 func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is eligible on a specific quota.
@@ -362,42 +330,28 @@ func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked.
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(1, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 1, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
-	// Should do nothing.
+	// Should do nothing and have no evals enqueued
 	blocked.UnblockQuota("bar", 1000)
+	brokerStats := broker.Stats()
+	must.Eq(t, 0, brokerStats.TotalReady)
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock didn't cause an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 0 {
-			return false, fmt.Errorf("eval unblocked: %#v", brokerStats)
-		}
+	// Prune old and empty metrics.
+	blocked.pruneStats(time.Now().UTC())
 
-		// Prune old and empty metrics.
-		blocked.pruneStats(time.Now().UTC())
-
-		blockedStats := blocked.Stats()
-		ok := blockedStats.TotalBlocked == 1 &&
-			blockedStats.TotalEscaped == 0 &&
-			blockedStats.TotalQuotaLimit == 1 &&
-			len(blockedStats.BlockedResources.ByJob) == 1
-		if !ok {
-			return false, fmt.Errorf("eval unblocked: %#v", blockedStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	stats = blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 1, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_Reblock(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Create an evaluation, Enqueue/Dequeue it to get a token
@@ -407,28 +361,28 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 	broker.Enqueue(e)
 
 	_, token, err := broker.Dequeue([]string{e.Type}, time.Second)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Reblock the evaluation
 	blocked.Reblock(e, token)
 
 	// Verify block caused the eval to be tracked
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Should unblock because the eval
 	blocked.Unblock("v1:123", 1000)
 
 	brokerStats := broker.Stats()
-	require.Equal(0, brokerStats.TotalReady)
-	require.Equal(1, brokerStats.TotalUnacked)
+	must.Eq(t, 0, brokerStats.TotalReady)
+	must.Eq(t, 1, brokerStats.TotalUnacked)
 
 	// Ack the evaluation which should cause the reblocked eval to transition
 	// to ready
 	err = broker.Ack(e.ID, token)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -437,8 +391,6 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 // it is escaped and old
 func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -452,10 +404,10 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -465,7 +417,6 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
 
@@ -480,10 +431,10 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -493,8 +444,6 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -508,18 +457,16 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 // Test the block case in which the eval should be immediately unblocked since
 // it a class it is eligible for has been unblocked
 func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -533,10 +480,10 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -545,8 +492,6 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 // it a quota has changed that it is using
 func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -560,18 +505,17 @@ func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
 
@@ -599,26 +543,24 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	blocked.pruneStats(time.Now().UTC())
 
 	// Verify UnblockFailed caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats := blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 3)
 
 	// Reblock an eval for the same job and check that it gets tracked.
 	blocked.Block(e)
-	blockedStats = blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(1, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats = blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 1, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_Untrack(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create blocked eval and add to the blocked tracker.
@@ -628,25 +570,23 @@ func TestBlockedEvals_Untrack(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
 	blocked.pruneStats(time.Now().UTC())
 
-	blockedStats = blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats = blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create a blocked eval and add it to the blocked tracker.
@@ -656,28 +596,33 @@ func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 1, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
-	blocked.pruneStats(time.Now().UTC())
+	stats = blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
-	blockedStats = blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	now := time.Now().UTC()
+	blocked.pruneStats(now)
+	stats = blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_UnblockNode(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
-
-	require.NotNil(t, broker)
 
 	// Create a blocked evals and add it to the blocked tracker.
 	e := mock.BlockedEval()
@@ -687,24 +632,22 @@ func TestBlockedEvals_UnblockNode(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	blocked.UnblockNode("foo", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 
 	blocked.pruneStats(time.Now().UTC())
-	blockedStats = blocked.Stats()
-	require.Empty(blocked.system.byNode)
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	stats = blocked.Stats()
+	must.MapEmpty(t, blocked.system.byNode)
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create a blocked evals and add it to the blocked tracker.
@@ -714,26 +657,25 @@ func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
 	blocked.pruneStats(time.Now().UTC())
-	blockedStats = blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
+
+	stats = blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
 func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
 	blocked, _ := testBlockedEvals(t)
 
 	// Create a blocked evals and add it to the blocked tracker.
@@ -743,20 +685,20 @@ func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	blockedStats := blocked.Stats()
-	require.Equal(1, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 1)
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
 
 	// Disable empties
 	blocked.SetEnabled(false)
-	blockedStats = blocked.Stats()
-	require.Equal(0, blockedStats.TotalBlocked)
-	require.Equal(0, blockedStats.TotalEscaped)
-	require.Equal(0, blockedStats.TotalQuotaLimit)
-	require.Len(blockedStats.BlockedResources.ByJob, 0)
-	require.Empty(blocked.system.evals)
-	require.Empty(blocked.system.byJob)
-	require.Empty(blocked.system.byNode)
+	stats = blocked.Stats()
+	must.Eq(t, 0, stats.TotalBlocked)
+	must.Eq(t, 0, stats.TotalEscaped)
+	must.Eq(t, 0, stats.TotalQuotaLimit)
+	must.MapLen(t, 0, stats.BlockedResources.ByJob)
+	must.MapEmpty(t, blocked.system.evals)
+	must.MapEmpty(t, blocked.system.byJob)
+	must.MapEmpty(t, blocked.system.byNode)
 }
