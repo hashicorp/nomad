@@ -221,7 +221,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 	}
 
 	t.Run("a add b", func(t *testing.T) {
-		result := a.Add(b)
+		result := a.Copy().Add(b)
 
 		require.Equal(t, map[structs.NamespacedID]BlockedResourcesSummary{
 			id1: {Timestamp: now(3), CPU: 311, MemoryMB: 522},
@@ -237,7 +237,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 	// make sure we handle zeros in both directions
 	// and timestamps originate from rhs
 	t.Run("b add a", func(t *testing.T) {
-		result := b.Add(a)
+		result := b.Copy().Add(a)
 		require.Equal(t, map[structs.NamespacedID]BlockedResourcesSummary{
 			id1: {Timestamp: now(1), CPU: 311, MemoryMB: 522},
 			id2: {Timestamp: now(4), CPU: 400, MemoryMB: 500},
