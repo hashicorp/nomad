@@ -1,0 +1,3 @@
+```release-note:improvement
+qemu: use host paths for nomad filesystem variables to allow for job spec interpolation
+```
