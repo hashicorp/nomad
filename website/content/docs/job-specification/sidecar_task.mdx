@@ -156,6 +156,11 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
 - `volume_mount` <code>([VolumeMount][]: nil)</code> - Specifies where a group
   volume should be mounted.
 
+- `identity` <code>([Identity][]: nil)</code> - Expose an extra [Workload Identity][]
+  to the task. Nomad automatically configures Consul Service Mesh sidecars with
+  the required identities to communicate with Consul. Specifying this block lets
+  you add extra identities that can be consumed by third-party services.
+
 ## Examples
 
 The following example configures resources for the sidecar task and other configuration.
@@ -181,6 +186,8 @@ The following example configures resources for the sidecar task and other config
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [interpolation]: /nomad/docs/reference/runtime-variable-interpolation 'Nomad interpolation'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
+[Identity]: /nomad/docs/job-specification/identity 'Nomad identity Job Specification'
+[Workload Identity]: /nomad/docs/concepts/workload-identity
 [logs]: /nomad/docs/job-specification/logs 'Nomad logs Job Specification'
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [sidecar_service]: /nomad/docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
