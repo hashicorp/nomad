@@ -120,8 +120,13 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 	// Determine the devices that are feasible based on availability and
 	// constraints
 	for id, devInst := range d.Devices {
+		// Check if the device works
+		if !nodeDeviceMatches(d.ctx, devInst.Device, ask) {
+			continue
+		}
+
 		// Check if we have enough unused instances to use this
-		assignable := uint64(0)
+		assignable := []string{}
 		for instanceID, v := range devInst.Instances {
 			if v != 0 {
 				continue
@@ -129,16 +134,18 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			if !mem.Matches(instanceID, devInst.Device) {
 				continue
 			}
-			assignable++
+			if d.deviceIDMatchesConstraint(instanceID, ask.Constraints, devInst.Device) {
+				assignable = append(assignable, instanceID)
+			}
+
+			// Don't assign more than the ask
+			if len(assignable) == int(ask.Count) {
+				break
+			}
 		}
 
 		// This device doesn't have enough instances
-		if assignable < ask.Count {
-			continue
-		}
-
-		// Check if the device works
-		if !nodeDeviceMatches(d.ctx, devInst.Device, ask) {
+		if len(assignable) < int(ask.Count) {
 			continue
 		}
 
@@ -185,19 +192,7 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			Vendor:    id.Vendor,
 			Type:      id.Type,
 			Name:      id.Name,
-			DeviceIDs: make([]string, 0, ask.Count),
-		}
-
-		assigned := uint64(0)
-		for id, v := range devInst.Instances {
-			if v == 0 && assigned < ask.Count &&
-				d.deviceIDMatchesConstraint(id, ask.Constraints, devInst.Device) {
-				assigned++
-				offer.DeviceIDs = append(offer.DeviceIDs, id)
-				if assigned == ask.Count {
-					break
-				}
-			}
+			DeviceIDs: assignable,
 		}
 	}
 
