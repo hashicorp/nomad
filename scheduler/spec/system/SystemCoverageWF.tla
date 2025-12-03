@@ -13,7 +13,7 @@ CapacityValue == [ n1 |-> 2, n2 |-> 1 ]
 
 DemandValue == [ j1 |-> 1, j2 |-> 1 ]
 
-ConstraintFnValue(a) == a.dc = "us"
+ConstraintFnValue(a) == a.dc = "eu"
 
 ScoreFnValue(j,a) == IF j = "j1" THEN a.cores ELSE a.cores - 1
 
