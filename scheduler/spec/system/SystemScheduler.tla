@@ -24,12 +24,12 @@ Init ==
   /\ currentJobs = Jobs
   /\ allocs = [j \in Jobs |-> [n \in Nodes |-> 0]]
 
-\* Used capacity on client c
+\* Used capacity on node n
 RECURSIVE Sum(_)
 Sum(S) == IF S = {} THEN 0 ELSE
             LET x == CHOOSE y \in S: TRUE IN x + Sum(S \ { x })
 
-UsedCap(c) == Sum({ allocs[j][c] * Demand[j] : j \in currentJobs })
+UsedCap(n) == Sum({ allocs[j][n] * Demand[j] : j \in currentJobs })
 
 \* Whether job j can run on node n (constraints + capacity + presence)
 Eligible(j,n) ==
@@ -47,68 +47,69 @@ CapacitySafety ==
 AllocRange ==
   \A j \in Jobs: \A n \in Nodes: allocs[j][n] \in {0, 1}
 
-\* Desired coverage (for system jobs): for every job, every eligible client should have alloc=1
-\* SystemCoverage ==
-\*   \A j \in currentJobs: \A c \in eligibleNodes:
-\*      (ConstraintFn[j][Attrs[c]] /\ (UsedCap(c) + Demand[j] <= Capacity[c]))
-\*         => allocs[j][c] = 1
-
+\* Desired coverage (for system jobs): for every job, every eligible node should have alloc=1
 SystemCoverage ==
-  <> (\A j \in currentJobs: \A c \in eligibleNodes:
-        Eligible(j,c) => allocs[j][c] = 1)
+  <> (\A j \in currentJobs: \A n \in eligibleNodes:
+        Eligible(j,n) => allocs[j][n] = 1)
 
-\* Choose the best eligible (job,client) pair.
-\* To be deterministic for TLC, we break ties by lexicographic order (smallest
-\* job then smallest client).
+\* Choose the best eligible (job,node) pair.
+\* To be deterministic for TLC, we break ties by choosing deterministically
+\* based on the maximum score, then using CHOOSE for tie-breaking
 BestPairExists ==
-  \E j \in currentJobs, c \in eligibleNodes: Eligible(j,c)
+  \E j \in currentJobs, n \in eligibleNodes: Eligible(j,n)
 
-BestPair(j,c) ==
-  /\ Eligible(j,c)
-  /\ \A jb \in currentJobs, cb \in eligibleNodes:
-       Eligible(jb,cb) =>
-          ( ScoreFn(j, Attrs[c]) > ScoreFn(jb, Attrs[cb])
-            \/ (ScoreFn(j, Attrs[c]) = ScoreFn(jb, Attrs[cb])
-                /\ (j < jb \/ (j = jb /\ c <= cb)))
-          )
+\* Helper: find maximum score among all eligible pairs
+MaxScore ==
+  LET eligiblePairs == { <<j,n>> \in currentJobs \X eligibleNodes : Eligible(j,n) }
+  IN IF eligiblePairs = {} THEN 0
+     ELSE LET scores == { ScoreFn(p[1], Attrs[p[2]]) : p \in eligiblePairs }
+          IN CHOOSE s \in scores : \A s2 \in scores : s >= s2
+
+BestPair(j,n) ==
+  LET maxScorePairs == { <<jx,nx>> \in currentJobs \X eligibleNodes :
+                          Eligible(jx,nx) /\ ScoreFn(jx, Attrs[nx]) = MaxScore }
+  IN /\ Eligible(j,n)
+     /\ ScoreFn(j, Attrs[n]) = MaxScore
+     /\ <<j,n>> = CHOOSE p \in maxScorePairs : TRUE
 
 \* Actual scheduling algorithm model
 vars == << eligibleNodes, currentJobs, allocs >>
 
-Next == \/ /\ IF (\E j \in currentJobs, c \in eligibleNodes: Eligible(j,c))
-                 THEN /\ \E jb \in currentJobs:
-                           \E nb \in eligibleNodes:
-                             IF BestPair(jb,nb)
-                                THEN /\ allocs' = [allocs EXCEPT ![jb][nb] = 1]
-                                ELSE /\ TRUE
-                                     /\ UNCHANGED allocs
-                 ELSE /\ TRUE
-                      /\ UNCHANGED allocs
-           /\ UNCHANGED <<eligibleNodes, currentJobs>>
-        \/ /\ \E n \in Nodes:
-                IF n \notin eligibleNodes
-                   THEN /\ eligibleNodes' = (eligibleNodes \cup {n})
-                   ELSE /\ TRUE
-                        /\ UNCHANGED eligibleNodes
-           /\ UNCHANGED <<currentJobs, allocs>>
-        \/ /\ \E n \in eligibleNodes:
-                /\ eligibleNodes' = eligibleNodes \ {n}
-                /\ \E j \in Jobs:
-                     allocs' = [allocs EXCEPT ![j][n] = 0]
-           /\ UNCHANGED currentJobs
-        \/ /\ \E j \in Jobs:
-                IF j \notin currentJobs
-                   THEN /\ currentJobs' = (currentJobs \cup {j})
-                   ELSE /\ TRUE
-                        /\ UNCHANGED currentJobs
-           /\ UNCHANGED <<eligibleNodes, allocs>>
-        \/ /\ \E j \in currentJobs:
-                /\ currentJobs' = currentJobs \ {j}
-                /\ \E n \in Nodes:
-                     allocs' = [allocs EXCEPT ![j][n] = 0]
-           /\ UNCHANGED eligibleNodes
+\* Individual actions for fairness
+ScheduleJob ==
+  /\ \E j \in currentJobs, n \in eligibleNodes:
+       /\ BestPair(j,n)
+       /\ allocs' = [allocs EXCEPT ![j][n] = 1]
+  /\ UNCHANGED <<eligibleNodes, currentJobs>>
 
-Spec == Init /\ [][Next]_vars
+AddNode ==
+  /\ \E n \in Nodes:
+       /\ n \notin eligibleNodes
+       /\ eligibleNodes' = (eligibleNodes \cup {n})
+  /\ UNCHANGED <<currentJobs, allocs>>
+
+RemoveNode ==
+  /\ \E n \in eligibleNodes:
+       /\ eligibleNodes' = eligibleNodes \ {n}
+       /\ allocs' = [j \in Jobs |-> [allocs[j] EXCEPT ![n] = 0]]
+  /\ UNCHANGED currentJobs
+
+AddJob ==
+  /\ \E j \in Jobs:
+       /\ j \notin currentJobs
+       /\ currentJobs' = (currentJobs \cup {j})
+  /\ UNCHANGED <<eligibleNodes, allocs>>
+
+RemoveJob ==
+  /\ \E j \in currentJobs:
+       /\ currentJobs' = currentJobs \ {j}
+       /\ allocs' = [allocs EXCEPT ![j] = [n \in Nodes |-> 0]]
+  /\ UNCHANGED eligibleNodes
+
+Next == ScheduleJob \/ AddNode \/ RemoveNode \/ AddJob \/ RemoveJob
+
+\* Specification with weak fairness on scheduling
+Spec == Init /\ [][Next]_vars /\ WF_vars(ScheduleJob)
 
 \* ---------- Helpful invariants to check with TLC ----------
 Inv ==
