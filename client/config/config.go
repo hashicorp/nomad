@@ -143,6 +143,7 @@ type Config struct {
 	// determined dynamically.
 	DiskTotalMB int
 
+	// DEPRECATED: Remove in Nomad 1.13.0. Use Reserved.Disk instead.
 	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
 	// determined dynamically.
 	DiskFreeMB int
