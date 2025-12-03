@@ -1036,9 +1036,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
-	var pidsLimit int64
+	var pidsLimit int64 = -1 // default unlimited
 
-	// Pids limit defined in Nomad plugin config. Defaults to 0 (Unlimited).
+	// Pids limit defined in Nomad plugin config.
 	if d.config.PidsLimit > 0 {
 		pidsLimit = d.config.PidsLimit
 	}
