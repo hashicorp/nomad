@@ -9,12 +9,12 @@ AttrsValue == [
     n2 |-> [ dc |-> "eu", cores |-> 1 ]
 ]
 
-CapacityValue == [ c1 |-> 2, c2 |-> 1 ]
+CapacityValue == [ n1 |-> 2, n2 |-> 1 ]
 
 DemandValue == [ j1 |-> 1, j2 |-> 1 ]
 
 ConstraintFnValue(a) == a.dc = "us"
 
-ScoreFnValue(j, a) == IF j = "j1" THEN a.cores ELSE a.cores - 1
+ScoreFnValue(j,a) == IF j = "j1" THEN a.cores ELSE a.cores - 1
 
 ====

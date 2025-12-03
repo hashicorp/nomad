@@ -2,13 +2,13 @@
 EXTENDS Naturals, Sequences, FiniteSets, TLC
 
 CONSTANT
-  Nodes,        \* finite set of nodes
-  Jobs,         \* finite set of job identifiers
-  Attrs,        \* Attrs is a function Nodes -> attribute record (abstract)
-  Capacity,     \* Capacity is a function Nodes -> Nat
-  Demand,       \* Demand is a function Jobs -> Nat
-  ConstraintFn, \* ConstraintFn(attr) -> BOOLEAN
-  ScoreFn       \* ScoreFn(job, attr) -> Nat
+  Nodes,           \* finite set of nodes
+  Jobs,            \* finite set of job identifiers
+  Attrs,           \* Attrs is a function Nodes -> attribute record (abstract)
+  Capacity,        \* Capacity is a function Nodes -> Nat
+  Demand,          \* Demand is a function Jobs -> Nat
+  ConstraintFn(_), \* ConstraintFn(attr) -> BOOLEAN
+  ScoreFn(_,_)     \* ScoreFn(job, attr) -> Nat
 
 NodeSet == Nodes
 JobSet  == Jobs
@@ -35,7 +35,7 @@ UsedCap(c) == Sum({ allocs[j][c] * Demand[j] : j \in currentJobs })
 Eligible(j,n) ==
   /\ n \in eligibleNodes
   /\ j \in currentJobs
-  /\ ConstraintFn[Attrs[n]]
+  /\ ConstraintFn(Attrs[n])
   /\ allocs[j][n] = 0
   /\ UsedCap(n) + Demand[j] <= Capacity[n]
 
@@ -58,7 +58,8 @@ SystemCoverage ==
         Eligible(j,c) => allocs[j][c] = 1)
 
 \* Choose the best eligible (job,client) pair.
-\* To be deterministic for TLC, we break ties by lexicographic order (smallest job then smallest client).
+\* To be deterministic for TLC, we break ties by lexicographic order (smallest
+\* job then smallest client).
 BestPairExists ==
   \E j \in currentJobs, c \in eligibleNodes: Eligible(j,c)
 
@@ -66,8 +67,8 @@ BestPair(j,c) ==
   /\ Eligible(j,c)
   /\ \A jb \in currentJobs, cb \in eligibleNodes:
        Eligible(jb,cb) =>
-          ( ScoreFn[j][Attrs[c]] > ScoreFn[jb][Attrs[cb]]
-            \/ (ScoreFn[j][Attrs[c]] = ScoreFn[jb][Attrs[cb]]
+          ( ScoreFn(j, Attrs[c]) > ScoreFn(jb, Attrs[cb])
+            \/ (ScoreFn(j, Attrs[c]) = ScoreFn(jb, Attrs[cb])
                 /\ (j < jb \/ (j = jb /\ c <= cb)))
           )
 
@@ -109,14 +110,12 @@ Next == \/ /\ IF (\E j \in currentJobs, c \in eligibleNodes: Eligible(j,c))
 
 Spec == Init /\ [][Next]_vars
 
-\* END TRANSLATION
-
 \* ---------- Helpful invariants to check with TLC ----------
 Inv ==
   /\ AllocRange
   /\ CapacitySafety
   /\ \A j \in currentJobs, n \in eligibleNodes:
-       allocs[j][n] = 1 => ConstraintFn[Attrs[n]]
+       allocs[j][n] = 1 => ConstraintFn(Attrs[n])
   /\ \A j \in currentJobs, n \in Nodes: allocs[j][n] = 1 => n \in eligibleNodes
 
 ====
