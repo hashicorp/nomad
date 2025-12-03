@@ -213,7 +213,7 @@ func TestAllocations_Info(t *testing.T) {
 	// Fetch alloc info.
 	qo.WaitIndex = qm.LastIndex
 	alloc, _, err := a.Info(allocs[0].ID, qo)
-
+	must.NoError(t, err)
 	must.NotNil(t, alloc.NetworkStatus)
 }
 
