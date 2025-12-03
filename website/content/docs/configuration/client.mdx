@@ -95,9 +95,10 @@ client {
   constraints set on the attribute `unique.storage.bytestotal`. The actual total
   disk space can be determined via the [Read Stats API](/nomad/api-docs/client#read-stats)
 
-- `disk_free_mb` `(int:0)` - Specifies the disk space free for scheduling
-  allocations. If set, this value overrides any detected free disk space. This
-  value can be seen in `nomad node status` under Allocated Resources.
+- `disk_free_mb` `(int:0)` - Previously specified the disk space free for scheduling
+  allocations. If set, it would override any detected free disk space. This value
+  has been deprecated and is now ignored by Nomad clients.
+  Use [`client.reserved.disk`](#reserved-parameters) instead.
 
 - `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
   assigned. Individual ports and ranges of ports may be excluded from dynamic

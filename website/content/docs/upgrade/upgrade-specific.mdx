@@ -14,6 +14,15 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.11.0
 
+#### Storage fingerprinting calculation changed
+
+Nomad now calculates the storage available for scheduling using only
+`totalBytes - client.reserved.disk`. The previous strategy using free disk
+space could lead to incorrect values when clients with running allocations
+restarted. The `unique.storage.bytesfree` attribute has also been removed.
+We recommend that you reserve at least the amount of disk that is used
+by the host OS.
+
 #### Sysbatch jobs will no longer accept `reschedule` blocks
 
 In Nomad 1.11.0, submitting a sysbatch job with a `reschedule` block returns
