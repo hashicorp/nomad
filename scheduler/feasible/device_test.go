@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -215,7 +216,7 @@ func TestDeviceAllocator_Allocate_NUMA_node1(t *testing.T) {
 }
 
 // Test that asking for a device with constraints works
-func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
+func TestDeviceAllocate_Constraints_NoMemoryMatch(t *testing.T) {
 	ci.Parallel(t)
 
 	n := multipleNvidiaNode()
@@ -349,8 +350,55 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 	}
 }
 
+func TestDeviceAllocate_Constraints_MemoryMatch(t *testing.T) {
+	ci.Parallel(t)
+
+	n := multipleNvidiaNode()
+	nvidia0 := n.NodeResources.Devices[0]
+
+	_, ctx := MockContext(t)
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	testContraints := []*structs.Constraint{
+		{
+			LTarget: "${device.ids}",
+			Operand: "set_contains",
+			RTarget: nvidia0.Instances[1].ID,
+		},
+	}
+	// Build the request
+	ask := deviceRequest("nvidia/gpu", 1, testContraints, nil)
+
+	mem := &memoryNodeMatcher{
+		memoryNode: 1,
+		topology: &numalib.Topology{
+			BusAssociativity: map[string]hw.NodeID{
+				nvidia0.Instances[0].Locality.PciBusID: 1,
+				nvidia0.Instances[1].Locality.PciBusID: 2,
+			},
+		},
+		devices: set.From([]string{nvidia0.ID().String()}),
+	}
+	out, _, err := d.createOffer(mem, ask)
+
+	// the first memoryNodeMatcher does not have the correct memoryNode
+	must.ErrorContains(t, err, "no devices match")
+	must.Nil(t, out)
+
+	// change to the correct node
+	mem.memoryNode = 2
+	out, _, err = d.createOffer(mem, ask)
+
+	must.NoError(t, err)
+	must.Len(t, 1, out.DeviceIDs)
+	must.SliceContains(t, collectInstanceIDs(nvidia0), out.DeviceIDs[0])
+	must.SliceContains(t, out.DeviceIDs, nvidia0.Instances[1].ID)
+
+}
+
 // Test that asking for a device with affinities works
-func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
+func TestDeviceAllocator_Affinities(t *testing.T) {
 	ci.Parallel(t)
 
 	n := multipleNvidiaNode()
