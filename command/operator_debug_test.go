@@ -599,7 +599,7 @@ func TestDebug_PprofVersionCheck(t *testing.T) {
 		{"0.11.3+ent", ""},
 		{"0.12.0", ""},
 		{"1.3.0", ""},
-		{"foo.bar", "error: Malformed version: foo.bar"},
+		{"foo.bar", "error: malformed version: foo.bar"},
 	}
 
 	for _, tc := range cases {
