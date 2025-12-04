@@ -5,6 +5,7 @@ package command
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -273,9 +274,16 @@ func getWithVarsOutput(namespace, jobID string, uiVars string, varsMap map[strin
 		runArgs = append(runArgs, namespace)
 	}
 
+	// collect the variables in a sorted slice for predictable output
+	varSlice := []string{}
 	for k, v := range varsMap {
+		varSlice = append(varSlice, fmt.Sprintf("%s=%s", k, v))
+	}
+	slices.Sort(varSlice)
+
+	for _, v := range varSlice {
 		runArgs = append(runArgs, "-var")
-		runArgs = append(runArgs, fmt.Sprintf("%s=%s", k, v))
+		runArgs = append(runArgs, v)
 	}
 	for _, uiVar := range strings.Split(uiVars, "\n") {
 		uiVar = strings.TrimSpace(uiVar)
