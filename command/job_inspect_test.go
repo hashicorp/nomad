@@ -216,7 +216,7 @@ $ nomad job inspect -namespace default -hcl example |
 To run this job as originally submitted:
 
 $ nomad job inspect -namespace default -hcl example |
-    nomad job run -namespace default -var http_port=foo -var bar=baz example
+    nomad job run -namespace default -var bar=baz -var http_port=foo example
 `, out)
 
 }
