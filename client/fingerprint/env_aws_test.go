@@ -19,11 +19,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Test_NewEnvAWSFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	must.NotNil(t, f)
+
+	retryWrapper, ok := f.(*RetryWrapper)
+	must.True(t, ok)
+	must.Eq(t, awsFingerprinterName, retryWrapper.name)
+
+	_, ok = retryWrapper.fingerprinter.(*EnvAWSFingerprint)
+	must.True(t, ok)
+}
+
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 	ci.Parallel(t)
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = "http://127.0.0.1/latest"
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = "http://127.0.0.1/latest"
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -43,7 +57,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -114,7 +128,7 @@ func TestEnvAWSFingerprint_handleImdsError(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		err := f.(*EnvAWSFingerprint).handleImdsError(c.err, "some attribute")
+		err := f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).handleImdsError(c.err, "some attribute")
 		must.Eq(t, c.exp, err)
 	}
 }
@@ -126,7 +140,7 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -156,7 +170,7 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	{
 		node := &structs.Node{
@@ -219,7 +233,7 @@ func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -247,7 +261,7 @@ func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -271,7 +285,7 @@ func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{Attributes: make(map[string]string)}
 
@@ -289,7 +303,7 @@ func TestCPUFingerprint_AWS_InstanceNotFound(t *testing.T) {
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	f.(*EnvAWSFingerprint).endpoint = endpoint
+	f.(*RetryWrapper).fingerprinter.(*EnvAWSFingerprint).endpoint = endpoint
 
 	node := &structs.Node{Attributes: make(map[string]string)}
 

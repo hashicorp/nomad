@@ -244,6 +244,12 @@ func ParseConfigFile(path string) (*Config, error) {
 			fmt.Sprintf("audit.sink.%d", i), &sink.RotateDuration, &sink.RotateDurationHCL, nil})
 	}
 
+	// Add fingerprint retry_interval for time.Duration parsing
+	for _, fp := range c.Client.Fingerprinters {
+		tds = append(tds, durationConversionMap{
+			fmt.Sprintf("client.fingerprint.%s.retry_interval", fp.Name), &fp.RetryInterval, &fp.RetryIntervalHCL, nil})
+	}
+
 	// convert strings to time.Durations
 	err = convertDurations(tds)
 	if err != nil {
@@ -373,6 +379,16 @@ func extraKeys(c *Config) error {
 	// will incorrectly report them as extra keys, of which there may be multiple
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+
+	// The fingerprinter labels will be added to the ExtraKeysHCL slice by
+	// hcl.Decode, so we need to remove them here.
+	//
+	// When parsing JSON, each block will also add "fingerprint" to the
+	// ExtraKeysHCL slice, so we need to remove that as well.
+	for _, p := range c.Client.Fingerprinters {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, p.Name)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "fingerprint")
+	}
 
 	if len(c.ExtraKeysHCL) == 0 {
 		c.ExtraKeysHCL = nil

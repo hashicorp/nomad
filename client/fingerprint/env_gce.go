@@ -30,6 +30,10 @@ const (
 	// GceMetadataTimeout is the timeout used when contacting the GCE metadata
 	// service
 	GceMetadataTimeout = 2 * time.Second
+
+	// gceFingerprinterName is the name of the GCE fingerprinter and used in
+	// configuration and logging.
+	gceFingerprinterName = "env_gce"
 )
 
 type GCEMetadataNetworkInterface struct {
@@ -78,11 +82,17 @@ func NewEnvGCEFingerprint(logger log.Logger) Fingerprint {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	return &EnvGCEFingerprint{
-		client:      client,
-		logger:      logger.Named("env_gce"),
-		metadataURL: metadataURL,
-	}
+	namedLogger := logger.Named(gceFingerprinterName)
+
+	return NewRetryWrapper(
+		&EnvGCEFingerprint{
+			client:      client,
+			logger:      namedLogger,
+			metadataURL: metadataURL,
+		},
+		namedLogger,
+		gceFingerprinterName,
+	)
 }
 
 func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error) {
@@ -147,8 +157,8 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		f.client.Timeout = 1 * time.Millisecond
 	}
 
-	if !f.isGCE() {
-		return nil
+	if err := f.gceProbe(); err != nil {
+		return wrapProbeError(err)
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -275,23 +285,23 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 	return nil
 }
 
-func (f *EnvGCEFingerprint) isGCE() bool {
+func (f *EnvGCEFingerprint) gceProbe() error {
 	// TODO: better way to detect GCE?
 
-	// Query the metadata url for the machine type, to verify we're on GCE
+	// Query the metadata url for the machine type, to verify we're on GCE.
 	machineType, err := f.Get("machine-type", false)
 	if err != nil {
-		if re, ok := err.(ReqError); !ok || re.StatusCode != http.StatusNotFound {
-			// If it wasn't a 404 error, print an error message.
-			f.logger.Debug("error querying GCE Metadata URL, skipping")
-		}
-		return false
+		return err
 	}
 
 	match, err := regexp.MatchString("projects/.+/machineTypes/.+", machineType)
-	if err != nil || !match {
-		return false
+	if err != nil {
+		return err
 	}
 
-	return true
+	if !match {
+		return fmt.Errorf("GCE machine-type format invalid: %s", machineType)
+	}
+
+	return nil
 }
