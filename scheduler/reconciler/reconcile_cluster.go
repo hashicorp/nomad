@@ -1625,8 +1625,6 @@ func (a *AllocReconciler) computeDisconnecting(
 ) (
 	timeoutLaterEvals map[string]string,
 ) {
-	timeoutLaterEvals = make(map[string]string)
-
 	// We should have already done the logic to determine if an alloc was disconnecting
 	// we just want to compute the reschedule time
 	untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
