@@ -2282,36 +2282,6 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 	ci.Parallel(t)
 	// require := require.New(t)
 
-	t.Run("invalid method", func(t *testing.T) {
-		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest(http.MethodGet, "/v1/agent/reload", nil)
-			// require.NoError(t, err)
-			must.NoError(t, err)
-			respW := httptest.NewRecorder()
-
-			_, err = s.Server.AgentReloadRequest(respW, req)
-			// require.Error(t, err)
-			httpErr, ok := err.(HTTPCodedError)
-			// require.True(t, ok)
-			must.True(t, ok)
-			// require.Equal(t, http.StatusMethodNotAllowed, httpErr.Code())
-			must.Eq(t, ErrInvalidMethod, httpErr.Error())
-
-		})
-	})
-
-	t.Run("valid put request", func(t *testing.T) {
-		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
-			//must.NoError(t, err)
-			respW := httptest.NewRecorder()
-
-			obj, err := s.Server.AgentReloadRequest(respW, req)
-			must.NoError(t, err)
-			must.NotNil(t, obj)
-		})
-	})
-
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
@@ -2319,6 +2289,19 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
 		// require.Nil(err)
 		must.Nil(t, err)
+
+		// Try request with an invalid method
+		{
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/reload", nil)
+			// require.Nil(err)
+			must.Nil(t, err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.AgentReloadRequest(respW, req)
+			// require.NotNil(err)
+			must.NotNil(t, err)
+			// require.Equal(err.Error(), ErrInvalidMethod.Error())
+			must.Eq(t, ErrInvalidMethod, err.Error())
+		}
 
 		// Try request without a token and expect failure
 		{
