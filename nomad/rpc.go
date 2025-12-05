@@ -676,13 +676,9 @@ func (s *Server) getLeader() (bool, *peers.Parts) {
 		return false, nil
 	}
 
-	// Lookup the server
-	s.peerLock.RLock()
-	server := s.localPeers[leader]
-	s.peerLock.RUnlock()
-
-	// Server could be nil
-	return false, server
+	// Lookup the server and return it. We do not check the cache response, so
+	// the server could be nil.
+	return false, s.peersCache.LocalPeer(leader)
 }
 
 // forwardLeader is used to forward an RPC call to the leader, or fail if no leader
@@ -704,10 +700,8 @@ func (r *rpcHandler) forwardServer(server *peers.Parts, method string, args inte
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*peers.Parts, error) {
-	r.srv.peerLock.RLock()
-	defer r.srv.peerLock.RUnlock()
 
-	servers := r.srv.peers[region]
+	servers := r.srv.peersCache.RegionPeers(region)
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath
@@ -731,11 +725,8 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*peers.Parts, error) {
-	// Bail if we can't find any servers
-	r.srv.peerLock.RLock()
-	defer r.srv.peerLock.RUnlock()
 
-	servers := r.srv.peers[region]
+	servers := r.srv.peersCache.RegionPeers(region)
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath

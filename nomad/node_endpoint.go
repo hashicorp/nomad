@@ -294,8 +294,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(args.Node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -467,14 +465,7 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 	reply.LeaderRPCAddr = string(leaderAddr)
 
 	// Reply with config information required for future RPC requests
-	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for _, v := range n.srv.localPeers {
-		reply.Servers = append(reply.Servers,
-			&structs.NodeServerInfo{
-				RPCAdvertiseAddr: v.RPCAddr.String(),
-				Datacenter:       v.Datacenter,
-			})
-	}
+	reply.Servers = n.srv.peersCache.LocalPeersServerInfo()
 
 	ws := memdb.NewWatchSet()
 
@@ -879,8 +870,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Set the reply index and leader
 	reply.Index = index
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -1191,8 +1180,6 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	// Set the reply index
 	reply.Index = evalIndex
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
