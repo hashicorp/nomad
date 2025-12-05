@@ -143,6 +143,7 @@ type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
 	t      testing.TB
+	exited bool
 
 	HTTPAddr   string
 	SerfAddr   string
@@ -240,6 +241,12 @@ func NewTestServer(t testing.TB, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
+	if s.exited {
+		// Allow calling multiple times to allow for tests that use defer s.Stop()
+		// as well as stop the server during the test to assert behavior.
+		return
+	}
+
 	s.t.Cleanup(func() {
 		_ = os.RemoveAll(s.Config.DataDir)
 	})
@@ -258,6 +265,7 @@ func (s *TestServer) Stop() {
 
 	select {
 	case <-done:
+		s.exited = true
 		return
 	case <-time.After(5 * time.Second):
 		s.t.Logf("timed out waiting for process to gracefully terminate")
@@ -268,6 +276,7 @@ func (s *TestServer) Stop() {
 
 	select {
 	case <-done:
+		s.exited = true
 	case <-time.After(5 * time.Second):
 		s.t.Logf("timed out waiting for process to be killed")
 	}

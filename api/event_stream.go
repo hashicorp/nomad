@@ -167,6 +167,8 @@ func (c *Client) EventStream() *EventStream {
 
 // Stream establishes a new subscription to Nomad's event stream and streams
 // results back to the returned channel.
+//
+// Events stop being emitted once the Events.Err field is non-nil.
 func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, error) {
 	r, err := e.client.newRequest("GET", "/v1/event/stream")
 	if err != nil {
@@ -219,6 +221,11 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			case <-ctx.Done():
 				return
 			case eventsCh <- &events:
+			}
+
+			// There are no recoverable Decode errors, so return on error.
+			if events.Err != nil {
+				return
 			}
 		}
 	}()
