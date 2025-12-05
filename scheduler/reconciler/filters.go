@@ -403,16 +403,20 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		rescheduleNow = true
 	}
 
+	// We never want to reschedule unknown allocs that have `replace = false`
+	if isDisconnecting && !alloc.ReplaceOnDisconnect() {
+		return
+	}
+
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	var eligible bool
 	switch {
 	case isDisconnecting:
-		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
-
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
+		rescheduleLater = true
 	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
 		lastDisconnectTime := alloc.LastUnknown()
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
-
 	default:
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
@@ -422,7 +426,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
-	if eligible && (alloc.FollowupEvalID == "" || isDisconnecting) {
+	if eligible && alloc.FollowupEvalID == "" {
 		rescheduleLater = true
 	}
 

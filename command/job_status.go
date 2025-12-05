@@ -753,14 +753,14 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 	for _, taskGroup := range taskGroups {
 		evalID := followUpEvalIds[taskGroup]
 		evaluation, _, err := client.Evaluations().Info(evalID, nil)
-		// We don't want to show a reschedule if it's some other delayed eval
-		// not related to a reschedule.
-		if evaluation.TriggeredBy != structs.EvalTriggerAllocReschedule {
-			continue
-		}
 		// Eval time is not critical output,
 		// so don't return it on errors, if its not set, or its already in the past
 		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+			continue
+		}
+		// We don't want to show a reschedule if it's some other delayed eval
+		// not related to a reschedule.
+		if evaluation.TriggeredBy != structs.EvalTriggerAllocReschedule {
 			continue
 		}
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())

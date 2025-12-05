@@ -522,7 +522,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// * An alloc was lost
 	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
-		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, disconnecting, isCanarying)
+		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -836,7 +836,7 @@ func (a *AllocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 //
 // Placements will meet or exceed group count.
 func computePlacements(group *structs.TaskGroup,
-	nameIndex *AllocNameIndex, untainted, migrate, reschedule, lost, disconnected allocSet,
+	nameIndex *AllocNameIndex, untainted, migrate, reschedule, lost allocSet,
 	isCanarying bool) []AllocPlaceResult {
 
 	// Add rescheduled placement results
@@ -856,8 +856,7 @@ func computePlacements(group *structs.TaskGroup,
 	}
 
 	// Add replacements for lost allocs up to group.Count
-	existing := len(untainted) + len(migrate) + len(reschedule) + len(disconnected)
-
+	existing := len(untainted) + len(migrate) + len(reschedule)
 	// Add replacements for lost
 	for _, alloc := range lost {
 		if existing >= group.Count {

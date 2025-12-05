@@ -454,7 +454,7 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 
 	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
 		(!isRescheduledBatch && a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
-		failTime.IsZero() || reschedulePolicy == nil {
+		failTime.IsZero() {
 		return time.Time{}, false
 	}
 
@@ -484,16 +484,6 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	}
 
 	return a.nextRescheduleTime(t, reschedulePolicy)
-}
-
-func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
-		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
-		return a.NextRescheduleTimeByTime(now)
-	}
-
-	return now, *tg.Disconnect.Replace
 }
 
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
@@ -556,18 +546,6 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	}
 
 	return now.Add(timeout)
-}
-
-// DisconnectLostAfter is a helper to get the Disconnect.LostAfter for an allocation
-func (a *Allocation) DisconnectLostAfter() time.Duration {
-	if a.Job != nil {
-		tg := a.Job.LookupTaskGroup(a.TaskGroup)
-		if tg != nil {
-			return tg.GetDisconnectLostAfter()
-		}
-	}
-
-	return 0
 }
 
 // SupportsDisconnectedClients determines whether both the server and the task group
@@ -822,12 +800,18 @@ func (a *Allocation) Expired(now time.Time) bool {
 // transitioned into the unknown client status.
 func (a *Allocation) LastUnknown() time.Time {
 	var lastUnknown time.Time
+	foundUnknown := false
 
-	for _, s := range a.AllocStates {
-		if s.Field == AllocStateFieldClientStatus &&
-			s.Value == AllocClientStatusUnknown {
-			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+	// Traverse backwards
+	for i := len(a.AllocStates) - 1; i >= 0; i-- {
+		s := a.AllocStates[i]
+		if s.Field == AllocStateFieldClientStatus {
+			if s.Value == AllocClientStatusUnknown {
 				lastUnknown = s.Time
+				foundUnknown = true
+			} else if foundUnknown {
+				// We found the transition from non-unknown to unknown
+				break
 			}
 		}
 	}
