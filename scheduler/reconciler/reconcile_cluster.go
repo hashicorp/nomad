@@ -438,11 +438,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	if len(expiring) > 0 {
-		if !tg.Replace() {
-			untainted = untainted.union(expiring)
-		} else {
-			lost = lost.union(expiring)
-		}
+		lost = lost.union(expiring)
 	}
 
 	result.DesiredFollowupEvals = map[string][]*structs.Evaluation{}
@@ -1632,21 +1628,21 @@ func (a *AllocReconciler) computeDisconnecting(
 ) {
 	timeoutLaterEvals = make(map[string]string)
 
-	if tg.GetDisconnectLostAfter() != 0 {
-		untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
-			a.jobState.JobIsBatch, true, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
+	// We should have already done the logic to determine if an alloc was disconnecting
+	// we just want to compute the reschedule time
+	untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
+		a.jobState.JobIsBatch, true, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
-		*rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
-		*untainted = untainted.union(untaintedDisconnecting)
-		*rescheduleLater = append(*rescheduleLater, laterDisconnecting...)
+	*rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+	*untainted = untainted.union(untaintedDisconnecting)
+	*rescheduleLater = append(*rescheduleLater, laterDisconnecting...)
 
-		// Find delays for any disconnecting allocs that have
-		// disconnect.lost_after, create followup evals, and update the
-		// ClientStatus to unknown.
-		var followupEvals []*structs.Evaluation
-		timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
-		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
-	}
+	// Find delays for any disconnecting allocs that have
+	// disconnect.lost_after, create followup evals, and update the
+	// ClientStatus to unknown.
+	var followupEvals []*structs.Evaluation
+	timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+	result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 
 	updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
 	*rescheduleNow = rescheduleNow.update(updates)

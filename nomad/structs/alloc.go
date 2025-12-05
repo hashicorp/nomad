@@ -814,10 +814,6 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if !tg.Replace() {
-		return false
-	}
-
 	expiry := lastUnknown.Add(tg.GetDisconnectLostAfter())
 	return expiry.Sub(now) <= 0
 }

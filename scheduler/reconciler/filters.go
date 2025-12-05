@@ -160,9 +160,8 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 			continue
 		}
 
-		// Expired allocs should be processed depending on the disconnect.lost_after
-		// and/or avoid reschedule on lost configurations, they are both treated as
-		// expiring.
+		// The alloc is expired. These end up getting added to "lost" but this
+		// skips having to evaluate the reconnecting logic for these allocs.
 		if alloc.Expired(state.Now) {
 			expiring[alloc.ID] = alloc
 			continue
@@ -174,28 +173,13 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 				lost[alloc.ID] = alloc
 				continue
 			}
-			// Acknowledge unknown allocs that we want to reconnect eventually.
-			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
-				untainted[alloc.ID] = alloc
-				continue
-			}
-			// if the alloc shouldn't be replaced, mark it disconnecting, it won't get a followup eval
-			if !alloc.ReplaceOnDisconnect() {
-				disconnecting[alloc.ID] = alloc
-				continue
-			}
-			// If the alloc has a lost timeout, mark it disconnecting, it will get a followup eval later.
-			// Only mark running allocs as disconnected, any other status will get immediately replaced
-			if alloc.DisconnectLostAfter() != 0 && alloc.ClientStatus == structs.AllocClientStatusRunning {
-				disconnecting[alloc.ID] = alloc
-				continue
-			}
-
-			// If the alloc is pending or has no disconnect.lost_after set, mark it lost so it is replaced.
-			if alloc.ClientStatus == structs.AllocClientStatusPending || alloc.DisconnectLostAfter() == 0 {
+			// If the alloc is pending mark it lost so it is replaced immediately.
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				lost[alloc.ID] = alloc
 				continue
 			}
+			disconnecting[alloc.ID] = alloc
+			continue
 		}
 
 		// Non-terminal allocs that should migrate should always migrate
