@@ -1,0 +1,3 @@
+```release-note:improvement
+oidc: Add support for RFC9207, requiring an issuer param in authorization response if the provider requires it
+```
