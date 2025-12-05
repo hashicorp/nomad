@@ -221,7 +221,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 	}
 
 	t.Run("a add b", func(t *testing.T) {
-		result := a.Add(b)
+		result := a.Copy().Add(b)
 
 		require.Equal(t, map[structs.NamespacedID]BlockedResourcesSummary{
 			id1: {Timestamp: now(3), CPU: 311, MemoryMB: 522},
@@ -237,7 +237,7 @@ func TestBlockedResourcesStats_Add(t *testing.T) {
 	// make sure we handle zeros in both directions
 	// and timestamps originate from rhs
 	t.Run("b add a", func(t *testing.T) {
-		result := b.Add(a)
+		result := b.Copy().Add(a)
 		require.Equal(t, map[structs.NamespacedID]BlockedResourcesSummary{
 			id1: {Timestamp: now(1), CPU: 311, MemoryMB: 522},
 			id2: {Timestamp: now(4), CPU: 400, MemoryMB: 500},
@@ -408,13 +408,12 @@ func TestBlockedEvalsStats_BlockedResources(t *testing.T) {
 	// BlockedEvals instance.
 	blockAndUntrack := func(testEval testBlockedEvalsRandomBlockedEval, block bool, unblockIdx uint16) *BlockedResourcesStats {
 		if block || len(evalHistory) == 0 {
-			blocked.Block(testEval.eval)
+			<-blocked.Block(testEval.eval)
 		} else {
 			i := int(unblockIdx) % len(evalHistory)
 			eval := evalHistory[i]
-			blocked.Untrack(eval.JobID, eval.Namespace)
+			<-blocked.Untrack(eval.JobID, eval.Namespace)
 		}
-
 		// Remove zero stats from unblocked evals.
 		blocked.pruneStats(time.Now().UTC())
 
@@ -426,7 +425,9 @@ func TestBlockedEvalsStats_BlockedResources(t *testing.T) {
 	// manualCount processes only the blocked evals and generate a
 	// BlockedResourcesStats result directly from the eval history.
 	manualCount := func(testEval testBlockedEvalsRandomBlockedEval, block bool, unblockIdx uint16) *BlockedResourcesStats {
+
 		if block || len(evalHistory) == 0 {
+
 			evalHistory = append(evalHistory, testEval.eval)
 
 			// Find and unblock evals for the same job.
@@ -435,17 +436,21 @@ func TestBlockedEvalsStats_BlockedResources(t *testing.T) {
 					blockedEvals[e.ID] = false
 				}
 			}
+
 			blockedEvals[testEval.eval.ID] = true
 		} else {
 			i := int(unblockIdx) % len(evalHistory)
 			eval := evalHistory[i]
+			counts := 0
 
 			// Find and unlock all evals for this job.
 			for _, e := range evalHistory {
 				if e.Namespace == eval.Namespace && e.JobID == eval.JobID {
+					counts++
 					blockedEvals[e.ID] = false
 				}
 			}
+
 		}
 
 		result := NewBlockedResourcesStats()

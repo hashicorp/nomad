@@ -24,6 +24,7 @@ import (
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -794,18 +795,23 @@ func TestWorker_ReblockEval(t *testing.T) {
 	w.evalToken = token
 
 	err = w.ReblockEval(eval2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Ack the eval
 	w.sendAck(evalOut, token)
 
 	// Check that it is blocked
-	bStats := s1.blockedEvals.Stats()
-	if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
-		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
-	}
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := s1.blockedEvals.Stats()
+		if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
+			return fmt.Errorf(
+				"ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 
 	// Check that the eval was updated
 	ws := memdb.NewWatchSet()
@@ -819,7 +825,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 
 	// Check that the snapshot index was set properly by unblocking the eval and
 	// then dequeuing.
-	s1.blockedEvals.Unblock("foobar", 1000)
+	<-s1.blockedEvals.Unblock("foobar", 1000)
 
 	reblockedEval, _, err := s1.evalBroker.Dequeue([]string{eval1.Type}, 1*time.Second)
 	if err != nil {
