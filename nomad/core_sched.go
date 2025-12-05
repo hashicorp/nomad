@@ -6,6 +6,7 @@ package nomad
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +30,11 @@ type CoreScheduler struct {
 	snap   *state.StateSnapshot
 	logger log.Logger
 
+	// planner is used by the core scheduler to create follow up evaluations for
+	// tasks such as variable rekeying. It is used, so we have access to eval
+	// create retry logic and avoids code duplication.
+	planner sstructs.Planner
+
 	// customThresholdForObject is used by unit tests that want to manipulate GC
 	// threshold settings. Users can pass the string that matches the object to GC
 	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
@@ -37,11 +43,12 @@ type CoreScheduler struct {
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
-func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) sstructs.Scheduler {
+func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner) sstructs.Scheduler {
 	s := &CoreScheduler{
 		srv:                      srv,
 		snap:                     snap,
 		logger:                   srv.logger.ResetNamed("core.sched"),
+		planner:                  planner,
 		customThresholdForObject: make(map[string]*time.Duration),
 	}
 	return s
@@ -1243,8 +1250,17 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 		if err != nil {
 			return err
 		}
-		err = c.rotateVariables(varIter, eval)
-		if err != nil {
+
+		// Perform the re-encryption of variables using the new active key. If
+		// we reach a timeout, there is no need to return an error, as a new
+		// eval will be emitted to continue the work. We do not mark the key
+		// as inactive until all variables have been rekeyed. If any other error
+		// occurs, we return it to the caller.
+		if err = c.rotateVariables(varIter, eval); err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				c.logger.Info("timeout reached rekeying variables", "key_id", wrappedKeys.KeyID)
+				return nil
+			}
 			return err
 		}
 
@@ -1258,13 +1274,19 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			RootKey: rootKey,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
-				AuthToken: eval.LeaderACL},
+				AuthToken: eval.LeaderACL,
+			},
 		}
 		if err := c.srv.RPC("Keyring.Update",
 			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
 			c.logger.Error("rekey complete but failed to mark key as inactive", "error", err)
 			return err
 		}
+
+		// Log a success, so cluster operators can see that the rekey has
+		// completed successfully.
+		c.logger.Info("variables successfully rekeyed and key marked inactive",
+			"key_id", wrappedKeys.KeyID)
 	}
 
 	return nil
@@ -1272,7 +1294,12 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 // rotateVariables runs over an iterator of variables and decrypts them, and
 // then sends them back to be re-encrypted with the currently active key,
-// checking for conflicts
+// checking for conflicts.
+//
+// This function uses a rate limiter and a timeout to avoid blocking the
+// scheduler goroutine for too long. If the timeout is reached, a new eval
+// is emitted to continue the work and the function returns
+// context.DeadlineExceeded.
 func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
 
 	args := &structs.VariablesApplyRequest{
@@ -1305,24 +1332,29 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 
 		select {
 		case <-ctx.Done():
-			newEval := &structs.Evaluation{
-				ID:          uuid.Generate(),
-				Namespace:   "-",
-				Priority:    structs.CoreJobPriority,
-				Type:        structs.JobTypeCore,
-				TriggeredBy: structs.EvalTriggerScheduled,
-				JobID:       eval.JobID,
-				Status:      structs.EvalStatusPending,
-				LeaderACL:   eval.LeaderACL,
+
+			// The timeout has been reached, so we need to emit a new eval to
+			// continue the work later.
+			newEval := structs.Evaluation{
+				ID:           uuid.Generate(),
+				Namespace:    "-",
+				Priority:     structs.CoreJobPriority,
+				Type:         structs.JobTypeCore,
+				TriggeredBy:  structs.EvalTriggerScheduled,
+				JobID:        eval.JobID,
+				Status:       structs.EvalStatusPending,
+				LeaderACL:    eval.LeaderACL,
+				PreviousEval: eval.ID,
 			}
-			return c.srv.RPC("Eval.Create", &structs.EvalUpdateRequest{
-				Evals:     []*structs.Evaluation{newEval},
-				EvalToken: uuid.Generate(),
-				WriteRequest: structs.WriteRequest{
-					Region:    c.srv.config.Region,
-					AuthToken: eval.LeaderACL,
-				},
-			}, &structs.GenericResponse{})
+
+			// Create a follow-up eval to continue the rekey work.
+			if err := c.planner.CreateEval(&newEval); err != nil {
+				return err
+			}
+
+			// Return the deadline exceeded error so the caller knows we didn't
+			// finish the work and the key should not be marked inactive yet.
+			return ctx.Err()
 
 		default:
 		}
