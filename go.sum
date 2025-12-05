@@ -415,8 +415,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 h1:8Tjv8EJ+pM1xP8mK6egEbD1OgnV
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2/go.mod h1:pkJQ2tZHJ0aFOVEEot6oZmaVEZcRme73eIFmhiVuRWs=
 github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.65 h1:81+kWbE1yErFBMjME0I5k3x3kojjKsWtPYHEAutoPow=
 github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.65/go.mod h1:WtMzv9T++tfWVea+qB2MXoaqxw33S8bpJslzUike2mQ=
-github.com/hashicorp/cap v0.11.0 h1:tnMNgIWEdbmyx0fulrlLPNHowsprg34xFWflOEB3t1s=
-github.com/hashicorp/cap v0.11.0/go.mod h1:HKbv27kfps+wONFNyNTHpAQmU/DCjjDuB5HF6mFsqPQ=
+github.com/hashicorp/cap v0.12.0 h1:z1PU5j8iqLpyortK8JatvPVqEGSl3eN2vxZUWtOgdZU=
+github.com/hashicorp/cap v0.12.0/go.mod h1:KmO21ZfHvXuAUZBc3Ycqu5NhwMahvfmfR4HlW4f+b3c=
 github.com/hashicorp/cli v1.1.7 h1:/fZJ+hNdwfTSfsxMBa9WWMlfjUZbX8/LnUxgAd7lCVU=
 github.com/hashicorp/cli v1.1.7/go.mod h1:e6Mfpga9OCT1vqzFuoGZiiF/KaG9CbUfO5s3ghU3YgU=
 github.com/hashicorp/consul-template v0.41.3 h1:kBV74WN+UBl7TL3tzXGXU4AiGug4teUrAGO3vnnz+DI=
