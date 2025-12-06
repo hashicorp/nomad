@@ -260,6 +260,10 @@ func (c *Command) readConfig() *Config {
 	// Merge in the enterprise overlay
 	config = config.Merge(DefaultEntConfig())
 
+	if len(configPath) > 0 {
+		config.ConfigPaths = append([]string(nil), configPath...)
+	}
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
