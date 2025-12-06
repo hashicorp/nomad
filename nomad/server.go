@@ -105,7 +105,21 @@ const (
 // Server is Nomad server which manages the job queues,
 // schedulers, and notification bus for agents.
 type Server struct {
+
+	// config holds the server configuration. No fields are not mutated after
+	// initialization except for the TLS config, so it is safe to access them
+	// without a lock. Any fields that become reloadable, must be carefully
+	// assessed for concurrent access.
 	config *Config
+
+	// rpcTLSEnabled and rpcTLSUpgradeMode are used by the RPC connection
+	// handler to determine TLS enforcement. The values can change at runtime
+	// due to config reloading.
+	//
+	// The setRPCTLSAtomics helper function should be used to set these values
+	// as it correctly handles nil configs.
+	rpcTLSEnabled     atomic.Bool
+	rpcTLSUpgradeMode atomic.Bool
 
 	logger log.InterceptLogger
 
@@ -346,6 +360,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Create the server
 	s := &Server{
 		config:                  config,
+		rpcTLSEnabled:           atomic.Bool{},
+		rpcTLSUpgradeMode:       atomic.Bool{},
 		consulCatalog:           consulCatalog,
 		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap, config.RPCSessionConfig),
 		logger:                  logger,
@@ -365,6 +381,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
 	}
+
+	// Store the server TLS RPC settings that will be used by the connection
+	// handler.
+	s.setRPCTLSAtomics(config.TLSConfig)
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
 	s.shutdownCh = s.shutdownCtx.Done()
@@ -684,16 +704,19 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.tlsWrap = tlsWrap
 	s.tlsWrapLock.Unlock()
 
-	// Keeping configuration in sync is important for other places that require
-	// access to config information, such as rpc.go, where we decide on what kind
-	// of network connections to accept depending on the server configuration
+	// Ensure the config object is updated. This is done to keep things in sync
+	// only; all access to TLS enforcement should be done via the atomics which
+	// are updated below.
 	s.config.TLSConfig = newTLSConfig
+
+	// Update the RPC TLS atomics used for connection handling.
+	s.setRPCTLSAtomics(newTLSConfig)
 
 	// Kill any old listeners
 	s.rpcCancel()
 
 	// Update the authenticator, so any changes in TLS verification are applied.
-	s.auth.SetVerifyTLS(s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC && s.config.TLSConfig.VerifyServerHostname)
+	s.auth.SetVerifyTLS(s.config.TLSConfig != nil && s.rpcTLSEnabled.Load() && s.config.TLSConfig.VerifyServerHostname)
 
 	s.rpcTLS = incomingTLS
 	s.connPool.ReloadTLS(tlsWrap)
@@ -2074,6 +2097,16 @@ func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, r
 	// Set the query response.
 	s.setQueryMeta(reply)
 	return nil
+}
+
+// setRPCTLSAtomics is a helper function to set the atomic values for RPC TLS
+// handling based on the provided config.
+//
+// This should be used whenever the RPC TLS config is changed to ensure as it
+// correctly handles nil configs which might otherwise be missed.
+func (s *Server) setRPCTLSAtomics(cfg *config.TLSConfig) {
+	s.rpcTLSEnabled.Store(cfg != nil && cfg.EnableRPC)
+	s.rpcTLSUpgradeMode.Store(cfg != nil && cfg.RPCUpgradeMode)
 }
 
 // Region returns the region of the server
