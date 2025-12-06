@@ -582,22 +582,25 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	currConf := s.agent.GetConfig().Copy()
-
 	newConf := DefaultConfig()
 
-	for _, path := range currConf.Files {
-		if path == "" {
-			continue
+	// will be removed just sanity check.
+	s.logger.Info("current files", "current", currConf.Files)
+	s.logger.Info("current paths", "paths", currConf.ConfigPaths)
+
+	for _, path := range currConf.ConfigPaths {
+		cfgFromFile, err := LoadConfig(path)
+		if err != nil {
+			s.logger.Error("failed to load config file", "file", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
+			return nil, CodedError(400, err.Error())
 		}
-		if cfgFromFile, err := LoadConfig(path); err != nil {
-			s.logger.Error("failed to load config", "config", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
-			return nil, CodedError(400, error.Error(err))
-		} else if cfgFromFile != nil {
+		if cfgFromFile != nil {
 			newConf = newConf.Merge(cfgFromFile)
 		}
 	}
 
-	newConf.Files = append([]string(nil), currConf.Files...)
+	// will be removed just sanity check.
+	s.logger.Info("reloading agent configuration", "old_files", currConf.Files, "new_files", newConf.Files)
 
 	if err := s.agent.Reload(newConf); err != nil {
 		return nil, CodedError(400, err.Error())
