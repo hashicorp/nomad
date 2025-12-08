@@ -1059,11 +1059,22 @@ type PlanRequest struct {
 }
 
 // ApplyPlanResultsRequest is used by the planner to apply a Raft transaction
-// committing the result of a plan.
+// committing the result of a plan, including assigning new allocations or
+// evicting existing ones.
 type ApplyPlanResultsRequest struct {
-	// AllocUpdateRequest holds the allocation updates to be made by the
-	// scheduler.
-	AllocUpdateRequest
+	// Allocations to stop. Contains only the diff, not the entire allocation
+	AllocsStopped []*AllocationDiff
+
+	// New or updated allocations
+	AllocsUpdated []*Allocation
+
+	// Evals is the list of new evaluations to create Evals are valid only when
+	// used in the Raft RPC
+	Evals []*Evaluation
+
+	// Job is the shared parent job of the allocations. It is pulled out of the
+	// request sent over the wire from the scheduler to reduce payload size.
+	Job *Job
 
 	// Deployment is the deployment created or updated as a result of a
 	// scheduling event.
@@ -1082,12 +1093,6 @@ type ApplyPlanResultsRequest struct {
 	// the evaluation itself being updated.
 	EvalID string
 
-	// COMPAT 0.11
-	// NodePreemptions is a slice of allocations from other lower priority jobs
-	// that are preempted. Preempted allocations are marked as evicted.
-	// Deprecated: Replaced with AllocsPreempted which contains only the diff
-	NodePreemptions []*Allocation
-
 	// AllocsPreempted is a slice of allocation diffs from other lower priority jobs
 	// that are preempted. Preempted allocations are marked as evicted.
 	AllocsPreempted []*AllocationDiff
@@ -1105,29 +1110,15 @@ type ApplyPlanResultsRequest struct {
 	UpdatedAt int64
 }
 
-// AllocUpdateRequest is used to submit changes to allocations, either
-// to cause evictions or to assign new allocations. Both can be done
-// within a single transaction
+// AllocUpdateRequest is used to update the server from the client.
 type AllocUpdateRequest struct {
-	// COMPAT 0.11
-	// Alloc is the list of new allocations to assign
-	// Deprecated: Replaced with two separate slices, one containing stopped allocations
-	// and another containing updated allocations
+	// Alloc is the list of allocation updates from the client
 	Alloc []*Allocation
 
-	// Allocations to stop. Contains only the diff, not the entire allocation
-	AllocsStopped []*AllocationDiff
-
-	// New or updated allocations
-	AllocsUpdated []*Allocation
-
-	// Evals is the list of new evaluations to create
-	// Evals are valid only when used in the Raft RPC
+	// Evals is the list of new evaluations to create; these are only added to
+	// the request object in the RPC handler so that we're writing them into the
+	// Raft log entry
 	Evals []*Evaluation
-
-	// Job is the shared parent job of the allocations.
-	// It is pulled out since it is common to reduce payload size.
-	Job *Job
 
 	WriteRequest
 }
