@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -104,10 +103,10 @@ func renderSVAsUiTable(sv *api.Variable, c VarUI) {
 	meta := []string{
 		fmt.Sprintf("Namespace|%s", sv.Namespace),
 		fmt.Sprintf("Path|%s", sv.Path),
-		fmt.Sprintf("Create Time|%v", formatUnixNanoTime(sv.ModifyTime)),
+		fmt.Sprintf("Create Time|%v", formatUnixNanoTime(sv.CreateTime)),
 	}
 	if sv.CreateTime != sv.ModifyTime {
-		meta = append(meta, fmt.Sprintf("Modify Time|%v", time.Unix(0, sv.ModifyTime)))
+		meta = append(meta, fmt.Sprintf("Modify Time|%v", formatUnixNanoTime(sv.ModifyTime)))
 	}
 	meta = append(meta, fmt.Sprintf("Check Index|%v", sv.ModifyIndex))
 	ui := c.GetConcurrentUI()
