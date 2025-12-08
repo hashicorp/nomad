@@ -1616,6 +1616,10 @@ type JobPlanResponse struct {
 	// causes an in-place update or create/destroy
 	Diff *JobDiff
 
+	// CauseDeployment is true if the plan causes a deployment to be created or
+	// modified.
+	CauseDeployment bool
+
 	// NextPeriodicLaunch is the time duration till the job would be launched if
 	// submitted.
 	NextPeriodicLaunch time.Time
