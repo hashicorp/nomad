@@ -181,16 +181,16 @@ restart {
 }
 ```
 
-With the following `restart` block, a task that fails after 1
-minute, after 2 minutes, and after 3 minutes will be restarted each
-time. If it fails again before 10 minutes, the entire allocation will
+With the following `restart` block, a failing task will restart 3
+times with 1 minute delay between attempts. 
+If it fails again before 10 minutes, the entire allocation will
 be marked as failed and the scheduler will follow the group's
 [`reschedule`] specification, possibly resulting in a new evaluation.
 
 ```hcl
 restart {
   attempts = 3
-  delay    = "15s"
+  delay    = "1m"
   interval = "10m"
   mode     = "fail"
 }
