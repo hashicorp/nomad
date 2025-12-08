@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed the `var get` command which was incorrectly displaying the variable modify time as the create time
+```
