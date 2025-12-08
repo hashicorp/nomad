@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -25,6 +26,8 @@ type BlockedStats struct {
 	// BlockedResources stores the amount of resources requested by blocked
 	// evaluations.
 	BlockedResources *BlockedResourcesStats
+
+	lock sync.RWMutex
 }
 
 // classInDC is a coordinate of a specific class in a specific datacenter
@@ -41,24 +44,104 @@ func NewBlockedStats() *BlockedStats {
 	}
 }
 
+func (b *BlockedStats) Reset() {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	b.TotalEscaped = 0
+	b.TotalBlocked = 0
+	b.TotalQuotaLimit = 0
+	b.BlockedResources = NewBlockedResourcesStats()
+}
+
 // Block updates the stats for the blocked eval tracker with the details of the
 // evaluation being blocked.
 func (b *BlockedStats) Block(eval *structs.Evaluation) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
 	b.TotalBlocked++
 	resourceStats := generateResourceStats(eval)
 	b.BlockedResources = b.BlockedResources.Add(resourceStats)
+
+	// Track that the evaluation is being added due to reaching the quota limit
+	if eval.QuotaLimitReached != "" {
+		b.TotalQuotaLimit++
+	}
+
+	// If the eval has escaped, meaning computed node classes could not capture
+	// the constraints of the job, we store the eval separately as we have to
+	// unblock it whenever node capacity changes. This is because we don't know
+	// what node class is feasible for the jobs constraints.
+	if eval.EscapedComputedClass {
+		b.TotalEscaped++
+	}
+}
+
+// Copy returns a deep clone of the BlockedStats, holding a read lock
+func (b *BlockedStats) Copy() *BlockedStats {
+	stats := NewBlockedStats()
+
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	stats.TotalEscaped = b.TotalEscaped
+	stats.TotalBlocked = b.TotalBlocked
+	stats.TotalQuotaLimit = b.TotalQuotaLimit
+	stats.BlockedResources = b.BlockedResources.Copy()
+	return stats
 }
 
 // Unblock updates the stats for the blocked eval tracker with the details of the
 // evaluation being unblocked.
-func (b *BlockedStats) Unblock(eval *structs.Evaluation) {
+func (b *BlockedStats) Unblock(eval *structs.Evaluation, escaped bool) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.unblockImpl(eval, escaped)
+}
+
+// UnblockAll updates the stats for a set of evaluations. It will also decrement
+// TotalEscaped or reset it to zero if negative
+func (b *BlockedStats) UnblockAll(evals map[*structs.Evaluation]string, escaped int) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	for eval := range evals {
+		b.unblockImpl(eval, false)
+	}
+	if escaped >= 0 {
+		b.TotalEscaped -= escaped
+	} else {
+		b.TotalEscaped = 0
+	}
+}
+
+// unblockImpl expects that b.lock is held by the caller
+func (b *BlockedStats) unblockImpl(eval *structs.Evaluation, escaped bool) {
 	b.TotalBlocked--
+
 	resourceStats := generateResourceStats(eval)
 	b.BlockedResources = b.BlockedResources.Subtract(resourceStats)
+
+	if eval.QuotaLimitReached != "" {
+		b.TotalQuotaLimit--
+	}
+	if escaped {
+		b.TotalEscaped--
+	}
+}
+
+func (b *BlockedStats) decrementEscaped() {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.TotalEscaped--
 }
 
 // prune deletes any key zero metric values older than the cutoff.
 func (b *BlockedStats) prune(cutoff time.Time) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
 	shouldPrune := func(s BlockedResourcesSummary) bool {
 		return s.Timestamp.Before(cutoff) && s.IsZero()
 	}
@@ -160,33 +243,27 @@ func (b *BlockedResourcesStats) Copy() *BlockedResourcesStats {
 // Add returns a new BlockedResourcesStats with the values set to the current
 // resource values plus the input.
 func (b *BlockedResourcesStats) Add(a *BlockedResourcesStats) *BlockedResourcesStats {
-	result := b.Copy()
 
 	for k, v := range a.ByJob {
-		result.ByJob[k] = b.ByJob[k].Add(v)
+		b.ByJob[k] = b.ByJob[k].Add(v)
 	}
-
 	for k, v := range a.ByClassInDC {
-		result.ByClassInDC[k] = b.ByClassInDC[k].Add(v)
+		b.ByClassInDC[k] = b.ByClassInDC[k].Add(v)
 	}
-
-	return result
+	return b
 }
 
 // Subtract returns a new BlockedResourcesStats with the values set to the
 // current resource values minus the input.
 func (b *BlockedResourcesStats) Subtract(a *BlockedResourcesStats) *BlockedResourcesStats {
-	result := b.Copy()
 
 	for k, v := range a.ByJob {
-		result.ByJob[k] = b.ByJob[k].Subtract(v)
+		b.ByJob[k] = b.ByJob[k].Subtract(v)
 	}
-
 	for k, v := range a.ByClassInDC {
-		result.ByClassInDC[k] = b.ByClassInDC[k].Subtract(v)
+		b.ByClassInDC[k] = b.ByClassInDC[k].Subtract(v)
 	}
-
-	return result
+	return b
 }
 
 // BlockedResourcesSummary stores resource values for blocked evals.

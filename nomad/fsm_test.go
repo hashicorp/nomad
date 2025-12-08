@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -141,7 +142,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	req := structs.NodeRegisterRequest{
 		Node: node,
@@ -374,7 +375,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	event := &structs.NodeEvent{
 		Message:   "Node ready foo",
@@ -603,7 +604,7 @@ func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	// Set eligible
 	req4 := structs.NodeUpdateEligibilityRequest{
@@ -1233,14 +1234,20 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 	// Verify the eval wasn't enqueued
 	stats := fsm.evalBroker.Stats()
 	if stats.TotalReady != 0 {
-		t.Fatalf("bad: %#v %#v", stats, out)
+		t.Fatalf("bad: %#v", stats)
 	}
 
-	// Verify the eval was added to the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	// Verify the eval was added to the blocked tracker
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 1 {
+			return fmt.Errorf("expected eval to be blocked: %#v", bStats)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_UpdateEval_Untrack(t *testing.T) {
@@ -1252,7 +1259,7 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 	// Mark an eval as blocked.
 	bEval := mock.Eval()
 	bEval.ClassEligibility = map[string]bool{"v1:123": true}
-	fsm.blockedEvals.Block(bEval)
+	<-fsm.blockedEvals.Block(bEval)
 
 	// Create a successful eval for the same job
 	eval := mock.Eval()
@@ -1292,10 +1299,16 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 	}
 
 	// Verify the eval was untracked in the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return fmt.Errorf("expected eval to be untracked: %#v %#v", bStats, out)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
@@ -1307,7 +1320,7 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 	// Mark an eval as blocked.
 	bEval := mock.Eval()
 	bEval.ClassEligibility = map[string]bool{"v1:123": true}
-	fsm.blockedEvals.Block(bEval)
+	<-fsm.blockedEvals.Block(bEval)
 
 	// Create a successful eval for the same job but with placement failures
 	eval := mock.Eval()
@@ -1349,10 +1362,16 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 	}
 
 	// Verify the eval was not untracked in the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	must.Wait(t, wait.ContinualSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 1 {
+			return fmt.Errorf("expected eval not to be untracked: %#v %#v", bStats, out)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_DeleteEval(t *testing.T) {
@@ -1409,7 +1428,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	bStats := fsm.blockedEvals.Stats()
 	if bStats.TotalBlocked != 1 {
