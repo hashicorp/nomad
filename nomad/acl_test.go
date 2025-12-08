@@ -152,10 +152,8 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
 	planReq := &structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc1, alloc2},
-			Job:   job,
-		},
+		AllocsUpdated: []*structs.Allocation{alloc1, alloc2},
+		Job:           job,
 	}
 	_, _, err = leader.raftApply(structs.ApplyPlanResultsRequestType, planReq)
 	must.NoError(t, err)

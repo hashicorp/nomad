@@ -695,9 +695,7 @@ func TestAlloc_ServiceRegistrationLifecycle(t *testing.T) {
 	index++
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
-			AllocUpdateRequest: structs.AllocUpdateRequest{
-				AllocsStopped: []*structs.AllocationDiff{&diff},
-			},
+			AllocsStopped: []*structs.AllocationDiff{&diff},
 		}))
 
 	iter, err = store.GetServiceRegistrationsByAllocID(nil, alloc1.ID)
