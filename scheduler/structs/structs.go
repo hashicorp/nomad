@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -66,7 +67,9 @@ func NewPlanWithStateAndIndex(state *state.StateStore, nextIndex uint64, servers
 	return &PlanBuilder{State: state, nextIndex: nextIndex, serversMeetMinimumVersion: serversMeetMinimumVersion}
 }
 
-// PlanBuilder is used to submit plans.
+// PlanBuilder is used to create plans outside the usual scheduler worker flow,
+// such as testing, recalculating queued allocs during snapshot restore in the
+// FSM, or the online plans created in the Job.Plan RPC
 type PlanBuilder struct {
 	State *state.StateStore
 
@@ -111,7 +114,6 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 	result.NodePreemptions = plan.NodePreemptions
 	result.AllocIndex = index
 
-	// Flatten evicts and allocs
 	now := time.Now().UTC().UnixNano()
 
 	allocsUpdated := make([]*structs.Allocation, 0, len(result.NodeAllocation))
@@ -120,39 +122,37 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 	}
 	updateCreateTimestamp(allocsUpdated, now)
 
+	snap, _ := p.State.Snapshot()
+
+	// make sure these are denormalized the same way they would be in the real
+	// plan applier
+	allocsStopped := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+	for _, updateList := range plan.NodeUpdate {
+		stopped, _ := snap.DenormalizeAllocationSlice(updateList)
+		allocsStopped = append(allocsStopped, helper.ConvertSlice(stopped,
+			func(a *structs.Allocation) *structs.AllocationDiff { return a.AllocationDiff() })...)
+
+	}
+
+	// make sure these are denormalized the same way they would be in the real
+	// plan applier
+	allocsPreempted := make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+	for _, preemptionList := range result.NodePreemptions {
+		preemptions, _ := snap.DenormalizeAllocationSlice(preemptionList)
+		allocsPreempted = append(allocsPreempted, helper.ConvertSlice(preemptions,
+			func(a *structs.Allocation) *structs.AllocationDiff { return a.AllocationDiff() })...)
+	}
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job: plan.Job,
-		},
+		AllocsStopped:     allocsStopped,
+		AllocsUpdated:     allocsUpdated,
+		AllocsPreempted:   allocsPreempted,
+		Job:               plan.Job,
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
 	}
-
-	var allocs []*structs.Allocation
-
-	allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
-	for _, updateList := range plan.NodeUpdate {
-		allocsStopped = append(allocsStopped, updateList...)
-	}
-	allocs = append(allocs, allocsStopped...)
-
-	allocs = append(allocs, allocsUpdated...)
-	updateCreateTimestamp(allocs, now)
-
-	req.Alloc = allocs
-
-	// Set modify time for preempted allocs and flatten them
-	var preemptedAllocs []*structs.Allocation
-	for _, preemptions := range result.NodePreemptions {
-		for _, alloc := range preemptions {
-			alloc.ModifyTime = now
-			preemptedAllocs = append(preemptedAllocs, alloc)
-		}
-	}
-
-	req.NodePreemptions = preemptedAllocs
 
 	if p.noSubmit {
 		return result, nil, nil
@@ -170,6 +170,7 @@ func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
 		if alloc.CreateTime == 0 {
 			alloc.CreateTime = now
 		}
+		alloc.ModifyTime = now
 	}
 }
 
