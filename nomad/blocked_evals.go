@@ -110,7 +110,7 @@ type capacityUpdate struct {
 	blockToken   string
 	untrackJobID structs.NamespacedID
 
-	// future will closed when the operation is done, which allows callers to
+	// future will be closed when the operation is done, which allows callers to
 	// block until then if they need to (this is mostly used for tests). The
 	// callers in the FSM should never wait on this future
 	future chan struct{}
