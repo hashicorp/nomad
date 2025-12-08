@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -316,4 +318,93 @@ func TestSecretsHook_Prestart_Vault(t *testing.T) {
 	}
 
 	must.Eq(t, exp, taskEnv.Build().TaskSecrets)
+}
+
+func TestSecretsHook_Prestart_Plugin(t *testing.T) {
+	basePlugin := `#!/bin/bash
+if [ "$1" = "fingerprint" ]; then
+    cat <<EOF
+{
+  "type": "secrets",
+  "version": "0.0.1"
+}
+EOF
+elif [ "$1" = "fetch" ]; then
+    cat <<EOF
+{
+  "result": {
+	%s
+  }
+}
+EOF
+fi`
+
+	t.Run("sets plugin environment correctly", func(t *testing.T) {
+		clientConfig := config.DefaultConfig()
+		clientConfig.CommonPluginDir = t.TempDir()
+
+		pluginDir := filepath.Join(clientConfig.CommonPluginDir, "secrets")
+		err := os.MkdirAll(pluginDir, 0755)
+		must.NoError(t, err)
+
+		pluginPath := filepath.Join(pluginDir, "test")
+		testPlugin := fmt.Sprintf(basePlugin, `
+				"jobID": "${NOMAD_JOB_ID}",
+				"namespace": "${NOMAD_NAMESPACE}"`)
+		err = os.WriteFile(pluginPath, []byte(testPlugin), 0755)
+		must.NoError(t, err)
+
+		taskDir := t.TempDir()
+		alloc := mock.MinAlloc()
+		task := alloc.Job.TaskGroups[0].Tasks[0]
+
+		taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
+		conf := &secretsHookConfig{
+			logger:         testlog.HCLogger(t),
+			lifecycle:      trtesting.NewMockTaskHooks(),
+			events:         &trtesting.MockEmitter{},
+			clientConfig:   clientConfig,
+			envBuilder:     taskEnv,
+			nomadNamespace: "test-namespace",
+			jobId:          "test-jobid",
+		}
+		secretHook := newSecretsHook(conf, []*structs.Secret{
+			{
+				Name:     "test_secret0",
+				Provider: "test",
+				Path:     "/test/path",
+				Env: map[string]string{
+					"NOMAD_NAMESPACE": "incorrect",
+					"NOMAD_JOB_ID":    "also-incorrect",
+				},
+			},
+			{
+				Name:     "test_secret1",
+				Provider: "test",
+				Path:     "/test/path",
+			},
+		})
+
+		// Start template hook with a timeout context to ensure it exists.
+		req := &interfaces.TaskPrestartRequest{
+			Alloc:   alloc,
+			Task:    task,
+			TaskDir: &allocdir.TaskDir{Dir: taskDir, SecretsDir: taskDir},
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		t.Cleanup(cancel)
+
+		err = secretHook.Prestart(ctx, req, &interfaces.TaskPrestartResponse{})
+		must.NoError(t, err)
+
+		exp := map[string]string{
+			"secret.test_secret0.jobID":     "test-jobid",
+			"secret.test_secret0.namespace": "test-namespace",
+			"secret.test_secret1.jobID":     "test-jobid",
+			"secret.test_secret1.namespace": "test-namespace",
+		}
+
+		must.Eq(t, exp, taskEnv.Build().TaskSecrets)
+	})
 }
