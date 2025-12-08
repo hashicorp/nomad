@@ -49,6 +49,9 @@ type secretsHookConfig struct {
 
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
+
+	// jobId is the ID of the job
+	jobId string
 }
 
 type secretsHook struct {
@@ -70,6 +73,9 @@ type secretsHook struct {
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
 
+	// jobId is the nomad job's ID
+	jobId string
+
 	// secrets to be fetched and populated for interpolation
 	secrets []*structs.Secret
 }
@@ -82,6 +88,7 @@ func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secrets
 		clientConfig:   conf.clientConfig,
 		envBuilder:     conf.envBuilder,
 		nomadNamespace: conf.nomadNamespace,
+		jobId:          conf.jobId,
 		secrets:        secrets,
 	}
 }
@@ -198,6 +205,9 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				tmplProvider = append(tmplProvider, p)
 			}
 		default:
+			// Add/overwrite the nomad namespace and jobID envVars
+			s.Env = h.setupPluginEnv(s.Env)
+
 			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Env)
 			if err != nil {
 				multierror.Append(mErr, err)
@@ -208,4 +218,16 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 	}
 
 	return tmplProvider, pluginProvider, mErr.ErrorOrNil()
+}
+
+func (h *secretsHook) setupPluginEnv(env map[string]string) map[string]string {
+	if env == nil {
+		env = make(map[string]string)
+	}
+
+	// set jobID and namespace, overwriting anything already set
+	env[taskenv.JobID] = h.jobId
+	env[taskenv.Namespace] = h.nomadNamespace
+
+	return env
 }

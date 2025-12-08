@@ -89,6 +89,7 @@ func (tr *TaskRunner) initHooks() {
 			clientConfig:   tr.clientConfig,
 			envBuilder:     tr.envBuilder,
 			nomadNamespace: tr.alloc.Job.Namespace,
+			jobId:          tr.alloc.Job.ID,
 		}, task.Secrets))
 	}
 
