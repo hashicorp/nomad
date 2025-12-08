@@ -172,3 +172,10 @@ func (r *NodeProcessorResources) TotalCompute() int {
 	}
 	return int(r.Topology.TotalCompute())
 }
+
+func (r *NodeProcessorResources) UsableCompute() int {
+	if r == nil || r.Topology == nil {
+		return 0
+	}
+	return int(r.Topology.UsableCompute())
+}
