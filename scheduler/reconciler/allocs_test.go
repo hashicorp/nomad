@@ -1242,6 +1242,16 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							NodeID:        "disconnected",
 							TaskGroup:     "web",
 						},
+						"untainted-unknown-on-down-node": {
+							ID:            "untainted-unknown-on-down-node",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "down",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
 					},
 					untainted: allocSet{
 						"untainted-unknown": {
@@ -1251,6 +1261,16 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 							DesiredStatus: structs.AllocDesiredStatusRun,
 							Job:           testJobNoMaxDisconnectSingle,
 							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						"untainted-unknown-on-down-node": {
+							ID:            "untainted-unknown-on-down-node",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "down",
 							TaskGroup:     "web",
 							AllocStates:   unknownAllocState,
 						},
