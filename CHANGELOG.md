@@ -1,3 +1,33 @@
+## 1.8.19+ent (December 09, 2025)
+
+BREAKING CHANGES:
+
+* docker: removed deprecated email auth config parameter [[GH-27156](https://github.com/hashicorp/nomad/issues/27156)]
+
+SECURITY:
+
+* build: Updated toolchain to Go 1.25.5 [[GH-27186](https://github.com/hashicorp/nomad/issues/27186)]
+
+IMPROVEMENTS:
+
+* keyring: Warn if deleting a key previously used to encrypt an existing variable [[GH-24766](https://github.com/hashicorp/nomad/issues/24766)]
+* landlock: check paths exist on setup [[GH-27149](https://github.com/hashicorp/nomad/issues/27149)]
+
+BUG FIXES:
+
+* acl: Made /agent and /recommendations endpoints workload-identity-aware [[GH-27099](https://github.com/hashicorp/nomad/issues/27099)]
+* acl: include additional necessary permissions in the course-grained "scale" policy for nomad-autoscaler [[GH-27061](https://github.com/hashicorp/nomad/issues/27061)]
+* api: Fixed a bug in the Go API where an event stream request without a topic filter would require a management token [[GH-27065](https://github.com/hashicorp/nomad/issues/27065)]
+* cli: Fixed the `var get` command which was incorrectly displaying the variable modify time as the create time [[GH-27208](https://github.com/hashicorp/nomad/issues/27208)]
+* client: return 403 when the caller doesn't have log streaming capabilities [[GH-27098](https://github.com/hashicorp/nomad/issues/27098)]
+* csi: Fixed a bug where reading a volume from the API or event stream could erase its secrets [[GH-27176](https://github.com/hashicorp/nomad/issues/27176)]
+* keyring: Do not mark the key as inactive until all follow-up rekey evals have completed. [[GH-27193](https://github.com/hashicorp/nomad/issues/27193)]
+* keyring: Ensure follow-up rekey evals can be successfully created. [[GH-27193](https://github.com/hashicorp/nomad/issues/27193)]
+* oidc: Add support for RFC9207, requiring an issuer param in authorization response if the provider requires it [[GH-27168](https://github.com/hashicorp/nomad/issues/27168)]
+* scheduler: Fixed a bug that was previously patched incorrectly where rescheduled allocations that could not be placed would later ignore their reschedule policy limits [[GH-27129](https://github.com/hashicorp/nomad/issues/27129)]
+* server: Fixed a bug where a large backlog of unblocking evals could cause backpressure on Raft writes [[GH-27184](https://github.com/hashicorp/nomad/issues/27184)]
+* ui: Fixed the error message presented for invalid Variables definitions [[GH-26235](https://github.com/hashicorp/nomad/issues/26235)]
+
 ## 1.8.18 Enterprise (November 11, 2025)
 
 SECURITY:
