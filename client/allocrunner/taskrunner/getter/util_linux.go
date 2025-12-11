@@ -45,6 +45,18 @@ func findHomeDir() string {
 	return "/nonexistent"
 }
 
+// findConfigDir returns the config directory as provided by os.UserConfigDir. In
+// case os.UserConfigDir returns an error, the path is built if possible. Otherwise
+// a nonexistant path is returned.
+func findConfigDir() string {
+	config, err := os.UserConfigDir()
+	if err == nil {
+		return config
+	}
+
+	return filepath.Join(findHomeDir(), ".config")
+}
+
 // defaultEnvironment is the default minimal environment variables for Linux.
 func defaultEnvironment(taskDir string) map[string]string {
 	tmpDir := filepath.Join(taskDir, "tmp")
@@ -112,21 +124,25 @@ func lockdown(l log.Logger, allocDir, taskDir string, extra []string) error {
 
 func additionalFilesForVCS() []*landlock.Path {
 	const (
-		homeSSHDir     = ".ssh"                     // git ssh
-		homeKnownHosts = ".ssh/known_hosts"         // git ssh
-		etcPasswd      = "/etc/passwd"              // git ssh
-		etcKnownHosts  = "/etc/ssh/ssh_known_hosts" // git ssh
-		gitGlobalFile  = "/etc/gitconfig"           // https://git-scm.com/docs/git-config#SCOPES
-		hgGlobalFile   = "/etc/mercurial/hgrc"      // https://www.mercurial-scm.org/doc/hgrc.5.html#files
-		hgGlobalDir    = "/etc/mercurial/hgrc.d"    // https://www.mercurial-scm.org/doc/hgrc.5.html#files
-		urandom        = "/dev/urandom"             // git
+		homeSSHDir       = ".ssh"                     // git ssh
+		homeKnownHosts   = ".ssh/known_hosts"         // git ssh
+		etcPasswd        = "/etc/passwd"              // git ssh
+		etcKnownHosts    = "/etc/ssh/ssh_known_hosts" // git ssh
+		gitSystemFile    = "/etc/gitconfig"           // https://git-scm.com/docs/git-config#SCOPES
+		gitGlobalFile    = ".gitconfig"               // https://git-scm.com/docs/git-config#SCOPES
+		gitGlobalFileXDG = "git/config"               // https://git-scm.com/docs/git-config#SCOPES
+		hgGlobalFile     = "/etc/mercurial/hgrc"      // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		hgGlobalDir      = "/etc/mercurial/hgrc.d"    // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		urandom          = "/dev/urandom"             // git
 	)
 	return filesForVCS(
 		homeSSHDir,
 		homeKnownHosts,
 		etcPasswd,
 		etcKnownHosts,
+		gitSystemFile,
 		gitGlobalFile,
+		gitGlobalFileXDG,
 		hgGlobalFile,
 		hgGlobalDir,
 		urandom,
@@ -138,7 +154,9 @@ func filesForVCS(
 	homeKnownHosts,
 	etcPasswd,
 	etcKnownHosts,
+	gitSystemFile,
 	gitGlobalFile,
+	gitGlobalFileXDG,
 	hgGlobalFile,
 	hgGlobalDir,
 	urandom string) []*landlock.Path {
@@ -147,6 +165,9 @@ func filesForVCS(
 	home := findHomeDir()
 	homeSSHDir = filepath.Join(home, homeSSHDir)
 	homeKnownHosts = filepath.Join(home, homeKnownHosts)
+
+	gitGlobalFile = filepath.Join(home, gitGlobalFile)
+	gitGlobalFileXDG = filepath.Join(findConfigDir(), gitGlobalFileXDG)
 
 	// detect if p exists
 	exists := func(p string) bool {
@@ -167,8 +188,14 @@ func filesForVCS(
 	if exists(etcKnownHosts) {
 		result = append(result, landlock.File(etcKnownHosts, "r"))
 	}
+	if exists(gitSystemFile) {
+		result = append(result, landlock.File(gitSystemFile, "r"))
+	}
 	if exists(gitGlobalFile) {
 		result = append(result, landlock.File(gitGlobalFile, "r"))
+	}
+	if exists(gitGlobalFileXDG) {
+		result = append(result, landlock.File(gitGlobalFileXDG, "r"))
 	}
 	if exists(hgGlobalFile) {
 		result = append(result, landlock.File(hgGlobalFile, "r"))
@@ -179,5 +206,6 @@ func filesForVCS(
 	if exists(urandom) {
 		result = append(result, landlock.File(urandom, "r"))
 	}
+
 	return result
 }
