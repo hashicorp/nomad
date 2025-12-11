@@ -40,7 +40,7 @@ func artifactConfig(timeout time.Duration) *config.ArtifactConfig {
 // comprehensive scenarios tested in e2e/artifact
 
 func TestSandbox_Get_http(t *testing.T) {
-	testutil.RequireRoot(t)
+	testutil.RequireRoot(t) // NOTE: required for chown call
 	logger := testlog.HCLogger(t)
 
 	ac := artifactConfig(10 * time.Second)
@@ -63,7 +63,7 @@ func TestSandbox_Get_http(t *testing.T) {
 }
 
 func TestSandbox_Get_insecure_http(t *testing.T) {
-	testutil.RequireRoot(t)
+	testutil.RequireRoot(t) // NOTE: required for chown call
 	logger := testlog.HCLogger(t)
 
 	ac := artifactConfig(10 * time.Second)
@@ -92,7 +92,7 @@ func TestSandbox_Get_insecure_http(t *testing.T) {
 }
 
 func TestSandbox_Get_chown(t *testing.T) {
-	testutil.RequireRoot(t)
+	testutil.RequireRoot(t) // NOTE: required for chown call
 	logger := testlog.HCLogger(t)
 
 	ac := artifactConfig(10 * time.Second)
@@ -120,11 +120,10 @@ func TestSandbox_Get_chown(t *testing.T) {
 func TestSandbox_Get_inspection(t *testing.T) {
 	// These tests disable filesystem isolation as the
 	// artifact inspection is what is being tested.
-	testutil.RequireRoot(t)
+	testutil.RequireRoot(t) // NOTE: required for chown call
 	logger := testlog.HCLogger(t)
 
 	sandboxSetup := func() (string, *Sandbox, interfaces.EnvReplacer) {
-		testutil.RequireRoot(t)
 		logger := testlog.HCLogger(t)
 		ac := artifactConfig(10 * time.Second)
 		sbox := New(ac, logger)
@@ -349,10 +348,9 @@ func TestSandbox_Get_inspection(t *testing.T) {
 // move the artifact contents into place, we want to validate
 // that the behavior is consistent with direct usage.
 func TestSandbox_Get_inspection_behavior(t *testing.T) {
-	testutil.RequireRoot(t)
+	testutil.RequireRoot(t) // NOTE: required for chown call
 
 	sandboxSetup := func() (string, *Sandbox, interfaces.EnvReplacer) {
-		testutil.RequireRoot(t)
 		logger := testlog.HCLogger(t)
 		ac := artifactConfig(10 * time.Second)
 		sbox := New(ac, logger)
