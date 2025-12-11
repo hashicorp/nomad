@@ -757,11 +757,6 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
 			continue
 		}
-		// We don't want to show a reschedule if it's some other delayed eval
-		// not related to a reschedule.
-		if evaluation.TriggeredBy != "alloc-reschedule" {
-			continue
-		}
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
 		if c.verbose {
 			if first {
