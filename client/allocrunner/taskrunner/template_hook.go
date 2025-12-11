@@ -215,6 +215,8 @@ func (h *templateHook) newManager(tmpls []*structs.Template) (manager *template.
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
+		JobID:                h.config.alloc.Job.ID,
+		Secrets:              h.task.Secrets,
 		TaskID:               h.taskID,
 		Logger:               h.logger,
 	})
