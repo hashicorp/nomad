@@ -59,6 +59,9 @@ jobs:
           issue: ${{ steps.search.outputs.issue }}
           transition: "Closed"
           resolution: "Done"
+          fixed-version: "auto"
+          project: NMD
+          timeline-url: ${{ github.event.issue.timeline_url }}
       - name: Reopen ticket
         if: github.event.action == 'reopened' && steps.search.outputs.issue
         uses: ./.github/actions/jira/transition
