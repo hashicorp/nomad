@@ -603,6 +603,7 @@ function smallCluster(server) {
   server.create('auth-method', { name: 'vault' });
   server.create('auth-method', { name: 'auth0' });
   server.create('auth-method', { name: 'cognito' });
+  server.create('auth-method', 'issuerRequired', { name: 'okta' });
   server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
 }
 

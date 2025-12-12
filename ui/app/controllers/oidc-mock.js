@@ -11,13 +11,18 @@ import Ember from 'ember';
 export default class OidcMockController extends Controller {
   @service router;
 
-  queryParams = ['auth_method', 'client_nonce', 'redirect_uri', 'meta'];
+  queryParams = ['auth_method', 'client_nonce', 'redirect_uri', 'meta', 'iss'];
 
   @action
   signIn(fakeAccount) {
-    const url = `${this.redirect_uri.split('?')[0]}?code=${
+    var url = `${this.redirect_uri.split('?')[0]}?code=${
       fakeAccount.accessor
     }&state=success`;
+
+    if (this.iss) {
+      url = url.concat(`&iss=${this.iss}`);
+    }
+
     if (Ember.testing) {
       this.router.transitionTo(url);
     } else {
