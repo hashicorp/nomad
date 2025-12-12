@@ -165,6 +165,94 @@ func (s *Sandbox) runCmd(env *parameters) error {
 	// find the nomad process
 	bin := subproc.Self()
 
+	// If the artifact needs to be inspected, it must first be fetched
+	// to a temporary location for inspection, then moved to the configured
+	// destination.
+	var finalDest string         // original artifact destination
+	var at *os.Root              // root on the alloc directory, only set if inspecting
+	var atTestRecreateDir string // test path to inform if existing destination directory should be removed
+	var atFinalDest string       // final destination path within rooted alloc directory
+	var atTemporaryDest string   // temporary destination within rooted alloc directory
+	if !env.DisableArtifactInspection && (env.DisableFilesystemIsolation || !lockdownAvailable()) {
+		var err error
+
+		finalDest = env.Destination // store path so it can be reset
+		if atFinalDest, err = filepath.Rel(env.AllocDir, env.Destination); err != nil {
+			return err
+		}
+
+		tmpDir, err := os.MkdirTemp(env.AllocDir, "artifact-")
+		if err != nil {
+			return err
+		}
+
+		// Create a new root that is rooted to the alloc directory
+		if at, err = os.OpenRoot(env.AllocDir); err != nil {
+			return err
+		}
+
+		// By default use a directory that does not exist. This
+		// is required to prevent certain sources (i.e. git) from
+		// erroring when fetching the source.
+		env.Destination = filepath.Join(tmpDir, "artifact")
+		if atTemporaryDest, err = filepath.Rel(env.AllocDir, env.Destination); err != nil {
+			return err
+		}
+
+		// Check if the real destination exists. If it does, make
+		// the temporary destination exist as well to properly
+		// mimic go-getter behavior.
+		if st, err := at.Stat(atFinalDest); err == nil {
+			// The real destination does exist, so update the temporary
+			// location to use the basename of the path so if it is used
+			// in error messages it is consistent.
+			env.Destination = filepath.Join(tmpDir, filepath.Base(finalDest))
+			if atTemporaryDest, err = filepath.Rel(env.AllocDir, env.Destination); err != nil {
+				return err
+			}
+
+			// Now check if the real destination is a file or directory
+			// and create the temporary destination accordingly.
+			if st.IsDir() {
+				if err := at.Mkdir(atTemporaryDest, 0755); err != nil {
+					return err
+				}
+
+				// Include a temporary check file within the destination
+				// directory. This will be used later to determine if
+				// go-getter deleted the destination prior to fetch or
+				// if the contents were just merged into the directory.
+				f, err := os.CreateTemp(env.Destination, "go-getter-test")
+				if err != nil {
+					return err
+				}
+				f.Close()
+
+				if atTestRecreateDir, err = filepath.Rel(env.AllocDir, f.Name()); err != nil {
+					return err
+				}
+			} else {
+				f, err := at.OpenFile(atTemporaryDest, os.O_CREATE, 0644)
+				if err != nil {
+					return err
+				}
+				f.Close()
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+
+		s.logger.Debug("artifact download destination modified for inspection",
+			"temporary", env.Destination, "final", finalDest)
+
+		// before leaving, set the destination back to the
+		// original value and cleanup
+		defer func() {
+			env.Destination = finalDest
+			os.RemoveAll(tmpDir)
+		}()
+	}
+
 	// final method of ensuring subprocess termination
 	ctx, cancel := subproc.Context(env.deadline())
 	defer cancel()
@@ -189,44 +277,127 @@ func (s *Sandbox) runCmd(env *parameters) error {
 	}
 	subproc.Log(output, s.logger.Debug)
 
-	// if filesystem isolation was not disabled and lockdown
-	// is available on this platform, do not continue to inspection
-	if !env.DisableFilesystemIsolation && lockdownAvailable() {
+	// if no root has been defined, no inspection
+	// is being performed so return now.
+	if at == nil {
 		return nil
 	}
 
-	// if artifact inspection is disabled, do not continue to inspection
-	if env.DisableArtifactInspection {
-		return nil
-	}
-
-	// inspect the writable directories. start with inspecting the
-	// alloc directory
-	allocInspector, err := genWalkInspector(env.AllocDir)
+	// generate the inspector for the destination
+	artifactInspector, err := genWalkInspector(env.Destination)
 	if err != nil {
 		return err
 	}
 
-	if err := filepath.WalkDir(env.AllocDir, allocInspector); err != nil {
+	// inspect the contents to find any unwanted files
+	if err := filepath.WalkDir(env.Destination, artifactInspector); err != nil {
 		return err
 	}
 
-	// the task directory is within the alloc directory. however, if
-	// that ever changes for some reason, make sure it is checked as well
-	isWithin, err := isPathWithin(env.AllocDir, env.TaskDir)
+	// if the testRecreateDir value is set, check if the file still
+	// exists. if it does, then the destination directory should not
+	// be deleted. otherwise, destination path should be removed if
+	// it exists.
+	pathToRemove := atFinalDest
+	if atTestRecreateDir != "" {
+		if _, err := at.Stat(atTestRecreateDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		} else if err == nil {
+			// the existing destination directory should not be
+			// removed but the test file should be removed.
+			pathToRemove = atTestRecreateDir
+		}
+	}
+
+	if err := at.RemoveAll(pathToRemove); err != nil {
+		return err
+	}
+
+	// move all the files from the temporary destination to
+	// their final destination
+	rd, ok := at.FS().(fs.ReadDirFS)
+	if !ok {
+		return errors.New("unable to read rooted allocation directory")
+	}
+
+	// merge the artifact contents into the real destination
+	if err := mergeDirectories(at, rd, atTemporaryDest, atFinalDest); err != nil {
+		return err
+	}
+
+	// the artifact contents will have the owner set correctly
+	// but the destination directory will not, so set that now
+	// if it was configured
+	if env.Chown {
+		if err := chownDestination(finalDest, env.User); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+// mergeDirectories will merge the contents of the srcDir into
+// the dstDir. This is a destructive action; the contents of
+// srcDir are moved into dstDir.
+func mergeDirectories(at *os.Root, readDir fs.ReadDirFS, srcDir, dstDir string) error {
+	entries, err := readDir.ReadDir(srcDir)
 	if err != nil {
 		return err
 	}
 
-	if !isWithin {
-		taskInspector, err := genWalkInspector(env.TaskDir)
+	for _, entry := range entries {
+		src := filepath.Join(srcDir, entry.Name())
+		dst := filepath.Join(dstDir, entry.Name())
+
+		srcInfo, err := at.Stat(src)
 		if err != nil {
 			return err
 		}
 
-		if err := filepath.WalkDir(env.TaskDir, taskInspector); err != nil {
+		dstInfo, err := at.Stat(dst)
+		if err != nil {
+			// if the destination does not exist, the source
+			// can be moved directly
+			if errors.Is(err, os.ErrNotExist) {
+				if err := at.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+					return err
+				}
+
+				if err := at.Rename(src, dst); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			return err
 		}
+
+		// if both the source and destination are directories
+		// merge the source into the destination and proceed
+		// to the next entry
+		if srcInfo.IsDir() && dstInfo.IsDir() {
+			if err := mergeDirectories(at, readDir, src, dst); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		// if both the source and destination are files, a
+		// rename is sufficient. otherwise, remove the destination.
+		if srcInfo.IsDir() || dstInfo.IsDir() {
+			if err := at.RemoveAll(dst); err != nil {
+				return err
+			}
+		}
+
+		if err := at.Rename(src, dst); err != nil {
+			return err
+		}
+
 	}
 
 	return nil
