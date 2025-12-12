@@ -1555,11 +1555,22 @@ export default function () {
     const { AuthMethodName, ClientNonce, RedirectUri, Meta } = JSON.parse(
       req.requestBody
     );
+
+    const authMethod = schema.authMethods.findBy({
+      name: AuthMethodName,
+    });
+
+    var authUrl = `/ui/oidc-mock?auth_method=${AuthMethodName}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`;
+
+    if (authMethod.issRequired) {
+      authUrl = authUrl.concat(`&iss=${authMethod.issuer}`);
+    }
+
     return new Response(
       200,
       {},
       {
-        AuthURL: `/ui/oidc-mock?auth_method=${AuthMethodName}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`,
+        AuthURL: authUrl,
       }
     );
   });
@@ -1568,7 +1579,18 @@ export default function () {
   this.post(
     '/acl/oidc/complete-auth',
     function (schema, req) {
-      const code = JSON.parse(req.requestBody).Code;
+      const body = JSON.parse(req.requestBody);
+      const code = body.Code;
+      const iss = body.Iss;
+      const AuthMethodName = body.AuthMethodName;
+
+      const authMethod = schema.authMethods.findBy({
+        name: AuthMethodName,
+      });
+
+      if (authMethod.issRequired && iss == null) {
+        return new Response(500, {}, 'Issuer (iss) is required but missing');
+      }
       const token = schema.tokens.findBy({
         id: code,
       });

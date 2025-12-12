@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 
@@ -17,4 +17,10 @@ export default Factory.extend({
   createIndex: () => faker.random.number(),
   modifyTime: () => faker.date.past(),
   modifyIndex: () => faker.random.number(),
+
+  issuerRequired: trait({
+    type: 'OIDC',
+    issRequired: true,
+    issuer: () => faker.internet.url(),
+  }),
 });
