@@ -1,0 +1,3 @@
+```release-note:bug
+qemu: change driver filesystem isolation to "None" for proper variable interpolation in job spec
+```
