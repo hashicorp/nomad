@@ -7622,9 +7622,9 @@ func (tg *TaskGroup) Replace() bool {
 	return *tg.Disconnect.Replace
 }
 
-// GetDisconnectLostTimeout is a helper meant to simplify the logic for
+// GetDisconnectLostAfter is a helper meant to simplify the logic for
 // getting the Disconnect.LostAfter field of a task group.
-func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
+func (tg *TaskGroup) GetDisconnectLostAfter() time.Duration {
 	if tg.Disconnect != nil {
 		return tg.Disconnect.LostAfter
 	}

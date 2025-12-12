@@ -393,15 +393,14 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// that the task group no longer exists
 	tg := a.jobState.Job.LookupTaskGroup(group)
 
+	all = all.filterServerTerminalAllocs()
+
 	// If the task group is nil or scaled-to-zero, then the task group has been
 	// removed so all we need to do is stop everything
 	if tg == nil || tg.Count == 0 {
-		all = all.filterServerTerminalAllocs()
 		result.DesiredTGUpdates[group].Stop, result.Stop = all.filterAndStopAll(a.clusterState)
 		return result, true
 	}
-
-	all = all.filterServerTerminalAllocs()
 
 	dstate, existingDeployment := a.initializeDeploymentState(group, tg)
 
@@ -439,11 +438,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	if len(expiring) > 0 {
-		if !tg.Replace() {
-			untainted = untainted.union(expiring)
-		} else {
-			lost = lost.union(expiring)
-		}
+		lost = lost.union(expiring)
 	}
 
 	result.DesiredFollowupEvals = map[string][]*structs.Evaluation{}
@@ -860,9 +855,8 @@ func computePlacements(group *structs.TaskGroup,
 		})
 	}
 
-	// Add replacements for disconnected and lost allocs up to group.Count
+	// Add replacements for lost allocs up to group.Count
 	existing := len(untainted) + len(migrate) + len(reschedule)
-
 	// Add replacements for lost
 	for _, alloc := range lost {
 		if existing >= group.Count {
@@ -1631,23 +1625,21 @@ func (a *AllocReconciler) computeDisconnecting(
 ) (
 	timeoutLaterEvals map[string]string,
 ) {
-	timeoutLaterEvals = make(map[string]string)
+	// We should have already done the logic to determine if an alloc was disconnecting
+	// we just want to compute the reschedule time
+	untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
+		a.jobState.JobIsBatch, true, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
-	if tg.GetDisconnectLostTimeout() != 0 {
-		untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
-			a.jobState.JobIsBatch, true, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
+	*rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+	*untainted = untainted.union(untaintedDisconnecting)
+	*rescheduleLater = append(*rescheduleLater, laterDisconnecting...)
 
-		*rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
-		*untainted = untainted.union(untaintedDisconnecting)
-		*rescheduleLater = append(*rescheduleLater, laterDisconnecting...)
-
-		// Find delays for any disconnecting allocs that have
-		// disconnect.lost_after, create followup evals, and update the
-		// ClientStatus to unknown.
-		var followupEvals []*structs.Evaluation
-		timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
-		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
-	}
+	// Find delays for any disconnecting allocs that have
+	// disconnect.lost_after, create followup evals, and update the
+	// ClientStatus to unknown.
+	var followupEvals []*structs.Evaluation
+	timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+	result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 
 	updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
 	*rescheduleNow = rescheduleNow.update(updates)
@@ -1655,6 +1647,7 @@ func (a *AllocReconciler) computeDisconnecting(
 	maps.Copy(result.DisconnectUpdates, updates)
 	result.DesiredTGUpdates[tg.Name].Disconnect = uint64(len(result.DisconnectUpdates))
 	result.DesiredTGUpdates[tg.Name].RescheduleNow = uint64(len(*rescheduleNow))
+	result.DesiredTGUpdates[tg.Name].RescheduleLater = uint64(len(*rescheduleLater))
 
 	return timeoutLaterEvals
 }
