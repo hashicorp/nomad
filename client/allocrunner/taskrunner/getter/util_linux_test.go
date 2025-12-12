@@ -31,14 +31,19 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	})
 
 	t.Setenv("HOME", fakeHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(fakeHome, ".config"))
 
 	const (
-		homeSSH        = ".ssh"
-		homeKnownHosts = ".ssh/known_hosts"
+		homeSSH          = ".ssh"
+		homeKnownHosts   = ".ssh/known_hosts"
+		gitGlobalFile    = ".gitconfig"
+		gitGlobalFileXDG = "git/config"
 	)
 
 	var (
-		gitConfig      = filepath.Join(fakeEtc, "gitconfig")
+		gitSystem      = filepath.Join(fakeEtc, "gitconfig")
+		gitGlobal      = filepath.Join(fakeHome, ".gitconfig")
+		gitGlobalXDG   = filepath.Join(fakeHome, ".config/git/config")
 		hgFile         = filepath.Join(fakeEtc, "hgrc")
 		hgDir          = filepath.Join(fakeEtc, "hgrc.d")
 		etcPasswd      = filepath.Join(fakeEtc, "passwd")
@@ -48,7 +53,14 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		urandom        = filepath.Join(fakeDev, "urandom")
 	)
 
-	err := os.WriteFile(gitConfig, []byte("git"), filePerm)
+	err := os.WriteFile(gitSystem, []byte("git"), filePerm)
+	must.NoError(t, err)
+
+	err = os.WriteFile(gitGlobal, []byte("git"), filePerm)
+	must.NoError(t, err)
+
+	must.NoError(t, os.MkdirAll(filepath.Dir(gitGlobalXDG), 0755))
+	err = os.WriteFile(gitGlobalXDG, []byte("git"), filePerm)
 	must.NoError(t, err)
 
 	err = os.WriteFile(hgFile, []byte("hg"), filePerm)
@@ -80,7 +92,9 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		homeKnownHosts,
 		etcPasswd,
 		etcKnownHosts,
-		gitConfig,
+		gitSystem,
+		gitGlobalFile,
+		gitGlobalFileXDG,
 		hgFile,
 		hgDir,
 		urandom,
@@ -90,7 +104,9 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		landlock.File(knownHostsFile, "rw"),
 		landlock.File(etcPasswd, "r"),
 		landlock.File(etcKnownHosts, "r"),
-		landlock.File(gitConfig, "r"),
+		landlock.File(gitSystem, "r"),
+		landlock.File(gitGlobal, "r"),
+		landlock.File(gitGlobalXDG, "r"),
 		landlock.File(hgFile, "r"),
 		landlock.Dir(hgDir, "r"),
 		landlock.File(urandom, "r"),
