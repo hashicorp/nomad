@@ -31,6 +31,7 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	})
 
 	t.Setenv("HOME", fakeHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(fakeHome, ".config"))
 
 	const (
 		homeSSH          = ".ssh"
