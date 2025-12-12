@@ -6,7 +6,7 @@
 <div class="job-status-panel boxed-section steady-state {{if (eq @statusMode "historical") "historical-state" "current-state"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
   <div class="boxed-section-head">
     <h2>Status: <Hds::Badge @text={{this.currentStatus.label}} @color={{this.currentStatus.state}} @type="filled" /></h2>
-    
+
     <div class="select-mode">
       <button type="button"
         data-test-status-mode-current
@@ -101,7 +101,8 @@
           <JobStatus::DeploymentHistory
             @title="Allocation History"
             @allocations={{this.latestVersionAllocations}}
-            @isHidden={{true}}
+            @taskStates={{this.taskStates}}
+            @isHidden={{false}}
           />
         {{/if}}
       </div>

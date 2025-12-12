@@ -28,6 +28,20 @@
     {{/unless}}
   </header>
   {{#unless this.isHidden}}
+
+{{!-- TODO: Testing metainfo --}}
+{{!--
+  (Showing ~{{this.runningMinutes}} minutes of task events)
+  <br />
+  Earliest start time: {{format-ts this.earliestStartTime}}
+  <br />
+  Current time: {{format-ts this.currentTime}}
+  <br />
+  Latest start time: {{format-ts this.latestStartTime}}
+  <br />
+  0th event start time: {{format-ts this.history.0.time}}
+ --}}
+
   <div class="timeline-container">
     <ol class="timeline">
       {{#each this.history as |deployment-log|}}
@@ -37,7 +51,22 @@
             <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
             <span class="pull-right">
               {{format-ts deployment-log.time}}
+              {{!-- ({{deployment-log.relativeTime}}% of {{format-ts deployment-log.comparator}})
+              {{#if deployment-log.nextEventTime}}
+              <br />
+                (next event: {{format-ts deployment-log.nextEventTime}})
+              {{/if}} --}}
             </span>
+          </div>
+          <div class="waterfall-viz">
+            {{#if deployment-log.relativeLength}}
+              <div class="time-span"
+                style="left: {{deployment-log.relativeTime}}%; width: {{deployment-log.relativeLength}}%;"
+              />
+            {{/if}}
+            <div class="time-marker"
+              style="left: {{deployment-log.relativeTime}}%;"
+            />
           </div>
         </li>
       {{else}}
