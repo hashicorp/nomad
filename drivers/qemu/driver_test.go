@@ -5,9 +5,11 @@ package qemu
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +34,7 @@ import (
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -110,7 +112,7 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -155,7 +157,7 @@ func TestQemuDriver_User(t *testing.T) {
 // TestQemuDriver_Stats	verifies we can get resources usage stats
 func TestQemuDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -236,24 +238,64 @@ func TestQemuDriver_Stats(t *testing.T) {
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 
-	ctestutil.QemuCompatible(t)
+	ctestutil.QemuCompatible_x86_64(t)
+	ctestutil.QemuCompatible_aarch64(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Run("fingerpints all emulators", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	d := NewQemuDriver(ctx, testlog.HCLogger(t))
-	harness := dtestutil.NewDriverHarness(t, d)
+		d := NewQemuDriver(ctx, testlog.HCLogger(t))
+		harness := dtestutil.NewDriverHarness(t, d)
 
-	fingerCh, err := harness.Fingerprint(context.Background())
-	must.NoError(t, err)
-	select {
-	case finger := <-fingerCh:
-		must.Eq(t, drivers.HealthStateHealthy, finger.Health)
-		ok, _ := finger.Attributes["driver.qemu"].GetBool()
-		must.True(t, ok)
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		t.Fatal("timeout receiving fingerprint")
-	}
+		fingerCh, err := harness.Fingerprint(context.Background())
+		must.NoError(t, err)
+		select {
+		case finger := <-fingerCh:
+			must.Eq(t, drivers.HealthStateHealthy, finger.Health)
+			ok, _ := finger.Attributes["driver.qemu"].GetBool()
+			must.True(t, ok)
+
+			emulators, _ := finger.Attributes[driverEmulatorsAttr].GetString()
+			must.Greater(t, 1, len(strings.Split(emulators, ",")))
+		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+			t.Fatal("timeout receiving fingerprint")
+		}
+	})
+
+	t.Run("fingerprints only allowed emulators", func(t *testing.T) {
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		allowedEms := []string{"x86_64"}
+		d := NewQemuDriver(ctx, testlog.HCLogger(t))
+		config := &Config{
+			EmulatorsAllowList: allowedEms,
+		}
+
+		var data []byte
+		must.NoError(t, base.MsgPackEncode(&data, config))
+		baseConfig := &base.Config{
+			PluginConfig: data,
+		}
+		harness := dtestutil.NewDriverHarness(t, d)
+		harness.SetConfig(baseConfig)
+
+		fingerCh, err := harness.Fingerprint(context.Background())
+		must.NoError(t, err)
+		select {
+		case finger := <-fingerCh:
+			must.Eq(t, drivers.HealthStateHealthy, finger.Health)
+			ok, _ := finger.Attributes[driverAttr].GetBool()
+			must.True(t, ok)
+
+			emulators, _ := finger.Attributes[driverEmulatorsAttr].GetString()
+			must.SliceContainsAll(t, allowedEms, strings.Split(emulators, ","))
+		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+			t.Fatal("timeout receiving fingerprint")
+		}
+	})
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
@@ -287,6 +329,45 @@ config {
 	var tc *TaskConfig
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 	must.Eq(t, expected, tc)
+}
+
+func TestValidateEmulator(t *testing.T) {
+	testcases := []struct {
+		name              string
+		validEmulators    []string
+		requestedEmulator string
+		exp               error
+	}{
+		{
+			name:              "empty valid emulators, valid request",
+			validEmulators:    nil,
+			requestedEmulator: "qemu-system-x86_64",
+			exp:               nil,
+		},
+		{
+			name:              "non-empty valid emulators, valid request",
+			validEmulators:    []string{"qemu-system-x86_64"},
+			requestedEmulator: "qemu-system-x86_64",
+			exp:               nil,
+		},
+		{
+			name:              "non-empty valid emulators, invalid request",
+			validEmulators:    []string{"qemu-system-x86_64"},
+			requestedEmulator: "qemu-system-aarch64",
+			exp:               errors.New("'qemu-system-aarch64' is not an allowed emulator"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateEmulator(tc.requestedEmulator, tc.validEmulators)
+			if tc.exp != nil {
+				must.ErrorContains(t, err, tc.exp.Error())
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestIsAllowedDriveInterface(t *testing.T) {
