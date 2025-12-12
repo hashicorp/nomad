@@ -128,6 +128,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.nomadNamespace,
 		NomadToken:           req.NomadToken,
+		JobID:                h.jobId,
 		TaskID:               req.Alloc.ID + "-" + req.Task.Name,
 		Logger:               h.logger,
 

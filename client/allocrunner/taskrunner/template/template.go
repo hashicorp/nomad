@@ -128,6 +128,12 @@ type TaskTemplateManagerConfig struct {
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
 
+	// JobID is the Nomad job ID
+	JobID string
+
+	// Secrets is the list of secrets configured for the task
+	Secrets []*structs.Secret
+
 	// TaskID is a unique identifier for this task's template manager, for use
 	// in downstream platform-specific template runner consumers
 	TaskID string
@@ -741,6 +747,23 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.RightDelim = &tmpl.RightDelim
 		ct.ErrMissingKey = &tmpl.ErrMissingKey
 		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
+
+		// Add secret plugin template functions
+		extFuncs := nomadSecretFuncs(&nomadSecretConfig{
+			CommonPluginDir: config.ClientConfig.CommonPluginDir,
+			Namespace:       config.NomadNamespace,
+			JobID:           config.JobID,
+			Secrets:         config.Secrets,
+		})
+		// Merge with any existing ExtFuncMap from DefaultTemplateConfig
+		if ct.ExtFuncMap == nil {
+			ct.ExtFuncMap = extFuncs
+		} else {
+			for k, v := range extFuncs {
+				ct.ExtFuncMap[k] = v
+			}
+		}
+
 		if sandboxEnabled {
 			ct.SandboxPath = &config.TaskDir
 		}
