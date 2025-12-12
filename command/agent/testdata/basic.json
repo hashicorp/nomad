@@ -143,6 +143,17 @@
         "a.b.c:80",
         "127.0.0.1:1234"
       ],
+      "fingerprint": [
+        {
+          "env_aws": [
+            {
+              "retry_interval": "1s",
+              "retry_attempts": 3,
+              "exit_on_failure": true
+            }
+          ]
+        }
+      ],
       "state_dir": "/tmp/client-state",
       "stats": [
         {

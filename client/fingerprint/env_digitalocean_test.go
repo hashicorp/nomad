@@ -11,11 +11,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_NewEnvDigitalOceanFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	f := NewEnvDigitalOceanFingerprint(testlog.HCLogger(t))
+	must.NotNil(t, f)
+
+	retryWrapper, ok := f.(*RetryWrapper)
+	must.True(t, ok)
+	must.Eq(t, digitalOceanFingerprinterName, retryWrapper.name)
+
+	_, ok = retryWrapper.fingerprinter.(*EnvDigitalOceanFingerprint)
+	must.True(t, ok)
+}
 
 func TestDigitalOceanFingerprint_nonDigitalOcean(t *testing.T) {
 
@@ -47,41 +63,10 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(DO_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in DO ENV test: %s", err)
-	}
+	testMetadataServer := digitalOceanTestMetadataServer(t)
+	defer testMetadataServer.Close()
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uavalue, ok := r.Header["User-Agent"]
-		if !ok {
-			t.Fatal("User-Agent not present in HTTP request header")
-		}
-		if !strings.Contains(uavalue[0], "Nomad/") {
-			t.Fatalf("Expected User-Agent to contain Nomad/, got %s", uavalue[0])
-		}
-
-		uri := r.RequestURI
-		if r.URL.RawQuery != "" {
-			uri = strings.Replace(uri, "?"+r.URL.RawQuery, "", 1)
-		}
-
-		found := false
-		for _, e := range routes.Endpoints {
-			if uri == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-				found = true
-			}
-		}
-
-		if !found {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer ts.Close()
-	t.Setenv("DO_ENV_URL", ts.URL+"/metadata/v1/")
+	t.Setenv("DO_ENV_URL", testMetadataServer.URL+"/metadata/v1/")
 	f := NewEnvDigitalOceanFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
@@ -118,6 +103,74 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.digitalocean.mac", "000D3AF806EC")
 	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.digitalocean.public-ipv4", "100.100.100.100")
 	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.digitalocean.public-ipv6", "c99c:8ac5:3112:204b:48b0:41aa:e085:d11a")
+}
+
+func TestEnvDigitalOceanFingerprint_digitalOceanProbe(t *testing.T) {
+
+	testCases := []struct {
+		name  string
+		doEnv bool
+	}{
+		{
+			name:  "Digital Ocean Environment",
+			doEnv: true,
+		},
+		{
+			name:  "Non-Digital Ocean Environment",
+			doEnv: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			if tc.doEnv {
+				testMetadataServer := digitalOceanTestMetadataServer(t)
+				defer testMetadataServer.Close()
+				t.Setenv("DO_ENV_URL", testMetadataServer.URL+"/metadata/v1/")
+			}
+
+			f := NewEnvDigitalOceanFingerprint(testlog.HCLogger(t))
+			err := f.(*RetryWrapper).fingerprinter.(*EnvDigitalOceanFingerprint).digitalOceanProbe()
+
+			if tc.doEnv {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+			}
+		})
+	}
+}
+
+func digitalOceanTestMetadataServer(t *testing.T) *httptest.Server {
+
+	// configure mock server with fixture routes, data.
+	routes := routes{}
+	must.NoError(t, json.Unmarshal([]byte(DO_routes), &routes))
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uavalue, ok := r.Header["User-Agent"]
+		must.True(t, ok)
+		must.StrContains(t, uavalue[0], "Nomad/")
+
+		uri := r.RequestURI
+		if r.URL.RawQuery != "" {
+			uri = strings.Replace(uri, "?"+r.URL.RawQuery, "", 1)
+		}
+
+		found := false
+		for _, e := range routes.Endpoints {
+			if uri == e.Uri {
+				w.Header().Set("Content-Type", e.ContentType)
+				fmt.Fprintln(w, e.Body)
+				found = true
+			}
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
 }
 
 const DO_routes = `
