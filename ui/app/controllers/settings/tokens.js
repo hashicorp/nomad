@@ -25,7 +25,7 @@ export default class Tokens extends Controller {
   @service router;
   @service system;
   @service notifications;
-  queryParams = ['code', 'state', 'jwtAuthMethod'];
+  queryParams = ['code', 'state', 'jwtAuthMethod', 'iss'];
 
   @tracked secret = this.token.secret;
 
@@ -247,6 +247,7 @@ export default class Tokens extends Controller {
 
   @tracked code = null;
   @tracked state = null;
+  @tracked iss = null;
 
   get isValidatingToken() {
     if (this.code && this.state) {
@@ -277,6 +278,7 @@ export default class Tokens extends Controller {
           Code: this.code,
           State: this.state,
           RedirectURI: redirectURL,
+          Iss: this.iss,
         }),
       }
     );
@@ -287,6 +289,7 @@ export default class Tokens extends Controller {
       this.token.set('secret', data.SecretID);
       this.state = null;
       this.code = null;
+      this.iss = null;
 
       // Refetch the token and associated policies
       this.token.get('fetchSelfTokenAndPolicies').perform().catch();
@@ -297,6 +300,7 @@ export default class Tokens extends Controller {
     } else {
       this.state = 'failure';
       this.code = null;
+      this.iss = null;
     }
   }
 
