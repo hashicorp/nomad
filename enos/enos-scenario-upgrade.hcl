@@ -8,10 +8,8 @@ scenario "upgrade" {
     EOF
 
   matrix {
-    arch = ["amd64"]
-    //edition = ["ce", "ent"]
-    //os      = ["linux", "windows"]
-    edition = ["ent"]
+    arch    = ["amd64"]
+    edition = ["ce", "ent"]
     os      = ["linux"]
 
     exclude {
