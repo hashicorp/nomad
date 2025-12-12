@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: MPL-2.0
 
 # Node plugins mount the volume on the host to present to other tasks.
