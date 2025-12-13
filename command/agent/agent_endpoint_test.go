@@ -2277,3 +2277,78 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTP_AgentReload(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("valid put request", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
+			req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			obj, err := s.Server.AgentReloadRequest(respW, req)
+			must.NoError(t, err)
+			must.NotNil(t, obj)
+		})
+	})
+}
+
+func TestHTTP_AgentReload_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
+		must.Nil(t, err)
+
+		// Try request with an invalid method
+		{
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/reload", nil)
+			must.Nil(t, err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.AgentReloadRequest(respW, req)
+			must.NotNil(t, err)
+			must.Eq(t, ErrInvalidMethod, err.Error())
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.NotNil(t, err)
+			must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.NotNil(t, err)
+		}
+
+		// Try request with a read token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1006, "read", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.NotNil(t, err)
+			must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+		}
+
+		// Try request with a valid write token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			obj, err := s.Server.AgentReloadRequest(respW, req)
+			must.Nil(t, err)
+			must.NotNil(t, obj)
+		}
+	})
+}

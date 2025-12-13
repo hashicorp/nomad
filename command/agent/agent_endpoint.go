@@ -563,6 +563,55 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
+type reloadResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+	if !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	currConf := s.agent.GetConfig().Copy()
+	newConf := DefaultConfig()
+
+	// will be removed just sanity check.
+	s.logger.Info("current files", "current", currConf.Files)
+	s.logger.Info("current paths", "paths", currConf.ConfigPaths)
+
+	for _, path := range currConf.ConfigPaths {
+		cfgFromFile, err := LoadConfig(path)
+		if err != nil {
+			s.logger.Error("failed to load config file", "file", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
+			return nil, CodedError(400, err.Error())
+		}
+		if cfgFromFile != nil {
+			newConf = newConf.Merge(cfgFromFile)
+		}
+	}
+
+	// will be removed just sanity check.
+	s.logger.Info("reloading agent configuration", "old_files", currConf.Files, "new_files", newConf.Files)
+
+	if err := s.agent.Reload(newConf); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	response := reloadResponse{
+		Message: "agent configuration reloaded",
+	}
+
+	return response, nil
+}
+
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	client := s.agent.Client()
 	if client == nil {
