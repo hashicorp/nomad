@@ -28,6 +28,10 @@ var initialDirs = map[string]string{
 // os.UserHomeDir returns an error, we return /root if the current process is being
 // run by root, or /dev/null otherwise.
 func findHomeDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+
 	// When running as a systemd unit the process may not have the $HOME
 	// environment variable set, and os.UserHomeDir will return an error.
 
@@ -42,7 +46,7 @@ func findHomeDir() string {
 	}
 
 	// nothing safe to do
-	return "/nonexistent"
+	return "/dev/null"
 }
 
 // findConfigDir returns the config directory as provided by os.UserConfigDir. In
