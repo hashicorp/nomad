@@ -73,7 +73,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
 		if len(diff.Ignore) > 0 {
@@ -96,7 +96,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		}
 
 		nr := NewNodeReconciler(nil)
-		diff := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
+		diff := nr.computeForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
 		assertDiffCount(t, diffResultCount{update: 1, place: 1}, diff)
 	})
 
@@ -160,7 +160,7 @@ func TestDiffSystemAllocsForNode_Placements(t *testing.T) {
 			nr := NewNodeReconciler(nil)
 			diff := nr.computeForNode(
 				job, tc.nodeID, eligible, nil,
-				tainted, required, allocsForNode, terminal, true)
+				tainted, required, allocsForNode, terminal)
 
 			assertDiffCount(t, tc.expected, diff)
 		})
@@ -218,7 +218,7 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 
 	nr := NewNodeReconciler(nil)
 	diff := nr.computeForNode(
-		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
+		job, node.ID, eligible, nil, tainted, required, allocs, terminal)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
 	if len(diff.Update) > 0 {
@@ -289,8 +289,7 @@ func TestDiffSystemAllocsForNode_IneligibleNode(t *testing.T) {
 			nr := NewNodeReconciler(nil)
 			diff := nr.computeForNode(
 				job, tc.nodeID, eligible, ineligible, tainted,
-				required, []*structs.Allocation{alloc}, terminal, true,
-			)
+				required, []*structs.Allocation{alloc}, terminal)
 			assertDiffCount(t, tc.expect, diff)
 		})
 	}
@@ -346,7 +345,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 	nr := NewNodeReconciler(nil)
 	diff := nr.computeForNode(
 		job, drainNode.ID, map[string]*structs.Node{}, nil,
-		tainted, required, allocs, terminal, true)
+		tainted, required, allocs, terminal)
 
 	assertDiffCount(t, diffResultCount{migrate: 1, ignore: 1}, diff)
 	if len(diff.Migrate) > 0 {
@@ -398,7 +397,7 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 	nr := NewNodeReconciler(nil)
 	diff := nr.computeForNode(
 		job, deadNode.ID, map[string]*structs.Node{}, nil,
-		tainted, required, allocs, terminal, true)
+		tainted, required, allocs, terminal)
 
 	assertDiffCount(t, diffResultCount{lost: 2}, diff)
 	if len(diff.Migrate) > 0 {
@@ -524,8 +523,7 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 			nr := NewNodeReconciler(nil)
 			got := nr.computeForNode(
 				job, tc.node.ID, eligibleNodes, nil, taintedNodes,
-				required, []*structs.Allocation{alloc}, terminal, true,
-			)
+				required, []*structs.Allocation{alloc}, terminal)
 			assertDiffCount(t, tc.expect, got)
 		})
 	}
@@ -611,7 +609,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	nr := NewNodeReconciler(nil)
-	diff := nr.Compute(job, nodes, nil, tainted, allocs, terminal, true)
+	diff := nr.Compute(job, nodes, nil, tainted, allocs, terminal)
 	assertDiffCount(t, diffResultCount{
 		update: 1, ignore: 1, migrate: 1, lost: 1, place: 6}, diff)
 
@@ -766,7 +764,7 @@ func TestNodeDeployments(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(tc.existingDeployment)
-			nr.Compute(tc.job, nodes, nil, nil, tc.liveAllocs, tc.terminalAllocs, true)
+			nr.Compute(tc.job, nodes, nil, nil, tc.liveAllocs, tc.terminalAllocs)
 			if tc.newDeployment {
 				must.NotNil(t, nr.DeploymentCurrent, must.Sprintf("expected a non-nil deployment"))
 				must.Eq(t, nr.DeploymentCurrent.Status, tc.expectedNewDeploymentStatus)
