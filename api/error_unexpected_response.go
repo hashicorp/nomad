@@ -160,9 +160,6 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 func requireStatusIn(statuses ...int) doRequestWrapper {
 	return func(d time.Duration, resp *http.Response, e error) (time.Duration, *http.Response, error) {
 		if e != nil {
-			if resp != nil {
-				_ = resp.Body.Close()
-			}
 			return d, nil, e
 		}
 
@@ -171,6 +168,10 @@ func requireStatusIn(statuses ...int) doRequestWrapper {
 				return d, resp, nil
 			}
 		}
+
+		// The response technically succeeded, so we need to close the body
+		// if we are discarding the response object
+		_ = resp.Body.Close()
 
 		return d, nil, newUnexpectedResponseError(fromHTTPResponse(resp), withExpectedStatuses(statuses))
 	}
