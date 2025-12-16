@@ -171,7 +171,9 @@ func requireStatusIn(statuses ...int) doRequestWrapper {
 
 		// The response technically succeeded, so we need to close the body
 		// if we are discarding the response object
-		_ = resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 
 		return d, nil, newUnexpectedResponseError(fromHTTPResponse(resp), withExpectedStatuses(statuses))
 	}
