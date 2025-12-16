@@ -241,12 +241,10 @@ func (r *ReconcileResults) Fields() []any {
 // ClusterState holds frequently used information about the state of the
 // cluster:
 // - a map of tainted nodes
-// - whether we support disconnected clients
 // - current time
 type ClusterState struct {
-	TaintedNodes                map[string]*structs.Node
-	SupportsDisconnectedClients bool
-	Now                         time.Time
+	TaintedNodes map[string]*structs.Node
+	Now          time.Time
 }
 
 // NewAllocReconciler creates a new reconciler that should be used to determine

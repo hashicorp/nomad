@@ -548,24 +548,6 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	return now.Add(timeout)
 }
 
-// SupportsDisconnectedClients determines whether both the server and the task group
-// are configured to allow the allocation to reconnect after network connectivity
-// has been lost and then restored.
-func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClients bool) bool {
-	if !serverSupportsDisconnectedClients {
-		return false
-	}
-
-	if a.Job != nil {
-		tg := a.Job.LookupTaskGroup(a.TaskGroup)
-		if tg != nil {
-			return tg.GetDisconnectLostAfter() != 0
-		}
-	}
-
-	return false
-}
-
 // ReplaceOnDisconnect determines if an alloc can be replaced
 // when Disconnected.
 func (a *Allocation) ReplaceOnDisconnect() bool {

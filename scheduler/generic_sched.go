@@ -13,7 +13,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -35,9 +34,6 @@ const (
 	// that we track when unlimited rescheduling is enabled
 	maxPastRescheduleEvents = 5
 )
-
-// minVersionMaxClientDisconnect is the minimum version that supports max_client_disconnect.
-var minVersionMaxClientDisconnect = version.Must(version.NewVersion("1.3.0"))
 
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
@@ -355,9 +351,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			EvalPriority:      s.eval.Priority,
 		},
 		reconciler.ClusterState{
-			TaintedNodes:                tainted,
-			SupportsDisconnectedClients: s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true),
-			Now:                         time.Now().UTC(),
+			TaintedNodes: tainted,
+			Now:          time.Now().UTC(),
 		})
 	result := r.Compute()
 	if s.logger.IsDebug() {
