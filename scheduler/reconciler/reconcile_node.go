@@ -39,7 +39,6 @@ func (nr *NodeReconciler) Compute(
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
-	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
 	// Build a mapping of nodes to all their allocs.
@@ -64,8 +63,7 @@ func (nr *NodeReconciler) Compute(
 	result := new(NodeReconcileResult)
 	for nodeID, allocs := range nodeAllocs {
 		diff := nr.computeForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, required, allocs, terminal,
-			serverSupportsDisconnectedClients)
+			notReadyNodes, taintedNodes, required, allocs, terminal)
 		result.Append(diff)
 	}
 
@@ -104,7 +102,6 @@ func (nr *NodeReconciler) computeForNode(
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
-	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
 
@@ -150,16 +147,13 @@ func (nr *NodeReconciler) computeForNode(
 			dstate = nr.DeploymentCurrent.TaskGroups[tg.Name]
 		}
 
-		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
-
 		reconnect := false
 		expired := false
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
-		if supportsDisconnectedClients &&
-			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
-				alloc.ClientStatus == structs.AllocClientStatusRunning) {
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
+			alloc.ClientStatus == structs.AllocClientStatusRunning {
 			reconnect = alloc.NeedsToReconnect()
 			if reconnect {
 				expired = alloc.Expired(time.Now())
@@ -177,7 +171,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// Expired unknown allocs are lost. Expired checks that status is unknown.
-		if supportsDisconnectedClients && expired {
+		if expired {
 			result.Lost = append(result.Lost, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -187,8 +181,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// Ignore unknown allocs that we want to reconnect eventually.
-		if supportsDisconnectedClients &&
-			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 			result.Ignore = append(result.Ignore, AllocTuple{
 				Name:      name,
@@ -202,8 +195,7 @@ func (nr *NodeReconciler) computeForNode(
 		node, nodeIsTainted := taintedNodes[alloc.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
-		if supportsDisconnectedClients &&
-			!nodeIsTainted &&
+		if !nodeIsTainted &&
 			reconnect {
 
 			// Record the new ClientStatus to indicate to future evals that the
@@ -232,7 +224,6 @@ func (nr *NodeReconciler) computeForNode(
 
 			// Filter running allocs on a node that is disconnected to be marked as unknown.
 			if node != nil &&
-				supportsDisconnectedClients &&
 				node.Status == structs.NodeStatusDisconnected &&
 				alloc.ClientStatus == structs.AllocClientStatusRunning {
 

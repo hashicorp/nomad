@@ -125,7 +125,7 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
 			alloc.ClientStatus == structs.AllocClientStatusRunning ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
-			shouldReconnect = alloc.NeedsToReconnect() && state.SupportsDisconnectedClients
+			shouldReconnect = alloc.NeedsToReconnect()
 		}
 
 		// Failed allocs that need to be reconnected must be added to
@@ -177,10 +177,6 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 
 		taintedNode, nodeIsTainted := state.TaintedNodes[alloc.NodeID]
 		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
-			if !state.SupportsDisconnectedClients {
-				lost[alloc.ID] = alloc
-				continue
-			}
 			// ignore allocs already marked unknown, they should already have a followup eval
 			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 				untainted[alloc.ID] = alloc
