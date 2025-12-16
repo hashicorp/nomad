@@ -303,6 +303,9 @@ func (d *DeploymentState) GoString() string {
 }
 
 func (d *DeploymentState) Copy() *DeploymentState {
+	if d == nil {
+		return nil
+	}
 	c := &DeploymentState{}
 	*c = *d
 	c.PlacedCanaries = slices.Clone(d.PlacedCanaries)
