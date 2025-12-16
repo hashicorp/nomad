@@ -139,7 +139,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			}{ // These two cases test that we maintain parity with pre-disconnected-clients behavior.
 				{
 					name:            "lost-client",
-					state:           ClusterState{nodes, false, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"untainted1": {
@@ -241,7 +241,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:  "lost-client-only-tainted-nodes",
-					state: ClusterState{nodes, false, time.Now()},
+					state: ClusterState{nodes, time.Now()},
 					// The logic associated with this test case can only trigger if there
 					// is a tainted node. Therefore, testing with a nil node set produces
 					// false failures, so don't perform that test if in this case.
@@ -287,7 +287,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-disconnect-unset-max-disconnect",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: true,
 					all: allocSet{
 						// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
@@ -322,7 +322,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				// Everything below this line tests the disconnected client mode.
 				{
 					name:            "disco-client-untainted-reconnect-failed-and-replaced",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-replacement": {
@@ -381,7 +381,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-reconnecting-running-no-replacement",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						// Running allocs on reconnected nodes with no replacement are reconnecting.
@@ -419,7 +419,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-terminal",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						// Allocs on reconnected nodes that are complete need to be updated to stop
@@ -567,7 +567,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-disconnect",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: true,
 					all: allocSet{
 						// Non-terminal allocs on disconnected nodes are disconnecting
@@ -709,7 +709,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-reconnect",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						// Expired allocs on reconnected clients are lost
@@ -745,7 +745,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-running-reconnecting-and-replacement-untainted",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-replacement": {
@@ -805,7 +805,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// "untainted" instead of "reconnecting" to allow changes such as
 					// job updates to be applied properly.
 					name:            "disco-client-reconnected-alloc-untainted",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-reconnected": {
@@ -841,7 +841,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				// Everything below this line tests the single instance on lost mode.
 				{
 					name:            "lost-client-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"untainted1": {
@@ -942,54 +942,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					expiring:      allocSet{},
 				},
 				{
-					name:  "lost-client-only-tainted-nodes-single-instance-on",
-					state: ClusterState{nodes, false, time.Now()},
-					// The logic associated with this test case can only trigger if there
-					// is a tainted node. Therefore, testing with a nil node set produces
-					// false failures, so don't perform that test if in this case.
-					skipNilNodeTest: true,
-					all: allocSet{
-						// Non-terminal allocs on lost nodes are down
-						"lost1": {
-							ID:           "lost1",
-							ClientStatus: structs.AllocClientStatusPending,
-							Job:          testJobSingle,
-							NodeID:       "down",
-						},
-						// Non-terminal allocs on lost nodes are down
-						"lost2": {
-							ID:           "lost2",
-							ClientStatus: structs.AllocClientStatusRunning,
-							Job:          testJobSingle,
-							NodeID:       "down",
-						},
-					},
-					untainted:     allocSet{},
-					migrate:       allocSet{},
-					disconnecting: allocSet{},
-					reconnecting:  allocSet{},
-					ignore:        allocSet{},
-					lost: allocSet{
-						// Non-terminal allocs on lost nodes are down
-						"lost1": {
-							ID:           "lost1",
-							ClientStatus: structs.AllocClientStatusPending,
-							Job:          testJobSingle,
-							NodeID:       "down",
-						},
-						// Non-terminal allocs on lost nodes are down
-						"lost2": {
-							ID:           "lost2",
-							ClientStatus: structs.AllocClientStatusRunning,
-							Job:          testJobSingle,
-							NodeID:       "down",
-						},
-					},
-					expiring: allocSet{},
-				},
-				{
 					name:            "disco-client-disconnect-unset-max-disconnect-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: true,
 					all: allocSet{
 						// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
@@ -1021,7 +975,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-untainted-reconnect-failed-and-replaced-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-replacement": {
@@ -1080,7 +1034,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-reconnect-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						// Expired allocs on reconnected clients are lost
@@ -1116,7 +1070,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-running-reconnecting-and-replacement-untainted-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-replacement": {
@@ -1176,7 +1130,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// "untainted" instead of "reconnecting" to allow changes such as
 					// job updates to be applied properly.
 					name:            "disco-client-reconnected-alloc-untainted",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: false,
 					all: allocSet{
 						"running-reconnected": {
@@ -1211,7 +1165,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 				{
 					name:            "disco-client-reconnected-alloc-untainted-single-instance-on",
-					state:           ClusterState{nodes, true, time.Now()},
+					state:           ClusterState{nodes, time.Now()},
 					skipNilNodeTest: true,
 					all: allocSet{
 						"untainted-unknown": {
@@ -1810,12 +1764,11 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 	}
 
 	type testCase struct {
-		name                        string
-		all                         allocSet
-		isBatch                     bool
-		supportsDisconnectedClients bool
-		isDisconnecting             bool
-		deployment                  *structs.Deployment
+		name            string
+		all             allocSet
+		isBatch         bool
+		isDisconnecting bool
+		deployment      *structs.Deployment
 
 		// expected results
 		untainted allocSet

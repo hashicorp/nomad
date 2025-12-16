@@ -69,13 +69,6 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 	sharedSafetyProperties := func(t *rapid.T, nr *nodeReconcilerInput, results *NodeReconcileResult, perTaskGroup map[string]map[string]int) {
 		t.Helper()
 
-		if !nr.serverSupportsDisconnectedClients {
-			must.Len(t, 0, results.Disconnecting,
-				must.Sprint("groups that don't support disconnected clients should never result in disconnecting"))
-			must.Len(t, 0, results.Reconnecting,
-				must.Sprint("groups that don't support disconnected clients should never result in reconnecting"))
-		}
-
 		for tgName, counts := range perTaskGroup {
 			must.LessEq(t, counts["expect_count"]*len(nr.readyNodes), counts["place"],
 				must.Sprintf("group placements should never exceed ready nodes times count (%s): %v",
@@ -101,8 +94,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		nr := genNodeReconciler(structs.JobTypeSystem, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
-			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
-			nr.serverSupportsDisconnectedClients)
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
@@ -113,8 +105,7 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 		nr := genNodeReconciler(structs.JobTypeSysBatch, &idGenerator{}).Draw(t, "input")
 		n := NewNodeReconciler(nr.deployment)
 		results := n.Compute(nr.job, nr.readyNodes,
-			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal,
-			nr.serverSupportsDisconnectedClients)
+			nr.notReadyNodes, nr.taintedNodes, nr.allocs, nr.terminal)
 		must.NotNil(t, results, must.Sprint("results should never be nil"))
 		perTaskGroup := collectExpectedAndResults(nr, results)
 
@@ -124,14 +115,13 @@ func TestNodeReconciler_PropTest(t *testing.T) {
 }
 
 type nodeReconcilerInput struct {
-	job                               *structs.Job
-	readyNodes                        []*structs.Node
-	notReadyNodes                     map[string]struct{}
-	taintedNodes                      map[string]*structs.Node
-	allocs                            []*structs.Allocation
-	terminal                          structs.TerminalByNodeByName
-	deployment                        *structs.Deployment
-	serverSupportsDisconnectedClients bool
+	job           *structs.Job
+	readyNodes    []*structs.Node
+	notReadyNodes map[string]struct{}
+	taintedNodes  map[string]*structs.Node
+	allocs        []*structs.Allocation
+	terminal      structs.TerminalByNodeByName
+	deployment    *structs.Deployment
 }
 
 func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeReconcilerInput] {
@@ -196,13 +186,12 @@ func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeR
 		deployment := genDeployment(idg, job, live).Draw(t, "deployment")
 
 		return &nodeReconcilerInput{
-			job:                               job,
-			readyNodes:                        readyNodes,
-			notReadyNodes:                     notReadyNodes,
-			taintedNodes:                      taintedNodes,
-			allocs:                            live,
-			deployment:                        deployment,
-			serverSupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected"),
+			job:           job,
+			readyNodes:    readyNodes,
+			notReadyNodes: notReadyNodes,
+			taintedNodes:  taintedNodes,
+			allocs:        live,
+			deployment:    deployment,
 		}
 	})
 }

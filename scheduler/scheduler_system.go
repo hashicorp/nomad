@@ -250,7 +250,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
 	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted,
-		live, term, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+		live, term)
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", reconciliationResult.Fields()...)
 	}
