@@ -124,6 +124,12 @@ func (c *QuotaStatusCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Quota Limits[reset]"))
 	c.Ui.Output(formatQuotaLimits(spec, usages))
 
+	// If quota has limits on node pools, format them separately
+	if slices.ContainsFunc(spec.Limits, func(l *api.QuotaLimit) bool { return l.RegionLimit.NodePools != nil }) {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Node Pool Limits[reset]"))
+		c.Ui.Output(formatQuotaNodePools(spec, usages))
+	}
+
 	// If quota has limits on devices, format them separately
 	if slices.ContainsFunc(spec.Limits, func(l *api.QuotaLimit) bool { return l.RegionLimit.Devices != nil }) {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Quota Device Limits[reset]"))
@@ -284,6 +290,65 @@ func formatQuotaDevices(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) 
 		}
 	}
 	return formatList(devices)
+}
+
+func formatQuotaNodePools(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) string {
+	// handle node pools and include region for clarity
+	nodePoolLimits := []string{"Region|Node Pool|CPU Usage|Core Usage|Memory Usage|Memory Max Usage"}
+
+	for _, specLimit := range spec.Limits {
+		// If there are no node-pool limits on this spec entry, skip it.
+		if specLimit.RegionLimit == nil || specLimit.RegionLimit.NodePools == nil {
+			continue
+		}
+
+		used, ok := lookupUsage(usages, specLimit)
+		if !ok || used == nil || used.RegionLimit == nil || used.RegionLimit.NodePools == nil {
+			// No usage available: show "- / <limit>" for each configured node-pool limit.
+			for _, np := range specLimit.RegionLimit.NodePools {
+				cpu := formatQuotaLimitInt(np.CPU)
+				cores := formatQuotaLimitInt(np.Cores)
+				memory := formatQuotaLimitInt(np.MemoryMB)
+				memoryMax := formatQuotaLimitInt(np.MemoryMaxMB)
+				nodePoolLimits = append(nodePoolLimits, fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, np.NodePool, "- / "+cpu, "- / "+cores, "- / "+memory, "- / "+memoryMax))
+			}
+			continue
+		}
+
+		orZero := func(v *int) int {
+			if v == nil {
+				return 0
+			}
+			return *v
+		}
+
+		// For each node-pool limit in the spec, find the matching usage (if any)
+		// and format "used / limit" for CPU, cores, memory, and memory_max.
+		for _, np := range specLimit.RegionLimit.NodePools {
+			usageIdx := slices.IndexFunc(used.RegionLimit.NodePools, func(n *api.NodePoolLimit) bool {
+				return n.NodePool == np.NodePool
+			})
+
+			var cpuUsed, coresUsed, memUsed, memMaxUsed int
+			if usageIdx >= 0 {
+				cpuUsed = orZero(used.RegionLimit.NodePools[usageIdx].CPU)
+				coresUsed = orZero(used.RegionLimit.NodePools[usageIdx].Cores)
+				memUsed = orZero(used.RegionLimit.NodePools[usageIdx].MemoryMB)
+				memMaxUsed = orZero(used.RegionLimit.NodePools[usageIdx].MemoryMaxMB)
+			} else {
+				cpuUsed, coresUsed, memUsed, memMaxUsed = 0, 0, 0, 0
+			}
+
+			cpuField := fmt.Sprintf("%d / %s", cpuUsed, formatQuotaLimitInt(np.CPU))
+			coresField := fmt.Sprintf("%d / %s", coresUsed, formatQuotaLimitInt(np.Cores))
+			memField := fmt.Sprintf("%d / %s", memUsed, formatQuotaLimitInt(np.MemoryMB))
+			memMaxField := fmt.Sprintf("%d / %s", memMaxUsed, formatQuotaLimitInt(np.MemoryMaxMB))
+
+			nodePoolLimits = append(nodePoolLimits, fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, np.NodePool, cpuField, coresField, memField, memMaxField))
+		}
+	}
+
+	return formatList(nodePoolLimits)
 }
 
 func getQuotaByPrefix(client *api.Quotas, quota string) (match *api.QuotaSpec, possible []*api.QuotaSpec, err error) {
