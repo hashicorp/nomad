@@ -58,6 +58,15 @@ const (
 	NamespaceCapabilityReadJobScaling       = "read-job-scaling"
 	NamespaceCapabilityScaleJob             = "scale-job"
 	NamespaceCapabilitySubmitRecommendation = "submit-recommendation"
+
+	NamespaceCapabilityRegisterJob   = "register-job"
+	NamespaceCapabilityRevertJob     = "revert-job"
+	NamespaceCapabilityDeregisterJob = "deregister-job"
+	NamespaceCapabilityPurgeJob      = "purge-job"
+	NamespaceCapabilityEvaluateJob   = "evaluate-job"
+	NamespaceCapabilityPlanJob       = "plan-job"
+	NamespaceCapabilityTagJobVersion = "tag-job-version"
+	NamespaceCapabilityStableJob     = "stable-job"
 )
 
 var (
@@ -232,7 +241,10 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
 		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin,
-		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob, NamespaceCapabilityHostVolumeCreate, NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeRead:
+		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob, NamespaceCapabilityHostVolumeCreate, NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeRead,
+		NamespaceCapabilityDeregisterJob, NamespaceCapabilityEvaluateJob, NamespaceCapabilityRevertJob, NamespaceCapabilityRegisterJob,
+		NamespaceCapabilityPurgeJob, NamespaceCapabilityPlanJob, NamespaceCapabilityTagJobVersion,
+		NamespaceCapabilityStableJob:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:
