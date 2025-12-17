@@ -150,6 +150,20 @@ type QuotaResources struct {
 	NUMA        *NUMAResource          `hcl:"numa,block"`
 	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
 	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
+	NodePools   []*NodePoolLimit       `hcl:"node_pool,block"`
+}
+
+// NodePoolLimit is used to set quota limits on a per-node-pool basis.
+type NodePoolLimit struct {
+	NodePool    string                 `hcl:",label"`
+	CPU         *int                   `hcl:"cpu,optional"`
+	Cores       *int                   `hcl:"cores,optional"`
+	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	Devices     []*RequestedDevice     `hcl:"device,block"`
+	NUMA        *NUMAResource          `hcl:"numa,block"`
+	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
+	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
 }
 
 type QuotaStorageResources struct {

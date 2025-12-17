@@ -62,6 +62,12 @@ limit {
       variables    = 1000   # in MB
       host_volumes = "100 GiB"
     }
+    node_pool "us1" {
+      cores      = 1
+      cpu        = 1500
+      memory     = 1000
+      memory_max = 1000
+    }
   }
 }
 `)
@@ -87,6 +93,13 @@ limit {
 					VariablesMB:   1000,
 					HostVolumesMB: 102_400,
 				},
+				NodePools: []*api.NodePoolLimit{{
+					NodePool:    "us1",
+					CPU:         pointer.Of(1500),
+					Cores:       pointer.Of(1),
+					MemoryMB:    pointer.Of(1000),
+					MemoryMaxMB: pointer.Of(1000),
+				}},
 			},
 		}},
 	}, spec)
