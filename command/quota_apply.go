@@ -274,6 +274,7 @@ func parseQuotaResource(result *api.QuotaResources, list *ast.ObjectList) error 
 		"memory_max",
 		"device",
 		"storage",
+		"node_pool",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -307,6 +308,17 @@ func parseQuotaResource(result *api.QuotaResources, list *ast.ObjectList) error 
 		return multierror.Prefix(err, "storage ->")
 	}
 	result.Storage = storage
+
+	// Manually parse
+	delete(m, "node_pool")
+
+	// Parse per-node-pool limit
+	if o := listVal.Filter("node_pool"); len(o.Items) > 0 {
+		result.NodePools = make([]*api.NodePoolLimit, 0)
+		if err := parseNodePoolLimit(&result.NodePools, o); err != nil {
+			return multierror.Prefix(err, "node pool ->")
+		}
+	}
 
 	return nil
 }
@@ -395,6 +407,47 @@ func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) e
 		}
 
 		*result = append(*result, &device)
+	}
+	return nil
+}
+
+func parseNodePoolLimit(result *[]*api.NodePoolLimit, list *ast.ObjectList) error {
+	for idx, o := range list.Items {
+		if l := len(o.Keys); l == 0 {
+			return multierror.Prefix(fmt.Errorf("missing node pool name"), fmt.Sprintf("resources, node pool[%d]->", idx))
+		} else if l > 1 {
+			return multierror.Prefix(fmt.Errorf("only one name may be specified"), fmt.Sprintf("resources, node pool[%d]->", idx))
+		}
+
+		name := o.Keys[0].Token.Value().(string)
+
+		// Check for invalid keys
+		valid := []string{
+			"cores",
+			"cpu",
+			"memory",
+			"memory_max",
+			"device",
+			"storage",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		// Set the name
+		var n api.NodePoolLimit
+		n.NodePool = name
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		if err := mapstructure.WeakDecode(m, &n); err != nil {
+			return err
+		}
+
+		*result = append(*result, &n)
 	}
 	return nil
 }
