@@ -3212,6 +3212,84 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Deregister and purge
 	req := &structs.JobDeregisterRequest{
 		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect success with a valid management token
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token for purge
+	purgeFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = purgeFineGrainToken.SecretID
+	var purgeFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &purgeFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.AuthToken = validToken.SecretID
+
+	// Deregistration is idempotent
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	must.NoError(t, err)
+}
+func TestJobEndpoint_Deregister_Purge_ACL(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	require.Nil(err)
+
+	// Deregister and purge
+	req := &structs.JobDeregisterRequest{
+		JobID: job.ID,
 		Purge: true,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -3243,8 +3321,26 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.Nil(err)
 	require.NotEqual(validResp.Index, 0)
 
+	// Expect success with a fine-grained valid token for purge
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect failure with a fine-grained valid token for deregister without purge
+	invalidFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = invalidFineGrainToken.SecretID
+	var invalidFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidFineGrainResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
 	// Expect success with a valid token
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	req.AuthToken = validToken.SecretID
 

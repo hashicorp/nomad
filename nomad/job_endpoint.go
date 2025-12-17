@@ -806,9 +806,17 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	defer metrics.MeasureSince([]string{"nomad", "job", "deregister"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.ResolveACL(args); err != nil {
+	aclObj, err := j.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+	}
+
+	permissionsCheck := []string{acl.NamespaceCapabilitySubmitJob, acl.NamespaceCapabilityPurgeJob}
+	if !args.Purge {
+		permissionsCheck = append(permissionsCheck, acl.NamespaceCapabilityDeregisterJob)
+	}
+
+	if !aclObj.AllowNsOpOr(args.RequestNamespace(), permissionsCheck) {
 		return structs.ErrPermissionDenied
 	}
 
