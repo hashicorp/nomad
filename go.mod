@@ -6,6 +6,8 @@ go 1.25.7
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
+
+	github.com/hashicorp/nomad/plugin_interface => ./plugin_interface
 )
 
 // Nomad is built using the current source of the API module.
