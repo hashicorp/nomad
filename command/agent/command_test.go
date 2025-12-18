@@ -1,9 +1,10 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -130,7 +131,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 				"nested.var" = "is nested"
 				"deeply.nested.var" = "is deeply nested"
 			}
-    	}`), 0600)
+    	}`), 0o600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -180,7 +181,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
         datacenter = "`+tc+`"
         client{
 			enabled = true
-    	}`), 0600)
+    	}`), 0o600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -227,7 +228,7 @@ func TestCommand_NullCharInRegion(t *testing.T) {
         region = "`+tc+`"
         client{
 			enabled = true
-    	}`), 0600)
+    	}`), 0o600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -261,6 +262,19 @@ func TestCommand_NullCharInRegion(t *testing.T) {
 // TestIsValidConfig asserts that invalid configurations return false.
 func TestIsValidConfig(t *testing.T) {
 	ci.Parallel(t)
+
+	tempDir := t.TempDir()
+	dirPath1 := filepath.Join(tempDir, "path1")
+	dirPath2 := filepath.Join(tempDir, "path2")
+	filePath := filepath.Join(tempDir, "afile")
+	nonExistingDir := filepath.Join(tempDir, "non_existing_dir")
+
+	os.Mkdir(dirPath1, 0o755)
+	os.Mkdir(dirPath2, 0o755)
+	// We just need it created, no need to have open descriptor.
+	// TODO: Properly fail test on error
+	fd, _ := os.Create(filePath)
+	fd.Close()
 
 	cases := []struct {
 		name string
@@ -415,7 +429,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					HostNetworks: []*structs.ClientHostNetworkConfig{
-						&structs.ClientHostNetworkConfig{
+						{
 							Name:          "test",
 							ReservedPorts: "3-2147483647",
 						},
@@ -467,16 +481,50 @@ func TestIsValidConfig(t *testing.T) {
 						{
 							Name:     "test",
 							ReadOnly: true,
-							Path:     "/random/path1",
+							Path:     dirPath1,
 						},
 						{
 							Name:     "test",
 							ReadOnly: true,
-							Path:     "/random/path2",
+							Path:     dirPath2,
 						},
 					},
 				},
 			},
+		},
+		{
+			name: "MissingVolumeDirectory",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     nonExistingDir,
+						},
+					},
+				},
+			},
+			err: fmt.Sprintf("stat %s: no such file or directory", nonExistingDir),
+		},
+		{
+			name: "VolumeIsNotDir",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     filePath,
+						},
+					},
+				},
+			},
+			err: fmt.Sprintf("Host volume %s is not a directory", filePath),
 		},
 		{
 			name: "BadOIDCIssuer",
@@ -591,7 +639,7 @@ vault {
 
 	configDir := t.TempDir()
 	for k, v := range configFiles {
-		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0644)
+		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0o644)
 		must.NoError(t, err)
 	}
 
@@ -667,7 +715,6 @@ vault {
 }
 
 func TestCommand_readConfig_clientIntroToken(t *testing.T) {
-
 	t.Run("env var", func(t *testing.T) {
 		t.Setenv("NOMAD_CLIENT_INTRO_TOKEN", "test-intro-token")
 
@@ -695,7 +742,6 @@ func TestCommand_readConfig_clientIntroToken(t *testing.T) {
 }
 
 func Test_setupLoggers_logFile(t *testing.T) {
-
 	// Generate a mock UI and temporary log file location to write to.
 	mockUI := cli.NewMockUi()
 	logFile := filepath.Join(t.TempDir(), "nomad.log")
