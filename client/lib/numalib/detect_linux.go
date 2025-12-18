@@ -103,22 +103,21 @@ func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
 
 	dimension := st.nodeIDs.Size()
 	st.Distances = make(SLIT, st.nodeIDs.Size())
-	for i := 0; i < dimension; i++ {
+	for i := range dimension {
 		st.Distances[i] = make([]Cost, dimension)
 	}
 
-	_ = st.nodeIDs.ForEach(func(id hw.NodeID) error {
+	for idx, id := range st.nodeIDs.Slice() {
 		s, err := getString(distanceFile, readerFunc, id)
 		if err != nil {
-			return err
+			break
 		}
 
 		for i, c := range strings.Fields(s) {
 			cost, _ := strconv.ParseUint(c, 10, 8)
-			st.Distances[id][i] = Cost(cost)
+			st.Distances[idx][i] = Cost(cost)
 		}
-		return nil
-	})
+	}
 }
 
 func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
