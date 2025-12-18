@@ -6,6 +6,7 @@
 package numalib
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -43,12 +44,12 @@ func badSysData(path string) ([]byte, error) {
 
 func goodSysData(path string) ([]byte, error) {
 	return map[string][]byte{
-		"/sys/devices/system/node/online":                            []byte("0-1"),
+		"/sys/devices/system/node/online":                            []byte("1,3"),
 		"/sys/devices/system/cpu/online":                             []byte("0-3"),
-		"/sys/devices/system/node/node0/distance":                    []byte("10"),
-		"/sys/devices/system/node/node0/cpulist":                     []byte("0-3"),
-		"/sys/devices/system/node/node1/distance":                    []byte("10"),
-		"/sys/devices/system/node/node1/cpulist":                     []byte("0-3"),
+		"/sys/devices/system/node/node1/distance":                    []byte("10 80"),
+		"/sys/devices/system/node/node1/cpulist":                     []byte("0-1"),
+		"/sys/devices/system/node/node3/distance":                    []byte("80 10"),
+		"/sys/devices/system/node/node3/cpulist":                     []byte("2-3"),
 		"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
 		"/sys/devices/system/cpu/cpu0/cpufreq/base_frequency":        []byte("2100000"),
 		"/sys/devices/system/cpu/cpu0/topology/physical_package_id":  []byte("0"),
@@ -70,12 +71,12 @@ func goodSysData(path string) ([]byte, error) {
 
 func goodSysDataAMD(path string) ([]byte, error) {
 	return map[string][]byte{
-		"/sys/devices/system/node/online":                            []byte("0-1"),
+		"/sys/devices/system/node/online":                            []byte("1,3"),
 		"/sys/devices/system/cpu/online":                             []byte("0-3"),
-		"/sys/devices/system/node/node0/distance":                    []byte("10"),
-		"/sys/devices/system/node/node0/cpulist":                     []byte("0-3"),
-		"/sys/devices/system/node/node1/distance":                    []byte("10"),
-		"/sys/devices/system/node/node1/cpulist":                     []byte("0-3"),
+		"/sys/devices/system/node/node1/distance":                    []byte("10 20"),
+		"/sys/devices/system/node/node1/cpulist":                     []byte("0-1"),
+		"/sys/devices/system/node/node3/distance":                    []byte("20 10"),
+		"/sys/devices/system/node/node3/cpulist":                     []byte("2-3"),
 		"/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq":        []byte("2450"),
 		"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
 		"/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver":        []byte("acpi-cpufreq"),
@@ -99,9 +100,36 @@ func goodSysDataAMD(path string) ([]byte, error) {
 	}[path], nil
 }
 
+// discontinuousSysData represents a host with nodes that are online but don't
+// have any cpus associated with them ref
+// https://github.com/hashicorp/nomad/issues/27266
+func discontinuousSysData(path string) ([]byte, error) {
+	out := map[string][]byte{
+		"/sys/devices/system/node/online":         []byte("0,2-4"),
+		"/sys/devices/system/cpu/online":          []byte("0-15"),
+		"/sys/devices/system/node/node0/distance": []byte("10 80 80 80"),
+		"/sys/devices/system/node/node0/cpulist":  []byte("0-15"),
+		"/sys/devices/system/node/node2/distance": []byte("80 10 80 80"),
+		"/sys/devices/system/node/node2/cpulist":  []byte(""),
+		"/sys/devices/system/node/node3/distance": []byte("80 80 10 80"),
+		"/sys/devices/system/node/node3/cpulist":  []byte(""),
+		"/sys/devices/system/node/node4/distance": []byte("80 80 80 10"),
+		"/sys/devices/system/node/node4/cpulist":  []byte(""),
+	}
+	for i := range 15 {
+		cpuPath := fmt.Sprintf("/sys/devices/system/cpu/cpu%d", i)
+		out[cpuPath+"/cpufreq/cpuinfo_max_freq"] = []byte("3500000")
+		out[cpuPath+"/cpufreq/base_frequency"] = []byte("2100000")
+		out[cpuPath+"/topology/physical_package_id"] = []byte("0")
+		out[cpuPath+"/topology/thread_siblings_list"] = []byte("0,2")
+
+	}
+	return out[path], nil
+}
+
 func TestSysfs_discoverOnline(t *testing.T) {
 	st := MockTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
-	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1})
+	goodIDSet := idset.From[hw.NodeID]([]uint8{1, 3})
 	oneNode := idset.From[hw.NodeID]([]uint8{0})
 
 	tests := []struct {
@@ -137,9 +165,17 @@ func TestSysfs_discoverCosts(t *testing.T) {
 			[]Cost{0, 0},
 		}},
 		{"two nodes and good sys data", twoNodes, goodSysData, SLIT{
-			[]Cost{0, 0},
-			[]Cost{10, 0},
+			[]Cost{10, 80},
+			[]Cost{80, 10},
 		}},
+		{"four nodes discontinuous sys data",
+			idset.From[hw.NodeID]([]uint8{0, 2, 3, 4}), discontinuousSysData,
+			SLIT{
+				[]Cost{10, 80, 80, 80},
+				[]Cost{80, 10, 80, 80},
+				[]Cost{80, 80, 10, 80},
+				[]Cost{80, 80, 80, 10},
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -248,7 +284,7 @@ func TestSysfs_discoverCores(t *testing.T) {
 				},
 				{
 					SocketID:  1,
-					NodeID:    0,
+					NodeID:    1,
 					ID:        2,
 					Grade:     Performance,
 					BaseSpeed: 2450,
@@ -256,7 +292,7 @@ func TestSysfs_discoverCores(t *testing.T) {
 				},
 				{
 					SocketID:  1,
-					NodeID:    0,
+					NodeID:    1,
 					ID:        3,
 					Grade:     Performance,
 					BaseSpeed: 2450,
