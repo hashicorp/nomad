@@ -62,8 +62,7 @@ func (vars *Variables) CheckedCreate(v *Variable, qo *WriteOptions) (*Variable, 
 // if the variable is not found.
 func (vars *Variables) Read(path string, qo *QueryOptions) (*Variable, *QueryMeta, error) {
 	path = cleanPathString(path)
-	var v = new(Variable)
-	qm, err := vars.readInternal("/v1/var/"+path, &v, qo)
+	v, qm, err := vars.readInternal("/v1/var/"+path, qo)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,8 +76,7 @@ func (vars *Variables) Read(path string, qo *QueryOptions) (*Variable, *QueryMet
 // when the variable is not found
 func (vars *Variables) Peek(path string, qo *QueryOptions) (*Variable, *QueryMeta, error) {
 	path = cleanPathString(path)
-	var v = new(Variable)
-	qm, err := vars.readInternal("/v1/var/"+path, &v, qo)
+	v, qm, err := vars.readInternal("/v1/var/"+path, qo)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -168,9 +166,8 @@ func (vars *Variables) GetItems(path string, qo *QueryOptions) (*VariableItems, 
 // GetVariableItems returns the inner Items collection from a variable at a given path.
 func (vars *Variables) GetVariableItems(path string, qo *QueryOptions) (VariableItems, *QueryMeta, error) {
 	path = cleanPathString(path)
-	v := new(Variable)
 
-	qm, err := vars.readInternal("/v1/var/"+path, &v, qo)
+	v, qm, err := vars.readInternal("/v1/var/"+path, qo)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -225,53 +222,37 @@ func (vars *Variables) lockOperation(v *Variable, qo *WriteOptions, operation st
 // the status code to be 200 (OK). For Peek(), we do not consider 403 (Permission
 // Denied or 404 (Not Found) an error, this function just returns a nil in those
 // cases.
-func (vars *Variables) readInternal(endpoint string, out **Variable, q *QueryOptions) (*QueryMeta, error) {
-	// todo(shoenig): seems like this could just return a *Variable instead of taking
-	// in a **Variable and modifying it?
-
+func (vars *Variables) readInternal(endpoint string, q *QueryOptions) (*Variable, *QueryMeta, error) {
 	r, err := vars.client.newRequest("GET", endpoint)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	r.setQueryOptions(q)
 
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound, http.StatusForbidden) //nolint:bodyclose
-	rtt, resp, err := checkFn(vars.client.doRequest(r))                                  //nolint:bodyclose
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound) //nolint:bodyclose
+	rtt, resp, err := checkFn(vars.client.doRequest(r))            //nolint:bodyclose
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	qm := &QueryMeta{}
 	_ = parseQueryMeta(resp, qm)
 	qm.RequestTime = rtt
 
+	// We dont want to decode "variable not found"
 	if resp.StatusCode == http.StatusNotFound {
-		*out = nil
-		_ = resp.Body.Close()
-		return qm, nil
+		return nil, qm, nil
 	}
 
-	if resp.StatusCode == http.StatusForbidden {
-		*out = nil
-		_ = resp.Body.Close()
-		// On a 403, there is no QueryMeta to parse, but consul-template--the
-		// main consumer of the Peek() func that calls this method needs the
-		// value to be non-zero; so set them to a reasonable but artificial
-		// value. Index 1 doesn't say anything about the cluster, and there
-		// has to be a KnownLeader to get a 403.
-		qm.LastIndex = 1
-		qm.KnownLeader = true
-		return qm, nil
-	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	out := new(Variable)
 	if err = decodeBody(resp, out); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return qm, nil
+	return out, qm, nil
 }
 
 // deleteInternal exists because the API's higher-level delete method requires
