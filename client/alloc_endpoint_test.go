@@ -304,7 +304,6 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 
 func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -316,38 +315,38 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	defer cleanupC()
 
 	job := mock.BatchJob()
-	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
 	}
 
-	noSuchAllocErr := fmt.Errorf("No such allocation on client or allocation not eligible for GC")
+	noSuchAllocErr := fmt.Errorf("No such allocation on client, or allocation not eligible for GC")
 
 	// Wait for client to be running job
-	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+	allocs := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)
 
 	// Try request without a token and expect failure
 	{
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
 
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -355,23 +354,38 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
 			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
 	}
 
 	// Try request with a management token
 	{
 		req := &nstructs.AllocSpecificRequest{}
 		req.AuthToken = root.SecretID
+		req.AllocID = allocs[1].ID
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
+
+	}
+
+	// Try request with a fine grain token
+	{
+		fineGrainToken := mock.CreatePolicyAndToken(t, server.State(), 1010, "test-valid-fine",
+			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityGCAllocation}))
+		req := &nstructs.AllocSpecificRequest{}
+		req.AuthToken = fineGrainToken.SecretID
+		req.AllocID = allocs[2].ID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
 	}
 }
 
@@ -471,6 +485,120 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
 		require.NoError(err)
 	}
+}
+
+// TestAllocations_SetPauseState_ACL tests the SetPauseState RPC, but is an enterprise-only feature and so tests expect that error to be successful.
+func TestAllocations_SetPauseState(t *testing.T) {
+	ci.Parallel(t)
+
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	a := mock.Alloc()
+	must.Nil(t, client.addAlloc(a, ""))
+
+	// // Try with bad alloc
+	req := &nstructs.AllocPauseRequest{}
+	var resp nstructs.GenericResponse
+	err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+	must.NotNil(t, err)
+	must.True(t, nstructs.IsErrUnknownAllocation(err))
+
+	// Try with good alloc
+	req.AllocID = a.ID
+
+	var resp2 nstructs.GenericResponse
+	err = client.ClientRPC("Allocations.SetPauseState", &req, &resp2)
+
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Enterprise only")
+}
+
+// TestAllocations_SetPauseState_ACL tests the SetPauseState RPC for ACL permissions, but is an enterprise-only feature and so tests expect that error to be successful.
+func TestAllocations_SetPauseState_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.ACLEnabled = true
+	})
+	defer cleanupC()
+
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
+	// Try request without a token and expect failure
+	{
+		req := &nstructs.AllocPauseRequest{}
+		req.AllocID = alloc.ID
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with an invalid token and expect failure
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
+		req := &nstructs.AllocPauseRequest{}
+		req.AllocID = alloc.ID
+		req.AuthToken = token.SecretID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with a valid token
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "test-valid",
+			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+		req := &nstructs.AllocPauseRequest{}
+		req.AllocID = alloc.ID
+		req.AuthToken = token.SecretID
+		req.Namespace = nstructs.DefaultNamespace
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+		must.ErrorContains(t, err, "Enterprise only")
+	}
+
+	// Try request with a valid fine grain token
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1009, "test-valid",
+			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPauseAllocation}))
+		req := &nstructs.AllocPauseRequest{}
+		req.AllocID = alloc.ID
+		req.AuthToken = token.SecretID
+		req.Namespace = nstructs.DefaultNamespace
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+		must.ErrorContains(t, err, "Enterprise only")
+	}
+
+	// Try request with a management token
+	{
+		req := &nstructs.AllocPauseRequest{}
+		req.AllocID = alloc.ID
+		req.AuthToken = root.SecretID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+		must.ErrorContains(t, err, "Enterprise only")
+	}
+
 }
 
 func TestAllocations_Stats(t *testing.T) {
