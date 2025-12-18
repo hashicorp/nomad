@@ -704,6 +704,25 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 		}
 	}
 
+	if s.deployment != nil {
+		for _, a := range reconciled.Ignore {
+			if a.Alloc == nil {
+				continue
+			}
+			if a.Alloc.DeploymentID != s.deployment.ID {
+				continue
+			}
+			// explicitly unhealthy don't count against max_parallel
+			if a.Alloc.DeploymentStatus.IsUnhealthy() {
+				continue
+			}
+			// If not yet explicitly set to healthy (nil) decrement.
+			if !a.Alloc.DeploymentStatus.IsHealthy() {
+				limits[a.Alloc.TaskGroup]--
+			}
+		}
+	}
+
 	for _, a := range reconciled.Update {
 		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
 			s.ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
