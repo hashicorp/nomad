@@ -59,6 +59,7 @@ const (
 	NamespaceCapabilityScaleJob             = "scale-job"
 	NamespaceCapabilitySubmitRecommendation = "submit-recommendation"
 
+	// Fine-grained job capabilities separated from submit-job
 	NamespaceCapabilityRegisterJob   = "register-job"
 	NamespaceCapabilityRevertJob     = "revert-job"
 	NamespaceCapabilityDeregisterJob = "deregister-job"
@@ -67,6 +68,19 @@ const (
 	NamespaceCapabilityPlanJob       = "plan-job"
 	NamespaceCapabilityTagJobVersion = "tag-job-version"
 	NamespaceCapabilityStableJob     = "stable-job"
+
+	NamespaceCapabilityFailDeployment           = "fail-deployment"
+	NamespaceCapabilityPauseDeployment          = "pause-deployment"
+	NamespaceCapabilityPromoteDeployment        = "promote-deployment"
+	NamespaceCapabilityRunDeployment            = "run-deployment"
+	NamespaceCapabilityUnblockDeployment        = "unblock-deployment"
+	NamespaceCapabilityCancelDeployment         = "cancel-deployment"
+	NamespaceCapabilitySetAllocHealthDeployment = "set-alloc-health-deployment"
+
+	NamespaceCapabilityGCAllocation    = "gc-allocation"
+	NamespaceCapabilityPauseAllocation = "pause-allocation"
+
+	NamespaceCapabilityForcePeriodicJob = "force-periodic-job"
 )
 
 var (
@@ -244,7 +258,12 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob, NamespaceCapabilityHostVolumeCreate, NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeRead,
 		NamespaceCapabilityDeregisterJob, NamespaceCapabilityEvaluateJob, NamespaceCapabilityRevertJob, NamespaceCapabilityRegisterJob,
 		NamespaceCapabilityPurgeJob, NamespaceCapabilityPlanJob, NamespaceCapabilityTagJobVersion,
-		NamespaceCapabilityStableJob:
+		NamespaceCapabilityStableJob,
+		NamespaceCapabilityFailDeployment, NamespaceCapabilityPauseDeployment, NamespaceCapabilityPromoteDeployment,
+		NamespaceCapabilityRunDeployment, NamespaceCapabilityUnblockDeployment, NamespaceCapabilityCancelDeployment,
+		NamespaceCapabilitySetAllocHealthDeployment,
+		NamespaceCapabilityGCAllocation, NamespaceCapabilityPauseAllocation,
+		NamespaceCapabilityForcePeriodicJob:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:

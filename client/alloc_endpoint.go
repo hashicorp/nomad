@@ -61,7 +61,10 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	// Check namespace submit job permission.
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOpOr(alloc.Namespace, []string{
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityGCAllocation,
+	}) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -101,7 +104,10 @@ func (a *Allocations) SetPauseState(args *nstructs.AllocPauseRequest, reply *nst
 
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOpOr(alloc.Namespace, []string{
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityPauseAllocation,
+	}) {
 		return nstructs.ErrPermissionDenied
 	}
 

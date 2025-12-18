@@ -384,6 +384,8 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	tokenGoodFineGrain := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityGCAllocation}))
+
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
@@ -408,6 +410,11 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
+		},
+		{
+			Name:          "fine grain token",
+			Token:         tokenGoodFineGrain.SecretID,
 			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 	}
