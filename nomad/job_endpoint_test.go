@@ -1042,6 +1042,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
+	registerJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRegisterJob}))
+
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
 	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
@@ -1112,6 +1114,12 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			Name:        "with a token that also has csi-register-plugin, accepted",
 			Job:         newCSIPluginJob(),
 			Token:       pluginToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a register job token",
+			Job:         mock.Job(),
+			Token:       registerJobToken.SecretID,
 			ErrExpected: false,
 		},
 	}
@@ -2622,6 +2630,15 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	revertReq.AuthToken = validToken.SecretID
 	var validResp2 structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
+	require.Nil(err)
+
+	// Try with a valid fine-grained token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRevertJob}))
+
+	revertReq.AuthToken = validFineGrainToken.SecretID
+	var validResp3 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp3)
 	require.Nil(err)
 }
 

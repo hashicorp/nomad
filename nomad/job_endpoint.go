@@ -105,11 +105,19 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "register"}, time.Now())
-
 	aclObj, err := j.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
+
+	allowedPermissions := []string{acl.NamespaceCapabilityRegisterJob}
+
+	return j.doRegister(aclObj, allowedPermissions, args, reply)
+}
+
+// doRegister does the actual job registration, including any additional
+// permission checks, and after metrics have begun recording
+func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string, args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
 	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
 		j.logger.Warn("job registration is currently disabled for non-management ACL")
 		return structs.ErrJobRegistrationDisabled
@@ -149,7 +157,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = helper.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+	if !aclObj.AllowNsOpOr(args.RequestNamespace(), append([]string{acl.NamespaceCapabilitySubmitJob}, additionalAllowedPermissions...)) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -570,9 +578,12 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	defer metrics.MeasureSince([]string{"nomad", "job", "revert"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.ResolveACL(args); err != nil {
+	aclObj, err := j.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+	}
+
+	if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{acl.NamespaceCapabilitySubmitJob, acl.NamespaceCapabilityRevertJob}) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -632,7 +643,8 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 
 	// Register the version.
-	return j.Register(reg, reply)
+	allowedPermissions := []string{acl.NamespaceCapabilityRevertJob}
+	return j.doRegister(aclObj, allowedPermissions, reg, reply)
 }
 
 // Stable is used to mark the job version as stable
