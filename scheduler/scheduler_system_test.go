@@ -3252,10 +3252,11 @@ func TestEvictAndPlace(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name             string
-		allocsPerTG      map[string]int
-		maxParallelPerTG map[string]int
-		jobMaxParallel   int
+		name               string
+		allocsPerTG        map[string]int
+		pendingAllocsPerTG map[string]int
+		maxParallelPerTG   map[string]int
+		jobMaxParallel     int
 
 		expectLimited bool
 		expectPlace   int
@@ -3313,6 +3314,21 @@ func TestEvictAndPlace(t *testing.T) {
 			expectLimited:    true,
 			expectPlace:      6,
 		},
+		{
+			name:           "job limit only",
+			allocsPerTG:    map[string]int{"a": 4, "b": 4},
+			jobMaxParallel: 2,
+			expectLimited:  true,
+			expectPlace:    4,
+		},
+		{
+			name:               "job limit with pending allocs",
+			allocsPerTG:        map[string]int{"a": 4, "b": 4},
+			pendingAllocsPerTG: map[string]int{"a": 2},
+			jobMaxParallel:     2,
+			expectLimited:      true,
+			expectPlace:        2,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3336,6 +3352,22 @@ func TestEvictAndPlace(t *testing.T) {
 				}
 			}
 			diff := &reconciler.NodeReconcileResult{Update: allocs}
+			dID := uuid.Generate()
+
+			for tg, count := range tc.pendingAllocsPerTG {
+				if diff.Ignore == nil {
+					diff.Ignore = []reconciler.AllocTuple{}
+				}
+				for range count {
+					diff.Ignore = append(diff.Ignore, reconciler.AllocTuple{
+						Alloc: &structs.Allocation{
+							ID:           uuid.Generate(),
+							TaskGroup:    tg,
+							DeploymentID: dID,
+						}})
+				}
+			}
+
 			_, ctx := feasible.MockContext(t)
 
 			s := SystemScheduler{ctx: ctx, job: job, plan: &structs.Plan{
@@ -3343,11 +3375,11 @@ func TestEvictAndPlace(t *testing.T) {
 				NodeUpdate:      make(map[string][]*structs.Allocation),
 				NodeAllocation:  make(map[string][]*structs.Allocation),
 				NodePreemptions: make(map[string][]*structs.Allocation),
-			}}
+			}, deployment: &structs.Deployment{ID: dID}}
 
 			s.evictAndPlace(diff, "")
 			must.Len(t, tc.expectPlace, diff.Place, must.Sprintf(
-				"evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
+				"evictAndPlace() didn't insert into diffResult properly: %v", diff.Place))
 		})
 	}
 
