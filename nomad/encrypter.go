@@ -156,7 +156,7 @@ func (e *Encrypter) loadKeystore() error {
 
 	keyErrors := map[string]error{}
 
-	return filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
+	filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("could not read path %s from keystore: %v", path, err)
 		}
@@ -185,8 +185,8 @@ func (e *Encrypter) loadKeystore() error {
 
 		key, err := e.loadKeyFromStore(path)
 		if err != nil {
-			keyErrors[id] = err
-			return fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			keyErrors[id] = fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			return nil
 		}
 		if key.Meta.KeyID != id {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
@@ -202,6 +202,16 @@ func (e *Encrypter) loadKeystore() error {
 		delete(keyErrors, id)
 		return nil
 	})
+
+	if len(keyErrors) == 0 {
+		return nil
+	}
+
+	var mErr multierror.Error
+	for _, err := range keyErrors {
+		mErr = *multierror.Append(&mErr, err)
+	}
+	return mErr.ErrorOrNil()
 }
 
 // IsReady blocks until all in-flight decrypt tasks are complete, or the context
