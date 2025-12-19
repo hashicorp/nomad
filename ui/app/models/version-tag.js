@@ -11,5 +11,6 @@ export default class VersionTagModel extends Fragment {
   @attr() description;
   @attr() taggedTime;
   @attr('number') versionNumber;
+  @attr('string') jobNamespace;
   @attr('string') jobName;
 }
