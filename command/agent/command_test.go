@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -131,7 +131,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 				"nested.var" = "is nested"
 				"deeply.nested.var" = "is deeply nested"
 			}
-    	}`), 0o600)
+    	}`), 0600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -181,7 +181,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
         datacenter = "`+tc+`"
         client{
 			enabled = true
-    	}`), 0o600)
+    	}`), 0600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -228,7 +228,7 @@ func TestCommand_NullCharInRegion(t *testing.T) {
         region = "`+tc+`"
         client{
 			enabled = true
-    	}`), 0o600)
+    	}`), 0600)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -427,7 +427,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					HostNetworks: []*structs.ClientHostNetworkConfig{
-						{
+						&structs.ClientHostNetworkConfig{
 							Name:          "test",
 							ReservedPorts: "3-2147483647",
 						},
@@ -490,7 +490,7 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 		},
-		{
+	{
 			name: "MissingVolumePath",
 			conf: Config{
 				DataDir: "/tmp",
@@ -620,7 +620,7 @@ vault {
 
 	configDir := t.TempDir()
 	for k, v := range configFiles {
-		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0o644)
+		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0644)
 		must.NoError(t, err)
 	}
 
@@ -696,6 +696,7 @@ vault {
 }
 
 func TestCommand_readConfig_clientIntroToken(t *testing.T) {
+
 	t.Run("env var", func(t *testing.T) {
 		t.Setenv("NOMAD_CLIENT_INTRO_TOKEN", "test-intro-token")
 
@@ -723,6 +724,7 @@ func TestCommand_readConfig_clientIntroToken(t *testing.T) {
 }
 
 func Test_setupLoggers_logFile(t *testing.T) {
+
 	// Generate a mock UI and temporary log file location to write to.
 	mockUI := cli.NewMockUi()
 	logFile := filepath.Join(t.TempDir(), "nomad.log")

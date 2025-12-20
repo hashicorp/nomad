@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -578,6 +578,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 // The function needs to be public due to the way it is used within the Nomad
 // Enterprise codebase.
 func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
+
 	// Pull the log level from the configuration, ensure it is titled and then
 	// perform validation. Do this before the gated writer, as this can
 	// generate an error, whereas the writer does not.
@@ -1258,6 +1259,7 @@ func (c *Command) handleReload() error {
 
 // setupTelemetry is used to set up the telemetry sub-systems.
 func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
+
 	var telConfig *Telemetry
 	if config.Telemetry == nil {
 		telConfig = &Telemetry{}
