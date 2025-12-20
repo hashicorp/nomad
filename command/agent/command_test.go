@@ -264,13 +264,11 @@ func TestIsValidConfig(t *testing.T) {
 	ci.Parallel(t)
 
 	tempDir := t.TempDir()
-	dirPath1 := filepath.Join(tempDir, "path1")
-	dirPath2 := filepath.Join(tempDir, "path2")
+	dirPath := filepath.Join(tempDir, "path1")
 	filePath := filepath.Join(tempDir, "afile")
-	nonExistingDir := filepath.Join(tempDir, "non_existing_dir")
+	nonExistingPath := filepath.Join(tempDir, "non_existing_path")
 
-	os.Mkdir(dirPath1, 0o755)
-	os.Mkdir(dirPath2, 0o755)
+	os.Mkdir(dirPath, 0o755)
 	// We just need it created, no need to have open descriptor.
 	// TODO: Properly fail test on error
 	fd, _ := os.Create(filePath)
@@ -481,41 +479,8 @@ func TestIsValidConfig(t *testing.T) {
 						{
 							Name:     "test",
 							ReadOnly: true,
-							Path:     dirPath1,
+							Path:     dirPath,
 						},
-						{
-							Name:     "test",
-							ReadOnly: true,
-							Path:     dirPath2,
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "MissingVolumeDirectory",
-			conf: Config{
-				DataDir: "/tmp",
-				Client: &ClientConfig{
-					Enabled: true,
-					HostVolumes: []*structs.ClientHostVolumeConfig{
-						{
-							Name:     "test",
-							ReadOnly: true,
-							Path:     nonExistingDir,
-						},
-					},
-				},
-			},
-			err: fmt.Sprintf("stat %s: no such file or directory", nonExistingDir),
-		},
-		{
-			name: "VolumeIsNotDir",
-			conf: Config{
-				DataDir: "/tmp",
-				Client: &ClientConfig{
-					Enabled: true,
-					HostVolumes: []*structs.ClientHostVolumeConfig{
 						{
 							Name:     "test",
 							ReadOnly: true,
@@ -524,7 +489,23 @@ func TestIsValidConfig(t *testing.T) {
 					},
 				},
 			},
-			err: fmt.Sprintf("Host volume %s is not a directory", filePath),
+		},
+		{
+			name: "MissingVolumePath",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     nonExistingPath,
+						},
+					},
+				},
+			},
+			err: fmt.Sprintf("stat %s: no such file or directory", nonExistingPath),
 		},
 		{
 			name: "BadOIDCIssuer",
