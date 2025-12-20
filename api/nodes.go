@@ -587,6 +587,7 @@ type NodeResources struct {
 	Disk     NodeDiskResources
 	Networks []*NetworkResource
 	Devices  []*NodeDeviceResource
+	Custom   []*NodeCustomResource
 
 	MinDynamicPort int
 	MaxDynamicPort int
@@ -627,6 +628,18 @@ type NodeReservedDiskResources struct {
 
 type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
+}
+
+type NodeCustomResource struct {
+	Name    string              `hcl:"name,label"`
+	Version uint64              `hcl:"version,optional"`
+	Type    CustomResourceType  `hcl:"type,optional"`
+	Scope   CustomResourceScope `hcl:"scope,optional"`
+
+	Quantity int64             `hcl:"quantity,optional"`
+	Range    string            `hcl:"range,optional"`
+	Items    []any             `hcl:"items,optional"`
+	Meta     map[string]string `hcl:"meta,block"`
 }
 
 type CSITopologyRequest struct {

@@ -1647,6 +1647,22 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.SecretsMB = *in.SecretsMB
 	}
 
+	if len(in.Custom) > 0 {
+		out.Custom = []*structs.CustomResource{}
+		for _, apiCr := range in.Custom {
+			out.Custom = append(out.Custom, &structs.CustomResource{
+				Name:        apiCr.Name,
+				Version:     apiCr.Version,
+				Type:        structs.CustomResourceType(apiCr.Type),
+				Scope:       structs.CustomResourceScope(apiCr.Scope),
+				Quantity:    apiCr.Quantity,
+				Range:       apiCr.Range,
+				Items:       apiCr.Items,
+				Constraints: ApiConstraintsToStructs(apiCr.Constraints),
+			})
+		}
+	}
+
 	return out
 }
 

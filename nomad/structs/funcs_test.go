@@ -638,6 +638,190 @@ func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 	must.Eq(t, 12000, used.Flattened.Memory.MemoryMaxMB)
 }
 
+func TestAllocsFit_CustomResources(t *testing.T) {
+	ci.Parallel(t)
+
+	n0 := node2k()
+	n0.NodeResources.Memory.MemoryMB = 2048
+	n0.ReservedResources = nil
+	n0.NodeResources.Custom = []*CustomResource{
+		{
+			Name:    "foo_dynamic",
+			Version: 1,
+			Type:    CustomResourceTypeDynamicInstance,
+			Scope:   CustomResourceScopeTask,
+			Range:   "1-3,7-10",
+			Items:   []any{1, 2, 3, 7, 8, 9},
+		},
+		{
+			Name:     "bar_countable",
+			Type:     CustomResourceTypeCountable,
+			Scope:    CustomResourceScopeGroup,
+			Quantity: 10_000,
+		},
+	}
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu:    AllocatedCpuResources{CpuShares: 100},
+					Memory: AllocatedMemoryResources{MemoryMB: 500},
+					Custom: []*CustomResource{
+						{
+							Name:    "foo_dynamic",
+							Version: 1,
+							Type:    CustomResourceTypeDynamicInstance,
+							Scope:   CustomResourceScopeTask,
+							Items:   []any{3},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ok, msg, used, err := AllocsFit(n0, []*Allocation{a1}, nil, false)
+	test.True(t, ok)
+	test.Eq(t, "", msg)
+	test.Eq(t, &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu:    AllocatedCpuResources{CpuShares: 100, ReservedCores: []uint16{}},
+			Memory: AllocatedMemoryResources{MemoryMB: 500, MemoryMaxMB: 500},
+			Custom: CustomResources{{
+				Name:    "foo_dynamic",
+				Version: 1,
+				Type:    CustomResourceTypeDynamicInstance,
+				Scope:   CustomResourceScopeTask,
+				Items:   []any{3},
+			}},
+		},
+		Shared: AllocatedSharedResources{},
+	}, used)
+	test.NoError(t, err)
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu:    AllocatedCpuResources{CpuShares: 100},
+					Memory: AllocatedMemoryResources{MemoryMB: 500},
+					Custom: []*CustomResource{
+						{
+							Name:    "foo_dynamic",
+							Version: 1,
+							Type:    CustomResourceTypeDynamicInstance,
+							Scope:   CustomResourceScopeTask,
+							Items:   []any{5},
+						},
+					},
+				},
+			},
+		},
+	}
+	ok, msg, used, err = AllocsFit(n0, []*Allocation{a1, a2}, nil, false)
+	test.False(t, ok)
+	test.Eq(t, "custom resource: foo_dynamic", msg)
+	test.Eq(t, &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu:    AllocatedCpuResources{CpuShares: 200, ReservedCores: []uint16{}},
+			Memory: AllocatedMemoryResources{MemoryMB: 1000, MemoryMaxMB: 1000},
+			Custom: CustomResources{{
+				Name:    "foo_dynamic",
+				Version: 1,
+				Type:    CustomResourceTypeDynamicInstance,
+				Scope:   CustomResourceScopeTask,
+				Items:   []any{3, 5}, // TODO(tgross): shows as used here even if not available?
+			}},
+		},
+		Shared: AllocatedSharedResources{},
+	}, used)
+	test.NoError(t, err)
+
+	a2.AllocatedResources.Tasks["web"].Custom[0].Items = []any{7}
+	ok, msg, used, err = AllocsFit(n0, []*Allocation{a1, a2}, nil, false)
+	test.True(t, ok)
+	test.Eq(t, "", msg)
+	test.Eq(t, &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu:    AllocatedCpuResources{CpuShares: 200, ReservedCores: []uint16{}},
+			Memory: AllocatedMemoryResources{MemoryMB: 1000, MemoryMaxMB: 1000},
+			Custom: CustomResources{{
+				Name:    "foo_dynamic",
+				Version: 1,
+				Type:    CustomResourceTypeDynamicInstance,
+				Scope:   CustomResourceScopeTask,
+				Items:   []any{3, 7},
+			}},
+		},
+		Shared: AllocatedSharedResources{},
+	}, used)
+	test.NoError(t, err)
+
+	a2.AllocatedResources.Shared.Custom = CustomResources{{
+		Name:     "bar_countable",
+		Version:  2,
+		Type:     CustomResourceTypeCountable,
+		Scope:    CustomResourceScopeGroup,
+		Quantity: 10_000,
+	}}
+	ok, msg, used, err = AllocsFit(n0, []*Allocation{a1, a2}, nil, false)
+	test.False(t, ok)
+	test.Eq(t, "custom resources could not be compared: resource request 2 for \"bar_countable\" is newer than available version 0", msg)
+	test.Eq(t, &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu:    AllocatedCpuResources{CpuShares: 200, ReservedCores: []uint16{}},
+			Memory: AllocatedMemoryResources{MemoryMB: 1000, MemoryMaxMB: 1000},
+			Custom: CustomResources{{
+				Name:    "foo_dynamic",
+				Version: 1,
+				Type:    CustomResourceTypeDynamicInstance,
+				Scope:   CustomResourceScopeTask,
+				Items:   []any{3, 7},
+			}},
+		},
+		Shared: AllocatedSharedResources{
+			Custom: CustomResources{{
+				Name:     "bar_countable",
+				Version:  2,
+				Type:     CustomResourceTypeCountable,
+				Scope:    CustomResourceScopeGroup,
+				Quantity: 10_000,
+			}},
+		},
+	}, used)
+	test.NoError(t, err)
+
+	a2.AllocatedResources.Shared.Custom[0].Version = 0
+	ok, msg, used, err = AllocsFit(n0, []*Allocation{a1, a2}, nil, false)
+	test.True(t, ok)
+	test.Eq(t, "", msg)
+	test.Eq(t, &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu:    AllocatedCpuResources{CpuShares: 200, ReservedCores: []uint16{}},
+			Memory: AllocatedMemoryResources{MemoryMB: 1000, MemoryMaxMB: 1000},
+			Custom: CustomResources{{
+				Name:    "foo_dynamic",
+				Version: 1,
+				Type:    CustomResourceTypeDynamicInstance,
+				Scope:   CustomResourceScopeTask,
+				Items:   []any{3, 7},
+			}},
+		},
+		Shared: AllocatedSharedResources{
+			Custom: CustomResources{{
+				Name:     "bar_countable",
+				Version:  2,
+				Type:     CustomResourceTypeCountable,
+				Scope:    CustomResourceScopeGroup,
+				Quantity: 10_000,
+			}},
+		},
+	}, used)
+	test.NoError(t, err)
+
+}
+
 func TestScoreFitBinPack(t *testing.T) {
 	ci.Parallel(t)
 

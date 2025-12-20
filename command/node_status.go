@@ -569,6 +569,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		c.outputNodeNetworkInfo(node)
 		c.outputNodeCSIVolumeInfo(client, node, runningAllocs)
 		c.outputNodeDriverInfo(node)
+		c.outputNodeCustomResourceInfo(node)
 	}
 
 	// Emit node events
@@ -786,6 +787,35 @@ func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 		nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
 	}
 	c.Ui.Output(formatList(nodeDrivers))
+}
+
+func (c *NodeStatusCommand) outputNodeCustomResourceInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Custom Resources"))
+
+	resources := node.NodeResources.Custom
+	if len(resources) == 0 {
+		c.Ui.Output("<none>")
+		return
+	}
+
+	out := make([]string, 0, len(resources)+1)
+	out = append(out, "Resource|Version|Type|Available")
+
+	sort.Slice(resources, func(i int, j int) bool { return resources[i].Name < resources[j].Name })
+	for _, resource := range resources {
+		switch resource.Type {
+		case api.CustomResourceTypeRatio, api.CustomResourceTypeCappedRatio,
+			api.CustomResourceTypeCountable:
+			out = append(out, fmt.Sprintf("%s|%d|%s|%d",
+				resource.Name, resource.Version, resource.Type, resource.Quantity))
+
+		case api.CustomResourceTypeStaticInstance, api.CustomResourceTypeDynamicInstance:
+			out = append(out, fmt.Sprintf("%s|%d|%s|%v",
+				resource.Name, resource.Version, resource.Type, resource.Items))
+
+		}
+	}
+	c.Ui.Output(formatList(out))
 }
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
