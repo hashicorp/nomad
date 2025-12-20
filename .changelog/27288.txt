@@ -1,0 +1,3 @@
+```release-note:bug
+fix: Validate the existence of configured volume paths on an OS
+```
