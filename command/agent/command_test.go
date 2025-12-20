@@ -269,9 +269,9 @@ func TestIsValidConfig(t *testing.T) {
 	nonExistingPath := filepath.Join(tempDir, "non_existing_path")
 
 	os.Mkdir(dirPath, 0o755)
-	// We just need it created, no need to have open descriptor.
-	// TODO: Properly fail test on error
-	fd, _ := os.Create(filePath)
+	fd, err := os.Create(filePath)
+	require.NoError(t, err)
+	// We just need it to exist, no need to have open descriptor.
 	fd.Close()
 
 	cases := []struct {
