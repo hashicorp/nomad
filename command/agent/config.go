@@ -435,15 +435,20 @@ type ClientConfig struct {
 	// Users is used to configure parameters around operating system users.
 	Users *config.UsersConfig `hcl:"users"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int `hcl:"node_max_allocs"`
 
 	// LogFile is used by MonitorExport to stream a client's log file
 	LogFile string `hcl:"log_file"`
+
+	// Fingerprinters contains configuration for individual fingerprinters. The
+	// external configuration is a slice but later converted to a map for
+	// internal use.
+	Fingerprinters []*client.Fingerprint `hcl:"fingerprint"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -466,6 +471,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
 	nc.Users = c.Users.Copy()
+	nc.Fingerprinters = helper.CopySlice(c.Fingerprinters)
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -1757,6 +1763,7 @@ func DefaultConfig() *Config {
 			Artifact:                       config.DefaultArtifactConfig(),
 			Drain:                          nil,
 			Users:                          config.DefaultUsersConfig(),
+			Fingerprinters:                 []*client.Fingerprint{},
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -2155,6 +2162,37 @@ func mergeKEKProviderConfigs(left, right []*structs.KEKProviderConfig) []*struct
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].ID() < results[j].ID()
 	})
+
+	return results
+}
+
+func mergeClientFingerprinterConfigs(left, right []*client.Fingerprint) []*client.Fingerprint {
+	if len(left) == 0 {
+		return right
+	}
+	if len(right) == 0 {
+		return left
+	}
+	results := []*client.Fingerprint{}
+	doMerge := func(dstConfigs, srcConfigs []*client.Fingerprint) []*client.Fingerprint {
+		for _, src := range srcConfigs {
+			var found bool
+			for i, dst := range dstConfigs {
+				if dst.Name == src.Name {
+					dstConfigs[i] = dst.Merge(src)
+					found = true
+					break
+				}
+			}
+			if !found {
+				dstConfigs = append(dstConfigs, src)
+			}
+		}
+		return dstConfigs
+	}
+
+	results = doMerge(results, left)
+	results = doMerge(results, right)
 
 	return results
 }
@@ -2882,6 +2920,10 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.IntroToken != "" {
 		result.IntroToken = b.IntroToken
+	}
+
+	if b.Fingerprinters != nil {
+		result.Fingerprinters = mergeClientFingerprinterConfigs(c.Fingerprinters, b.Fingerprinters)
 	}
 
 	return &result
