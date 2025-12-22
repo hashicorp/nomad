@@ -79,7 +79,7 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/hashicorp/hcl/v2 v2.20.2-nomad-1
 	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
-	github.com/hashicorp/memberlist v0.5.3
+	github.com/hashicorp/memberlist v0.5.4
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
 	github.com/hashicorp/raft v1.7.3
@@ -243,7 +243,7 @@ require (
 	github.com/gojuno/minimock/v3 v3.0.6 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/btree v1.1.2 // indirect
+	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
