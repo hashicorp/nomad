@@ -134,7 +134,7 @@ require (
 	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
 	google.golang.org/grpc v1.77.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
 	pgregory.net/rapid v1.2.0
