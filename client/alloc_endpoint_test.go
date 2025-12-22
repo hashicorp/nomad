@@ -304,7 +304,6 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 
 func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -316,38 +315,38 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	defer cleanupC()
 
 	job := mock.BatchJob()
-	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
 	}
 
-	noSuchAllocErr := fmt.Errorf("No such allocation on client or allocation not eligible for GC")
+	noSuchAllocErr := fmt.Errorf("No such allocation on client, or allocation not eligible for GC")
 
 	// Wait for client to be running job
-	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+	allocs := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)
 
 	// Try request without a token and expect failure
 	{
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
 
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -355,23 +354,38 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
 			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 		req := &nstructs.AllocSpecificRequest{}
-		req.AllocID = alloc.ID
+		req.AllocID = allocs[0].ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
 	}
 
 	// Try request with a management token
 	{
 		req := &nstructs.AllocSpecificRequest{}
 		req.AuthToken = root.SecretID
+		req.AllocID = allocs[1].ID
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
+
+	}
+
+	// Try request with a fine grain token
+	{
+		fineGrainToken := mock.CreatePolicyAndToken(t, server.State(), 1010, "test-valid-fine",
+			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityGCAllocation}))
+		req := &nstructs.AllocSpecificRequest{}
+		req.AuthToken = fineGrainToken.SecretID
+		req.AllocID = allocs[2].ID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
+		must.ErrorContains(t, err, noSuchAllocErr.Error())
 	}
 }
 

@@ -325,6 +325,16 @@ func (a *ACL) AllowNsOpFunc(ops ...string) func(string) bool {
 	}
 }
 
+// AllowNsOpOr checks if any of the given operations are allowed for a namespace.
+func (a *ACL) AllowNsOpOr(ns string, ops []string) bool {
+	for _, op := range ops {
+		if a.AllowNamespaceOperation(ns, op) {
+			return true
+		}
+	}
+	return false
+}
+
 // AllowNamespaceOperation checks if a given operation is allowed for a namespace.
 func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 	if a == nil {
