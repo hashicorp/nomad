@@ -34,7 +34,16 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
       groupAllocCount: 3,
       createAllocations: false,
     });
-    this.server.create('allocation');
+    const allocation = this.server.create('allocation');
+
+    // Create task states matching the mocked tracker tasks
+    mockTasks.forEach(({ task }) => {
+      this.server.create('task-state', {
+        allocation,
+        name: task,
+        state: 'running',
+      });
+    });
   });
 
   hooks.afterEach(function () {

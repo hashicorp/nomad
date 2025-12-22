@@ -116,6 +116,39 @@ module('Acceptance | allocation detail', function (hooks) {
     );
   });
 
+  test('/allocation/:id resource metrics should exclude completed prestart tasks', async function (assert) {
+    const job = server.create('job', {
+      groupsCount: 1,
+      groupAllocCount: 3,
+      createAllocations: false,
+    });
+
+    const allocation = server.create('allocation', {
+      clientStatus: 'running',
+      jobId: job.id,
+    });
+
+    // Update the task states: set first task as completed, others as running
+    const taskStates = server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .sortBy('name');
+
+    // Set first task as completed (simulating a prestart task that finished)
+    server.db.taskStates.update(taskStates[0].id, { state: 'dead' });
+
+    // Set remaining tasks as running
+    taskStates.slice(1).forEach((taskState) => {
+      server.db.taskStates.update(taskState.id, { state: 'running' });
+    });
+
+    await Allocation.visit({ id: allocation.id });
+
+    // The resource charts should only show the 2 running tasks, not the completed task
+    // Note: This test verifies the fix for issue #27294
+    assert.ok(Allocation.resourceCharts.objectAt(0), 'CPU chart is present');
+    assert.ok(Allocation.resourceCharts.objectAt(1), 'Memory chart is present');
+  });
+
   test('/allocation/:id should present task lifecycles', async function (assert) {
     const job = server.create('job', {
       groupsCount: 1,

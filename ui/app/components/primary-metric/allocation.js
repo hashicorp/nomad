@@ -39,9 +39,19 @@ export default class AllocationPrimaryMetric extends Component {
     return get(this, `tracker.${this.metric}`);
   }
 
-  @computed('tracker.tasks.[]', 'metric')
+  @computed('tracker.tasks.[]', 'metric', 'allocation.states.@each.state')
   get series() {
+    // Get the set of currently running task names, so we can filter the tasks
+    // to only those that are running.
+    const states = this.allocation?.states || [];
+    const runningTaskNames = new Set(
+      states
+        .filter((state) => state.state === 'running')
+        .map((state) => state.name)
+    );
+
     const ret = this.tracker.tasks
+      .filter((task) => runningTaskNames.has(task.task))
       .map((task) => ({
         name: task.task,
         data: task[this.metric],

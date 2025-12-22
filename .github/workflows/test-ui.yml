@@ -8,6 +8,7 @@ on:
       - main
       - release/**
       - test-ui
+      - b-gh-27294
     paths:
       - "ui/**"
 
