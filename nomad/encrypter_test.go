@@ -129,6 +129,45 @@ func TestEncrypter_LoadSave(t *testing.T) {
 		must.Greater(t, 0, len(gotKey.RSAKey))
 	})
 
+	t.Run("legacy wrapper HA", func(t *testing.T) {
+		key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+		must.NoError(t, err)
+
+		// create a wrapper file identical to those before we had external KMS
+		wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+
+		writeWrapper := func(i int) {
+			var diskWrapper *structs.KeyEncryptionKeyWrapper
+			if i == 1 {
+				diskWrapper = &structs.KeyEncryptionKeyWrapper{
+					Meta:                       key.Meta,
+					KeyEncryptionKey:           wrappedKey.KeyEncryptionKey,
+					EncryptedDataEncryptionKey: wrappedKey.WrappedDataEncryptionKey.Ciphertext,
+					EncryptedRSAKey:            wrappedKey.WrappedRSAKey.Ciphertext,
+				}
+			} else {
+				diskWrapper = &structs.KeyEncryptionKeyWrapper{
+					Meta:                       key.Meta,
+					KeyEncryptionKey:           []byte{}, // garbage
+					EncryptedDataEncryptionKey: wrappedKey.WrappedDataEncryptionKey.Ciphertext,
+					EncryptedRSAKey:            wrappedKey.WrappedRSAKey.Ciphertext,
+				}
+			}
+
+			buf, err := json.Marshal(diskWrapper)
+			must.NoError(t, err)
+			name := fmt.Sprintf("%s.%d.nks.json", key.Meta.KeyID, i)
+			path := filepath.Join(tmpDir, name)
+			err = os.WriteFile(path, buf, 0o600)
+			must.NoError(t, err)
+		}
+
+		writeWrapper(1)
+		writeWrapper(0)
+
+		must.NoError(t, encrypter.loadKeystore())
+	})
+
 }
 
 // TestEncrypter_loadKeyFromStore_emptyRSA tests a panic seen by some
