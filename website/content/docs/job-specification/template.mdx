@@ -659,6 +659,78 @@ upstream {{ .Name | toLower }} {
   }
 ```
 
+## Secret plugin integration
+
+Nomad supports external secret plugins that can be used to fetch secrets from
+custom backends. The `nomadSecret` template function allows you to retrieve
+secrets from a pre-configured [`secret`][secret plugins documentation] block
+and iterate over them in your templates.
+
+### `nomadSecret`
+
+The `nomadSecret` function fetches secrets from an external secrets plugin using
+a pre-configured secret block. It takes the secret block name as an argument
+and returns a map of key-value pairs that can be iterated over using `range`.
+
+First, define a secret block in your job specification:
+
+```hcl
+secret "app_secrets" {
+  provider = "aws-ssm"
+  path     = "/prod/myapp/db"
+  env {
+    AWS_REGION            = "us-east-1"
+    AWS_ACCESS_KEY_ID     = "AKIAIOSFODNN7EXAMPLE"
+    AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  }
+}
+```
+
+Then reference the secret block by name in your template:
+
+```hcl
+template {
+  data = <<EOF
+{{ range $key, $value := nomadSecret "app_secrets" }}
+{{ $key }}={{ $value }}
+{{ end }}
+EOF
+
+  destination = "local/secrets.env"
+  env         = true
+}
+```
+
+The function automatically passes `NOMAD_NAMESPACE` and `NOMAD_JOB_ID`
+environment variables to the plugin in addition to any env vars configured
+in the secret block, allowing plugins to scope secrets appropriately.
+
+For example, to fetch database credentials from a custom secrets plugin:
+
+```hcl
+secret "db_creds" {
+  provider = "my-secrets-backend"
+  path     = "/database/creds"
+}
+
+template {
+  data = <<EOF
+{{ with nomadSecret "db_creds" }}
+DB_HOST={{ index . "host" }}
+DB_USER={{ index . "username" }}
+DB_PASS={{ index . "password" }}
+{{ end }}
+EOF
+
+  destination = "secrets/db.env"
+  env         = true
+}
+```
+
+Secret plugins must be installed in the Nomad client's common plugins directory
+under the `secrets/` subdirectory. Refer to the [secret plugins documentation][]
+for more information on configuring and developing secret plugins.
+
 ## Vault integration
 
 <Warning>
@@ -839,3 +911,4 @@ options](/nomad/docs/configuration/client#options):
 [`template.nomad_retry`]: /nomad/docs/configuration/client#nomad_retry
 [`template.consul_retry`]: /nomad/docs/configuration/client#consul_retry
 [`template.vault_retry`]: /nomad/docs/configuration/client#vault_retry
+[secret plugins documentation]: /nomad/docs/job-specification/secret 'Nomad Secret Block'
