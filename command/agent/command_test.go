@@ -477,12 +477,12 @@ func TestIsValidConfig(t *testing.T) {
 					Enabled: true,
 					HostVolumes: []*structs.ClientHostVolumeConfig{
 						{
-							Name:     "test",
+							Name:     "directoryVolume",
 							ReadOnly: true,
 							Path:     dirPath,
 						},
 						{
-							Name:     "test",
+							Name:     "fileVolume",
 							ReadOnly: true,
 							Path:     filePath,
 						},
@@ -498,7 +498,7 @@ func TestIsValidConfig(t *testing.T) {
 					Enabled: true,
 					HostVolumes: []*structs.ClientHostVolumeConfig{
 						{
-							Name:     "test",
+							Name:     "missingVolume",
 							ReadOnly: true,
 							Path:     nonExistingPath,
 						},
