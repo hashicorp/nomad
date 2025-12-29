@@ -124,7 +124,7 @@ require (
 	github.com/shoenig/test v1.12.2
 	github.com/stretchr/testify v1.11.1
 	github.com/zclconf/go-cty v1.17.0
-	github.com/zclconf/go-cty-yaml v1.1.0
+	github.com/zclconf/go-cty-yaml v1.2.0
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.46.0
