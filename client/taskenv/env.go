@@ -1067,7 +1067,17 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstr
 // from this function.
 func addNomadAllocNetwork(envMap map[string]string, p structs.AllocatedPorts, netStatus *structs.AllocNetworkStatus) {
 	for _, allocatedPort := range p {
-		portStr := strconv.Itoa(allocatedPort.To)
+
+		// Determine the port number of use in the ADDR var which is dependant
+		// on what the operator specified within the network block.
+		var portStr string
+
+		if allocatedPort.To != 0 {
+			portStr = strconv.Itoa(allocatedPort.To)
+		} else {
+			portStr = strconv.Itoa(allocatedPort.Value)
+		}
+
 		envMap[AllocPrefix+"INTERFACE_"+allocatedPort.Label] = netStatus.InterfaceName
 		envMap[AllocPrefix+"IP_"+allocatedPort.Label] = netStatus.Address
 		envMap[AllocPrefix+"ADDR_"+allocatedPort.Label] = net.JoinHostPort(netStatus.Address, portStr)
