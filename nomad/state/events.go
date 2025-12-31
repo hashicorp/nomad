@@ -331,24 +331,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
-		alloc := after.Copy()
+		alloc := after.CopySkipJob()
 
 		filterKeys := []string{
 			alloc.JobID,
 			alloc.DeploymentID,
 		}
 
-		// remove job info to help keep size of alloc event down
-		alloc.Job = nil
-
 		return structs.Event{
 			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocationEvent{
-				Allocation: alloc.Sanitize(),
-			},
+			Payload:    &structs.AllocationEvent{alloc},
 		}, true
 	case "jobs":
 		after, ok := change.After.(*structs.Job)

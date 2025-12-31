@@ -276,12 +276,32 @@ func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
 
 // Copy provides a copy of the allocation and deep copies the job
 func (a *Allocation) Copy() *Allocation {
-	return a.copyImpl(true)
+	return a.copyImpl(true, false)
+}
+
+// CopyAndSanitize provides a copy of the allocation, deep copies the job, and
+// sanitizes the SignedIdentities field
+//
+// WARNING: this method *always* deep copies the allocation. In cases where copy
+// is not necessary, the Sanitize method should be used instead (it returns the
+// original object if SignedIdentities is nil).
+func (a *Allocation) CopyAndSanitize() *Allocation {
+	return a.copyImpl(true, true)
 }
 
 // CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
-	return a.copyImpl(false)
+	return a.copyImpl(false, false)
+}
+
+// CopySkipJobAndSanitize provides a copy of the allocation, doesn't deep copy
+// the job, but sanitizes the SignedIdentities field
+//
+// WARNING: this method *always* copies the allocation. In cases where copy is
+// not necessary, the Sanitize method should be used instead (it returns the
+// original object if SignedIdentities is nil).
+func (a *Allocation) CopySkipJobAndSanitize() *Allocation {
+	return a.copyImpl(false, true)
 }
 
 // Canonicalize Allocation to ensure fields are initialized to the expectations
@@ -314,7 +334,7 @@ func (a *Allocation) Canonicalize() {
 	a.Job.Canonicalize()
 }
 
-func (a *Allocation) copyImpl(job bool) *Allocation {
+func (a *Allocation) copyImpl(job, sanitize bool) *Allocation {
 	if a == nil {
 		return nil
 	}
@@ -323,6 +343,10 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 
 	if job {
 		na.Job = na.Job.Copy()
+	}
+
+	if sanitize {
+		na.SignedIdentities = nil
 	}
 
 	na.AllocatedResources = na.AllocatedResources.Copy()
