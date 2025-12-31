@@ -343,7 +343,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload:    &structs.AllocationEvent{alloc},
+			Payload:    &structs.AllocationEvent{Allocation: alloc},
 		}, true
 	case "jobs":
 		after, ok := change.After.(*structs.Job)
