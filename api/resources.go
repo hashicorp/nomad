@@ -20,6 +20,7 @@ type Resources struct {
 	Devices     []*RequestedDevice `hcl:"device,block"`
 	NUMA        *NUMAResource      `hcl:"numa,block"`
 	SecretsMB   *int               `mapstructure:"secrets" hcl:"secrets,optional"`
+	Custom      []*CustomResource  `mapstructure:"custom" hcl:"custom,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -330,3 +331,32 @@ func (d *RequestedDevice) Canonicalize() {
 		a.Canonicalize()
 	}
 }
+
+type CustomResource struct {
+	Name    string              `hcl:"name,label"`
+	Version uint64              `hcl:"version,optional"`
+	Type    CustomResourceType  `hcl:"type,optional"`
+	Scope   CustomResourceScope `hcl:"scope,optional"`
+
+	Quantity    int64         `hcl:"quantity,optional"`
+	Range       string        `hcl:"range,optional"`
+	Items       []any         `hcl:"items,optional"`
+	Constraints []*Constraint `hcl:"constraint,block"`
+}
+
+type CustomResourceScope string
+
+const (
+	CustomResourceScopeGroup CustomResourceScope = "group"
+	CustomResourceScopeTask  CustomResourceScope = "task"
+)
+
+type CustomResourceType string
+
+const (
+	CustomResourceTypeRatio           CustomResourceType = "ratio"        // ex. weight
+	CustomResourceTypeCappedRatio     CustomResourceType = "capped-ratio" // ex. resource.cpu
+	CustomResourceTypeCountable       CustomResourceType = "countable"    // ex. memory, disk
+	CustomResourceTypeDynamicInstance CustomResourceType = "dynamic"      // ex. ports, cores
+	CustomResourceTypeStaticInstance  CustomResourceType = "static"       // ex. ports, devices
+)

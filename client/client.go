@@ -1649,12 +1649,14 @@ func (c *Client) setupNode() error {
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
 		node.NodeResources.Processors = newConfig.Node.NodeResources.Processors
+		node.NodeResources.Custom = newConfig.CustomResources
 
 		if node.NodeResources.Processors.Empty() {
 			node.NodeResources.Processors = structs.NodeProcessorResources{
 				Topology: &numalib.Topology{},
 			}
 		}
+		node.NodeResources.Custom = newConfig.CustomResources
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1813,6 +1815,8 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		if cpu := response.NodeResources.Processors.TotalCompute(); cpu > 0 {
 			newConfig.CpuCompute = cpu
 		}
+
+		response.NodeResources.Custom = newConfig.CustomResources
 	}
 
 	if nodeHasChanged {

@@ -436,12 +436,14 @@ type AllocatedTaskResources struct {
 	Memory   AllocatedMemoryResources
 	Networks []*NetworkResource
 	Devices  []*AllocatedDeviceResource
+	Custom   []*CustomResource
 }
 
 type AllocatedSharedResources struct {
 	DiskMB   int64
 	Networks []*NetworkResource
 	Ports    []PortMapping
+	Custom   []*CustomResource
 }
 
 type PortMapping struct {
