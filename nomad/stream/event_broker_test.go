@@ -12,8 +12,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
@@ -323,8 +321,8 @@ func assertNoResult(t *testing.T, eventCh <-chan subNextResult) {
 	t.Helper()
 	select {
 	case next := <-eventCh:
-		require.NoError(t, next.Err)
-		require.Len(t, next.Events, 1)
+		must.NoError(t, next.Err)
+		must.Len(t, 1, next.Events)
 		t.Fatalf("received unexpected event: %#v", next.Events[0].Payload)
 	case <-time.After(100 * time.Millisecond):
 	}
