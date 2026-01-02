@@ -279,16 +279,6 @@ func (a *Allocation) Copy() *Allocation {
 	return a.copyImpl(true, false)
 }
 
-// CopyAndSanitize provides a copy of the allocation, deep copies the job, and
-// sanitizes the SignedIdentities field
-//
-// WARNING: this method *always* deep copies the allocation. In cases where copy
-// is not necessary, the Sanitize method should be used instead (it returns the
-// original object if SignedIdentities is nil).
-func (a *Allocation) CopyAndSanitize() *Allocation {
-	return a.copyImpl(true, true)
-}
-
 // CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false, false)
