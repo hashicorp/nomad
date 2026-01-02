@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 
 	"github.com/stretchr/testify/require"
 )
@@ -27,10 +28,10 @@ func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 	defer cancel()
 
 	publisher, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 100})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	sub, err := publisher.Subscribe(subscription)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	eventCh := consumeSubscription(ctx, sub)
 
 	// Now subscriber should block waiting for updates
@@ -46,9 +47,9 @@ func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 
 	// Subscriber should see the published event
 	result := nextResult(t, eventCh)
-	require.NoError(t, result.Err)
+	must.NoError(t, result.Err)
 	expected := []structs.Event{{Payload: "sample payload", Key: "sub-key", Topic: "Test", Index: 1}}
-	require.Equal(t, expected, result.Events)
+	must.Eq(t, expected, result.Events)
 
 	// Now subscriber should block waiting for updates
 	assertNoResult(t, eventCh)
@@ -63,9 +64,9 @@ func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 	publisher.Publish(&structs.Events{Index: 2, Events: events})
 
 	result = nextResult(t, eventCh)
-	require.NoError(t, result.Err)
+	must.NoError(t, result.Err)
 	expected = []structs.Event{{Payload: "sample payload 2", Key: "sub-key", Topic: "Test", Index: 2}}
-	require.Equal(t, expected, result.Events)
+	must.Eq(t, expected, result.Events)
 }
 
 func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
@@ -75,23 +76,23 @@ func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
 	t.Cleanup(cancel)
 
 	publisher, err := NewEventBroker(ctx, EventBrokerCfg{})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	sub1, err := publisher.Subscribe(&SubscribeRequest{})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer sub1.Unsubscribe()
 
 	sub2, err := publisher.Subscribe(&SubscribeRequest{})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer sub2.Unsubscribe()
 
 	cancel() // Shutdown
 
 	err = consumeSub(context.Background(), sub1)
-	require.Equal(t, err, ErrSubscriptionClosed)
+	must.Eq(t, ErrSubscriptionClosed, err)
 
 	_, err = sub2.Next(context.Background())
-	require.Equal(t, err, ErrSubscriptionClosed)
+	must.Eq(t, ErrSubscriptionClosed, err)
 }
 
 // TestEventBroker_EmptyReqToken_DistinctSubscriptions tests subscription
@@ -106,21 +107,21 @@ func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
 	t.Cleanup(cancel)
 
 	publisher, err := NewEventBroker(ctx, EventBrokerCfg{})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// first subscription, empty token
 	sub1, err := publisher.Subscribe(&SubscribeRequest{})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer sub1.Unsubscribe()
 
 	// second subscription, empty token
 	sub2, err := publisher.Subscribe(&SubscribeRequest{})
-	require.NoError(t, err)
-	require.NotNil(t, sub2)
+	must.NoError(t, err)
+	must.NotNil(t, sub2)
 
 	sub1.Unsubscribe()
 
-	require.Equal(t, subscriptionStateOpen, atomic.LoadUint32(&sub2.state))
+	must.Eq(t, subscriptionStateOpen, atomic.LoadUint32(&sub2.state))
 }
 
 func TestEventBroker_handleACLUpdates(t *testing.T) {
@@ -244,7 +245,7 @@ func TestEventBroker_handleACLUpdates(t *testing.T) {
 		ctx := context.Background()
 
 		publisher, err := NewEventBroker(ctx, EventBrokerCfg{})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		testSubReq := &SubscribeRequest{
 			Topics: map[structs.Topic][]string{
@@ -257,7 +258,7 @@ func TestEventBroker_handleACLUpdates(t *testing.T) {
 		}
 
 		sub, err := publisher.Subscribe(testSubReq)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		if !tc.shouldPassAuth {
 			testSubReq.Authenticate = func() error {
@@ -275,9 +276,9 @@ func TestEventBroker_handleACLUpdates(t *testing.T) {
 		// try to read another event
 		_, err = sub.Next(ctx)
 		if !tc.shouldPassAuth {
-			require.ErrorIs(t, err, ErrSubscriptionClosed)
+			must.ErrorIs(t, err, ErrSubscriptionClosed)
 		} else {
-			require.ErrorIs(t, err, context.DeadlineExceeded)
+			must.ErrorIs(t, err, context.DeadlineExceeded)
 		}
 
 		sub.Unsubscribe()
