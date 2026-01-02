@@ -76,21 +76,51 @@ func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
 	publisher, err := NewEventBroker(ctx, EventBrokerCfg{})
 	must.NoError(t, err)
 
-	sub1, err := publisher.Subscribe(&SubscribeRequest{})
+	// two subscriptions with non-empty tokens.
+	// the broker should close and remove them on shutdown.
+	sub1, err := publisher.Subscribe(&SubscribeRequest{Token: "token-a"})
 	must.NoError(t, err)
-	defer sub1.Unsubscribe()
 
-	sub2, err := publisher.Subscribe(&SubscribeRequest{})
+	sub2, err := publisher.Subscribe(&SubscribeRequest{Token: "token-b"})
 	must.NoError(t, err)
-	defer sub2.Unsubscribe()
+
+	// make sure both subscriptions are registered in the map before shutdown
+	publisher.subscriptions.mu.RLock()
+	total := 0
+	for _, byReq := range publisher.subscriptions.byToken {
+		total += len(byReq)
+	}
+	publisher.subscriptions.mu.RUnlock()
+	must.Eq(t, 2, total)
 
 	cancel() // Shutdown
 
+	// wair for processing and shutdown subscriptions
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		publisher.subscriptions.mu.RLock()
+		empty := len(publisher.subscriptions.byToken) == 0
+		publisher.subscriptions.mu.RUnlock()
+		if empty {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// the internal map should be empty after shutdown
+	publisher.subscriptions.mu.RLock()
+	must.Eq(t, 0, len(publisher.subscriptions.byToken))
+	publisher.subscriptions.mu.RUnlock()
+
+	// subscriptions should be closed by the broker
 	err = consumeSub(context.Background(), sub1)
 	must.Eq(t, ErrSubscriptionClosed, err)
 
 	_, err = sub2.Next(context.Background())
 	must.Eq(t, ErrSubscriptionClosed, err)
+
+	sub1.Unsubscribe()
+	sub2.Unsubscribe()
 }
 
 // TestEventBroker_EmptyReqToken_DistinctSubscriptions tests subscription
