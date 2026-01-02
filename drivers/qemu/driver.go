@@ -722,8 +722,26 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 
 	// Attempt a graceful shutdown only if it was configured in the job
 	if handle.monitorPath != "" {
-		if err := sendQemuShutdown(d.logger, handle.monitorPath, handle.pid); err != nil {
-			d.logger.Debug("error sending graceful shutdown ", "pid", handle.pid, "error", err)
+		err := sendQemuShutdown(d.logger, handle.monitorPath, handle.pid)
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+		out:
+			for {
+				select {
+				case <-ctx.Done():
+					d.logger.Error("graceful shutdown", "pid", handle.pid, "timeout after", timeout)
+					break out
+				case <-ticker.C:
+					if handle.procState != drivers.TaskStateRunning {
+						break out
+					}
+				}
+			}
+		} else {
+			d.logger.Debug("error sending graceful shutdown", "pid", handle.pid, "error", err)
 		}
 	} else {
 		d.logger.Debug("monitor socket is empty, forcing shutdown")
