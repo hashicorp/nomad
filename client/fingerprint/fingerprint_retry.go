@@ -78,25 +78,17 @@ func (rw *RetryWrapper) Fingerprint(req *FingerprintRequest, resp *FingerprintRe
 			return nil
 		}
 
-		// If the fingerprinter does not have a config, no retry behaviour is
-		// defined, so exit the loop.
-		if cfg == nil {
+		// Determine if we should exit the loop based on the configured retry
+		// attempts.
+		//
+		// If there is not configuration or retry attempts has a value of 0, no
+		// retries are expected, so we exit immediately. A positive value
+		// indicates a fixed number of retries, so we exit once we've hit that
+		// number. A negative value indicates infinite retries, so we never exit
+		// based on attempts.
+		if cfg == nil || cfg.RetryAttempts == 0 {
 			break
-		}
-
-		var shouldRetry bool
-
-		switch cfg.RetryAttempts {
-		case -1:
-			shouldRetry = true
-		case 0:
-		default:
-			if attempts < cfg.RetryAttempts {
-				shouldRetry = true
-			}
-		}
-
-		if !shouldRetry {
+		} else if cfg.RetryAttempts > 0 && attempts >= cfg.RetryAttempts {
 			break
 		}
 
