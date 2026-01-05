@@ -80,7 +80,8 @@ const (
 	NamespaceCapabilityGCAllocation    = "gc-allocation"
 	NamespaceCapabilityPauseAllocation = "pause-allocation"
 
-	NamespaceCapabilityForcePeriodicJob = "force-periodic-job"
+	NamespaceCapabilityForcePeriodicJob          = "force-periodic-job"
+	NamespaceCapabilityDeleteServiceRegistration = "delete-service-registration"
 )
 
 var (
@@ -263,7 +264,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityRunDeployment, NamespaceCapabilityUnblockDeployment, NamespaceCapabilityCancelDeployment,
 		NamespaceCapabilitySetAllocHealthDeployment,
 		NamespaceCapabilityGCAllocation, NamespaceCapabilityPauseAllocation,
-		NamespaceCapabilityForcePeriodicJob:
+		NamespaceCapabilityForcePeriodicJob, NamespaceCapabilityDeleteServiceRegistration:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:

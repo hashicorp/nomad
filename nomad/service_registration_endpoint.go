@@ -129,7 +129,7 @@ func (s *ServiceRegistration) DeleteByID(
 		return structs.ErrPermissionDenied
 	} else if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
 		acl.NamespaceCapabilitySubmitJob,
-		acl.NamespaceCapabilityDeregisterJob,
+		acl.NamespaceCapabilityDeleteServiceRegistration,
 	}) &&
 		!aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
