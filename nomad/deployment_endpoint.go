@@ -287,7 +287,7 @@ func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.Depl
 		return err
 	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
-		acl.NamespaceCapabilityRunDeployment,
+		acl.NamespaceCapabilityRegisterJob,
 	) {
 		return structs.ErrPermissionDenied
 	}

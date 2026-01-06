@@ -72,7 +72,6 @@ const (
 	NamespaceCapabilityFailDeployment           = "fail-deployment"
 	NamespaceCapabilityPauseDeployment          = "pause-deployment"
 	NamespaceCapabilityPromoteDeployment        = "promote-deployment"
-	NamespaceCapabilityRunDeployment            = "run-deployment"
 	NamespaceCapabilityUnblockDeployment        = "unblock-deployment"
 	NamespaceCapabilityCancelDeployment         = "cancel-deployment"
 	NamespaceCapabilitySetAllocHealthDeployment = "set-alloc-health-deployment"
@@ -261,7 +260,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityPurgeJob, NamespaceCapabilityPlanJob, NamespaceCapabilityTagJobVersion,
 		NamespaceCapabilityStableJob,
 		NamespaceCapabilityFailDeployment, NamespaceCapabilityPauseDeployment, NamespaceCapabilityPromoteDeployment,
-		NamespaceCapabilityRunDeployment, NamespaceCapabilityUnblockDeployment, NamespaceCapabilityCancelDeployment,
+		NamespaceCapabilityUnblockDeployment, NamespaceCapabilityCancelDeployment,
 		NamespaceCapabilitySetAllocHealthDeployment,
 		NamespaceCapabilityGCAllocation, NamespaceCapabilityPauseAllocation,
 		NamespaceCapabilityForcePeriodicJob, NamespaceCapabilityDeleteServiceRegistration:
