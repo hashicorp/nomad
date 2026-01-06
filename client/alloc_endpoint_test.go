@@ -487,35 +487,8 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 	}
 }
 
-// TestAllocations_SetPauseState_ACL tests the SetPauseState RPC, but is an enterprise-only feature and so tests expect that error to be successful.
+// TestAllocations_SetPauseState tests the SetPauseState RPC with ACL permissions, but is an enterprise-only feature and so tests expect that error to be successful.
 func TestAllocations_SetPauseState(t *testing.T) {
-	ci.Parallel(t)
-
-	client, cleanup := TestClient(t, nil)
-	defer cleanup()
-
-	a := mock.Alloc()
-	must.Nil(t, client.addAlloc(a, ""))
-
-	// // Try with bad alloc
-	req := &nstructs.AllocPauseRequest{}
-	var resp nstructs.GenericResponse
-	err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
-	must.NotNil(t, err)
-	must.True(t, nstructs.IsErrUnknownAllocation(err))
-
-	// Try with good alloc
-	req.AllocID = a.ID
-
-	var resp2 nstructs.GenericResponse
-	err = client.ClientRPC("Allocations.SetPauseState", &req, &resp2)
-
-	must.Error(t, err)
-	must.ErrorContains(t, err, "Enterprise only")
-}
-
-// TestAllocations_SetPauseState_ACL tests the SetPauseState RPC for ACL permissions, but is an enterprise-only feature and so tests expect that error to be successful.
-func TestAllocations_SetPauseState_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -535,6 +508,14 @@ func TestAllocations_SetPauseState_ACL(t *testing.T) {
 
 	// Wait for client to be running job
 	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
+	// // Try with bad alloc
+	req := &nstructs.AllocPauseRequest{}
+	req.AuthToken = root.SecretID
+	var resp nstructs.GenericResponse
+	err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
+	must.NotNil(t, err)
+	must.True(t, nstructs.IsErrUnknownAllocation(err))
 
 	// Try request without a token and expect failure
 	{
@@ -598,7 +579,6 @@ func TestAllocations_SetPauseState_ACL(t *testing.T) {
 		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
 		must.ErrorContains(t, err, "Enterprise only")
 	}
-
 }
 
 func TestAllocations_Stats(t *testing.T) {

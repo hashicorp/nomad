@@ -8622,51 +8622,6 @@ func TestJob_GetServiceRegistrations(t *testing.T) {
 func TestJob_TagVersion(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	job := mock.Job()
-	reg := &structs.JobRegisterRequest{
-		Job: job,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-
-	// Fetch the response
-	var resp structs.JobRegisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Tag the job version
-	tagVersionReq := &structs.JobApplyTagRequest{
-		JobID: job.ID,
-		Tag: &structs.JobVersionTag{
-			Name:        "release",
-			Description: "Release version tag",
-		},
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-	var resp2 structs.JobTagResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	must.Eq(t, "release", resp2.Name)
-	must.Eq(t, "Release version tag", resp2.Description)
-	must.NotNil(t, resp2.TaggedTime)
-}
-
-func TestJob_TagVersion_ACL(t *testing.T) {
-	ci.Parallel(t)
-
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -8722,4 +8677,7 @@ func TestJob_TagVersion_ACL(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp3)
 	must.Nil(t, err)
 
+	must.Eq(t, "release", resp3.Name)
+	must.Eq(t, "Release version tag", resp3.Description)
+	must.NotNil(t, resp3.TaggedTime)
 }

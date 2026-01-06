@@ -1092,7 +1092,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 	ci.Parallel(t)
 
 	// Start a server and client
-	s, cleanupS := TestServer(t, nil)
+	s, root, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -1162,34 +1162,9 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 	must.NotNil(t, err)
 	must.ErrorContains(t, err, "missing AllocID")
 
-	// Fetch the response setting the alloc id - This should not error because the
-	// alloc is running.
-	req.AllocID = a.ID
-	var resp2 nstructs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp2)
-	must.NotNil(t, err)
-	must.ErrorContains(t, err, "Enterprise only")
-}
-
-// TestClientAllocations_SetPauseState_ACL tests the SetPauseState RPC for ACL permissions, but a successful test includes an enterprise-only error.
-func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	// Start a server
-	s, root, cleanupS := TestACLServer(t, nil)
-	defer cleanupS()
-	codec := rpcClient(t, s)
-	testutil.WaitForLeader(t, s.RPC)
-
-	state := s.State()
-	alloc := mock.Alloc()
-	must.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, nil, alloc.Job))
-	must.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
-
-	// Request without a token
 	{
 		req := &nstructs.AllocPauseRequest{
-			AllocID:      alloc.ID,
+			AllocID:      a.ID,
 			QueryOptions: nstructs.QueryOptions{Region: "global"},
 		}
 		var resp nstructs.GenericResponse
@@ -1202,7 +1177,7 @@ func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, s.State(), 1003, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &nstructs.AllocPauseRequest{
-			AllocID: alloc.ID,
+			AllocID: a.ID,
 			QueryOptions: nstructs.QueryOptions{
 				Region:    "global",
 				AuthToken: token.SecretID,
@@ -1218,7 +1193,7 @@ func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 		req := &nstructs.AllocPauseRequest{
-			AllocID: alloc.ID,
+			AllocID: a.ID,
 			QueryOptions: nstructs.QueryOptions{
 				Region:    "global",
 				AuthToken: token.SecretID,
@@ -1227,14 +1202,14 @@ func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Unknown node")
+		must.ErrorContains(t, err, "Enterprise only")
 	}
 
 	// Request with an valid fine grain token
 	{
 		token := mock.CreatePolicyAndToken(t, s.State(), 1007, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPauseAllocation}))
 		req := &nstructs.AllocPauseRequest{
-			AllocID: alloc.ID,
+			AllocID: a.ID,
 			QueryOptions: nstructs.QueryOptions{
 				Region:    "global",
 				AuthToken: token.SecretID,
@@ -1243,13 +1218,13 @@ func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Unknown node")
+		must.ErrorContains(t, err, "Enterprise only")
 	}
 
 	// Request with an management token
 	{
 		req := &nstructs.AllocPauseRequest{
-			AllocID: alloc.ID,
+			AllocID: a.ID,
 			QueryOptions: nstructs.QueryOptions{
 				Region:    "global",
 				AuthToken: root.SecretID,
@@ -1258,7 +1233,7 @@ func TestClientAllocations_SetPauseState_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Unknown node")
+		must.ErrorContains(t, err, "Enterprise only")
 	}
 }
 
