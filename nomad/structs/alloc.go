@@ -276,12 +276,12 @@ func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
 
 // Copy provides a copy of the allocation and deep copies the job
 func (a *Allocation) Copy() *Allocation {
-	return a.copyImpl(true, false)
+	return a.copyImpl(true)
 }
 
 // CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
-	return a.copyImpl(false, false)
+	return a.copyImpl(false)
 }
 
 // Canonicalize Allocation to ensure fields are initialized to the expectations
@@ -314,7 +314,7 @@ func (a *Allocation) Canonicalize() {
 	a.Job.Canonicalize()
 }
 
-func (a *Allocation) copyImpl(job, sanitize bool) *Allocation {
+func (a *Allocation) copyImpl(job bool) *Allocation {
 	if a == nil {
 		return nil
 	}
@@ -323,10 +323,6 @@ func (a *Allocation) copyImpl(job, sanitize bool) *Allocation {
 
 	if job {
 		na.Job = na.Job.Copy()
-	}
-
-	if sanitize {
-		na.SignedIdentities = nil
 	}
 
 	na.AllocatedResources = na.AllocatedResources.Copy()
