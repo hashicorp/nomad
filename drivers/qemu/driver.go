@@ -38,8 +38,9 @@ const (
 	fingerprintPeriod = 30 * time.Second
 
 	// The key populated in Node Attributes to indicate presence of the Qemu driver
-	driverAttr        = "driver.qemu"
-	driverVersionAttr = "driver.qemu.version"
+	driverAttr          = "driver.qemu"
+	driverVersionAttr   = "driver.qemu.version"
+	driverEmulatorsAttr = "driver.qemu.emulators"
 
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
@@ -83,8 +84,9 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"image_paths":    hclspec.NewAttr("image_paths", "list(string)", false),
-		"args_allowlist": hclspec.NewAttr("args_allowlist", "list(string)", false),
+		"image_paths":         hclspec.NewAttr("image_paths", "list(string)", false),
+		"args_allowlist":      hclspec.NewAttr("args_allowlist", "list(string)", false),
+		"emulators_allowlist": hclspec.NewAttr("emulators_allowlist", "list(string)", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -150,9 +152,10 @@ type Config struct {
 	// prevent access to devices
 	ArgsAllowList []string `codec:"args_allowlist"`
 
-	// FingerprintEmulator specifies which QEMU binary is used
-	// for fingerprinting
-	FingerprintEmulator string `codec:"fingerprint_emulator"`
+	// EmulatorsAllowList is an allow-list of emulator binaries the
+	// jobspec and FingerprintEmulator can use, so that cluster
+	// operators can control which emulators job authors can use.
+	EmulatorsAllowList []string `codec:"emulators_allowlist"`
 }
 
 // Driver is a driver for running images via Qemu
@@ -247,16 +250,20 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	fpEmulator := "qemu-system-x86_64"
-	if d.config.FingerprintEmulator != "" {
-		fpEmulator = d.config.FingerprintEmulator
-	}
-	outBytes, err := exec.Command(fpEmulator, "--version").Output()
-	if err != nil {
-		// return no error, as it isn't an error to not find qemu, it just means we
-		// can't use it.
+	emulators := findEmulators(d.config.EmulatorsAllowList)
+
+	if len(emulators) == 0 {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = ""
+		return fingerprint
+	}
+
+	// Just fetch the version of the first emulator. If a system has many emulators, it can take a while
+	// to get the version of each one, and is likely a waste of compute.
+	outBytes, err := exec.Command(fmt.Sprintf("qemu-system-%s", emulators[0]), "--version").Output()
+	if err != nil {
+		fingerprint.Health = drivers.HealthStateUndetected
+		fingerprint.HealthDescription = fmt.Sprintf("Failed to execute qemu binary: %v", err)
 		return fingerprint
 	}
 	out := strings.TrimSpace(string(outBytes))
@@ -268,8 +275,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 	currentQemuVersion := matches[1]
+
 	fingerprint.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
 	fingerprint.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(currentQemuVersion)
+	fingerprint.Attributes[driverEmulatorsAttr] = pstructs.NewStringAttribute(strings.Join(emulators, ","))
+
 	return fingerprint
 }
 
@@ -344,6 +354,43 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+// findEmulators searches the $PATH for qemu-system binaries until they are found
+// and returns a slice of emulators that comply with the emulators allowlist.
+func findEmulators(allowList []string) []string {
+	var (
+		glob      string = "qemu-system-*"
+		emulators []string
+		bins      []string
+		err       error
+	)
+
+	pathEnv := os.Getenv("PATH")
+	dirs := filepath.SplitList(pathEnv)
+
+	for _, dir := range dirs {
+		fullPattern := filepath.Join(dir, glob)
+		bins, err = filepath.Glob(fullPattern)
+		if err != nil {
+			continue
+		}
+
+		// once the qemu binaries are found, break
+		if len(bins) > 0 {
+			break
+		}
+	}
+
+	for _, f := range bins {
+		em := strings.TrimPrefix(filepath.Base(f), "qemu-system-")
+		if err := validateEmulator(em, allowList); err != nil {
+			continue
+		}
+		emulators = append(emulators, em)
+	}
+
+	return emulators
+}
+
 func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool {
 	if !filepath.IsAbs(imagePath) {
 		imagePath = filepath.Join(allocDir, imagePath)
@@ -373,13 +420,17 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 var allowedDriveInterfaces = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
 
 func isAllowedDriveInterface(driveInterface string) bool {
-	for _, ai := range allowedDriveInterfaces {
-		if driveInterface == ai {
-			return true
+	return slices.Contains(allowedDriveInterfaces, driveInterface)
+}
+
+// validateEmulator validate whether the specified emulator is in allowedEmulators
+func validateEmulator(emulator string, allowedEmulators []string) error {
+	if len(allowedEmulators) > 0 {
+		if !slices.Contains(allowedEmulators, emulator) {
+			return fmt.Errorf("'%s' is not an allowed emulator", emulator)
 		}
 	}
-
-	return false
+	return nil
 }
 
 // validateArgs ensures that all QEMU command line params are in the
@@ -419,6 +470,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
+	if err := validateEmulator(driverConfig.Emulator, d.config.EmulatorsAllowList); err != nil {
+		return nil, nil, err
+	}
+
 	if err := validateArgs(d.config.ArgsAllowList, driverConfig.Args); err != nil {
 		return nil, nil, err
 	}
@@ -436,7 +491,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	// Parse configuration arguments
 	// Create the base arguments
-	emulator := "qemu-system-x86_64"
+	emulator := "x86_64"
 	if driverConfig.Emulator != "" {
 		emulator = driverConfig.Emulator
 
@@ -456,7 +511,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	mem := fmt.Sprintf("%dM", mb)
 
-	absPath, err := GetAbsolutePath(emulator)
+	absPath, err := GetAbsolutePath(fmt.Sprintf("qemu-system-%s", emulator))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -504,7 +559,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, err
 		}
 		d.logger.Debug("got monitor path", "monitorPath", monitorPath)
-		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
+		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server=on,wait=off", monitorPath))
 	}
 
 	if driverConfig.GuestAgent {
@@ -517,7 +572,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, err
 		}
 
-		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s,server,nowait,id=qga0", agentSocketPath))
+		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s,server=on,wait=off,id=qga0", agentSocketPath))
 		args = append(args, "-device", "virtio-serial")
 		args = append(args, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0")
 	}
