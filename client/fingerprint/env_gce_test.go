@@ -8,13 +8,28 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
+
+func Test_NewEnvGCEFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
+	must.NotNil(t, f)
+
+	retryWrapper, ok := f.(*RetryWrapper)
+	must.True(t, ok)
+	must.Eq(t, gceFingerprinterName, retryWrapper.name)
+
+	_, ok = retryWrapper.fingerprinter.(*EnvGCEFingerprint)
+	must.True(t, ok)
+}
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
 
@@ -45,54 +60,10 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		Attributes: make(map[string]string),
 	}
 
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(GCE_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in GCE ENV test: %s", err)
-	}
-	networkEndpoint := &endpoint{
-		Uri:         "/computeMetadata/v1/instance/network-interfaces/?recursive=true",
-		ContentType: "application/json",
-	}
-	if withExternalIp {
-		networkEndpoint.Body = `[{"accessConfigs":[{"externalIp":"104.44.55.66","type":"ONE_TO_ONE_NAT"},{"externalIp":"104.44.55.67","type":"ONE_TO_ONE_NAT"}],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
-	} else {
-		networkEndpoint.Body = `[{"accessConfigs":[],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
-	}
-	routes.Endpoints = append(routes.Endpoints, networkEndpoint)
+	testMetadataServer := gceTestMetadataServer(t, withExternalIp)
+	defer testMetadataServer.Close()
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		value, ok := r.Header["Metadata-Flavor"]
-		if !ok {
-			t.Fatal("Metadata-Flavor not present in HTTP request header")
-		}
-		if value[0] != "Google" {
-			t.Fatalf("Expected Metadata-Flavor Google, saw %s", value[0])
-		}
-
-		uavalue, ok := r.Header["User-Agent"]
-		if !ok {
-			t.Fatal("User-Agent not present in HTTP request header")
-		}
-		if !strings.Contains(uavalue[0], "Nomad/") {
-			t.Fatalf("Expected User-Agent to contain Nomad/, got %s", uavalue[0])
-		}
-
-		found := false
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-			found = true
-		}
-
-		if !found {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer ts.Close()
-	t.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
+	t.Setenv("GCE_ENV_URL", testMetadataServer.URL+"/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
@@ -156,6 +127,84 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.ghi", "111")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.jkl", "222")
 	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.attr.bar", "333")
+}
+
+func TestEnvGCEFingerprint_gceProbe(t *testing.T) {
+
+	testCases := []struct {
+		name   string
+		gceEnv bool
+	}{
+		{
+			name:   "GCE Environment",
+			gceEnv: true,
+		},
+		{
+			name:   "Non-GCE Environment",
+			gceEnv: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			if tc.gceEnv {
+				testMetadataServer := gceTestMetadataServer(t, false)
+				defer testMetadataServer.Close()
+				t.Setenv("GCE_ENV_URL", testMetadataServer.URL+"/computeMetadata/v1/instance/")
+			}
+
+			f := NewEnvGCEFingerprint(testlog.HCLogger(t))
+			err := f.(*RetryWrapper).fingerprinter.(*EnvGCEFingerprint).gceProbe()
+
+			if tc.gceEnv {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+			}
+		})
+	}
+}
+
+func gceTestMetadataServer(t *testing.T, externalIP bool) *httptest.Server {
+
+	// configure mock server with fixture routes, data.
+	routes := routes{}
+	must.NoError(t, json.Unmarshal([]byte(GCE_routes), &routes))
+
+	networkEndpoint := &endpoint{
+		Uri:         "/computeMetadata/v1/instance/network-interfaces/?recursive=true",
+		ContentType: "application/json",
+	}
+	if externalIP {
+		networkEndpoint.Body = `[{"accessConfigs":[{"externalIp":"104.44.55.66","type":"ONE_TO_ONE_NAT"},{"externalIp":"104.44.55.67","type":"ONE_TO_ONE_NAT"}],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
+	} else {
+		networkEndpoint.Body = `[{"accessConfigs":[],"forwardedIps":[],"ip":"10.240.0.5","network":"projects/555555/networks/default"}]`
+	}
+	routes.Endpoints = append(routes.Endpoints, networkEndpoint)
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		value, ok := r.Header["Metadata-Flavor"]
+		must.True(t, ok)
+		must.Eq(t, "Google", value[0])
+
+		uavalue, ok := r.Header["User-Agent"]
+		must.True(t, ok)
+		must.StrContains(t, uavalue[0], "Nomad/")
+
+		found := false
+		for _, e := range routes.Endpoints {
+			if r.RequestURI == e.Uri {
+				w.Header().Set("Content-Type", e.ContentType)
+				fmt.Fprintln(w, e.Body)
+			}
+			found = true
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
 }
 
 const GCE_routes = `

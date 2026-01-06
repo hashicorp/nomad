@@ -396,6 +396,10 @@ type Config struct {
 
 	// LogFile is used by MonitorExport to stream a server's log file
 	LogFile string `hcl:"log_file"`
+
+	// Fingerprinters is a map of fingerprinter configurations by name. This
+	// currently only applies to env fingerprinters such as "env_aws".
+	Fingerprinters map[string]*Fingerprint
 }
 
 type APIListenerRegistrar interface {
@@ -932,6 +936,7 @@ func DefaultConfig() *Config {
 			MinDynamicUser: 80_000,
 			MaxDynamicUser: 89_999,
 		},
+		Fingerprinters: map[string]*Fingerprint{},
 	}
 
 	return cfg
