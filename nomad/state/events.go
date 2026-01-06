@@ -331,7 +331,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
-		alloc := after.CopySkipJobAndSanitize()
+		alloc := after.Sanitize()
 
 		filterKeys := []string{
 			alloc.JobID,
