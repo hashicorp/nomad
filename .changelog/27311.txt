@@ -1,0 +1,3 @@
+```release-note:improvement
+state: reduce unneded allocation copy when building event payload
+```
