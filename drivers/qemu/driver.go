@@ -276,8 +276,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 	currentQemuVersion := matches[1]
 
-	fingerprint.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(currentQemuVersion)
 	fingerprint.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(currentQemuVersion)
 	fingerprint.Attributes[driverEmulatorsAttr] = pstructs.NewStringAttribute(strings.Join(emulators, ","))
 
 	return fingerprint
@@ -420,13 +420,7 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 var allowedDriveInterfaces = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
 
 func isAllowedDriveInterface(driveInterface string) bool {
-	for _, ai := range allowedDriveInterfaces {
-		if driveInterface == ai {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(allowedDriveInterfaces, driveInterface)
 }
 
 // validateEmulator validate whether the specified emulator is in allowedEmulators
@@ -565,7 +559,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, err
 		}
 		d.logger.Debug("got monitor path", "monitorPath", monitorPath)
-		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
+		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server=on,wait=off", monitorPath))
 	}
 
 	if driverConfig.GuestAgent {
@@ -578,7 +572,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			return nil, nil, err
 		}
 
-		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s,server,nowait,id=qga0", agentSocketPath))
+		args = append(args, "-chardev", fmt.Sprintf("socket,path=%s,server=on,wait=off,id=qga0", agentSocketPath))
 		args = append(args, "-device", "virtio-serial")
 		args = append(args, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0")
 	}
