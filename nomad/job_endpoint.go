@@ -156,8 +156,9 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 	// Set the warning message
 	reply.Warnings = helper.MergeMultierrorWarnings(warnings...)
 
+	permissions := append([]string{acl.NamespaceCapabilitySubmitJob}, additionalAllowedPermissions...)
 	// Check job submission permissions
-	if !aclObj.AllowNsOpOr(args.RequestNamespace(), append([]string{acl.NamespaceCapabilitySubmitJob}, additionalAllowedPermissions...)) {
+	if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(), permissions...) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -583,7 +584,10 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 		return err
 	}
 
-	if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{acl.NamespaceCapabilitySubmitJob, acl.NamespaceCapabilityRevertJob}) {
+	if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityRevertJob,
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -662,10 +666,10 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
+	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityStableJob,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -716,10 +720,10 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
+	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityEvaluateJob,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -828,7 +832,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		permissionsCheck = append(permissionsCheck, acl.NamespaceCapabilityDeregisterJob)
 	}
 
-	if !aclObj.AllowNsOpOr(args.RequestNamespace(), permissionsCheck) {
+	if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(), permissionsCheck...) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1819,10 +1823,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if aclObj, err := j.srv.ResolveACL(args); err != nil {
 		return err
 	} else {
-		if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
+		if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
 			acl.NamespaceCapabilitySubmitJob,
 			acl.NamespaceCapabilityPlanJob,
-		}) {
+		) {
 			return structs.ErrPermissionDenied
 		}
 		// Check if override is set and we do not have permissions
@@ -2449,10 +2453,10 @@ func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTag
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
+	if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityTagJobVersion,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 

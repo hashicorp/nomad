@@ -42,11 +42,11 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	// Check for write-job permissions
 	if aclObj, err := p.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(args.RequestNamespace(), []string{
+	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
 		acl.NamespaceCapabilityDispatchJob,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityForcePeriodicJob,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 

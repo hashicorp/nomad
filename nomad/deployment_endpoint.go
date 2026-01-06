@@ -131,10 +131,10 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityFailDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -181,10 +181,10 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityPauseDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -235,10 +235,10 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityPromoteDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -285,10 +285,10 @@ func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.Depl
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityRunDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -335,10 +335,10 @@ func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *stru
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityUnblockDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -385,10 +385,10 @@ func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *struct
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityCancelDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -440,10 +440,10 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOpOr(deploy.Namespace, []string{
+	} else if !aclObj.AllowNsOpAnyOf(deploy.Namespace,
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilitySetAllocHealthDeployment,
-	}) {
+	) {
 		return structs.ErrPermissionDenied
 	}
 
