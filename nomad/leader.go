@@ -93,18 +93,12 @@ var minVersionDynamicHostVolumes = version.Must(version.NewVersion("1.10.0"))
 // minVersionNodeIdentity is the Nomad version at which the node identity
 // feature was introduced. It forms the minimum version all local servers must
 // meet before the feature can be used.
-//
-// TODO(jrasell): Update this when we have a stable release with node identity
-// support.
-var minVersionNodeIdentity = version.Must(version.NewVersion("1.11.0-beta.1"))
+var minVersionNodeIdentity = version.Must(version.NewVersion("1.11.0"))
 
 // minVersionNodeIntro is the Nomad version at which the node introduction
 // feature was introduced. It forms the minimum version all local servers must
 // meet before the feature can be used.
-//
-// TODO(jrasell): Update this when we have a stable release with node
-// introduction support.
-var minVersionNodeIntro = version.Must(version.NewVersion("1.11.0-beta.1"))
+var minVersionNodeIntro = version.Must(version.NewVersion("1.11.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
