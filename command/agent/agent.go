@@ -1086,6 +1086,16 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
+	// Iterate the fingerprinter configs and populate the client mapping. The
+	// validation function returns a suitable error that can be returned without
+	// formatting.
+	for _, fingerprinterCfg := range agentConfig.Client.Fingerprinters {
+		if err := fingerprinterCfg.Validate(); err != nil {
+			return nil, err
+		}
+		conf.Fingerprinters[fingerprinterCfg.Name] = fingerprinterCfg
+	}
+
 	conf.LogFile = agentConfig.LogFile
 	return conf, nil
 }
