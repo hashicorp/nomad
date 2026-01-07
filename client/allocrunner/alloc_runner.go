@@ -1314,9 +1314,11 @@ func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResou
 
 		if usage := tr.LatestResourceUsage(); usage != nil {
 			astat.Tasks[name] = usage
-			astat.ResourceUsage.Add(usage.ResourceUsage)
-			if usage.Timestamp > astat.Timestamp {
-				astat.Timestamp = usage.Timestamp
+			if tr.IsRunning() {
+				astat.ResourceUsage.Add(usage.ResourceUsage)
+				if usage.Timestamp > astat.Timestamp {
+					astat.Timestamp = usage.Timestamp
+				}
 			}
 		}
 	}
