@@ -2835,7 +2835,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id strin
 	if claim.AllocationID != "" {
 		err = volume.Claim(claim, alloc)
 		if err != nil {
-			return fmt.Errorf("alloc '%s' failed to claim volume '%s': %v", claim.AllocationID, volume.ID, err)
+			return fmt.Errorf("alloc %q failed to claim volume %q: %w", claim.AllocationID, volume.ID, err)
 		}
 	}
 
