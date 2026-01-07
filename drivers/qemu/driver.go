@@ -493,7 +493,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	// Create the base arguments
 	emulator := "x86_64"
 	if driverConfig.Emulator != "" {
-		emulator = driverConfig.Emulator
+		// COMPAT: TrimPrefix to support full emulator name
+		// which was required in 1.11.1.
+		emulator = strings.TrimPrefix(driverConfig.Emulator, "qemu-system-")
 
 	}
 	accelerator := "tcg"
