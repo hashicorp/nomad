@@ -287,6 +287,10 @@ dev: hclfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
 
+.PHONY: dev-static
+dev-static:
+	@$(MAKE) CGO_ENABLED=0 dev ## Build a dev binary with no CGO
+
 .PHONY: prerelease
 prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
@@ -294,6 +298,13 @@ prerelease: generate-all ember-dist static-assets ## Generate all the static ass
 .PHONY: release
 release: GO_TAGS=ui codegen_generated release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+	@echo "==> Results:"
+	@tree --dirsfirst $(PROJECT_ROOT)/pkg
+
+.PHONY: release-static
+release-static: GO_TAGS=ui codegen_generated release
+release-static: CGO_ENABLED=0
+release-static: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
