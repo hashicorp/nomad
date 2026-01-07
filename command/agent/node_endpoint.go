@@ -105,7 +105,9 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 		out.Allocs = make([]*structs.Allocation, 0)
 	}
 	for _, alloc := range out.Allocs {
-		alloc = alloc.Sanitize()
+		if alloc.SignedIdentities != nil {
+			alloc = alloc.Sanitize()
+		}
 		alloc.SetEventDisplayMessages()
 	}
 	return out.Allocs, nil
