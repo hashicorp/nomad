@@ -194,7 +194,7 @@ func (a *Allocation) Sanitize() *Allocation {
 		return a
 	}
 
-	clean := a.CopySkipJob()
+	clean := a.Copy()
 	clean.SignedIdentities = nil
 	return clean
 }
