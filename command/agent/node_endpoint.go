@@ -107,6 +107,8 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	for _, alloc := range out.Allocs {
 		if alloc.SignedIdentities != nil {
 			alloc = alloc.Sanitize()
+		} else {
+			alloc = alloc.Copy()
 		}
 		alloc.SetEventDisplayMessages()
 	}
