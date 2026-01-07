@@ -288,8 +288,8 @@ dev: hclfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
 
 .PHONY: dev-static
-dev-static: CGO_ENABLED=0
-dev-static: dev ## Build a dev binary with no CGO
+dev-static:
+	@$(MAKE) CGO_ENABLED=0 dev ## Build a dev binary with no CGO
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui codegen_generated release
