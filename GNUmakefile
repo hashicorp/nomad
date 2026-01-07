@@ -301,10 +301,10 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
-.PHONY: static-release
-static-release: GO_TAGS=ui codegen_generated release
-static-release: CGO_ENABLED=0
-static-release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+.PHONY: release-static
+release-static: GO_TAGS=ui codegen_generated release
+release-static: CGO_ENABLED=0
+release-static: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
