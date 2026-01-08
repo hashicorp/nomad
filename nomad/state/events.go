@@ -331,7 +331,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
-		alloc := after.Copy()
+		alloc := after.Sanitize()
 
 		filterKeys := []string{
 			alloc.JobID,
@@ -346,9 +346,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocationEvent{
-				Allocation: alloc.Sanitize(),
-			},
+			Payload:    &structs.AllocationEvent{Allocation: alloc},
 		}, true
 	case "jobs":
 		after, ok := change.After.(*structs.Job)
