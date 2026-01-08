@@ -190,10 +190,6 @@ func (a *Allocation) Sanitize() *Allocation {
 		return nil
 	}
 
-	if a.SignedIdentities == nil {
-		return a
-	}
-
 	clean := a.Copy()
 	clean.SignedIdentities = nil
 	return clean
