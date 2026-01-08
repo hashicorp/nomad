@@ -1,0 +1,57 @@
+name: Finalize Nomad release branch
+
+# merge a specific release/A.B.C branch back into a long-lived
+# release/A.B.x branch after it's been released.
+
+on:
+  workflow_call:
+    secrets:
+      gh-token:
+        required: true
+    inputs:
+      repo:
+        description: 'GitHub repository, e.g. hashicorp/nomad'
+        type: string
+        required: true
+      version:
+        description: 'Version that was released'
+        type: string
+        required: true
+      merge-from:
+        description: 'Specific-version branch to merge from, e.g. release/1.11.99'
+        type: string
+        required: true
+      merge-into:
+        description: 'Long-lived branch to merge into, e.g. release/1.11.x'
+        type: string
+        required: true
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git config
+        run: |-
+          git config --global user.email "github-team-nomad-core@hashicorp.com"
+          git config --global user.name "hc-github-team-nomad-core"
+
+      - name: Checkout nomad
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.merge-from }}
+          fetch-depth: 0 # need history to merge
+          token: ${{ secrets.gh-token }}
+
+      - name: Semver CLI
+        uses: ./.github/actions/semver
+        with:
+          validate_version: ${{ inputs.version }}
+
+      - name: Run finalize script
+        env:
+          DO_PUSH: true
+          NEW_VERSION: ${{ inputs.version }}
+          MERGE_INTO: ${{ inputs.merge-into }}
+          DEBUG: ${{ runner.debug }}
+        run: ./scripts/release/finalize
