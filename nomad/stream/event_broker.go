@@ -246,8 +246,8 @@ func (s *subscriptions) add(req *SubscribeRequest, sub *Subscription) {
 }
 
 func (s *subscriptions) closeSubscriptionsForTokens(tokenSecretIDs []string) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	for _, secretID := range tokenSecretIDs {
 		if subs, ok := s.byToken[secretID]; ok {
@@ -264,8 +264,8 @@ func (s *subscriptions) closeSubscriptionsForTokens(tokenSecretIDs []string) {
 }
 
 func (s *subscriptions) closeSubscriptionFunc(tokenSecretID string, fn func(*Subscription) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// early exit
 	subs, ok := s.byToken[tokenSecretID]
@@ -273,7 +273,7 @@ func (s *subscriptions) closeSubscriptionFunc(tokenSecretID string, fn func(*Sub
 		return
 	}
 
-	for req, sub := range s.byToken[tokenSecretID] {
+	for req, sub := range subs {
 		if fn(sub) {
 			sub.forceClose()
 			delete(subs, req)
