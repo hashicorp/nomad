@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+# note: this script is meant to be run by github actions,
+# hence stuff like ::error:: and $GITHUB_OUTPUT
+
+[ -n "$DEBUG" ] && set -x
+set -euo pipefail
+
+if [[ $# -lt 1 || "$*" =~ '-h' ]]; then
+  cat <<EOF
+usage: $0 <last-version-number>
+
+Generate a changelog comparing the current git HEAD 
+against a previous tagged release version.
+
+This should be run from the nomad repo root.
+
+example: $0 1.11.1+ent
+EOF
+  exit 1
+fi
+
+# validate some stuff
+
+if [ ! -d .changelog ]; then
+  echo 'No .changelog/ dir here. Are you in the nomad/ repo root?'
+  exit 1
+fi
+
+# gather versions
+
+# we'll compare the current git worktree against this previous release.
+last_version="v$1" # version git tags are prefixed with "v"
+
+# accept new version as a second argument,
+# but default to reading from version.go
+this_version="$(awk -F'"' '/Version = / {print $2}' version/version.go)"
+[ -f version/version_ent.go ] && this_version="$this_version+ent"
+if [ -z "$this_version" ]; then
+  echo 'could not detect current version from version.go'
+  exit 1
+fi
+git_head="$(git rev-parse HEAD)"
+
+echo "Will compare '$last_version' to '$git_head' ($this_version)"
+
+if ! command -v changelog-build; then
+  echo "::group::Install changelog-build"
+  # TODO: https://github.com/hashicorp/go-changelog/pull/49
+  #go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+  go install github.com/gulducat/go-changelog/cmd/changelog-build@build-git-local-fs-forky
+  echo "::endgroup::"
+fi
+
+cl="$PWD/changelog-$this_version.md"
+# output for github actions to save it as a run artifact,
+# so later in the release process we can create a github
+# release out of it. this file is not persisted in git.
+echo "file=$cl" >> "${GITHUB_OUTPUT:-/dev/stderr}"
+
+# make a clean tmp clone to avoid futzing with human filesystems.
+# note: it would be great to use `git worktree add` here, but
+# the go-git library that changelog-build uses is not worktree-friendly.
+# https://github.com/hashicorp/go-changelog/pull/49
+# -> https://github.com/go-git/go-git/issues/1812
+tmp="$(mktemp --directory)"
+trap 'rm -rf $tmp' EXIT
+git clone "$PWD" "$tmp/nomad" --sparse
+
+pushd "$tmp/nomad"
+  git sparse-checkout add .changelog/
+
+  # actually generate the changelog
+  changelog-build \
+    -last-release "$last_version" \
+    -this-release "$git_head" \
+    -entries-dir .changelog \
+    -changelog-template .changelog/changelog.tmpl \
+    -note-template .changelog/note.tmpl \
+    -local-fs > "$cl"
+
+popd
+  
+lines="$(wc -l "$cl" | awk '{print$1}')"
+if [ "$lines" -eq 0 ]; then
+  echo "::error::Generated changelog is empty"
+  exit 1
+fi
+
+# update CHANGELOG.md
+{
+  echo "## ${this_version//+ent/ Enterprise} ($(date '+%B %d, %Y'))"
+  cat "$cl"
+  echo
+  cat CHANGELOG.md
+} > "$tmp/cl-new.md"
+mv "$tmp/cl-new.md" CHANGELOG.md
+
+git status
+git diff --color=always CHANGELOG.md | /bin/cat
