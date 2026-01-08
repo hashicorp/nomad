@@ -29,6 +29,9 @@ to implement and test your enhancement.
 If you'd like to contribute to an existing issue, you should post in the issue before 
 starting. Let us know you'd like to work on it and your proposed solution.
 
+If you are working on a code contribution and plan to use Generative AI tools to
+assist in your work, please review our [AI Usage Guidelines](ai.md).
+
 Developing with Vagrant
 ---
 A development environment is supplied via Vagrant to make getting started easier.
