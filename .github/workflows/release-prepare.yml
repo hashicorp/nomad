@@ -1,0 +1,173 @@
+name: Prepare Nomad release branch
+
+# This reusable workflow does the following:
+# * Validate input version with semver CLI
+# * Generate changelog and store the new entry as a run artifact
+# * Update notification channel in ci.hcl and version in version.go
+# * Generate static assets (make prerelease)
+# * Commit and push changes to a new release/A.B.C branch
+# * Output the new ref to be built in subsequent jobs
+
+on:
+  workflow_call:
+    secrets:
+      gh-token:
+        required: true
+    inputs:
+      repo:
+        description: 'GitHub repository, e.g. hashicorp/nomad'
+        type: string
+        required: true
+      source-branch:
+        description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
+        type: string
+        required: true
+      version:
+        description: 'Version to be released'
+        type: string
+        required: true
+      compare-version:
+        description: 'Version to compare against when generating the changelog'
+        type: string
+        required: true
+      slack-channel:
+        type: string
+        required: false
+        default: 'C09LCDZTLGZ' # proj-nomad-releases
+    outputs:
+      build-ref:
+        description: 'git sha of the commit to use in the build workflow'
+        value: ${{ jobs.prepare.outputs.build-ref }}
+      new-branch:
+        description: 'name of the branch created for the release, e.g. release/1.11.99'
+        value: ${{ jobs.prepare.outputs.new-branch }}
+
+env:
+  NEW_VERSION: ${{ inputs.version }}
+  NEW_BRANCH: db-testing/${{ inputs.version }} # TODO: release/
+
+jobs:
+  prepare:
+    outputs:
+      build-ref: ${{ steps.push.outputs.build-ref }}
+      new-branch: ${{ steps.new-branch.outputs.name }}
+
+    # TODO: self-hosted runners? CI vault?
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Annotate release info
+        run: |-
+          echo "::notice::Preparing ${{ inputs.version }}: ${{ inputs.source-branch }} => ${{ env.NEW_BRANCH }}"
+
+      # TODO: check github check status of source-branch?
+      # e.g. https://github.com/marketplace/actions/wait-for-github-status-check
+
+      - name: Git config
+        # note: the global token-url is for the go toolchain for private repos
+        run: |-
+          git config --global user.email "github-team-nomad-core@hashicorp.com"
+          git config --global user.name "hc-github-team-nomad-core"
+          git config --global url.'https://${{ secrets.gh-token }}@github.com'.insteadOf 'https://github.com'
+
+      - name: Checkout nomad
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.source-branch }}
+          fetch-depth: 0
+          fetch-tags: true # for changelog
+          token: ${{ secrets.gh-token }}
+
+      - name: Semver CLI
+        uses: ./.github/actions/semver
+        with:
+          validate_version: ${{ inputs.version }}
+
+      - name: Create new branch
+        id: new-branch
+        run: |-
+          git switch --force-create "$NEW_BRANCH"
+          echo "name=$NEW_BRANCH" >> "$GITHUB_OUTPUT"
+
+      # need go for changelog-build, then static assets later
+      - name: Setup Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version-file: '.go-version'
+
+      - name: Update changelog
+        id: changelog
+        env:
+          DEBUG: ${{ runner.debug }}
+        # note: this script sets a `file` output for the next step.
+        run: ./scripts/release/update-changelog ${{ inputs.compare-version }}
+
+      - name: Store changelog
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: 'changelog_${{ inputs.version }}'
+          path: ${{ steps.changelog.outputs.file }}
+          compression-level: 0
+
+      - name: Update notification channel in ci.hcl
+        run: |-
+          sed -i -e 's|\(notification_channel * = *"\)[^"]*|\1${{ inputs.slack-channel }}|g' .release/ci.hcl
+          git diff --color=always .release/ci.hcl
+
+      - name: Update version in version.go
+        run: |-
+          release=$(semver get release "$NEW_VERSION")
+          prerel=$(semver get prerel "$NEW_VERSION")
+          echo "updating version.go :: release='${release}' prerel='${prerel}'"
+
+          sed -i \
+            -e "s|\(Version * = *\"\)[^\"]*|\1${release}|g" \
+            -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1${prerel}|g" version/version.go \
+            version/version.go
+
+          git diff --color=always version/version.go
+
+      - name: Setup JS
+        uses: ./.github/actions/setup-js
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Generate static assets
+        env:
+          GOPRIVATE: 'github.com/hashicorp/*'
+          GO_TAGS: "release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' || '' }}"
+        run: make prerelease
+
+      - name: Commit and push changes
+        id: push
+        run: |-
+          git switch "$NEW_BRANCH"
+          git add -A .
+          find . -name '*.generated.go' -exec git add -f '{}' \;
+
+          if git diff-index --quiet HEAD --; then
+            echo "no files were updated"
+          else
+            echo "committing generated files"
+            git commit --message "Generate files for $NEW_VERSION release"
+            git push origin -f "$NEW_BRANCH"
+          fi
+
+          ref="$(git rev-parse HEAD)"
+          echo "::notice::Build ref: $ref"
+          echo "build-ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Add summary
+        run: |-
+          repo_url='https://github.com/${{ inputs.repo }}'
+
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          # Release ${{ inputs.version }}
+
+          - Source branch: [${{ inputs.source-branch }}]($repo_url/commits/${{ inputs.source-branch }})
+          - Release branch: [${{ steps.new-branch.outputs.name }}]($repo_url/commits/${{ steps.new-branch.outputs.name }})
+
+          Build ref: \`${{ steps.push.outputs.build-ref }}\`
+          EOF

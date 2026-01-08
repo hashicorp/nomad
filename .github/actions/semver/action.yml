@@ -1,0 +1,33 @@
+name: semver
+description: 'Install semver CLI and validate an input version'
+
+inputs:
+  validate_version:
+    description: 'version to validate'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    # a nice, tiny shell script: https://github.com/fsaintjacques/semver-tool
+    # npm and pip have `semver`s, but they have fewer features and are slower to install.
+    - name: Install semver CLI
+      shell: bash
+      run: |-
+        local_bin="${HOME}/.local/bin"
+        mkdir -p "${local_bin}"
+
+        curl -L --silent --show-error --output "${local_bin}/semver" \
+          https://raw.githubusercontent.com/fsaintjacques/semver-tool/3.3.0/src/semver
+
+        chmod +x "${local_bin}/semver"
+        echo "${local_bin}" >> "$GITHUB_PATH"
+
+    - name: Validate version
+      if: ${{ inputs.validate_version != '' }}
+      shell: bash
+      run: |-
+        test "$(semver validate ${{ inputs.validate_version }})" == 'valid' && exit 0
+        echo "::error::Version '${{ inputs.validate_version }}' is invalid"
+        exit 1
