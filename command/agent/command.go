@@ -446,6 +446,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 			c.Ui.Error("Missing path in host_volume config")
 			return false
 		}
+		_, err := os.Stat(volumeConfig.Path)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return false
+		}
 	}
 
 	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
