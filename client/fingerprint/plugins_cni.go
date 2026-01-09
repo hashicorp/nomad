@@ -46,6 +46,8 @@ func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 	// cniPath could be a multi-path, e.g. /opt/cni/bin:/custom/cni/bin
 	cniPathList := filepath.SplitList(cniPath)
 
+	resp.Detected = false
+
 	// iterate paths and validate plugins
 	for _, cniPath = range cniPathList {
 		// list the cni_path directory
@@ -56,7 +58,6 @@ func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 		case len(entries) == 0:
 			f.logger.Debug("no CNI plugins found", "cni_path", cniPath)
 			resp.Detected = true
-			return nil
 		}
 
 		// for each file in cni_path, detect executables and try to get their version
