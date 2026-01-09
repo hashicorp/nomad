@@ -1,100 +1,79 @@
 #!/usr/bin/env bash
 
-# note: this script is meant to be run by github actions,
-# hence stuff like ::error:: and $GITHUB_OUTPUT
+# run by the release-prepare.yml github action workflow
+# * start from a release/A.B.C branch
+# * create a changelog file with only this one version's entry
+#   * we'll store it as a github artifact and use it later
+#     to create a github release.
+# * update and commit CHANGELOG.md
 
 [ -n "$DEBUG" ] && set -x
 set -euo pipefail
 
-if [[ $# -lt 1 || "$*" =~ '-h' ]]; then
-  cat <<EOF
-usage: $0 <last-version-number>
-
-Generate a changelog comparing the current git HEAD 
-against a previous tagged release version.
-
-This should be run from the nomad repo root.
-
-example: $0 1.11.1+ent
-EOF
-  exit 1
-fi
-
-# validate some stuff
-
-if [ ! -d .changelog ]; then
-  echo 'No .changelog/ dir here. Are you in the nomad/ repo root?'
-  exit 1
-fi
-
-# gather versions
-
-# we'll compare the current git worktree against this previous release.
-last_version="v$1" # version git tags are prefixed with "v"
-
-# accept new version as a second argument,
-# but default to reading from version.go
-this_version="$(awk -F'"' '/Version = / {print $2}' version/version.go)"
-[ -f version/version_ent.go ] && this_version="$this_version+ent"
-if [ -z "$this_version" ]; then
-  echo 'could not detect current version from version.go'
-  exit 1
-fi
-git_head="$(git rev-parse HEAD)"
-
-echo "Will compare '$last_version' to '$git_head' ($this_version)"
-
-if ! command -v changelog-build; then
-  echo "::group::Install changelog-build"
-  # TODO: https://github.com/hashicorp/go-changelog/pull/49
-  #go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
-  go install github.com/gulducat/go-changelog/cmd/changelog-build@build-git-local-fs-forky
-  echo "::endgroup::"
-fi
-
-cl="$PWD/changelog-$this_version.md"
-# output for github actions to save it as a run artifact,
-# so later in the release process we can create a github
-# release out of it. this file is not persisted in git.
-echo "file=$cl" >> "${GITHUB_OUTPUT:-/dev/stderr}"
-
-# make a clean tmp clone to avoid futzing with human filesystems.
-# note: it would be great to use `git worktree add` here, but
-# the go-git library that changelog-build uses is not worktree-friendly.
+source "$(dirname "${BASH_SOURCE[0]}")/check-working-dir"
+# note also that changelog-build is not `git worktree` friendly.
 # https://github.com/hashicorp/go-changelog/pull/49
 # -> https://github.com/go-git/go-git/issues/1812
-tmp="$(mktemp --directory)"
-trap 'rm -rf $tmp' EXIT
-git clone "$PWD" "$tmp/nomad" --sparse
 
-pushd "$tmp/nomad"
-  git sparse-checkout add .changelog/
+echo 'Checking variables'
+  SOURCE_BRANCH="${SOURCE_BRANCH:-$(git branch --show-current)}"
+  # vars displayed this way for easier troubleshooting
+  cat <<VARS
+\`\`\`
+# required:
+export NEW_VERSION='$NEW_VERSION'
+export LAST_RELEASE='$LAST_RELEASE'
+# derived:
+export SOURCE_BRANCH='$SOURCE_BRANCH'
 
-  # actually generate the changelog
+$0
+\`\`\`
+
+VARS
+
+echo 'Ensuring source branch'
+  git fetch origin "$SOURCE_BRANCH"
+  git checkout "$SOURCE_BRANCH"
+  git pull origin "$SOURCE_BRANCH"
+echo
+
+cl_file="$(mktemp -t changelog-XXXXX-$NEW_VERSION.md)"
+
+echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD))"
+  # changelog-build does checkouts, so hold on to current branch
+  _start_branch="$(git branch --show-current)"
   changelog-build \
-    -last-release "$last_version" \
-    -this-release "$git_head" \
+    -last-release "v$LAST_RELEASE" \
+    -this-release HEAD \
     -entries-dir .changelog \
     -changelog-template .changelog/changelog.tmpl \
     -note-template .changelog/note.tmpl \
-    -local-fs > "$cl"
-
-popd
+    -local-fs > "$cl_file"
+  # back to where we came from
+  git switch "$_start_branch"
   
-lines="$(wc -l "$cl" | awk '{print$1}')"
-if [ "$lines" -eq 0 ]; then
-  echo "::error::Generated changelog is empty"
-  exit 1
-fi
+  lines="$(wc -l "$cl_file" | awk '{print$1}')"
+  if [ "$lines" -eq 0 ]; then
+    echo "::error::Generated changelog is empty"
+    exit 1
+  fi
+echo
 
-# update CHANGELOG.md
-{
-  echo "## ${this_version//+ent/ Enterprise} ($(date '+%B %d, %Y'))"
-  cat "$cl"
-  echo
-  cat CHANGELOG.md
-} > "$tmp/cl-new.md"
-mv "$tmp/cl-new.md" CHANGELOG.md
+echo "Updating CHANGELOG.md"
+  {
+    echo "## ${NEW_VERSION//+ent/ Enterprise} ($(date '+%B %d, %Y'))"
+    cat "$cl_file"
+    echo
+    cat CHANGELOG.md
+  } > "changelog.tmp.md"
+  mv "changelog.tmp.md" CHANGELOG.md
+echo
 
-git status
-git diff --color=always CHANGELOG.md | /bin/cat
+echo "Committing changes"
+  git add CHANGELOG.md
+  git status
+  git diff --cached --color=always | /bin/cat
+  git commit -m "release: Update changelog for $NEW_VERSION"
+echo
+
+echo "file=$cl_file" >> "${GITHUB_OUTPUT:-/dev/stderr}"
