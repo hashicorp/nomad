@@ -53,8 +53,8 @@ func (c *SentinelApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-description": complete.PredictAnything,
-			"-scope":       complete.PredictAnything,
-			"-level":       complete.PredictAnything,
+			"-scope":       complete.PredictSet("submit-job", "submit-host-volume", "submit-csi-volume"),
+			"-level":       complete.PredictSet("advisory", "soft-mandatory", "hard-mandatory"),
 		})
 }
 
