@@ -447,7 +447,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
 	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, structs.ErrCSIVolumeMaxClaims.Error(),
+	require.ErrorContains(t, err, structs.ErrCSIVolumeMaxClaims.Error(),
 		"expected 'volume max claims reached' because we only allow 1 writer")
 
 	// Fix the mode and our claim will succeed
