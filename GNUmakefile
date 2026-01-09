@@ -241,7 +241,7 @@ proto: ## Generate protobuf bindings
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 changelog: ## Generate changelog from entries
-	./scripts/release/update-changelog $(LAST_RELEASE)
+	./scripts/release/update-changelog
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering

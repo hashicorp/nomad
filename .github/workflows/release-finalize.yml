@@ -1,10 +1,7 @@
 name: Finalize Nomad release branch
 
-# This reusable workflow does the following:
-# * Validate input version with semver CLI
-# * Revert notification channel and remove generated static files
-# * Update version in version.go and LAST_RELEASE in GNUMakefile
-# * Commit and merge changes into the source release/A.B.x branch
+# merge a specific release/A.B.C branch back into a long-lived
+# release/A.B.x branch after it's been released.
 
 on:
   workflow_call:
@@ -16,6 +13,10 @@ on:
         description: 'GitHub repository, e.g. hashicorp/nomad'
         type: string
         required: true
+      version:
+        description: 'Version that was released'
+        type: string
+        required: true
       merge-from:
         description: 'Specific-version branch to merge from, e.g. release/1.11.99'
         type: string
@@ -24,24 +25,15 @@ on:
         description: 'Long-lived branch to merge into, e.g. release/1.11.x'
         type: string
         required: true
-      version:
-        description: 'Version that was released'
-        type: string
-        required: true
 
 jobs:
   finalize:
     runs-on: ubuntu-latest
     steps:
-      - name: Annotate release info
-        run: |-
-          echo "::notice::Finalizing ${{ inputs.version }}: ${{ inputs.merge-from }} => ${{ inputs.merge-into }}"
-
       - name: Git config
         run: |-
           git config --global user.email "github-team-nomad-core@hashicorp.com"
           git config --global user.name "hc-github-team-nomad-core"
-          git config --global url.'https://${{ secrets.gh-token }}@github.com'.insteadOf 'https://github.com'
 
       - name: Checkout nomad
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -56,66 +48,10 @@ jobs:
         with:
           validate_version: ${{ inputs.version }}
 
-      - name: Fetch target branch
-        run: git fetch origin ${{ inputs.merge-into }}
-
-      - name: Revert notification channel in ci.hcl
-        run: |-
-          git restore --source=origin/${{ inputs.merge-into }} -- .release/ci.hcl
-          git diff --color=always .release/ci.hcl
-
-      - name: Update version in version.go
-        run: |-
-          # Only bump the Version value if this is not a pre-release.
-          prerel="$(awk -F'"' '/VersionPrerelease/ {print$2}' version/version.go)"
-          test -z "$prerel" || exit 0
-
-          # For final releases we want `nomad -version` to display the next
-          # version to indicate that the current release is done.
-          if [ -z "$(semver get prerel ${{ inputs.version }})" ]; then
-            next_version=$(semver bump patch ${{ inputs.version }})
-            sed -i -e "s|\(Version * = *\"\)[^\"]*|\1${next_version}|g" version/version.go
-          fi
-
-          # Set the VersionPrerelease variable back to dev.
-          sed -i -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1dev|g" version/version.go
-          git diff --color=always version/version.go
-
-      - name: Update LAST_RELEASE
-        run: |-
-          # LAST_RELEASE is used to generate the new CHANGELOG entries,
-          # so it's only updated for final releases.
-          if [ -n "$(semver get prerel ${{ inputs.version }})" ]; then
-            echo "Version '${{ inputs.version }}' is a prerelease, skipping update of LAST_RELEASE"
-            exit 0
-          fi
-
-          sed -i -re "s|^(LAST_RELEASE\s+\?=\s).*$|\1${{ inputs.version }}|g" GNUmakefile
-          git diff --color=always GNUmakefile
-
-      - name: Remove generated files
-        # These generated files are only needed when building the final
-        # binary and should be not be present in the repository afterwards.
-        run: find . -name '*.generated.go' -exec git rm -f '{}' \;
-
-      - name: Commit post-release changes
-        run: |-
-          # Display staged and unstaged diffs, skipping deleted files to avoid
-          # cluttering the output with the generated files.
-          git diff --diff-filter=d --color=always HEAD
-          git add -A .
-
-          if git diff-index --quiet HEAD --; then
-            echo 'no files were updated'
-          else
-            git commit --message 'Prepare for next release post-${{ inputs.version }}'
-            git push origin "$(git rev-parse --abbrev-ref HEAD)"
-          fi
-
-      # TODO: make a PR, until we trust the tooling?
-      - name: Merge changes into target branch
-        run: |-
-          set -x
-          git switch ${{ inputs.merge-into }}
-          git merge --no-edit ${{ inputs.merge-from }}
-          git push origin ${{ inputs.merge-into }}
+      - name: Run finalize script
+        env:
+          DO_PUSH: true
+          NEW_VERSION: ${{ inputs.version }}
+          MERGE_INTO: ${{ inputs.merge-into }}
+          DEBUG: ${{ runner.debug }}
+        run: ./scripts/release/finalize
