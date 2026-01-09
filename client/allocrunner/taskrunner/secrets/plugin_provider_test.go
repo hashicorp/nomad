@@ -60,7 +60,7 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test", "test")
 
 		vars, err := testProvider.Fetch(t.Context())
-		must.ErrorContains(t, err, "error returned from secret plugin")
+		must.ErrorContains(t, err, "secret \"test\" plugin response contained error")
 		must.Nil(t, vars)
 	})
 
