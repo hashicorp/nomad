@@ -246,26 +246,43 @@ func (s *subscriptions) add(req *SubscribeRequest, sub *Subscription) {
 }
 
 func (s *subscriptions) closeSubscriptionsForTokens(tokenSecretIDs []string) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	for _, secretID := range tokenSecretIDs {
 		if subs, ok := s.byToken[secretID]; ok {
-			for _, sub := range subs {
+			for req, sub := range subs {
+				// close and remove subscriptions from the map
 				sub.forceClose()
+				delete(subs, req)
 			}
+
+			// once all subscriptions are closed, remove the token from the map
+			delete(s.byToken, secretID)
 		}
 	}
 }
 
 func (s *subscriptions) closeSubscriptionFunc(tokenSecretID string, fn func(*Subscription) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	for _, sub := range s.byToken[tokenSecretID] {
+	// early exit
+	subs, ok := s.byToken[tokenSecretID]
+	if !ok {
+		return
+	}
+
+	for req, sub := range subs {
 		if fn(sub) {
 			sub.forceClose()
+			delete(subs, req)
 		}
+	}
+
+	// If no subs remain for this token, delete the key.
+	if len(subs) == 0 {
+		delete(s.byToken, tokenSecretID)
 	}
 }
 
@@ -308,4 +325,7 @@ func (s *subscriptions) closeAll() {
 			sub.forceClose()
 		}
 	}
+
+	// drop all references so GC can reclaim subscriptions
+	s.byToken = make(map[string]map[*SubscribeRequest]*Subscription)
 }
