@@ -582,11 +582,9 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	currConf := s.agent.GetConfig().Copy()
-	newConf := DefaultConfig()
+	newConf := currConf
 
-	// will be removed just sanity check.
-	s.logger.Info("current files", "current", currConf.Files)
-	s.logger.Info("current paths", "paths", currConf.ConfigPaths)
+	s.logger.Debug("loading configuration files for reload", "paths", currConf.ConfigPaths)
 
 	for _, path := range currConf.ConfigPaths {
 		cfgFromFile, err := LoadConfig(path)
@@ -599,10 +597,19 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	// will be removed just sanity check.
-	s.logger.Info("reloading agent configuration", "old_files", currConf.Files, "new_files", newConf.Files)
+	if err := newConf.normalizeAddrs(); err != nil {
+		s.logger.Error("failed to normalize configuration addresses", "error", err, "path", "/v1/agent/reload", "method", req.Method)
+		return nil, CodedError(400, err.Error())
+	}
 
-	if err := s.agent.Reload(newConf); err != nil {
+	// I need to check back on this, it was not reloading TLS until I cleared the checksum and key loader
+	if newConf.TLSConfig != nil {
+		newConf.TLSConfig.Checksum = ""
+		newConf.TLSConfig.KeyLoader = nil
+	}
+
+	if err := s.agent.FullReload(newConf); err != nil {
+		s.logger.Error("failed to reload agent configuration", "error", err, "path", "/v1/agent/reload", "method", req.Method)
 		return nil, CodedError(400, err.Error())
 	}
 

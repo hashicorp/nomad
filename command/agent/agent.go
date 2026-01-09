@@ -133,6 +133,9 @@ type Agent struct {
 	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
+
+	// httpServers holds references to all HTTP servers for this agent.
+	httpServers []*HTTPServer
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -1527,6 +1530,30 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	return agent, http
 }
 
+// reloadHTTPServers shuts down existing HTTP servers and creates new ones with
+// the updated TLS configuration. This is used when TLS certificates or settings change.
+func (a *Agent) reloadHTTPServers() error {
+	if len(a.httpServers) == 0 {
+		return nil
+	}
+
+	a.logger.Info("reloading HTTP servers with new TLS configuration")
+
+	// Shutdown existing HTTP servers
+	for _, srv := range a.httpServers {
+		srv.Shutdown()
+	}
+
+	// Create new HTTP servers with updated config
+	httpServers, err := NewHTTPServers(a, a.config)
+	if err != nil {
+		return err
+	}
+	a.httpServers = httpServers
+
+	return nil
+}
+
 // Reload handles configuration changes for the agent. Provides a method that
 // is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
@@ -1595,6 +1622,76 @@ func (a *Agent) Reload(newConfig *Config) error {
 
 	// Set agent config to the updated config
 	a.config = current
+	return nil
+}
+
+// FullReload reloads the agent configuration including server, client, and HTTP server.
+func (a *Agent) FullReload(newConfig *Config) error {
+	shouldReloadAgent, shouldReloadHTTP := a.ShouldReload(newConfig)
+	if shouldReloadAgent {
+		a.logger.Debug("starting reload of agent config")
+		if err := a.Reload(newConfig); err != nil {
+			a.logger.Error("failed to reload the config", "error", err)
+			return err
+		}
+	}
+
+	if s := a.Server(); s != nil {
+		if newConfig.Server == nil {
+			a.logger.Debug("skipping server reload - no server config in new configuration")
+		} else {
+			a.logger.Debug("starting reload of server config")
+			sconf, err := convertServerConfig(newConfig)
+			if err != nil {
+				a.logger.Error("failed to convert server config", "error", err)
+				return err
+			}
+
+			// Finalize the config to get the agent objects injected in
+			a.finalizeServerConfig(sconf)
+
+			// Reload the config
+			if err := s.Reload(sconf); err != nil {
+				a.logger.Error("reloading server config failed", "error", err)
+				return fmt.Errorf("reloading server config failed: %w", err)
+			}
+		}
+	}
+
+	if client := a.Client(); client != nil {
+		if newConfig.Client == nil {
+			a.logger.Debug("skipping client reload - no client config in new configuration")
+		} else {
+			a.logger.Debug("starting reload of client config")
+			clientConfig, err := convertClientConfig(newConfig)
+			if err != nil {
+				a.logger.Error("failed to convert client config", "error", err)
+				return err
+			}
+
+			// Finalize the config to get the agent objects injected in
+			if err := a.finalizeClientConfig(clientConfig); err != nil {
+				a.logger.Error("failed to finalize client config", "error", err)
+				return err
+			}
+
+			if err := client.Reload(clientConfig); err != nil {
+				a.logger.Error("reloading client config failed", "error", err)
+				return fmt.Errorf("reloading client config failed: %w", err)
+			}
+		}
+	}
+
+	// reload HTTP server after we have reloaded both client and server, in case
+	// we error in either of the above cases. For example, reloading the http
+	// server to a TLS connection could succeed, while reloading the server's rpc
+	// connections could fail.
+	if shouldReloadHTTP {
+		if err := a.reloadHTTPServers(); err != nil {
+			a.logger.Error("failed to reload HTTP servers", "error", err)
+		}
+	}
+
 	return nil
 }
 
