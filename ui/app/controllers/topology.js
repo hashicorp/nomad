@@ -157,6 +157,8 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
 
+  @tracked showEmptyNodes = true;
+
   @tracked pre09Nodes = null;
 
   get filteredNodes() {
@@ -191,7 +193,8 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
           : true) &&
         (node.name.includes(searchTerm) ||
           node.datacenter.includes(searchTerm) ||
-          node.nodeClass.includes(searchTerm))
+          node.nodeClass.includes(searchTerm)) &&
+        (this.showEmptyNodes || node.allocations.length > 0)
       );
     });
   }
