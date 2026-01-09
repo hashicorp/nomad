@@ -190,9 +190,9 @@ client {
 - `no_host_uuid` `(bool: true)` - By default a random node UUID will be
   generated, but setting this to `false` will use the system's UUID.
 
-- `cni_path` `(string: "/opt/cni/bin")` - Sets the search path that is used for
-  CNI plugin discovery. Multiple paths can be searched using colon delimited
-  paths
+- `cni_path` `(string: "/opt/cni/bin:/usr/libexec/cni")` - Sets the search path
+  that is used for CNI plugin discovery. Multiple paths can be searched using
+  colon delimited paths.
 
 - `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
   network configuration is located. The client will use this path when fingerprinting

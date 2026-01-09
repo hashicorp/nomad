@@ -1,0 +1,6 @@
+```release-note:improvement
+cni: add /usr/libexec/cni as an additional default cni_path
+```
+```release-note:improvement
+cni: do not fail search cni_path error
+```

@@ -19,7 +19,7 @@ func TestPluginsCNIFingerprint_Fingerprint_present(t *testing.T) {
 	f := NewPluginsCNIFingerprint(testlog.HCLogger(t))
 	request := &FingerprintRequest{
 		Config: &config.Config{
-			CNIPath: "./test_fixtures/cni",
+			CNIPath: "./test_fixtures/cni:/does/not/exist",
 		},
 	}
 	response := new(FingerprintResponse)
@@ -91,7 +91,7 @@ func TestPluginsCNIFingerprint_Fingerprint_empty(t *testing.T) {
 	f.(*PluginsCNIFingerprint).lister = lister
 	request := &FingerprintRequest{
 		Config: &config.Config{
-			CNIPath: "./test_fixtures/cni",
+			CNIPath: "/does/not/exist:./test_fixtures/cni",
 		},
 	}
 	response := new(FingerprintResponse)
@@ -99,6 +99,7 @@ func TestPluginsCNIFingerprint_Fingerprint_empty(t *testing.T) {
 	err := f.Fingerprint(request, response)
 	must.NoError(t, err)
 	must.True(t, response.Detected)
+	must.MapLen(t, 0, response.Attributes)
 }
 
 func TestPluginsCNIFingerprint_Fingerprint_unset(t *testing.T) {
