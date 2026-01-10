@@ -500,12 +500,13 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   });
 
   test('reversion buttons are disabled when the token lacks permissions', async function (assert) {
+    versions = Versions.versions;
     const versionRowWithReversion = Versions.versions.filter(
       (versionRow) => versionRow.revertToButton.isPresent
     )[0];
 
     if (versionRowWithReversion) {
-      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
+      assert.ok(versionRowWithReversion.revertToButton.isDisabled);
     } else {
       assert.expect(0);
     }
@@ -536,6 +537,52 @@ module('Acceptance | job versions (with client token)', function (hooks) {
           {
             Name: REVERT_NAMESPACE,
             Capabilities: ['submit-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    versions = server.db.jobVersions.where({ jobId: job.id });
+    await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
+    const versionRowWithReversion = Versions.versions.filter(
+      (versionRow) => versionRow.revertToButton.isPresent
+    )[0];
+
+    if (versionRowWithReversion) {
+      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
+    } else {
+      assert.expect(0);
+    }
+  });
+
+  test('reversion buttons are available when the client token has fine grain permission', async function (assert) {
+    const REVERT_NAMESPACE = 'revert-namespace';
+    window.localStorage.clear();
+    const clientToken = server.create('token');
+
+    server.create('namespace', { id: REVERT_NAMESPACE });
+
+    const job = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+      namespaceId: REVERT_NAMESPACE,
+    });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: REVERT_NAMESPACE,
+            Capabilities: ['revert-job'],
           },
         ],
       },
