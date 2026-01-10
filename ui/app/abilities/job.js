@@ -40,6 +40,23 @@ export default class Job extends AbstractAbility {
   )
   canDispatch;
 
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'specificNamespaceSupportsStopping'
+  )
+  canStop;
+
+  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportPurging')
+  canPurge;
+
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'specificNamespaceSupportsReverting'
+  )
+  canRevert;
+
   policyNamespacesIncludePermissions(policies = [], permissions = []) {
     // For each policy record, extract all policies of all namespaces
     const allNamespacePolicies = policies
@@ -63,7 +80,7 @@ export default class Job extends AbstractAbility {
   get policiesSupportRunning() {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
-      ['submit-job']
+      ['submit-job', 'register-job']
     );
   }
 
@@ -72,6 +89,14 @@ export default class Job extends AbstractAbility {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
       ['read-job']
+    );
+  }
+
+  @computed('token.selfTokenPolicies.[]')
+  get policiesSupportPurging() {
+    return this.policyNamespacesIncludePermissions(
+      this.token.selfTokenPolicies,
+      ['submit-job', 'purge-job']
     );
   }
 
@@ -86,6 +111,14 @@ export default class Job extends AbstractAbility {
   }
 
   @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsStopping() {
+    return (
+      this.namespaceIncludesCapability('submit-job') ||
+      this.namespaceIncludesCapability('deregister-job')
+    );
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportScaling() {
     return this.namespaceIncludesCapability('scale-job');
   }
@@ -93,5 +126,13 @@ export default class Job extends AbstractAbility {
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportDispatching() {
     return this.namespaceIncludesCapability('dispatch-job');
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsReverting() {
+    return (
+      this.namespaceIncludesCapability('submit-job') ||
+      this.namespaceIncludesCapability('revert-job')
+    );
   }
 }

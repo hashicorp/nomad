@@ -74,10 +74,20 @@
 
       {{else}}
         <div class="tag-options">
-          {{#if this.version.versionTag}}
-            <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
-          {{else}}
-            <Hds::Button class="tag-button-secondary" @text="Tag this version" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{#if (can "tag version" namespace=this.version.job.namespace)}}
+            {{#if this.version.versionTag}}
+              <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+            {{else}}
+              <Hds::Button 
+                class="tag-button-secondary" 
+                @text="Tag this version" 
+                @color="secondary" 
+                @size="small" 
+                @icon="tag" 
+                @iconPosition="leading" 
+                @isInline={{true}} {{on "click" (action "toggleEditTag")}} 
+              />
+            {{/if}}
           {{/if}}
           <span class="tag-description" title={{this.version.versionTag.description}}>
               {{this.version.versionTag.description}}
@@ -85,8 +95,8 @@
         </div>
         <div class="version-options">
           {{#unless this.isCurrent}}
-            {{#if (can "run job" namespace=this.version.job.namespace)}}
-              {{#if (eq this.cloneButtonStatus 'idle')}}
+            {{#if (eq this.cloneButtonStatus 'idle')}}
+              {{#if (can "run job")}}
                 <Hds::Button
                   data-test-clone-and-edit
                   @text="Clone and Edit"
@@ -95,7 +105,7 @@
                   @isInline={{true}}
                   {{on "click" (action (mut this.cloneButtonStatus) "confirming")}}
                 />
-
+              {{/if}}
                 <TwoStepButton
                   data-test-revert-to
                   @classes={{hash
@@ -103,6 +113,8 @@
                     confirmButton="is-warning"}}
                   @fadingBackground={{true}}
                   @idleText="Revert Version"
+                  @disabled={{not (can "revert job" namespace=this.version.job.namespace)}}
+                  @title={{if (can "revert job" namespace=this.version.job.namespace) null "You don’t have permission to revert"}}
                   @cancelText="Cancel"
                   @confirmText="Yes, Revert Version"
                   @confirmationMessage="Are you sure you want to revert to this version?"
@@ -136,18 +148,6 @@
                   @isInline={{true}}
                   {{on "click" (action this.cloneAsNewJob)}}
                 />
-              {{/if}}
-            {{else}}
-              <Hds::Button
-                data-test-revert-to
-                class="is-fixed-width"
-                disabled
-                @size="small"
-                @color="secondary"
-                @isInline={{true}}
-                @text="Revert"
-                title="You don’t have permission to revert"
-              />
             {{/if}}
           {{/unless}}
         </div>

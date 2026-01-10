@@ -13,18 +13,20 @@
         </h2>
         <div class="pull-right">
           {{#if @job.latestDeployment.isRunning}}
-            <Hds::Button
-              data-test-fail
-              {{on "click" (perform this.fail)}}
-              disabled={{this.fail.isRunning}}
-              @color="critical"
-              @text="Fail Deployment"
-              {{keyboard-shortcut
-                label="Fail Deployment"
-                pattern=(array "f" "a" "i" "l")
-                action=(perform this.fail)
-              }}
-            />
+            {{#if (can "fail deployment" namespace=@job.namespace)}}
+              <Hds::Button
+                data-test-fail
+                {{on "click" (perform this.fail)}}
+                disabled={{this.fail.isRunning}}
+                @color="critical"
+                @text="Fail Deployment"
+                {{keyboard-shortcut
+                  label="Fail Deployment"
+                  pattern=(array "f" "a" "i" "l")
+                  action=(perform this.fail)
+                }}
+              />
+            {{/if}}
           {{/if}}
         </div>
       </div>
@@ -36,12 +38,14 @@
             <Hds::Alert @type="inline" @color="warning" as |A|>
               <A.Title>Deployment requires promotion</A.Title>
               <A.Description>Your deployment requires manual promotion — all canary allocations have passed their health checks.</A.Description>
+              {{#if (can "promote deployment" namespace=@job.namespace)}}
               <A.Button
                 {{keyboard-shortcut
                   pattern=(array "p" "r" "o" "m" "o" "t" "e")
                   action=(action (perform this.promote))
                 }}
                 data-test-promote-canary @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
+                {{/if}}
             </Hds::Alert>
           {{else}}
             {{#if this.someCanariesHaveFailed}}
