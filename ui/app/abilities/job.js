@@ -47,7 +47,11 @@ export default class Job extends AbstractAbility {
   )
   canStop;
 
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportPurging')
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'specificNamespaceSupportsPurging'
+  )
   canPurge;
 
   @or(
@@ -56,6 +60,13 @@ export default class Job extends AbstractAbility {
     'specificNamespaceSupportsReverting'
   )
   canRevert;
+
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'specificNamespaceSupportsRunning'
+  )
+  canStart;
 
   policyNamespacesIncludePermissions(policies = [], permissions = []) {
     // For each policy record, extract all policies of all namespaces
@@ -92,17 +103,12 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('token.selfTokenPolicies.[]')
-  get policiesSupportPurging() {
-    return this.policyNamespacesIncludePermissions(
-      this.token.selfTokenPolicies,
-      ['submit-job', 'purge-job']
-    );
-  }
-
   @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsRunning() {
-    return this.namespaceIncludesCapability('submit-job');
+    return (
+      this.namespaceIncludesCapability('submit-job') ||
+      this.namespaceIncludesCapability('register-job')
+    );
   }
 
   @computed('rulesForNamespace.@each.capabilities')
@@ -114,7 +120,16 @@ export default class Job extends AbstractAbility {
   get specificNamespaceSupportsStopping() {
     return (
       this.namespaceIncludesCapability('submit-job') ||
-      this.namespaceIncludesCapability('deregister-job')
+      this.namespaceIncludesCapability('deregister-job') ||
+      this.namespaceIncludesCapability('purge-job')
+    );
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsPurging() {
+    return (
+      this.namespaceIncludesCapability('submit-job') ||
+      this.namespaceIncludesCapability('purge-job')
     );
   }
 
