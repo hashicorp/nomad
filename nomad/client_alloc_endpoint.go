@@ -179,7 +179,10 @@ func (a *ClientAllocations) SetPauseState(args *structs.AllocPauseRequest, reply
 	// Check namespace submit-job permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOpAnyOf(alloc.Namespace,
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityPauseAllocation,
+	) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -290,7 +293,10 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	// Check namespace submit-job permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOpAnyOf(alloc.Namespace,
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityGCAllocation,
+	) {
 		return structs.ErrPermissionDenied
 	}
 

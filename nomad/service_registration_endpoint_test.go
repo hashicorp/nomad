@@ -373,6 +373,40 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 
 				// Create a token using submit-job capability.
 				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-service-reg-delete",
+					mock.NamespacePolicy(services[0].Namespace, "", []string{acl.NamespaceCapabilityDeleteServiceRegistration})).SecretID
+
+				// Try and delete one of the services that exist but don't set
+				// an auth token.
+				serviceRegReq := &structs.ServiceRegistrationDeleteByIDRequest{
+					ID: services[0].ID,
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						Namespace: services[0].Namespace,
+						AuthToken: authToken,
+					},
+				}
+
+				var serviceRegResp structs.ServiceRegistrationDeleteByIDResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationDeleteByIDRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+			},
+			name: "ACLs enabled known service with delete-service-registration namespace token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForKeyring(t, s.RPC, "global")
+
+				// Generate and upsert some service registrations.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
+
+				// Create a token using submit-job capability.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-service-reg-delete",
 					mock.NamespacePolicy(services[0].Namespace, "", []string{acl.NamespaceCapabilityReadJob})).SecretID
 
 				// Try and delete one of the services that exist but don't set
