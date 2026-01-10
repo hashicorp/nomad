@@ -27,6 +27,7 @@ export default class TwoStepButton extends Component {
   disabled = false;
   alignRight = false;
   inlineText = false;
+  title = '';
   onConfirm() {}
   onCancel() {}
   onPrompt() {}
