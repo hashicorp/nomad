@@ -37,7 +37,7 @@ echo 'Ensuring branches'
   # merge-from second, so we proceed from there.
   for b in "$MERGE_INTO" "$MERGE_FROM"; do
     git fetch origin "$b"
-    git checkout "$b"
+    git switch "$b"
     git pull origin "$b"
   done
 echo

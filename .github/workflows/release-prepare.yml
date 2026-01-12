@@ -17,6 +17,11 @@ on:
         description: 'Version to be released'
         type: string
         required: true
+      new-branch-prefix:
+        description: 'Prefix to put in front of `version`, default "release/"'
+        type: string
+        required: false
+        default: 'release/'
       source-branch:
         description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
         type: string
@@ -38,7 +43,7 @@ on:
         value: ${{ jobs.prepare.outputs.new-branch }}
 
 env:
-  NEW_BRANCH: db-testing/${{ inputs.version }} # TODO: release/
+  NEW_BRANCH: ${{ inputs.new-branch-prefix }}${{ inputs.version }}
 
 jobs:
   prepare:

@@ -51,7 +51,7 @@ echo
 
 echo 'Ensuring source branch'
   git fetch origin "$SOURCE_BRANCH"
-  git checkout "$SOURCE_BRANCH"
+  git switch "$SOURCE_BRANCH"
   git pull origin "$SOURCE_BRANCH"
 echo
 
@@ -90,7 +90,7 @@ echo 'Committing changes'
   fi
 echo
 
-if [ "${DO_PUSH:-}" == 'true' ]; then
+if [ "$DO_PUSH" == 'true' ]; then
   echo "Pushing changes to $NEW_BRANCH"
   git push origin -f "$NEW_BRANCH"
 else

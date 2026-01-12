@@ -33,7 +33,7 @@ VARS
 
 echo 'Ensuring source branch'
   git fetch origin "$SOURCE_BRANCH"
-  git checkout "$SOURCE_BRANCH"
+  git switch "$SOURCE_BRANCH"
   git pull origin "$SOURCE_BRANCH"
 echo
 

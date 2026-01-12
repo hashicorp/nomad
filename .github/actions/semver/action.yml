@@ -31,6 +31,6 @@ runs:
       if: ${{ inputs.validate_version != '' }}
       shell: bash
       run: |-
-        test "$(semver validate ${{ inputs.validate_version }})" == 'valid' && exit 0
+        test "$(semver validate "${{ inputs.validate_version }}")" == 'valid' && exit 0
         echo "::error::Version '${{ inputs.validate_version }}' is invalid"
         exit 1
