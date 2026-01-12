@@ -1,5 +1,5 @@
 ```release-note:improvement
-cni: add /usr/libexec/cni as an additional default cni_path
+cni: Added `/usr/libexec/cni` as an additional default path within the `client.cni_path` configuration option
 ```
 ```release-note:improvement
 cni: do not fail search cni_path error
