@@ -21,8 +21,8 @@ echo 'Checking variables'
   cat <<VARS
 \`\`\`
 # required:
-export NEW_VERSION='$NEW_VERSION'
-export MERGE_INTO='$MERGE_INTO'
+export NEW_VERSION='${NEW_VERSION?is required}'
+export MERGE_INTO='${MERGE_INTO?is required}'
 # derived:
 export MERGE_FROM='$MERGE_FROM'
 # other:

@@ -21,8 +21,8 @@ echo 'Checking variables'
   cat <<VARS
 \`\`\`
 # required:
-export NEW_VERSION='$NEW_VERSION'
-export LAST_RELEASE='$LAST_RELEASE'
+export NEW_VERSION='${NEW_VERSION?is required}'
+export LAST_RELEASE='${LAST_RELEASE?is required}'
 # derived:
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 

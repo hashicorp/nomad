@@ -25,8 +25,8 @@ echo 'Checking variables'
   cat <<VARS
 \`\`\`
 # required:
-export NEW_VERSION='$NEW_VERSION'
-export SLACK_CHANNEL='$SLACK_CHANNEL'
+export NEW_VERSION='${NEW_VERSION?is required}'
+export SLACK_CHANNEL='${SLACK_CHANNEL?is required}'
 # derived:
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 export NEW_BRANCH='$NEW_BRANCH'
