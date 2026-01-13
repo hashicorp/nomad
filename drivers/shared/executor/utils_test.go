@@ -5,12 +5,15 @@ package executor
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,4 +78,51 @@ func configureTLogging(t *testing.T, testcmd *testExecCmd) {
 	testcmd.command.stdout = stdoutPw
 	testcmd.command.stderr = stderrPw
 	return
+}
+
+func Test_memoryLimits(t *testing.T) {
+	cases := []struct {
+		memory      int64
+		memoryMax   int64
+		expReserved int64
+		expHard     int64
+	}{
+		{
+			// typical case; only 'memory' is set and that is used as the hard
+			// memory limit
+			memory:      100,
+			memoryMax:   0,
+			expReserved: 0,
+			expHard:     mbToBytes(100),
+		},
+		{
+			// oversub case; both 'memory' and 'memory_max' are set and used as
+			// the reserve and hard memory limits
+			memory:      100,
+			memoryMax:   200,
+			expReserved: mbToBytes(100),
+			expHard:     mbToBytes(200),
+		},
+		{
+			// special oversub case; 'memory' is set and 'memory_max' is set to
+			// -1; which indicates there should be no hard limit (i.e. -1 / max)
+			memory:      100,
+			memoryMax:   memoryNoLimit,
+			expReserved: mbToBytes(100),
+			expHard:     memoryNoLimit,
+		},
+	}
+
+	for _, tc := range cases {
+		name := fmt.Sprintf("(%d,%d)", tc.memory, tc.memoryMax)
+		t.Run(name, func(t *testing.T) {
+			memory := structs.AllocatedMemoryResources{
+				MemoryMB:    tc.memory,
+				MemoryMaxMB: tc.memoryMax,
+			}
+			hard, reserved := memoryLimits(memory)
+			must.Eq(t, tc.expReserved, reserved)
+			must.Eq(t, tc.expHard, hard)
+		})
+	}
 }

@@ -14,6 +14,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -155,4 +156,38 @@ func IsolationMode(plugin, task string) string {
 		return task
 	}
 	return plugin
+}
+
+const (
+	// memoryNoLimit is a sentinel value for memory_max that indicates the
+	// driver should not enforce a maximum memory limit
+	memoryNoLimit = -1
+)
+
+func mbToBytes(n int64) int64 {
+	return n * 1024 * 1024
+}
+
+// memoryLimits returns the hard and soft memory limits for the task The
+// resources.memory field in the jobspec is normally interpreted as a hard limit
+// (cgroup memory.max). If oversubscription is enabled and resources.memory_max
+// is set, resources.memory_max is treated as the hard limit and
+// resources.memory is the reserve (cgroup memory.low). If resources.memory_max
+// = -1, there is no hard limit.
+//
+// Returns (memory (hard) and reservation (soft)) values in bytes.
+func memoryLimits(memory structs.AllocatedMemoryResources) (int64, int64) {
+	memHard, memReserved := memory.MemoryMaxMB, memory.MemoryMB
+
+	if memHard == memoryNoLimit {
+		// special oversub case where 'memory' is soft limit and there is no
+		// hard limit
+		return -1, mbToBytes(memReserved)
+	}
+	if memHard <= 0 {
+		// typical case where 'memory' is the hard limit
+		memHard = memReserved
+		memReserved = 0
+	}
+	return mbToBytes(memHard), mbToBytes(memReserved)
 }
