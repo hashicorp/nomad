@@ -38,8 +38,7 @@ func NewPluginsCNIFingerprint(logger hclog.Logger) Fingerprint {
 func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cniPath := req.Config.CNIPath
 	if cniPath == "" {
-		// this will be set to default by client; if empty then lets just do
-		// nothing rather than re-assume a default of our own
+		// short-circuit when no cni paths are configured
 		return nil
 	}
 
