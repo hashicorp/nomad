@@ -322,6 +322,12 @@ func (a *Attribute) Compare(b *Attribute) (int, bool) {
 	return a.comparator()(b)
 }
 
+// Equal returns true if two Attributes are comparable and have equal values.
+func (a *Attribute) Equal(b *Attribute) bool {
+	val, isComparable := a.Compare(b)
+	return isComparable && val == 0
+}
+
 // comparator returns the comparator function for the attribute
 func (a *Attribute) comparator() compareFn {
 	if a.Bool != nil {
