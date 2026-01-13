@@ -1757,7 +1757,7 @@ func DefaultConfig() *Config {
 			},
 			TemplateConfig:                 client.DefaultTemplateConfig(),
 			BindWildcardDefaultHostNetwork: true,
-			CNIPath:                        "/opt/cni/bin:/usr/libexec/cni",
+			CNIPath:                        client.DefaultCNIPath,
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),

@@ -925,7 +925,7 @@ func DefaultConfig() *Config {
 		TemplateConfig:          DefaultTemplateConfig(),
 		RPCHoldTimeout:          5 * time.Second,
 		RPCSessionConfig:        yamux.DefaultConfig(),
-		CNIPath:                 "/opt/cni/bin",
+		CNIPath:                 DefaultCNIPath,
 		CNIConfigDir:            "/opt/cni/config",
 		CNIInterfacePrefix:      "eth",
 		HostNetworks:            map[string]*structs.ClientHostNetworkConfig{},
