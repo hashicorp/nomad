@@ -9955,9 +9955,17 @@ func (c *Constraint) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Unknown constraint type %q", c.Operand))
 	}
 
-	// Ensure we have an LTarget for the constraints that need one
-	if requireLtarget && c.LTarget == "" {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+	// If the constraint must have a "LTarget" (attribute in the job spec), then
+	// ensure it is not an empty string and is valid.
+	if requireLtarget {
+		if c.LTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+		} else {
+			if err := validateConstraintAttribute(c.LTarget); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+		}
+
 	}
 
 	return mErr.ErrorOrNil()
