@@ -3784,3 +3784,80 @@ func TestFSM_DeleteACLBindingRules(t *testing.T) {
 	must.NoError(t, err)
 	must.Nil(t, out)
 }
+
+func TestFSM_ApplyJob_IdempotencyToken(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+	store := fsm.State()
+
+	parent := mock.BatchJob()
+	parent.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload:      "payload.txt",
+		MetaOptional: []string{"example"},
+	}
+	parent.ID = "parent"
+	index, _ := store.LatestIndex()
+
+	req := &structs.JobRegisterRequest{
+		Job:            parent,
+		JobModifyIndex: index,
+		Eval:           nil, // we'll fill this in later
+		WriteRequest: structs.WriteRequest{
+			IdempotencyToken: "",
+			Namespace:        parent.Namespace,
+		},
+	}
+
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// no eval should be created for a parameterized batch job
+	iter, err := store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Nil(t, iter.Next())
+
+	token := uuid.Generate()
+	dispatch1 := parent.Copy()
+	dispatch1.ParentID = parent.ID
+	dispatch1.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch1.DispatchIdempotencyToken = token
+
+	eval := mock.Eval()
+	eval.JobID = dispatch1.ID
+	req.Job = dispatch1
+	req.Eval = eval
+	req.IdempotencyToken = token // required but redundant with field in dispatched job
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	dispatch1, err = store.JobByID(nil, dispatch1.Namespace, dispatch1.ID)
+	must.NoError(t, err)
+	must.NotNil(t, dispatch1)
+	iter, err = store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Eq(t, 1, store.IterCount(iter))
+
+	dispatch2 := parent.Copy()
+	dispatch2.ParentID = parent.ID
+	dispatch2.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch2.DispatchIdempotencyToken = token
+	eval = mock.Eval()
+	eval.JobID = dispatch2.ID
+	req.Job = dispatch2
+	req.Eval = eval
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// no new dispatch or evals created
+	dispatch2, err = store.JobByID(nil, dispatch2.Namespace, dispatch2.ID)
+	must.NoError(t, err)
+	must.Nil(t, dispatch2)
+	iter, err = store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Eq(t, 1, store.IterCount(iter))
+}

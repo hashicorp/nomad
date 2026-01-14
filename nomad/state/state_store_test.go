@@ -10046,6 +10046,36 @@ func TestStateStore_CancelFollowupEvalsOnReconnect(t *testing.T) {
 	}
 }
 
+func TestStateStore_CheckIdempotencyToken(t *testing.T) {
+	ci.Parallel(t)
+
+	store := testStateStore(t)
+	parent := mock.BatchJob()
+	parent.ID = "parent"
+	index, _ := store.LatestIndex()
+
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, parent))
+
+	token := uuid.Generate()
+	dispatch1 := parent.Copy()
+	dispatch1.ParentID = parent.ID
+	dispatch1.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch1.DispatchIdempotencyToken = token
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, dispatch1))
+
+	found, err := store.CheckIdempotencyToken(parent.Namespace, parent.ID, token)
+	must.NoError(t, err)
+	must.NotNil(t, found)
+	must.Eq(t, index, found.CreateIndex)
+
+	other := uuid.Generate()
+	found, err = store.CheckIdempotencyToken(parent.Namespace, parent.ID, other)
+	must.NoError(t, err)
+	must.Nil(t, found)
+}
+
 // watchFired is a helper for unit tests that returns if the given watch set
 // fired (it doesn't care which watch actually fired). This uses a fixed
 // timeout since we already expect the event happened before calling this and

@@ -1869,6 +1869,32 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 	return nil
 }
 
+// CheckIdempotencyToken finds all children of the parent job ID and checks to
+// make sure none of them were dispatched with the idempotency token passed as
+// an argument. Returns the child job found, if any.
+func (s *StateStore) CheckIdempotencyToken(ns, parentID, idempotencyToken string) (*structs.Job, error) {
+	iter, err := s.JobsByIDPrefix(nil, ns, parentID, SortDefault)
+	if err != nil {
+		return nil, errors.New("failed to retrieve jobs for idempotency check")
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		existingDispatch := raw.(*structs.Job)
+		if existingDispatch.ParentID != parentID {
+			continue
+		}
+		if existingDispatch.DispatchIdempotencyToken == idempotencyToken {
+			return existingDispatch, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // DeleteJob is used to deregister a job
 func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.WriteTxn(index)
