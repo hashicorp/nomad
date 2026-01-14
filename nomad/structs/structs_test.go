@@ -735,7 +735,7 @@ func testJob() *Job {
 		},
 		Constraints: []*Constraint{
 			{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
