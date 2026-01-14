@@ -249,6 +249,11 @@ func getDeviceGroup(devices []*device.Device) *device.DeviceGroup {
 		Type:    deviceType,
 		Name:    deviceName,
 		Devices: devices,
+		Attributes: map[string]*structs.Attribute{
+			"cool-attribute": {
+				String: pointer.Of("attribute-wearing-sunglasses"),
+			},
+		},
 	}
 }
 

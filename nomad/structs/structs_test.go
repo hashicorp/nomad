@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
@@ -6409,6 +6410,105 @@ func TestNodeResources_Merge(t *testing.T) {
 			},
 		},
 	}, res)
+}
+
+func TestDevicesEquals(t *testing.T) {
+	ci.Parallel(t)
+
+	// we'll compare modified copies of this
+	orig := &NodeResources{
+		Devices: []*NodeDeviceResource{{
+			Vendor: "test-vendor",
+			Type:   "test-type",
+			Name:   "test-name",
+			Instances: []*NodeDevice{{
+				ID:                uuid.Short(),
+				Healthy:           true,
+				HealthDescription: "so healthy",
+				Locality: &NodeDeviceLocality{
+					PciBusID: "another-one-rides-the-bus",
+				},
+			}},
+			Attributes: map[string]*psstructs.Attribute{
+				"test-attr": {String: pointer.Of("test-value")},
+			},
+		}},
+	}
+
+	// equal copy
+	cp := orig.Copy()
+	equal := DevicesEquals(orig.Devices, cp.Devices)
+	must.True(t, equal, must.Sprint("unchanged copy should be equal"))
+
+	// unequal changes
+	for _, tc := range []struct {
+		name   string
+		change func(*NodeResources)
+	}{
+		{
+			name: "nil devices",
+			change: func(r *NodeResources) {
+				r.Devices = nil
+			},
+		},
+		{
+			name: "diff count",
+			change: func(r *NodeResources) {
+				r.Devices = []*NodeDeviceResource{} // zero
+			},
+		},
+		{
+			name: "diff vendor",
+			change: func(r *NodeResources) {
+				r.Devices[0].Vendor = "another-vendor"
+			},
+		},
+		{
+			name: "diff type",
+			change: func(r *NodeResources) {
+				r.Devices[0].Type = "another-type"
+			},
+		},
+		{
+			name: "diff name",
+			change: func(r *NodeResources) {
+				r.Devices[0].Name = "another-name"
+			},
+		},
+		{
+			name: "diff attribute count",
+			change: func(r *NodeResources) {
+				delete(r.Devices[0].Attributes, "test-attr")
+			},
+		},
+		{
+			name: "diff attribute",
+			change: func(r *NodeResources) {
+				r.Devices[0].Attributes["test-attr"] = &psstructs.Attribute{
+					String: pointer.Of("another-value"),
+				}
+			},
+		},
+		{
+			name: "diff instance count",
+			change: func(r *NodeResources) {
+				r.Devices[0].Instances = []*NodeDevice{} // zero
+			},
+		},
+		{
+			name: "diff instance",
+			change: func(r *NodeResources) {
+				r.Devices[0].Instances[0].Healthy = false
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cp = orig.Copy()
+			tc.change(cp)
+			equal = DevicesEquals(orig.Devices, cp.Devices)
+			must.False(t, equal, must.Sprint("changed device should not equal original"))
+		})
+	}
 }
 
 func TestAllocatedPortMapping_Equal(t *testing.T) {
