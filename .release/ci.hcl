@@ -17,6 +17,7 @@ project "nomad" {
     release_branches = [
       "main",
       "release/**",
+      "ci-separate-build-on-push", # TODO
     ]
   }
 }

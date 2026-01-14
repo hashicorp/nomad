@@ -16,7 +16,6 @@ on:
       # as '1.10.0' and '1.10.0+ent'.
       - main
       - 'release/[0-9].[0-9]+.x*'
-      - ci-separate-build-on-push # TODO: remove me
 
 jobs:
   build:
