@@ -5,10 +5,11 @@
 #
 # The workflow can be triggered in two ways:
 #  - pushes to main or long-lived release line branches (eg. 1.10.x)
-#  - dispatched via the release workflow (release.yml).
+#    via build-on-push.yml
+#  - dispatched via the release workflow (release.yml). TODO
 #
 # The workflow should not be triggered from short-lived release branches;
-# branches that are cut from the long-lived ones in order to release Nomad. The
+# branches that are cut from the long-lived ones in order to release Nomad. The TODO: huh?
 # release workflow should be the only process responsible for triggering the
 # build workflow. This is because the release workflow performs a commit and
 # push of updated generated assets to the release branch. If this push triggers
@@ -16,16 +17,32 @@
 # Git SHA and result in a last-write-wins to our internal store.
 name: build
 
+# special identifier set only on workflow dispatch,
+# so the release automation can watch for a specific run.
+run-name: ${{ inputs.run-name || 'Build' }}
+
 on:
-  push:
-    branches:
-      # 'main' is our forever branch where all changes get merged.
-      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
-      # '1.10.x' and '1.10.x+ent' but excludes short-lived release branches such
-      # as '1.10.0' and '1.10.0+ent'.
-      - main
-      - 'release/[0-9].[0-9]+.x*'
+  # we call `gh workflow run` during releases
   workflow_dispatch:
+    inputs:
+      run-name:
+        description: "Value to specify as the workflow run's run-name"
+        type: string
+        required: false
+        default: ''
+      build-ref:
+        description: 'The git ref to build from'
+        type: string
+        default: ''
+        required: false
+      make-prerelease:
+        description: 'Run prerelease to generate files'
+        type: 'boolean'
+        required: false
+        default: false # `make prerelease` will have already been run by release-prepare.yml
+
+  # build-on-push.yml uses this as a reusable workflow on push
+  workflow_call:
     inputs:
       build-ref:
         description: 'The git ref to build from'
@@ -36,7 +53,7 @@ on:
         description: "Run prerelease to generate files"
         type: "boolean"
         required: false
-        default: true
+        default: true # we do want to test prerelease on pushes
 
 env:
   PKG_NAME: "nomad"

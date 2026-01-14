@@ -1,0 +1,25 @@
+name: Build push
+
+# This being a separate workflow from build.yml
+# allows the build logic to be exercised on push
+# without also triggering CRT prepare workflow
+# every time. It also means that runs for this
+# workflow can have their default (informative)
+# run name.
+
+on:
+  push:
+    branches:
+      # 'main' is our forever branch where all changes get merged.
+      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
+      # '1.10.x' and '1.10.x+ent' but excludes short-lived release branches such
+      # as '1.10.0' and '1.10.0+ent'.
+      - main
+      - 'release/[0-9].[0-9]+.x*'
+      - ci-separate-build-on-push # TODO: remove me
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      build-ref: ${{ github.ref }}
