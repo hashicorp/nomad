@@ -1,3 +1,0 @@
-# Do not add existing client/drivers/test-resources/qemu/* files to LFS.
-# Adding existing files to LFS requires rewriting history back to the point
-# those files were added.

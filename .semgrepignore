@@ -1,3 +1,0 @@
-# Disable Semgrep on structs.go until it stops breaking.
-nomad/structs/structs.go
-
