@@ -636,7 +636,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 
 	if req.IdempotencyToken != "" {
 		found, err := n.state.CheckIdempotencyToken(
-			req.RequestNamespace(), req.Job.ParentID, req.IdempotencyToken)
+			req.Job.Namespace, req.Job.ParentID, req.IdempotencyToken)
 		if err != nil {
 			n.logger.Error("failed to check idempotency token", "error", err)
 			return err

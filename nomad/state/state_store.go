@@ -1875,8 +1875,7 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 func (s *StateStore) CheckIdempotencyToken(ns, parentID, idempotencyToken string) (*structs.Job, error) {
 	iter, err := s.JobsByIDPrefix(nil, ns, parentID, SortDefault)
 	if err != nil {
-		const errMsg = "failed to retrieve jobs for idempotency check"
-		return nil, fmt.Errorf(errMsg)
+		return nil, errors.New("failed to retrieve jobs for idempotency check")
 	}
 
 	for {
