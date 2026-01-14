@@ -1,0 +1,7 @@
+```release-note:improvement
+sentinel: Added opt-in support for the `http` module via the `sentinel.additional_enabled_modules` configuration
+```
+
+```release-note:improvement
+sentinel: Added a new `nomad_var` built-in import for fetching Nomad variables under the `nomad/sentinel` path for use in policy evaluation
+```

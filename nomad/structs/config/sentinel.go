@@ -11,8 +11,14 @@ import (
 
 // SentinelConfig is configuration specific to Sentinel
 type SentinelConfig struct {
-	// Imports are the configured imports
+	// Imports are configured external imports
 	Imports []*SentinelImport `hcl:"import,expand"`
+
+	// AdditionalEnabledModules specifies allowing "stdlib" imports that are
+	// normally disallowed. We currently enable all Sentinel's standard imports
+	// except "http". In the future if any new imports aren't automatically
+	// enabled, users can override that here
+	AdditionalEnabledModules []string `hcl:"additional_enabled_modules"`
 }
 
 func (s *SentinelConfig) Copy() *SentinelConfig {
@@ -22,6 +28,7 @@ func (s *SentinelConfig) Copy() *SentinelConfig {
 
 	ns := *s
 	ns.Imports = helper.CopySlice(s.Imports)
+	ns.AdditionalEnabledModules = slices.Clone(s.AdditionalEnabledModules)
 	return &ns
 }
 
@@ -42,11 +49,16 @@ func (s *SentinelImport) Copy() *SentinelImport {
 	return &ns
 }
 
-// Merge is used to merge two Sentinel configs together. The settings from the input always take precedence.
+// Merge is used to merge two Sentinel configs together. All slice fields are
+// combined.
 func (s *SentinelConfig) Merge(b *SentinelConfig) *SentinelConfig {
 	result := *s
 	if len(b.Imports) > 0 {
 		result.Imports = append(result.Imports, b.Imports...)
+	}
+	if len(b.AdditionalEnabledModules) > 0 {
+		result.AdditionalEnabledModules = append(
+			result.AdditionalEnabledModules, b.AdditionalEnabledModules...)
 	}
 	return &result
 }

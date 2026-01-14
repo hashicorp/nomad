@@ -427,12 +427,12 @@ func ValidatePath(path string) error {
 
 	// Don't allow a variable with path "nomad"
 	if len(parts) == 1 {
-		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\", \"nomad/job-templates\", or below")
+		return fmt.Errorf(`"nomad" is a reserved top-level directory path, but you may write variables to "nomad/jobs", "nomad/job-templates", "nomad/sentinel", or below`)
 	}
 
 	switch {
-	case parts[1] == "jobs":
-		// Any path including "nomad/jobs" is valid
+	case parts[1] == "jobs" || parts[1] == "sentinel":
+		// Any path including "nomad/jobs" or "nomad/sentinel" is valid
 		return nil
 	case parts[1] == "job-templates" && len(parts) == 3:
 		// Paths including "nomad/job-templates" is valid, provided they have single further path part
