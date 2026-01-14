@@ -3552,7 +3552,8 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 		return false
 	}
 	for k, v := range n.Attributes {
-		if otherV, ok := o.Attributes[k]; !ok || v != otherV {
+		otherV, ok := o.Attributes[k]
+		if !ok || !v.Equal(otherV) {
 			return false
 		}
 	}
@@ -3610,7 +3611,7 @@ func (n *NodeDevice) Equal(o *NodeDevice) bool {
 		return false
 	}
 
-	return false
+	return true
 }
 
 func (n *NodeDevice) Copy() *NodeDevice {
