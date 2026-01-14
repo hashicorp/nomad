@@ -1,0 +1,24 @@
+name: Build push
+
+# This being a separate workflow from build.yml allows the build logic
+# to be exercised on push without also triggering CRT prepare workflow
+# every time. It also allows runs for this workflow to keep their default
+# default run name (auto-truncated commit message).
+
+on:
+  push:
+    branches:
+      # 'main' is our forever branch where all changes get merged.
+      # It should always be buildable.
+      - main
+      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
+      # '1.10.x' and '1.10.x+ent', but excludes specific release branches like
+      # '1.10.0' and '1.10.0+ent' (they are instead built via workflow_dispatch
+      # to build.yml directly during a release).
+      - 'release/[0-9].[0-9]+.x*'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      build-ref: ${{ github.ref }}
