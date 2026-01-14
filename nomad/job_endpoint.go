@@ -2045,40 +2045,24 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	// Avoid creating new dispatched jobs for retry requests, by using the idempotency token
+	// Avoid creating new dispatched jobs for retried requests, by using the
+	// idempotency token
 	if args.IdempotencyToken != "" {
-		// Fetch all jobs that match the parameterized job ID prefix
-		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
+		found, err := snap.CheckIdempotencyToken(
+			parameterizedJob.Namespace, parameterizedJob.ID, args.IdempotencyToken)
 		if err != nil {
 			const errMsg = "failed to retrieve jobs for idempotency check"
 			j.logger.Error(errMsg, "error", err)
 			return fmt.Errorf(errMsg)
 		}
-
-		// Iterate
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-
-			// Ensure the parent ID is an exact match
-			existingJob := raw.(*structs.Job)
-			if existingJob.ParentID != parameterizedJob.ID {
-				continue
-			}
-
-			// Idempotency tokens match
-			if existingJob.DispatchIdempotencyToken == args.IdempotencyToken {
-				// The existing job has not yet been garbage collected.
-				// Registering a new job would violate the idempotency token.
-				// Return the existing job.
-				reply.JobCreateIndex = existingJob.CreateIndex
-				reply.DispatchedJobID = existingJob.ID
-				reply.Index = existingJob.ModifyIndex
-
-				return nil
-			}
+		if found != nil {
+			// The existing job has not yet been garbage collected. Registering
+			// a new job would violate the idempotency token. Return the ID and
+			// index of the existing job.
+			reply.JobCreateIndex = found.CreateIndex
+			reply.DispatchedJobID = found.ID
+			reply.Index = found.ModifyIndex
+			return nil
 		}
 	}
 
