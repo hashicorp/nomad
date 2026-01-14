@@ -12,18 +12,18 @@ var (
 	// validConstraintExactTargets are the exact targets that can be used within
 	// a job specification constraint target.
 	validConstraintExactTargets = []string{
-		"node.unique.id",
-		"node.datacenter",
-		"node.unique.name",
-		"node.class",
-		"node.pool",
+		"${node.unique.id}",
+		"${node.datacenter}",
+		"${node.unique.name}",
+		"${node.class}",
+		"${node.pool}",
 	}
 
 	// validConstraintPrefixTargets are the valid prefixes on constraint targets
 	// used within a job specification constraint.
 	validConstraintPrefixTargets = []string{
-		"attr.",
-		"meta.",
+		"${attr.",
+		"${meta.",
 	}
 )
 
@@ -34,27 +34,27 @@ func validateConstraintAttribute(target string) error {
 
 	// If no prefix delimieter is included, we assume this is a literal value
 	// and is therefore valid.
-	if !strings.HasPrefix(target, "${") {
+	if !strings.HasPrefix(target, "$") {
 		return nil
 	}
 
-	// Must have closing brace
+	// Must have the correct opening and closing delimeters.
+	if !strings.HasPrefix(target, "${") {
+		return fmt.Errorf("attribute %q is missing an opening brace", target)
+	}
 	if !strings.HasSuffix(target, "}") {
 		return fmt.Errorf("attribute %q is missing a closing brace", target)
 	}
 
-	// Extract the interpolatable content between the delimiters.
-	interior := strings.TrimSuffix(strings.TrimPrefix(target, "${"), "}")
-
 	// Perform our exact target matching first. If the target does not hit this
 	// exact match, we will fall through to the prefix match check.
-	if slices.Contains(validConstraintExactTargets, interior) {
+	if slices.Contains(validConstraintExactTargets, target) {
 		return nil
 	}
 
 	// Check the target against our valid prefixes.
 	for _, prefix := range validConstraintPrefixTargets {
-		if strings.HasPrefix(interior, prefix) {
+		if strings.HasPrefix(target, prefix) {
 			return nil
 		}
 	}

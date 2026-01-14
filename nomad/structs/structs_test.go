@@ -3658,7 +3658,7 @@ func TestConstraint_Validate(t *testing.T) {
 		{
 			name: "valid",
 			inputConstraint: &Constraint{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
@@ -3667,7 +3667,7 @@ func TestConstraint_Validate(t *testing.T) {
 		{
 			name: "invalid regex",
 			inputConstraint: &Constraint{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "(foo",
 				Operand: ConstraintRegex,
 			},
@@ -3694,7 +3694,7 @@ func TestConstraint_Validate(t *testing.T) {
 		{
 			name: "valid semver",
 			inputConstraint: &Constraint{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: ">= 0.6.1",
 				Operand: ConstraintSemver,
 			},
@@ -3761,7 +3761,7 @@ func TestConstraint_Validate(t *testing.T) {
 				RTarget: "foo",
 				Operand: ConstraintRegex,
 			},
-			expectedErrorMsg: "No LTarget",
+			expectedErrorMsg: "no attribute provided but is required by operator",
 		},
 		{
 			name: "invalid operand",

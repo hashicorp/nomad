@@ -97,6 +97,11 @@ func TestValidateConstraintTarget(t *testing.T) {
 			inputTarget:      "${}",
 			expectedErrorMsg: `unsupported attribute "${}"`,
 		},
+		{
+			name:             "missing starting brace",
+			inputTarget:      "$node.datacenter}",
+			expectedErrorMsg: `attribute "$node.datacenter}" is missing an opening brace`,
+		},
 	}
 
 	for _, tc := range cases {

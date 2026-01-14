@@ -9959,7 +9959,7 @@ func (c *Constraint) Validate() error {
 	// ensure it is not an empty string and is valid.
 	if requireLtarget {
 		if c.LTarget == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+			mErr.Errors = append(mErr.Errors, errors.New("no attribute provided but is required by operator"))
 		} else {
 			if err := validateConstraintAttribute(c.LTarget); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
