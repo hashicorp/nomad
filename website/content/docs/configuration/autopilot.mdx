@@ -24,13 +24,14 @@ how to configure and use Autopilot.
 
 ```hcl
 autopilot {
-    cleanup_dead_servers      = true
-    last_contact_threshold    = "200ms"
-    max_trailing_logs         = 250
-    server_stabilization_time = "10s"
-    enable_redundancy_zones   = false
-    disable_upgrade_migration = false
-    enable_custom_upgrades    = false
+  cleanup_dead_servers      = true
+  last_contact_threshold    = "200ms"
+  max_trailing_logs         = 250
+  min_quorum                = 1
+  server_stabilization_time = "10s"
+  enable_redundancy_zones   = false
+  disable_upgrade_migration = false
+  enable_custom_upgrades    = false
 }
 ```
 
@@ -45,6 +46,10 @@ autopilot {
 
 - `max_trailing_logs` `(int: 250)` specifies the maximum number of log entries
   that a server can trail the leader by before being considered unhealthy.
+
+- `min_quorum` `(int: 0)` - Sets the minimum number of servers necessary in a
+  cluster. Autopilot will stop pruning dead servers when this minimum is
+  reached. There is no default.
 
 - `server_stabilization_time` `(string: "10s")` - Specifies the minimum amount of
   time a server must be stable in the 'healthy' state before being added to the
