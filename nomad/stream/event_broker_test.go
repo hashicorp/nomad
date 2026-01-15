@@ -5,12 +5,14 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
@@ -429,6 +431,52 @@ func TestEventBroker_synctest(t *testing.T) {
 
 				sub.Unsubscribe()
 				synctest.Wait()
+			},
+		},
+		{
+			name:   "overflow-buffer-no-unsubscribe",
+			buffer: 1,
+			run: func(t *testing.T, eb *EventBroker, ctx context.Context, cancel context.CancelFunc) {
+				sub, err := eb.Subscribe(&SubscribeRequest{
+					Topics:       map[structs.Topic][]string{"*": {"*"}},
+					Authenticate: func() error { return nil },
+				})
+				must.NoError(t, err)
+
+				synctest.Wait()
+
+				// no goroutine calling Next
+
+				// Publish 1000 events on 1000 topics, each with different key
+				// and payload
+				for i := range 1000 {
+					index := uint64(i + 1)
+					eb.Publish(&structs.Events{
+						Index: index,
+						Events: []structs.Event{
+							{
+								Index:   index,
+								Topic:   structs.Topic(uuid.Generate()),
+								Key:     fmt.Sprintf("k%v", index),
+								Payload: fmt.Sprintf("p%v", index),
+							},
+						},
+					})
+
+					// allow publish handling to run
+					synctest.Wait()
+				}
+
+				// we consume less than we publish, simulates a deluge of events
+				for range 50 {
+					go func() {
+						_, err = sub.Next(context.Background())
+						must.Error(t, err)
+						must.ErrorContains(t, err, "event dropped from buffer")
+					}()
+
+					synctest.Wait()
+				}
 			},
 		},
 	}
