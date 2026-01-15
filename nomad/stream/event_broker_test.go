@@ -320,88 +320,145 @@ func TestEventBroker_handleACLUpdates(t *testing.T) {
 // down via context cancellation.
 func TestEventBroker_synctest(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.TODO())
-		defer cancel()
+		testCases := []struct {
+			name string
+			run  func(t *testing.T)
+		}{
+			{
+				name: "subscribe-consume-unsubscribe-cancel",
+				run: func(t *testing.T) {
+					ctx, cancel := context.WithCancel(context.TODO())
+					defer cancel()
 
-		eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 10})
-		must.NoError(t, err)
+					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 10})
+					must.NoError(t, err)
 
-		req := &SubscribeRequest{
-			Token: "test-token",
-			Topics: map[structs.Topic][]string{
-				"*": {"*"},
+					req := &SubscribeRequest{
+						Token: "test-token",
+						Topics: map[structs.Topic][]string{
+							"*": {"*"},
+						},
+						Authenticate: func() error { return nil },
+					}
+
+					sub, err := eb.Subscribe(req)
+					must.NoError(t, err)
+
+					// give synctest a checkpoint after subscribe so it can account for
+					// goroutines started during Subscribe.
+					synctest.Wait()
+
+					// start a consumer goroutine that calls Next until the subscription is
+					// closed.
+					go func() {
+						for {
+							_, err := sub.Next(ctx)
+							if err != nil {
+								return
+							}
+						}
+					}()
+
+					// checkpoint to allow the consumer goroutine to be scheduled.
+					synctest.Wait()
+
+					// ensure the consumer wakes up at least once.
+					eb.Publish(&structs.Events{
+						Index:  1,
+						Events: []structs.Event{{Index: 1, Topic: "any", Key: "k", Payload: "p"}},
+					})
+
+					// give goroutines a scheduling point to run
+					synctest.Wait()
+
+					// unsubscribe and cancel the broker context to trigger graceful
+					// shutdown; then wait for goroutines to be scheduled again
+					sub.Unsubscribe()
+					cancel()
+					synctest.Wait()
+				},
 			},
-			Authenticate: func() error { return nil },
+			{
+				name: "quick-subscribe-unsubscribe-exercise-acl-and-publish-paths",
+				run: func(t *testing.T) {
+					ctx, cancel := context.WithCancel(context.Background())
+					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 5})
+					must.NoError(t, err)
+
+					sub, err := eb.Subscribe(&SubscribeRequest{
+						Topics:       map[structs.Topic][]string{"*": {"*"}},
+						Authenticate: func() error { return nil },
+					})
+					must.NoError(t, err)
+
+					// checkpoint after subscribe to allow synctest to account for any
+					// goroutines spawned by Subscribe.
+					synctest.Wait()
+
+					// start and immediately unsubscribe to ensure no goroutine is left
+					// waiting. Rely on synctest to detect leaks.
+					go func() {
+						_, _ = sub.Next(context.Background())
+					}()
+
+					// allow the quick consumer goroutine to be scheduled
+					synctest.Wait()
+
+					sub.Unsubscribe()
+
+					// give synctest a point to observe the effect of Unsubscribe
+					synctest.Wait()
+
+					cancel()
+					synctest.Wait()
+				},
+			},
+			{
+				name: "publish-while-subscriber-idle",
+				run: func(t *testing.T) {
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+
+					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 5})
+					must.NoError(t, err)
+
+					sub, err := eb.Subscribe(&SubscribeRequest{
+						Topics:       map[structs.Topic][]string{"*": {"*"}},
+						Authenticate: func() error { return nil },
+					})
+					must.NoError(t, err)
+
+					synctest.Wait()
+
+					// no goroutine calling Next
+
+					// Publish an event to exercise the publish path while the subscriber is
+					// idle
+					eb.Publish(&structs.Events{
+						Index: 1,
+						Events: []structs.Event{
+							{Index: 1, Topic: "any", Key: "k", Payload: "p"},
+						},
+					})
+
+					// allow publish handling to run
+					synctest.Wait()
+
+					sub.Unsubscribe()
+					synctest.Wait()
+
+					cancel()
+					synctest.Wait()
+				},
+			},
 		}
 
-		sub, err := eb.Subscribe(req)
-		must.NoError(t, err)
-
-		// give synctest a checkpoint after subscribe so it can account for
-		// goroutines started during Subscribe.
-		synctest.Wait()
-
-		// start a consumer goroutine that calls Next until the subscription is
-		// closed.
-		go func() {
-			for {
-				_, err := sub.Next(ctx)
-				if err != nil {
-					return
-				}
-			}
-		}()
-
-		// checkpoint to allow the consumer goroutine to be scheduled.
-		synctest.Wait()
-
-		// ensure the consumer wakes up at least once.
-		eb.Publish(&structs.Events{
-			Index:  1,
-			Events: []structs.Event{{Index: 1, Topic: "any", Key: "k", Payload: "p"}},
-		})
-
-		// give goroutines a scheduling point to run
-		synctest.Wait()
-
-		// unsubscribe and cancel the broker context to trigger graceful
-		// shutdown; then wait for goroutines to be scheduled again
-		sub.Unsubscribe()
-		cancel()
-		synctest.Wait()
-
-		// create another subscription and shut down quickly to exercise the ACL
-		// update goroutine and the publish goroutine shutdown paths.
-		ctx2, cancel2 := context.WithCancel(context.Background())
-		eb2, err := NewEventBroker(ctx2, EventBrokerCfg{EventBufferSize: 5})
-		must.NoError(t, err)
-
-		sub2, err := eb2.Subscribe(&SubscribeRequest{
-			Topics:       map[structs.Topic][]string{"*": {"*"}},
-			Authenticate: func() error { return nil },
-		})
-		must.NoError(t, err)
-
-		// checkpoint after subscribe to allow synctest to account for any
-		// goroutines spawned by Subscribe.
-		synctest.Wait()
-
-		// start and immediately unsubscribe to ensure no goroutine is left
-		// waiting. Rely on synctest to detect leaks.
-		go func() {
-			_, _ = sub2.Next(context.Background())
-		}()
-
-		// allow the quick consumer goroutine to be scheduled
-		synctest.Wait()
-
-		sub2.Unsubscribe()
-
-		// give synctest a point to observe the effect of Unsubscribe
-		synctest.Wait()
-
-		cancel2()
-		synctest.Wait()
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				tc.run(t)
+			})
+		}
 	})
 }
 
