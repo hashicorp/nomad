@@ -319,147 +319,141 @@ func TestEventBroker_handleACLUpdates(t *testing.T) {
 // when subscriptions are created, consumed, unsubscribed and the broker is shut
 // down via context cancellation.
 func TestEventBroker_synctest(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		testCases := []struct {
-			name string
-			run  func(t *testing.T)
-		}{
-			{
-				name: "subscribe-consume-unsubscribe-cancel",
-				run: func(t *testing.T) {
-					ctx, cancel := context.WithCancel(context.TODO())
-					defer cancel()
+	testCases := []struct {
+		name   string
+		buffer int
+		run    func(t *testing.T, eb *EventBroker, ctx context.Context, cancel context.CancelFunc)
+	}{
+		{
+			name:   "subscribe-consume-unsubscribe-cancel",
+			buffer: 10,
+			run: func(t *testing.T, eb *EventBroker, ctx context.Context, cancel context.CancelFunc) {
+				req := &SubscribeRequest{
+					Token: "test-token",
+					Topics: map[structs.Topic][]string{
+						"*": {"*"},
+					},
+					Authenticate: func() error { return nil },
+				}
 
-					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 10})
-					must.NoError(t, err)
+				sub, err := eb.Subscribe(req)
+				must.NoError(t, err)
 
-					req := &SubscribeRequest{
-						Token: "test-token",
-						Topics: map[structs.Topic][]string{
-							"*": {"*"},
-						},
-						Authenticate: func() error { return nil },
-					}
+				// give synctest a checkpoint after subscribe so it can account for
+				// goroutines started during Subscribe.
+				synctest.Wait()
 
-					sub, err := eb.Subscribe(req)
-					must.NoError(t, err)
-
-					// give synctest a checkpoint after subscribe so it can account for
-					// goroutines started during Subscribe.
-					synctest.Wait()
-
-					// start a consumer goroutine that calls Next until the subscription is
-					// closed.
-					go func() {
-						for {
-							_, err := sub.Next(ctx)
-							if err != nil {
-								return
-							}
+				// start a consumer goroutine that calls Next until the subscription is
+				// closed.
+				go func() {
+					for {
+						_, err := sub.Next(ctx)
+						if err != nil {
+							return
 						}
-					}()
+					}
+				}()
 
-					// checkpoint to allow the consumer goroutine to be scheduled.
-					synctest.Wait()
+				// checkpoint to allow the consumer goroutine to be scheduled.
+				synctest.Wait()
 
-					// ensure the consumer wakes up at least once.
-					eb.Publish(&structs.Events{
-						Index:  1,
-						Events: []structs.Event{{Index: 1, Topic: "any", Key: "k", Payload: "p"}},
-					})
+				// ensure the consumer wakes up at least once.
+				eb.Publish(&structs.Events{
+					Index:  1,
+					Events: []structs.Event{{Index: 1, Topic: "any", Key: "k", Payload: "p"}},
+				})
 
-					// give goroutines a scheduling point to run
-					synctest.Wait()
+				// give goroutines a scheduling point to run
+				synctest.Wait()
 
-					// unsubscribe and cancel the broker context to trigger graceful
-					// shutdown; then wait for goroutines to be scheduled again
-					sub.Unsubscribe()
-					cancel()
-					synctest.Wait()
-				},
+				// unsubscribe to trigger shutdown of subscription goroutines; do not
+				// cancel the broker context here - the wrapper will cancel it.
+				sub.Unsubscribe()
+				synctest.Wait()
 			},
-			{
-				name: "quick-subscribe-unsubscribe-exercise-acl-and-publish-paths",
-				run: func(t *testing.T) {
-					ctx, cancel := context.WithCancel(context.Background())
-					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 5})
-					must.NoError(t, err)
+		},
+		{
+			name:   "quick-subscribe-unsubscribe-exercise-acl-and-publish-paths",
+			buffer: 5,
+			run: func(t *testing.T, eb *EventBroker, ctx context.Context, cancel context.CancelFunc) {
+				sub, err := eb.Subscribe(&SubscribeRequest{
+					Topics:       map[structs.Topic][]string{"*": {"*"}},
+					Authenticate: func() error { return nil },
+				})
+				must.NoError(t, err)
 
-					sub, err := eb.Subscribe(&SubscribeRequest{
-						Topics:       map[structs.Topic][]string{"*": {"*"}},
-						Authenticate: func() error { return nil },
-					})
-					must.NoError(t, err)
+				// checkpoint after subscribe to allow synctest to account for any
+				// goroutines spawned by Subscribe.
+				synctest.Wait()
 
-					// checkpoint after subscribe to allow synctest to account for any
-					// goroutines spawned by Subscribe.
-					synctest.Wait()
+				// start and immediately unsubscribe to ensure no goroutine is left
+				// waiting. Rely on synctest to detect leaks.
+				go func() {
+					_, _ = sub.Next(context.Background())
+				}()
 
-					// start and immediately unsubscribe to ensure no goroutine is left
-					// waiting. Rely on synctest to detect leaks.
-					go func() {
-						_, _ = sub.Next(context.Background())
-					}()
+				// allow the quick consumer goroutine to be scheduled
+				synctest.Wait()
 
-					// allow the quick consumer goroutine to be scheduled
-					synctest.Wait()
+				sub.Unsubscribe()
 
-					sub.Unsubscribe()
-
-					// give synctest a point to observe the effect of Unsubscribe
-					synctest.Wait()
-
-					cancel()
-					synctest.Wait()
-				},
+				// give synctest a point to observe the effect of Unsubscribe
+				synctest.Wait()
 			},
-			{
-				name: "publish-while-subscriber-idle",
-				run: func(t *testing.T) {
-					ctx, cancel := context.WithCancel(context.Background())
-					defer cancel()
+		},
+		{
+			name:   "publish-while-subscriber-idle",
+			buffer: 5,
+			run: func(t *testing.T, eb *EventBroker, ctx context.Context, cancel context.CancelFunc) {
+				sub, err := eb.Subscribe(&SubscribeRequest{
+					Topics:       map[structs.Topic][]string{"*": {"*"}},
+					Authenticate: func() error { return nil },
+				})
+				must.NoError(t, err)
 
-					eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 5})
-					must.NoError(t, err)
+				synctest.Wait()
 
-					sub, err := eb.Subscribe(&SubscribeRequest{
-						Topics:       map[structs.Topic][]string{"*": {"*"}},
-						Authenticate: func() error { return nil },
-					})
-					must.NoError(t, err)
+				// no goroutine calling Next
 
-					synctest.Wait()
+				// Publish an event to exercise the publish path while the subscriber is
+				// idle
+				eb.Publish(&structs.Events{
+					Index: 1,
+					Events: []structs.Event{
+						{Index: 1, Topic: "any", Key: "k", Payload: "p"},
+					},
+				})
 
-					// no goroutine calling Next
+				// allow publish handling to run
+				synctest.Wait()
 
-					// Publish an event to exercise the publish path while the subscriber is
-					// idle
-					eb.Publish(&structs.Events{
-						Index: 1,
-						Events: []structs.Event{
-							{Index: 1, Topic: "any", Key: "k", Payload: "p"},
-						},
-					})
-
-					// allow publish handling to run
-					synctest.Wait()
-
-					sub.Unsubscribe()
-					synctest.Wait()
-
-					cancel()
-					synctest.Wait()
-				},
+				sub.Unsubscribe()
+				synctest.Wait()
 			},
-		}
+		},
+	}
 
-		for _, tc := range testCases {
-			tc := tc
-			t.Run(tc.name, func(t *testing.T) {
-				tc.run(t)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.TODO())
+				defer func() {
+					// ensure cancel is called to allow broker shutdown even if the test
+					// case did not explicitly call it.
+					cancel()
+				}()
+
+				eb, err := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: int64(tc.buffer)})
+				must.NoError(t, err)
+
+				// run the case
+				tc.run(t, eb, ctx, cancel)
+
+				// give synctest a scheduling point to observe goroutine shutdown
+				synctest.Wait()
 			})
-		}
-	})
+		})
+	}
 }
 
 func consumeSubscription(ctx context.Context, sub *Subscription) <-chan subNextResult {
