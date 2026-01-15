@@ -486,103 +486,104 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
 module('Acceptance | job versions (with client token)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  let namespace2;
+  let namespace3;
+  let job2;
+  let job3;
 
   hooks.beforeEach(async function () {
     server.create('node-pool');
-    job = server.create('job', { createAllocations: false });
-    versions = server.db.jobVersions.where({ jobId: job.id });
-
+    server.create('namespace');
     server.create('token');
-    const clientToken = server.create('token');
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
+    namespace = server.create('namespace');
 
-    await Versions.visit({ id: job.id });
-  });
-
-  test('reversion buttons are disabled when the token lacks permissions', async function (assert) {
-    versions = Versions.versions;
-    const versionRowWithReversion = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
-    )[0];
-
-    if (versionRowWithReversion) {
-      assert.ok(versionRowWithReversion.revertToButton.isDisabled);
-    } else {
-      assert.expect(0);
-    }
-
-    window.localStorage.clear();
-  });
-
-  test('reversion buttons are available when the client token has permissions', async function (assert) {
-    const REVERT_NAMESPACE = 'revert-namespace';
-    window.localStorage.clear();
-    const clientToken = server.create('token');
-
-    server.create('namespace', { id: REVERT_NAMESPACE });
-
-    const job = server.create('job', {
-      groupCount: 0,
+    job = server.create('job', {
+      namespaceId: namespace.id,
       createAllocations: false,
-      shallow: true,
-      noActiveDeployment: true,
-      namespaceId: REVERT_NAMESPACE,
+      noDeployments: true,
+      type: 'service',
     });
 
+    // Create some versions
+    server.create('job-version', {
+      job: job,
+      version: 0,
+    });
+    server.create('job-version', {
+      job: job,
+      version: 1,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
+    });
+
+    namespace2 = server.create('namespace');
+    job2 = server.create('job', {
+      namespaceId: namespace2.id,
+      createAllocations: false,
+      noDeployments: true,
+      type: 'service',
+    });
+
+    // Create job2 versions
+    server.create('job-version', {
+      job: job2,
+      version: 0,
+    });
+    server.create('job-version', {
+      job: job2,
+      version: 1,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
+    });
+
+    namespace3 = server.create('namespace');
+    job3 = server.create('job', {
+      namespaceId: namespace3.id,
+      createAllocations: false,
+      noDeployments: true,
+      type: 'service',
+    });
+
+    // Create job3 versions
+    server.create('job-version', {
+      job: job3,
+      version: 0,
+    });
+    server.create('job-version', {
+      job: job3,
+      version: 1,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
+    });
+  });
+
+  test('Revert buttons are disabled when the token lacks permissions', async function (assert) {
+    window.localStorage.clear();
+
+    const clientToken = server.create('token');
+
     const policy = server.create('policy', {
-      id: 'something',
-      name: 'something',
+      id: 'revert-policy',
+      name: 'revert-policy',
       rulesJSON: {
         Namespaces: [
           {
-            Name: REVERT_NAMESPACE,
+            Name: namespace.id,
             Capabilities: ['submit-job'],
           },
-        ],
-      },
-    });
-
-    clientToken.policyIds = [policy.id];
-    clientToken.save();
-
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
-
-    versions = server.db.jobVersions.where({ jobId: job.id });
-    await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
-    const versionRowWithReversion = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
-    )[0];
-
-    if (versionRowWithReversion) {
-      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
-    } else {
-      assert.expect(0);
-    }
-  });
-
-  test('reversion buttons are available when the client token has fine grain permission', async function (assert) {
-    const REVERT_NAMESPACE = 'revert-namespace';
-    window.localStorage.clear();
-    const clientToken = server.create('token');
-
-    server.create('namespace', { id: REVERT_NAMESPACE });
-
-    const job = server.create('job', {
-      groupCount: 0,
-      createAllocations: false,
-      shallow: true,
-      noActiveDeployment: true,
-      namespaceId: REVERT_NAMESPACE,
-    });
-
-    const policy = server.create('policy', {
-      id: 'something',
-      name: 'something',
-      rulesJSON: {
-        Namespaces: [
           {
-            Name: REVERT_NAMESPACE,
+            Name: namespace2.id,
             Capabilities: ['revert-job'],
+          },
+          {
+            Name: namespace2.id,
+            Capabilities: ['read-job'],
           },
         ],
       },
@@ -593,16 +594,229 @@ module('Acceptance | job versions (with client token)', function (hooks) {
 
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    versions = server.db.jobVersions.where({ jobId: job.id });
-    await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
-    const versionRowWithReversion = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
-    )[0];
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
+    Versions.versions.forEach((versionRow) => {
+      if (versionRow.number === job.version) {
+        assert.ok(versionRow.revertToButton.isHidden);
+      } else {
+        assert.ok(versionRow.revertToButton.isPresent);
+        assert.notOk(versionRow.revertToButton.isDisabled);
+      }
+    });
 
-    if (versionRowWithReversion) {
-      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
-    } else {
-      assert.expect(0);
-    }
+    await Versions.visit({ id: `${job2.id}@${namespace2.id}` });
+    Versions.versions.forEach((versionRow) => {
+      if (versionRow.number === job.version) {
+        assert.ok(versionRow.revertToButton.isHidden);
+      } else {
+        assert.ok(versionRow.revertToButton.isPresent);
+        assert.notOk(versionRow.revertToButton.isDisabled);
+      }
+    });
+
+    await Versions.visit({ id: `${job3.id}@${namespace3.id}` });
+    Versions.versions.forEach((versionRow) => {
+      if (versionRow.number === job.version) {
+        assert.ok(versionRow.revertToButton.isHidden);
+      } else {
+        assert.ok(versionRow.revertToButton.isPresent);
+        assert.ok(versionRow.revertToButton.isDisabled);
+      }
+    });
+  });
+
+  test('Clone buttons are removed when the token lacks job-register permissions', async function (assert) {
+    window.localStorage.clear();
+
+    const clientToken = server.create('token');
+
+    const policy = server.create('policy', {
+      id: 'clone-policy',
+      name: 'clone-policy',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: '*',
+            Capabilities: ['read-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .doesNotExist(
+        'Current job version should not have clone or revert buttons'
+      );
+  });
+
+  test('Clone/Edit buttons are removed depending on client token permissions', async function (assert) {
+    window.localStorage.clear();
+
+    const clientToken = server.create('token');
+    const policy = server.create('policy', {
+      id: 'clone-policy',
+      name: 'clone-policy',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: namespace.id,
+            Capabilities: ['submit-job'],
+          },
+          {
+            Name: namespace2.id,
+            Capabilities: ['register-job'],
+          },
+          {
+            Name: namespace2.id,
+            Capabilities: ['read-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .exists('Current job version should have clone or revert buttons');
+
+    await click(`[data-test-clone-and-edit]`);
+
+    assert
+      .dom(`[data-test-clone-as-new-version]`)
+      .exists(
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+      );
+
+    assert
+      .dom(`[data-test-clone-as-new-job]`)
+      .exists(
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+      );
+
+    await Versions.visit({ id: `${job2.id}@${namespace2.id}` });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .exists('Current job version should have clone or revert buttons');
+
+    await click(`[data-test-clone-and-edit]`);
+
+    assert
+      .dom(`[data-test-clone-as-new-version]`)
+      .exists(
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+      );
+
+    assert
+      .dom(`[data-test-clone-as-new-job]`)
+      .exists(
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+      );
+
+    await Versions.visit({ id: `${job3.id}@${namespace3.id}` });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .exists('Current job version does have clone or revert buttons');
+
+    await click(`[data-test-clone-and-edit]`);
+
+    assert
+      .dom(`[data-test-clone-as-new-version]`)
+      .doesNotExist(
+        'Confirmation-stage clone-as-new-version button does not exist after clicking clone and edit'
+      );
+
+    assert
+      .dom(`[data-test-clone-as-new-job]`)
+      .exists(
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+      );
+  });
+
+  test('Tag Version buttons are removed depending on client token permissions', async function (assert) {
+    window.localStorage.clear();
+
+    const clientToken = server.create('token');
+    const policy = server.create('policy', {
+      id: 'clone-policy',
+      name: 'clone-policy',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: namespace.id,
+            Capabilities: ['submit-job'],
+          },
+          {
+            Name: namespace2.id,
+            Capabilities: ['tag-job-version'],
+          },
+          {
+            Name: namespace2.id,
+            Capabilities: ['read-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
+    assert.dom('[data-test-tagged-version="true"]').exists();
+    assert.dom('[data-test-tagged-version="false"]').exists();
+
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-button-primary')
+      .hasText('test-tag');
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-description')
+      .hasText('A tag with a brief description');
+
+    assert
+      .dom('[data-test-tagged-version="false"] [data-test-version-tag]')
+      .exists();
+
+    await Versions.visit({ id: `${job2.id}@${namespace2.id}` });
+    assert.dom('[data-test-tagged-version="true"]').exists();
+    assert.dom('[data-test-tagged-version="false"]').exists();
+
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-button-primary')
+      .hasText('test-tag');
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-description')
+      .hasText('A tag with a brief description');
+
+    assert
+      .dom('[data-test-tagged-version="false"] [data-test-version-tag]')
+      .exists();
+
+    await Versions.visit({ id: `${job3.id}@${namespace3.id}` });
+    assert.dom('[data-test-tagged-version="true"]').exists();
+    assert.dom('[data-test-tagged-version="false"]').exists();
+
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-button-primary')
+      .hasText('test-tag');
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-description')
+      .hasText('A tag with a brief description');
+
+    assert
+      .dom('[data-test-tagged-version="false"] [data-test-version-tag]')
+      .doesNotExist();
   });
 });
