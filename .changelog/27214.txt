@@ -1,0 +1,3 @@
+```release-note:improvement
+template: Add `nomadSecret` template function for iterating over secrets from external plugins
+```
