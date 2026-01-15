@@ -736,7 +736,7 @@ func testJob() *Job {
 		},
 		Constraints: []*Constraint{
 			{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
@@ -3646,75 +3646,154 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 func TestConstraint_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	c := &Constraint{}
-	err := c.Validate()
-	require.Error(t, err, "Missing constraint operand")
-
-	c = &Constraint{
-		LTarget: "$attr.kernel.name",
-		RTarget: "linux",
-		Operand: "=",
+	testCases := []struct {
+		name             string
+		inputConstraint  *Constraint
+		expectedErrorMsg string
+	}{
+		{
+			name:             "missing operand",
+			inputConstraint:  &Constraint{},
+			expectedErrorMsg: "Missing constraint operand",
+		},
+		{
+			name: "valid",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid regex",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "(foo",
+				Operand: ConstraintRegex,
+			},
+			expectedErrorMsg: "missing closing",
+		},
+		{
+			name: "invalid version",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "~> foo",
+				Operand: ConstraintVersion,
+			},
+			expectedErrorMsg: "malformed constraint",
+		},
+		{
+			name: "invalid semver",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "~> foo",
+				Operand: ConstraintSemver,
+			},
+			expectedErrorMsg: "Malformed constraint",
+		},
+		{
+			name: "valid semver",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: ">= 0.6.1",
+				Operand: ConstraintSemver,
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid zero distinct",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "0",
+				Operand: ConstraintDistinctProperty,
+			},
+			expectedErrorMsg: "count of 1 or greater",
+		},
+		{
+			name: "invalid negative distinct",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "-1",
+				Operand: ConstraintDistinctProperty,
+			},
+			expectedErrorMsg: "to uint64",
+		},
+		{
+			name: "valid distinct hosts",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintDistinctHosts,
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid set contains",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContains,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid set contains all",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContainsAll,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid set contains any",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContainsAny,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid regex",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "foo",
+				Operand: ConstraintRegex,
+			},
+			expectedErrorMsg: "no attribute provided but is required by operator",
+		},
+		{
+			name: "invalid operand",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: "foo",
+			},
+			expectedErrorMsg: "Unknown constraint type",
+		},
+		{
+			name: "invalid constraint attribure",
+			inputConstraint: &Constraint{
+				LTarget: "${platform.aws.placement.availability-zone}",
+				RTarget: "3",
+				Operand: ">",
+			},
+			expectedErrorMsg: "unsupported attribute",
+		},
 	}
-	err = c.Validate()
-	require.NoError(t, err)
 
-	// Perform additional regexp validation
-	c.Operand = ConstraintRegex
-	c.RTarget = "(foo"
-	err = c.Validate()
-	require.Error(t, err, "missing closing")
-
-	// Perform version validation
-	c.Operand = ConstraintVersion
-	c.RTarget = "~> foo"
-	err = c.Validate()
-	require.Error(t, err, "Malformed constraint")
-
-	// Perform semver validation
-	c.Operand = ConstraintSemver
-	err = c.Validate()
-	require.Error(t, err, "Malformed constraint")
-
-	c.RTarget = ">= 0.6.1"
-	require.NoError(t, c.Validate())
-
-	// Perform distinct_property validation
-	c.Operand = ConstraintDistinctProperty
-	c.RTarget = "0"
-	err = c.Validate()
-	require.Error(t, err, "count of 1 or greater")
-
-	c.RTarget = "-1"
-	err = c.Validate()
-	require.Error(t, err, "to uint64")
-
-	// Perform distinct_hosts validation
-	c.Operand = ConstraintDistinctHosts
-	c.LTarget = ""
-	c.RTarget = ""
-	if err := c.Validate(); err != nil {
-		t.Fatalf("expected valid constraint: %v", err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputConstraint.Validate()
+			if tc.expectedErrorMsg != "" {
+				must.ErrorContains(t, actualError, tc.expectedErrorMsg)
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
 	}
-
-	// Perform set_contains* validation
-	c.RTarget = ""
-	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
-		c.Operand = o
-		err = c.Validate()
-		require.Error(t, err, "requires an RTarget")
-	}
-
-	// Perform LTarget validation
-	c.Operand = ConstraintRegex
-	c.RTarget = "foo"
-	c.LTarget = ""
-	err = c.Validate()
-	require.Error(t, err, "No LTarget")
-
-	// Perform constraint type validation
-	c.Operand = "foo"
-	err = c.Validate()
-	require.Error(t, err, "Unknown constraint type")
 }
 
 func TestAffinity_Validate(t *testing.T) {
