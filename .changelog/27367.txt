@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where follow-up evals could be created for failed evaluations of garbage collected jobs
+```

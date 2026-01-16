@@ -680,81 +680,74 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 func TestLeader_ReapFailedEval(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
+	srv, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalDeliveryLimit = 1
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, srv.RPC)
+	store := srv.fsm.State()
 
-	// Wait for a periodic dispatch
 	eval := mock.Eval()
-	s1.evalBroker.Enqueue(eval)
+	srv.evalBroker.Enqueue(eval)
 
-	// Dequeue and Nack
-	out, token, err := s1.evalBroker.Dequeue(defaultSched, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	s1.evalBroker.Nack(out.ID, token)
+	// Dequeue and Nack to get the failed eval eventually written to state
+	out, token, err := srv.evalBroker.Dequeue(defaultSched, time.Second)
+	must.NoError(t, err)
+	srv.evalBroker.Nack(out.ID, token)
 
-	// Wait for an updated and followup evaluation
-	state := s1.fsm.State()
-	testutil.WaitForResult(func() (bool, error) {
-		ws := memdb.NewWatchSet()
-		out, err := state.EvalByID(ws, eval.ID)
-		if err != nil {
-			return false, err
-		}
-		if out == nil {
-			return false, fmt.Errorf("expect original evaluation to exist")
-		}
-		if out.Status != structs.EvalStatusFailed {
-			return false, fmt.Errorf("got status %v; want %v", out.Status, structs.EvalStatusFailed)
-		}
-		if out.NextEval == "" {
-			return false, fmt.Errorf("got empty NextEval")
-		}
-		// See if there is a followup
-		evals, err := state.EvalsByJob(ws, eval.Namespace, eval.JobID)
-		if err != nil {
-			return false, err
-		}
-
-		if l := len(evals); l != 2 {
-			return false, fmt.Errorf("got %d evals, want 2", l)
-		}
-
-		for _, e := range evals {
-			if e.ID == eval.ID {
-				continue
+	// Wait for an updated eval
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			out, err = store.EvalByID(nil, eval.ID)
+			must.NoError(t, err)
+			if out == nil {
+				return errors.New("no eval update")
 			}
+			return nil
+		}),
+		wait.Timeout(time.Second),
+	))
 
-			if e.Status != structs.EvalStatusPending {
-				return false, fmt.Errorf("follow up eval has status %v; want %v",
-					e.Status, structs.EvalStatusPending)
+	must.Eq(t, structs.EvalStatusFailed, out.Status)
+	must.Eq(t, "", out.NextEval) // no follow-up for orphaned eval
+
+	// upsert a job so that the eval is no longer orphaned and we can create
+	// failed follow-ups
+	job := mock.MinJob()
+	index := out.ModifyIndex + 1
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	eval = mock.Eval()
+	eval.JobID = job.ID
+	srv.evalBroker.Enqueue(eval)
+
+	// Dequeue and Nack to get the failed eval eventually written to state
+	out, token, err = srv.evalBroker.Dequeue(defaultSched, time.Second)
+	must.NoError(t, err)
+	srv.evalBroker.Nack(out.ID, token)
+
+	// Wait for an updated eval
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			out, err = store.EvalByID(nil, eval.ID)
+			must.NoError(t, err)
+			if out == nil {
+				return errors.New("no eval update")
 			}
+			return nil
+		}),
+		wait.Timeout(time.Second),
+	))
 
-			if e.ID != out.NextEval {
-				return false, fmt.Errorf("follow up eval id is %v; orig eval NextEval %v",
-					e.ID, out.NextEval)
-			}
+	must.Eq(t, structs.EvalStatusFailed, out.Status)
+	must.NotEq(t, "", out.NextEval)
 
-			if e.Wait < s1.config.EvalFailedFollowupBaselineDelay ||
-				e.Wait > s1.config.EvalFailedFollowupBaselineDelay+s1.config.EvalFailedFollowupDelayRange {
-				return false, fmt.Errorf("bad wait: %v", e.Wait)
-			}
-
-			if e.TriggeredBy != structs.EvalTriggerFailedFollowUp {
-				return false, fmt.Errorf("follow up eval TriggeredBy %v; want %v",
-					e.TriggeredBy, structs.EvalTriggerFailedFollowUp)
-			}
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	followup, err := store.EvalByID(nil, out.NextEval)
+	must.Eq(t, structs.EvalStatusPending, followup.Status)
+	must.Eq(t, structs.EvalTriggerFailedFollowUp, followup.TriggeredBy)
+	must.GreaterEq(t, srv.config.EvalFailedFollowupBaselineDelay, followup.Wait)
+	must.LessEq(t, srv.config.EvalFailedFollowupDelayRange, followup.Wait)
 }
 
 func TestLeader_ReapDuplicateEval(t *testing.T) {
