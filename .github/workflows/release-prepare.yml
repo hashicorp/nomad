@@ -1,0 +1,137 @@
+name: Prepare Nomad release branch
+
+# create a specific release/A.B.C branch from a long-lived
+# release/A.B.x branch and prepare it to be built.
+
+on:
+  workflow_call:
+    secrets:
+      gh-token:
+        required: true
+    inputs:
+      repo:
+        description: 'GitHub repository, e.g. hashicorp/nomad'
+        type: string
+        required: true
+      version:
+        description: 'Version to be released'
+        type: string
+        required: true
+      new-branch-prefix:
+        description: 'Prefix to put in front of `version`, default "release/"'
+        type: string
+        required: false
+        default: 'release/'
+      source-branch:
+        description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
+        type: string
+        required: true
+      compare-version:
+        description: 'Version to compare against when generating the changelog'
+        type: string
+        required: true
+      slack-channel:
+        type: string
+        required: false
+        default: 'C09LCDZTLGZ' # proj-nomad-releases
+    outputs:
+      build-ref:
+        description: 'git sha of the commit to use in the build workflow'
+        value: ${{ jobs.prepare.outputs.build-ref }}
+      new-branch:
+        description: 'name of the new branch created for this release'
+        value: ${{ jobs.prepare.outputs.new-branch }}
+
+env:
+  NEW_BRANCH: ${{ inputs.new-branch-prefix }}${{ inputs.version }}
+
+jobs:
+  prepare:
+    outputs:
+      new-branch: ${{ env.NEW_BRANCH }}
+      build-ref: ${{ steps.script.outputs.build-ref }}
+
+    # TODO: self-hosted runners? CI vault?
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Write handy summary
+        run: |-
+          repo_url="https://github.com/${{ inputs.repo }}"
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          # Release ${{ inputs.version }}
+          - Source branch: [${{ inputs.source-branch }}]($repo_url/commits/${{ inputs.source-branch }})
+          - Release branch: [${{ env.NEW_BRANCH }}]($repo_url/commits/${{ env.NEW_BRANCH }})
+          EOF
+
+      # TODO: check github check status of source-branch?
+      # e.g. https://github.com/marketplace/actions/wait-for-github-status-check
+
+      - name: Git config
+        # note: the global url is mainly for the go toolchain for private repos
+        run: |-
+          git config --global user.email "github-team-nomad-core@hashicorp.com"
+          git config --global user.name "hc-github-team-nomad-core"
+          git config --global url.'https://${{ secrets.gh-token }}@github.com'.insteadOf 'https://github.com'
+
+      - name: Checkout nomad
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.source-branch }}
+          fetch-depth: 0
+          fetch-tags: true # for changelog
+          token: ${{ secrets.gh-token }}
+
+      - name: Semver CLI
+        uses: ./.github/actions/semver
+        with:
+          validate_version: ${{ inputs.version }}
+
+      # need go for changelog-build and static assets
+      - name: Setup Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version-file: '.go-version'
+
+      - name: Update changelog
+        id: changelog # output: file
+        env:
+          NEW_VERSION: ${{ inputs.version }}
+          LAST_RELEASE: ${{ inputs.compare-version }}
+          DEBUG: ${{ runner.debug }}
+        run: |-
+          echo '::group::install changelog-build'
+          go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+          echo '::endgroup::'
+          ./scripts/release/update-changelog
+
+      - name: Store changelog
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: 'changelog_${{ inputs.version }}'
+          path: ${{ steps.changelog.outputs.file }}
+          overwrite: true
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Install Go dependencies
+        run: make deps
+
+      - name: Setup JS
+        uses: ./.github/actions/setup-js
+
+      - name: Run prepare script
+        id: script # output: build-ref
+        env:
+          DO_PUSH: true
+          NEW_VERSION: ${{ inputs.version }}
+          SLACK_CHANNEL: ${{ inputs.slack-channel }}
+          GO_TAGS: release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' }}
+          GOPRIVATE: 'github.com/hashicorp'
+          DEBUG: ${{ runner.debug }}
+        run: ./scripts/release/prepare
+
+      - name: Add build ref to summary
+        run: |-
+          echo "- Build ref: \`${{ steps.script.outputs.build-ref }}\`" >> "$GITHUB_STEP_SUMMARY"
