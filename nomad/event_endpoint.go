@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var JsonWriteTimeout = 5 * time.Second
 
 type Event struct {
 	srv *Server
@@ -125,7 +128,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		cancel()
 	}()
 
-	jsonStream := stream.NewJsonStream(ctx, 30*time.Second)
+	jsonStream := stream.NewJsonStream(ctx, 30*time.Second, e.srv.logger.Named("json-stream"))
 	errCh := make(chan error)
 	go func() {
 		defer cancel()
@@ -164,6 +167,33 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		}
 	}()
 
+	// Create a bounded write queue and a single writer goroutine to perform the
+	// msgpack encoding and network writes. This decouples producers from blocking
+	// directly on network writes and centralizes error delivery via errCh.
+	writeCh := make(chan structs.EventStreamWrapper, 16)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case resp, ok := <-writeCh:
+				if !ok {
+					// queue closed, exit writer
+					return
+				}
+				if err := encoder.Encode(resp); err != nil {
+					select {
+					case errCh <- err:
+					case <-ctx.Done():
+					}
+					return
+				}
+				encoder.Reset(conn)
+			}
+		}
+	}()
+
 	var streamErr error
 OUTER:
 	for {
@@ -187,14 +217,22 @@ OUTER:
 			var resp structs.EventStreamWrapper
 			resp.Event = eventJSON
 
-			if err := encoder.Encode(resp); err != nil {
-				streamErr = err
+			// enqueue to writer with timeout to avoid blocking producers indefinitely
+			select {
+			case writeCh <- resp:
+			case <-ctx.Done():
+				streamErr = ctx.Err()
+				break OUTER
+			case <-time.After(JsonWriteTimeout):
+				streamErr = fmt.Errorf("timed out enqueuing outgoing message after %s", JsonWriteTimeout)
 				break OUTER
 			}
-			encoder.Reset(conn)
 		}
 
 	}
+
+	// close writer queue to shutdown writer goroutine cleanly
+	close(writeCh)
 
 	if streamErr != nil {
 		handleJsonResultError(streamErr, pointer.Of(int64(500)), encoder)
