@@ -1094,20 +1094,21 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			// instead.
 			if eval.Type != structs.JobTypeCore {
 
-				// Create a follow-up evaluation that will be used to retry the
-				// scheduling for the job after the cluster is hopefully more stable
-				// due to the fairly large backoff.
-				followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
-					time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
-
-				followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
-				updateEval.NextEval = followupEval.ID
 				updateEval.UpdateModifyTime()
+				req := structs.EvalUpdateRequest{
+					Evals: []*structs.Evaluation{updateEval},
+				}
+
+				// Create a follow-up evaluation that will be used to retry the
+				// scheduling for the job after the cluster is hopefully more
+				// stable due to the fairly large backoff.
+				followupEval := s.createFailedFollowup(eval)
+				if followupEval != nil {
+					updateEval.NextEval = followupEval.ID
+					req.Evals = append(req.Evals, followupEval)
+				}
 
 				// Update via Raft
-				req := structs.EvalUpdateRequest{
-					Evals: []*structs.Evaluation{updateEval, followupEval},
-				}
 				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
 					s.logger.Error("failed to update failed eval and create a follow-up",
 						"eval", hclog.Fmt("%#v", updateEval), "error", err)
@@ -1118,6 +1119,27 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			s.evalBroker.Ack(eval.ID, token)
 		}
 	}
+}
+
+// createFailedFollowup creates a follow-up eval from the failed eval
+// provided. Will return nil if the evaluation has been orphaned and no longer
+// needs a follow-up
+func (s *Server) createFailedFollowup(eval *structs.Evaluation) *structs.Evaluation {
+	// we don't want to create failed follow-up evals if the evaluation's job
+	// has been GC'd
+	job, err := s.State().JobByID(nil, eval.Namespace, eval.JobID)
+	if err != nil {
+		s.logger.Error("failed to read job for eval", "error", err)
+		return nil
+	}
+	if job == nil {
+		return nil
+	}
+
+	followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
+		time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+
+	return eval.CreateFailedFollowUpEval(followupEvalWait)
 }
 
 // reapDupBlockedEvaluations is used to reap duplicate blocked evaluations and
