@@ -7,7 +7,7 @@ project "nomad" {
   team = "nomad"
 
   slack {
-    notification_channel = "C09LCDZTLGZ"
+    notification_channel = "C09LCJBBNE5"
   }
 
   github {
