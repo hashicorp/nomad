@@ -55,15 +55,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Write handy summary
-        run: |-
-          repo_url="https://github.com/${{ inputs.repo }}"
-          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
-          # Release ${{ inputs.version }}
-          - Source branch: [${{ inputs.source-branch }}]($repo_url/commits/${{ inputs.source-branch }})
-          - Release branch: [${{ env.NEW_BRANCH }}]($repo_url/commits/${{ env.NEW_BRANCH }})
-          EOF
-
       # TODO: check github check status of source-branch?
       # e.g. https://github.com/marketplace/actions/wait-for-github-status-check
 
@@ -132,6 +123,6 @@ jobs:
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/prepare
 
-      - name: Add build ref to summary
+      - name: Annotate build ref
         run: |-
-          echo "- Build ref: \`${{ steps.script.outputs.build-ref }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=build commit::${{ steps.script.outputs.build-ref }}"
