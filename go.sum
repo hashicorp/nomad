@@ -455,8 +455,8 @@ github.com/hashicorp/go-immutable-radix v1.3.1 h1:DKHmCUm2hRBK510BaiZlwvpD40f8bJ
 github.com/hashicorp/go-immutable-radix v1.3.1/go.mod h1:0y9vanUI8NX6FsYoO3zeMjhV/C5i9g4Q3DwcSNZ4P60=
 github.com/hashicorp/go-immutable-radix/v2 v2.1.0 h1:CUW5RYIcysz+D3B+l1mDeXrQ7fUvGGCwJfdASSzbrfo=
 github.com/hashicorp/go-immutable-radix/v2 v2.1.0/go.mod h1:hgdqLXA4f6NIjRVisM1TJ9aOJVNRqKZj+xDGF6m7PBw=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.19 h1:FX7HrkfkYomf4SlMrwzOP32FXuFltq34Qy/gXk1Tp5Y=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.19/go.mod h1:wpZygQlPUUGt4Klgg+RlCaq/KRe8XinEzqTf7QmvrNo=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.20 h1:afreZ1WJd0WI7v4NsMZ1aL7V/T59sxPuKmQDgGUja20=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.20/go.mod h1:NeK2Ul15t1zutp/dZzt28XQrGZHosbxE/QLNNfaWObM=
 github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11 h1:J9zGa9SlcOHT3SQTj0Vv3shHo0anWbs58weURGCgChI=
 github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11/go.mod h1:iAOCu7/lG5eugg8+k7NVvQt0IpWT8s2Q9wnMtC/guM4=
 github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14 h1:oK4OQ5EPbx/66dAvitksV+OdrQ86SZEj3B6VSZrbdEY=
