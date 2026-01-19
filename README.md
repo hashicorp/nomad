@@ -5,7 +5,7 @@ Nomad
 
 <p align="center" style="text-align:center;">
   <a href="https://developer.hashicorp.com/nomad">
-    <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
+    <img alt="HashiCorp Nomad logo" src="https://raw.githubusercontent.com/hashicorp/web-unified-docs/main/content/nomad/v1.11.x/img/logo-hashicorp.svg" width="500" />
   </a>
 </p>
 
