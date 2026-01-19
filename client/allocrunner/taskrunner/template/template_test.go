@@ -2571,7 +2571,7 @@ func Test_newRunnerConfig_consul(t *testing.T) {
 				ClientConfig: config.DefaultConfig(),
 			},
 			expectedOutputConfig: &ctconf.ConsulConfig{
-				Address:   pointer.Of("127.0.0.1:8500"),
+				Address:   pointer.Of("localhost:8500"),
 				Namespace: pointer.Of(""),
 				Auth:      ctconf.DefaultAuthConfig(),
 				Retry:     ctconf.DefaultRetryConfig(),
@@ -2588,7 +2588,7 @@ func Test_newRunnerConfig_consul(t *testing.T) {
 				ClientConfig: config.DefaultConfig(),
 			},
 			expectedOutputConfig: &ctconf.ConsulConfig{
-				Address:   pointer.Of("127.0.0.1:8500"),
+				Address:   pointer.Of("localhost:8500"),
 				Namespace: pointer.Of(""),
 				Auth:      ctconf.DefaultAuthConfig(),
 				Retry:     ctconf.DefaultRetryConfig(),

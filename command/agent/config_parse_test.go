@@ -914,7 +914,7 @@ var sample1 = &Config{
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
-		Addr:                      "127.0.0.1:8500",
+		Addr:                      "localhost:8500",
 		VerifySSL:                 pointer.Of(true),
 	}},
 	Vaults: []*config.VaultConfig{{
@@ -1120,7 +1120,7 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			defaultConsul := cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
 			must.Eq(t, config.DefaultConsulConfig(), defaultConsul)
-			must.Eq(t, "127.0.0.1:8500", defaultConsul.Addr)
+			must.Eq(t, "localhost:8500", defaultConsul.Addr)
 			must.Eq(t, "", defaultConsul.Token)
 
 			// merge in the user's configuration which overrides fields in the
