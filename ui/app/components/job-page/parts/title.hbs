@@ -83,7 +83,7 @@
           @alignRight={{true}}
           @idleText="Start Job"
           @disabled={{not (can "start job" namespace=this.job.namespace)}}
-          @title={{if (can "start job" namespace=this.job.namespace) "You don’t have permission to start jobs"}}
+          @title={{if (can "start job" namespace=this.job.namespace) null "You don’t have permission to start jobs"}}
           @cancelText="Cancel"
           @confirmText="Yes, Start Job"
           @confirmationMessage="Are you sure you want to start this job?"
