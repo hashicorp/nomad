@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.25.3
+go 1.25.5
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
@@ -46,7 +46,7 @@ require (
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.41.3
 	github.com/hashicorp/consul/api v1.33.0
-	github.com/hashicorp/consul/sdk v0.17.0
+	github.com/hashicorp/consul/sdk v0.17.1
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/hashicorp/go-bexpr v0.1.15
 	github.com/hashicorp/go-checkpoint v0.5.0
@@ -58,7 +58,7 @@ require (
 	github.com/hashicorp/go-getter v1.8.4
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
-	github.com/hashicorp/go-kms-wrapping/v2 v2.0.19
+	github.com/hashicorp/go-kms-wrapping/v2 v2.0.20
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13
@@ -128,10 +128,10 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.46.0
-	golang.org/x/mod v0.31.0
+	golang.org/x/mod v0.32.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.40.0
-	golang.org/x/text v0.32.0
+	golang.org/x/text v0.33.0
 	golang.org/x/time v0.14.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
