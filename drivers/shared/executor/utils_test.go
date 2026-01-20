@@ -107,9 +107,9 @@ func Test_memoryLimits(t *testing.T) {
 			// special oversub case; 'memory' is set and 'memory_max' is set to
 			// -1; which indicates there should be no hard limit (i.e. -1 / max)
 			memory:      100,
-			memoryMax:   memoryNoLimit,
+			memoryMax:   MemoryNoLimit,
 			expReserved: mbToBytes(100),
-			expHard:     memoryNoLimit,
+			expHard:     MemoryNoLimit,
 		},
 	}
 

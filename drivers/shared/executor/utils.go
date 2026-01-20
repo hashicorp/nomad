@@ -159,9 +159,12 @@ func IsolationMode(plugin, task string) string {
 }
 
 const (
-	// memoryNoLimit is a sentinel value for memory_max that indicates the
-	// driver should not enforce a maximum memory limit
-	memoryNoLimit = -1
+	// MemoryNoLimit is a sentinel value for resources.memory_max that indicates
+	// the driver should not enforce a maximum memory limit and treat
+	// resources.memory as a reservation. For Linux drivers that implement
+	// memory allocation via cgroups, this means setting `memory.max = max` and
+	// `memory.low` to the value of resources.memory (multiplied to bytes)
+	MemoryNoLimit = -1
 )
 
 func mbToBytes(n int64) int64 {
@@ -179,7 +182,7 @@ func mbToBytes(n int64) int64 {
 func memoryLimits(memory structs.AllocatedMemoryResources) (int64, int64) {
 	memHard, memReserved := memory.MemoryMaxMB, memory.MemoryMB
 
-	if memHard == memoryNoLimit {
+	if memHard == MemoryNoLimit {
 		// special oversub case where 'memory' is soft limit and there is no
 		// hard limit
 		return -1, mbToBytes(memReserved)

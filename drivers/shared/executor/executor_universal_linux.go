@@ -239,7 +239,7 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	// write memory cgroup files
 	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
 	ed := cgroupslib.OpenPath(cgroup)
-	if memHard == memoryNoLimit {
+	if memHard == MemoryNoLimit {
 		_ = ed.Write("memory.max", "max")
 	} else {
 		_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
