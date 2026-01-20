@@ -35,9 +35,9 @@ on:
         required: false
         default: 'C09LCDZTLGZ' # proj-nomad-releases
     outputs:
-      build-ref:
+      build-sha:
         description: 'git sha of the commit to use in the build workflow'
-        value: ${{ jobs.prepare.outputs.build-ref }}
+        value: ${{ jobs.prepare.outputs.build-sha }}
       new-branch:
         description: 'name of the new branch created for this release'
         value: ${{ jobs.prepare.outputs.new-branch }}
@@ -49,21 +49,12 @@ jobs:
   prepare:
     outputs:
       new-branch: ${{ env.NEW_BRANCH }}
-      build-ref: ${{ steps.script.outputs.build-ref }}
+      build-sha: ${{ steps.script.outputs.build-sha }}
 
     # TODO: self-hosted runners? CI vault?
     runs-on: ubuntu-latest
 
     steps:
-      - name: Write handy summary
-        run: |-
-          repo_url="https://github.com/${{ inputs.repo }}"
-          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
-          # Release ${{ inputs.version }}
-          - Source branch: [${{ inputs.source-branch }}]($repo_url/commits/${{ inputs.source-branch }})
-          - Release branch: [${{ env.NEW_BRANCH }}]($repo_url/commits/${{ env.NEW_BRANCH }})
-          EOF
-
       # TODO: check github check status of source-branch?
       # e.g. https://github.com/marketplace/actions/wait-for-github-status-check
 
@@ -109,7 +100,7 @@ jobs:
       - name: Store changelog
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: 'changelog_${{ inputs.version }}'
+          name: 'changelog'
           path: ${{ steps.changelog.outputs.file }}
           overwrite: true
           compression-level: 0
@@ -122,7 +113,7 @@ jobs:
         uses: ./.github/actions/setup-js
 
       - name: Run prepare script
-        id: script # output: build-ref
+        id: script # output: build-sha
         env:
           DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
@@ -134,4 +125,7 @@ jobs:
 
       - name: Add build ref to summary
         run: |-
-          echo "- Build ref: \`${{ steps.script.outputs.build-ref }}\`" >> "$GITHUB_STEP_SUMMARY"
+          sha="${{ steps.script.outputs.build-sha }}"
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          Build sha: [\`$sha\`](https://github.com/${{ inputs.repo }}/commit/$sha)
+          EOF

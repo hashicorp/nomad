@@ -98,4 +98,4 @@ else
 fi
 
 # output ref for subsequent build job
-echo "build-ref=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT:-/dev/stderr}"
+echo "build-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT:-/dev/stderr}"
