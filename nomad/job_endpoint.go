@@ -300,6 +300,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Set the submit time
 	now := time.Now().UnixNano()
 	args.Job.SubmitTime = now
+	var eval *structs.Evaluation
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
@@ -311,7 +312,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			evalPriority = args.EvalPriority
 		}
 
-		eval := &structs.Evaluation{
+		eval = &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
 			Priority:    evalPriority,
@@ -324,6 +325,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 
 		args.Eval = eval
+		reply.EvalID = eval.ID
 	}
 
 	// Check if the job has changed at all
@@ -332,14 +334,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 	// We know the job isn't nil, so if the spec hasn't changed,
-	// there exists an existing job.
+	// there is an existing job.
 	if !specChanged {
 		reply.JobModifyIndex = existingJob.ModifyIndex
+
+		// Force an eval for service/batch jobs
+		if eval != nil {
+			update := &structs.EvalUpdateRequest{
+				Evals:        []*structs.Evaluation{eval},
+				WriteRequest: structs.WriteRequest{Region: args.Region},
+			}
+			_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+			if err != nil {
+				j.logger.Error("eval create failed", "error", err, "method", "register")
+				return err
+			}
+			reply.EvalCreateIndex = evalIndex
+			reply.Index = evalIndex
+		} else {
+			reply.Index = existingJob.ModifyIndex
+		}
 		return nil
 	}
 
 	// Pre-register a deployment if necessary.
-	args.Deployment = j.multiregionCreateDeployment(job, args.Eval)
+	args.Deployment = j.multiregionCreateDeployment(job, eval)
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -352,9 +371,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.JobModifyIndex = index
 	reply.Index = index
 
-	if args.Eval != nil {
+	if eval != nil {
 		reply.EvalCreateIndex = index
-		reply.EvalID = args.Eval.ID
 	}
 
 	// used for multiregion start
