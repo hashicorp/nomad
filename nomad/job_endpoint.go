@@ -338,28 +338,23 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return nil
 	}
 
-	if existingJob == nil {
-		// Pre-register a deployment if necessary.
-		args.Deployment = j.multiregionCreateDeployment(job, args.Eval)
+	// Pre-register a deployment if necessary.
+	args.Deployment = j.multiregionCreateDeployment(job, args.Eval)
 
-		// Commit this update via Raft
-		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-		if err != nil {
-			j.logger.Error("registering job failed", "error", err)
-			return err
-		}
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+	if err != nil {
+		j.logger.Error("registering job failed", "error", err)
+		return err
+	}
 
-		// Populate the reply with job information
-		reply.JobModifyIndex = index
-		reply.Index = index
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+	reply.Index = index
 
-		if args.Eval != nil {
-			reply.EvalCreateIndex = index
-			reply.EvalID = args.Eval.ID
-		}
-
-	} else {
-		reply.JobModifyIndex = existingJob.JobModifyIndex
+	if args.Eval != nil {
+		reply.EvalCreateIndex = index
+		reply.EvalID = args.Eval.ID
 	}
 
 	// used for multiregion start
