@@ -797,16 +797,9 @@ func (*LibcontainerExecutor) configureCgroupHook(cfg *runc.Config, command *Exec
 }
 
 func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *ExecCommand) {
-	// Total amount of memory allowed to consume
-	res := command.Resources.NomadResources
-	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
-	if memHard <= 0 {
-		memHard = res.Memory.MemoryMB
-		memSoft = 0
-	}
-
-	cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
-	cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
+	cfg.Cgroups.Resources.Memory = memHard
+	cfg.Cgroups.Resources.MemoryReservation = memReserved
 
 	// Disable swap if possible, to avoid issues on the machine
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()

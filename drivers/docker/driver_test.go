@@ -2985,11 +2985,11 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		name           string
-		driverMemoryMB int64
-		taskResources  drivers.MemoryResources
-		expectedHard   int64
-		expectedSoft   int64
+		name             string
+		driverMemoryMB   int64
+		taskResources    drivers.MemoryResources
+		expectedHard     int64
+		expectedReserved int64
 	}{
 		{
 			"plain request",
@@ -3026,13 +3026,20 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 			30 * 1024 * 1024,
 			10 * 1024 * 1024,
 		},
+		{
+			"with reserved-only memory oversubscription",
+			20,
+			drivers.MemoryResources{MemoryMB: 20, MemoryMaxMB: -1},
+			0,
+			20 * 1024 * 1024,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			hard, soft := memoryLimits(c.driverMemoryMB, c.taskResources)
+			hard, reserved := memoryLimits(c.driverMemoryMB, c.taskResources)
 			must.Eq(t, c.expectedHard, hard)
-			must.Eq(t, c.expectedSoft, soft)
+			must.Eq(t, c.expectedReserved, reserved)
 		})
 	}
 }
