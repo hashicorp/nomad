@@ -21,12 +21,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	// memoryNoLimit is a sentinel value for memory_max that indicates the
-	// raw_exec driver should not enforce a maximum memory limit
-	memoryNoLimit = -1
-)
-
 // setSubCmdCgroup sets the cgroup for non-Task child processes of the
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
@@ -207,11 +201,11 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) er
 	}
 
 	// write memory limits
-	memHard, memSoft := e.computeMemory(command)
+	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
 	ed := cgroupslib.OpenFromFreezerCG1(cgroup, "memory")
 	_ = ed.Write("memory.limit_in_bytes", strconv.FormatInt(memHard, 10))
-	if memSoft > 0 {
-		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
+	if memReserved > 0 {
+		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memReserved, 10))
 	}
 
 	// write memory swappiness
@@ -243,16 +237,16 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	}
 
 	// write memory cgroup files
-	memHard, memSoft := e.computeMemory(command)
+	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
 	ed := cgroupslib.OpenPath(cgroup)
-	if memHard == memoryNoLimit {
+	if memHard == MemoryNoLimit {
 		_ = ed.Write("memory.max", "max")
 	} else {
 		_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
 	}
-	if memSoft > 0 {
+	if memReserved > 0 {
 		ed = cgroupslib.OpenPath(cgroup)
-		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
+		_ = ed.Write("memory.low", strconv.FormatInt(memReserved, 10))
 	}
 
 	// set memory swappiness
@@ -283,31 +277,6 @@ func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
 	return cpuWeight
-}
-
-func mbToBytes(n int64) int64 {
-	return n * 1024 * 1024
-}
-
-// computeMemory returns the hard and soft memory limits for the task
-func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
-	mem := command.Resources.NomadResources.Memory
-	memHard, memSoft := mem.MemoryMaxMB, mem.MemoryMB
-
-	switch memHard {
-	case 0:
-		// typical case where 'memory' is the hard limit
-		memHard = mem.MemoryMB
-		return mbToBytes(memHard), 0
-	case memoryNoLimit:
-		// special oversub case where 'memory' is soft limit and there is no
-		// hard limit - helping re-create old raw_exec behavior
-		return memoryNoLimit, mbToBytes(memSoft)
-	default:
-		// typical oversub case where 'memory' is soft limit and 'memory_max'
-		// is hard limit
-		return mbToBytes(memHard), mbToBytes(memSoft)
-	}
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`

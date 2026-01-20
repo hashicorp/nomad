@@ -917,35 +917,50 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	return securityOpts, nil
 }
 
-// memoryLimits computes the memory and memory_reservation values passed along to
-// the docker host config. These fields represent hard and soft/reserved memory
-// limits from docker's perspective, respectively.
+const (
+	// memoryNoLimit is a sentinel value for memory_max that indicates the
+	// driver should not enforce a maximum memory limit
+	memoryNoLimit = -1
+)
+
+// memoryLimits computes the memory and memory_reservation values passed along
+// to the docker host config. These fields represent hard limit (cgroup
+// memory.max) and memory reservation (cgroup memory.low) from docker's
+// perspective, respectively.
 //
-// The memory field on the task configuration can be interpreted as a hard or soft
-// limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
-// as a soft limit if the memory_hard_limit value is configured on the docker
-// task driver configuration. When memory_hard_limit is set, the docker host
-// config is configured such that the memory field is equal to memory_hard_limit
-// value, and the memory_reservation field is set to the task driver memory value.
+// The resources.memory field in the jobspec is normally interpreted as a hard
+// limit.
 //
-// If memory_hard_limit is not set (i.e. zero value), then the memory field of
-// the task resource config is interpreted as a hard limit. In this case both the
-// memory is set to the task resource memory value and memory_reservation is left
-// unset.
+// If task.config.memory_hard_limit is set, it is treated as a hard limit and
+// resources.memory is the reservation. This is entirely bypasses the scheduler
+// oversubscription setting.
+//
+// If oversubscription is enabled and resources.memory_max is set, either
+// resources.memory_max or task.config.memory_hard_limit is the hard limit
+// (whichever is greater). If resources.memory_max = -1, there is no hard limit
+// and task.config.memory_hard_limit is ignored.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
 func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
-	softBytes := taskMemory.MemoryMB * 1024 * 1024
+	memHard := driverHardLimitMB
+	memReserved := taskMemory.MemoryMB
+	memMax := taskMemory.MemoryMaxMB
 
-	hard := driverHardLimitMB
-	if taskMemory.MemoryMaxMB > hard {
-		hard = taskMemory.MemoryMaxMB
+	if memMax == memoryNoLimit {
+		return 0, mbToBytes(memReserved)
 	}
+	if memMax > memHard {
+		memHard = memMax
+	}
+	if memHard <= 0 {
+		memHard = memReserved
+		memReserved = 0
+	}
+	return mbToBytes(memHard), mbToBytes(memReserved)
+}
 
-	if hard <= 0 {
-		return softBytes, 0
-	}
-	return hard * 1024 * 1024, softBytes
+func mbToBytes(n int64) int64 {
+	return n * 1024 * 1024
 }
 
 // maxCPUShares is the maximum value for cpu_shares in cgroups v1
