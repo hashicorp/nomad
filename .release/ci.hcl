@@ -17,6 +17,7 @@ project "nomad" {
     release_branches = [
       "main",
       "release/**",
+      "db-testing/**",
     ]
   }
 }
