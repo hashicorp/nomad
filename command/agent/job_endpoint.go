@@ -1631,6 +1631,36 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 				Affinities:   ApiAffinitiesToStructs(d.Affinities),
 				ShareDevices: ApiSharingToStructs(d.ShareDevices),
 			})
+			rd := &structs.RequestedDevice{
+				Name:        d.Name,
+				Constraints: ApiConstraintsToStructs(d.Constraints),
+				Affinities:  ApiAffinitiesToStructs(d.Affinities),
+			}
+			// Only set Count if not using FirstAvailable
+			if d.Count != nil {
+				rd.Count = *d.Count
+			}
+			// Convert FirstAvailable options
+			if len(d.FirstAvailable) > 0 {
+				rd.FirstAvailable = make([]*structs.DeviceOption, len(d.FirstAvailable))
+				for i, opt := range d.FirstAvailable {
+					rd.FirstAvailable[i] = &structs.DeviceOption{
+						Constraints: ApiConstraintsToStructs(opt.Constraints),
+					}
+					if opt.Count != nil {
+						rd.FirstAvailable[i].Count = *opt.Count
+					}
+				}
+			}
+			//TODO: temp build out make better soon
+			if d.ShareDevices != nil || len(d.FirstAvailable) > 0 {
+				rd.DevicePreferences = &structs.DevicePreferences{FirstAvailable: rd.FirstAvailable}
+			}
+			if d.ShareDevices != nil {
+				rd.DevicePreferences.Enabled = d.ShareDevices.Enabled
+				rd.DevicePreferences.SharedDeviceId = d.ShareDevices.SharedDeviceId
+			}
+			out.Devices = append(out.Devices, rd)
 		}
 	}
 
