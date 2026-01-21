@@ -131,10 +131,28 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		}
 	}
 
+	// Fetch the response with a valid fine grained token
+	{
+		policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityForcePeriodicJob})
+		token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+		req.AuthToken = token.SecretID
+		var resp structs.PeriodicForceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err)
+		if assert.NotNil(eval) {
+			assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		}
+	}
+
 	// Fetch the response with a valid token having dispatch permission
 	{
 		policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob})
-		token := mock.CreatePolicyAndToken(t, state, 1005, "valid", policy)
+		token := mock.CreatePolicyAndToken(t, state, 1009, "valid", policy)
 		req.AuthToken = token.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))

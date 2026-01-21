@@ -10,6 +10,7 @@
     @text={{@idleText}}
     @color="critical"
     disabled={{@disabled}}
+    title={{@title}}
     {{on "click" this.promptForConfirmation}}
   />
 {{else if this.isPendingConfirmation}}
