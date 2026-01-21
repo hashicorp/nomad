@@ -40,6 +40,8 @@
         data-test-stop
         @alignRight={{true}}
         @idleText="Stop Job"
+        @disabled={{not (can "stop job" namespace=this.job.namespace)}}
+        @title={{if (can "stop job" namespace=this.job.namespace) null "You don’t have permission to stop jobs"}}
         @cancelText="Cancel"
         @confirmText="Yes, Stop Job"
         @confirmationMessage="Are you sure you want to stop this job?"
@@ -55,6 +57,8 @@
         data-test-purge
         @alignRight={{true}}
         @idleText="Purge Job"
+        @disabled={{not (can "purge job" namespace=this.job.namespace)}}
+        @title={{if (can "purge job" namespace=this.job.namespace) null "You don’t have permission to purge jobs"}}
         @cancelText="Cancel"
         @confirmText="Yes, Purge Job"
         @confirmationMessage="Are you sure? You cannot undo this action."
@@ -78,6 +82,8 @@
           data-test-start
           @alignRight={{true}}
           @idleText="Start Job"
+          @disabled={{not (can "start job" namespace=this.job.namespace)}}
+          @title={{if (can "start job" namespace=this.job.namespace) null "You don’t have permission to start jobs"}}
           @cancelText="Cancel"
           @confirmText="Yes, Start Job"
           @confirmationMessage="Are you sure you want to start this job?"
@@ -95,6 +101,8 @@
             data-test-revert
             @alignRight={{true}}
             @idleText="Revert to last stable version (v{{this.job.latestStableVersion.number}})"
+            @disabled={{not (can "revert job" namespace=this.job.namespace)}}
+            @title={{if (can "revert job" namespace=this.job.namespace) null "You don’t have permission to revert jobs"}}
             @cancelText="Cancel"
             @confirmText="Yes, Revert to last stable version"
             @confirmationMessage="Are you sure you want to revert to the last stable version?"
