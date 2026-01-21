@@ -78,6 +78,16 @@ func TestValidateConstraintTarget(t *testing.T) {
 			expectedErrorMsg: "",
 		},
 		{
+			name:             "valid device.vendor",
+			inputTarget:      "${device.vendor}",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "valid device.type",
+			inputTarget:      "${device.type}",
+			expectedErrorMsg: "",
+		},
+		{
 			name:             "missing closing brace",
 			inputTarget:      "${node.datacenter",
 			expectedErrorMsg: `attribute "${node.datacenter" is missing a closing brace`,

@@ -23,6 +23,7 @@ var (
 	// used within a job specification constraint.
 	validConstraintPrefixTargets = []string{
 		"${attr.",
+		"${device.",
 		"${meta.",
 	}
 )
