@@ -335,7 +335,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if !specChanged {
 		reply.JobModifyIndex = existingJob.ModifyIndex
 
-		// Force an eval for service/batch jobs
+		// Force an eval for service/batch jobs. This is intentional
+		// behavior to allow triggering of evaluations via re-registering
+		// similar to `nomad job eval`.
 		if args.Eval != nil {
 			update := &structs.EvalUpdateRequest{
 				Evals:        []*structs.Evaluation{args.Eval},
