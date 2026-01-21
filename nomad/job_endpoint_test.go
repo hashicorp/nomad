@@ -1042,6 +1042,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
+	registerJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRegisterJob}))
+
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
 	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
@@ -1112,6 +1114,12 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			Name:        "with a token that also has csi-register-plugin, accepted",
 			Job:         newCSIPluginJob(),
 			Token:       pluginToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a register job token",
+			Job:         mock.Job(),
+			Token:       registerJobToken.SecretID,
 			ErrExpected: false,
 		},
 	}
@@ -2623,6 +2631,15 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	var validResp2 structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
 	require.Nil(err)
+
+	// Try with a valid fine-grained token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRevertJob}))
+
+	revertReq.AuthToken = validFineGrainToken.SecretID
+	var validResp3 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp3)
+	require.Nil(err)
 }
 
 func TestJobEndpoint_Stable(t *testing.T) {
@@ -2746,6 +2763,15 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 	stableReq.AuthToken = validToken.SecretID
 	var validStableResp2 structs.JobStabilityResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp2)
+	require.Nil(err)
+
+	// Attempt to fetch with a valid fine-grained token
+	validFineGrainedToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid-fine-grained",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityStableJob}))
+
+	stableReq.AuthToken = validFineGrainedToken.SecretID
+	var validStableResp3 structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp3)
 	require.Nil(err)
 
 	// Check that the job is marked stable
@@ -2977,18 +3003,27 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp2)
 	require.Nil(err)
 
+	// Fetch the response with a valid fine-grained token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityEvaluateJob}))
+
+	reEval.AuthToken = validFineGrainToken.SecretID
+	var validResp3 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp3)
+	require.Nil(err)
+
 	// Lookup the evaluation
 	ws := memdb.NewWatchSet()
-	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	eval, err := state.EvalByID(ws, validResp3.EvalID)
 	require.Nil(err)
 	require.NotNil(eval)
 
-	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.CreateIndex, validResp3.EvalCreateIndex)
 	require.Equal(eval.Priority, job.Priority)
 	require.Equal(eval.Type, job.Type)
 	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobRegister)
 	require.Equal(eval.JobID, job.ID)
-	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.JobModifyIndex, validResp3.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
@@ -3194,6 +3229,84 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Deregister and purge
 	req := &structs.JobDeregisterRequest{
 		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect success with a valid management token
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token for purge
+	purgeFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = purgeFineGrainToken.SecretID
+	var purgeFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &purgeFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.AuthToken = validToken.SecretID
+
+	// Deregistration is idempotent
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	must.NoError(t, err)
+}
+func TestJobEndpoint_Deregister_Purge_ACL(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	require.Nil(err)
+
+	// Deregister and purge
+	req := &structs.JobDeregisterRequest{
+		JobID: job.ID,
 		Purge: true,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -3225,8 +3338,26 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.Nil(err)
 	require.NotEqual(validResp.Index, 0)
 
+	// Expect success with a fine-grained valid token for purge
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect failure with a fine-grained valid token for deregister without purge
+	invalidFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = invalidFineGrainToken.SecretID
+	var invalidFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidFineGrainResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
 	// Expect success with a valid token
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	req.AuthToken = validToken.SecretID
 
@@ -6064,6 +6195,7 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
 
 	// Create a plan request
 	job := mock.Job()
@@ -6087,6 +6219,15 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Try with a fine-grain token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPlanJob}))
+
+	planReq.AuthToken = validFineGrainToken.SecretID
+	var planResp2 structs.JobPlanResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp2)
+	require.Nil(t, err)
 }
 
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
@@ -8476,4 +8617,67 @@ func TestJob_GetServiceRegistrations(t *testing.T) {
 			tc.testFn(t, server, aclToken)
 		})
 	}
+}
+
+func TestJob_TagVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	must.Nil(t, err)
+
+	// Tag the job version
+	tagVersionReq := &structs.JobApplyTagRequest{
+		JobID: job.ID,
+		Tag: &structs.JobVersionTag{
+			Name:        "release",
+			Description: "Release version tag",
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	tagVersionReq.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &invalidResp)
+	must.NotNil(t, err)
+	must.StrContains(t, err.Error(), "Permission denied")
+
+	// Tagging a job with a management token should succeed
+	tagVersionReq.AuthToken = root.SecretID
+	var resp structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp)
+	must.Nil(t, err)
+
+	// Looking up the job with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	tagVersionReq.AuthToken = validToken.SecretID
+	var resp2 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp2)
+	must.Nil(t, err)
+
+	// Looking up the job with a valid fine-grain token should succeed
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityTagJobVersion}))
+	tagVersionReq.AuthToken = validFineGrainToken.SecretID
+	var resp3 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp3)
+	must.Nil(t, err)
+
+	must.Eq(t, "release", resp3.Name)
+	must.Eq(t, "Release version tag", resp3.Description)
+	must.NotNil(t, resp3.TaggedTime)
 }

@@ -889,3 +889,290 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     );
   });
 });
+
+module(
+  'Job Start/Stop/Revert/Edit and Resubmit with client token',
+  function (hooks) {
+    setupApplicationTest(hooks);
+    setupMirage(hooks);
+
+    hooks.beforeEach(async function () {
+      server.create('agent');
+      server.create('node-pool');
+      server.create('node');
+      server.createList('namespace', 4);
+      server.create('token');
+    });
+
+    test('Start Job is disabled when the token lacks permission', async function (assert) {
+      window.localStorage.clear();
+
+      const job1 = server.create('job', {
+        stopped: true,
+        status: 'dead',
+        namespaceId: server.db.namespaces[0].id,
+      });
+      const job2 = server.create('job', {
+        stopped: true,
+        status: 'dead',
+        namespaceId: server.db.namespaces[1].id,
+      });
+      const job3 = server.create('job', {
+        stopped: true,
+        status: 'dead',
+        namespaceId: server.db.namespaces[2].id,
+      });
+
+      const policy = server.create('policy', {
+        id: 'client-something',
+        name: 'client-something',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'register-job'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await JobDetail.visit({ id: job1.id });
+      assert.notOk(JobDetail.start.isDisabled);
+
+      await JobDetail.visit({ id: `${job2.id}@${job2.namespaceId}` });
+      assert.notOk(JobDetail.start.isDisabled);
+
+      await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
+      assert.ok(JobDetail.start.isDisabled);
+    });
+
+    test('Stop Job is disabled when the token lacks permission', async function (assert) {
+      window.localStorage.clear();
+
+      const job1 = server.create('job', {
+        status: 'running',
+        namespaceId: server.db.namespaces[0].id,
+      });
+      const job2 = server.create('job', {
+        status: 'running',
+        namespaceId: server.db.namespaces[1].id,
+      });
+      const job3 = server.create('job', {
+        status: 'running',
+        namespaceId: server.db.namespaces[2].id,
+      });
+      const job4 = server.create('job', {
+        status: 'running',
+        namespaceId: server.db.namespaces[3].id,
+      });
+
+      const policy = server.create('policy', {
+        id: 'client-something',
+        name: 'client-something',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'deregister-job'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'purge-job'],
+            },
+            {
+              Name: job4.namespaceId,
+              Capabilities: ['read-job', 'list-jobs'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await JobDetail.visit({ id: job1.id });
+      assert.notOk(JobDetail.stop.isDisabled);
+
+      await JobDetail.visit({ id: `${job2.id}@${job2.namespaceId}` });
+      assert.notOk(JobDetail.stop.isDisabled);
+
+      await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
+      assert.notOk(JobDetail.stop.isDisabled);
+
+      await JobDetail.visit({ id: `${job4.id}@${job4.namespaceId}` });
+      assert.ok(JobDetail.stop.isDisabled);
+    });
+
+    test('Purge Job is disabled when the token lacks permission', async function (assert) {
+      window.localStorage.clear();
+
+      const job1 = server.create('job', {
+        status: 'dead',
+        namespaceId: server.db.namespaces[0].id,
+      });
+      const job2 = server.create('job', {
+        status: 'dead',
+        namespaceId: server.db.namespaces[1].id,
+      });
+      const job3 = server.create('job', {
+        status: 'dead',
+        namespaceId: server.db.namespaces[2].id,
+      });
+      const job4 = server.create('job', {
+        status: 'dead',
+        namespaceId: server.db.namespaces[3].id,
+      });
+
+      const policy = server.create('policy', {
+        id: 'client-something',
+        name: 'client-something',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'deregister-job'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'purge-job'],
+            },
+            {
+              Name: job4.namespaceId,
+              Capabilities: ['read-job', 'list-jobs'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await JobDetail.visit({ id: job1.id });
+      assert.notOk(JobDetail.purge.isDisabled);
+
+      await JobDetail.visit({ id: `${job2.id}@${job2.namespaceId}` });
+      assert.ok(JobDetail.purge.isDisabled);
+
+      await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
+      assert.notOk(JobDetail.purge.isDisabled);
+
+      await JobDetail.visit({ id: `${job4.id}@${job4.namespaceId}` });
+      assert.ok(JobDetail.purge.isDisabled);
+    });
+
+    test('Revert Job is disabled when the token lacks permission', async function (assert) {
+      window.localStorage.clear();
+
+      const job1 = server.create('job', {
+        stopped: false,
+        status: 'dead',
+        namespaceId: server.db.namespaces[0].id,
+      });
+      const job2 = server.create('job', {
+        stopped: false,
+        status: 'dead',
+        namespaceId: server.db.namespaces[1].id,
+      });
+      const job3 = server.create('job', {
+        stopped: false,
+        status: 'dead',
+        namespaceId: server.db.namespaces[2].id,
+      });
+
+      server.create('job-version', {
+        job: job1,
+        namespace: job1.namespace,
+        version: 1,
+        stable: true,
+        versionTag: {
+          Name: 'v1',
+          Description: 'The first version',
+        },
+      });
+      server.create('job-version', {
+        job: job2,
+        namespace: job2.namespace,
+        version: 1,
+        stable: true,
+        versionTag: {
+          Name: 'v1',
+          Description: 'The first version',
+        },
+      });
+      server.create('job-version', {
+        job: job3,
+        namespace: job3.namespace,
+        version: 1,
+        stable: true,
+        versionTag: {
+          Name: 'v1',
+          Description: 'The first version',
+        },
+      });
+
+      const policy = server.create('policy', {
+        id: 'client-something',
+        name: 'client-something',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'revert-job'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await JobDetail.visit({ id: job1.id });
+      assert.notOk(JobDetail.revert.isDisabled);
+
+      await JobDetail.visit({ id: `${job2.id}@${job2.namespaceId}` });
+      assert.notOk(JobDetail.revert.isDisabled);
+
+      await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
+      assert.ok(JobDetail.revert.isDisabled);
+    });
+  }
+);

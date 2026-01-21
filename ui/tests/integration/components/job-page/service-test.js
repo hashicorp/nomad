@@ -13,7 +13,6 @@ import {
   startJob,
   stopJob,
   purgeJob,
-  expectError,
   expectDeleteRequest,
   expectStartRequest,
   expectPurgeRequest,
@@ -29,10 +28,13 @@ module('Integration | Component | job-page/service', function (hooks) {
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
+    this.token = this.owner.lookup('service:token');
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node-pool');
     this.server.create('node');
+    let managementToken = this.server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   hooks.afterEach(function () {
@@ -78,6 +80,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   test('Stopping a job sends a delete request for the job', async function (assert) {
     assert.expect(1);
 
+    this.token.fetchSelfTokenAndPolicies.perform();
+
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
 
@@ -90,8 +94,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     expectDeleteRequest(assert, this.server, job);
   });
 
-  test('Stopping a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(4);
+  test('Stopping a job without proper permissions disables the button', async function (assert) {
+    assert.expect(2);
 
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
@@ -103,14 +107,17 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await stopJob();
-    expectError(assert, 'Could Not Stop Job');
+    assert.ok(
+      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled')
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
     assert.expect(1);
+
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
@@ -128,8 +135,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     expectStartRequest(assert, this.server, job);
   });
 
-  test('Starting a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(3);
+  test('Starting a job without proper permissions disables the button', async function (assert) {
+    assert.expect(1);
 
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
@@ -145,12 +152,15 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await startJob();
-    await expectError(assert, 'Could Not Start Job');
+    assert.ok(
+      find('[data-test-start] [data-test-idle-button]').hasAttribute('disabled')
+    );
   });
 
   test('Purging a job sends a purge request for the job', async function (assert) {
     assert.expect(1);
+
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
@@ -236,6 +246,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   test('Active deployment can be promoted', async function (assert) {
     this.server.create('node');
+    this.token.fetchSelfTokenAndPolicies.perform();
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
     const fullId = JSON.stringify([mirageJob.name, 'default']);
@@ -274,7 +285,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   test('When promoting the active deployment fails, an error is shown', async function (assert) {
     assert.expect(4);
-
+    this.token.fetchSelfTokenAndPolicies.perform();
     this.server.pretender.post('/v1/deployment/promote/:id', () => [
       403,
       {},
@@ -335,6 +346,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   test('Active deployment can be failed', async function (assert) {
     this.server.create('node');
+    this.token.fetchSelfTokenAndPolicies.perform();
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
     await this.store.findAll('job');
@@ -359,7 +371,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   test('When failing the active deployment fails, an error is shown', async function (assert) {
     assert.expect(4);
-
+    this.token.fetchSelfTokenAndPolicies.perform();
     this.server.pretender.post('/v1/deployment/fail/:id', () => [403, {}, '']);
 
     this.server.create('node');
