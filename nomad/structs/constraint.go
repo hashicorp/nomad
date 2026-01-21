@@ -24,6 +24,7 @@ var (
 	validConstraintPrefixTargets = []string{
 		"${attr.",
 		"${meta.",
+		"${device.attr.",
 	}
 )
 

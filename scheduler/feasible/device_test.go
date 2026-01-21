@@ -112,7 +112,7 @@ func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 	ask := deviceRequest("gpu", 1, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
-	out, score, err := d.createOffer(mem, ask)
+	out, score, _, err := d.createOffer(mem, ask)
 	must.NotNil(t, out)
 	must.Zero(t, score)
 	must.NoError(t, err)
@@ -135,7 +135,7 @@ func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 	ask := deviceRequest("intel/fpga/F100", 1, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
-	out, score, err := d.createOffer(mem, ask)
+	out, score, _, err := d.createOffer(mem, ask)
 	must.NotNil(t, out)
 	must.Zero(t, score)
 	must.NoError(t, err)
@@ -158,7 +158,7 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	ask := deviceRequest("gpu", 4, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
-	out, _, err := d.createOffer(mem, ask)
+	out, _, _, err := d.createOffer(mem, ask)
 	must.Nil(t, out)
 	must.ErrorContains(t, err, "no devices match request")
 }
@@ -177,7 +177,7 @@ func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
 		topology:   structs.MockWorkstationTopology(),
 		devices:    set.From([]string{"nvidia/gpu/1080ti"}),
 	}
-	out, _, err := d.createOffer(mem, ask)
+	out, _, _, err := d.createOffer(mem, ask)
 	must.NoError(t, err)
 	must.SliceLen(t, 2, out.DeviceIDs) // DeviceIDs are actually instance ids
 }
@@ -210,7 +210,7 @@ func TestDeviceAllocator_Allocate_NUMA_node1(t *testing.T) {
 		topology:   structs.MockWorkstationTopology(),
 		devices:    set.From([]string{"xilinx/fpga/7XA"}),
 	}
-	out, _, err := d.createOffer(mem, ask)
+	out, _, _, err := d.createOffer(mem, ask)
 	must.NoError(t, err)
 	must.SliceLen(t, 1, out.DeviceIDs)
 }
@@ -332,7 +332,7 @@ func TestDeviceAllocate_Constraints_NoMemoryMatch(t *testing.T) {
 			ask := deviceRequest(c.Name, 1, c.Constraints, nil)
 
 			mem := anyMemoryNodeMatcher()
-			out, score, err := d.createOffer(mem, ask)
+			out, score, _, err := d.createOffer(mem, ask)
 			if c.NoPlacement {
 				must.Nil(t, out)
 			} else {
@@ -380,7 +380,7 @@ func TestDeviceAllocate_Constraints_MemoryMatch(t *testing.T) {
 		},
 		devices: set.From([]string{nvidia0.ID().String()}),
 	}
-	out, _, err := d.createOffer(mem, ask)
+	out, _, _, err := d.createOffer(mem, ask)
 
 	// the first memoryNodeMatcher does not have the correct memoryNode
 	must.ErrorContains(t, err, "no devices match")
@@ -388,7 +388,7 @@ func TestDeviceAllocate_Constraints_MemoryMatch(t *testing.T) {
 
 	// change to the correct node
 	mem.memoryNode = 2
-	out, _, err = d.createOffer(mem, ask)
+	out, _, _, err = d.createOffer(mem, ask)
 
 	must.NoError(t, err)
 	must.Len(t, 1, out.DeviceIDs)
@@ -485,7 +485,7 @@ func TestDeviceAllocator_Affinities(t *testing.T) {
 			ask := deviceRequest(c.Name, 1, nil, c.Affinities)
 
 			mem := anyMemoryNodeMatcher()
-			out, score, err := d.createOffer(mem, ask)
+			out, score, _, err := d.createOffer(mem, ask)
 			must.NotNil(t, out)
 			must.NoError(t, err)
 			if c.ZeroScore {
@@ -499,6 +499,286 @@ func TestDeviceAllocator_Affinities(t *testing.T) {
 			must.SliceContains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
 		})
 	}
+}
+
+// Test FirstAvailable: first option is selected when it can be satisfied
+func TestDeviceAllocator_FirstAvailable_SelectsFirstOption(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := multipleNvidiaNode()
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	nvidia0 := n.NodeResources.Devices[0] // 1080ti with 2 instances
+	nvidia1 := n.NodeResources.Devices[1] // 2080ti with 2 instances
+
+	// Build a request that prefers 1080ti first, then falls back to 2080ti
+	ask := &structs.RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "1080ti",
+					},
+				},
+			},
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "2080ti",
+					},
+				},
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, _, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+
+	// Should select 1080ti (first option)
+	must.Eq(t, "1080ti", out.Name)
+	must.SliceLen(t, 1, out.DeviceIDs)
+	must.SliceContains(t, collectInstanceIDs(nvidia0), out.DeviceIDs[0])
+	_ = nvidia1 // silence unused warning
+}
+
+// Test FirstAvailable: falls back to second option when first cannot be satisfied
+func TestDeviceAllocator_FirstAvailable_FallsBackToSecondOption(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := multipleNvidiaNode()
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	nvidia1 := n.NodeResources.Devices[1] // 2080ti with 2 instances
+
+	// Build a request where first option cannot be satisfied (no H100)
+	// but second option can (2080ti exists)
+	ask := &structs.RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "H100", // doesn't exist
+					},
+				},
+			},
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "2080ti",
+					},
+				},
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, _, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+
+	// Should select 2080ti (second option since first failed)
+	must.Eq(t, "2080ti", out.Name)
+	must.SliceLen(t, 1, out.DeviceIDs)
+	must.SliceContains(t, collectInstanceIDs(nvidia1), out.DeviceIDs[0])
+}
+
+// Test FirstAvailable: count requirements are respected
+func TestDeviceAllocator_FirstAvailable_CountRequirements(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := multipleNvidiaNode()
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	nvidia1 := n.NodeResources.Devices[1] // 2080ti with 2 instances
+
+	// Build a request where first option needs 4 GPUs (not available)
+	// but second option only needs 2
+	ask := &structs.RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 4, // can't satisfy - not enough instances
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "1080ti",
+					},
+				},
+			},
+			{
+				Count: 2, // can satisfy
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "2080ti",
+					},
+				},
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, _, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+
+	// Should select 2080ti with 2 instances
+	must.Eq(t, "2080ti", out.Name)
+	must.SliceLen(t, 2, out.DeviceIDs)
+	must.SliceContainsSubset(t, collectInstanceIDs(nvidia1), out.DeviceIDs)
+}
+
+// Test FirstAvailable: base constraints are applied to all options
+func TestDeviceAllocator_FirstAvailable_BaseConstraints(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := devNode() // has nvidia/gpu/1080ti and intel/fpga/F100
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	// Build a request with a base constraint that limits to nvidia vendor
+	// First option asks for a model that doesn't exist, second asks for 1080ti
+	ask := &structs.RequestedDevice{
+		Name: "gpu",
+		// Base constraint: must be nvidia
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${device.vendor}",
+				Operand: "=",
+				RTarget: "nvidia",
+			},
+		},
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "H100", // doesn't exist
+					},
+				},
+			},
+			{
+				Count: 1,
+				// No additional constraints - should match nvidia/gpu/1080ti
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, _, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+
+	// Should select nvidia device (second option)
+	must.Eq(t, "nvidia", out.Vendor)
+}
+
+// Test FirstAvailable: all options fail returns error
+func TestDeviceAllocator_FirstAvailable_AllOptionsFail(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := devNode()
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	// Build a request where no option can be satisfied
+	ask := &structs.RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "H100", // doesn't exist
+					},
+				},
+			},
+			{
+				Count: 1,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${device.model}",
+						Operand: "=",
+						RTarget: "GH200", // doesn't exist either
+					},
+				},
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, _, _, err := d.createOffer(mem, ask)
+	must.Nil(t, out)
+	must.ErrorContains(t, err, "no first_available option could be satisfied")
+}
+
+// Test FirstAvailable: base affinities are applied to all options
+func TestDeviceAllocator_FirstAvailable_BaseAffinities(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	n := multipleNvidiaNode()
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+
+	// Build a request with base affinities that apply to all first_available options
+	ask := &structs.RequestedDevice{
+		Name: "nvidia/gpu",
+		// Base affinity applies to whichever option is selected
+		Affinities: []*structs.Affinity{
+			{
+				LTarget: "${device.attr.memory}",
+				Operand: ">",
+				RTarget: "10 GiB",
+				Weight:  50,
+			},
+		},
+		FirstAvailable: []*structs.DeviceOption{
+			{
+				Count: 1,
+			},
+		},
+	}
+
+	mem := anyMemoryNodeMatcher()
+	out, sumMatched, totalWeight, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+
+	// Base affinity should have been considered
+	must.Eq(t, 50.0, totalWeight)
+	// sumMatched depends on which device was selected and matched
+	must.True(t, sumMatched >= 0)
 }
 
 func Test_equalBusID(t *testing.T) {

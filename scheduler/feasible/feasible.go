@@ -1517,7 +1517,16 @@ func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
 	// Go through the required devices trying to find matches
 OUTER:
 	for _, req := range c.required {
-		// Determine how many there are to place
+		// Handle first_available selection
+		if len(req.FirstAvailable) > 0 {
+			if c.canSatisfyFirstAvailable(req, available) {
+				continue OUTER
+			}
+			// None of the first_available options could be satisfied
+			return false
+		}
+
+		// Standard device request - determine how many there are to place
 		desiredCount := req.Count
 
 		// Go through the device resources and see if we have a match
@@ -1546,6 +1555,85 @@ OUTER:
 	}
 
 	// Only satisfied if there are no more devices to place
+	return true
+}
+
+// canSatisfyFirstAvailable checks if any of the first_available options can be
+// satisfied given the available devices. It tries each option in order and
+// returns true if any option can be satisfied. If an option is satisfied, the
+// available counts are decremented accordingly.
+func (c *DeviceChecker) canSatisfyFirstAvailable(req *structs.RequestedDevice, available map[*structs.NodeDeviceResource]uint64) bool {
+	for _, opt := range req.FirstAvailable {
+		// Try to satisfy this option
+		if c.canSatisfyDeviceOption(req, opt, available) {
+			return true
+		}
+	}
+	return false
+}
+
+// canSatisfyDeviceOption checks if a single device option can be satisfied.
+// It combines the base constraints from the request with the option-specific
+// constraints and checks if enough devices match.
+func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt *structs.DeviceOption, available map[*structs.NodeDeviceResource]uint64) bool {
+	desiredCount := opt.Count
+
+	// Create a snapshot of available counts to restore if this option fails
+	snapshot := make(map[*structs.NodeDeviceResource]uint64, len(available))
+	for k, v := range available {
+		snapshot[k] = v
+	}
+
+	for d, unused := range available {
+		if unused == 0 {
+			continue
+		}
+
+		// Check if device matches base requirements (name/type)
+		if !d.ID().Matches(req.ID()) {
+			continue
+		}
+
+		// Check base constraints from the RequestedDevice
+		if !deviceMatchesConstraints(c.ctx, d, req.Constraints) {
+			continue
+		}
+
+		// Check option-specific constraints
+		if !deviceMatchesConstraints(c.ctx, d, opt.Constraints) {
+			continue
+		}
+
+		// This device type matches, consume instances
+		for desiredCount > 0 && available[d] > 0 {
+			available[d] -= 1
+			desiredCount -= 1
+		}
+
+		if desiredCount == 0 {
+			return true
+		}
+	}
+
+	// Failed to satisfy this option - restore available counts
+	for k, v := range snapshot {
+		available[k] = v
+	}
+	return false
+}
+
+// deviceMatchesConstraints checks if a device satisfies a set of constraints.
+func deviceMatchesConstraints(ctx Context, d *structs.NodeDeviceResource, constraints structs.Constraints) bool {
+	for _, c := range constraints {
+		// Resolve the targets
+		lVal, lOk := resolveDeviceTarget(c.LTarget, d)
+		rVal, rOk := resolveDeviceTarget(c.RTarget, d)
+
+		// Check if satisfied
+		if !checkAttributeConstraint(ctx, c.Operand, lVal, rVal, lOk, rOk) {
+			return false
+		}
+	}
 	return true
 }
 

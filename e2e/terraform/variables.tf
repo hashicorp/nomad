@@ -122,3 +122,9 @@ variable "nomad_local_binary_client_windows_2022" {
   type        = string
   default     = ""
 }
+
+variable "device_plugin_local_binary" {
+  description = "Path to the example device plugin binary for e2e device tests"
+  type        = string
+  default     = ""
+}
