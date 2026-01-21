@@ -300,7 +300,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Set the submit time
 	now := time.Now().UnixNano()
 	args.Job.SubmitTime = now
-	var eval *structs.Evaluation
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
@@ -312,7 +311,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			evalPriority = args.EvalPriority
 		}
 
-		eval = &structs.Evaluation{
+		args.Eval = &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
 			Priority:    evalPriority,
@@ -323,9 +322,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			CreateTime:  now,
 			ModifyTime:  now,
 		}
-
-		args.Eval = eval
-		reply.EvalID = eval.ID
+		reply.EvalID = args.Eval.ID
 	}
 
 	// Check if the job has changed at all
@@ -339,9 +336,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		reply.JobModifyIndex = existingJob.ModifyIndex
 
 		// Force an eval for service/batch jobs
-		if eval != nil {
+		if args.Eval != nil {
 			update := &structs.EvalUpdateRequest{
-				Evals:        []*structs.Evaluation{eval},
+				Evals:        []*structs.Evaluation{args.Eval},
 				WriteRequest: structs.WriteRequest{Region: args.Region},
 			}
 			_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
@@ -358,8 +355,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Pre-register a deployment if necessary.
-	args.Deployment = j.multiregionCreateDeployment(job, eval)
-
+	args.Deployment = j.multiregionCreateDeployment(job, args.Eval)
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 	if err != nil {
@@ -371,7 +367,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.JobModifyIndex = index
 	reply.Index = index
 
-	if eval != nil {
+	if args.Eval != nil {
 		reply.EvalCreateIndex = index
 	}
 
