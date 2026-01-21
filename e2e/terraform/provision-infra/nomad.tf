@@ -55,6 +55,8 @@ module "nomad_client_ubuntu_jammy" {
   nomad_region       = var.nomad_region
   nomad_local_binary = local.linux_binary
 
+  device_plugin_local_binary = var.device_plugin_local_binary
+
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
 
