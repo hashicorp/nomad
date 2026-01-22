@@ -16,10 +16,7 @@ job "task-api-nomad-cli" {
       driver = "raw_exec"
       config {
         command = "bash"
-        // "|| true" because failure to get a var makes nomad cli exit 1,
-        // but for this test, "Variable not found" actually indicates successful
-        // API connection.
-        args = ["-xc", "echo $NOMAD_ADDR; nomad var get nothing || true"]
+        args    = ["-xc", "echo $NOMAD_ADDR; nomad var get nomad/jobs/task-api-nomad-cli"]
       }
       env {
         NOMAD_ADDR = "${NOMAD_UNIX_ADDR}"
