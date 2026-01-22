@@ -25,7 +25,7 @@ job "checks_task_restart_helper" {
     }
 
     constraint {
-      attribute = "${node.unique_id}"
+      attribute = "${node.unique.id}"
       value     = "${var.nodeID}"
     }
 
