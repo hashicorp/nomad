@@ -9,6 +9,7 @@
   },
   "pnpm": {
     "overrides": {
+      "@hashicorp/design-system-components": "6.0.0-rc-20260122180106",
       "cross-spawn": "7.0.5",
       "ember-auto-import": "^2.7.3",
       "prop-types": "^15.8.1",
