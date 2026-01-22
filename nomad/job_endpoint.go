@@ -306,12 +306,8 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 		return err
 	}
 
-	// Create a new evaluation
-	now := time.Now().UnixNano()
-	submittedEval := false
-	var eval *structs.Evaluation
-
 	// Set the submit time
+	now := time.Now().UnixNano()
 	args.Job.SubmitTime = now
 
 	// If the job is periodic or parameterized, we don't create an eval.
@@ -324,7 +320,7 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 			evalPriority = args.EvalPriority
 		}
 
-		eval = &structs.Evaluation{
+		args.Eval = &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
 			Priority:    evalPriority,
@@ -335,7 +331,7 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 			CreateTime:  now,
 			ModifyTime:  now,
 		}
-		reply.EvalID = eval.ID
+		reply.EvalID = args.Eval.ID
 	}
 
 	// Check if the job has changed at all
@@ -343,79 +339,64 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 	if err != nil {
 		return err
 	}
+	// We know the job isn't nil, so if the spec hasn't changed,
+	// there is an existing job.
+	if !specChanged {
+		reply.JobModifyIndex = existingJob.ModifyIndex
 
-	if existingJob == nil || specChanged {
-
-		if eval != nil {
-			args.Eval = eval
-			submittedEval = true
+		// Force an eval for service/batch jobs. This is intentional
+		// behavior to allow triggering of evaluations via re-registering
+		// similar to `nomad job eval`.
+		if args.Eval != nil {
+			update := &structs.EvalUpdateRequest{
+				Evals:        []*structs.Evaluation{args.Eval},
+				WriteRequest: structs.WriteRequest{Region: args.Region},
+			}
+			_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+			if err != nil {
+				j.logger.Error("eval create failed", "error", err, "method", "register")
+				return err
+			}
+			reply.EvalCreateIndex = evalIndex
+			reply.Index = evalIndex
+		} else {
+			reply.Index = existingJob.ModifyIndex
 		}
+		return nil
+	}
 
-		// Pre-register a deployment if necessary.
-		args.Deployment = j.multiregionCreateDeployment(job, eval)
+	// Pre-register a deployment if necessary.
+	args.Deployment = j.multiregionCreateDeployment(job, args.Eval)
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+	if err != nil {
+		j.logger.Error("registering job failed", "error", err)
+		return err
+	}
 
-		// Commit this update via Raft
-		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-		if err != nil {
-			j.logger.Error("registering job failed", "error", err)
-			return err
-		}
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+	reply.Index = index
 
-		// Populate the reply with job information
-		reply.JobModifyIndex = index
-		reply.Index = index
-
-		if submittedEval {
-			reply.EvalCreateIndex = index
-		}
-
-	} else {
-		reply.JobModifyIndex = existingJob.JobModifyIndex
+	if args.Eval != nil {
+		reply.EvalCreateIndex = index
 	}
 
 	// used for multiregion start
 	args.Job.JobModifyIndex = reply.JobModifyIndex
 
-	if eval == nil {
-		// For dispatch jobs we return early, so we need to drop regions
-		// here rather than after eval for deployments is kicked off
-		err = j.multiregionDrop(args, reply)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if !submittedEval {
-		eval.JobModifyIndex = reply.JobModifyIndex
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// Commit this evaluation via Raft
-		// There is a risk of partial failure where the JobRegister succeeds
-		// but that the EvalUpdate does not, before 0.12.1
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "register")
-			return err
-		}
-
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
-	}
-
 	// Kick off a multiregion deployment (enterprise only).
 	if isRunner {
+		// This will skip running deployments for jobs that are not
+		// eligible to be run as deployments.
 		err = j.multiregionStart(args, reply)
 		if err != nil {
 			return err
 		}
 		// We drop any unwanted regions only once we know all jobs have
-		// been registered and we've kicked off the deployment. This keeps
-		// dropping regions close in semantics to dropping task groups in
-		// single-region deployments
+		// been registered and we've kicked off the deployment (if applicable).
+		// This keeps dropping regions close in semantics to dropping task
+		// groups in single-region deployments
 		err = j.multiregionDrop(args, reply)
 		if err != nil {
 			return err
