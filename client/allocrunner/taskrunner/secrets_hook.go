@@ -213,7 +213,7 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				multierror.Append(mErr, err)
 				continue
 			}
-			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Name, s.Path))
+			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path))
 		}
 	}
 
