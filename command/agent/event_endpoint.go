@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
@@ -70,11 +71,17 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	// Create a goroutine that closes the pipe if the connection closes
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+		case <-ticker.C:
+		}
 		httpPipe.Close()
 	}()
 
