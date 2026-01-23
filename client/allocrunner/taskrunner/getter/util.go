@@ -313,15 +313,8 @@ func (s *Sandbox) runCmd(env *parameters) error {
 		return err
 	}
 
-	// move all the files from the temporary destination to
-	// their final destination
-	rd, ok := at.FS().(fs.ReadDirFS)
-	if !ok {
-		return errors.New("unable to read rooted allocation directory")
-	}
-
 	// merge the artifact contents into the real destination
-	if err := mergeDirectories(at, rd, atTemporaryDest, atFinalDest); err != nil {
+	if err := mergeDirectories(at, atTemporaryDest, atFinalDest); err != nil {
 		return err
 	}
 
@@ -341,8 +334,13 @@ func (s *Sandbox) runCmd(env *parameters) error {
 // mergeDirectories will merge the contents of the srcDir into
 // the dstDir. This is a destructive action; the contents of
 // srcDir are moved into dstDir.
-func mergeDirectories(at *os.Root, readDir fs.ReadDirFS, srcDir, dstDir string) error {
-	entries, err := readDir.ReadDir(srcDir)
+func mergeDirectories(at *os.Root, srcDir, dstDir string) error {
+	dirFile, err := at.Open(srcDir)
+	if err != nil {
+		return err
+	}
+	defer dirFile.Close()
+	entries, err := dirFile.ReadDir(-1)
 	if err != nil {
 		return err
 	}
@@ -379,7 +377,7 @@ func mergeDirectories(at *os.Root, readDir fs.ReadDirFS, srcDir, dstDir string) 
 		// merge the source into the destination and proceed
 		// to the next entry
 		if srcInfo.IsDir() && dstInfo.IsDir() {
-			if err := mergeDirectories(at, readDir, src, dst); err != nil {
+			if err := mergeDirectories(at, src, dst); err != nil {
 				return err
 			}
 
