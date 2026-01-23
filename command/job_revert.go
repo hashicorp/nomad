@@ -24,11 +24,11 @@ Usage: nomad job revert [options] <job> <version|tag>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'revert-job' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID. The 'read-job' capability is required to monitor
+  the resulting evaluation when -detach is not used.
 
   If the version number is specified, the job will be reverted to the exact
   version number. If a version tag is specified, the job will be reverted to

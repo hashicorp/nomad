@@ -28,10 +28,10 @@ Alias: nomad stop
   allocations and completes shutting down. It is safe to exit the monitor
   early using ctrl+c.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
-  capability is required to run the command with job prefixes instead of exact
-  job IDs.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'deregister-job' capability and 'read-job' capability for the
+  job's namespace. The 'list-jobs' capability is required to run the command
+  with job prefixes instead of exact job IDs.
 
 General Options:
 
