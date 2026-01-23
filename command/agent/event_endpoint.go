@@ -71,22 +71,28 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
+	writeTimeout := 31 * time.Second
+	heartbeat := time.NewTicker(writeTimeout)
+	defer heartbeat.Stop()
 
 	// Create a goroutine that closes the pipe if the connection closes
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
+
 	go func() {
 		select {
 		case <-ctx.Done():
-		case <-ticker.C:
+		case <-heartbeat.C:
+			s.logger.Info("heartbeat passed")
 		}
-		httpPipe.Close()
-	}()
 
-	// Create an output that gets flushed on every write
-	output := ioutils.NewWriteFlusher(resp)
+		s.logger.Info("closing the pipes")
+		httpPipe.Close()
+		output.Close()
+	}()
 
 	// send request and decode events
 	errs, errCtx := errgroup.WithContext(ctx)
@@ -98,9 +104,19 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 			return CodedError(500, err.Error())
 		}
 
+		select {
+		case <-heartbeat.C:
+			return nil
+		default:
+		}
+
 		for {
+			s.logger.Info("hearbeat reset to 40s")
+			heartbeat.Reset(writeTimeout)
 			select {
 			case <-errCtx.Done():
+				return nil
+			case <-heartbeat.C:
 				return nil
 			default:
 			}
