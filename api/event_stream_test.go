@@ -6,7 +6,8 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"strings"
+	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -131,7 +132,7 @@ func TestEvent_Stream(t *testing.T) {
 			}
 
 			// Sadly decode doesn't return io.EOF
-			if event.Err != nil && strings.HasSuffix(event.Err.Error(), "EOF") {
+			if event.Err != nil && errors.Is(event.Err, io.ErrUnexpectedEOF) {
 				// Succcess! Make sure chan gets closed
 				select {
 				case _, ok := <-streamCh:
