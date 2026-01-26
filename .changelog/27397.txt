@@ -1,0 +1,3 @@
+```release-note:bug
+event endpoint: added a heartbeat to the EventStream handler to cancel blocking io.Copy operations
+```
