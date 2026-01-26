@@ -75,6 +75,8 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
+	// Create a heartbeat that is just a bit longer than NewJsonStream and close the
+	// connection when it ticks
 	writeTimeout := 31 * time.Second
 	heartbeat := time.NewTicker(writeTimeout)
 	defer heartbeat.Stop()
@@ -87,11 +89,10 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 		select {
 		case <-ctx.Done():
 		case <-heartbeat.C:
-			s.logger.Info("heartbeat passed")
+			s.logger.Debug("event endpoint: heartbeat passed, closing pipes and canceling the context")
 			cancel()
 		}
 
-		s.logger.Info("closing the pipes")
 		httpPipe.Close()
 		output.Close()
 	}()
@@ -107,8 +108,8 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 		}
 
 		for {
-			s.logger.Info("hearbeat reset to 40s")
 			heartbeat.Reset(writeTimeout)
+
 			select {
 			case <-errCtx.Done():
 				return nil
@@ -129,7 +130,8 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 			}
 
 			// Flush json entry to response, and make sure we stop reading if the ctx
-			// cancels (otherwise io.Copy blocks forever)
+			// cancels (otherwise io.Copy blocks forever in case there's backpressure on
+			// the endpoint)
 			if _, err := io.Copy(output, lang.NewCtxReader(ctx, bytes.NewReader(res.Event.Data))); err != nil {
 				return CodedError(500, err.Error())
 			}
