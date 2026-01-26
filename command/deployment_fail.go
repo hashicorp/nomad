@@ -24,9 +24,10 @@ Usage: nomad deployment fail [options] <deployment id>
   if the job is configured to auto revert, the job will attempt to roll back to a
   stable version.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the deployment's namespace.
-
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'fail-deployment' capability and the 'read-job' capability for
+  the deployment's namespace.
+  
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

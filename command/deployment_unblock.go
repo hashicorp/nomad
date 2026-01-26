@@ -22,8 +22,9 @@ Usage: nomad deployment unblock [options] <deployment id>
   Unblock is used to unblock a multiregion deployment that's waiting for
   peer region deployments to complete.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the deployment's namespace.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'unblock-deployment' capability and the 'read-job' capability
+  for the deployment's namespace.
 
 General Options:
 

@@ -22,9 +22,10 @@ Usage: nomad service delete [options] <service_name> <service_id>
   used with caution and can only remove a single registration, via the service
   name and service ID, at a time.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the service registration namespace.
-
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'delete-service-registration' capability for the service
+  registration namespace.
+  
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault)

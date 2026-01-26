@@ -24,11 +24,11 @@ Usage: nomad job periodic force <job id>
   This is used to immediately run a periodic job, even if it violates the job's
   prohibit_overlap setting.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'force-periodic-job' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID. The 'read-job' capability is required to monitor
+  the resulting evaluation when -detach is not used.
 
 General Options:
 
