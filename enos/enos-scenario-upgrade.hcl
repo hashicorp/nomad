@@ -317,7 +317,7 @@ scenario "upgrade" {
     }
   }
 
-  step "server_upgrade_test_cluster_health" {
+  step "post_server_upgrade_test_health" {
     depends_on = [step.upgrade_servers]
 
     description = <<-EOF
@@ -355,7 +355,7 @@ scenario "upgrade" {
   }
 
   step "upgrade_first_client" {
-    depends_on = [step.server_upgrade_test_cluster_health]
+    depends_on = [step.post_server_upgrade_test_health]
 
     description = <<-EOF
     Takes a client, writes some dynamic metadata to it,
@@ -542,7 +542,7 @@ scenario "upgrade" {
     }
   }
 
-  step "client_upgrade_test_cluster_health" {
+  step "post_client_upgrade_test_health" {
     depends_on = [step.upgrade_fourth_client]
 
     description = <<-EOF

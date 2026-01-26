@@ -7,8 +7,17 @@ set -euo pipefail
 error_exit() {
     printf 'Error: %s' "${1}"
     echo "Allocs on node ${client_id}:"
-    nomad alloc status -json | \
-        jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]'
+    ALL_ALLOCS=$(nomad alloc status -json | \
+                     jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]')
+    echo "$ALL_ALLOCS" > /tmp/allocs.json
+
+    cat /tmp/allocs.json | jq -r '
+        ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
+        ["--------", "--------", "------------", "-------------", "---------------"],
+        (.[] | [.ID[:8], .NodeID[:8], .ClientStatus, .DesiredStatus, .JobID])
+        | @tsv' | column -ts $'\t'
+
+    echo "full allocation status for debugging written to: /tmp/allocs.json"
     exit 1
 }
 
