@@ -155,6 +155,6 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(u.EvalID)
 }

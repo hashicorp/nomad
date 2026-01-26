@@ -147,6 +147,6 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalID)
 }

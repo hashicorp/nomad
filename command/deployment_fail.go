@@ -145,6 +145,6 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output("")
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(u.EvalID)
 }
