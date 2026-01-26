@@ -31,9 +31,9 @@ Alias: nomad start
  nodes. The monitor will end once job placement is done. It is safe to exit the
  monitor early using ctrl+c.
 
- When ACLs are enabled, this command requires a token with the 'submit-job'
- capability for the job's namespace.
-
+ When ACLs are enabled, this command requires a token with either the
+ 'submit-job' or 'register-job' capability for the job's namespace.
+ 
 General Options:
 
  ` + generalOptionsUsage(usageOptsDefault) + `

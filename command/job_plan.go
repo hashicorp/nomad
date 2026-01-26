@@ -66,8 +66,8 @@ Alias: nomad plan
     * 1: Allocations created or destroyed.
     * 255: Error determining plan results.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'plan-job' capability for the job's namespace.
 
 General Options:
 
