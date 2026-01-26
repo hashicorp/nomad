@@ -13,9 +13,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/sync/errgroup"
 )
@@ -70,16 +72,30 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
+	// Create a heartbeat that is just a bit longer than NewJsonStream and close the
+	// connection when it ticks
+	writeTimeout := 40 * time.Second
+	heartbeat := time.NewTicker(writeTimeout)
+	defer heartbeat.Stop()
+
 	// Create a goroutine that closes the pipe if the connection closes
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
-	go func() {
-		<-ctx.Done()
-		httpPipe.Close()
-	}()
 
-	// Create an output that gets flushed on every write
-	output := ioutils.NewWriteFlusher(resp)
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-heartbeat.C:
+			s.logger.Debug("event endpoint: heartbeat passed, closing pipes and canceling the context")
+			cancel()
+		}
+
+		httpPipe.Close()
+		output.Close()
+	}()
 
 	// send request and decode events
 	errs, errCtx := errgroup.WithContext(ctx)
@@ -92,6 +108,8 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 		}
 
 		for {
+			heartbeat.Reset(writeTimeout)
+
 			select {
 			case <-errCtx.Done():
 				return nil
@@ -111,8 +129,10 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 				}
 			}
 
-			// Flush json entry to response
-			if _, err := io.Copy(output, bytes.NewReader(res.Event.Data)); err != nil {
+			// Flush json entry to response, and make sure we stop reading if the ctx
+			// cancels (otherwise io.Copy blocks forever in case there's backpressure on
+			// the endpoint)
+			if _, err := io.Copy(output, lang.NewCtxReader(ctx, bytes.NewReader(res.Event.Data))); err != nil {
 				return CodedError(500, err.Error())
 			}
 			// Each entry is its own new line according to https://github.com/ndjson/ndjson-spec
