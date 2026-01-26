@@ -3962,6 +3962,27 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	require.Equal(t, defaultJob.ID, eval.JobID)
 }
 
+func TestNode_createNodeEvals_stoppedSystemJob(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a system job that is stopped, mimicking a job that has not been
+	// GC'd but manually stopped by a user.
+	systemJob := mock.SystemJob()
+	systemJob.Stop = true
+
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1, nil, systemJob))
+
+	// Mimic a new node registration (or state change) that would trigger the
+	// eval creation function.
+	evalIDs, _, err := NewNodeEndpoint(testServer, nil).createNodeEvals(mock.Node(), 3)
+	must.NoError(t, err)
+	must.Len(t, 0, evalIDs)
+}
+
 func TestClientEndpoint_Evaluate(t *testing.T) {
 	ci.Parallel(t)
 
