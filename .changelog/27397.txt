@@ -1,3 +1,3 @@
 ```release-note:bug
-event endpoint: added a heartbeat to the EventStream handler to cancel blocking io.Copy operations
+event stream: Fixed a bug where the HTTP handler can block forever and cause high memory usage if an API client reads too slowly from the stream
 ```
