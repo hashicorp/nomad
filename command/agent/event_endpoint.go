@@ -17,6 +17,7 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/sync/errgroup"
 )
@@ -87,6 +88,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 		case <-ctx.Done():
 		case <-heartbeat.C:
 			s.logger.Info("heartbeat passed")
+			cancel()
 		}
 
 		s.logger.Info("closing the pipes")
@@ -104,19 +106,11 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 			return CodedError(500, err.Error())
 		}
 
-		select {
-		case <-heartbeat.C:
-			return nil
-		default:
-		}
-
 		for {
 			s.logger.Info("hearbeat reset to 40s")
 			heartbeat.Reset(writeTimeout)
 			select {
 			case <-errCtx.Done():
-				return nil
-			case <-heartbeat.C:
 				return nil
 			default:
 			}
@@ -134,8 +128,9 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 				}
 			}
 
-			// Flush json entry to response
-			if _, err := io.Copy(output, bytes.NewReader(res.Event.Data)); err != nil {
+			// Flush json entry to response, and make sure we stop reading if the ctx
+			// cancels (otherwise io.Copy blocks forever)
+			if _, err := io.Copy(output, lang.NewCtxReader(ctx, bytes.NewReader(res.Event.Data))); err != nil {
 				return CodedError(500, err.Error())
 			}
 			// Each entry is its own new line according to https://github.com/ndjson/ndjson-spec
