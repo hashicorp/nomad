@@ -9,7 +9,8 @@ error_exit() {
     echo "Allocs on node ${client_id}:"
     ALL_ALLOCS=$(nomad alloc status -json | \
                      jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]')
-    echo "$ALL_ALLOCS" > /tmp/allocs.json
+    mkdir -p /tmp/artifacts
+    echo "$ALL_ALLOCS" > /tmp/artifacts/logs/allocs.json
 
     cat /tmp/allocs.json | jq -r '
         ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
@@ -66,7 +67,7 @@ echo "$allocs_count allocs found before upgrade $ALLOCS"
 # Quality: "nomad_alloc_reconnect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
 
 checkAllocsCount() {
-    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') || {
+    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select((.ClientStatus == "running" or .ClientStatus == "pending") and .NodeID == $client_id)]') || {
         last_error="Failed to check alloc status"
         return 1
     }

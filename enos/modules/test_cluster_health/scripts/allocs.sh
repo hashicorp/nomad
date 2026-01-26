@@ -8,7 +8,8 @@ error_exit() {
     printf 'Error: %s\n' "${1}"
 
     ALL_ALLOCS=$(nomad alloc status -json)
-    echo "$ALL_ALLOCS" > /tmp/allocs.json
+    mkdir -p /tmp/artifacts
+    echo "$ALL_ALLOCS" > /tmp/artifacts/logs/allocs.json
     cat /tmp/allocs.json | jq -r '
         ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
         ["--------", "--------", "------------", "-------------", "---------------"],
