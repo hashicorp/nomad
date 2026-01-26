@@ -77,7 +77,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 
 	// Create a heartbeat that is just a bit longer than NewJsonStream and close the
 	// connection when it ticks
-	writeTimeout := 31 * time.Second
+	writeTimeout := 40 * time.Second
 	heartbeat := time.NewTicker(writeTimeout)
 	defer heartbeat.Stop()
 
