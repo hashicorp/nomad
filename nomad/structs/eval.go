@@ -409,7 +409,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 		Priority: e.Priority,
 		JobTuple: &PlanJobTuple{
 			Namespace: j.Namespace,
-			JobID:     j.ID,
+			ID:        j.ID,
 			Version:   j.Version,
 		},
 		NodeUpdate:      make(map[string][]*Allocation),

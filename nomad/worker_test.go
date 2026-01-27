@@ -478,7 +478,11 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	// Create an allocation plan
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobTuple: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+			Version:   alloc.Job.Version,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -541,7 +545,11 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 	// Create an allocation plan
 	plan := &structs.Plan{
-		Job:             job,
+		JobTuple: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+			Version:   job.Version,
+		},
 		EvalID:          eval1.ID,
 		NodeUpdate:      make(map[string][]*structs.Allocation),
 		NodePreemptions: make(map[string][]*structs.Allocation),
@@ -603,7 +611,11 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobTuple: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+			Version:   job.Version,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: {alloc},

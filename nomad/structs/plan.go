@@ -73,14 +73,14 @@ type Plan struct {
 // Plan.Submit RPC.
 type PlanJobTuple struct {
 	Namespace string
-	JobID     string
+	ID        string
 	Version   uint64
 }
 
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
-	if p.Job != nil {
-		out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.JobTuple != nil {
+		out += fmt.Sprintf(", job %s", p.JobTuple.ID)
 	}
 	if p.Deployment != nil {
 		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
@@ -146,10 +146,14 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
-	// If the job is not set in the plan we are deregistering a job so we
-	// extract the job from the allocation.
-	if p.Job == nil && newAlloc.Job != nil {
-		p.Job = newAlloc.Job
+	// If the job tuple is not set in the plan we are deregistering a job so we
+	// extract the job information from the allocation.
+	if p.JobTuple == nil && newAlloc.Job != nil {
+		p.JobTuple = &PlanJobTuple{
+			Namespace: newAlloc.Job.Namespace,
+			ID:        newAlloc.Job.ID,
+			Version:   newAlloc.Job.Version,
+		}
 	}
 
 	// Normalize the job

@@ -43,7 +43,12 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan := mock.Plan()
 	plan.EvalID = eval1.ID
 	plan.EvalToken = token
-	plan.Job = mock.Job()
+	job := mock.Job()
+	plan.JobTuple = &structs.PlanJobTuple{
+		Namespace: job.Namespace,
+		ID:        job.ID,
+		Version:   job.Version,
+	}
 	req := &structs.PlanRequest{
 		Plan:         plan,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -166,11 +171,16 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		plan := mock.Plan()
 		plan.EvalID = eval1.ID
 		plan.EvalToken = token
-		plan.Job = mock.Job()
+		job := mock.Job()
+		plan.JobTuple = &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+			Version:   job.Version,
+		}
 
 		alloc := mock.Alloc()
-		alloc.JobID = plan.Job.ID
-		alloc.Job = plan.Job
+		alloc.JobID = job.ID
+		alloc.Job = job
 
 		plan.NodeAllocation = map[string][]*structs.Allocation{
 			node.ID: []*structs.Allocation{alloc}}
