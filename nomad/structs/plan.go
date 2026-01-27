@@ -31,6 +31,11 @@ type Plan struct {
 	// entire plan must be able to make progress.
 	AllAtOnce bool
 
+	// Job is the parent job of all the allocations in the Plan.
+	// Since a Plan only involves a single Job, we can reduce the size
+	// of the plan by only including it once.
+	Job *Job
+
 	// JobInfo contains namespace, job ID and version of all the allocations
 	// in the Plan. This is so that we don't serialize the whole Job object in the
 	// Plan.Submit RPC.
