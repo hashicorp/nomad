@@ -19,6 +19,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -3960,6 +3961,85 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	eval, err := state.EvalByID(nil, evalIDs[0])
 	require.NoError(t, err)
 	require.Equal(t, defaultJob.ID, eval.JobID)
+}
+
+func TestNode_createNodeEvals_terminalAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a node used to anchor the allocations and the eval creation
+	// testing.
+	mockNode := mock.Node()
+
+	// Create a number of allocations that are all running on the node and write
+	// them to the state store.
+	allocs := make([]*structs.Allocation, 3)
+
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.NodeID = mockNode.ID
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs[i] = alloc
+	}
+
+	must.NoError(
+		t,
+		testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1, helper.CopySlice(allocs)),
+	)
+
+	nodeEndpoint := NewNodeEndpoint(testServer, nil)
+
+	// Create evals for the node which currently has 3 running allocations.
+	createdEvals, _, err := nodeEndpoint.createNodeEvals(mockNode, 2)
+	must.NoError(t, err)
+	must.Len(t, 3, createdEvals)
+
+	// Update the state of some of the allocations, so we test various
+	// conditions. The first allocation remains running, the second is stopped
+	// but not complete, and the third is stopped and complete.
+	allocs[1].DesiredStatus = structs.AllocDesiredStatusStop
+	allocs[2].DesiredStatus = structs.AllocDesiredStatusStop
+	allocs[2].ClientStatus = structs.AllocClientStatusComplete
+
+	must.NoError(
+		t,
+		testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 3, helper.CopySlice(allocs)),
+	)
+	must.NoError(
+		t,
+		testServer.fsm.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, 4, helper.CopySlice(allocs)),
+	)
+
+	// Create evals for the node again, we should get two evals created, one for
+	// the running allocation, and one for the stopped but not complete
+	// allocation.
+	createdEvals, _, err = nodeEndpoint.createNodeEvals(mockNode, 4)
+	must.NoError(t, err)
+	must.Len(t, 2, createdEvals)
+
+	// Now mark all allocations as complete and stopped.
+	for _, alloc := range allocs {
+		alloc.ClientStatus = structs.AllocClientStatusComplete
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	}
+
+	must.NoError(
+		t,
+		testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 5, helper.CopySlice(allocs)),
+	)
+	must.NoError(
+		t,
+		testServer.fsm.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, 6, helper.CopySlice(allocs)),
+	)
+
+	// Create evals for the node again, we should get no evals created since all
+	// allocations are in a fully terminal state.
+	createdEvals, _, err = nodeEndpoint.createNodeEvals(mockNode, 7)
+	must.NoError(t, err)
+	must.Len(t, 0, createdEvals)
 }
 
 func TestClientEndpoint_Evaluate(t *testing.T) {

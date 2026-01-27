@@ -1836,6 +1836,15 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
+
+		// Skip allocations that are fully terminal on both server and client
+		// side. We require BOTH to be terminal (not just TerminalStatus which
+		// is an OR) because we only want to skip when the server has stopped
+		// the alloc AND the client has finished stopping it.
+		if alloc.ServerTerminalStatus() && alloc.ClientTerminalStatus() {
+			continue
+		}
+
 		// Deduplicate on JobID
 		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
