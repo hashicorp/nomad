@@ -31,10 +31,10 @@ type Plan struct {
 	// entire plan must be able to make progress.
 	AllAtOnce bool
 
-	// Job is the parent job of all the allocations in the Plan.
-	// Since a Plan only involves a single Job, we can reduce the size
-	// of the plan by only including it once.
-	Job *Job
+	// JobTuple contains namespace, job ID and version of all the allocations
+	// in the Plan. This is so that we don't serialize the whole Job object in the
+	// Plan.Submit RPC.
+	JobTuple *PlanJobTuple
 
 	// NodeUpdate contains all the allocations to be stopped or evicted for
 	// each node.
@@ -66,6 +66,15 @@ type Plan struct {
 	// Plan. The leader will wait to evaluate the plan until its StateStore
 	// has reached at least this index.
 	SnapshotIndex uint64
+}
+
+// PlanJobTuple contains namespace, job ID and version of all the allocations
+// in the Plan. This is so that we don't serialize the whole Job object in the
+// Plan.Submit RPC.
+type PlanJobTuple struct {
+	Namespace string
+	JobID     string
+	Version   uint64
 }
 
 func (p *Plan) GoString() string {

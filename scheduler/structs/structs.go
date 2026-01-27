@@ -124,6 +124,16 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 
 	snap, _ := p.State.Snapshot()
 
+	// pull the job from the state
+	job, err := snap.JobByID(nil, plan.JobTuple.Namespace, plan.JobTuple.JobID)
+	if err != nil {
+		return result, nil, err
+	}
+
+	if job == nil {
+		return result, nil, fmt.Errorf("unable to find job ID %s in the state", plan.JobTuple.JobID)
+	}
+
 	// make sure these are denormalized the same way they would be in the real
 	// plan applier
 	allocsStopped := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
@@ -148,7 +158,7 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 		AllocsStopped:     allocsStopped,
 		AllocsUpdated:     allocsUpdated,
 		AllocsPreempted:   allocsPreempted,
-		Job:               plan.Job,
+		Job:               job,
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
@@ -159,7 +169,7 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 	}
 
 	// Apply the full plan
-	err := p.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
+	err = p.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
 	return result, nil, err
 }
 
