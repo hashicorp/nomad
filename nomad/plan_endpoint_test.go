@@ -44,7 +44,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan.EvalID = eval1.ID
 	plan.EvalToken = token
 	job := mock.Job()
-	plan.JobTuple = &structs.PlanJobTuple{
+	plan.JobInfo = &structs.PlanJobTuple{
 		Namespace: job.Namespace,
 		ID:        job.ID,
 		Version:   job.Version,
@@ -172,7 +172,7 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		plan.EvalID = eval1.ID
 		plan.EvalToken = token
 		job := mock.Job()
-		plan.JobTuple = &structs.PlanJobTuple{
+		plan.JobInfo = &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
 			Version:   job.Version,

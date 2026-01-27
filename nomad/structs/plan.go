@@ -31,10 +31,10 @@ type Plan struct {
 	// entire plan must be able to make progress.
 	AllAtOnce bool
 
-	// JobTuple contains namespace, job ID and version of all the allocations
+	// JobInfo contains namespace, job ID and version of all the allocations
 	// in the Plan. This is so that we don't serialize the whole Job object in the
 	// Plan.Submit RPC.
-	JobTuple *PlanJobTuple
+	JobInfo *PlanJobTuple
 
 	// NodeUpdate contains all the allocations to be stopped or evicted for
 	// each node.
@@ -79,8 +79,8 @@ type PlanJobTuple struct {
 
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
-	if p.JobTuple != nil {
-		out += fmt.Sprintf(", job %s", p.JobTuple.ID)
+	if p.JobInfo != nil {
+		out += fmt.Sprintf(", job %s", p.JobInfo.ID)
 	}
 	if p.Deployment != nil {
 		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
@@ -148,8 +148,8 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 
 	// If the job tuple is not set in the plan we are deregistering a job so we
 	// extract the job information from the allocation.
-	if p.JobTuple == nil && newAlloc.Job != nil {
-		p.JobTuple = &PlanJobTuple{
+	if p.JobInfo == nil && newAlloc.Job != nil {
+		p.JobInfo = &PlanJobTuple{
 			Namespace: newAlloc.Job.Namespace,
 			ID:        newAlloc.Job.ID,
 			Version:   newAlloc.Job.Version,

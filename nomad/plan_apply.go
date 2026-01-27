@@ -243,13 +243,13 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	unixNow := now.UnixNano()
 
 	// pull the job from the state by ID
-	job, err := p.srv.State().JobByID(nil, plan.JobTuple.Namespace, plan.JobTuple.ID)
+	job, err := p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	if job == nil {
-		return nil, fmt.Errorf("couldn't find job ID %s in the state", plan.JobTuple.ID)
+		return nil, fmt.Errorf("couldn't find job ID %s in the state", plan.JobInfo.ID)
 	}
 
 	// Setup the update request
@@ -532,7 +532,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//the plan applier.
 				logger.Info("plan for node rejected, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
-					"namespace", plan.JobTuple.Namespace)
+					"namespace", plan.JobInfo.Namespace)
 			}
 			// Set that this is a partial commit and store the node that was
 			// rejected so the plan applier can detect repeated plan rejections

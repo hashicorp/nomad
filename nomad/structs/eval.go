@@ -407,7 +407,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:   e.ID,
 		Priority: e.Priority,
-		JobTuple: &PlanJobTuple{
+		JobInfo: &PlanJobTuple{
 			Namespace: j.Namespace,
 			ID:        j.ID,
 			Version:   j.Version,

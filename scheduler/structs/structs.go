@@ -125,13 +125,13 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 	snap, _ := p.State.Snapshot()
 
 	// pull the job from the state
-	job, err := snap.JobByID(nil, plan.JobTuple.Namespace, plan.JobTuple.ID)
+	job, err := snap.JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
 	if err != nil {
 		return result, nil, err
 	}
 
 	if job == nil {
-		return result, nil, fmt.Errorf("unable to find job ID %s in the state", plan.JobTuple.ID)
+		return result, nil, fmt.Errorf("unable to find job ID %s in the state", plan.JobInfo.ID)
 	}
 
 	// make sure these are denormalized the same way they would be in the real
