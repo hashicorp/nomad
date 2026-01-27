@@ -5,9 +5,19 @@
 set -euo pipefail
 
 error_exit() {
-    printf 'Error: %s' "${1}"
-    echo "All allocs:"
-    nomad alloc status -json
+    printf 'Error: %s\n' "${1}"
+    ALL_ALLOCS=$(nomad alloc status -json)
+    mkdir -p /tmp/artifacts
+    OUT="/tmp/artifacts/allocs.json"
+    echo "$ALL_ALLOCS" > "$OUT"
+
+    cat "$OUT" | jq -r '
+        ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
+        ["--------", "--------", "------------", "-------------", "---------------"],
+        (.[] | [.ID[:8], .NodeID[:8], .ClientStatus, .DesiredStatus, .JobID])
+        | @tsv' | column -ts $'\t'
+
+    echo "full allocation status for debugging written to: $OUT"
     exit 1
 }
 
@@ -98,7 +108,6 @@ while true; do
     checkAllocsCount && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        nomad alloc status -json > allocs.json
         error_exit "Expected $ALLOC_COUNT running allocations, found $allocs_length after $elapsed_time seconds"
     fi
 

@@ -6,9 +6,20 @@ set -euo pipefail
 
 error_exit() {
     printf 'Error: %s' "${1}"
-    echo "Allocs on node ${client_id}:"
-    nomad alloc status -json | \
-        jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]'
+    ALL_ALLOCS=$(nomad alloc status -json | \
+                     jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]')
+    mkdir -p /tmp/artifacts
+    OUT="/tmp/artifacts/allocs.json"
+    echo "$ALL_ALLOCS" > "$OUT"
+
+    echo "Allocs on node ${client_id}:\n"
+    cat "$OUT" | jq -r '
+        ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
+        ["--------", "--------", "------------", "-------------", "---------------"],
+        (.[] | [.ID[:8], .NodeID[:8], .ClientStatus, .DesiredStatus, .JobID])
+        | @tsv' | column -ts $'\t'
+
+    echo "full allocation status for debugging written to: $OUT"
     exit 1
 }
 
