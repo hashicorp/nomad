@@ -1,32 +1,27 @@
 # Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
-output "jobs_count" {
-  description = "The number of jobs that should be running in the cluster"
-  value       = length(var.workloads) + tonumber(coalesce(chomp(enos_local_exec.get_jobs.stdout)))
+output "jobs" {
+  description = "All the jobs that should be running in the cluster"
+  value       = setunion(local.service_jobs, local.system_jobs, local.batch_jobs, local.sysbatch_jobs)
 }
 
-output "new_jobs_count" {
-  description = "The number of jobs that were triggered by the module"
-  value       = length(var.workloads)
+output "service_jobs" {
+  description = "All the service jobs that should be running in the cluster"
+  value       = local.service_jobs
 }
 
-output "allocs_count" {
-  description = "The number of allocs that should be running in the cluster"
-  value       = local.system_job_count * tonumber(coalesce(chomp(enos_local_exec.get_nodes.stdout))) + local.service_batch_allocs + tonumber(coalesce(chomp(enos_local_exec.get_allocs.stdout)))
+output "system_jobs" {
+  description = "All the system jobs that should be running in the cluster"
+  value       = local.system_jobs
 }
 
-output "nodes" {
-  description = "Number of current clients in the cluster"
-  value       = chomp(enos_local_exec.get_nodes.stdout)
+output "batch_jobs" {
+  description = "All the batch jobs that should be running in the cluster"
+  value       = local.batch_jobs
 }
 
-output "new_allocs_count" {
-  description = "The number of allocs that will be added to the cluster after all the workloads are run"
-  value       = local.system_job_count * tonumber(coalesce(chomp(enos_local_exec.get_nodes.stdout), "0")) + local.service_batch_allocs
-}
-
-output "system_job_count" {
-  description = "The number of jobs that were triggered by the module"
-  value       = local.system_job_count
+output "sysbatch_jobs" {
+  description = "All the sysbatch jobs that should be running in the cluster"
+  value       = local.sysbatch_jobs
 }
