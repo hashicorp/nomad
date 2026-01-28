@@ -72,7 +72,10 @@ func TestPluginsCNIFingerprint_Fingerprint_absent(t *testing.T) {
 
 	err := f.Fingerprint(request, response)
 	must.NoError(t, err)
-	must.False(t, response.Detected)
+
+	// Detected should be true as long as the fingerprinter could run at all
+	must.True(t, response.Detected)
+
 	attrCustom := f.(*PluginsCNIFingerprint).attribute("custom")
 	attrBridge := f.(*PluginsCNIFingerprint).attribute("bridge")
 	must.MapNotContainsKeys(t, response.Attributes, []string{attrCustom, attrBridge})
