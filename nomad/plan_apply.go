@@ -285,7 +285,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// to approximate the scheduling time.
 	updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
-	if err = signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, now); err != nil {
+	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, now); err != nil {
 		return nil, err
 	}
 

@@ -488,6 +488,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 			node.ID: {alloc},
 		},
 	}
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job)
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
