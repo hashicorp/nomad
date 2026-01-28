@@ -16,6 +16,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/consul"
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
+	_ "github.com/hashicorp/nomad/e2e/devices"
 	_ "github.com/hashicorp/nomad/e2e/eval_priority"
 	_ "github.com/hashicorp/nomad/e2e/events"
 	_ "github.com/hashicorp/nomad/e2e/lifecycle"
