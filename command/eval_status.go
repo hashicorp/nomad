@@ -156,7 +156,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	// If we are in monitor mode, monitor and exit
 	if monitor {
-		mon := newMonitor(c.Ui, client, length)
+		mon := newMonitor(c.Meta, client, length)
 		return mon.monitor(evals[0].ID)
 	}
 
@@ -292,7 +292,7 @@ func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs 
 			}
 			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):",
 				tg, metrics.CoalescedFailures+1, noun))
-			c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
+			c.Ui.Output(formatAllocMetrics(metrics, c.Colorize(), false, "  "))
 			c.Ui.Output("")
 		}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )
 
@@ -278,7 +279,7 @@ func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanRespons
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job, c.Colorize())))
 	c.Ui.Output("")
 
 	// Print any warnings if there are any
@@ -382,7 +383,7 @@ func formatJobModifyIndex(jobModifyIndex uint64, args string, jobName string) st
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
+func formatDryRun(resp *api.JobPlanResponse, job *api.Job, colorize *colorstring.Colorize) string {
 	var rolling *api.Evaluation
 	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
@@ -409,7 +410,7 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
 				noun += "s"
 			}
 			out += fmt.Sprintf("%s[yellow]Task Group %q (failed to place %d %s):\n[reset]", strings.Repeat(" ", 2), tg, metrics.CoalescedFailures+1, noun)
-			out += fmt.Sprintf("[yellow]%s[reset]\n\n", formatAllocMetrics(metrics, false, strings.Repeat(" ", 4)))
+			out += fmt.Sprintf("[yellow]%s[reset]\n\n", formatAllocMetrics(metrics, colorize, false, strings.Repeat(" ", 4)))
 		}
 		if rolling == nil {
 			out = strings.TrimSuffix(out, "\n")

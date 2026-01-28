@@ -216,7 +216,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring.
-	mon := newMonitor(j.Ui, client, length)
+	mon := newMonitor(j.Meta, client, length)
 	return mon.monitor(resp.EvalID)
 }
 

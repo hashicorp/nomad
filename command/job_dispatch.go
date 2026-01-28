@@ -233,7 +233,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output("")
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 
 	// for hint purposes, need the dispatchedJobID to be escaped ("/" becomes "%2F")
 	dispatchID := url.PathEscape(resp.DispatchedJobID)
