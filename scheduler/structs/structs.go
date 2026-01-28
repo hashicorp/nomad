@@ -124,10 +124,15 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 
 	snap, _ := p.State.Snapshot()
 
-	// try to pull the job from the state
-	job, err := snap.JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
-	if err != nil {
-		return result, nil, err
+	// try to pull the job from the state if the plan doesn't already contain any
+	// job information
+	job := plan.Job
+	if job == nil {
+		var err error
+		job, err = snap.JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
+		if err != nil {
+			return result, nil, err
+		}
 	}
 
 	// make sure these are denormalized the same way they would be in the real
@@ -165,8 +170,7 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 	}
 
 	// Apply the full plan
-	err = p.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
-	return result, nil, err
+	return result, nil, p.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
 }
 
 func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {

@@ -407,6 +407,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:          e.ID,
 		Priority:        e.Priority,
+		Job:             j, // compat for pre 1.11.2 which replaces it with JobInfo
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodeAllocation:  make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),

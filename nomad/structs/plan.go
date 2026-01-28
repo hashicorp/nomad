@@ -84,6 +84,9 @@ type PlanJobTuple struct {
 
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	if p.Job != nil {
+		out += fmt.Sprintf(", job %s", p.Job.ID)
+	}
 	if p.JobInfo != nil {
 		out += fmt.Sprintf(", job %s", p.JobInfo.ID)
 	}
@@ -151,9 +154,10 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
-	// If the job tuple is not set in the plan we are deregistering a job so we
+	// If the job is not set in the plan we are deregistering a job so we
 	// extract the job information from the allocation.
-	if p.JobInfo == nil && newAlloc.Job != nil {
+	if (p.Job == nil && p.JobInfo == nil) && newAlloc.Job != nil {
+		p.Job = newAlloc.Job
 		p.JobInfo = &PlanJobTuple{
 			Namespace: newAlloc.Job.Namespace,
 			ID:        newAlloc.Job.ID,
