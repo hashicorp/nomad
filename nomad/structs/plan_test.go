@@ -70,7 +70,9 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	appendedAlloc.AllocStates[0].Time = time.Time{}
 
 	must.Eq(t, expectedAlloc, appendedAlloc)
-	must.Eq(t, alloc.Job, plan.Job)
+	must.Eq(t, alloc.Job.ID, plan.JobInfo.ID)
+	must.Eq(t, alloc.Job.Namespace, plan.JobInfo.Namespace)
+	must.Eq(t, alloc.Job.Version, plan.JobInfo.Version)
 }
 
 func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
