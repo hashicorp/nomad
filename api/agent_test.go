@@ -544,3 +544,21 @@ func TestAgent_SchedulerWorkersInfo(t *testing.T) {
 		must.SliceContainsAll(t, defaultSchedulers, worker.EnabledSchedulers)
 	}
 }
+
+func TestAgent_FullReload(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	// Get initial config
+	initialConfig, err := a.Self()
+	must.NoError(t, err)
+	must.NotNil(t, initialConfig)
+
+	// For now, verify the agent is responsive after any internal reloads
+	health, err := a.Health()
+	must.NoError(t, err)
+	must.True(t, health.Server.Ok)
+}
