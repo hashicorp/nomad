@@ -405,19 +405,19 @@ func (e *Evaluation) ShouldBlock() bool {
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
-		EvalID:   e.ID,
-		Priority: e.Priority,
-		JobInfo: &PlanJobTuple{
-			Namespace: j.Namespace,
-			ID:        j.ID,
-			Version:   j.Version,
-		},
+		EvalID:          e.ID,
+		Priority:        e.Priority,
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodeAllocation:  make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
+		p.JobInfo = &PlanJobTuple{
+			Namespace: j.Namespace,
+			ID:        j.ID,
+			Version:   j.Version,
+		}
 	}
 	return p
 }

@@ -242,14 +242,10 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	now := time.Now().UTC()
 	unixNow := now.UnixNano()
 
-	// pull the job from the state by ID
+	// try to pull the job from the state by ID
 	job, err := p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
 	if err != nil {
 		return nil, err
-	}
-
-	if job == nil {
-		return nil, fmt.Errorf("couldn't find job ID %s in the state", plan.JobInfo.ID)
 	}
 
 	// Setup the update request
