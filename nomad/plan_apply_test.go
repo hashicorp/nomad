@@ -83,6 +83,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Register alloc, deployment and deployment update
 	alloc := mock.Alloc()
 	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
@@ -312,6 +313,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		DeploymentUpdates: updates,
 		EvalID:            eval.ID,
 	}
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
@@ -486,6 +488,7 @@ func TestPlanApply_KeyringNotReady(t *testing.T) {
 		Deployment:        deploy,
 		DeploymentUpdates: dupdates,
 	}
+	must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{

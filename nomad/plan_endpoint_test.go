@@ -13,8 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestPlanEndpoint_Submit(t *testing.T) {
@@ -32,12 +31,8 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if evalOut != eval1 {
-		t.Fatalf("Bad eval")
-	}
+	must.NoError(t, err)
+	must.Eq(t, eval1, evalOut)
 
 	// Submit a plan
 	plan := mock.Plan()
@@ -54,12 +49,8 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.PlanResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Result == nil {
-		t.Fatalf("missing result")
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp))
+	must.NotNil(t, resp.Result)
 }
 
 // TestPlanEndpoint_Submit_Bad asserts that the Plan.Submit endpoint rejects
@@ -79,8 +70,8 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 	s1.evalBroker.Enqueue(eval)
 
 	evalOut, _, err := s1.evalBroker.Dequeue([]string{eval.Type}, time.Second)
-	require.NoError(t, err)
-	require.Equal(t, eval, evalOut)
+	must.NoError(t, err)
+	must.Eq(t, eval, evalOut)
 
 	cases := []struct {
 		Name string
@@ -130,13 +121,13 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 			}
 			var resp structs.PlanResponse
 			err := msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp)
-			require.EqualError(t, err, tc.Err)
-			require.Nil(t, resp.Result)
+			must.EqError(t, err, tc.Err)
+			must.Nil(t, resp.Result)
 		})
 	}
 
 	// Ensure no plans were enqueued
-	require.Zero(t, s1.planner.planQueue.Stats().Depth)
+	must.Zero(t, s1.planner.planQueue.Stats().Depth)
 }
 
 func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
@@ -150,28 +141,28 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 
 	plans := []*structs.Plan{}
 
-	for i := 0; i < 5; i++ {
-
+	for range 5 {
 		// Create a node to place on
 		node := mock.Node()
 		store := s1.fsm.State()
-		require.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
 
 		// Create the eval
 		eval1 := mock.Eval()
 		s1.evalBroker.Enqueue(eval1)
-		require.NoError(t, store.UpsertEvals(
+		must.NoError(t, store.UpsertEvals(
 			structs.MsgTypeTestSetup, 150, []*structs.Evaluation{eval1}))
 
 		evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
-		require.NoError(t, err)
-		require.Equal(t, eval1, evalOut)
+		must.NoError(t, err)
+		must.Eq(t, eval1, evalOut)
 
 		// Submit a plan
 		plan := mock.Plan()
 		plan.EvalID = eval1.ID
 		plan.EvalToken = token
 		job := mock.Job()
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 		plan.JobInfo = &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
@@ -182,29 +173,23 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.Job = job
 
-		plan.NodeAllocation = map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc}}
+		plan.NodeAllocation = map[string][]*structs.Allocation{node.ID: {alloc}}
 
 		plans = append(plans, plan)
 	}
 
 	var wg sync.WaitGroup
-
 	for _, plan := range plans {
-		plan := plan
-		wg.Add(1)
-		go func() {
-
+		wg.Go(func() {
 			req := &structs.PlanRequest{
 				Plan:         plan,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
 			var resp structs.PlanResponse
 			err := s1.RPC("Plan.Submit", req, &resp)
-			assert.NoError(t, err)
-			assert.NotNil(t, resp.Result, "missing result")
-			wg.Done()
-		}()
+			must.NoError(t, err)
+			must.NotNil(t, resp.Result, must.Sprint("missing result"))
+		})
 	}
 
 	wg.Wait()
