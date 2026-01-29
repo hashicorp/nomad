@@ -926,6 +926,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 			alloc.ClientStatus = structs.AllocClientStatusRunning
 			alloc.EvalID = evalsNotSafeToDelete[i].ID
 			allocs = append(allocs, alloc)
+			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
 		}
 		index++
 		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs))
@@ -1771,12 +1772,12 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.EvalID = alloc1.EvalID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+
+	must.NoError(t, state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{
@@ -1810,8 +1811,10 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.EvalID = alloc1.EvalID
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
-	assert.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	assert.Nil(state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+	assert.Nil(state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Create ACL tokens
@@ -1876,20 +1879,16 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 
 	// Upsert an unrelated alloc first
 	time.AfterFunc(100*time.Millisecond, func() {
-		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1}))
 	})
 
 	// Upsert an alloc which will trigger the watch later
 	time.AfterFunc(200*time.Millisecond, func() {
-		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(198, mock.JobSummary(alloc2.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 199, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}))
 	})
 
 	// Lookup the eval

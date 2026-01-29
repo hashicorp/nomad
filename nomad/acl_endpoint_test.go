@@ -2030,7 +2030,8 @@ func TestACLEndpoint_WhoAmI(t *testing.T) {
 
 	// Lookup identity claim
 	alloc := mock.Alloc()
-	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc})
+	must.NoError(t, s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1100, nil, alloc.Job))
+	must.NoError(t, s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc}))
 	task := alloc.LookupTask("web")
 	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle, // see encrypter_test.go

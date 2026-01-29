@@ -83,6 +83,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Register alloc, deployment and deployment update
 	alloc := mock.Alloc()
 	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
@@ -162,6 +163,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
 	must.NoError(t, s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1501, nil, alloc2.Job))
 	planRes = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
@@ -265,6 +267,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		PreemptedByAllocation: alloc.ID,
 	}
 	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1002, nil, stoppedAlloc.Job))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1003, nil, preemptedAlloc.Job))
 	must.NoError(t, s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 
 	// Create an eval
@@ -586,6 +591,7 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 	}
 
 	// Insert a preempted alloc such that the alloc will fit only after preemption
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, preemptedAlloc.Job))
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{preemptedAlloc})
 
 	alloc := mock.Alloc()
@@ -614,7 +620,8 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 		},
 	}
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		EvalID: uuid.Generate(),
+		Job:    alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -875,7 +882,8 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}))
 
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
@@ -923,9 +931,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		},
 	}
 
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Alloc2 tries to use the same device
 	alloc2 := mock.Alloc()
@@ -995,8 +1004,9 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 99, node))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
