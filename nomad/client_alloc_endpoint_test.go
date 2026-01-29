@@ -1189,6 +1189,11 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
+	successfulError := "Enterprise only" // we got past the ACL check
+	if s.EnterpriseState.Features() > 0 {
+		successfulError = "Could not find task runner for task"
+	}
+
 	// Request with an valid token
 	{
 		token := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
@@ -1202,7 +1207,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Request with an valid fine grain token
@@ -1218,7 +1223,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Request with an management token
@@ -1233,7 +1238,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 }
 
