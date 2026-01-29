@@ -541,6 +541,11 @@ func TestAllocations_SetPauseState(t *testing.T) {
 		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
+	successfulError := "Enterprise only" // we got past the ACL check
+	if server.EnterpriseState.Features() > 0 {
+		successfulError = "Could not find task runner for task"
+	}
+
 	// Try request with a valid token
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "test-valid",
@@ -552,7 +557,7 @@ func TestAllocations_SetPauseState(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Try request with a valid fine grain token
@@ -566,7 +571,7 @@ func TestAllocations_SetPauseState(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Try request with a management token
@@ -577,7 +582,7 @@ func TestAllocations_SetPauseState(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.SetPauseState", &req, &resp)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 }
 
