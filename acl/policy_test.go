@@ -1119,62 +1119,62 @@ func TestPolicy_isCapabilityValid(t *testing.T) {
 
 	// namespace
 	caps := []string{}
-	re := regexp.MustCompile(`(?m)^(?:\tNamespaceCapability[A-Za-z]+\s+= ")(.*)"$`)
+	re := regexp.MustCompile(`(?m)^(?:\tNamespaceCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
 	subs := re.FindAllSubmatch(src, -1)
 	for _, sub := range subs {
 		if len(sub) > 1 {
 			caps = append(caps, string(sub[1]))
 		}
 	}
-	must.Greater(t, 0, len(caps)) // prevents us from breaking the regex later
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match NamespaceCapability regex"))
 	for _, cap := range caps {
 		cap = strings.TrimSpace(cap)
-		test.True(t, isNamespaceCapabilityValid(cap))
+		test.True(t, isNamespaceCapabilityValid(cap), test.Sprintf("%q not valid", cap))
 	}
 
 	// variables
 	caps = []string{}
-	re = regexp.MustCompile(`(?m)^(?:\tVariablesCapability[A-Za-z]+\s+= ")(.*)"$`)
+	re = regexp.MustCompile(`(?m)^(?:\tVariablesCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
 	subs = re.FindAllSubmatch(src, -1)
 	for _, sub := range subs {
 		if len(sub) > 1 {
 			caps = append(caps, string(sub[1]))
 		}
 	}
-	must.Greater(t, 0, len(caps))
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match VariablesCapability regex"))
 	for _, cap := range caps {
 		cap = strings.TrimSpace(cap)
-		test.True(t, isPathCapabilityValid(cap))
+		test.True(t, isPathCapabilityValid(cap), test.Sprintf("%q not valid", cap))
 	}
 
 	// host volumes
 	caps = []string{}
-	re = regexp.MustCompile(`(?m)^(?:\tHostVolumeCapability[A-Za-z]+\s+= ")(.*)"$`)
+	re = regexp.MustCompile(`(?m)^(?:\tHostVolumeCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
 	subs = re.FindAllSubmatch(src, -1)
 	for _, sub := range subs {
 		if len(sub) > 1 {
 			caps = append(caps, string(sub[1]))
 		}
 	}
-	must.Greater(t, 0, len(caps))
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match HostVolumeCapability regex"))
 	for _, cap := range caps {
 		cap = strings.TrimSpace(cap)
-		test.True(t, isHostVolumeCapabilityValid(cap))
+		test.True(t, isHostVolumeCapabilityValid(cap), test.Sprintf("%q not valid", cap))
 	}
 
 	// node pools
 	caps = []string{}
-	re = regexp.MustCompile(`(?m)^(?:\tNodePoolCapability[A-Za-z]+\s+= ")(.*)"$`)
+	re = regexp.MustCompile(`(?m)^(?:\tNodePoolCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
 	subs = re.FindAllSubmatch(src, -1)
 	for _, sub := range subs {
 		if len(sub) > 1 {
 			caps = append(caps, string(sub[1]))
 		}
 	}
-	must.Greater(t, 0, len(caps))
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match NodePoolCapability regex"))
 	for _, cap := range caps {
 		cap = strings.TrimSpace(cap)
-		test.True(t, isNodePoolCapabilityValid(cap))
+		test.True(t, isNodePoolCapabilityValid(cap), test.Sprintf("%q not valid", cap))
 	}
 
 }
