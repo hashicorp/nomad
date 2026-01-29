@@ -30,7 +30,7 @@ checkRunningJobs() {
     local ok
     ok=0
     for job in "${JOBS[@]}"; do
-        status=$(nomad job inspect "$job" | jq '.Job.Status')
+        status=$(nomad job inspect "$job" | jq -r '.Job.Status')
         if [[ "$status" != "running" ]]; then
             NON_RUNNING_JOBS["$job"]=1
         fi
