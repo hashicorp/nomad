@@ -107,13 +107,13 @@ checkBatchJobs() {
 
         # get the count of complete allocations for this job that were on any of
         # the drained nodes; we can deduct these from the expected set
-        reduce=$(nomad job status -json "$job" |
+        added=$(nomad job status -json "$job" |
                      jq --argjson drained "$drained" \
                         '[ .[].Allocations[]
                            | select(.ClientStatus=="complete")
                            | select(.NodeID as $nodeID | any($drained[]; . == $nodeID)).ID
                          ] | length')
-        expect=$((expect - reduce))
+        running=$((running + added))
         if [ "$running" -lt "$expect" ]; then
             MISSING_ALLOCS["$job"]=1
             last_error="Some jobs were missing expected running allocs: ${!MISSING_ALLOCS[*]}"
@@ -134,7 +134,7 @@ checkSysbatchJobs() {
 
     for job in "${SYSBATCH_JOBS[@]}"; do
         # every test sysbatch workload should run on every node
-        expect=$"CLIENT_COUNT"
+        expect="$CLIENT_COUNT"
         running=$(nomad job status -json "$job" |
                       jq '.[].Allocations[] | select(.ClientStatus=="running").ID' |
                       wc -l)
@@ -147,14 +147,14 @@ checkSysbatchJobs() {
 
         # get the count of complete allocations for this job that were on any of
         # the drained nodes; we can deduct these from the expected set
-        reduce=$(nomad job status -json "$job" |
+        added=$(nomad job status -json "$job" |
                      jq --argjson drained "$drained" \
                         '[ .[].Allocations[]
                            | select(.ClientStatus=="complete")
                            | select(.NodeID as $nodeID | any($drained[]; . == $nodeID)).ID
                          ] | length')
-        expect=$((expect - reduce))
-        if [ "$expect" -le "$running" ]; then
+        running=$((running + added))
+        if [ "$running" -lt "$expect" ]; then
             MISSING_ALLOCS["$job"]=1
             last_error="Some jobs were missing expected running allocs: ${!MISSING_ALLOCS[*]}"
             ok=1

@@ -27,6 +27,8 @@ checkRunningJobs() {
     unset "NON_RUNNING_JOBS[@]"
     local status
     local job
+    local ok
+    ok=0
     for job in "${JOBS[@]}"; do
         status=$(nomad job inspect "$job" | jq '.Job.Status')
         if [[ "$status" != "running" ]]; then
@@ -36,7 +38,10 @@ checkRunningJobs() {
 
     if [[ ${#NON_RUNNING_JOBS[@]} != 0 ]]; then
         last_error="Some expected jobs were not running: ${!NON_RUNNING_JOBS[*]}"
+        ok=1
     fi
+
+    return "$ok"
 }
 
 while true; do
