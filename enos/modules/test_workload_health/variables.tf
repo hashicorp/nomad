@@ -27,27 +27,32 @@ variable "nomad_token" {
   type        = string
 }
 
-variable "server_count" {
-  description = "The expected number of servers."
-  type        = number
-}
-
 variable "client_count" {
   description = "The expected number of Ubuntu clients."
   type        = number
 }
 
-variable "clients_version" {
-  description = "Binary version running on the clients"
-  type        = string
+variable "jobs" {
+  description = "A list of all jobs."
+  type        = set(string)
 }
 
-variable "servers_version" {
-  description = "Binary version running on the servers"
-  type        = string
+variable "service_jobs" {
+  description = "A list of all service jobs."
+  type        = set(string)
 }
 
-variable "servers" {
-  description = "List of public IP address of the nomad servers"
-  type        = list
+variable "system_jobs" {
+  description = "A list of all system jobs."
+  type        = set(string)
+}
+
+variable "batch_jobs" {
+  description = "A list of all batch jobs."
+  type        = set(string)
+}
+
+variable "sysbatch_jobs" {
+  description = "A list of all sysbatch jobs."
+  type        = set(string)
 }

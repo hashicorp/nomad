@@ -32,16 +32,12 @@ resource "enos_local_exec" "run_tests" {
     local.nomad_env, {
       SERVER_COUNT = var.server_count
       CLIENT_COUNT = var.client_count
-      JOB_COUNT    = var.jobs_count
-      ALLOC_COUNT  = var.alloc_count
       SERVERS      = local.servers_addr
   })
 
   scripts = [
     abspath("${path.module}/scripts/servers.sh"),
     abspath("${path.module}/scripts/clients.sh"),
-    abspath("${path.module}/scripts/jobs.sh"),
-    abspath("${path.module}/scripts/allocs.sh")
   ]
 }
 
