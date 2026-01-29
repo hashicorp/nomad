@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -112,18 +113,44 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	if hj, ok := resp.(http.Hijacker); ok {
 		conn, bufrw, err := hj.Hijack()
 		if err == nil {
-			// Write initial HTTP response headers because hijacking skips the
-			// normal net/http header write path.
-			header := "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-cache\r\n\r\n"
-			_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-			_, _ = conn.Write([]byte(header))
-
-			// If there is a buffered reader/writer, flush it to ensure headers
-			// are sent.
-			if bufrw != nil {
-				_ = bufrw.Flush()
+			fmt.Printf("[event_endpoint]: Hijack successful\n")
+			// Build response headers for the hijacked connection.
+			// merge any user-configured headers from the agent config
+			// (http_api_response_headers).
+			headers := resp.Header().Clone()
+			if cfg := s.agent.GetConfig(); cfg != nil {
+				for k, v := range cfg.HTTPAPIResponseHeaders {
+					headers.Set(k, v)
+				}
 			}
-			output = &deadlineWriter{conn: conn, timeout: writeTimeout}
+
+			// we inherit gzip from the agent, but we don't really respond with
+			// gzip
+			headers.Del("Content-Encoding")
+
+			res := &http.Response{
+				Status:        "200 OK",
+				StatusCode:    http.StatusOK,
+				Header:        headers,
+				ContentLength: -1,
+			}
+
+			_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+			_ = res.Write(conn)
+
+			// If the hijack returned a buffered writer/reader, flush any
+			// buffered data so middleware or the net/http stack doesn't
+			// leave pending bytes unflushed on the connection. Flush after
+			// writing headers to preserve header ordering.
+			if bufrw != nil {
+				if err := bufrw.Flush(); err != nil {
+					fmt.Printf("[event_endpoint] bufrw.Flush() error: %v\n", err)
+				} else {
+					fmt.Printf("[event_endpoint] bufrw flushed successfully\n")
+				}
+			}
+
+			output = ioutils.NewWriteFlusher(&deadlineWriter{conn: conn, timeout: writeTimeout})
 		}
 	}
 	if output == nil {
@@ -145,6 +172,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
+			fmt.Printf("[event_endpoint] hit error on encoder.Encode: %v\n", err)
 			return CodedError(500, err.Error())
 		}
 
@@ -157,24 +185,55 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 
 			// Decode the response
 			var res structs.EventStreamWrapper
+			fmt.Printf("[event_endpoint] decoder.Decode start\n")
 			if err := decoder.Decode(&res); err != nil {
+				fmt.Printf("[event_endpoint] decoder.Decode error: %v (%T)\n", err, err)
 				return CodedError(500, err.Error())
 			}
+			// Avoid dereferencing res.Event when it may be nil. Compute length safely.
+			eventBytes := 0
+			if res.Event != nil {
+				eventBytes = len(res.Event.Data)
+			}
+			fmt.Printf("[event_endpoint] decoder.Decode success: error=%v event_bytes=%d\n", res.Error, eventBytes)
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
+				fmt.Printf("[event_endpoint] hit error on res.Error: %v\n", err)
 				if err.Code != nil {
 					return CodedError(int(*err.Code), err.Error())
 				}
 			}
 
 			// Flush json entry to response
+			fmt.Printf("[event_endpoint] write attempt: %d bytes\n", eventBytes)
+
+			// Skip nil events or heartbeat frames that are the empty JSON object "{}".
+			// The JsonStream intentionally sends an initial heartbeat (and periodic
+			// heartbeats) as "{}". Clients observing the HTTP response often
+			// don't want that as the very first meaningful payload, so skip
+			// forwarding it to the HTTP response.
+			if res.Event == nil {
+				fmt.Printf("[event_endpoint] skipping nil event\n")
+				continue
+			}
+			if eventBytes == 2 && bytes.Equal(res.Event.Data, []byte("{}")) {
+				fmt.Printf("[event_endpoint] skipping heartbeat empty JSON\n")
+				continue
+			}
+
+			fmt.Printf("[event_endpoint] writing event: %v\n", spew.Sdump(string(res.Event.Data)))
+
 			if _, err := io.Copy(output, bytes.NewReader(res.Event.Data)); err != nil {
+				fmt.Printf("[event_endpoint] io.Copy error: %v (%T)\n", err, err)
+				output.Close()
 				return CodedError(500, err.Error())
 			}
+			fmt.Printf("[event_endpoint] write succeeded\n")
 			// Each entry is its own new line according to https://github.com/ndjson/ndjson-spec
 			// append new line to each entry
 			fmt.Fprint(output, "\n")
+			output.Close()
 		}
 	})
 
@@ -183,9 +242,6 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	cancel()
 
 	codedErr := errs.Wait()
-	if codedErr != nil && strings.Contains(codedErr.Error(), io.ErrClosedPipe.Error()) {
-		codedErr = nil
-	}
 
 	return nil, codedErr
 }

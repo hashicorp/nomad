@@ -203,12 +203,24 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 		defer resp.Body.Close()
 		defer close(eventsCh)
 
+		// bodyBytes, err := io.ReadAll(resp.Body)
+		// if err != nil {
+		// 	fmt.Printf("[event_stream] read error: %v\n", err)
+		// }
+		// fmt.Printf("[event_stream] read %d bytes\n", len(bodyBytes))
+		// fmt.Printf("[event_stream] body: %v\n", string(bodyBytes))
+
 		dec := json.NewDecoder(resp.Body)
 
 		for ctx.Err() == nil {
 			// Decode next newline delimited json of events
 			var events Events
 			if err := dec.Decode(&events); err != nil {
+				// Debug: surface decode errors to aid investigation of stream
+				// terminations. This will print server/client-side failures
+				// (including EOF/unexpected EOF) to the test/server logs.
+				fmt.Printf("[event_stream] decode error: %v\n", err)
+
 				// set error and fallthrough to
 				// select eventsCh
 				events = Events{Err: err}
@@ -216,6 +228,8 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			if events.Err == nil && events.IsHeartbeat() {
 				continue
 			}
+
+			fmt.Printf("[event_stream] events: %v\n", events)
 
 			select {
 			case <-ctx.Done():
