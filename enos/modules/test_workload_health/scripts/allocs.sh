@@ -165,7 +165,7 @@ checkSysbatchJobs() {
 }
 
 checkGroup() {
-    unset "MISSING_ALLOCS[@]"
+    MISSING_ALLOCS=()
     elapsed_time=0
     fn=${1}
     while true; do

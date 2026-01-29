@@ -24,7 +24,7 @@ IFS=',' read -r -a JOBS <<< "$JOBS"
 declare -A NON_RUNNING_JOBS
 
 checkRunningJobs() {
-    unset "NON_RUNNING_JOBS[@]"
+    NON_RUNNING_JOBS=()
     local status
     local job
     local ok

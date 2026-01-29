@@ -62,7 +62,7 @@ checkAllocations() {
     local alloc
     local ok
     ok=0
-    unset "MISSING_ALLOCS[@]"
+    MISSING_ALLOCS=()
 
     for alloc in "${ALLOCS[@]}"; do
         status=$(nomad alloc status -json "$alloc" | jq -r '.ClientStatus')
