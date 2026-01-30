@@ -93,6 +93,7 @@ type RPCer interface {
 	Stats() map[string]map[string]string
 	GetConfig() *Config
 	GetMetricsSink() *metrics.InmemSink
+	FullReload(*Config) error
 }
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
@@ -470,6 +471,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
+	s.mux.HandleFunc("/v1/agent/reload", s.wrap(s.AgentReloadRequest))
 
 	// Register our service registration handlers.
 	s.mux.HandleFunc("/v1/services", s.wrap(s.ServiceRegistrationListRequest))
