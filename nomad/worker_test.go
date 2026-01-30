@@ -478,12 +478,17 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	// Create an allocation plan
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+			Version:   alloc.Job.Version,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
 	}
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job)
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
@@ -541,7 +546,11 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 	// Create an allocation plan
 	plan := &structs.Plan{
-		Job:             job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+			Version:   job.Version,
+		},
 		EvalID:          eval1.ID,
 		NodeUpdate:      make(map[string][]*structs.Allocation),
 		NodePreemptions: make(map[string][]*structs.Allocation),
@@ -603,7 +612,11 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+			Version:   job.Version,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: {alloc},

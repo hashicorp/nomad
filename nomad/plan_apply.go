@@ -242,9 +242,19 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	now := time.Now().UTC()
 	unixNow := now.UnixNano()
 
+	// try to pull the job from the state by ID if the plan doesn't already contain it
+	job := plan.Job
+	if job == nil {
+		var err error
+		job, err = p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
-		Job:               plan.Job,
+		Job:               job,
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
 		IneligibleNodes:   result.IneligibleNodes,
@@ -275,8 +285,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// to approximate the scheduling time.
 	updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
-	err := signAllocIdentities(p.srv.encrypter, plan.Job, req.AllocsUpdated, now)
-	if err != nil {
+	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, now); err != nil {
 		return nil, err
 	}
 
@@ -523,7 +532,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//the plan applier.
 				logger.Info("plan for node rejected, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
-					"namespace", plan.Job.Namespace)
+					"namespace", plan.JobInfo.Namespace)
 			}
 			// Set that this is a partial commit and store the node that was
 			// rejected so the plan applier can detect repeated plan rejections
