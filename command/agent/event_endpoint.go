@@ -43,14 +43,6 @@ func (w *deadlineWriter) Close() error {
 	return w.conn.Close()
 }
 
-// nopCloser wraps an io.Writer to provide a no-op Close for the fallback writer.
-type nopCloser struct {
-	w io.Writer
-}
-
-func (n *nopCloser) Write(p []byte) (int, error) { return n.w.Write(p) }
-func (n *nopCloser) Close() error                { return nil }
-
 func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
@@ -149,7 +141,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	}
 	if output == nil {
 		// Fallback: the existing flusher (no-op Close).
-		output = &nopCloser{w: ioutils.NewWriteFlusher(resp)}
+		output = ioutils.NewWriteFlusher(resp)
 	}
 
 	// Create a goroutine that closes the pipe if the connection closes
@@ -179,9 +171,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 			// Decode the response
 			var res structs.EventStreamWrapper
 			if err := decoder.Decode(&res); err != nil {
-				if !strings.Contains(err.Error(), "subscription closed by server") {
-					return CodedError(500, err.Error())
-				}
+				return CodedError(500, err.Error())
 			}
 			decoder.Reset(httpPipe)
 
@@ -206,6 +196,9 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	cancel()
 
 	codedErr := errs.Wait()
+	if codedErr != nil && strings.Contains(codedErr.Error(), io.ErrClosedPipe.Error()) {
+		codedErr = nil
+	}
 
 	return nil, codedErr
 }
