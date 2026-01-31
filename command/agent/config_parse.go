@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/ipaddr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
