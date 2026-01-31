@@ -16,6 +16,7 @@ module "provision-infra" {
   nomad_local_binary                     = var.nomad_local_binary
   nomad_local_binary_client_ubuntu_jammy = var.nomad_local_binary_client_ubuntu_jammy
   nomad_local_binary_client_windows_2022 = var.nomad_local_binary_client_windows_2022
+  device_plugin_local_binary             = var.device_plugin_local_binary
   nomad_license                          = var.nomad_license
   consul_license                         = var.consul_license
   nomad_region                           = var.nomad_region
