@@ -140,7 +140,7 @@ func (r *RecommendationApplyCommand) Run(args []string) int {
 	if verbose {
 		length = fullId
 	}
-	mon := newMonitor(r.Ui, client, length)
+	mon := newMonitor(r.Meta, client, length)
 	return mon.monitor(resp.UpdatedJobs[0].EvalID)
 }
 

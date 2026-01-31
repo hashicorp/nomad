@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/mitchellh/colorstring"
 )
 
 const (
@@ -64,16 +65,20 @@ type monitor struct {
 	// length determines the number of characters for identifiers in the ui.
 	length int
 
+	// colorize is used to colorize output strings that can be sent to the
+	// console stdout.
+	colorize *colorstring.Colorize
+
 	sync.Mutex
 }
 
 // newMonitor returns a new monitor. The returned monitor will
 // write output information to the provided ui. The length parameter determines
 // the number of characters for identifiers in the ui.
-func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
-	if colorUi, ok := ui.(*cli.ColoredUi); ok {
+func newMonitor(meta Meta, client *api.Client, length int) *monitor {
+	if colorUi, ok := meta.Ui.(*cli.ColoredUi); ok {
 		// Disable Info color for monitored output
-		ui = &cli.ColoredUi{
+		meta.Ui = &cli.ColoredUi{
 			ErrorColor: colorUi.ErrorColor,
 			WarnColor:  colorUi.WarnColor,
 			InfoColor:  cli.UiColorNone,
@@ -85,11 +90,12 @@ func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
 			InfoPrefix:   "==> ",
 			OutputPrefix: "    ",
 			ErrorPrefix:  "==> ",
-			Ui:           ui,
+			Ui:           meta.Ui,
 		},
-		client: client,
-		state:  newEvalState(),
-		length: length,
+		client:   client,
+		colorize: meta.Colorize(),
+		state:    newEvalState(),
+		length:   length,
 	}
 	return mon
 }
@@ -252,7 +258,7 @@ func (m *monitor) monitor(evalID string) int {
 					}
 					m.ui.Output(fmt.Sprintf("%s: Task Group %q (failed to place %d %s):",
 						formatTime(time.Now()), tg, metrics.CoalescedFailures+1, noun))
-					metrics := formatAllocMetrics(metrics, false, "  ")
+					metrics := formatAllocMetrics(metrics, m.colorize, false, "  ")
 					for _, line := range strings.Split(metrics, "\n") {
 						m.ui.Output(line)
 					}
@@ -320,9 +326,19 @@ func (m *monitor) monitor(evalID string) int {
 	return 0
 }
 
-func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix string) string {
+// formatAllocMetrics iterates the passed allocation metrics and returns a
+// formatted string representation. Critical or important information is colored
+// red to draw attention.
+func formatAllocMetrics(
+	metrics *api.AllocationMetric,
+	colorize *colorstring.Colorize,
+	scores bool,
+	prefix string,
+) string {
+
 	// Print a helpful message if we have an eligibility problem
 	var out string
+
 	if metrics.NodesEvaluated == 0 {
 		out += fmt.Sprintf("%s* No nodes were eligible for evaluation\n", prefix)
 	}
@@ -339,8 +355,19 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 	for class, num := range metrics.ClassFiltered {
 		out += fmt.Sprintf("%s* Class %q: %d nodes excluded by filter\n", prefix, class, num)
 	}
+
+	// Iterate the placement constraints, highlighting missing drivers in red
+	// as this is a common problem we want to draw attention to.
 	for cs, num := range metrics.ConstraintFiltered {
-		out += fmt.Sprintf("%s* Constraint %q: %d nodes excluded by filter\n", prefix, cs, num)
+		if strings.Contains(cs, "missing drivers") {
+			out += colorize.Color(
+				fmt.Sprintf("[red]%s* Constraint %q: %d nodes excluded by filter[reset]",
+					prefix, cs, num,
+				))
+			out += "\n"
+		} else {
+			out += fmt.Sprintf("%s* Constraint %q: %d nodes excluded by filter\n", prefix, cs, num)
+		}
 	}
 
 	// Print exhaustion info

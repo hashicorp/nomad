@@ -368,7 +368,7 @@ func (c *JobRunCommand) Run(args []string) int {
 		c.Ui.Warn("")
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalID)
 
 }

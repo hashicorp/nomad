@@ -239,7 +239,7 @@ func (c *JobStopCommand) Run(args []string) int {
 
 			// Start monitoring the stop eval
 			// and return result on status channel
-			mon := newMonitor(c.Ui, client, length)
+			mon := newMonitor(c.Meta, client, length)
 			statusCh <- mon.monitor(evalID)
 		}()
 	}
