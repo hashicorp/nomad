@@ -17,10 +17,31 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/sync/errgroup"
 )
+
+// deadlineWriter wraps a net.Conn and sets a per-write deadline so writes
+// cannot block indefinitely. It implements io.WriteCloser.
+type deadlineWriter struct {
+	conn    net.Conn
+	timeout time.Duration
+}
+
+func (w *deadlineWriter) Write(p []byte) (int, error) {
+	if w.conn == nil {
+		return 0, io.ErrUnexpectedEOF
+	}
+	_ = w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
+	return w.conn.Write(p)
+}
+
+func (w *deadlineWriter) Close() error {
+	if w.conn == nil {
+		return nil
+	}
+	return w.conn.Close()
+}
 
 func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
@@ -72,27 +93,60 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
-	// Create an output that gets flushed on every write
-	output := ioutils.NewWriteFlusher(resp)
-
-	// Create a heartbeat that is just a bit longer than NewJsonStream and close the
-	// connection when it ticks
+	// writeTimeout is set to 10 seconds more than the heartbeat of
+	// NewJsonStream
 	writeTimeout := 40 * time.Second
-	heartbeat := time.NewTicker(writeTimeout)
-	defer heartbeat.Stop()
 
-	// Create a goroutine that closes the pipe if the connection closes
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
 
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-heartbeat.C:
-			s.logger.Debug("event endpoint: heartbeat passed, closing pipes and canceling the context")
-			cancel()
-		}
+	var output io.WriteCloser
+	if hj, ok := resp.(http.Hijacker); ok {
+		conn, bufrw, err := hj.Hijack()
+		if err == nil {
+			// Build response headers for the hijacked connection.
+			// merge any user-configured headers from the agent config
+			// (http_api_response_headers).
+			headers := resp.Header().Clone()
+			if cfg := s.agent.GetConfig(); cfg != nil {
+				for k, v := range cfg.HTTPAPIResponseHeaders {
+					headers.Set(k, v)
+				}
+			}
 
+			// we inherit gzip from the agent, but we don't really respond with
+			// gzip
+			headers.Del("Content-Encoding")
+
+			res := &http.Response{
+				Status:        "200 OK",
+				StatusCode:    http.StatusOK,
+				Header:        headers,
+				ContentLength: -1,
+			}
+
+			_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+			_ = res.Write(conn)
+
+			// If the hijack returned a buffered writer/reader, flush any
+			// buffered data so middleware or the net/http stack doesn't
+			// leave pending bytes unflushed on the connection. Flush after
+			// writing headers to preserve header ordering.
+			if bufrw != nil {
+				_ = bufrw.Flush()
+			}
+
+			output = ioutils.NewWriteFlusher(&deadlineWriter{conn: conn, timeout: writeTimeout})
+		}
+	}
+	if output == nil {
+		// Fallback: the existing flusher (no-op Close).
+		output = ioutils.NewWriteFlusher(resp)
+	}
+
+	// Create a goroutine that closes the pipe if the connection closes
+	go func() {
+		<-ctx.Done()
 		httpPipe.Close()
 		output.Close()
 	}()
@@ -108,8 +162,6 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 		}
 
 		for {
-			heartbeat.Reset(writeTimeout)
-
 			select {
 			case <-errCtx.Done():
 				return nil
@@ -129,10 +181,8 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 				}
 			}
 
-			// Flush json entry to response, and make sure we stop reading if the ctx
-			// cancels (otherwise io.Copy blocks forever in case there's backpressure on
-			// the endpoint)
-			if _, err := io.Copy(output, lang.NewCtxReader(ctx, bytes.NewReader(res.Event.Data))); err != nil {
+			// Flush json entry to response
+			if _, err := io.Copy(output, bytes.NewReader(res.Event.Data)); err != nil {
 				return CodedError(500, err.Error())
 			}
 			// Each entry is its own new line according to https://github.com/ndjson/ndjson-spec

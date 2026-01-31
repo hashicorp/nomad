@@ -131,7 +131,7 @@ func TestEvent_Stream(t *testing.T) {
 				must.Unreachable(t, must.Sprintf("chan closed before EOF received"))
 			}
 
-			if event.Err != nil && errors.Is(event.Err, io.ErrUnexpectedEOF) {
+			if event.Err != nil && (errors.Is(event.Err, io.EOF)) {
 				// Succcess! Make sure chan gets closed
 				select {
 				case _, ok := <-streamCh:
