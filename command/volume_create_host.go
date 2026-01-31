@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 func (c *VolumeCreateCommand) hostVolumeCreate(
