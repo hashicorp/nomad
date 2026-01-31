@@ -1819,7 +1819,9 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		// node pool. We could perform an entire feasibility check here, but
 		// datacenter/pool is a good optimization to start with as their
 		// cardinality tends to be low so the check shouldn't add much work.
-		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) {
+		// If the job is stopped, skip it as well, otherwise we will create an
+		// eval with state and broker overhead that will be an immediate no-op.
+		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) && !job.Stopped() {
 			sysJobs = append(sysJobs, job)
 		}
 	}

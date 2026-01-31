@@ -134,12 +134,19 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.Eq(t, structs.HostVolumeStateReady, vol2.State, must.Sprint(
 		"expected volume state to be updated because its been fingerprinted by a node"))
 
-	alloc := mock.AllocForNode(nodes[2])
-	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"example": {
+	mockJob := mock.Job()
+	mockJob.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"example": {
 		Name:   "example",
 		Type:   structs.VolumeTypeHost,
 		Source: vols[2].Name,
 	}}
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, mockJob))
+
+	alloc := mock.AllocForNode(nodes[2])
+	alloc.Job = mockJob
+	alloc.JobID = mockJob.ID
+
 	index++
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup,
 		index, []*structs.Allocation{alloc}))
