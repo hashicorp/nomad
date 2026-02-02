@@ -1,0 +1,3 @@
+```release-note:security
+deps: Migrate from archived dependency `github.com/mitchellh/mapstructure` to `github.com/go-viper/mapstructure/v2`
+```
