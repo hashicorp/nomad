@@ -14,3 +14,6 @@ type BridgeFingerprint struct {
 func NewBridgeFingerprint(logger log.Logger) Fingerprint {
 	return &BridgeFingerprint{logger: logger}
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *BridgeFingerprint) Reload() {}
