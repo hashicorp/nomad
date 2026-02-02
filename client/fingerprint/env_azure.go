@@ -232,3 +232,6 @@ func (f *EnvAzureFingerprint) azureProbe() error {
 
 	return nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *EnvAzureFingerprint) Reload() {}

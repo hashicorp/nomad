@@ -181,3 +181,6 @@ func (f *EnvDigitalOceanFingerprint) digitalOceanProbe() error {
 	}
 	return nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *EnvDigitalOceanFingerprint) Reload() {}
