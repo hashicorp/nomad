@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,11 +28,12 @@ var _ interfaces.TaskStopHook = &scriptCheckHook{}
 const defaultShutdownWait = time.Minute
 
 type scriptCheckHookConfig struct {
-	alloc        *structs.Allocation
-	task         *structs.Task
-	consul       serviceregistration.Handler
-	logger       log.Logger
-	shutdownWait time.Duration
+	alloc           *structs.Allocation
+	task            *structs.Task
+	consul          serviceregistration.Handler
+	arHookResources *cstructs.AllocHookResources
+	logger          log.Logger
+	shutdownWait    time.Duration
 }
 
 // scriptCheckHook implements a task runner hook for running script
@@ -49,6 +51,9 @@ type scriptCheckHook struct {
 	logger       log.Logger
 	shutdownWait time.Duration // max time to wait for scripts to shutdown
 	shutdownCh   chan struct{} // closed when all scripts should shutdown
+
+	// we need to get the check IDs registered by the group service hook, if any
+	arHookResources *cstructs.AllocHookResources
 
 	// The following fields can be changed by Update()
 	driverExec tinterfaces.ScriptExecutor
@@ -77,6 +82,7 @@ func newScriptCheckHook(c scriptCheckHookConfig) *scriptCheckHook {
 		runningScripts:       make(map[string]*taskletHandle),
 		shutdownWait:         defaultShutdownWait,
 		shutdownCh:           make(chan struct{}),
+		arHookResources:      c.arHookResources,
 	}
 
 	if c.shutdownWait != 0 {
@@ -223,9 +229,10 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// service.check.task matches the task name. The service.check.task takes
 	// precedence.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	checkIDs := h.arHookResources.GetConsulCheckIDs()
 	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
-	for _, service := range interpolatedGroupServices {
-		for _, check := range service.Checks {
+	for i, service := range interpolatedGroupServices {
+		for j, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
@@ -247,6 +254,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				logger:          h.logger,
 				shutdownCh:      h.shutdownCh,
 				isGroup:         true,
+				checkID:         checkIDs[i][j],
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
@@ -300,6 +308,7 @@ type scriptCheckConfig struct {
 	logger          log.Logger
 	shutdownCh      chan struct{}
 	isGroup         bool
+	checkID         string // from the group hook
 }
 
 // newScriptCheck constructs a scriptCheck. we're only going to
@@ -314,7 +323,6 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 		return nil
 	}
 
-	orig := config.check
 	sc := &scriptCheck{
 		ttlUpdater:  config.ttlUpdater,
 		check:       config.check.Copy(),
@@ -338,7 +346,7 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 		// at creation, so their checks get registered before the
 		// check can be interpolated here. if we don't use the
 		// original checkID, they can't be updated.
-		sc.id = agentconsul.MakeCheckID(config.serviceID, orig)
+		sc.id = config.checkID
 	} else {
 		sc.id = agentconsul.MakeCheckID(config.serviceID, sc.check)
 	}

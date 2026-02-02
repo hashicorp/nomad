@@ -17,17 +17,19 @@ import (
 // AllocRunner and then only accessed via getters and setters that hold the
 // lock.
 type AllocHookResources struct {
-	csiMounts     map[string]*csimanager.MountInfo
-	consulTokens  map[string]map[string]*consulapi.ACLToken // Consul cluster -> service identity -> token
-	networkStatus *structs.AllocNetworkStatus
+	csiMounts      map[string]*csimanager.MountInfo
+	consulTokens   map[string]map[string]*consulapi.ACLToken // Consul cluster -> service identity -> token
+	consulCheckIDs [][]string
+	networkStatus  *structs.AllocNetworkStatus
 
 	mu sync.RWMutex
 }
 
 func NewAllocHookResources() *AllocHookResources {
 	return &AllocHookResources{
-		csiMounts:    map[string]*csimanager.MountInfo{},
-		consulTokens: map[string]map[string]*consulapi.ACLToken{},
+		csiMounts:      map[string]*csimanager.MountInfo{},
+		consulTokens:   map[string]map[string]*consulapi.ACLToken{},
+		consulCheckIDs: [][]string{},
 	}
 }
 
@@ -68,6 +70,37 @@ func (a *AllocHookResources) SetConsulTokens(m map[string]map[string]*consulapi.
 	for k, v := range m {
 		a.consulTokens[k] = v
 	}
+}
+
+// GetConsulCheckIDs returns a set of Consul check IDs interpolated in the group
+// service check, for use in the script check hook. These will be in the same
+// order they appear in the jobspec.
+func (a *AllocHookResources) GetConsulCheckIDs() [][]string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	if a.consulCheckIDs == nil {
+		return nil
+	}
+	// update hooks could mutate these concurrently, so deep copy
+	result := make([][]string, len(a.consulCheckIDs))
+	for i, inner := range a.consulCheckIDs {
+		if inner != nil {
+			result[i] = make([]string, len(inner))
+			copy(result[i], inner)
+		}
+	}
+
+	return result
+}
+
+// SetConsulCheckIDs records the set of Consul check IDs interpolated in the
+// group service check, for use in the script check hook. These should be in the
+// same order they appear in the jobspec.
+func (a *AllocHookResources) SetConsulCheckIDs(ids [][]string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.consulCheckIDs = ids
 }
 
 // GetAllocNetworkStatus returns a copy of the AllocNetworkStatus previously

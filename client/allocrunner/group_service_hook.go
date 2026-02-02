@@ -5,6 +5,7 @@ package allocrunner
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -152,7 +153,19 @@ func (h *groupServiceHook) preRunLocked(env *taskenv.TaskEnv) error {
 	if env != nil {
 		h.services = taskenv.InterpolateServices(env, h.services)
 	}
+
 	services := h.getWorkloadServicesLocked()
+
+	checkIDs := make([][]string, len(services.Services))
+	for i, svc := range services.Services {
+		svcID := serviceregistration.MakeAllocServiceID(h.allocID, services.Name(), svc)
+		checkIDs[i] = make([]string, len(svc.Checks))
+		for j, check := range svc.Checks {
+			checkIDs[i][j] = fmt.Sprintf("_nomad-check-%s", check.Hash(svcID))
+		}
+	}
+	h.hookResources.SetConsulCheckIDs(checkIDs)
+
 	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
