@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
-	"github.com/go-viper/mapstructure/v2"
 )
 
 func (c *VolumeCreateCommand) hostVolumeCreate(

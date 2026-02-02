@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/go-viper/mapstructure/v2"
 )
 
 func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File, override bool) int {

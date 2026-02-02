@@ -11,11 +11,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/posener/complete"
 )
 
