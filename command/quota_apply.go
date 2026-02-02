@@ -13,12 +13,12 @@ import (
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/go-viper/mapstructure/v2"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )
 
