@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
