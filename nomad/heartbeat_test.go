@@ -353,7 +353,8 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Time:  tc.now,
 			}}
 
-			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, nil, alloc.Job))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -284,10 +285,11 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1004, node.Copy()))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1005, nil, alloc.Job.Copy()))
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc.Copy()}))
 
 	req := &cstructs.FsStatRequest{
@@ -1379,10 +1381,11 @@ func TestClientFS_Logs_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1004, node.Copy()))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1005, nil, alloc.Job))
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc.Copy()}))
 
 	req := &cstructs.FsLogsRequest{
