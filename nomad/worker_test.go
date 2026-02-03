@@ -468,12 +468,8 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if evalOut != eval1 {
-		t.Fatalf("Bad eval")
-	}
+	must.NoError(t, err)
+	must.Eq(t, eval1, evalOut)
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
@@ -496,26 +492,16 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Should have no update
-	if state != nil {
-		t.Fatalf("unexpected state update")
-	}
+	must.Nil(t, state)
 
 	// Result should have allocated
-	if result == nil {
-		t.Fatalf("missing result")
-	}
+	must.NotNil(t, result)
 
-	if result.AllocIndex == 0 {
-		t.Fatalf("Bad: %#v", result)
-	}
-	if len(result.NodeAllocation) != 1 {
-		t.Fatalf("Bad: %#v", result)
-	}
+	must.NonZero(t, result.AllocIndex)
+	must.MapLen(t, 1, result.NodeAllocation)
 }
 
 func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
@@ -574,6 +560,99 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 		DesiredDescription: desiredDescription,
 		ClientStatus:       structs.AllocClientStatusLost,
 	}, plan.NodeUpdate[stoppedAlloc.NodeID][0])
+}
+
+// TestWorker_SubmitPlan_JobVsJobInfo verifies that the worker handles Job vs
+// JobInfo in the Plan depending on the server version. This test is
+// parametrized to validate behavior against older servers (which require full
+// Job serialization) and newer servers (which support lean plans containing
+// only JobInfo).
+func TestWorker_SubmitPlan_JobVsJobInfo(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		Name       string
+		Build      string
+		ExpectLean bool
+	}{
+		{
+			Name:       "OldServers",
+			Build:      "1.11.0",
+			ExpectLean: false,
+		},
+		{
+			Name:       "NewServers",
+			Build:      minVersionPlanLeanJob.String() + "+unittest",
+			ExpectLean: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			ci.Parallel(t)
+
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
+				c.NumSchedulers = 0
+				c.EnabledSchedulers = []string{structs.JobTypeService}
+				c.Build = tc.Build
+			})
+			defer cleanupS1()
+			testutil.WaitForLeader(t, s1.RPC)
+			testutil.WaitForKeyring(t, s1.RPC, s1.Region())
+
+			node := mock.Node()
+			testRegisterNode(t, s1, node)
+
+			job := mock.Job()
+			eval1 := mock.Eval()
+			eval1.JobID = job.ID
+			store := s1.fsm.State()
+			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+			must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}))
+
+			s1.evalBroker.Enqueue(eval1)
+			evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+			must.NoError(t, err)
+			must.Eq(t, eval1, evalOut)
+
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			plan := &structs.Plan{
+				Job:            job, // incoming plan always contains a full job
+				EvalID:         eval1.ID,
+				NodeAllocation: map[string][]*structs.Allocation{node.ID: {alloc}},
+			}
+
+			w := newWorker(s1.shutdownCtx, s1, getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy())
+			w.evalToken = token
+
+			// Sanity-check the peers cache version check aligns with the case.
+			if tc.ExpectLean {
+				must.True(t, s1.peersCache.ServersMeetMinimumVersion(s1.Region(), minVersionPlanLeanJob, false))
+			} else {
+				must.False(t, s1.peersCache.ServersMeetMinimumVersion(s1.Region(), minVersionPlanLeanJob, false))
+			}
+
+			result, _, err := w.SubmitPlan(plan)
+			must.NoError(t, err)
+			must.NotNil(t, result)
+
+			// Verify that the plan was transformed appropriately for newer servers.
+			if tc.ExpectLean {
+				// For lean-plan-capable servers the worker should convert the full
+				// Job into JobInfo before RPC, leaving plan.Job nil and populating
+				// plan.JobInfo.
+				must.Nil(t, plan.Job)
+				must.NotNil(t, plan.JobInfo)
+			} else {
+				// For older servers the full Job should be preserved on the plan.
+				must.NotNil(t, plan.Job)
+				must.Nil(t, plan.JobInfo)
+			}
+		})
+	}
 }
 
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
