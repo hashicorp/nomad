@@ -797,7 +797,7 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 
 		c.Ui.Output(fmt.Sprintf("Task Group %q:", tg))
 		metrics := failedEval.FailedTGAllocs[tg]
-		c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
+		c.Ui.Output(formatAllocMetrics(metrics, c.Colorize(), false, "  "))
 		if i != len(sorted)-1 {
 			c.Ui.Output("")
 		}
