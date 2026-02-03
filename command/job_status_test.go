@@ -491,7 +491,7 @@ namespace "default" {
 }
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {
-	mon := newMonitor(ui, client, length)
+	mon := newMonitor(Meta{Ui: ui}, client, length)
 	monErr := mon.monitor(evalId)
 	return monErr
 }

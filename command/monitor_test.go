@@ -21,7 +21,7 @@ import (
 func TestMonitor_Update_Eval(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// Evals triggered by jobs log
 	state := &evalState{
@@ -75,7 +75,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 func TestMonitor_Update_Allocs(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// New allocations write new logs
 	state := &evalState{
@@ -146,7 +146,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// New allocs with a create index lower than the
 	// eval create index are logged as modifications
@@ -186,7 +186,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Create the monitor
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, client, fullId)
+	mon := newMonitor(Meta{Ui: ui}, client, fullId)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -233,7 +233,7 @@ func TestMonitor_MonitorBlockedEval(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, client, fullId)
+	mon := newMonitor(Meta{Ui: ui}, client, fullId)
 
 	// Submit a service job.
 	// Since there are no clients this will create a blocked eval.
@@ -377,7 +377,7 @@ node-3  0        0        0        4        3
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			got := formatAllocMetrics(tc.Metrics, true, "")
+			got := formatAllocMetrics(tc.Metrics, nil, true, "")
 			must.Eq(t, strings.TrimSpace(tc.Expected), got)
 		})
 	}
