@@ -46,6 +46,15 @@ func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 	// fingerprinter detected anything.
 	resp.Detected = true
 
+	// if this was a reload, wipe what was there before
+	if req.Node != nil {
+		for k := range req.Node.Attributes {
+			if strings.HasPrefix(k, cniPluginAttribute) {
+				resp.RemoveAttribute(k)
+			}
+		}
+	}
+
 	// cniPath could be a multi-path, e.g. /opt/cni/bin:/custom/cni/bin
 	cniPathList := filepath.SplitList(cniPath)
 
@@ -118,3 +127,6 @@ func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirE
 	f.logger.Debug("failed to parse CNI plugin version", "name", fi.Name())
 	return "unknown", false
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *PluginsCNIFingerprint) Reload() {}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -20,45 +21,41 @@ import (
 type CPUFingerprint struct {
 	StaticFingerprinter
 	logger hclog.Logger
-
-	// builds this topology
-	top *numalib.Topology
-
-	// sets the built topology for this resources response
-	nodeResources *structs.NodeResources
 }
 
 // NewCPUFingerprint is used to create a CPU fingerprint.
 func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 	return &CPUFingerprint{
-		logger:        logger.Named("cpu"),
-		nodeResources: new(structs.NodeResources),
+		logger: logger.Named("cpu"),
 	}
 }
 
 func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
-	f.initialize(request)
+	// if this was a reload, wipe what was there before
+	if request.Node != nil {
+		for k := range request.Node.Attributes {
+			if k != "cpu.arch" && // set by arch fingerprinter
+				(strings.HasPrefix(k, "cpu.") || strings.HasPrefix(k, "numa.node")) {
+				response.RemoveAttribute(k)
+			}
+		}
+	}
 
+	top := f.initialize(request)
 	f.setModelName(response)
-
-	f.setFrequency(response)
-
-	f.setCoreCount(response)
-
-	f.setReservableCores(response)
-
-	f.setTotalCompute(response)
-
-	f.setNUMA(response)
-
-	f.setResponseResources(response)
+	f.setFrequency(response, top)
+	f.setCoreCount(response, top)
+	f.setReservableCores(response, top)
+	f.setTotalCompute(response, top)
+	f.setNUMA(response, top)
+	f.setResponseResources(response, top)
 
 	// indicate we successfully detected the system cpu / memory configuration
 	response.Detected = true
 
 	// pass the topology back up to the client
 	response.UpdateInitialResult = func(ir *InitialResult) {
-		ir.Topology = f.top
+		ir.Topology = top
 	}
 
 	return nil
@@ -75,7 +72,7 @@ func (*CPUFingerprint) reservedCompute(request *FingerprintRequest) structs.Node
 	}
 }
 
-func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
+func (f *CPUFingerprint) initialize(request *FingerprintRequest) *numalib.Topology {
 	var (
 		reservableCores *idset.Set[hw.CoreID]
 		totalCompute    = request.Config.CpuCompute
@@ -87,7 +84,7 @@ func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
 		reservableCores = idset.From[hw.CoreID](rc)
 	}
 
-	f.top = numalib.Scan(append(
+	return numalib.Scan(append(
 		numalib.PlatformScanners(request.Config.CpuDisableDmidecode),
 		&numalib.ConfigScanner{
 			ReservableCores: reservableCores,
@@ -109,8 +106,8 @@ func (*CPUFingerprint) frequency(mhz hw.MHz) string {
 	return strconv.FormatUint(uint64(mhz), 10)
 }
 
-func (f *CPUFingerprint) setFrequency(response *FingerprintResponse) {
-	performance, efficiency := f.top.CoreSpeeds()
+func (f *CPUFingerprint) setFrequency(response *FingerprintResponse, top *numalib.Topology) {
+	performance, efficiency := top.CoreSpeeds()
 	switch {
 	case efficiency > 0:
 		response.AddAttribute("cpu.frequency.efficiency", f.frequency(efficiency))
@@ -131,10 +128,10 @@ func (*CPUFingerprint) nodes(count int) string {
 	return strconv.Itoa(count)
 }
 
-func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse) {
-	total := f.top.NumCores()
-	performance := f.top.NumPCores()
-	efficiency := f.top.NumECores()
+func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse, top *numalib.Topology) {
+	total := top.NumCores()
+	performance := top.NumPCores()
+	efficiency := top.NumECores()
 	switch {
 	case efficiency > 0:
 		response.AddAttribute("cpu.numcores.efficiency", f.cores(efficiency))
@@ -149,20 +146,20 @@ func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse) {
 	}
 }
 
-func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
+func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse, top *numalib.Topology) {
 	switch runtime.GOOS {
 	case "linux":
 		// topology has already reduced to the intersection of usable cores
-		usable := f.top.UsableCores()
+		usable := top.UsableCores()
 		response.AddAttribute("cpu.reservablecores", f.cores(usable.Size()))
 	default:
 		response.AddAttribute("cpu.reservablecores", "0")
 	}
 }
 
-func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse) {
-	totalCompute := f.top.TotalCompute()
-	usableCompute := f.top.UsableCompute()
+func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse, top *numalib.Topology) {
+	totalCompute := top.TotalCompute()
+	usableCompute := top.UsableCompute()
 
 	if totalCompute == 0 {
 		f.logger.Error("cpu.totalcompute is zero, CPU fingerprinting likely failed", "cpu.totalcompute", totalCompute)
@@ -172,24 +169,28 @@ func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse) {
 	response.AddAttribute("cpu.usablecompute", f.frequency(usableCompute))
 }
 
-func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
-	if !f.top.SupportsNUMA() {
+func (f *CPUFingerprint) setNUMA(response *FingerprintResponse, top *numalib.Topology) {
+	if !top.SupportsNUMA() {
 		return
 	}
 
-	nodes := f.top.GetNodes()
+	nodes := top.GetNodes()
 	response.AddAttribute("numa.node.count", f.nodes(nodes.Size()))
 
 	nodes.ForEach(func(id hw.NodeID) error {
 		key := fmt.Sprintf("numa.node%d.cores", id)
-		cores := f.top.NodeCores(id)
+		cores := top.NodeCores(id)
 		response.AddAttribute(key, cores.String())
 		return nil
 	})
 }
 
-func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse) {
-	f.nodeResources.Processors = structs.NewNodeProcessorResources(f.top)
-	f.nodeResources.Compatibility()
-	response.NodeResources = f.nodeResources
+func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse, top *numalib.Topology) {
+	nodeResources := new(structs.NodeResources)
+	nodeResources.Processors = structs.NewNodeProcessorResources(top)
+	nodeResources.Compatibility()
+	response.NodeResources = nodeResources
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *CPUFingerprint) Reload() {}

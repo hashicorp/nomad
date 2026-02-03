@@ -308,3 +308,6 @@ func readMetadataResponse(resp *imds.GetMetadataOutput) (string, error) {
 	}
 	return strings.TrimSpace(string(b)), nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *EnvAWSFingerprint) Reload() {}
