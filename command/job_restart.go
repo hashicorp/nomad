@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )
 
@@ -57,13 +58,14 @@ type ErrJobRestartPlacementFailure struct {
 	EvalID    string
 	TaskGroup string
 	Failures  *api.AllocationMetric
+	colorize  *colorstring.Colorize
 }
 
 func (e ErrJobRestartPlacementFailure) Error() string {
 	return fmt.Sprintf("Evaluation %q has placement failures for group %q:\n%s",
 		e.EvalID,
 		e.TaskGroup,
-		formatAllocMetrics(e.Failures, false, strings.Repeat(" ", 4)),
+		formatAllocMetrics(e.Failures, e.colorize, false, strings.Repeat(" ", 4)),
 	)
 }
 
@@ -1053,6 +1055,7 @@ func (c *JobRestartCommand) monitorPlacementFailures(
 					EvalID:    limit(eval.ID, c.length),
 					TaskGroup: alloc.TaskGroup,
 					Failures:  failures,
+					colorize:  c.Colorize(),
 				}
 				return
 			}
