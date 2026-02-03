@@ -56,3 +56,6 @@ func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 
 	return nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *MemoryFingerprint) Reload() {}

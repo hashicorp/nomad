@@ -305,3 +305,6 @@ func (f *EnvGCEFingerprint) gceProbe() error {
 
 	return nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *EnvGCEFingerprint) Reload() {}
