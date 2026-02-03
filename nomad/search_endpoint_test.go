@@ -460,7 +460,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
 	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
 
@@ -498,7 +498,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
 	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
@@ -1629,7 +1629,7 @@ func TestSearch_FuzzySearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
 	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
 

@@ -172,7 +172,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		require.NoError(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
@@ -400,7 +400,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
 		require := require.New(t)
-		require.NoError(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 

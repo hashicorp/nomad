@@ -1811,8 +1811,8 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.EvalID = alloc1.EvalID
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
-	assert.Nil(state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))

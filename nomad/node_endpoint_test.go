@@ -3241,7 +3241,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	time.AfterFunc(100*time.Millisecond, func() {
 		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc1.Job))
 		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, alloc2.Job))
-		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc1, alloc2}))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc1, alloc2}))
 	})
 
 	// Lookup the allocs in a blocking query
