@@ -36,9 +36,9 @@ type Plan struct {
 	// of the plan by only including it once.
 	Job *Job
 
-	// JobInfo contains namespace, job ID and version of all the allocations
-	// in the Plan. This is so that we don't serialize the whole Job object in the
-	// Plan.Submit RPC.
+	// JobInfo contains namespace and job ID of allocations in the Plan. This
+	// is so that we don't serialize the whole Job object in the Plan.Submit
+	// RPC.
 	JobInfo *PlanJobTuple
 
 	// NodeUpdate contains all the allocations to be stopped or evicted for
@@ -73,9 +73,8 @@ type Plan struct {
 	SnapshotIndex uint64
 }
 
-// PlanJobTuple contains namespace, job ID and version of all the allocations
-// in the Plan. This is so that we don't serialize the whole Job object in the
-// Plan.Submit RPC.
+// PlanJobTuple contains namespace and job ID of allocations in the Plan. This
+// is so that we don't serialize the whole Job object in the Plan.Submit RPC.
 type PlanJobTuple struct {
 	Namespace string
 	ID        string
