@@ -100,6 +100,11 @@ var minVersionNodeIdentity = version.Must(version.NewVersion("1.11.0"))
 // meet before the feature can be used.
 var minVersionNodeIntro = version.Must(version.NewVersion("1.11.0"))
 
+// minVersionPlanLeanJob is the Nomad version at which we stopped serializing full Job
+// object during plan submission. If all local servers don't meet the requirement,
+// we submit a full Job object like we used to before.
+var minVersionPlanLeanJob = version.Must(version.NewVersion("1.12.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes

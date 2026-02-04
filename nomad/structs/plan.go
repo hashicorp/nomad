@@ -36,6 +36,11 @@ type Plan struct {
 	// of the plan by only including it once.
 	Job *Job
 
+	// JobInfo contains namespace and job ID of allocations in the Plan. This
+	// is so that we don't serialize the whole Job object in the Plan.Submit
+	// RPC.
+	JobInfo *PlanJobTuple
+
 	// NodeUpdate contains all the allocations to be stopped or evicted for
 	// each node.
 	NodeUpdate map[string][]*Allocation
@@ -68,10 +73,20 @@ type Plan struct {
 	SnapshotIndex uint64
 }
 
+// PlanJobTuple contains namespace and job ID of allocations in the Plan. This
+// is so that we don't serialize the whole Job object in the Plan.Submit RPC.
+type PlanJobTuple struct {
+	Namespace string
+	ID        string
+}
+
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
 	if p.Job != nil {
 		out += fmt.Sprintf(", job %s", p.Job.ID)
+	}
+	if p.JobInfo != nil {
+		out += fmt.Sprintf(", job %s", p.JobInfo.ID)
 	}
 	if p.Deployment != nil {
 		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
@@ -138,9 +153,13 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	*newAlloc = *alloc
 
 	// If the job is not set in the plan we are deregistering a job so we
-	// extract the job from the allocation.
-	if p.Job == nil && newAlloc.Job != nil {
+	// extract the job information from the allocation.
+	if (p.Job == nil && p.JobInfo == nil) && newAlloc.Job != nil {
 		p.Job = newAlloc.Job
+		p.JobInfo = &PlanJobTuple{
+			Namespace: newAlloc.Job.Namespace,
+			ID:        newAlloc.Job.ID,
+		}
 	}
 
 	// Normalize the job
