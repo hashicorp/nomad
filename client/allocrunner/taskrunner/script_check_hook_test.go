@@ -248,46 +248,52 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	alloc := mock.ConnectAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	task.Services[0].Name = "${NOMAD_JOB_NAME}-${TASK}-${SVC_NAME}"
-	task.Services[0].Checks[0].Name = "${NOMAD_JOB_NAME}-${SVC_NAME}-check"
+	task.Services[0].Name = "${NOMAD_JOB_NAME}-${SVC_NAME}-${NOMAD_ALLOC_IP_testconnect}"
+	task.Services[0].Checks[0].Name = "${NOMAD_JOB_NAME}-${SVC_NAME}-${NOMAD_ALLOC_IP_testconnect}-check"
 	alloc.Job.Canonicalize() // need to re-canonicalize b/c the mock already did it
 
 	env := taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
 		"script_check",
 		map[string]string{"SVC_NAME": "frontend"}).Build()
 
+	arHookResources := cstructs.NewAllocHookResources()
+
 	svcHook := newServiceHook(serviceHookConfig{
 		alloc:             alloc,
 		task:              task,
 		serviceRegWrapper: regWrap,
 		logger:            logger,
-		hookResources:     cstructs.NewAllocHookResources(),
+		hookResources:     arHookResources,
 	})
 	// emulate prestart having been fired
 	svcHook.taskEnv = env
 
 	scHook := newScriptCheckHook(scriptCheckHookConfig{
-		alloc:        alloc,
-		task:         task,
-		consul:       consulClient,
-		logger:       logger,
-		shutdownWait: time.Hour, // TTLUpdater will never be called
+		alloc:           alloc,
+		task:            task,
+		consul:          consulClient,
+		logger:          logger,
+		shutdownWait:    time.Hour, // TTLUpdater will never be called
+		arHookResources: arHookResources,
 	})
 	// emulate prestart having been fired
 	scHook.taskEnv = env
 	scHook.driverExec = exec
 
+	// this will interpolate the service and check similar to how the group
+	// service hook does it, but we can't use the actual group service hook
+	// without an import cycle
 	workload := svcHook.getWorkloadServices()
 	must.Eq(t, "web", workload.AllocInfo.Group)
-
 	expectedSvc := workload.Services[0]
+
 	expected := agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual := scHook.newScriptChecks()
 	check, ok := actual[expected]
 	must.True(t, ok)
-	must.Eq(t, "my-job-frontend-check", check.check.Name)
+	must.Eq(t, "my-job-frontend-${NOMAD_ALLOC_IP_testconnect}-check", check.check.Name)
 
 	// emulate an update
 	env = taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
@@ -296,6 +302,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	scHook.taskEnv = env
 	svcHook.taskEnv = env
 
+	// both service name and check ID will be updated
 	expectedSvc = svcHook.getWorkloadServices().Services[0]
 	expected = agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
@@ -303,7 +310,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	actual = scHook.newScriptChecks()
 	check, ok = actual[expected]
 	must.True(t, ok)
-	must.Eq(t, "my-job-backend-check", check.check.Name)
+	must.Eq(t, "my-job-backend-${NOMAD_ALLOC_IP_testconnect}-check", check.check.Name)
 }
 
 func TestScript_associated(t *testing.T) {
