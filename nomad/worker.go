@@ -656,13 +656,12 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
 
-	// Figure out whether we need to submit a plan that contains a full job or a
-	// new, "lean" plan with just the basic job info (ns, id and ver)
+	// Figure out whether we need to submit a plan that contains a full job or
+	// a new, "lean" plan with just the basic job info (ns, id and ver)
 	if w.ServersMeetMinimumVersion(minVersionPlanLeanJob, false) {
-		job := plan.Job.Copy()
 		plan.JobInfo = &structs.PlanJobTuple{
-			Namespace: job.Namespace,
-			ID:        job.ID,
+			Namespace: plan.Job.Namespace,
+			ID:        plan.Job.ID,
 		}
 		plan.Job = nil
 	}
