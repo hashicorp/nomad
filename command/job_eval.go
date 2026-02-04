@@ -26,11 +26,11 @@ Usage: nomad job eval [options] <job_id>
   operators to force the scheduler to create new allocations under certain
   scenarios.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'evaluate-job' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID. The 'read-job' capability is required to monitor
+  the resulting evaluation when -detach is not used.
 
 General Options:
 
@@ -143,6 +143,6 @@ func (c *JobEvalCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalId)
 }

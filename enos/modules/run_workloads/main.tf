@@ -10,6 +10,13 @@ terraform {
 }
 
 locals {
+  service_jobs  = ["service-docker", "service-raw-exec", "writes-vars", "countdash"]
+  system_jobs   = ["system-docker", "system-raw-exec"]
+  batch_jobs    = ["batch-docker", "batch-raw-exec"]
+  sysbatch_jobs = [] # TODO
+}
+
+locals {
   nomad_env = {
     NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
@@ -30,35 +37,11 @@ locals {
     VAULT_ADDR  = var.vault_addr
   }
 
-  system_job_count     = length({ for k, v in var.workloads : k => v if v.type == "system" })
-  service_batch_allocs = sum([for wl in var.workloads : wl.alloc_count])
 }
 
 resource "enos_local_exec" "wait_for_nomad_api" {
   environment = local.nomad_env
-
-  scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
-}
-
-resource "enos_local_exec" "get_nodes" {
-  depends_on  = [enos_local_exec.wait_for_nomad_api]
-  environment = local.nomad_env
-
-  inline = ["nomad node status -json | jq '[.[] | select(.SchedulingEligibility == \"eligible\" and .Status == \"ready\")] | length'"]
-}
-
-resource "enos_local_exec" "get_jobs" {
-  depends_on  = [enos_local_exec.wait_for_nomad_api]
-  environment = local.nomad_env
-
-  inline = ["nomad job status| awk '$4 == \"running\" {count++} END {print count+0}'"]
-}
-
-resource "enos_local_exec" "get_allocs" {
-  depends_on  = [enos_local_exec.wait_for_nomad_api]
-  environment = local.nomad_env
-
-  inline = ["nomad alloc status -json | jq '[.[] | select(.ClientStatus == \"running\")] | length'"]
+  scripts     = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }
 
 resource "local_file" "vault_workload" {
@@ -70,8 +53,7 @@ resource "local_file" "vault_workload" {
 
 resource "enos_local_exec" "workloads" {
   depends_on = [
-    enos_local_exec.get_jobs,
-    enos_local_exec.get_allocs,
+    enos_local_exec.wait_for_nomad_api,
     local_file.vault_workload
   ]
   for_each = var.workloads

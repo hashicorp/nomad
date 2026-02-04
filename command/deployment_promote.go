@@ -29,9 +29,10 @@ Usage: nomad deployment promote [options] <deployment id>
   the job can be failed forward by submitting a new version or failed backwards by
   reverting to an older version using the "nomad job revert" command.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the deployment's namespace.
-
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'promote-deployment' capability, and the 'read-job' capability
+  for the deployment's namespace.
+  
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
@@ -155,6 +156,6 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(u.EvalID)
 }

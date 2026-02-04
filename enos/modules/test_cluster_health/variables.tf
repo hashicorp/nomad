@@ -37,16 +37,6 @@ variable "client_count" {
   type        = number
 }
 
-variable "jobs_count" {
-  description = "The number of jobs that should be running in the cluster"
-  type        = number
-}
-
-variable "alloc_count" {
-  description = "Number of allocation that should be running in the cluster"
-  type        = number
-}
-
 variable "clients_version" {
   description = "Binary version running on the clients"
   type        = string

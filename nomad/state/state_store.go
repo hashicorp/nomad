@@ -4219,6 +4219,27 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
 			}
 
+			// Read the job directly from state. This ensures we do not
+			// encounter an order of operations issue where the job was stopped
+			// after the worker started processing the evaluation but before the
+			// allocation was upserted.
+			existingJob, err := txn.First("jobs", indexID, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				return fmt.Errorf("job lookup failed: %v", err)
+			}
+
+			existingJobReal, _ := existingJob.(*structs.Job)
+
+			// Do not return this check as an error. If we did, the scheduler
+			// would retry the scheduling process using the same state snapshot
+			// that showed the job as running. This would lead to a retry loop
+			// that would waste CPU time and scheduling worker time.
+			if existingJobReal == nil || existingJobReal.Stopped() {
+				s.logger.Info("attempted to create allocation for stopped or non-existent job",
+					"alloc_id", alloc.ID, "job_id", alloc.JobID, "namespace", alloc.Namespace)
+				continue
+			}
+
 			// Check if the alloc requires sticky volumes. If yes, find a node
 			// that has the right volume and update the task group volume
 			// claims table

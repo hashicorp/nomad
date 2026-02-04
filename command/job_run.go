@@ -54,12 +54,12 @@ Alias: nomad run
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the job's region is used.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. Jobs that mount CSI volumes require a
-  token with the 'csi-mount-volume' capability for the volume's
-  namespace. Jobs that mount host volumes require a token with the
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'register-job' capability for the job's namespace. Jobs that
+  mount CSI volumes require a token with the 'csi-mount-volume' capability for
+  the volume's namespace. Jobs that mount host volumes require a token with the
   'host_volume' capability for that volume.
-
+  
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
@@ -368,7 +368,7 @@ func (c *JobRunCommand) Run(args []string) int {
 		c.Ui.Warn("")
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalID)
 
 }

@@ -38,25 +38,35 @@ func NewPluginsCNIFingerprint(logger hclog.Logger) Fingerprint {
 func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cniPath := req.Config.CNIPath
 	if cniPath == "" {
-		// this will be set to default by client; if empty then lets just do
-		// nothing rather than re-assume a default of our own
+		// short-circuit when no cni paths are configured
 		return nil
+	}
+
+	// Detected indicates the fingerprinter was detected, not that the
+	// fingerprinter detected anything.
+	resp.Detected = true
+
+	// if this was a reload, wipe what was there before
+	if req.Node != nil {
+		for k := range req.Node.Attributes {
+			if strings.HasPrefix(k, cniPluginAttribute) {
+				resp.RemoveAttribute(k)
+			}
+		}
 	}
 
 	// cniPath could be a multi-path, e.g. /opt/cni/bin:/custom/cni/bin
 	cniPathList := filepath.SplitList(cniPath)
+
+	// iterate paths and validate plugins
 	for _, cniPath = range cniPathList {
 		// list the cni_path directory
 		entries, err := f.lister(cniPath)
 		switch {
 		case err != nil:
 			f.logger.Warn("failed to read CNI plugins directory", "cni_path", cniPath, "error", err)
-			resp.Detected = false
-			return nil
 		case len(entries) == 0:
 			f.logger.Debug("no CNI plugins found", "cni_path", cniPath)
-			resp.Detected = true
-			return nil
 		}
 
 		// for each file in cni_path, detect executables and try to get their version
@@ -68,8 +78,6 @@ func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 		}
 	}
 
-	// detection complete, regardless of results
-	resp.Detected = true
 	return nil
 }
 
@@ -119,3 +127,6 @@ func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirE
 	f.logger.Debug("failed to parse CNI plugin version", "name", fi.Name())
 	return "unknown", false
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *PluginsCNIFingerprint) Reload() {}

@@ -30,10 +30,10 @@ Usage: nomad job promote [options] <job id>
   a new version or failed backwards by reverting to an older version using the
   "nomad job revert" command.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job',
-  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
-  capability is required to run the command with a job prefix instead of the
-  exact job ID.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'promote-job' capability and the 'read-job' capability for the
+  job's namespace. The 'list-jobs' capability is required to run the command
+  with a job prefix instead of the exact job ID.
 
 General Options:
 
@@ -167,6 +167,6 @@ func (c *JobPromoteCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(u.EvalID)
 }

@@ -2112,6 +2112,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
 	require := require.New(t)
 
 	// Create the node
@@ -2775,11 +2776,9 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
@@ -2827,6 +2826,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, allocDefaultNS.Job))
 	allocs := []*structs.Allocation{allocDefaultNS}
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 5, allocs), "UpsertAllocs")
 
@@ -2904,8 +2904,10 @@ func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
 	allocDefaultNS := mock.Alloc()
 	allocAltNS := mock.Alloc()
 	allocAltNS.Namespace = ns1.Name
+	allocAltNS.Job.Namespace = ns1.Name
 	allocOtherNS := mock.Alloc()
 	allocOtherNS.Namespace = ns2.Name
+	allocOtherNS.Job.Namespace = ns2.Name
 
 	node := mock.Node()
 	allocDefaultNS.NodeID = node.ID
@@ -2917,6 +2919,11 @@ func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
 	assert.Nil(state.UpsertJobSummary(3, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
 	assert.Nil(state.UpsertJobSummary(4, mock.JobSummary(allocAltNS.JobID)), "UpsertJobSummary")
 	assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(allocOtherNS.JobID)), "UpsertJobSummary")
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, allocDefaultNS.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 4, nil, allocAltNS.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 5, nil, allocOtherNS.Job))
+
 	allocs := []*structs.Allocation{allocDefaultNS, allocAltNS, allocOtherNS}
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 6, allocs), "UpsertAllocs")
 
@@ -3015,11 +3022,9 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
@@ -3108,9 +3113,10 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.ModifyTime = now
 	store := s1.fsm.State()
-	store.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	must.NoError(t, store.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
 		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -3231,10 +3237,12 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc1.JobID)))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1, alloc2}))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc1.Job))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc1, alloc2}))
 	})
 
 	// Lookup the allocs in a blocking query
@@ -3256,9 +3264,9 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 		t.Fatalf("too fast")
 	}
 
-	assert.EqualValues(100, resp2.Index)
+	assert.EqualValues(101, resp2.Index)
 	if assert.Len(resp2.Allocs, 2) {
-		assert.EqualValues(100, resp2.Allocs[alloc1.ID])
+		assert.EqualValues(101, resp2.Allocs[alloc1.ID])
 	}
 
 	// Delete an allocation
@@ -3275,7 +3283,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	}
 	assert.EqualValues(200, resp3.Index)
 	if assert.Len(resp3.Allocs, 1) {
-		assert.EqualValues(100, resp3.Allocs[alloc1.ID])
+		assert.EqualValues(101, resp3.Allocs[alloc1.ID])
 	}
 }
 
@@ -3314,9 +3322,10 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	alloc.PreviousAllocation = prevAlloc.ID
 	alloc.DesiredStatus = structs.AllocClientStatusComplete
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{prevAlloc, alloc})
-	assert.Nil(err)
+	must.NoError(t, state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, prevAlloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{prevAlloc, alloc}))
 
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
@@ -3329,12 +3338,12 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	}
 	var resp2 structs.NodeClientAllocsResponse
 
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
+	err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
 	assert.Nil(err)
 
-	assert.Equal(uint64(100), resp2.Index)
+	assert.Equal(uint64(102), resp2.Index)
 	assert.Equal(2, len(resp2.Allocs))
-	assert.Equal(uint64(100), resp2.Allocs[alloc.ID])
+	assert.Equal(uint64(102), resp2.Allocs[alloc.ID])
 	assert.Equal(0, len(resp2.MigrateTokens))
 }
 
@@ -3366,13 +3375,11 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 	})
 
 	// Lookup the allocs in a blocking query
@@ -3722,11 +3729,9 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
 	// Attempt update
 	clientAlloc := new(structs.Allocation)
@@ -3774,13 +3779,15 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	must.NoError(t, state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, alloc.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
 	idx++
 
 	sysBatchAlloc := mock.SysBatchAlloc()
 	sysBatchAlloc.NodeID = node.ID
-	state.UpsertJobSummary(1, mock.JobSummary(sysBatchAlloc.JobID))
+	must.NoError(t, state.UpsertJobSummary(1, mock.JobSummary(sysBatchAlloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, sysBatchAlloc.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, idx, []*structs.Allocation{sysBatchAlloc}))
 	idx++
 
@@ -3963,6 +3970,27 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	require.Equal(t, defaultJob.ID, eval.JobID)
 }
 
+func TestNode_createNodeEvals_stoppedSystemJob(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a system job that is stopped, mimicking a job that has not been
+	// GC'd but manually stopped by a user.
+	systemJob := mock.SystemJob()
+	systemJob.Stop = true
+
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1, nil, systemJob))
+
+	// Mimic a new node registration (or state change) that would trigger the
+	// eval creation function.
+	evalIDs, _, err := NewNodeEndpoint(testServer, nil).createNodeEvals(mock.Node(), 3)
+	must.NoError(t, err)
+	must.Len(t, 0, evalIDs)
+}
+
 func TestNode_createNodeEvals_terminalAllocs(t *testing.T) {
 	ci.Parallel(t)
 
@@ -4061,12 +4089,9 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID))
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	must.NoError(t, state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}))
 	// Re-evaluate
 	req := &structs.NodeEvaluateRequest{
 		NodeID:       alloc.NodeID,
@@ -4575,15 +4600,6 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 			serverClientStatus: structs.AllocClientStatusUnknown,
 			triggerBy:          structs.EvalTriggerReconnect,
 			missingJob:         false,
-			missingAlloc:       false,
-			invalidTaskGroup:   false,
-		},
-		{
-			name:               "orphaned-unknown-alloc",
-			clientStatus:       structs.AllocClientStatusRunning,
-			serverClientStatus: structs.AllocClientStatusUnknown,
-			triggerBy:          structs.EvalTriggerJobDeregister,
-			missingJob:         true,
 			missingAlloc:       false,
 			invalidTaskGroup:   false,
 		},

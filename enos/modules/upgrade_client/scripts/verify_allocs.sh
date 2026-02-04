@@ -6,14 +6,33 @@ set -euo pipefail
 
 error_exit() {
     printf 'Error: %s' "${1}"
+    ALL_ALLOCS=$(nomad alloc status -json | \
+                     jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]')
+    mkdir -p /tmp/artifacts
+    OUT="/tmp/artifacts/allocs.json"
+    echo "$ALL_ALLOCS" > "$OUT"
+    echo
+    echo "Expected allocs:"
+    echo "$ALLOCS"
+    echo
     echo "Allocs on node ${client_id}:"
-    nomad alloc status -json | \
-        jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]'
+    cat "$OUT" | jq -r '
+        ["ID", "Node", "ClientStatus", "DesiredStatus", "JobID"],
+        ["--------", "--------", "------------", "-------------", "---------------"],
+        (.[] | [.ID[:8], .NodeID[:8], .ClientStatus, .DesiredStatus, .JobID])
+        | @tsv' | column -ts $'\t'
+
+    echo "full allocation status for debugging written to: $OUT"
     exit 1
 }
 
 MAX_WAIT_TIME=60  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
+
+IFS=',' read -r -a ALLOCS <<< "$ALLOCS"
+
+# we'll collect a list of allocs that aren't running
+declare -A MISSING_ALLOCS
 
 elapsed_time=0
 last_error=
@@ -38,6 +57,26 @@ checkClientReady() {
     return 1
 }
 
+# checks that each allocation is still running
+checkAllocations() {
+    local alloc
+    local ok
+    ok=0
+    MISSING_ALLOCS=()
+
+    for alloc in "${ALLOCS[@]}"; do
+        status=$(nomad alloc status -json "$alloc" | jq -r '.ClientStatus')
+        if [[ "$status" != "running" ]]; then
+            MISSING_ALLOCS["$alloc"]=1
+            last_error="Some allocs were not running: ${!MISSING_ALLOCS[*]}"
+            ok=1
+        fi
+    done
+
+    return "$ok"
+}
+
+
 while true; do
     checkClientReady && break
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
@@ -51,60 +90,22 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-allocs_count=$(echo $ALLOCS | jq '[ .[] | select(.ClientStatus == "running")] | length')
-echo "$allocs_count allocs found before upgrade $ALLOCS"
-
 # Quality: "nomad_alloc_reconnect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
-
-checkAllocsCount() {
-    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') || {
-        last_error="Failed to check alloc status"
-        return 1
-    }
-    allocs_length=$(echo "$running_allocs" | jq 'length') \
-        || error_exit "Invalid alloc status -json output"
-
-    if [ "$allocs_length" -eq "$allocs_count" ]; then
-        return 0
-    fi
-
-    last_error="Some allocs are not running"
-    return 1
-}
 
 echo "Reading allocs for client at $CLIENT_IP"
 
 elapsed_time=0
 while true; do
-    checkAllocsCount && break
+    checkAllocations && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
         error_exit "$last_error within $elapsed_time seconds."
     fi
 
-    echo "Running allocs: $allocs_length, expected ${allocs_count}. Have been waiting for ${elapsed_time}. Retrying in $POLL_INTERVAL seconds..."
+    echo "Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 
 done
-
-echo "Correct number of allocs found running: $allocs_length"
-
-current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id) | .ID] | join(" ")')
-if [ -z "$current_allocs" ]; then
-    error_exit "Failed to read allocs for node: $client_id"
-fi
-
-IDs=$(echo $ALLOCS | jq -r '[ .[] | select(.ClientStatus == "running")] | [.[].ID] | join(" ")')
-
-IFS=' ' read -r -a INPUT_ARRAY <<< "${IDs[*]}"
-IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
-
-sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
-sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
-
-if [[ "${sorted_input[*]}" != "${sorted_running[*]}" ]]; then
-    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
-fi
 
 echo "All allocs reattached correctly for node at $CLIENT_IP"

@@ -260,10 +260,11 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1004, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1005, nil, alloc.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
 	req := &nstructs.AllocSpecificRequest{
@@ -558,10 +559,11 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1004, node.Copy()))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1005, nil, alloc.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
 	req := &nstructs.AllocSpecificRequest{
@@ -1189,6 +1191,11 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
+	successfulError := "Enterprise only" // we got past the ACL check
+	if s.EnterpriseState.Features() > 0 {
+		successfulError = "Could not find task runner for task"
+	}
+
 	// Request with an valid token
 	{
 		token := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
@@ -1202,7 +1209,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Request with an valid fine grain token
@@ -1218,7 +1225,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 
 	// Request with an management token
@@ -1233,7 +1240,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
 		must.NotNil(t, err)
-		must.ErrorContains(t, err, "Enterprise only")
+		must.ErrorContains(t, err, successfulError)
 	}
 }
 

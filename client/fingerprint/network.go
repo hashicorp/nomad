@@ -35,6 +35,9 @@ type NetworkFingerprint struct {
 	interfaceDetector NetworkInterfaceDetector
 }
 
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *NetworkFingerprint) Reload() {}
+
 // An interface to isolate calls to various api in net package
 // This facilitates testing where we can implement
 // fake interfaces and addresses to test varios code paths

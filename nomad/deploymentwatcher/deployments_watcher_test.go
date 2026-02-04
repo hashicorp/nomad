@@ -160,6 +160,8 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
@@ -193,6 +195,8 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
@@ -233,6 +237,8 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	d.JobID = j.ID
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
@@ -286,6 +292,8 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 	d.JobID = j.ID
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
@@ -329,6 +337,8 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	d.TaskGroups[a.TaskGroup].DesiredCanaries = 1
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
@@ -439,6 +449,8 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	canaryAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
+		a.Job = j
+		a.JobID = j.ID
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
 		a.ModifyTime = now.UnixNano()
@@ -450,6 +462,8 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	rollingAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
+		a.Job = j
+		a.JobID = j.ID
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
 		a.ModifyTime = now.UnixNano()
@@ -557,6 +571,8 @@ func TestWatcher_AutoPromoteDeployment_UnhealthyCanaries(t *testing.T) {
 
 	canaryAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
+		a.Job = j
+		a.JobID = j.ID
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
 		a.ModifyTime = now.UnixNano()
@@ -796,6 +812,8 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
 	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}))
@@ -878,6 +896,8 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
 	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}))
@@ -932,12 +952,16 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 
 	a2 := mock.Alloc()
 	a2.TaskGroup = "foo"
 	a2.CreateTime = now.UnixNano()
 	a2.ModifyTime = now.UnixNano()
 	a2.DeploymentID = d.ID
+	a2.Job = j
+	a2.JobID = j.ID
 
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
@@ -1023,6 +1047,8 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
 	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}))
@@ -1085,6 +1111,8 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy:   pointer.Of(true),
 		Timestamp: now,
@@ -1102,6 +1130,8 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	now = time.Now()
 	a2.CreateTime = now.UnixNano()
 	a2.ModifyTime = now.UnixNano()
+	a2.Job = j
+	a2.JobID = j.ID
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy:   pointer.Of(true),
 		Timestamp: now,
@@ -1174,6 +1204,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 
 	canary1 := mock.Alloc()
 	canary1.Job = j
+	canary1.JobID = j.ID
 	canary1.DeploymentID = d.ID
 	canary1.TaskGroup = "group1"
 	canary1.DesiredStatus = structs.AllocDesiredStatusRun
@@ -1181,6 +1212,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 
 	canary2 := mock.Alloc()
 	canary2.Job = j
+	canary2.JobID = j.ID
 	canary2.DeploymentID = d.ID
 	canary2.TaskGroup = "group2"
 	canary2.DesiredStatus = structs.AllocDesiredStatusRun
@@ -1245,6 +1277,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 
 	alloc1a := mock.Alloc()
 	alloc1a.Job = j
+	alloc1a.JobID = j.ID
 	alloc1a.DeploymentID = d.ID
 	alloc1a.TaskGroup = "group1"
 	alloc1a.ClientStatus = structs.AllocClientStatusPending
@@ -1253,6 +1286,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 
 	alloc1b := mock.Alloc()
 	alloc1b.Job = j
+	alloc1b.JobID = j.ID
 	alloc1b.DeploymentID = d.ID
 	alloc1b.TaskGroup = "group1"
 	alloc1b.ClientStatus = structs.AllocClientStatusPending
@@ -1329,6 +1363,8 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
 
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.CreateTime = time.Now().UnixNano()
 	a.DeploymentID = d.ID
 
@@ -1390,6 +1426,8 @@ func TestDeploymentWatcher_Watch_FailEarly(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
 	must.Nil(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j), must.Sprint("UpsertJob"))
 	must.Nil(t, m.state.UpsertDeployment(m.nextIndex(), d), must.Sprint("UpsertDeployment"))
 	must.Nil(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), must.Sprint("UpsertAllocs"))
@@ -1438,6 +1476,8 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	d.JobID = j.ID
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))

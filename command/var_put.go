@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/cli"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
@@ -21,7 +22,6 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
