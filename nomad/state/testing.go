@@ -231,7 +231,13 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 	alloc1.DesiredStatus = structs.AllocDesiredStatusRun
 
-	// Insert allocs into the state store
+	// Insert jobs allocs into the state store
+	index++
+	if err := store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc1.Job); err != nil {
+		return err
+	}
+
+	index++
 	err := store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
 	if err != nil {
 		return err

@@ -32,6 +32,10 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
 	index, _ := store.LatestIndex()
+
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 	index++
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))

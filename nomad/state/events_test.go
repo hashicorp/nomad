@@ -484,21 +484,23 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
+	mockJob := mock.Job()
+	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, mockJob))
+
 	// setup
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
-	job := alloc.Job
+	alloc.JobID = mockJob.ID
 	alloc.Job = nil
+	alloc2.JobID = mockJob.ID
 	alloc2.Job = nil
 
 	d := mock.Deployment()
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
-
 	eval := mock.Eval()
-	eval.JobID = job.ID
+	eval.JobID = mockJob.ID
 
 	// Create an eval
 	must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
@@ -506,7 +508,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
 		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
-		Job:           job,
+		Job:           mockJob,
 		Deployment:    d,
 		EvalID:        eval.ID,
 	}

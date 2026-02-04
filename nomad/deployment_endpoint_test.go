@@ -515,6 +515,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
+	a.JobID = j.ID
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
@@ -579,6 +580,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
+	a.JobID = j.ID
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentID = d.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
@@ -1609,6 +1611,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Lookup the allocations
@@ -1647,6 +1650,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
@@ -1722,6 +1726,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(2, d), "UpsertDeployment")
 	assert.Nil(state.UpsertJobSummary(3, summary), "UpsertJobSummary")
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, a.Job))
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
