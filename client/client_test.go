@@ -1126,8 +1126,9 @@ func TestClient_BlockedAllocations(t *testing.T) {
 		"exit_signal": 0,
 	}
 
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {

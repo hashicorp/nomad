@@ -427,6 +427,7 @@ func TestSysBatch_JobDeregister_Purged(t *testing.T) {
 
 	// Create a sysbatch job
 	job := mock.SystemBatchJob()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -437,10 +438,10 @@ func TestSysBatch_JobDeregister_Purged(t *testing.T) {
 		alloc.Name = "my-sysbatch.pinger[0]"
 		allocs = append(allocs, alloc)
 	}
-	for _, alloc := range allocs {
-		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSysBatchSummary(alloc.JobID)))
-	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -488,8 +489,7 @@ func TestSysBatch_JobDeregister_Stopped(t *testing.T) {
 
 	// Generate a stopped sysbatch job with allocations
 	job := mock.SystemBatchJob()
-	job.Stop = true
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -504,6 +504,10 @@ func TestSysBatch_JobDeregister_Stopped(t *testing.T) {
 		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSysBatchSummary(alloc.JobID)))
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update the job to be stopped.
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -1686,6 +1690,8 @@ func TestSysBatch_Preemption(t *testing.T) {
 		},
 		Shared: structs.AllocatedSharedResources{DiskMB: 5 * 1024},
 	}
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job3))
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 	// Create a high priority job and allocs for it

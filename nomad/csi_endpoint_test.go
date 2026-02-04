@@ -355,6 +355,10 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
+
+	index++
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 	index++
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
@@ -439,9 +443,13 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	// Make another writer claim for a different job
 	alloc2 := mock.Alloc()
-	alloc2.JobID = uuid.Generate()
+
 	summary = mock.JobSummary(alloc2.JobID)
 	index++
+
+	index++
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc2.Job))
+
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
@@ -473,9 +481,13 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	// Make a second reader claim
 	alloc3 := mock.Alloc()
-	alloc3.JobID = uuid.Generate()
+
 	summary = mock.JobSummary(alloc3.JobID)
 	index++
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc3.Job))
+	index++
+
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc3}))
@@ -547,6 +559,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	alloc.NodeID = node.ID
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	// Make the volume claim
@@ -696,9 +709,15 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.NodeID = tc.nodeID
 			alloc.ClientStatus = structs.AllocClientStatusRunning
 
+			index++
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 			otherAlloc := mock.BatchAlloc()
 			otherAlloc.NodeID = tc.otherNodeID
 			otherAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+			index++
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, otherAlloc.Job))
 
 			index++
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
@@ -2501,7 +2520,7 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 	codec := rpcClient(t, srv)
 	listJob := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
 	policy := mock.PluginPolicy("read") + listJob
-	getToken := mock.CreatePolicyAndToken(t, s, 1001, "plugin-read", policy)
+	getToken := mock.CreatePolicyAndToken(t, s, 1000, "plugin-read", policy)
 
 	// Create the plugin and then some allocations to pretend to be the allocs that are
 	// running the plugin tasks
@@ -2511,18 +2530,26 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 	plug, _ := s.CSIPluginByID(memdb.NewWatchSet(), "foo")
 	var allocs []*structs.Allocation
 	for _, info := range plug.Controllers {
+
 		a := mock.Alloc()
 		a.ID = info.AllocID
+
+		if len(allocs) == 0 {
+			a.Namespace = ns1.Name
+			a.Job.Namespace = ns1.Name
+		}
+
 		allocs = append(allocs, a)
+		must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, a.Job))
 	}
 	for _, info := range plug.Nodes {
 		a := mock.Alloc()
 		a.ID = info.AllocID
 		allocs = append(allocs, a)
+		must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, a.Job))
 	}
 
 	must.Eq(t, 3, len(allocs))
-	allocs[0].Namespace = ns1.Name
 
 	err := s.UpsertAllocs(structs.MsgTypeTestSetup, 1003, allocs)
 	must.NoError(t, err)

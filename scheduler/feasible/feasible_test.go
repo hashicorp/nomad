@@ -2187,17 +2187,14 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 	tg1 := &structs.TaskGroup{Name: "bar"}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
-	job := &structs.Job{
-		ID:        "foo",
-		Namespace: structs.DefaultNamespace,
-		Constraints: []*structs.Constraint{
-			{
-				Operand: structs.ConstraintDistinctProperty,
-				LTarget: "${meta.rack}",
-			},
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{
+		{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
 		},
-		TaskGroups: []*structs.TaskGroup{tg1, tg2},
 	}
+	job.TaskGroups = []*structs.TaskGroup{tg1, tg2}
 
 	// Add allocs placing tg1 on node1 and 2 and tg2 on node3 and 4. This should make the
 	// job unsatisfiable on all nodes but node5. Also mix the allocations
@@ -2321,6 +2318,11 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[4].ID,
 		},
 	}
+
+	for _, alloc := range upserting {
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	}
+
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
@@ -2569,24 +2571,22 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	static := NewStaticIterator(ctx, nodes)
 
 	// Create a job with a distinct_property constraint and a task groups.
-	tg1 := &structs.TaskGroup{Name: "bar"}
-	job := &structs.Job{
-		Namespace: structs.DefaultNamespace,
-		ID:        "foo",
-		Constraints: []*structs.Constraint{
-			{
-				Operand: structs.ConstraintDistinctProperty,
-				LTarget: "${meta.rack}",
-			},
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{
+		{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
 		},
-		TaskGroups: []*structs.TaskGroup{tg1},
 	}
+	job.TaskGroups = []*structs.TaskGroup{{Name: "bar"}}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
 
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{
 		{
 			Namespace: structs.DefaultNamespace,
-			TaskGroup: tg1.Name,
+			TaskGroup: job.TaskGroups[0].Name,
 			JobID:     job.ID,
 			Job:       job,
 			ID:        uuid.Generate(),
@@ -2598,7 +2598,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	plan.NodeUpdate[nodes[0].ID] = []*structs.Allocation{
 		{
 			Namespace: structs.DefaultNamespace,
-			TaskGroup: tg1.Name,
+			TaskGroup: job.TaskGroups[0].Name,
 			JobID:     job.ID,
 			Job:       job,
 			ID:        stoppingAllocID,
@@ -2609,7 +2609,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	upserting := []*structs.Allocation{
 		{
 			Namespace: structs.DefaultNamespace,
-			TaskGroup: tg1.Name,
+			TaskGroup: job.TaskGroups[0].Name,
 			JobID:     job.ID,
 			Job:       job,
 			ID:        stoppingAllocID,
@@ -2623,7 +2623,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 
 	proposed := NewDistinctPropertyIterator(ctx, static)
 	proposed.SetJob(job)
-	proposed.SetTaskGroup(tg1)
+	proposed.SetTaskGroup(job.TaskGroups[0])
 	proposed.Reset()
 
 	out := collectFeasible(proposed)
@@ -2660,17 +2660,16 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 	tg2 := &structs.TaskGroup{Name: "baz"}
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
-	job := &structs.Job{
-		Namespace: structs.DefaultNamespace,
-		ID:        "foo",
-		Constraints: []*structs.Constraint{
-			{
-				Operand: structs.ConstraintDistinctProperty,
-				LTarget: "${meta.rack}",
-			},
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{
+		{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
 		},
-		TaskGroups: []*structs.TaskGroup{tg1, tg2, tg3},
 	}
+	job.TaskGroups = []*structs.TaskGroup{tg1, tg2, tg3}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
 
 	// Add allocs placing tg1 on node1 and tg2 on node2. This should make the
 	// job unsatisfiable for tg3.
@@ -2739,18 +2738,17 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 	tg2 := &structs.TaskGroup{Name: "baz"}
 	tg3 := &structs.TaskGroup{Name: "bam"}
 
-	job := &structs.Job{
-		Namespace: structs.DefaultNamespace,
-		ID:        "foo",
-		Constraints: []*structs.Constraint{
-			{
-				Operand: structs.ConstraintDistinctProperty,
-				LTarget: "${meta.rack}",
-				RTarget: "2",
-			},
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{
+		{
+			Operand: structs.ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
+			RTarget: "2",
 		},
-		TaskGroups: []*structs.TaskGroup{tg1, tg2, tg3},
 	}
+	job.TaskGroups = []*structs.TaskGroup{tg1, tg2, tg3}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
 
 	// Add allocs placing two tg1's on node1 and two tg2's on node2. This should
 	// make the job unsatisfiable for tg3.
@@ -2844,11 +2842,15 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 	}
 	tg2 := &structs.TaskGroup{Name: "baz"}
 
-	job := &structs.Job{
-		Namespace:  structs.DefaultNamespace,
-		ID:         "foo",
-		TaskGroups: []*structs.TaskGroup{tg1, tg2},
-	}
+	job := mock.Job()
+	job.TaskGroups = []*structs.TaskGroup{tg1, tg2}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
+	job2 := mock.Job()
+	job2.ID = "ignore 2"
+	job2.TaskGroups = []*structs.TaskGroup{tg1.Copy()}
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job2))
 
 	// Add allocs placing tg1 on node1 and 2. This should make the
 	// job unsatisfiable on all nodes but node3. Also mix the allocations
@@ -2894,7 +2896,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg1.Name,
 			JobID:     "ignore 2",
-			Job:       job,
+			Job:       job2,
 			ID:        uuid.Generate(),
 			EvalID:    uuid.Generate(),
 			NodeID:    nodes[2].ID,

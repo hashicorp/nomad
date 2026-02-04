@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -204,14 +205,9 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
-			t.Fatal(err)
-		}
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1}))
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/evaluate", nil)
 		if err != nil {
@@ -256,9 +252,8 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
-			t.Fatal(err)
-		}
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+
 		// Create a test event for the allocation
 		testEvent := structs.NewTaskEvent(structs.TaskStarted)
 		var events []*structs.TaskEvent
@@ -267,10 +262,8 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/node/"+node.ID+"/allocations", nil)
@@ -475,14 +468,9 @@ func TestHTTP_NodePurge(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
 		alloc1.NodeID = node.ID
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
-			t.Fatal(err)
-		}
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1}))
 		// Make the HTTP request to purge it
 		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/purge", nil)
 		if err != nil {

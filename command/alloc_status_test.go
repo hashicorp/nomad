@@ -123,6 +123,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		"prestart_sidecar": {State: "running"},
 	}
 
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, a.ID})
@@ -226,6 +227,8 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
@@ -269,6 +272,8 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID})
@@ -296,6 +301,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
@@ -358,6 +364,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, alloc.Job))
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
@@ -434,6 +441,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, alloc.Job))
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 

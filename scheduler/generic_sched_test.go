@@ -3638,7 +3638,8 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	for _, alloc := range allocs {
-		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
+		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, alloc.Job))
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
@@ -3698,8 +3699,7 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	job.Stop = true
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -3709,6 +3709,9 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a summary where the queued allocs are set as we want to assert
 	// they get zeroed out.

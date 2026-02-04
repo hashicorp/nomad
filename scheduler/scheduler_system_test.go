@@ -863,6 +863,7 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.SystemJob()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -873,10 +874,10 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
-	for _, alloc := range allocs {
-		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
-	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -924,8 +925,7 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.SystemJob()
-	job.Stop = true
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -940,6 +940,10 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update the job to be stopped
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -2154,6 +2158,8 @@ func TestSystemSched_Preemption(t *testing.T) {
 		},
 		Shared: structs.AllocatedSharedResources{DiskMB: 5 * 1024},
 	}
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job3))
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 	// Create a high priority job and allocs for it
@@ -3044,10 +3050,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				LostAfter: 5 * time.Second,
 			}
 
-			if !tc.required {
-				job.Stop = true
-			}
-
 			// If we are no longer on a targeted node, change it to a non-targeted datacenter
 			if !tc.targeted {
 				job.Datacenters = []string{"not-targeted"}
@@ -3067,6 +3069,12 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 
 			if tc.exists {
 				must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+			}
+
+			if !tc.required {
+				copiedJob := job.Copy()
+				copiedJob.Stop = true
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, copiedJob))
 			}
 
 			if tc.modifyJob {

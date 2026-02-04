@@ -256,13 +256,11 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		alloc1 := mock.Alloc()
 		alloc2 := mock.Alloc()
 		alloc2.EvalID = alloc1.EvalID
-		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
+		must.NoError(t, state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet,
 			"/v1/evaluation/"+alloc1.EvalID+"/allocations", nil)
