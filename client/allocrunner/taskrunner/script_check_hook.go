@@ -242,6 +242,10 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			groupTaskName := "group-" + tg.Name
 			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
+			var checkID string
+			if checkIDs != nil {
+				checkID = checkIDs[i][j]
+			}
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.groupConsulNamespace,
 				allocID:         h.alloc.ID,
@@ -254,7 +258,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				logger:          h.logger,
 				shutdownCh:      h.shutdownCh,
 				isGroup:         true,
-				checkID:         checkIDs[i][j],
+				checkID:         checkID,
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
