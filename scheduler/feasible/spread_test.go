@@ -40,6 +40,8 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 	job := mock.Job()
 	tg := job.TaskGroups[0]
 	job.TaskGroups[0].Count = 10
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
 	// add allocs to nodes in dc1
 	upserting := []*structs.Allocation{
 		{
@@ -202,6 +204,8 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 	job := mock.Job()
 	tg := job.TaskGroups[0]
 	job.TaskGroups[0].Count = 10
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
 	// add allocs to nodes in dc1
 	upserting := []*structs.Allocation{
 		{

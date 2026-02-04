@@ -5357,11 +5357,14 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	// Create the register request
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
+	alloc2.Job = alloc1.Job.Copy()
 	alloc2.JobID = alloc1.JobID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc2.Job))
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5378,8 +5381,8 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	if resp2.Index != 1002 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1002)
 	}
 
 	if len(resp2.Allocations) != 2 {
@@ -5400,10 +5403,13 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	// Create allocations for a job
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
+	alloc2.Job = alloc1.Job.Copy()
 	alloc2.JobID = alloc1.JobID
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc2.Job))
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc1, alloc2})
 	require.Nil(err)
 
 	// Look up allocations for that job
@@ -5422,7 +5428,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	require.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with an invalid token should fail
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get.AuthToken = invalidToken.SecretID
@@ -5438,7 +5444,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	require.Nil(err)
 
 	// Attempt to fetch the response with valid management token should succeed
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get.AuthToken = validToken.SecretID
@@ -5461,24 +5467,21 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.JobID = "job1"
+	alloc2.Job.ID = "job1"
 	state := s1.fsm.State()
 
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
-		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1}))
 	})
 
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(198, mock.JobSummary(alloc2.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 199, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}))
 	})
 
 	// Lookup the jobs

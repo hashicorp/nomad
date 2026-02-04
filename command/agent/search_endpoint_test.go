@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -344,8 +345,8 @@ func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
-		require.NoError(t, err)
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 6999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc}))
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Allocs}
@@ -375,8 +376,8 @@ func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
-		require.NoError(t, err)
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 6999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc}))
 
 		data := structs.FuzzySearchRequest{Text: "-job", Context: structs.Allocs}
 		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))

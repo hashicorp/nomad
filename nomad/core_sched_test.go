@@ -292,12 +292,11 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJob := mock.Job()
 	stoppedJob.Type = structs.JobTypeBatch
 	stoppedJob.Status = structs.JobStatusDead
-	stoppedJob.Stop = true
 	stoppedJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob.Copy()))
 
 	stoppedJobEval := mock.Eval()
 	stoppedJobEval.Status = structs.EvalStatusComplete
@@ -325,6 +324,9 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, jobModifyIdx+3,
 		[]*structs.Allocation{stoppedJobStoppedAlloc, stoppedJobLostAlloc}))
+
+	stoppedJob.Stop = true
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+4, nil, stoppedJob.Copy()))
 
 	// A "dead" job containing one "complete" eval with:
 	//	1. A "stopped" alloc
@@ -677,7 +679,8 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
-	store.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job.Copy()))
 
 	// Insert "lost" alloc
 	alloc2 := mock.Alloc()
@@ -963,7 +966,8 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	store.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2720,6 +2724,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	alloc.SigningKeyID = key3.KeyID
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 810, nil, alloc.Job))
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 850, []*structs.Allocation{alloc}))
 
@@ -2733,6 +2738,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusFailed
 	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc2.SigningKeyID = key4.KeyID
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 910, nil, alloc2.Job))
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 950, []*structs.Allocation{alloc2}))
 
