@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Do not create node evaluations for system jobs that are stopped
+```

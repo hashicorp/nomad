@@ -14,11 +14,11 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/mitchellh/colorstring"
-	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )
 

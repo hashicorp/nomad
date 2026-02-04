@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where host-volume-delete capability was not allowed when writing a policy
+```

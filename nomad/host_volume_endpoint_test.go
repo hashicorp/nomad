@@ -346,6 +346,9 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			Source: vol2.Name,
 		}}
 		index++
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
+		index++
 		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup,
 			index, []*structs.Allocation{alloc}))
 
@@ -354,7 +357,8 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
-				AuthToken: token},
+				AuthToken: token,
+			},
 		}
 		var delResp structs.HostVolumeDeleteResponse
 

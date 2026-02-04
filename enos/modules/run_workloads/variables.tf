@@ -40,11 +40,6 @@ variable "consul_token" {
   sensitive   = true
 }
 
-variable "availability_zone" {
-  description = "The AZ where the cluster is being run"
-  type        = string
-}
-
 variable "vault_addr" {
   description = "The Vault API HTTP address."
   type        = string

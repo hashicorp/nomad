@@ -271,8 +271,9 @@ func TestAuthenticateDefault(t *testing.T) {
 				must.EqError(t, err, "allocation does not exist")
 
 				// insert alloc so it's live
-				store.UpsertAllocs(structs.MsgTypeTestSetup, 200,
-					[]*structs.Allocation{alloc})
+				must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 199, nil, alloc.Job))
+				must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 200,
+					[]*structs.Allocation{alloc}))
 
 				args = &structs.GenericRequest{}
 				args.AuthToken = token
@@ -1312,8 +1313,9 @@ func TestIdentityToACLClaim(t *testing.T) {
 		Encrypter:      newTestEncrypter(),
 	})
 
-	store.UpsertAllocs(structs.MsgTypeTestSetup, 100,
-		[]*structs.Allocation{alloc})
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 100,
+		[]*structs.Allocation{alloc}))
 
 	token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
 	must.NoError(t, err)
@@ -1517,10 +1519,18 @@ func TestResolveClaims(t *testing.T) {
 	must.Nil(t, aclObj)
 	must.EqError(t, err, "allocation does not exist")
 
-	// upsert the allocation
+	// upsert the jobs and allocations.
 	index++
-	err = auth.getState().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc, dispatchAlloc})
-	must.NoError(t, err)
+	must.NoError(t, auth.getState().UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
+	index++
+	must.NoError(t, auth.getState().UpsertJob(structs.MsgTypeTestSetup, index, nil, dispatchAlloc.Job))
+
+	index++
+	must.NoError(
+		t,
+		auth.getState().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc, dispatchAlloc}),
+	)
 
 	// Resolve claims and check we that the ACL object without policies provides no access
 	aclObj, err = auth.resolveClaims(claims)
