@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -152,7 +153,19 @@ func (h *groupServiceHook) preRunLocked(env *taskenv.TaskEnv) error {
 	if env != nil {
 		h.services = taskenv.InterpolateServices(env, h.services)
 	}
+
 	services := h.getWorkloadServicesLocked()
+
+	checkIDs := make([][]string, len(services.Services))
+	for i, svc := range services.Services {
+		svcID := serviceregistration.MakeAllocServiceID(h.allocID, services.Name(), svc)
+		checkIDs[i] = make([]string, len(svc.Checks))
+		for j, check := range svc.Checks {
+			checkIDs[i][j] = consul.MakeCheckID(svcID, check)
+		}
+	}
+	h.hookResources.SetConsulCheckIDs(checkIDs)
+
 	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
