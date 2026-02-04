@@ -663,7 +663,6 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 		plan.JobInfo = &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
-			Version:   job.Version,
 		}
 		plan.Job = nil
 	}

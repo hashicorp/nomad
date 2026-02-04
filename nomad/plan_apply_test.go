@@ -106,7 +106,6 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
@@ -185,7 +184,6 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
-			Version:   job.Version,
 		},
 		EvalID: eval.ID,
 	}
@@ -307,7 +305,6 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
@@ -480,7 +477,6 @@ func TestPlanApply_KeyringNotReady(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -517,7 +513,6 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -640,7 +635,6 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -696,7 +690,6 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID:  {alloc},
@@ -753,7 +746,6 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		AllAtOnce: true, // Require all to make progress
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -804,7 +796,6 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -836,7 +827,6 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -867,7 +857,6 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -897,7 +886,6 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			nodeID: {alloc},
@@ -937,7 +925,6 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
@@ -1001,7 +988,6 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
@@ -1030,7 +1016,6 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -1066,7 +1051,6 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -1105,7 +1089,6 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
@@ -1145,7 +1128,6 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
@@ -1184,7 +1166,6 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
-			Version:   alloc.Job.Version,
 		},
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
@@ -1270,7 +1251,6 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 				JobInfo: &structs.PlanJobTuple{
 					Namespace: job.Namespace,
 					ID:        job.ID,
-					Version:   job.Version,
 				},
 				NodeAllocation: tc.nodeAllocs,
 			}

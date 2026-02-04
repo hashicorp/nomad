@@ -42,7 +42,6 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan.JobInfo = &structs.PlanJobTuple{
 		Namespace: job.Namespace,
 		ID:        job.ID,
-		Version:   job.Version,
 	}
 	req := &structs.PlanRequest{
 		Plan:         plan,
@@ -166,7 +165,6 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		plan.JobInfo = &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
-			Version:   job.Version,
 		}
 
 		alloc := mock.Alloc()
@@ -247,7 +245,6 @@ func TestPlanEndpoint_Submit_FullJobAndJobInfo(t *testing.T) {
 				plan.JobInfo = &structs.PlanJobTuple{
 					Namespace: job.Namespace,
 					ID:        job.ID,
-					Version:   job.Version,
 				}
 				alloc := mock.Alloc()
 				alloc.JobID = job.ID

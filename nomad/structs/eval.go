@@ -417,7 +417,6 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 		p.JobInfo = &PlanJobTuple{
 			Namespace: j.Namespace,
 			ID:        j.ID,
-			Version:   j.Version,
 		}
 	}
 	return p

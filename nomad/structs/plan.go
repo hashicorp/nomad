@@ -79,7 +79,6 @@ type Plan struct {
 type PlanJobTuple struct {
 	Namespace string
 	ID        string
-	Version   uint64
 }
 
 func (p *Plan) GoString() string {
@@ -161,7 +160,6 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 		p.JobInfo = &PlanJobTuple{
 			Namespace: newAlloc.Job.Namespace,
 			ID:        newAlloc.Job.ID,
-			Version:   newAlloc.Job.Version,
 		}
 	}
 
