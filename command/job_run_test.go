@@ -13,7 +13,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
@@ -280,4 +283,61 @@ func TestRunCommand_JSON(t *testing.T) {
 	must.Zero(t, code)
 	must.Eq(t, "", stderr)
 	must.NotEq(t, "", stdout)
+}
+
+// TestRunCommand_NamespaceInUILink tests that the UI link uses the job's namespace
+// rather than the CLI namespace when they differ.
+func TestRunCommand_NamespaceInUILink(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a server with UI hints enabled
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.ShowCLIHints = pointer.Of(true)
+	})
+	defer srv.Shutdown()
+	waitForNodes(t, client)
+
+	// Create a job with a non-default namespace
+	_, err := client.Namespaces().Register(&api.Namespace{Name: "internal"}, nil)
+	must.NoError(t, err)
+
+	// Create a job file with the "internal" namespace
+	jobFile := filepath.Join(t.TempDir(), "test.nomad")
+	jobSpec := `
+job "test-job" {
+	namespace = "internal"
+	type = "service"
+	datacenters = ["dc1"]
+	group "web" {
+		count = 1
+		task "web" {
+			driver = "exec"
+			resources {
+				cpu = 100
+				memory = 64
+			}
+		}
+	}
+}`
+	must.NoError(t, os.WriteFile(jobFile, []byte(jobSpec), 0644))
+
+	ui := cli.NewMockUi()
+	cmd := &JobRunCommand{
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: url,
+			// Deliberately set CLI namespace to "default" to test that
+			// the job's namespace ("internal") takes precedence
+			namespace: "default",
+		},
+	}
+
+	// Run the job in detach mode so we get the UI hint
+	code := cmd.Run([]string{"-detach", jobFile})
+	must.Zero(t, code)
+
+	// Verify that the UI link uses the job's namespace ("internal") not the CLI namespace ("default")
+	output := ui.ErrorWriter.String()
+	must.StrContains(t, output, "/ui/jobs/test-job@internal")
+	must.StrNotContains(t, output, "/ui/jobs/test-job@default")
 }
