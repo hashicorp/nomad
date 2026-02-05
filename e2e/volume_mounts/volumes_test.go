@@ -35,10 +35,10 @@ func TestVolumeMounts(t *testing.T) {
 
 	oldPath := fmt.Sprintf("/tmp/foo/%s", allocID0)
 	logs := sub.Exec("group", "docker_task", []string{"cat", oldPath})
-	must.StrContains(t, logs.Stdout, allocID0)
+	must.StrContains(t, logs.Stdout, allocID0, must.Sprint(logs.Stderr))
 
 	logs = sub.Exec("group", "exec_task", []string{"cat", oldPath})
-	must.StrContains(t, logs.Stdout, allocID0)
+	must.StrContains(t, logs.Stdout, allocID0, must.Sprint(logs.Stderr))
 
 	stop()
 
@@ -57,17 +57,17 @@ func TestVolumeMounts(t *testing.T) {
 
 	logs = sub.Exec("group", "docker_task", []string{"cat", newPath})
 	must.StrContains(t, logs.Stdout, allocID1,
-		must.Sprintf("new alloc data is missing from docker_task, got: %s", logs.Stdout))
+		must.Sprintf("new alloc data is missing from docker_task. error=%s", logs.Stderr))
 
 	logs = sub.Exec("group", "docker_task", []string{"cat", oldPath})
 	must.StrContains(t, logs.Stdout, allocID0,
-		must.Sprintf("previous alloc data is missing from docker_task, got: %s", logs.Stdout))
+		must.Sprintf("previous alloc data is missing from docker_task. error=%s", logs.Stderr))
 
 	logs = sub.Exec("group", "exec_task", []string{"cat", newPath})
 	must.StrContains(t, logs.Stdout, allocID1,
-		must.Sprintf("new alloc data is missing from exec_task, got: %s", logs.Stdout))
+		must.Sprintf("new alloc data is missing from exec_task. error=%s", logs.Stderr))
 
 	logs = sub.Exec("group", "exec_task", []string{"cat", oldPath})
 	must.StrContains(t, logs.Stdout, allocID0,
-		must.Sprintf("previous alloc data is missing from exec_task, got: %s", logs.Stdout))
+		must.Sprintf("previous alloc data is missing from exec_task. error=%s", logs.Stderr))
 }
