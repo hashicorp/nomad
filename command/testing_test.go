@@ -87,8 +87,9 @@ func testJob(jobID string) *api.Job {
 	return job
 }
 
-func testNomadServiceJob(jobID string) *api.Job {
+func testServiceJob(jobID string) *api.Job {
 	j := testJob(jobID)
+	j.Type = pointer.Of("service")
 	j.TaskGroups[0].Services = []*api.Service{{
 		Name:        "service1",
 		PortLabel:   "1000",
