@@ -212,15 +212,15 @@ type HostVolumeChecker struct {
 	namespace     string
 	jobID         string
 	taskGroupName string
-	claims        []*structs.TaskGroupHostVolumeClaim
+	unmetClaims   []*structs.TaskGroupHostVolumeClaim
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	hostVolumeChecker := &HostVolumeChecker{
-		ctx:        ctx,
-		claims:     []*structs.TaskGroupHostVolumeClaim{},
-		volumeReqs: []*structs.VolumeRequest{},
+		ctx:         ctx,
+		unmetClaims: []*structs.TaskGroupHostVolumeClaim{},
+		volumeReqs:  []*structs.VolumeRequest{},
 	}
 
 	return hostVolumeChecker
@@ -232,16 +232,44 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 	h.jobID = jobID
 	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
+	h.unmetClaims = []*structs.TaskGroupHostVolumeClaim{}
 
-	storedClaims, _ := h.ctx.State().TaskGroupHostVolumeClaimsByFields(nil, state.TgvcSearchableFields{
-		Namespace:     ns,
-		JobID:         jobID,
-		TaskGroupName: taskGroupName,
-	})
+	storedClaims, _ := h.ctx.State().TaskGroupHostVolumeClaimsByFields(
+		nil, state.TgvcSearchableFields{
+			Namespace: ns,
+			JobID:     jobID,
+		})
 
+	// if we have previous claims for sticky volumes, we want to make sure these
+	// are getting picked first. But we don't want to count claims that have
+	// been met by proposed allocs already
+NEXT:
 	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
 		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		h.claims = append(h.claims, claim)
+
+		alloc, err := h.ctx.State().AllocByID(nil, claim.AllocID)
+		if err != nil || alloc == nil {
+			continue
+		}
+		vol, err := h.ctx.State().HostVolumeByID(nil, ns, claim.VolumeID, false)
+		if err != nil || vol == nil {
+			continue
+		}
+
+		// the proposed alloc might be the exact same alloc or it could be an
+		// alloc from earlier in this eval that we've successfully placed
+		proposed, err := h.ctx.ProposedAllocs(alloc.NodeID)
+		if err == nil {
+			for _, proposedAlloc := range proposed {
+				if proposedAlloc.ID == claim.AllocID ||
+					(proposedAlloc.TaskGroup == taskGroupName &&
+						vol.NodeID == alloc.NodeID &&
+						vol.ID == claim.VolumeID) {
+					continue NEXT
+				}
+			}
+			h.unmetClaims = append(h.unmetClaims, claim)
+		}
 	}
 
 	for _, req := range volumes {
@@ -308,20 +336,21 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			if req.Sticky {
 				// the node is feasible if there are no remaining claims to
 				// fulfill or if there's an exact match
-				if len(h.claims) == 0 {
+				if len(h.unmetClaims) == 0 {
 					return true
 				}
 
-				for _, c := range h.claims {
+				for _, c := range h.unmetClaims {
 					if c.VolumeID == vol.ID {
 						// if we have a match for a volume claim, delete this
 						// claim from the claims list in the feasibility
 						// checker. This is needed for situations when jobs get
 						// scaled up and new allocations need to be placed on
 						// the same node.
-						h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
-							return c.VolumeID == vol.ID
-						})
+						h.unmetClaims = slices.DeleteFunc(h.unmetClaims,
+							func(claim *structs.TaskGroupHostVolumeClaim) bool {
+								return claim.VolumeID == vol.ID
+							})
 						return true
 					}
 				}
