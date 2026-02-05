@@ -572,32 +572,30 @@ func formatTaskDiff(task *api.TaskDiff, startPrefix, taskPrefix int, verbose boo
 }
 
 // formatObjectDiff produces an annotated diff of an object. startPrefix is the
-// number of spaces to prefix the output of the object and keyPrefix is the number
-// of spaces to put between the marker and object name output.
-func formatObjectDiff(diff *api.ObjectDiff, startPrefix, keyPrefix int) string {
+// number of spaces to prefix the output of the marker and object.
+func formatObjectDiff(diff *api.ObjectDiff, startPrefix int) string {
 	start := strings.Repeat(" ", startPrefix)
 	marker, markerLen := getDiffString(diff.Type)
-	out := fmt.Sprintf("%s%s%s%s {\n", start, marker, strings.Repeat(" ", keyPrefix), diff.Name)
+	out := fmt.Sprintf("%s%s%s {\n", start, marker, diff.Name)
 
 	// Determine the length of the longest name and longest diff marker to
 	// properly align names and values
 	longestField, longestMarker := getLongestPrefixes(diff.Fields, diff.Objects)
-	subStartPrefix := startPrefix + keyPrefix + 2
+	subStartPrefix := startPrefix + markerLen + 2 - longestMarker
 	out += alignedFieldAndObjects(diff.Fields, diff.Objects, subStartPrefix, longestField, longestMarker)
 
-	endprefix := strings.Repeat(" ", startPrefix+markerLen+keyPrefix)
+	endprefix := strings.Repeat(" ", startPrefix+markerLen)
 	return fmt.Sprintf("%s\n%s}", out, endprefix)
 }
 
 // formatFieldDiff produces an annotated diff of a field. startPrefix is the
-// number of spaces to prefix the output of the field, keyPrefix is the number
-// of spaces to put between the marker and field name output and valuePrefix is
+// number of spaces to prefix the output of the marker and field, and valuePrefix is
 // the number of spaces to put infront of the value for aligning values.
-func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix int) string {
+func formatFieldDiff(diff *api.FieldDiff, startPrefix, valuePrefix int) string {
 	marker, _ := getDiffString(diff.Type)
-	out := fmt.Sprintf("%s%s%s%s: %s",
+	out := fmt.Sprintf("%s%s%s: %s",
 		strings.Repeat(" ", startPrefix),
-		marker, strings.Repeat(" ", keyPrefix),
+		marker,
 		diff.Name,
 		strings.Repeat(" ", valuePrefix))
 
@@ -631,9 +629,9 @@ func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 	haveObjects := numObjects != 0
 	for i, field := range fields {
 		_, mLength := getDiffString(field.Type)
-		kPrefix := longestMarker - mLength
+		mPrefix := longestMarker - mLength
 		vPrefix := longestField - len(field.Name)
-		out += formatFieldDiff(field, startPrefix, kPrefix, vPrefix)
+		out += formatFieldDiff(field, startPrefix+mPrefix, vPrefix)
 
 		// Avoid a dangling new line
 		if i+1 != numFields || haveObjects {
@@ -643,8 +641,8 @@ func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 
 	for i, object := range objects {
 		_, mLength := getDiffString(object.Type)
-		kPrefix := longestMarker - mLength
-		out += formatObjectDiff(object, startPrefix, kPrefix)
+		mPrefix := longestMarker - mLength
+		out += formatObjectDiff(object, startPrefix+mPrefix)
 
 		// Avoid a dangling new line
 		if i+1 != numObjects {
