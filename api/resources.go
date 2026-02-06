@@ -296,6 +296,27 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
+// DeviceOption represents a single option in a first_available device selection.
+// Each option specifies a count and optional constraints that must be satisfied
+// for this option to be selected.
+type DeviceOption struct {
+	// Count is the number of requested devices for this option
+	Count *uint64 `hcl:"count,optional"`
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use for this option.
+	Constraints []*Constraint `hcl:"constraint,block"`
+}
+
+func (o *DeviceOption) Canonicalize() {
+	if o == nil {
+		return
+	}
+	if o.Count == nil {
+		o.Count = pointerOf(uint64(1))
+	}
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -309,20 +330,34 @@ type RequestedDevice struct {
 	// * "nvidia/gpu/GTX2080Ti"
 	Name string `hcl:",label"`
 
-	// Count is the number of requested devices
+	// Count is the number of requested devices. Mutually exclusive with
+	// FirstAvailable.
 	Count *uint64 `hcl:"count,optional"`
 
 	// Constraints are a set of constraints to apply when selecting the device
-	// to use.
+	// to use. When FirstAvailable is specified, these constraints are applied
+	// as base constraints that all options must also satisfy.
 	Constraints []*Constraint `hcl:"constraint,block"`
 
-	// Affinities are a set of affinites to apply when selecting the device
-	// to use.
+	// Affinities are a set of affinities to apply when selecting the device
+	// to use. When FirstAvailable is specified, these affinities are applied
+	// as base affinities for all options.
 	Affinities []*Affinity `hcl:"affinity,block"`
+
+	// FirstAvailable specifies a prioritized list of device options. The
+	// scheduler will attempt to satisfy each option in order, selecting the
+	// first one that can be fulfilled. Mutually exclusive with Count.
+	FirstAvailable []*DeviceOption `hcl:"first_available,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {
-	if d.Count == nil {
+	// If using first_available, canonicalize each option but don't set default count
+	if len(d.FirstAvailable) > 0 {
+		for _, opt := range d.FirstAvailable {
+			opt.Canonicalize()
+		}
+	} else if d.Count == nil {
+		// Only set default count when not using first_available
 		d.Count = pointerOf(uint64(1))
 	}
 

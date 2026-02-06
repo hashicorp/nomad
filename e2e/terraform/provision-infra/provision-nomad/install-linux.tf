@@ -31,6 +31,37 @@ resource "null_resource" "install_nomad_binary_linux" {
   }
 }
 
+resource "null_resource" "install_device_plugin_linux" {
+  count = var.platform == "linux" && var.role == "client" && var.device_plugin_local_binary != "" ? 1 : 0
+
+  connection {
+    type        = "ssh"
+    user        = var.connection.user
+    host        = var.instance.public_ip
+    port        = var.connection.port
+    private_key = file(var.connection.private_key)
+    timeout     = "5m"
+  }
+
+  provisioner "file" {
+    source      = var.device_plugin_local_binary
+    destination = "/tmp/nomad-device-example"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/nomad-device-example /opt/nomad/plugins/nomad-device-example",
+      "sudo chmod +x /opt/nomad/plugins/nomad-device-example",
+      # Create mock device directory and files for e2e device tests
+      "sudo mkdir -p /tmp/nomad-device",
+      "sudo touch /tmp/nomad-device/device01",
+      "sudo touch /tmp/nomad-device/device02",
+      "sudo touch /tmp/nomad-device/device03",
+      # Mark device01 as unhealthy
+      "sudo chmod 0777 /tmp/nomad-device/device01",
+    ]
+  }
+}
+
 resource "null_resource" "install_consul_configs_linux" {
   count = var.platform == "linux" ? 1 : 0
 

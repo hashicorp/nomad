@@ -6590,6 +6590,180 @@ func TestDevicesEquals(t *testing.T) {
 	}
 }
 
+func TestDeviceOption_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*DeviceOption](t, nil, nil)
+	must.NotEqual[*DeviceOption](t, nil, new(DeviceOption))
+
+	opt1 := &DeviceOption{
+		Count: 2,
+		Constraints: []*Constraint{
+			{LTarget: "${attr.kernel.name}", Operand: "=", RTarget: "linux"},
+		},
+	}
+
+	// Equal copy
+	opt2 := opt1.Copy()
+	must.True(t, opt1.Equal(opt2))
+
+	// Different count
+	opt3 := opt1.Copy()
+	opt3.Count = 4
+	must.False(t, opt1.Equal(opt3))
+
+	// Different constraints
+	opt4 := opt1.Copy()
+	opt4.Constraints = []*Constraint{
+		{LTarget: "${attr.kernel.name}", Operand: "=", RTarget: "darwin"},
+	}
+	must.False(t, opt1.Equal(opt4))
+}
+
+func TestDeviceOption_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	// Nil copy
+	var nilOpt *DeviceOption
+	must.Nil(t, nilOpt.Copy())
+
+	opt := &DeviceOption{
+		Count: 2,
+		Constraints: []*Constraint{
+			{LTarget: "${attr.kernel.name}", Operand: "=", RTarget: "linux"},
+		},
+	}
+
+	cp := opt.Copy()
+	must.True(t, opt.Equal(cp))
+
+	// Modify original, copy should be unchanged
+	opt.Count = 10
+	opt.Constraints[0].RTarget = "darwin"
+	must.Eq(t, uint64(2), cp.Count)
+	must.Eq(t, "linux", cp.Constraints[0].RTarget)
+}
+
+func TestDeviceOption_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	// Valid option (no constraints - device constraints use ${device.*} which
+	// is validated at scheduler time, not job submission time)
+	opt := &DeviceOption{
+		Count: 2,
+	}
+	must.NoError(t, opt.Validate())
+
+	// Invalid constraint operand (distinct_hosts not allowed for devices)
+	opt2 := &DeviceOption{
+		Count: 1,
+		Constraints: []*Constraint{
+			{LTarget: "${attr.kernel.name}", Operand: ConstraintDistinctHosts, RTarget: "true"},
+		},
+	}
+	err := opt2.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "unsupported operand")
+}
+
+func TestRequestedDevice_FirstAvailable_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	rd1 := &RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{
+			{Count: 2},
+			{Count: 1},
+		},
+	}
+
+	// Equal copy
+	rd2 := rd1.Copy()
+	must.True(t, rd1.Equal(rd2))
+
+	// Different number of options
+	rd3 := rd1.Copy()
+	rd3.FirstAvailable = rd3.FirstAvailable[:1]
+	must.False(t, rd1.Equal(rd3))
+
+	// Different option content
+	rd4 := rd1.Copy()
+	rd4.FirstAvailable[0].Count = 4
+	must.False(t, rd1.Equal(rd4))
+}
+
+func TestRequestedDevice_FirstAvailable_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	rd := &RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{
+			{Count: 2, Constraints: []*Constraint{{LTarget: "${attr.kernel.name}", Operand: "=", RTarget: "linux"}}},
+		},
+	}
+
+	cp := rd.Copy()
+	must.True(t, rd.Equal(cp))
+
+	// Modify original, copy should be unchanged
+	rd.FirstAvailable[0].Count = 10
+	rd.FirstAvailable[0].Constraints[0].RTarget = "darwin"
+	must.Eq(t, uint64(2), cp.FirstAvailable[0].Count)
+	must.Eq(t, "linux", cp.FirstAvailable[0].Constraints[0].RTarget)
+}
+
+func TestRequestedDevice_FirstAvailable_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	// Valid first_available request (no constraints - device constraints use
+	// ${device.*} which is validated at scheduler time, not job submission time)
+	rd := &RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{
+			{Count: 2},
+			{Count: 1},
+		},
+	}
+	must.NoError(t, rd.Validate())
+
+	// Count and FirstAvailable are mutually exclusive
+	rd2 := &RequestedDevice{
+		Name:  "nvidia/gpu",
+		Count: 2,
+		FirstAvailable: []*DeviceOption{
+			{Count: 1},
+		},
+	}
+	err := rd2.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "mutually exclusive")
+
+	// Invalid option in FirstAvailable (distinct_hosts not allowed)
+	rd3 := &RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{
+			{
+				Count: 1,
+				Constraints: []*Constraint{
+					{LTarget: "${attr.kernel.name}", Operand: ConstraintDistinctHosts, RTarget: "true"},
+				},
+			},
+		},
+	}
+	err = rd3.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "first_available 1 validation failed")
+
+	// Nil option in FirstAvailable
+	rd4 := &RequestedDevice{
+		Name:           "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{nil},
+	}
+	err = rd4.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "is nil")
+}
+
 func TestAllocatedPortMapping_Equal(t *testing.T) {
 	ci.Parallel(t)
 
