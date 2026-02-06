@@ -151,6 +151,84 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	must.Eq(t, "add", ops[3].Op)    // Restart -> preRun
 }
 
+// TestGroupServiceHook_GroupServices asserts group service hooks with group
+// services does not error.
+func TestGroupServiceHook_GroupServicesCheckUpdates(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.ConnectAlloc()
+	alloc.Job.TaskGroups[0].Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:     "zero",
+			Type:     structs.ServiceCheckScript,
+			Command:  "true",
+			Interval: 30 * time.Second,
+			Timeout:  5 * time.Second,
+		},
+		{
+			Name:     "one",
+			Type:     structs.ServiceCheckScript,
+			Command:  "true",
+			Interval: 30 * time.Second,
+			Timeout:  5 * time.Second,
+		},
+		{
+			Name:        "two",
+			Type:        "http",
+			Path:        "/hang",
+			Protocol:    "http",
+			PortLabel:   "www",
+			AddressMode: "auto",
+			Interval:    250 * time.Millisecond,
+			Timeout:     500 * time.Millisecond,
+			Method:      "GET",
+		},
+	}
+	alloc.Job.Canonicalize()
+	logger := testlog.HCLogger(t)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
+
+	resources := cstructs.NewAllocHookResources()
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		logger:            logger,
+		hookResources:     resources,
+	})
+	must.NoError(t, h.Prerun(env))
+	must.Len(t, 1, resources.GetConsulCheckIDs())
+	must.Len(t, 3, resources.GetConsulCheckIDs()[0])
+	checkID0 := resources.GetConsulCheckIDs()[0][0]
+	checkID1 := resources.GetConsulCheckIDs()[0][1]
+
+	// change one, delete two
+	alloc.Job.TaskGroups[0].Services[0].Checks[1].Name = "one-changed"
+	alloc.Job.TaskGroups[0].Services[0].Checks = alloc.Job.TaskGroups[0].Services[0].Checks[:2]
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
+	must.NoError(t, h.Update(req))
+
+	must.Len(t, 1, resources.GetConsulCheckIDs())
+	must.Len(t, 2, resources.GetConsulCheckIDs()[0])
+	updatedCheckID0 := resources.GetConsulCheckIDs()[0][0]
+	updatedCheckID1 := resources.GetConsulCheckIDs()[0][1]
+
+	must.Eq(t, checkID0, updatedCheckID0)
+	must.NotEq(t, checkID1, updatedCheckID1)
+
+	ops := consulMockClient.GetOps()
+	must.Len(t, 2, ops)
+	must.Eq(t, "add", ops[0].Op)    // Prerun
+	must.Eq(t, "update", ops[1].Op) // Update
+}
+
 // TestGroupServiceHook_GroupServices_Nomad asserts group service hooks with
 // group services does not error when using the Nomad provider.
 func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
