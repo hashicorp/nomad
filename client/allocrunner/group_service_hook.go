@@ -155,17 +155,7 @@ func (h *groupServiceHook) preRunLocked(env *taskenv.TaskEnv) error {
 	}
 
 	services := h.getWorkloadServicesLocked()
-
-	checkIDs := make([][]string, len(services.Services))
-	for i, svc := range services.Services {
-		svcID := serviceregistration.MakeAllocServiceID(h.allocID, services.Name(), svc)
-		checkIDs[i] = make([]string, len(svc.Checks))
-		for j, check := range svc.Checks {
-			checkIDs[i][j] = consul.MakeCheckID(svcID, check)
-		}
-	}
-	h.hookResources.SetConsulCheckIDs(checkIDs)
-
+	h.setCheckIDs(services)
 	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
@@ -215,6 +205,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return nil
 	}
 
+	h.setCheckIDs(newWorkloadServices)
 	return h.serviceRegWrapper.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
@@ -328,4 +319,16 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 		Canary:            h.canary,
 		Tokens:            tokens,
 	}
+}
+
+func (h *groupServiceHook) setCheckIDs(services *serviceregistration.WorkloadServices) {
+	checkIDs := make([][]string, len(services.Services))
+	for i, svc := range services.Services {
+		svcID := serviceregistration.MakeAllocServiceID(h.allocID, services.Name(), svc)
+		checkIDs[i] = make([]string, len(svc.Checks))
+		for j, check := range svc.Checks {
+			checkIDs[i][j] = consul.MakeCheckID(svcID, check)
+		}
+	}
+	h.hookResources.SetConsulCheckIDs(checkIDs)
 }
