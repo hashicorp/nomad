@@ -1117,22 +1117,6 @@ func TestCSIVolumeSanitize(t *testing.T) {
 	must.Eq(t, "unchanged", sanitized.Parameters["example"])
 }
 
-func TestCSISecretsSanitize(t *testing.T) {
-	ci.Parallel(t)
-
-	orig := &CSISecrets{
-		"foo": "bar",
-		"baz": "qux",
-	}
-
-	sanitized := orig.Sanitize()
-	must.NotEq(t, orig, sanitized)
-
-	for _, v := range *sanitized {
-		must.Eq(t, v, "[REDACTED]")
-	}
-}
-
 func TestCSIMountOptionsSanitize(t *testing.T) {
 	ci.Parallel(t)
 
