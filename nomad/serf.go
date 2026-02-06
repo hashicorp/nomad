@@ -33,7 +33,7 @@ func (s *Server) serfEventHandler() {
 		select {
 		case e := <-s.eventCh:
 			switch e.EventType() {
-			case serf.EventMemberJoin:
+			case serf.EventMemberJoin, serf.EventMemberUpdate:
 				s.nodeJoin(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberLeave, serf.EventMemberFailed:
@@ -42,7 +42,7 @@ func (s *Server) serfEventHandler() {
 			case serf.EventMemberReap:
 				s.peersCache.PeerDelete(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
+			case serf.EventUser, serf.EventQuery: // Ignore
 			default:
 				s.logger.Warn("unhandled serf event", "event", log.Fmt("%#v", e))
 			}
