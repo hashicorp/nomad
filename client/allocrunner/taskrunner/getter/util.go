@@ -335,12 +335,25 @@ func (s *Sandbox) runCmd(env *parameters) error {
 // the dstDir. This is a destructive action; the contents of
 // srcDir are moved into dstDir.
 func mergeDirectories(at *os.Root, srcDir, dstDir string) error {
-	dirFile, err := at.Open(srcDir)
-	if err != nil {
-		return err
+	var entries []fs.DirEntry
+	var err error
+	if runtime.GOOS == "windows" {
+		dirFile, err := at.Open(srcDir)
+		if err != nil {
+			return err
+		}
+		defer dirFile.Close()
+		entries, err = dirFile.ReadDir(-1)
+		if err != nil {
+			return err
+		}
+	} else {
+		rd, ok := at.FS().(fs.ReadDirFS)
+		if !ok {
+			return errors.New("unable to read rooted allocation directory")
+		}
+		entries, err = rd.ReadDir(srcDir)
 	}
-	defer dirFile.Close()
-	entries, err := dirFile.ReadDir(-1)
 	if err != nil {
 		return err
 	}

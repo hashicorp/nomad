@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -79,7 +80,7 @@ func TestUtil_getDestination(t *testing.T) {
 			RelativeDest: "local/downloads",
 		})
 		must.NoError(t, err)
-		must.Eq(t, "/path/to/task/local/downloads", result)
+		must.Eq(t, "/path/to/task/local/downloads", filepath.ToSlash(result))
 	})
 
 	t.Run("escapes", func(t *testing.T) {
@@ -143,8 +144,8 @@ func TestUtil_getTaskDir(t *testing.T) {
 
 	env := noopTaskEnv("/path/to/alloc/task")
 	allocDir, taskDir := getWritableDirs(env)
-	must.Eq(t, "/path/to/alloc", allocDir)
-	must.Eq(t, "/path/to/alloc/task", taskDir)
+	must.Eq(t, "/path/to/alloc", filepath.ToSlash(allocDir))
+	must.Eq(t, "/path/to/alloc/task", filepath.ToSlash(taskDir))
 }
 
 func TestUtil_environment(t *testing.T) {
@@ -283,7 +284,11 @@ func TestUtil_isPathWithin(t *testing.T) {
 		check := filepath.Join(root, "unknown")
 		result, err := isPathWithin(root, check)
 
-		must.ErrorContains(t, err, "no such file or directory")
+		if runtime.GOOS != "windows" {
+			must.ErrorContains(t, err, "no such file or directory")
+		} else {
+			must.ErrorContains(t, err, "cannot find the file")
+		}
 		must.False(t, result)
 	})
 
