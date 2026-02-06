@@ -1851,18 +1851,58 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
-		// Deduplicate on JobID
+
+		// Perform the deduplication first. This means that if we have decided
+		// to create an evalaution for a job, we won't skip it even if
+		// subsequent allocations for the same job would not create an eval.
 		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
 		jobIDs[alloc.JobNamespacedID()] = struct{}{}
+
+		switch alloc.Job.Type {
+
+		// Skip allocations that are fully terminal on both server and client
+		// side. We require BOTH to be terminal (not just TerminalStatus which
+		// is an OR) because we only want to skip when the server has stopped
+		// the alloc AND the client has finished stopping it. This is a fairly
+		// defensive check and we prefer to err on the side of creating an eval
+		// that may be a no-op rather than skipping eval creation when it should
+		// be created.
+		case structs.JobTypeService:
+			if alloc.ServerTerminalStatus() && alloc.ClientTerminalStatus() {
+				continue
+			}
+
+		// For batch jobs, we only want to create evals for non-terminal
+		// allocations. Terminal batch allocations should not be retried
+		// otherwise the job status will flap between dead and pending each time
+		// the node updates while the allocation is still held in state.
+		case structs.JobTypeBatch:
+			if alloc.Terminated() {
+				continue
+			}
 
 		// If it's a sysbatch job, skip it. Sysbatch job evals should only ever
 		// be created by periodic-job if they are periodic, and job-register or
 		// job-scaling if they are not. Calling the system scheduler by
 		// node-update trigger can cause unnecessary or premature allocations
 		// to be created.
-		if alloc.Job.Type == structs.JobTypeSysBatch {
+		case structs.JobTypeSysBatch:
+			continue
+
+		// Skip system jobs as they are handled by the next loop below.
+		case structs.JobTypeSystem:
+			continue
+
+		// Skip creation for all other job types as a catch-all. This is only
+		// core jobs as all other types are matched above, and these job types
+		// should never hit this code path.
+		//
+		// This is primarily future-proofing to ensure that if new job types
+		// are added, they don't accidentally get evals created for them here.
+		// New job types should have their own explicit handling above.
+		default:
 			continue
 		}
 

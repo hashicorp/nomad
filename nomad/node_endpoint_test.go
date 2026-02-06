@@ -3990,6 +3990,177 @@ func TestNode_createNodeEvals_stoppedSystemJob(t *testing.T) {
 	must.Len(t, 0, evalIDs)
 }
 
+// TestNode_createNodeEvals_jobTypeSkip tests that createNodeEvals correctly
+// handles different job types and allocation states according to the job type
+// specific logic in the switch statement.
+func TestNode_createNodeEvals_jobTypeSkip(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name          string
+		allocSetupFn  func(nodeID string) *structs.Allocation
+		expectedEvals int
+	}{
+		{
+			name: "service job running alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.Alloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusRunning
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "service job server terminal alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.Alloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusStop
+				a.ClientStatus = structs.AllocClientStatusRunning
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "service job client terminal alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.Alloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusComplete
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "service job server and client terminal alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.Alloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusStop
+				a.ClientStatus = structs.AllocClientStatusComplete
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "batch job running alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.BatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusRunning
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "batch job pending alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.BatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusPending
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "batch job complete alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.BatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusComplete
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "batch job failed alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.BatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusFailed
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "batch job lost alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.BatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusLost
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "sysbatch job running alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SysBatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusRunning
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "sysbatch job pending alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SysBatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusPending
+				return a
+			},
+			expectedEvals: 0,
+		},
+		{
+			name: "sysbatch job failed alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SysBatchAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusFailed
+				return a
+			},
+			expectedEvals: 0,
+		},
+	}
+
+	// Use a single test server for all test cases to speed up the test.
+	testServer, testServerCleanup := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Create a new node for each test case. This ensures a clean state
+			// for each node evaluation.
+			mockNode := mock.Node()
+			must.NoError(t, testServer.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1, mockNode))
+
+			allocs := []*structs.Allocation{tc.allocSetupFn(mockNode.ID)}
+
+			must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 2, nil, allocs[0].Job))
+			must.NoError(t, testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 3, allocs))
+
+			nodeEndpoint := NewNodeEndpoint(testServer, nil)
+			evalIDs, _, err := nodeEndpoint.createNodeEvals(mockNode, 4)
+			must.NoError(t, err)
+			must.Len(t, tc.expectedEvals, evalIDs)
+		})
+	}
+}
+
 func TestClientEndpoint_Evaluate(t *testing.T) {
 	ci.Parallel(t)
 
