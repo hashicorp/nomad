@@ -269,6 +269,8 @@ NEXT:
 				}
 			}
 			h.unmetClaims = append(h.unmetClaims, claim)
+		} else {
+			h.unmetClaims = append(h.unmetClaims, claim)
 		}
 	}
 
