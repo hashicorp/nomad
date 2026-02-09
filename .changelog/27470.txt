@@ -1,0 +1,3 @@
+```release-note:bug
+host volumes: Fixed a bug where allocations that request volumes with sticky=true could not be placed if previous allocations in the job claimed volumes
+```
