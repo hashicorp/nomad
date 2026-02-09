@@ -312,6 +312,14 @@ func (d *DeploymentState) Copy() *DeploymentState {
 	return c
 }
 
+func (d *DeploymentState) MergeClientValues(c *DeploymentState) {
+	d.HealthyAllocs = c.HealthyAllocs
+	d.UnhealthyAllocs = c.UnhealthyAllocs
+	d.PlacedAllocs = c.PlacedAllocs
+	//d.PlacedCanaries = c.PlacedCanaries // hm... not sure about this one?
+	d.RequireProgressBy = c.RequireProgressBy
+}
+
 // DeploymentStatusUpdate is used to update the status of a given deployment
 type DeploymentStatusUpdate struct {
 	// DeploymentID is the ID of the deployment to update
