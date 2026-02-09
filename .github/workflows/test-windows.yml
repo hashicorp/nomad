@@ -92,6 +92,7 @@ jobs:
             github.com/hashicorp/nomad/client/lib/fifo \
             github.com/hashicorp/nomad/client/logmon \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
+            github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter \
             github.com/hashicorp/nomad/client/allocdir \
             github.com/hashicorp/nomad/plugins/base
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
