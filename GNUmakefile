@@ -308,11 +308,13 @@ release-static: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all rele
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test-nomad
-test-nomad: GOTEST_PKGS=$(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
+# we run this target in CI, so retry failures to mitigate flakes
+GOTEST_RERUN_FAILS ?= 3
+test-nomad: GOTEST_PKGS = $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
 test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
 	@echo "==> with packages $(GOTEST_PKGS)"
-	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
+	gotestsum --format=testname --rerun-fails=$(GOTEST_RERUN_FAILS) --packages="$(GOTEST_PKGS)" -- \
 		-cover \
 		-timeout=25m \
 		-count=1 \
@@ -464,16 +466,10 @@ cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
 
 .PHONY: test
-test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
-test: ## Use this target as a smoke test
-	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
-	@echo "==> with packages: $(GOTEST_PKGS)"
-	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
-		-cover \
-		-timeout=25m \
-		-count=1 \
-		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS)
+# in contrast with `test-nomad`, this is meant for humans,
+# as directed by contributing/README.md, so do not retry failures.
+test: GOTEST_RERUN_FAILS = 0
+test: test-nomad
 
 .PHONY: copywriteheaders
 copywriteheaders:
