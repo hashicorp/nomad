@@ -9,8 +9,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/shoenig/test"
@@ -428,31 +431,40 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 func TestHostVolumeChecker_Sticky(t *testing.T) {
 	ci.Parallel(t)
 
-	store, ctx := MockContext(t)
+	store := state.TestStateStore(t)
 
 	nodes := []*structs.Node{
-		mock.Node(),
-		mock.Node(),
-		mock.Node(),
+		mock.Node(), // claimed by good alloc
+		mock.Node(), // claimed by failed alloc
+		mock.Node(), // unclaimed
+		mock.Node(), // no volume
 	}
+	// name these nodes to make it easier to understand assertions
+	nodes[0].Name = "node0-claimed-by-good"
+	nodes[1].Name = "node1-claimed-by-fail"
+	nodes[2].Name = "node2-unclaimed"
+	nodes[3].Name = "node3-infeasible"
 
-	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
-		{
-			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
-			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
-		},
-		{
-			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
-			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
-		},
+	caps := []*structs.HostVolumeCapability{{
+		AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+		AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+	}}
+
+	// nodes 0, 1, 2 have volumes
+	dhv0 := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[0].ID,
+		RequestedCapabilities: caps,
+		State:                 structs.HostVolumeStateReady,
 	}
-
 	dhv1 := &structs.HostVolume{
 		Namespace:             structs.DefaultNamespace,
 		ID:                    uuid.Generate(),
 		Name:                  "foo",
 		NodeID:                nodes[1].ID,
-		RequestedCapabilities: hostVolCapsReadWrite,
+		RequestedCapabilities: caps,
 		State:                 structs.HostVolumeStateReady,
 	}
 	dhv2 := &structs.HostVolume{
@@ -460,12 +472,14 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		ID:                    uuid.Generate(),
 		Name:                  "foo",
 		NodeID:                nodes[2].ID,
-		RequestedCapabilities: hostVolCapsReadWrite,
+		RequestedCapabilities: caps,
 		State:                 structs.HostVolumeStateReady,
 	}
 
 	// node0 doesn't have the desired volume, but both node2 and node2 do
-	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhv0.ID},
+	}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {ID: dhv1.ID},
 	}
@@ -476,6 +490,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	for _, node := range nodes {
 		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 	}
+	must.NoError(t, store.UpsertHostVolume(1000, dhv0))
 	must.NoError(t, store.UpsertHostVolume(1000, dhv1))
 	must.NoError(t, store.UpsertHostVolume(1000, dhv2))
 
@@ -484,96 +499,149 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			Type:           "host",
 			Source:         "foo",
 			Sticky:         true,
-			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		},
 	}
 	stickyJob := mock.Job()
+	stickyJob.ID = "sticky"
+	stickyJob.TaskGroups[0].Count = 4
 	stickyJob.TaskGroups[0].Volumes = stickyRequests
+	ns := stickyJob.Namespace
+	tgName := "web"
 
-	// claims are only present for node1
+	goodAlloc := mock.MinAllocForJob(stickyJob)
+	goodAlloc.ClientStatus = structs.AllocClientStatusRunning
+	goodAlloc.NodeID = nodes[0].ID
+	goodAlloc.Name = "web[0]"
+
+	badAlloc := mock.MinAllocForJob(stickyJob)
+	badAlloc.ClientStatus = structs.AllocClientStatusFailed
+	badAlloc.NodeID = nodes[1].ID
+	badAlloc.Name = "web[1]"
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, stickyJob))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000,
+		[]*structs.Allocation{goodAlloc, badAlloc}))
+
+	proposed1 := mock.MinAllocForJob(stickyJob) // replaces badAlloc
+	proposed1.Name = "web[1]"
+
+	proposed2 := mock.MinAllocForJob(stickyJob) // expect placement
+	proposed2.Name = "web[2]"
+
+	proposed3 := mock.MinAllocForJob(stickyJob) // will never have room
+	proposed3.Name = "web[3]"
+	proposed := []*structs.Allocation{proposed1, proposed2, proposed3}
+
 	existingClaims := []*structs.TaskGroupHostVolumeClaim{
-		{
+		{ // claim by running alloc
 			ID:            uuid.Generate(),
-			Namespace:     structs.DefaultNamespace,
+			Namespace:     ns,
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
-			VolumeID:      dhv1.ID,
-			VolumeName:    dhv1.Name,
+			AllocID:       goodAlloc.ID,
+			VolumeID:      dhv0.ID,
+			VolumeName:    dhv0.Name,
 		},
-		{
+		{ // claim by failed alloc
 			ID:            uuid.Generate(),
-			Namespace:     "foo", // make sure we filter by ns correctly
+			Namespace:     ns,
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
-			VolumeID:      dhv1.ID,
-			VolumeName:    dhv1.Name,
-		},
-		{
-			ID:            uuid.Generate(),
-			Namespace:     structs.DefaultNamespace,
-			JobID:         "fooooo", // make sure we filter by jobID correctly
-			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			AllocID:       badAlloc.ID,
 			VolumeID:      dhv1.ID,
 			VolumeName:    dhv1.Name,
 		},
 	}
 
 	for _, claim := range existingClaims {
-		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, claim))
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(
+			structs.MsgTypeTestSetup, 1000, claim))
 	}
 
 	cases := []struct {
-		name                             string
-		node                             *structs.Node
-		job                              *structs.Job
-		expect                           bool
-		expectedClaimsInTheVolumeChecker int
+		name             string
+		nodes            []*structs.Node   // order of nodes to process
+		expectPlacements map[string]string // expected alloc names -> node names
+		expectUnmet      []string          // expected unmet claims
+		expectUnplaced   []string          // expected unplaced alloc names
 	}{
 		{
-			"requesting a sticky volume on an infeasible node",
-			nodes[0],
-			stickyJob,
-			false,
-			1,
+			name:  "checking claimed first",
+			nodes: []*structs.Node{nodes[0], nodes[1], nodes[2], nodes[3]},
+			expectPlacements: map[string]string{
+				"web[1]": nodes[1].Name,
+				"web[2]": nodes[2].Name,
+			},
+			expectUnmet:    []string{},
+			expectUnplaced: []string{"web[3]"},
 		},
 		{
-			"requesting a sticky volume on a feasible node, existing claim",
-			nodes[1],
-			stickyJob,
-			true,
-			0,
+			name:  "checking claimed last",
+			nodes: []*structs.Node{nodes[2], nodes[3], nodes[0], nodes[1]},
+			expectPlacements: map[string]string{
+				"web[1]": nodes[1].Name,
+				"web[2]": nodes[2].Name,
+			},
+			expectUnmet:    []string{},
+			expectUnplaced: []string{"web[3]"},
 		},
 		{
-			"requesting a sticky volume on a feasible node, new claim",
-			nodes[1],
-			mock.Job(),
-			true,
-			0,
+			name:  "good claim checked before unclaimed",
+			nodes: []*structs.Node{nodes[0], nodes[3], nodes[1], nodes[2]},
+			expectPlacements: map[string]string{
+				"web[1]": nodes[1].Name,
+				"web[2]": nodes[2].Name,
+			},
+			expectUnmet:    []string{},
+			expectUnplaced: []string{"web[3]"},
 		},
 		{
-			"requesting a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
-			nodes[0],
-			stickyJob,
-			false,
-			1,
-		},
-		{
-			"requesting a sticky volume on a node that has it, but it's claimed by a different alloc",
-			nodes[2],
-			stickyJob,
-			false,
-			1,
+			name:             "unmet claim is not feasible",
+			nodes:            []*structs.Node{nodes[2], nodes[3], nodes[0]},
+			expectPlacements: map[string]string{},
+			expectUnmet:      []string{existingClaims[1].ID},
+			expectUnplaced:   []string{"web[1]", "web[2]", "web[3]"},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			plan := &structs.Plan{
+				EvalID:          uuid.Generate(),
+				NodeUpdate:      make(map[string][]*structs.Allocation),
+				NodeAllocation:  make(map[string][]*structs.Allocation),
+				NodePreemptions: make(map[string][]*structs.Allocation),
+			}
+
+			logger := testlog.HCLogger(t)
+			ctx := NewEvalContext(nil, store, plan, logger)
 			checker := NewHostVolumeChecker(ctx)
-			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequests)
-			actual := checker.Feasible(tc.node)
-			must.Eq(t, tc.expect, actual)
-			must.Eq(t, tc.expectedClaimsInTheVolumeChecker, len(checker.claims))
+			plan.NodeAllocation[nodes[0].ID] = []*structs.Allocation{goodAlloc}
+
+			out := map[string]string{} // alloc name -> node name
+			unplaced := []string{}     //alloc name
+
+		NEXT_ALLOC:
+			for _, alloc := range proposed {
+				checker.SetVolumes(alloc.Name, ns, stickyJob.ID, tgName, stickyRequests)
+				for _, node := range tc.nodes {
+					if checker.Feasible(node) {
+						out[alloc.Name] = node.Name
+						alloc.NodeID = node.ID
+						plan.AppendAlloc(alloc, stickyJob)
+						continue NEXT_ALLOC
+					}
+				}
+				unplaced = append(unplaced, alloc.Name)
+			}
+
+			must.Eq(t, tc.expectPlacements, out, must.Sprint("expected placements"))
+			unmet := helper.ConvertSlice(checker.unmetClaims,
+				func(c *structs.TaskGroupHostVolumeClaim) string { return c.ID })
+			must.Eq(t, tc.expectUnmet, unmet, must.Sprint("expected unmet claims"))
+			must.Eq(t, tc.expectUnplaced, unplaced, must.Sprint("expected unplaced"))
 		})
 	}
 }
