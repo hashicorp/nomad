@@ -9,6 +9,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -441,7 +442,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
-	assert.True(s1.config.TLSConfig.EnableRPC)
+	must.True(t, s1.rpcTLSEnabled.Load())
 	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
 
 	codec := rpcClient(t, s1)
@@ -701,4 +702,31 @@ func TestServer_PreventRaftDowngrade(t *testing.T) {
 
 	// Downgrading Raft should prevent the server from starting.
 	require.Error(t, err)
+}
+
+func TestServer_setRPCTLSAtomics(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer := &Server{
+		rpcTLSEnabled:     atomic.Bool{},
+		rpcTLSUpgradeMode: atomic.Bool{},
+	}
+
+	testServer.setRPCTLSAtomics(nil)
+	must.False(t, testServer.rpcTLSEnabled.Load())
+	must.False(t, testServer.rpcTLSUpgradeMode.Load())
+
+	testServer.setRPCTLSAtomics(&config.TLSConfig{
+		EnableRPC:      true,
+		RPCUpgradeMode: false,
+	})
+	must.True(t, testServer.rpcTLSEnabled.Load())
+	must.False(t, testServer.rpcTLSUpgradeMode.Load())
+
+	testServer.setRPCTLSAtomics(&config.TLSConfig{
+		EnableRPC:      true,
+		RPCUpgradeMode: true,
+	})
+	must.True(t, testServer.rpcTLSEnabled.Load())
+	must.True(t, testServer.rpcTLSUpgradeMode.Load())
 }

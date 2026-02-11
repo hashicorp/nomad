@@ -1,0 +1,3 @@
+```release-note:bug
+server: Fix a potential race condition when reloading the server agent when changing TLS configuration
+```
