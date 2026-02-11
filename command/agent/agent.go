@@ -679,6 +679,14 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
+	for _, c := range agentConfig.Server.AdmissionControllers.External {
+		conf.AdmissionControllers.External = append(conf.AdmissionControllers.External, config.ExternalController{
+			Name:     c.Name,
+			Endpoint: c.Endpoint,
+			NodePool: c.NodePool,
+		})
+	}
+
 	if err := conf.NodeIntroductionConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid server.client_introduction configuration: %w", err)
 	}

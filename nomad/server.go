@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
+	admission "github.com/hashicorp/nomad/nomad/admissioncontrollers"
 	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
@@ -310,6 +311,8 @@ type Server struct {
 	// MAY BE nil! Issuer must be explicitly configured by the end user.
 	oidcDisco *structs.OIDCDiscoveryConfig
 
+	admissionControllers []admission.AdmissionController
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -450,6 +453,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// 6 minutes is 1 minute longer than the JWT expiration time in the cap lib.
 	s.oidcRequestCache = oidc.NewRequestCache(6 * time.Minute)
 
+	// Admission controllers must be setup before the RPC handlers since
+	// they are copied to the JobEndpoint handler.
+	s.setupAdmissionControllers()
+
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
@@ -568,6 +575,23 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Done
 	return s, nil
+}
+
+func (s *Server) setupAdmissionControllers() {
+	ctrl := s.config.AdmissionControllers
+	// Add enabled in-tree controllers
+
+	// Add enabled external controllers
+	for _, c := range ctrl.External {
+		// external controllers run as a separate process so do not need to be "started"
+		s.admissionControllers = append(s.admissionControllers, admission.NewExternalController(c.Name, c.Endpoint, c.NodePool))
+	}
+}
+
+func (s *Server) startAdmissionControllers() {
+	for _, ctrl := range s.admissionControllers {
+		go ctrl.Start(s.shutdownCtx)
+	}
 }
 
 // startRPCListener starts the server's the RPC listener

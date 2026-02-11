@@ -532,10 +532,30 @@ func (a *ACLConfig) Copy() *ACLConfig {
 	return &na
 }
 
+type BuiltinController struct {
+	Enabled bool `hcl:"enabled"`
+}
+
+type ExternalController struct {
+	Name     string `hcl:",key"`
+	Endpoint string `hcl:"endpoint"`
+	NodePool string `hcl:"node_pool"`
+}
+
+type AdmissionControllers struct {
+	// In-tree controllers would be added here
+
+	// Out-of-tree controllers
+	External []ExternalController `hcl:"external,block"`
+}
+
 // ServerConfig is configuration specific to the server mode
 type ServerConfig struct {
 	// Enabled controls if we are a server
 	Enabled bool `hcl:"enabled"`
+
+	// AdmissionControllers are used for custom job mutation
+	AdmissionControllers *AdmissionControllers `hcl:"admission_controllers"`
 
 	// AuthoritativeRegion is used to control which region is treated as
 	// the source of truth for global tokens and ACL policies.
@@ -2509,6 +2529,9 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result := *s
 
+	if b.AdmissionControllers != nil {
+		result.AdmissionControllers = b.AdmissionControllers
+	}
 	if b.Enabled {
 		result.Enabled = true
 	}

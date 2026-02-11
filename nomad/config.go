@@ -457,6 +457,10 @@ type Config struct {
 	// requests and perform the appropriate enforcement actions.
 	NodeIntroductionConfig *structs.NodeIntroductionConfig
 
+	// AdmissionControllers are the set of configured controllers to
+	// be invoked during job registration.
+	AdmissionControllers *config.AdmissionControllers
+
 	// LogFile is used by MonitorExport to stream a server's log file
 	LogFile string `hcl:"log_file"`
 }
@@ -586,6 +590,7 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
+		AdmissionControllers:             &config.AdmissionControllers{},
 		Region:                           DefaultRegion,
 		AuthoritativeRegion:              DefaultRegion,
 		Datacenter:                       DefaultDC,

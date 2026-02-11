@@ -57,6 +57,7 @@ func ParseConfigFile(path string) (*Config, error) {
 			ClientIntroduction:   &ClientIntroduction{},
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
+			AdmissionControllers: &AdmissionControllers{},
 		},
 		ACL:       &ACLConfig{},
 		RPC:       &RPCConfig{},

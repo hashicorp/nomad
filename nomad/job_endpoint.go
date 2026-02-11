@@ -16,12 +16,13 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	admission "github.com/hashicorp/nomad/nomad/admissioncontrollers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -60,6 +61,8 @@ type Job struct {
 	// builtin admission controllers
 	mutators   []jobMutator
 	validators []jobValidator
+
+	ctrls []admission.AdmissionController
 }
 
 // NewJobEndpoints creates a new job endpoint with builtin admission controllers
@@ -91,6 +94,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			jobNumaHook{},
 			&jobSchedHook{},
 		},
+		ctrls: s.admissionControllers,
 	}
 }
 
@@ -142,6 +146,15 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 
 	// Run the submission controller
 	warnings = append(warnings, j.submissionController(args))
+
+	for _, ctrl := range j.ctrls {
+		warn, err := ctrl.AdmitJob(args.Job)
+		if err != nil {
+			return err
+		}
+
+		warnings = append(warnings, warn...)
+	}
 
 	// Attach the user token's accessor ID so that deploymentwatcher can
 	// reference the token later in multiregion deployments. We can't auth once
@@ -311,7 +324,7 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 	args.Job.SubmitTime = now
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
+	if !(args.Job.IsPeriodic() || args.Job.IsParameterized() || args.Job.SkipEvalCreation) {
 
 		// Initially set the eval priority to that of the job priority. If the
 		// user supplied an eval priority override, we subsequently use this.
