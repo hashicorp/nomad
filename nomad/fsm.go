@@ -527,11 +527,27 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Lookup the existing node, so we have the existing scheduling eligibility
+	// before writing an update to the store.
+	node, err := n.state.NodeByID(nil, req.NodeID)
+	if err != nil {
+		n.logger.Error("apply drain update failed to lookup node", "node_id", req.NodeID, "error", err)
+		return err
+	}
+
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
 		req.NodeEvent, req.Meta, req.UpdatedBy); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready state
+	// and we are updating its eligibility to eligible.
+	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible && req.MarkEligible {
+		n.blockedEvals.Unblock(node.ComputedClass, index)
+		n.blockedEvals.UnblockNode(req.NodeID)
+	}
+
 	return nil
 }
 
@@ -542,10 +558,39 @@ func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Lookup nodes before perform the state update to check previous
+	// eligibility state and collect nodes that should be unblocked. Doing the
+	// collection here mimimizes the looping we need to do over the nodes, since
+	// we can check eligibility and readiness before the update, and then batch
+	// unblock by class after the update.
+	unblockClasses := make(map[string]struct{})
+	var unblockNodes []string
+
+	for nodeID, update := range req.Updates {
+		node, err := n.state.NodeByID(nil, nodeID)
+		if err != nil {
+			n.logger.Error("apply batch drain update failed to lookup node", "node_id", nodeID, "error", err)
+			return err
+		}
+		if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible && update.MarkEligible {
+			unblockClasses[node.ComputedClass] = struct{}{}
+			unblockNodes = append(unblockNodes, nodeID)
+		}
+	}
+
 	if err := n.state.BatchUpdateNodeDrain(msgType, index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
 		n.logger.Error("BatchUpdateNodeDrain failed", "error", err)
 		return err
 	}
+
+	// Unblock evals for nodes that are transitioning to eligible and are ready
+	for class := range unblockClasses {
+		n.blockedEvals.Unblock(class, index)
+	}
+	for _, nodeID := range unblockNodes {
+		n.blockedEvals.UnblockNode(nodeID)
+	}
+
 	return nil
 }
 
