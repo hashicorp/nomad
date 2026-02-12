@@ -22,20 +22,13 @@ echo 'Checking variables'
   GO_TAGS="${GO_TAGS:-release}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
-\`\`\`
-# required:
 export NEW_VERSION='${NEW_VERSION?is required}'
-# derived:
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 export NEW_BRANCH='$NEW_BRANCH'
-# other:
-export DO_PUSH='$DO_PUSH'
 export REPO='$REPO'
 export GO_TAGS='$GO_TAGS'
 export GOPRIVATE='${GOPRIVATE:-}'
-
 $0
-\`\`\`
 
 VARS
 

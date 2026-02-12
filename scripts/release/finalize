@@ -19,17 +19,11 @@ echo 'Checking variables'
   DO_PUSH="${DO_PUSH:-false}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
-\`\`\`
-# required:
 export NEW_VERSION='${NEW_VERSION?is required}'
 export MERGE_INTO='${MERGE_INTO?is required}'
-# derived:
 export MERGE_FROM='$MERGE_FROM'
-# other:
 export DO_PUSH='$DO_PUSH'
-
 $0
-\`\`\`
 
 VARS
 
