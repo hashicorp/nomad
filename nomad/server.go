@@ -30,6 +30,7 @@ import (
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	raftwal "github.com/hashicorp/raft-wal"
+	walmetrics "github.com/hashicorp/raft-wal/metrics"
 	"github.com/hashicorp/serf/serf"
 	"go.etcd.io/bbolt"
 
@@ -1579,9 +1580,13 @@ func (s *Server) setupRaft() error {
 // openRaftWAL opens a raft-wal log store in the given directory. It reads
 // WAL-specific options from s.config.RaftLogStoreConfig.
 func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
+	mc := walmetrics.NewGoMetricsCollector(
+		[]string{"nomad", "raft", "wal"}, nil, nil,
+	)
 	walStore, err := raftwal.Open(dir,
 		raftwal.WithLogger(s.logger.Named("wal")),
 		raftwal.WithSegmentSize(s.raftWALSegmentSize()),
+		raftwal.WithMetricsCollector(mc),
 	)
 	if err != nil {
 		return nil, err
