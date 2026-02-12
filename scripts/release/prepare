@@ -5,10 +5,6 @@
 # * update notification channel in ci.hcl and version in version.go
 # * generate static assets (make prerelease)
 # * commit and push changes to a new release/A.B.C branch
-# * output the new branch and commit ref to be built
-
-# by default, it will do everything except for `git push`
-# unless you `export DO_PUSH=true`
 
 [ -n "$DEBUG" ] && set -x
 set -euo pipefail
@@ -16,11 +12,14 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/check-working-dir"
 
 echo 'Checking variables'
+  # starting with a release line branch like 'release/A.B.x'
   SOURCE_BRANCH="${SOURCE_BRANCH:-$(git branch --show-current)}"
-  NEW_BRANCH="${NEW_BRANCH:-release/$NEW_VERSION}" # default release/A.B.C
-  REPO="${REPO:-nomad}"
+  # make a new specific release branch 'release/A.B.C'
+  branch_prefix="$(cut -d/ -f1 <<< "$SOURCE_BRANCH")"
+  NEW_BRANCH="${NEW_BRANCH:-$branch_prefix/$NEW_VERSION}"
+
+  REPO="${REPO:-$(basename "$PWD")}"
   GO_TAGS="${GO_TAGS:-release}"
-  DO_PUSH="${DO_PUSH:-false}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
 \`\`\`
@@ -85,13 +84,3 @@ echo 'Committing changes'
     git commit --message "release: Generate files for $NEW_VERSION"
   fi
 echo
-
-if [ "$DO_PUSH" == 'true' ]; then
-  echo "Pushing changes to $NEW_BRANCH"
-  git push origin -f "$NEW_BRANCH"
-else
-  echo '::warning::DO_PUSH != true, so skipping `git push`'
-fi
-
-# output ref for subsequent build job
-echo "build-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT:-/dev/stderr}"

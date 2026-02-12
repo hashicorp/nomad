@@ -17,11 +17,6 @@ on:
         description: 'Version to be released'
         type: string
         required: true
-      new-branch-prefix:
-        description: 'Prefix to put in front of `version`, default "release/"'
-        type: string
-        required: false
-        default: 'release/'
       source-branch:
         description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
         type: string
@@ -34,14 +29,11 @@ on:
         description: 'name of the new branch created for this release'
         value: ${{ jobs.prepare.outputs.new-branch }}
 
-env:
-  NEW_BRANCH: ${{ inputs.new-branch-prefix }}${{ inputs.version }}
-
 jobs:
   prepare:
     outputs:
-      new-branch: ${{ env.NEW_BRANCH }}
-      build-sha: ${{ steps.script.outputs.build-sha }}
+      new-branch: ${{ steps.push.outputs.new-branch }}
+      build-sha: ${{ steps.push.outputs.build-sha }}
 
     # TODO: self-hosted runners? CI vault?
     runs-on: ubuntu-latest
@@ -104,18 +96,29 @@ jobs:
         uses: ./.github/actions/setup-js
 
       - name: Run prepare script
-        id: script # output: build-sha
         env:
-          DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
           GO_TAGS: release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' }}
           GOPRIVATE: 'github.com/hashicorp'
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/prepare
 
-      - name: Add build ref to summary
+      - name: Push changes and set outputs
+        id: push
         run: |-
-          sha="${{ steps.script.outputs.build-sha }}"
-          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          branch="$(git branch --show-current)"
+          sha="$(git rev-parse HEAD)"
+
+          git push origin -f "$branch"
+
+          # summarize and output
+
+          cat <<SUMM >> "$GITHUB_STEP_SUMMARY"
+          Release branch: [$branch](https://${{ inputs.repo }}/tree/$branch)
           Build sha: [\`$sha\`](https://github.com/${{ inputs.repo }}/commit/$sha)
-          EOF
+          SUMM
+
+          cat <<OUT >> "$GITHUB_OUTPUT"
+          new-branch=$branch
+          build-sha=$sha
+          OUT
