@@ -50,8 +50,12 @@ jobs:
 
       - name: Run finalize script
         env:
-          DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
           MERGE_INTO: ${{ inputs.merge-into }}
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/finalize
+
+      - name: Push changes
+        run: |-
+          git switch ${{ inputs.merge-into }}
+          git push origin ${{ inputs.merge-into }}
