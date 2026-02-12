@@ -1611,15 +1611,6 @@ func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
 	return walStore, nil
 }
 
-// raftWALSegmentSize returns the configured WAL segment size or the default.
-func (s *Server) raftWALSegmentSize() int {
-	if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.WALSegmentSize > 0 {
-		return s.config.RaftLogStoreConfig.WALSegmentSize
-	}
-	return raftwal.DefaultSegmentSize
-}
-
->>>>>>> d690f0ca15 (new raft backend)
 // checkRaftVersionFile reads the Raft version file and returns an error if
 // the Raft version is incompatible with the current version configured.
 // Provide best-effort check if the file cannot be read.
