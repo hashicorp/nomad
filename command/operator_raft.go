@@ -42,6 +42,10 @@ Usage: nomad operator raft <subcommand> [options]
 
       $ nomad operator raft state /var/nomad/data
 
+  Migrate the raft log store from BoltDB to WAL:
+
+      $ nomad operator raft migrate-backend /var/nomad/data
+
   Please see the individual subcommand help for detailed usage information.
 
 
