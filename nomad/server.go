@@ -1431,6 +1431,16 @@ func (s *Server) setupRaft() error {
 		var store raftBackend
 		switch backend {
 		case LogStoreBackendWAL:
+			// Check for an existing BoltDB store that needs migration.
+			boltPath := filepath.Join(path, "raft.db")
+			if _, statErr := os.Stat(boltPath); statErr == nil {
+				return fmt.Errorf(
+					"existing BoltDB raft store found at %s; "+
+						"run 'nomad operator raft migrate-backend %s' while the server "+
+						"is stopped to migrate to the WAL backend, then start the server again",
+					boltPath, s.config.DataDir)
+			}
+
 			walDir := filepath.Join(path, "wal")
 			if err := ensurePath(walDir, true); err != nil {
 				return fmt.Errorf("failed to create WAL directory: %v", err)
@@ -1441,8 +1451,6 @@ func (s *Server) setupRaft() error {
 				return fmt.Errorf("failed to open WAL log store: %v", walErr)
 			}
 			store = walStore
-
-			// TODO: publish metrics?
 
 		case LogStoreBackendBoltDB:
 			// Create the BoltDB backend, with NoFreelistSync option
