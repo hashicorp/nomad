@@ -26,7 +26,6 @@ echo 'Checking variables'
 \`\`\`
 # required:
 export NEW_VERSION='${NEW_VERSION?is required}'
-export SLACK_CHANNEL='${SLACK_CHANNEL?is required}'
 # derived:
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 export NEW_BRANCH='$NEW_BRANCH'
@@ -55,17 +54,14 @@ echo 'Ensuring source branch'
   git pull origin "$SOURCE_BRANCH"
 echo
 
-echo 'Updating magic strings in magic files'
-  sed -i.bak -e "s|\(notification_channel * = *\"\\)[^\"]*|\1$SLACK_CHANNEL|g" .release/ci.hcl
-  
+echo 'Updating version.go'
   release=$(semver get release "$NEW_VERSION")
   prerel=$(semver get prerel "$NEW_VERSION")
   sed -i.bak \
     -e "s|\(Version * = *\"\)[^\"]*|\1${release}|g" \
     -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1${prerel}|g" \
     version/version.go
-
-  rm -f version/version.go.bak .release/ci.hcl.bak
+  rm -f version/version.go.bak
 echo
 
 echo '::group::Generate static assets'

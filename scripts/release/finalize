@@ -43,9 +43,6 @@ echo 'Ensuring branches'
 echo
 
 echo 'Updating magic strings in magic files'
-  # restore original notification_channel
-  git restore --source="origin/$MERGE_INTO" -- .release/ci.hcl
-
   if [ -n "$(semver get prerel "$NEW_VERSION")" ]; then
     echo "$NEW_VERSION is a prerelease; reverting changelog"
     # we'll re-update changelog for GA.

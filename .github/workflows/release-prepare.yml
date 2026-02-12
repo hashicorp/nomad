@@ -26,10 +26,6 @@ on:
         description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
         type: string
         required: true
-      slack-channel:
-        type: string
-        required: false
-        default: 'C09LCDZTLGZ' # proj-nomad-releases
     outputs:
       build-sha:
         description: 'git sha of the commit to use in the build workflow'
@@ -112,7 +108,6 @@ jobs:
         env:
           DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
-          SLACK_CHANNEL: ${{ inputs.slack-channel }}
           GO_TAGS: release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' }}
           GOPRIVATE: 'github.com/hashicorp'
           DEBUG: ${{ runner.debug }}
