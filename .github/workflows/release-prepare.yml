@@ -26,10 +26,6 @@ on:
         description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
         type: string
         required: true
-      compare-version:
-        description: 'Version to compare against when generating the changelog'
-        type: string
-        required: true
       slack-channel:
         type: string
         required: false
@@ -89,7 +85,6 @@ jobs:
         id: changelog # output: file
         env:
           NEW_VERSION: ${{ inputs.version }}
-          LAST_RELEASE: ${{ inputs.compare-version }}
           DEBUG: ${{ runner.debug }}
         run: |-
           echo '::group::install changelog-build'

@@ -3,7 +3,7 @@
 # run by the release-finalize.yml github action workflow
 # * start from a release/A.B.C branch
 # * revert notification channel and remove generated static files
-# * update version in version.go and LAST_RELEASE in GNUMakefile
+# * update version in version.go and scripts/release/previous.version
 # * commit and merge changes into the source release/A.B.x branch
 
 # by default, it will do everything except for `git push`
@@ -55,7 +55,9 @@ echo 'Updating magic strings in magic files'
     echo "$NEW_VERSION is not a prerelease; bumping versions"
     next_patch="$(semver bump patch "$NEW_VERSION")"
     sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${next_patch}|g" version/version.go
-    sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s).*$|\1$NEW_VERSION|g" GNUmakefile
+    # previous version to use next time the changelog is generated
+    prev_v='scripts/release/previous.version'
+    echo -e "$(grep '^#' "$prev_v")\n$NEW_VERSION" > "$prev_v"
   fi
 
   # set VersionPrerelease back to "dev"
@@ -102,4 +104,3 @@ echo "Merging changes from '$MERGE_FROM' into '$MERGE_INTO'"
     exit 1
   fi
   push "$MERGE_INTO"
-
