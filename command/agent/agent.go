@@ -627,8 +627,45 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
-	// Set the raft bolt parameters
+	// Set the raft log store parameters. The new raft_logstore block takes
+	// precedence, but we still support the deprecated top-level raft_boltdb
+	// block for backwards compatibility.
+	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
+		Backend:              nomad.LogStoreBackendBoltDB,
+		VerificationEnabled:  true,
+		VerificationInterval: 5 * time.Minute,
+	}
+	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
+		if lsc.Backend != "" {
+			conf.RaftLogStoreConfig.Backend = lsc.Backend
+		}
+		conf.RaftLogStoreConfig.DisableLogCache = lsc.DisableLogCache
+		if lsc.BoltDB != nil {
+			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = lsc.BoltDB.NoFreelistSync
+		}
+		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
+			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
+		}
+		if lsc.Verification != nil {
+			conf.RaftLogStoreConfig.VerificationEnabled = lsc.Verification.Enabled
+			if lsc.Verification.Interval != "" {
+				dur, err := time.ParseDuration(lsc.Verification.Interval)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse raft_logstore verification interval %q: %w",
+						lsc.Verification.Interval, err)
+				}
+				conf.RaftLogStoreConfig.VerificationInterval = dur
+			}
+		}
+	}
+
+	// Backwards compatibility: if the deprecated raft_boltdb block is set and
+	// the new raft_logstore.boltdb block is not, apply the old settings.
 	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		if agentConfig.Server.RaftLogStoreConfig == nil || agentConfig.Server.RaftLogStoreConfig.BoltDB == nil {
+			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
+		}
+		// Also maintain the old field for any code that still reads it directly.
 		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
 	}
 

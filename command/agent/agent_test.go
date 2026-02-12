@@ -18,6 +18,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -2063,6 +2064,132 @@ func Test_convertServerConfig_clientIntroduction(t *testing.T) {
 			serverConf, err := convertServerConfig(baseConfig)
 			must.NoError(t, err)
 			must.Eq(t, tc.expectedNodeIntroductionConfig, serverConf.NodeIntroductionConfig)
+		})
+	}
+}
+
+func Test_convertServerConfig_RaftLogStore(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name                         string
+		raftLogStoreConfig           *RaftLogStoreConfig
+		raftBoltConfig               *RaftBoltConfig
+		expectedBackend              string
+		expectedBoltDBNoFreelistSync bool
+		expectedDisableLogCache      bool
+		expectedWALSegmentSize       int
+		expectedVerificationEnabled  bool
+	}{
+		{
+			name:                         "defaults when nothing is set",
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
+			raftBoltConfig: &RaftBoltConfig{
+				NoFreelistSync: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "new raft_logstore with boltdb backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendBoltDB,
+				BoltDB: &RaftBoltConfig{
+					NoFreelistSync: true,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "new raft_logstore with wal backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendWAL,
+				WAL: &WALConfig{
+					SegmentSizeMB: 128,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendWAL,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       128 * 1024 * 1024,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "new raft_logstore overrides deprecated raft_boltdb",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendBoltDB,
+				BoltDB: &RaftBoltConfig{
+					NoFreelistSync: false,
+				},
+			},
+			raftBoltConfig: &RaftBoltConfig{
+				NoFreelistSync: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "deprecated raft_boltdb applies when raft_logstore has no boltdb sub-block",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendBoltDB,
+			},
+			raftBoltConfig: &RaftBoltConfig{
+				NoFreelistSync: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "disable log cache",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				DisableLogCache: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedDisableLogCache:      true,
+			expectedBoltDBNoFreelistSync: false,
+			expectedVerificationEnabled:  true,
+		},
+		{
+			name: "verification disabled",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Verification: &LogStoreVerificationConfig{
+					Enabled:  false,
+					Interval: "10m",
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedVerificationEnabled:  false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftLogStoreConfig = tc.raftLogStoreConfig
+			conf.Server.RaftBoltConfig = tc.raftBoltConfig
+
+			serverConf, err := convertServerConfig(conf)
+			must.NoError(t, err)
+			must.NotNil(t, serverConf.RaftLogStoreConfig)
+			must.Eq(t, tc.expectedBackend, serverConf.RaftLogStoreConfig.Backend)
+			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
+			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
+			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
+			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
 		})
 	}
 }
