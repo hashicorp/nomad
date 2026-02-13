@@ -2079,14 +2079,12 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 		expectedBoltDBNoFreelistSync bool
 		expectedDisableLogCache      bool
 		expectedWALSegmentSize       int
-		expectedVerificationEnabled  bool
 	}{
 		{
 			name:                         "defaults when nothing is set",
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
@@ -2095,7 +2093,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "new raft_logstore with boltdb backend",
@@ -2107,7 +2104,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "new raft_logstore with wal backend",
@@ -2121,7 +2117,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
 			expectedWALSegmentSize:       128 * 1024 * 1024,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "new raft_logstore overrides deprecated raft_boltdb",
@@ -2136,7 +2131,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "deprecated raft_boltdb applies when raft_logstore has no boltdb sub-block",
@@ -2148,7 +2142,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "disable log cache",
@@ -2158,7 +2151,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedDisableLogCache:      true,
 			expectedBoltDBNoFreelistSync: false,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "verification disabled",
@@ -2170,7 +2162,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
-			expectedVerificationEnabled:  false,
 		},
 	}
 
@@ -2189,7 +2180,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
 			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
 			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
-			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
 		})
 	}
 }
