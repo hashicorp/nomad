@@ -39,7 +39,9 @@ func (a *ACLRoleDeleteCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{})
 }
 
-func (a *ACLRoleDeleteCommand) AutocompleteArgs() complete.Predictor { return complete.PredictNothing }
+func (a *ACLRoleDeleteCommand) AutocompleteArgs() complete.Predictor {
+	return ACLRolePredictor(a.Meta.Client)
+}
 
 // Synopsis satisfies the cli.Command Synopsis function.
 func (a *ACLRoleDeleteCommand) Synopsis() string { return "Delete an existing ACL role" }

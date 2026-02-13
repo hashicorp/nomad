@@ -55,7 +55,7 @@ func (a *ACLBindingRuleInfoCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (a *ACLBindingRuleInfoCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLBindingRulePredictor(a.Meta.Client)
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.

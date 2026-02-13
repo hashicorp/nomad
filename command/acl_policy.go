@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 type ACLPolicyCommand struct {
@@ -47,4 +50,25 @@ func (f *ACLPolicyCommand) Name() string { return "acl policy" }
 
 func (f *ACLPolicyCommand) Run(args []string) int {
 	return cli.RunResultHelp
+}
+
+// ACLPolicyPredictor returns an autocomplete predictor that can be used
+// across multiple binding rule commands
+func ACLPolicyPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		policies, _, err := client.ACLPolicies().List(&api.QueryOptions{
+			Prefix: a.Last,
+		})
+		if err != nil {
+			return []string{}
+		}
+
+		return helper.ConvertSlice(policies,
+			func(p *api.ACLPolicyListStub) string { return p.Name })
+	})
 }
