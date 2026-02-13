@@ -615,17 +615,21 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:                           DefaultRegion,
-		AuthoritativeRegion:              DefaultRegion,
-		Datacenter:                       DefaultDC,
-		NodeName:                         hostname,
-		NodeID:                           uuid.Generate(),
-		RaftConfig:                       raft.DefaultConfig(),
-		RaftTimeout:                      10 * time.Second,
-		LogOutput:                        os.Stderr,
-		RPCAddr:                          DefaultRPCAddr(),
-		SerfConfig:                       serf.DefaultConfig(),
-		NumSchedulers:                    1,
+		Region:              DefaultRegion,
+		AuthoritativeRegion: DefaultRegion,
+		Datacenter:          DefaultDC,
+		NodeName:            hostname,
+		NodeID:              uuid.Generate(),
+		RaftConfig:          raft.DefaultConfig(),
+		RaftTimeout:         10 * time.Second,
+		LogOutput:           os.Stderr,
+		RPCAddr:             DefaultRPCAddr(),
+		SerfConfig:          serf.DefaultConfig(),
+		NumSchedulers:       1,
+		RaftLogStoreConfig: &RaftLogStoreConfig{
+			Backend:        LogStoreBackendBoltDB,
+			WALSegmentSize: 64 * 1024 * 1024, // 64MB default
+		},
 		ReconcileInterval:                60 * time.Second,
 		EvalGCInterval:                   5 * time.Minute,
 		EvalGCThreshold:                  1 * time.Hour,

@@ -1598,7 +1598,7 @@ func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
 	)
 	walStore, err := raftwal.Open(dir,
 		raftwal.WithLogger(s.logger.Named("wal")),
-		raftwal.WithSegmentSize(s.raftWALSegmentSize()),
+		raftwal.WithSegmentSize(s.config.RaftLogStoreConfig.WALSegmentSize),
 		raftwal.WithMetricsCollector(mc),
 	)
 	if err != nil {
@@ -1606,17 +1606,9 @@ func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
 	}
 	s.logger.Info("setting up raft WAL store",
 		"dir", dir,
-		"segment_size", s.raftWALSegmentSize(),
+		"segment_size", s.config.RaftLogStoreConfig.WALSegmentSize,
 	)
 	return walStore, nil
-}
-
-// raftWALSegmentSize returns the configured WAL segment size or the default.
-func (s *Server) raftWALSegmentSize() int {
-	if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.WALSegmentSize > 0 {
-		return s.config.RaftLogStoreConfig.WALSegmentSize
-	}
-	return raftwal.DefaultSegmentSize
 }
 
 // checkRaftVersionFile reads the Raft version file and returns an error if

@@ -2085,6 +2085,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
 		{
 			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
@@ -2093,6 +2094,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
 		{
 			name: "new raft_logstore with boltdb backend",
@@ -2104,6 +2106,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
 		{
 			name: "new raft_logstore with wal backend",
@@ -2126,6 +2129,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedDisableLogCache:      true,
 			expectedBoltDBNoFreelistSync: false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
 	}
 

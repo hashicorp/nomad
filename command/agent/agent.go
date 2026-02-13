@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	raftwal "github.com/hashicorp/raft-wal"
 	"github.com/hashicorp/yamux"
 )
 
@@ -636,7 +637,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// precedence, but we still support the deprecated top-level raft_boltdb
 	// block for backwards compatibility.
 	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
-		Backend: nomad.LogStoreBackendBoltDB,
+		Backend:        nomad.LogStoreBackendBoltDB,
+		WALSegmentSize: raftwal.DefaultSegmentSize, // 64MB by default
 	}
 	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
 		if lsc.Backend != "" {
