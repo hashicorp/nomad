@@ -639,8 +639,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
 		Backend:        nomad.LogStoreBackendBoltDB,
 		WALSegmentSize: raftwal.DefaultSegmentSize, // 64MB by default
-		VerificationEnabled:  true,
-		VerificationInterval: 5 * time.Minute,
 	}
 	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
 		if lsc.Backend != "" {

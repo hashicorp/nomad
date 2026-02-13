@@ -2086,7 +2086,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
@@ -2096,7 +2095,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "new raft_logstore with boltdb backend",
@@ -2109,7 +2107,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "new raft_logstore with wal backend",
@@ -2133,7 +2130,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedDisableLogCache:      true,
 			expectedBoltDBNoFreelistSync: false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
-			expectedVerificationEnabled:  true,
 		},
 	}
 
@@ -2179,11 +2175,3 @@ func Test_convertServerConfig_RaftLogStore_RejectsMixedConfig(t *testing.T) {
 	_, err := convertServerConfig(conf)
 	must.ErrorContains(t, err, "cannot specify both deprecated 'raft_boltdb' and 'raft_logstore'")
 }
-=======
-			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
-=======
->>>>>>> 3e8efce00c (verification deserves its own PR)
-		})
-	}
-}
->>>>>>> e31983c29b (raft wal: new agent config)
