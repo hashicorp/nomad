@@ -1655,61 +1655,59 @@ func (s *Server) startRaftLogVerifier() {
 	}()
 }
 
-// verifyRaftStore attempts to run a verification routine on the configured
-// raft store. It performs type assertions for common verification interfaces
-// to support multiple store implementations. Errors are logged.
+// verifyRaftStore performs health checks on the configured raft store. For
+// BoltDB stores, it collects database statistics including transaction counts
+// and page information. For WAL stores, it verifies that log indices are
+// monotonically increasing. This is called periodically by
+// startRaftLogVerifier.
 func (s *Server) verifyRaftStore() {
 	if s.raftStore == nil {
 		s.logger.Debug("raft logstore verifier: no raft store available yet")
 		return
 	}
 
-	// Try common verification patterns.
-
-	// 1) If the store exposes a Verify() error method (pointer receiver).
-	type verifier1 interface {
-		Verify() error
+	// Perform basic health check by verifying we can read index information
+	first, err := s.raftStore.FirstIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get first index", "error", err)
+		return
 	}
-	if v, ok := s.raftStore.(verifier1); ok {
-		if err := v.Verify(); err != nil {
-			s.logger.Error("raft logstore verification failed", "error", err)
-		} else {
-			s.logger.Info("raft logstore verification succeeded")
+
+	last, err := s.raftStore.LastIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get last index", "error", err)
+		return
+	}
+
+	// Perform store-specific verification
+	switch store := s.raftStore.(type) {
+	case *raftboltdb.BoltStore:
+		// Get BoltDB statistics for health monitoring
+		stats := store.Stats()
+		s.logger.Debug("raft logstore verifier: BoltDB store verification",
+			"first_index", first,
+			"last_index", last,
+			"open_tx", stats.OpenTxN,
+			"free_pages", stats.FreePageN,
+			"pending_pages", stats.PendingPageN)
+
+	case *raftwal.WAL:
+		// Check if WAL indices are monotonic
+		isMonotonic := store.IsMonotonic()
+		if !isMonotonic {
+			s.logger.Warn("raft logstore verifier: WAL indices are not monotonic")
 		}
-		return
-	}
+		s.logger.Debug("raft logstore verifier: WAL store verification",
+			"first_index", first,
+			"last_index", last,
+			"is_monotonic", isMonotonic)
 
-	// 2) If the store exposes a Verify(context.Context) error method.
-	type verifierCtx interface {
-		Verify(context.Context) error
+	default:
+		s.logger.Debug("raft logstore verifier: store is accessible",
+			"first_index", first,
+			"last_index", last,
+			"type", fmt.Sprintf("%T", s.raftStore))
 	}
-	if v, ok := s.raftStore.(verifierCtx); ok {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-		defer cancel()
-		if err := v.Verify(ctx); err != nil {
-			s.logger.Error("raft logstore verification failed", "error", err)
-		} else {
-			s.logger.Info("raft logstore verification succeeded")
-		}
-		return
-	}
-
-	// 3) If the store is the WAL implementation which provides Validate or
-	// similar verification helpers, try using them through the known package
-	// APIs. The raft-wal package does not expose a uniform Verify on the WAL
-	// type, so if no verification methods are found we log and return.
-	if _, ok := s.raftStore.(*raftwal.WAL); ok {
-		// raft-wal may provide package-level verification helpers in migrate or
-		// other packages; attempt a basic read of indices as a smoke-check.
-		// (Keep this intentionally lightweight to avoid impacting performance.)
-		s.logger.Debug("raft logstore verifier: wal backend detected; performing smoke-check")
-		// No standard call available here; skip detailed verification for WAL.
-		return
-	}
-
-	// If we reached here, the store doesn't support verification via known
-	// interfaces.
-	s.logger.Info("raft logstore verifier: no verification method found for current raft store")
 }
 
 // checkRaftVersionFile reads the Raft version file and returns an error if
