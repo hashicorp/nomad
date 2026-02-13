@@ -194,7 +194,9 @@ export default Factory.extend({
     const namespace = allocation.namespace || job.namespace;
     const node = allocation.nodeId
       ? server.db.nodes.find(allocation.nodeId)
-      : pickOne(server.db.nodes);
+      : pickOne(
+          server.db.nodes.where({ status: 'ready' }) || pickOne(server.db.nodes)
+        );
     const taskGroup = allocation.taskGroup
       ? server.db.taskGroups.findBy({ name: allocation.taskGroup })
       : pickOne(server.db.taskGroups.where({ jobId: job.id }));
