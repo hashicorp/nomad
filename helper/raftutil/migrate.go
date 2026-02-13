@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -45,7 +46,10 @@ const (
 //
 // The Nomad server must be stopped before running this.
 func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) error {
+	var wg sync.WaitGroup
 	defer func() {
+		// Wait for all drainProgress goroutines to complete before closing.
+		wg.Wait()
 		if progress != nil {
 			close(progress)
 		}
@@ -96,7 +100,8 @@ func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) e
 
 	// Copy logs.
 	logProgress := make(chan string, 64)
-	go drainProgress(logProgress, progress)
+	wg.Add(1)
+	go drainProgress(logProgress, progress, &wg)
 	if err := migrate.CopyLogs(ctx, dst, src, migrateBatchBytes, logProgress); err != nil {
 		dst.Close()
 		src.Close()
@@ -106,7 +111,8 @@ func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) e
 
 	// Copy stable store keys.
 	stableProgress := make(chan string, 64)
-	go drainProgress(stableProgress, progress)
+	wg.Add(1)
+	go drainProgress(stableProgress, progress, &wg)
 	if err := migrate.CopyStable(ctx, dst, src, nil, nil, stableProgress); err != nil {
 		dst.Close()
 		src.Close()
@@ -157,7 +163,8 @@ func sendProgress(progress chan<- string, msg string) {
 	}
 }
 
-func drainProgress(sub <-chan string, parent chan<- string) {
+func drainProgress(sub <-chan string, parent chan<- string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	if parent == nil {
 		for range sub {
 		}

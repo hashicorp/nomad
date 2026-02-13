@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/raft"
@@ -214,7 +215,10 @@ func TestDrainProgress(t *testing.T) {
 		close(sub)
 
 		// Should not panic with nil parent.
-		drainProgress(sub, nil)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		drainProgress(sub, nil, &wg)
+		wg.Wait()
 	})
 
 	t.Run("forwards messages", func(t *testing.T) {
@@ -225,7 +229,10 @@ func TestDrainProgress(t *testing.T) {
 		sub <- "world"
 		close(sub)
 
-		drainProgress(sub, parent)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		drainProgress(sub, parent, &wg)
+		wg.Wait()
 
 		must.Eq(t, "hello", <-parent)
 		must.Eq(t, "world", <-parent)
@@ -240,7 +247,10 @@ func TestDrainProgress(t *testing.T) {
 		sub <- "third"
 		close(sub)
 
-		drainProgress(sub, parent)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		drainProgress(sub, parent, &wg)
+		wg.Wait()
 
 		// At least the first message should arrive.
 		must.Eq(t, "first", <-parent)
