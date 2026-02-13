@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
@@ -31,7 +32,7 @@ Usage: nomad server force-leave [options] <node>
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
-  
+
 Server Force-Leave Options:
 
   -prune
@@ -53,7 +54,19 @@ func (c *ServerForceLeaveCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		members, err := client.Agent().Members()
+		if err != nil {
+			return []string{}
+		}
+		return helper.ConvertSlice(members.Members,
+			func(m *api.AgentMember) string { return m.Name })
+	})
 }
 
 func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }

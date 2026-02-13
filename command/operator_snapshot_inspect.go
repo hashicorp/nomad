@@ -78,7 +78,9 @@ Snapshot Inspect Options:
 }
 
 func (c *OperatorSnapshotInspectCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{}
+	return complete.Flags{
+		"-json": complete.PredictNothing,
+	}
 }
 
 func (c *OperatorSnapshotInspectCommand) AutocompleteArgs() complete.Predictor {

@@ -66,7 +66,8 @@ Snapshot Save Options:
 func (c *OperatorSnapshotSaveCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-stale": complete.PredictAnything,
+			"-stale":  complete.PredictNothing,
+			"-redact": complete.PredictNothing,
 		})
 }
 
