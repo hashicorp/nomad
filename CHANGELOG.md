@@ -1,3 +1,59 @@
+## 1.11.99 (February 13, 2026)
+
+SECURITY:
+
+* build: Updated toolchain to Go 1.25.6 [[GH-27439](https://github.com/hashicorp/nomad/issues/27439)]
+* build: Updated toolchain to Go 1.25.7 [[GH-27468](https://github.com/hashicorp/nomad/issues/27468)]
+
+IMPROVEMENTS:
+
+* acl: Add finer grain permissions for managing job submissions [[GH-27287](https://github.com/hashicorp/nomad/issues/27287)]
+* build: Add dev-static and static-release build targets that disable CGO and offer statically-linked binaries [[GH-27310](https://github.com/hashicorp/nomad/issues/27310)]
+* cli: Highlight missing driver message in alloc metrics output [[GH-27416](https://github.com/hashicorp/nomad/issues/27416)]
+* cli: Improve command line completion of the `sentinel apply` command [[GH-27335](https://github.com/hashicorp/nomad/issues/27335)]
+* cni: Added `/usr/libexec/cni` as an additional default path within the `client.cni_path` configuration option [[GH-27336](https://github.com/hashicorp/nomad/issues/27336)]
+* cni: Search all paths in cni_path instead of stopping on first failure [[GH-27336](https://github.com/hashicorp/nomad/issues/27336)]
+* deps: Migrate from archived dependency `github.com/mitchellh/mapstructure` to `github.com/go-viper/mapstructure/v2` [[GH-27444](https://github.com/hashicorp/nomad/issues/27444)]
+* docker: Added support for reserved-only memory oversubscription without a hard limit [[GH-27354](https://github.com/hashicorp/nomad/issues/27354)]
+* exec: Added support for reserved-only memory oversubscription without a hard limit [[GH-27354](https://github.com/hashicorp/nomad/issues/27354)]
+* fingerprint: Added support for reloading the cpu, memory, network, CNI plugin, and cloud provider fingerprints without restarting the client agent [[GH-27452](https://github.com/hashicorp/nomad/issues/27452)]
+* qemu: adds an emulator allowlist to qemu plugin config [[GH-27182](https://github.com/hashicorp/nomad/issues/27182)]
+* rpc: Submitting a plan no longer serializes the whole Job object [[GH-27424](https://github.com/hashicorp/nomad/issues/27424)]
+* scheduler: Do not create node evals for terminal node allocs [[GH-27423](https://github.com/hashicorp/nomad/issues/27423)]
+* scheduler: Do not create node evaluations for system jobs that are stopped [[GH-27419](https://github.com/hashicorp/nomad/issues/27419)]
+* sentinel: Added a new `nomad_var` built-in import for fetching Nomad variables under the `nomad/sentinel` path for use in policy evaluation
+* sentinel: Added opt-in support for the `http` module via the `sentinel.additional_enabled_modules` configuration
+* state: avoid unneded allocation copy when building event payload [[GH-27311](https://github.com/hashicorp/nomad/issues/27311)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where host-volume-delete capability was not allowed when writing a policy [[GH-27434](https://github.com/hashicorp/nomad/issues/27434)]
+* api: exit EventStream.Stream on first error [[GH-27141](https://github.com/hashicorp/nomad/issues/27141)]
+* api: only include running tasks in allocation resource usage [[GH-27317](https://github.com/hashicorp/nomad/issues/27317)]
+* api: return proper 403 message when getting variables instead of swallowing error [[GH-27269](https://github.com/hashicorp/nomad/issues/27269)]
+* artifact: Fixed a bug that prevented the sandbox from moving downloaded files to the target directory on Windows [[GH-27398](https://github.com/hashicorp/nomad/issues/27398)]
+* checks: Fixed a bug where script checks with task-level interpolation would fail to heartbeat to Consul [[GH-27453](https://github.com/hashicorp/nomad/issues/27453)]
+* client: Added a new `fingerprint` configuration block which allows users to specify retry behavior for the `env_aws`, `env_azure`, `env_digitalocean` and `env_gcp` fingerprinters. [[GH-27161](https://github.com/hashicorp/nomad/issues/27161)]
+* client: Fix unchanged devices causing extraneous node updates [[GH-27363](https://github.com/hashicorp/nomad/issues/27363)]
+* client: Fixed generation of the "NOMAD_ALLOC_ADDR_" environment variable when using static port assignments [[GH-27305](https://github.com/hashicorp/nomad/issues/27305)]
+* core: Fixed a bug where follow-up evals could be created for failed evaluations of garbage collected jobs [[GH-27367](https://github.com/hashicorp/nomad/issues/27367)]
+* deployment: Fixed a bug where deploying a system job could panic the leader [[GH-27262](https://github.com/hashicorp/nomad/issues/27262)]
+* deployments: Fixed a bug where system deployments can violate update.max_parallel if another eval for the job is triggered while allocs are pending [[GH-27284](https://github.com/hashicorp/nomad/issues/27284)]
+* disconnect: allocations with a `disconnect.lost_after > 0` and `replace = true` will now follow the reschedule block instead of immediately being replaced. [[GH-27053](https://github.com/hashicorp/nomad/issues/27053)]
+* dispatch: Fixed a bug where concurrent dispatch requests could ignore the idempotency token [[GH-27353](https://github.com/hashicorp/nomad/issues/27353)]
+* drivers: adds hostname to NetworkCreateRequest for external drivers [[GH-27273](https://github.com/hashicorp/nomad/issues/27273)]
+* event broker: fix memory leak in methods that close subscriptions [[GH-27312](https://github.com/hashicorp/nomad/issues/27312)]
+* event stream: Fixed a bug where the HTTP handler can block forever and cause high memory usage if an API client reads too slowly from the stream [[GH-27397](https://github.com/hashicorp/nomad/issues/27397)]
+* host volumes: Fixed a bug where allocations that request volumes with sticky=true could not be placed if previous allocations in the job claimed volumes [[GH-27470](https://github.com/hashicorp/nomad/issues/27470)]
+* job: Correctly validate any constraint attributes to ensure they conform to known formats [[GH-27355](https://github.com/hashicorp/nomad/issues/27355)]
+* keyring (Enterprise): Fixed a bug where servers configured with high availability keyrings with pre-1.9.0 keystores would not start if one of the external KMS was unreachable [[GH-27279](https://github.com/hashicorp/nomad/issues/27279)]
+* multiregion: fixes a bug where resubmitting an unchanged job would cause server handler to hang [[GH-27386](https://github.com/hashicorp/nomad/issues/27386)]
+* numa: Fixed a bug where NUMA detection would cause a panic on hosts with discontinuous node IDs [[GH-27277](https://github.com/hashicorp/nomad/issues/27277)]
+* qemu: change driver filesystem isolation to "None" for proper variable interpolation in job spec [[GH-27246](https://github.com/hashicorp/nomad/issues/27246)]
+* qemu: fixes graceful_shutdown to wait kill_timeout before signalling process [[GH-27316](https://github.com/hashicorp/nomad/issues/27316)]
+* ui: Tagging job versions in another namespace than the default-namespace resulted in an error [[GH-27282](https://github.com/hashicorp/nomad/issues/27282)]
+* ui: fix bug preventing OIDC login when `iss` parameter is required [[GH-27248](https://github.com/hashicorp/nomad/issues/27248)]
+
 ## 1.11.2 (February 11, 2026)
 
 SECURITY:
