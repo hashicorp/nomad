@@ -33,7 +33,7 @@ func (c *ACLTokenDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLTokenDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLTokenPredictor(c.Meta.Client)
 }
 
 func (c *ACLTokenDeleteCommand) Synopsis() string {

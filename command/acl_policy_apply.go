@@ -55,7 +55,12 @@ Apply Options:
 
 func (c *ACLPolicyApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-description": complete.PredictAnything,
+			"-group":       complete.PredictAnything,
+			"-job":         complete.PredictAnything,
+			"-task":        complete.PredictAnything,
+		})
 }
 
 func (c *ACLPolicyApplyCommand) AutocompleteArgs() complete.Predictor {

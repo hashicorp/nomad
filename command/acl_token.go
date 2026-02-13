@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 type ACLTokenCommand struct {
@@ -47,4 +50,25 @@ func (f *ACLTokenCommand) Name() string { return "acl token" }
 
 func (f *ACLTokenCommand) Run(args []string) int {
 	return cli.RunResultHelp
+}
+
+// ACLTokenPredictor returns an autocomplete predictor that can be used across
+// multiple token commands.
+func ACLTokenPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		tokens, _, err := client.ACLTokens().List(&api.QueryOptions{
+			Prefix: a.Last,
+		})
+		if err != nil {
+			return []string{}
+		}
+
+		return helper.ConvertSlice(tokens,
+			func(t *api.ACLTokenListStub) string { return t.AccessorID })
+	})
 }

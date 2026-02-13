@@ -36,7 +36,7 @@ func (c *ACLPolicyInfoCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLPolicyInfoCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLPolicyPredictor(c.Meta.Client)
 }
 
 func (c *ACLPolicyInfoCommand) Synopsis() string {

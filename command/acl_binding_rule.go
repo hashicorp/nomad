@@ -9,6 +9,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 // Ensure ACLBindingRuleCommand satisfies the cli.Command interface.
@@ -67,6 +69,27 @@ func (a *ACLBindingRuleCommand) Name() string { return "acl binding-rule" }
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLBindingRuleCommand) Run(_ []string) int { return cli.RunResultHelp }
+
+// ACLBindingRulePredictor returns an autocomplete predictor that can be used
+// across multiple binding rule commands
+func ACLBindingRulePredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		rules, _, err := client.ACLBindingRules().List(&api.QueryOptions{
+			Prefix: a.Last,
+		})
+		if err != nil {
+			return []string{}
+		}
+
+		return helper.ConvertSlice(rules,
+			func(r *api.ACLBindingRuleListStub) string { return r.ID })
+	})
+}
 
 // formatACLBindingRule formats and converts the ACL binding rule API object
 // into a string KV representation suitable for console output.

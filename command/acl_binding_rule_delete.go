@@ -40,7 +40,7 @@ func (a *ACLBindingRuleDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (a *ACLBindingRuleDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLBindingRulePredictor(a.Meta.Client)
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.
