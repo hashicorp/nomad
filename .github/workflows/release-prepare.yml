@@ -17,23 +17,10 @@ on:
         description: 'Version to be released'
         type: string
         required: true
-      new-branch-prefix:
-        description: 'Prefix to put in front of `version`, default "release/"'
-        type: string
-        required: false
-        default: 'release/'
       source-branch:
         description: 'Source branch to cut the release branch from, e.g. release/1.11.x'
         type: string
         required: true
-      compare-version:
-        description: 'Version to compare against when generating the changelog'
-        type: string
-        required: true
-      slack-channel:
-        type: string
-        required: false
-        default: 'C09LCDZTLGZ' # proj-nomad-releases
     outputs:
       build-sha:
         description: 'git sha of the commit to use in the build workflow'
@@ -42,14 +29,11 @@ on:
         description: 'name of the new branch created for this release'
         value: ${{ jobs.prepare.outputs.new-branch }}
 
-env:
-  NEW_BRANCH: ${{ inputs.new-branch-prefix }}${{ inputs.version }}
-
 jobs:
   prepare:
     outputs:
-      new-branch: ${{ env.NEW_BRANCH }}
-      build-sha: ${{ steps.script.outputs.build-sha }}
+      new-branch: ${{ steps.push.outputs.new-branch }}
+      build-sha: ${{ steps.push.outputs.build-sha }}
 
     # TODO: self-hosted runners? CI vault?
     runs-on: ubuntu-latest
@@ -89,7 +73,7 @@ jobs:
         id: changelog # output: file
         env:
           NEW_VERSION: ${{ inputs.version }}
-          LAST_RELEASE: ${{ inputs.compare-version }}
+          ALLOW_DIRTY_WORKTREE: true
           DEBUG: ${{ runner.debug }}
         run: |-
           echo '::group::install changelog-build'
@@ -113,19 +97,33 @@ jobs:
         uses: ./.github/actions/setup-js
 
       - name: Run prepare script
-        id: script # output: build-sha
         env:
-          DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
-          SLACK_CHANNEL: ${{ inputs.slack-channel }}
           GO_TAGS: release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' }}
           GOPRIVATE: 'github.com/hashicorp'
+          ALLOW_DIRTY_WORKTREE: true
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/prepare
 
-      - name: Add build ref to summary
+      - name: Push changes and set outputs
+        id: push
         run: |-
-          sha="${{ steps.script.outputs.build-sha }}"
-          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          git status
+          git commit -m "release: Generate files and changelog for ${{ inputs.version }}"
+
+          branch="$(git branch --show-current)"
+          sha="$(git rev-parse HEAD)"
+
+          git push origin -f "$branch"
+
+          # summarize and output
+
+          cat <<SUMM >> "$GITHUB_STEP_SUMMARY"
+          Release branch: [$branch](https://github.com/${{ inputs.repo }}/tree/$branch)
           Build sha: [\`$sha\`](https://github.com/${{ inputs.repo }}/commit/$sha)
-          EOF
+          SUMM
+
+          cat <<OUT >> "$GITHUB_OUTPUT"
+          new-branch=$branch
+          build-sha=$sha
+          OUT

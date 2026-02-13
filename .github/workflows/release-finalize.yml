@@ -25,6 +25,10 @@ on:
         description: 'Long-lived branch to merge into, e.g. release/1.11.x'
         type: string
         required: true
+      main-branch:
+        description: 'Name of the repo main branch'
+        type: string
+        default: 'main'
 
 jobs:
   finalize:
@@ -50,8 +54,13 @@ jobs:
 
       - name: Run finalize script
         env:
-          DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
           MERGE_INTO: ${{ inputs.merge-into }}
+          MAIN_BRANCH: ${{ inputs.main-branch }}
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/finalize
+
+      - name: Push changes
+        run: |-
+          git switch ${{ inputs.merge-into }}
+          git push origin ${{ inputs.merge-into }}

@@ -5,7 +5,25 @@ if [ ! -f version/version.go ]; then
   exit 1
 fi
 
-if ! git diff-index --quiet HEAD --; then
-  echo 'need a clean worktree; try: `git clone $PWD /tmp/nomad && cd /tmp/nomad`'
+if [ -z "${ALLOW_DIRTY_WORKTREE:-}" ] && ! git diff-index --quiet HEAD --; then
+  git status
+  echo '==========================='
+
+  # this is probably a human
+  if [ -t 1 ]; then
+    tput bold setaf 3 # yellow
+    echo '!! Need a clean worktree !!'
+    tput sgr0 # reset
+    echo 'If you run this here, your local git will be modified.'
+    echo 'Run this to get a fresh, separate worktree:'
+    tput bold setaf 2 # green
+    echo '$ git clone "$PWD" /tmp/nomad && pushd /tmp/nomad'
+    tput sgr0
+    echo 'then try again.'
+
+  else # probably a robot
+    echo '!! Need a clean worktree !!'
+  fi
+  echo '==========================='
   exit 1
 fi
