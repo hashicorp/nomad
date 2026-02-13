@@ -46,7 +46,10 @@ func (c *OperatorRootKeyringRemoveCommand) Synopsis() string {
 }
 
 func (c *OperatorRootKeyringRemoveCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-force": complete.PredictNothing,
+		})
 }
 
 func (c *OperatorRootKeyringRemoveCommand) AutocompleteArgs() complete.Predictor {
@@ -58,11 +61,9 @@ func (c *OperatorRootKeyringRemoveCommand) Name() string {
 }
 
 func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
-	var force, verbose bool
-
+	var force bool
 	flags := c.Meta.FlagSet("root keyring remove", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&force, "force", false, "Forces deletion of the root keyring even if it's in use.")
 
 	if err := flags.Parse(args); err != nil {

@@ -91,7 +91,10 @@ func (*OperatorAPICommand) Synopsis() string {
 func (c *OperatorAPICommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-dryrun": complete.PredictNothing,
+			"-dryrun":  complete.PredictNothing,
+			"-X":       complete.PredictAnything,
+			"-filter":  complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
 		})
 }
 
