@@ -2079,7 +2079,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 		expectedBoltDBNoFreelistSync bool
 		expectedDisableLogCache      bool
 		expectedWALSegmentSize       int
-		expectedVerificationEnabled  bool
 	}{
 		{
 			name:                         "defaults when nothing is set",
@@ -2124,7 +2123,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
 			expectedWALSegmentSize:       128 * 1024 * 1024,
-			expectedVerificationEnabled:  true,
 		},
 		{
 			name: "disable log cache",
@@ -2147,7 +2145,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
-			expectedVerificationEnabled:  false,
 		},
 	}
 
@@ -2195,6 +2192,8 @@ func Test_convertServerConfig_RaftLogStore_RejectsMixedConfig(t *testing.T) {
 }
 =======
 			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
+=======
+>>>>>>> 3e8efce00c (verification deserves its own PR)
 		})
 	}
 }
