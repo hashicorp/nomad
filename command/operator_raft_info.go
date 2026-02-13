@@ -53,8 +53,8 @@ func (c *OperatorRaftInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Find raft.db
-	raftPath, err := raftutil.FindRaftFile(args[0])
+	// Find the raft log store (raft.db or wal/ directory)
+	raftPath, err := raftutil.FindRaftStore(args[0])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

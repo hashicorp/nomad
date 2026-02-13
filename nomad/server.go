@@ -29,6 +29,8 @@ import (
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	raftwal "github.com/hashicorp/raft-wal"
+	walmetrics "github.com/hashicorp/raft-wal/metrics"
 	"github.com/hashicorp/serf/serf"
 	"go.etcd.io/bbolt"
 
@@ -102,6 +104,13 @@ const (
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
 )
 
+// raftBackend is satisfied by both *raftboltdb.BoltStore and *wal.WAL.
+type raftBackend interface {
+	raft.LogStore
+	raft.StableStore
+	Close() error
+}
+
 // Server is Nomad server which manages the job queues,
 // schedulers, and notification bus for agents.
 type Server struct {
@@ -116,7 +125,7 @@ type Server struct {
 	// region to protect operations that require strong consistency
 	raft          *raft.Raft
 	raftLayer     *RaftLayer
-	raftStore     *raftboltdb.BoltStore
+	raftStore     raftBackend
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
@@ -325,6 +334,11 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc) (*Server, error) {
+	// Validate that deprecated config fields are not set
+	if config.RaftBoltNoFreelistSync {
+		return nil, fmt.Errorf("deprecated config field 'RaftBoltNoFreelistSync' is set; use 'RaftLogStoreConfig.BoltDBNoFreelistSync' instead")
+	}
+
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -1413,32 +1427,79 @@ func (s *Server) setupRaft() error {
 			return fmt.Errorf("failed to write Raft version file: %v", err)
 		}
 
-		// Create the BoltDB backend, with NoFreelistSync option
-		store, raftErr := raftboltdb.New(raftboltdb.Options{
-			Path:   filepath.Join(path, "raft.db"),
-			NoSync: false, // fsync each log write
-			BoltOptions: &bbolt.Options{
-				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
-			},
-			MsgpackUseNewTimeFormat: true,
-		})
-		if raftErr != nil {
-			return raftErr
+		// Determine the raft log store backend to use.
+		backend := LogStoreBackendBoltDB
+		if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.Backend != "" {
+			backend = s.config.RaftLogStoreConfig.Backend
 		}
+
+		var store raftBackend
+		switch backend {
+		case LogStoreBackendWAL:
+			// Check for an existing BoltDB store that needs migration.
+			boltPath := filepath.Join(path, "raft.db")
+			if _, statErr := os.Stat(boltPath); statErr == nil {
+				return fmt.Errorf(
+					"existing BoltDB raft store found at %s; "+
+						"run 'nomad operator raft migrate-backend %s' while the server "+
+						"is stopped to migrate to the WAL backend, then start the server again",
+					boltPath, s.config.DataDir)
+			}
+
+			walDir := filepath.Join(path, "wal")
+			if err := ensurePath(walDir, true); err != nil {
+				return fmt.Errorf("failed to create WAL directory: %v", err)
+			}
+
+			walStore, walErr := s.openRaftWAL(walDir)
+			if walErr != nil {
+				return fmt.Errorf("failed to open WAL log store: %v", walErr)
+			}
+			store = walStore
+
+		case LogStoreBackendBoltDB:
+			// Create the BoltDB backend, with NoFreelistSync option
+			noFreelistSync := false
+			if s.config.RaftLogStoreConfig != nil {
+				noFreelistSync = s.config.RaftLogStoreConfig.BoltDBNoFreelistSync
+			}
+
+			boltStore, boltErr := raftboltdb.New(raftboltdb.Options{
+				Path:   filepath.Join(path, "raft.db"),
+				NoSync: false, // fsync each log write
+				BoltOptions: &bbolt.Options{
+					NoFreelistSync: noFreelistSync,
+				},
+				MsgpackUseNewTimeFormat: true,
+			})
+			if boltErr != nil {
+				return boltErr
+			}
+			store = boltStore
+			s.logger.Info("setting up raft bolt store", "no_freelist_sync", noFreelistSync)
+
+			// Start publishing bboltdb metrics
+			go boltStore.RunMetrics(s.shutdownCtx, 0)
+
+		default:
+			return fmt.Errorf("unsupported raft log store backend: %q", backend)
+		}
+
 		s.raftStore = store
 		stable = store
-		s.logger.Info("setting up raft bolt store", "no_freelist_sync", s.config.RaftBoltNoFreelistSync)
 
-		// Start publishing bboltdb metrics
-		go store.RunMetrics(s.shutdownCtx, 0)
-
-		// Wrap the store in a LogCache to improve performance
-		cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
-		if err != nil {
-			store.Close()
-			return err
+		// Wrap the store in a LogCache to improve performance, unless disabled.
+		disableLogCache := s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.DisableLogCache
+		if disableLogCache {
+			log = store
+		} else {
+			cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
+			if err != nil {
+				store.Close()
+				return err
+			}
+			log = cacheStore
 		}
-		log = cacheStore
 
 		// Create the snapshot store
 		snapshots, err := raft.NewFileSnapshotStore(path, snapshotsRetained, s.config.LogOutput)
@@ -1527,6 +1588,27 @@ func (s *Server) setupRaft() error {
 		return err
 	}
 	return nil
+}
+
+// openRaftWAL opens a raft-wal log store in the given directory. It reads
+// WAL-specific options from s.config.RaftLogStoreConfig.
+func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
+	mc := walmetrics.NewGoMetricsCollector(
+		[]string{"nomad", "raft", "wal"}, nil, nil,
+	)
+	walStore, err := raftwal.Open(dir,
+		raftwal.WithLogger(s.logger.Named("wal")),
+		raftwal.WithSegmentSize(s.config.RaftLogStoreConfig.WALSegmentSize),
+		raftwal.WithMetricsCollector(mc),
+	)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Info("setting up raft WAL store",
+		"dir", dir,
+		"segment_size", s.config.RaftLogStoreConfig.WALSegmentSize,
+	)
+	return walStore, nil
 }
 
 // checkRaftVersionFile reads the Raft version file and returns an error if

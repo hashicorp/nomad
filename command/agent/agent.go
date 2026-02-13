@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	raftwal "github.com/hashicorp/raft-wal"
 	"github.com/hashicorp/yamux"
 )
 
@@ -627,9 +628,34 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
-	// Set the raft bolt parameters
-	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
-		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
+	// Validate that legacy and new raft config aren't both set
+	if agentConfig.Server.RaftBoltConfig != nil && agentConfig.Server.RaftLogStoreConfig != nil {
+		return nil, fmt.Errorf("cannot specify both deprecated 'raft_boltdb' and 'raft_logstore' blocks; use 'raft_logstore' only")
+	}
+
+	// Set the raft log store parameters. The new raft_logstore block takes
+	// precedence, but we still support the deprecated top-level raft_boltdb
+	// block for backwards compatibility.
+	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
+		Backend:        nomad.LogStoreBackendBoltDB,
+		WALSegmentSize: raftwal.DefaultSegmentSize, // 64MB by default
+	}
+	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
+		if lsc.Backend != "" {
+			conf.RaftLogStoreConfig.Backend = lsc.Backend
+		}
+		conf.RaftLogStoreConfig.DisableLogCache = lsc.DisableLogCache
+		if lsc.BoltDB != nil {
+			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = lsc.BoltDB.NoFreelistSync
+		}
+		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
+			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
+		}
+	} else if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		// Backwards compatibility: migrate deprecated raft_boltdb settings
+		conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
+		// Clear the legacy field after migration
+		agentConfig.Server.RaftBoltConfig = nil
 	}
 
 	// Interpret job_max_source_size as bytes from string value

@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Added support for raft-WAL logstore
+```

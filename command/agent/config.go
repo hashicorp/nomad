@@ -741,7 +741,14 @@ type ServerConfig struct {
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
 
+	// RaftLogStoreConfig configures the raft log store backend.
+	RaftLogStoreConfig *RaftLogStoreConfig `hcl:"raft_logstore"`
+
 	// RaftBoltConfig configures boltdb as used by raft.
+	//
+	// Deprecated: Use RaftLogStoreConfig.BoltDB instead. This field is kept
+	// for backwards compatibility and will be merged into RaftLogStoreConfig
+	// if both are set.
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
 
 	// RaftSnapshotThreshold controls how many outstanding logs there must be
@@ -815,6 +822,7 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
+	ns.RaftLogStoreConfig = s.RaftLogStoreConfig.Copy()
 	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
 	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
 	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
@@ -951,6 +959,75 @@ func (r *RaftBoltConfig) Copy() *RaftBoltConfig {
 
 	nr := *r
 	return &nr
+}
+
+// RaftLogStoreConfig is used in servers to configure the raft log store
+// backend. It replaces the top-level raft_boltdb block with a unified
+// configuration that supports both boltdb and WAL backends.
+type RaftLogStoreConfig struct {
+	// Backend selects the raft log store backend: "boltdb" or "wal".
+	// Default: "boltdb".
+	Backend string `hcl:"backend"`
+
+	// BoltDB configures the boltdb backend, used when Backend is "boltdb".
+	BoltDB *RaftBoltConfig `hcl:"boltdb"`
+
+	// WAL configures the wal backend, used when Backend is "wal".
+	WAL *WALConfig `hcl:"wal"`
+
+	// DisableLogCache disables the in-memory raft log cache.
+	// Default: false.
+	DisableLogCache bool `hcl:"disable_log_cache"`
+}
+
+func (r *RaftLogStoreConfig) Copy() *RaftLogStoreConfig {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	nr.BoltDB = r.BoltDB.Copy()
+	nr.WAL = r.WAL.Copy()
+	return &nr
+}
+
+// WALConfig configures the raft-wal backend.
+type WALConfig struct {
+	// SegmentSizeMB is the soft limit in megabytes before a new WAL segment
+	// is rotated. Default: 64.
+	SegmentSizeMB int `hcl:"segment_size_mb"`
+}
+
+func (w *WALConfig) Copy() *WALConfig {
+	if w == nil {
+		return nil
+	}
+
+	nw := *w
+	return &nw
+}
+
+// LogStoreVerificationConfig configures online verification of the raft log
+// store, which periodically verifies stored logs against the in-memory FSM to
+// detect corruption.
+type LogStoreVerificationConfig struct {
+	// Enabled controls whether log store verification is active.
+	// Default: false.
+	Enabled bool `hcl:"enabled"`
+
+	// Interval is how often log store verification runs, as a duration string
+	// (e.g. "5m").
+	// Default: "5m".
+	Interval string `hcl:"interval"`
+}
+
+func (v *LogStoreVerificationConfig) Copy() *LogStoreVerificationConfig {
+	if v == nil {
+		return nil
+	}
+
+	nv := *v
+	return &nv
 }
 
 // PlanRejectionTracker is used in servers to configure the plan rejection
@@ -2668,6 +2745,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		if b.Search.MinTermLength > 0 {
 			result.Search.MinTermLength = b.Search.MinTermLength
 		}
+	}
+
+	if b.RaftLogStoreConfig != nil {
+		result.RaftLogStoreConfig = b.RaftLogStoreConfig.Copy()
 	}
 
 	if b.RaftBoltConfig != nil {

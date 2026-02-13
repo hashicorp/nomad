@@ -413,7 +413,12 @@ type Config struct {
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
 
+	// RaftLogStoreConfig configures the raft log store backend.
+	RaftLogStoreConfig *RaftLogStoreConfig
+
 	// RaftBoltNoFreelistSync configures whether freelist syncing is enabled.
+	//
+	// Deprecated: Use RaftLogStoreConfig.BoltDBNoFreelistSync instead.
 	RaftBoltNoFreelistSync bool
 
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
@@ -461,6 +466,29 @@ type Config struct {
 	LogFile string `hcl:"log_file"`
 }
 
+const (
+	// LogStoreBackendBoltDB selects the original BoltDB raft log store.
+	LogStoreBackendBoltDB = "boltdb"
+
+	// LogStoreBackendWAL selects the raft-wal segment-based log store.
+	LogStoreBackendWAL = "wal"
+)
+
+// RaftLogStoreConfig holds the runtime configuration for the raft log store.
+type RaftLogStoreConfig struct {
+	// Backend selects the raft log store implementation: "boltdb" or "wal".
+	Backend string
+
+	// BoltDBNoFreelistSync controls whether BoltDB syncs its freelist to disk.
+	BoltDBNoFreelistSync bool
+
+	// WALSegmentSize is the soft segment size limit in bytes for the WAL backend.
+	WALSegmentSize int
+
+	// DisableLogCache disables the in-memory raft log cache.
+	DisableLogCache bool
+}
+
 func (c *Config) Copy() *Config {
 	if c == nil {
 		return nil
@@ -487,6 +515,7 @@ func (c *Config) Copy() *Config {
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
 	nc.LicenseConfig = c.LicenseConfig.Copy()
 	nc.SearchConfig = c.SearchConfig.Copy()
+	nc.RaftLogStoreConfig = pointer.Copy(c.RaftLogStoreConfig)
 	nc.KEKProviderConfigs = helper.CopySlice(c.KEKProviderConfigs)
 	nc.NodeIntroductionConfig = c.NodeIntroductionConfig.Copy()
 
@@ -586,17 +615,21 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:                           DefaultRegion,
-		AuthoritativeRegion:              DefaultRegion,
-		Datacenter:                       DefaultDC,
-		NodeName:                         hostname,
-		NodeID:                           uuid.Generate(),
-		RaftConfig:                       raft.DefaultConfig(),
-		RaftTimeout:                      10 * time.Second,
-		LogOutput:                        os.Stderr,
-		RPCAddr:                          DefaultRPCAddr(),
-		SerfConfig:                       serf.DefaultConfig(),
-		NumSchedulers:                    1,
+		Region:              DefaultRegion,
+		AuthoritativeRegion: DefaultRegion,
+		Datacenter:          DefaultDC,
+		NodeName:            hostname,
+		NodeID:              uuid.Generate(),
+		RaftConfig:          raft.DefaultConfig(),
+		RaftTimeout:         10 * time.Second,
+		LogOutput:           os.Stderr,
+		RPCAddr:             DefaultRPCAddr(),
+		SerfConfig:          serf.DefaultConfig(),
+		NumSchedulers:       1,
+		RaftLogStoreConfig: &RaftLogStoreConfig{
+			Backend:        LogStoreBackendBoltDB,
+			WALSegmentSize: 64 * 1024 * 1024, // 64MB default
+		},
 		ReconcileInterval:                60 * time.Second,
 		EvalGCInterval:                   5 * time.Minute,
 		EvalGCThreshold:                  1 * time.Hour,

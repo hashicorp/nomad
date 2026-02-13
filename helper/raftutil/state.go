@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	raftwal "github.com/hashicorp/raft-wal"
 	"go.etcd.io/bbolt"
 )
 
@@ -23,8 +24,30 @@ var (
 	errAlreadyOpen = errors.New("unable to open raft logs that are in use")
 )
 
-// RaftStateInfo returns info about the nomad state, as found in the passed data-dir directory
-func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {
+// RaftStore is the interface returned by RaftStateInfo, satisfied by both
+// *raftboltdb.BoltStore and *raftwal.WAL.
+type RaftStore interface {
+	raft.LogStore
+	raft.StableStore
+	Close() error
+}
+
+// RaftStateInfo returns info about the raft state found at path p. The path
+// may point to a BoltDB file (raft.db) or a WAL directory. The returned
+// RaftStore must be closed by the caller.
+func RaftStateInfo(p string) (store RaftStore, firstIdx uint64, lastIdx uint64, err error) {
+	info, statErr := os.Stat(p)
+	if statErr != nil {
+		return nil, 0, 0, fmt.Errorf("failed to stat %s: %v", p, statErr)
+	}
+
+	if info.IsDir() {
+		return raftStateInfoWAL(p)
+	}
+	return raftStateInfoBoltDB(p)
+}
+
+func raftStateInfoBoltDB(p string) (store RaftStore, firstIdx uint64, lastIdx uint64, err error) {
 	opts := raftboltdb.Options{
 		Path: p,
 		BoltOptions: &bbolt.Options{
@@ -48,6 +71,27 @@ func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, last
 
 	lastIdx, err = s.LastIndex()
 	if err != nil {
+		return nil, 0, 0, fmt.Errorf("failed to fetch last index: %v", err)
+	}
+
+	return s, firstIdx, lastIdx, nil
+}
+
+func raftStateInfoWAL(p string) (store RaftStore, firstIdx uint64, lastIdx uint64, err error) {
+	s, err := raftwal.Open(p)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("failed to open WAL logs: %v", err)
+	}
+
+	firstIdx, err = s.FirstIndex()
+	if err != nil {
+		s.Close()
+		return nil, 0, 0, fmt.Errorf("failed to fetch first index: %v", err)
+	}
+
+	lastIdx, err = s.LastIndex()
+	if err != nil {
+		s.Close()
 		return nil, 0, 0, fmt.Errorf("failed to fetch last index: %v", err)
 	}
 
@@ -194,7 +238,52 @@ func commandName(mt structs.MessageType) string {
 	return fmt.Sprintf("%v", mt)
 }
 
-// FindRaftFile finds raft.db and returns path
+// FindRaftStore finds a raft log store (either raft.db or wal/ directory)
+// and returns the path to pass to RaftStateInfo. For BoltDB this is the
+// raft.db file path; for WAL this is the wal/ directory path.
+func FindRaftStore(p string) (storePath string, err error) {
+	// Try WAL directories first (preferred backend), then BoltDB files,
+	// at well-known locations before falling back to a filesystem walk.
+	candidates := []struct {
+		path  string
+		isDir bool
+	}{
+		{filepath.Join(p, "server", "raft", "wal"), true},
+		{filepath.Join(p, "raft", "wal"), true},
+		{filepath.Join(p, "wal"), true},
+		{filepath.Join(p, "server", "raft", "raft.db"), false},
+		{filepath.Join(p, "raft", "raft.db"), false},
+		{filepath.Join(p, "raft.db"), false},
+	}
+
+	for _, c := range candidates {
+		info, statErr := os.Stat(c.path)
+		if statErr != nil {
+			continue
+		}
+		if c.isDir && info.IsDir() {
+			return c.path, nil
+		}
+		if !c.isDir && !info.IsDir() {
+			return c.path, nil
+		}
+	}
+
+	// Accept a direct path to a .db file.
+	if info, statErr := os.Stat(p); statErr == nil && !info.IsDir() && filepath.Ext(p) == ".db" {
+		return p, nil
+	}
+
+	// Fall back to filesystem walk for raft.db.
+	storePath, err = FindFileInPath("raft.db", p)
+	if err != nil {
+		return "", fmt.Errorf("no raft store (raft.db or wal/) found in %s", p)
+	}
+	return storePath, nil
+}
+
+// FindRaftFile finds raft.db and returns its path. This is a compatibility
+// wrapper; prefer FindRaftStore for code that supports both backends.
 func FindRaftFile(p string) (raftpath string, err error) {
 	// Try known locations before traversal to avoid walking deep structure
 	if _, err = os.Stat(filepath.Join(p, "server", "raft", "raft.db")); err == nil {
@@ -217,18 +306,25 @@ func FindRaftFile(p string) (raftpath string, err error) {
 	return raftpath, nil
 }
 
-// FindRaftDir finds raft.db and returns parent directory path
-func FindRaftDir(p string) (raftpath string, err error) {
-	raftpath, err = FindRaftFile(p)
+// FindRaftDir locates the raft data directory (the parent directory containing
+// either raft.db or wal/). Returns the directory path regardless of backend.
+func FindRaftDir(p string) (string, error) {
+	storePath, err := FindRaftStore(p)
 	if err != nil {
 		return "", err
 	}
 
-	if raftpath == "" {
-		return "", fmt.Errorf("failed to find raft dir in %s", p)
+	info, statErr := os.Stat(storePath)
+	if statErr != nil {
+		return "", fmt.Errorf("failed to stat raft store %s: %v", storePath, statErr)
 	}
 
-	return filepath.Dir(raftpath), nil
+	// For WAL the store path IS a directory (wal/); return its parent.
+	// For BoltDB the store path is a file (raft.db); return its parent.
+	if info.IsDir() {
+		return filepath.Dir(storePath), nil
+	}
+	return filepath.Dir(storePath), nil
 }
 
 // FindFileInPath searches for file in path p

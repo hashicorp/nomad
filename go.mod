@@ -86,6 +86,7 @@ require (
 	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
+	github.com/hashicorp/raft-wal v0.4.2
 	github.com/hashicorp/serf v0.10.2
 	github.com/hashicorp/vault/api v1.22.0
 	github.com/hashicorp/yamux v0.1.2
@@ -203,6 +204,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6 // indirect
+	github.com/benbjohnson/immutable v0.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
@@ -219,8 +221,11 @@ require (
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
+	github.com/coreos/etcd v3.3.27+incompatible // indirect
 	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
+	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
+	github.com/coreos/pkg v0.0.0-20220810130054-c7d1c02cb6cf // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect

@@ -72,7 +72,7 @@ func (c *OperatorRaftLogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	raftPath, err := raftutil.FindRaftFile(args[0])
+	raftPath, err := raftutil.FindRaftStore(args[0])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

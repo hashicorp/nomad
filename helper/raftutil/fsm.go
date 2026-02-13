@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
@@ -16,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
 
 var ErrNoMoreLogs = fmt.Errorf("no more logs")
@@ -34,7 +32,7 @@ type FSMHelper struct {
 	logger hclog.Logger
 
 	// nomad state
-	store *raftboltdb.BoltStore
+	store RaftStore
 	fsm   nomadFSM
 	snaps *raft.FileSnapshotStore
 
@@ -45,9 +43,15 @@ type FSMHelper struct {
 }
 
 func NewFSM(p string) (*FSMHelper, error) {
-	store, firstIdx, lastIdx, err := RaftStateInfo(filepath.Join(p, "raft.db"))
+	// Auto-detect the backend: look for wal/ directory first, then raft.db.
+	storePath, err := FindRaftStore(p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open raft database %v: %v", p, err)
+		return nil, fmt.Errorf("failed to find raft store in %v: %v", p, err)
+	}
+
+	store, firstIdx, lastIdx, err := RaftStateInfo(storePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open raft store %v: %v", storePath, err)
 	}
 
 	logger := hclog.L()
