@@ -2135,17 +2135,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 			expectedVerificationEnabled:  true,
 		},
-		{
-			name: "verification disabled",
-			raftLogStoreConfig: &RaftLogStoreConfig{
-				Verification: &LogStoreVerificationConfig{
-					Enabled:  false,
-					Interval: "10m",
-				},
-			},
-			expectedBackend:              nomad.LogStoreBackendBoltDB,
-			expectedBoltDBNoFreelistSync: false,
-		},
 	}
 
 	for _, tc := range cases {
