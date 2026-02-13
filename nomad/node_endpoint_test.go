@@ -4133,12 +4133,46 @@ func TestNode_createNodeEvals_jobTypeSkip(t *testing.T) {
 			},
 			expectedEvals: 0,
 		},
+		{
+			name: "system job running alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SystemAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusRunning
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "system job pending alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SystemAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusPending
+				return a
+			},
+			expectedEvals: 1,
+		},
+		{
+			name: "system job failed alloc",
+			allocSetupFn: func(nodeID string) *structs.Allocation {
+				a := mock.SystemAlloc()
+				a.NodeID = nodeID
+				a.DesiredStatus = structs.AllocDesiredStatusRun
+				a.ClientStatus = structs.AllocClientStatusFailed
+				return a
+			},
+			expectedEvals: 1,
+		},
 	}
 
 	// Use a single test server for all test cases to speed up the test.
 	testServer, testServerCleanup := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
 	defer testServerCleanup()
 	testutil.WaitForLeader(t, testServer.RPC)
+	nodeEndpoint := NewNodeEndpoint(testServer, nil)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4153,12 +4187,30 @@ func TestNode_createNodeEvals_jobTypeSkip(t *testing.T) {
 			must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 2, nil, allocs[0].Job))
 			must.NoError(t, testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 3, allocs))
 
-			nodeEndpoint := NewNodeEndpoint(testServer, nil)
 			evalIDs, _, err := nodeEndpoint.createNodeEvals(mockNode, 4)
 			must.NoError(t, err)
 			must.Len(t, tc.expectedEvals, evalIDs)
+
+			// Cleanup the job between tests to avoid multiple system jobs
+			must.NoError(t, testServer.fsm.State().DeleteJob(5, allocs[0].Namespace, allocs[0].Job.ID))
 		})
 	}
+
+	// Sneak in a test to assert terminal system jobs do *not* have an eval
+	// emitted since it's a similar case as the others but ignores allocs.
+	t.Run("system job stopped", func(t *testing.T) {
+		mockNode := mock.Node()
+		must.NoError(t, testServer.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1, mockNode))
+
+		job := mock.SystemJob()
+		job.Stop = true
+		job.Status = structs.JobStatusDead
+		must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
+
+		evalIDs, _, err := nodeEndpoint.createNodeEvals(mockNode, 4)
+		must.NoError(t, err)
+		must.Len(t, 0, evalIDs)
+	})
 }
 
 func TestClientEndpoint_Evaluate(t *testing.T) {
