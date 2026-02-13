@@ -7,7 +7,12 @@ import moment from 'moment';
 import Helper from '@ember/component/helper';
 
 export function formatTs([date], options = {}) {
-  const format = options.short
+  if (options.relative) {
+    return moment(date).fromNow();
+  }
+  const format = options.format
+    ? options.format
+    : options.short
     ? 'MMM D'
     : options.timeOnly
     ? 'HH:mm:ss'
