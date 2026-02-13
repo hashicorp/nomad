@@ -2119,31 +2119,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedWALSegmentSize:       128 * 1024 * 1024,
 		},
 		{
-			name: "new raft_logstore overrides deprecated raft_boltdb",
-			raftLogStoreConfig: &RaftLogStoreConfig{
-				Backend: nomad.LogStoreBackendBoltDB,
-				BoltDB: &RaftBoltConfig{
-					NoFreelistSync: false,
-				},
-			},
-			raftBoltConfig: &RaftBoltConfig{
-				NoFreelistSync: true,
-			},
-			expectedBackend:              nomad.LogStoreBackendBoltDB,
-			expectedBoltDBNoFreelistSync: false,
-		},
-		{
-			name: "deprecated raft_boltdb applies when raft_logstore has no boltdb sub-block",
-			raftLogStoreConfig: &RaftLogStoreConfig{
-				Backend: nomad.LogStoreBackendBoltDB,
-			},
-			raftBoltConfig: &RaftBoltConfig{
-				NoFreelistSync: true,
-			},
-			expectedBackend:              nomad.LogStoreBackendBoltDB,
-			expectedBoltDBNoFreelistSync: true,
-		},
-		{
 			name: "disable log cache",
 			raftLogStoreConfig: &RaftLogStoreConfig{
 				DisableLogCache: true,
@@ -2169,6 +2144,30 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
 			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
 			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
+
+			// After conversion, legacy field should be cleared
+			must.Nil(t, conf.Server.RaftBoltConfig)
 		})
 	}
+}
+
+func Test_convertServerConfig_RaftLogStore_RejectsMixedConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := DevConfig(nil)
+	must.NoError(t, conf.normalizeAddrs())
+
+	// Set both legacy and new config
+	conf.Server.RaftLogStoreConfig = &RaftLogStoreConfig{
+		Backend: nomad.LogStoreBackendBoltDB,
+		BoltDB: &RaftBoltConfig{
+			NoFreelistSync: false,
+		},
+	}
+	conf.Server.RaftBoltConfig = &RaftBoltConfig{
+		NoFreelistSync: true,
+	}
+
+	_, err := convertServerConfig(conf)
+	must.ErrorContains(t, err, "cannot specify both deprecated 'raft_boltdb' and 'raft_logstore'")
 }

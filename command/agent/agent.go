@@ -627,6 +627,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
+	// Validate that legacy and new raft config aren't both set
+	if agentConfig.Server.RaftBoltConfig != nil && agentConfig.Server.RaftLogStoreConfig != nil {
+		return nil, fmt.Errorf("cannot specify both deprecated 'raft_boltdb' and 'raft_logstore' blocks; use 'raft_logstore' only")
+	}
+
 	// Set the raft log store parameters. The new raft_logstore block takes
 	// precedence, but we still support the deprecated top-level raft_boltdb
 	// block for backwards compatibility.
@@ -644,16 +649,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
 			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
 		}
-	}
-
-	// Backwards compatibility: if the deprecated raft_boltdb block is set and
-	// the new raft_logstore.boltdb block is not, apply the old settings.
-	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
-		if agentConfig.Server.RaftLogStoreConfig == nil || agentConfig.Server.RaftLogStoreConfig.BoltDB == nil {
-			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
-		}
-		// Also maintain the old field for any code that still reads it directly.
-		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
+	} else if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		// Backwards compatibility: migrate deprecated raft_boltdb settings
+		conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
+		// Clear the legacy field after migration
+		agentConfig.Server.RaftBoltConfig = nil
 	}
 
 	// Interpret job_max_source_size as bytes from string value

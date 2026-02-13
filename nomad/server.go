@@ -334,6 +334,11 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc) (*Server, error) {
+	// Validate that deprecated config fields are not set
+	if config.RaftBoltNoFreelistSync {
+		return nil, fmt.Errorf("deprecated config field 'RaftBoltNoFreelistSync' is set; use 'RaftLogStoreConfig.BoltDBNoFreelistSync' instead")
+	}
+
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -1454,7 +1459,7 @@ func (s *Server) setupRaft() error {
 
 		case LogStoreBackendBoltDB:
 			// Create the BoltDB backend, with NoFreelistSync option
-			noFreelistSync := s.config.RaftBoltNoFreelistSync
+			noFreelistSync := false
 			if s.config.RaftLogStoreConfig != nil {
 				noFreelistSync = s.config.RaftLogStoreConfig.BoltDBNoFreelistSync
 			}

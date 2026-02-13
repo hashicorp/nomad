@@ -702,3 +702,18 @@ func TestServer_PreventRaftDowngrade(t *testing.T) {
 	// Downgrading Raft should prevent the server from starting.
 	require.Error(t, err)
 }
+
+func TestServer_RejectsDeprecatedRaftBoltConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := DefaultConfig()
+	conf.DevMode = true
+	conf.Logger = testlog.HCLogger(t)
+
+	// Set the deprecated field
+	conf.RaftBoltNoFreelistSync = true
+
+	// Server should reject this configuration
+	_, err := NewServer(conf, nil, nil)
+	must.ErrorContains(t, err, "deprecated config field 'RaftBoltNoFreelistSync'")
+}
