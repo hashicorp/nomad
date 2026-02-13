@@ -1845,7 +1845,6 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
-		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 
 		switch alloc.Job.Type {
 
@@ -1910,6 +1909,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 	}
 
 	// Create an evaluation for each system job.
@@ -1918,7 +1918,6 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1936,6 +1935,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[job.NamespacedID()] = struct{}{}
 	}
 
 	// Create the Raft transaction
