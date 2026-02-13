@@ -59,7 +59,10 @@ func (c *JobInitCommand) Synopsis() string {
 func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-short": complete.PredictNothing,
+			"-short":          complete.PredictNothing,
+			"-connect":        complete.PredictNothing,
+			"-list-templates": complete.PredictNothing,
+			"-template":       complete.PredictAnything,
 		})
 }
 

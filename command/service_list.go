@@ -57,6 +57,7 @@ func (s *ServiceListCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-json": complete.PredictNothing,
 			"-t":    complete.PredictAnything,
+			"-name": complete.PredictAnything,
 		})
 }
 
