@@ -854,6 +854,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator raft migrate-backend": func() (cli.Command, error) {
+			return &OperatorRaftMigrateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator scheduler": func() (cli.Command, error) {
 			return &OperatorSchedulerCommand{
 				Meta: meta,
