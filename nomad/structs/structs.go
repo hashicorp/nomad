@@ -4489,6 +4489,13 @@ type Job struct {
 	// used to register this version of the job. Used by deploymentwatcher.
 	NomadTokenID string
 
+	// SkipEvalCreation is used to signify that an evaluation should not be
+	// created for this job during registration. This field could be used for
+	// parameterized/periodic jobs, or for external processes like admission
+	// controllers to use Nomad to store jobs via Raft, but still control when
+	// they are run.
+	SkipEvalCreation bool
+
 	// Job status
 	Status string
 
