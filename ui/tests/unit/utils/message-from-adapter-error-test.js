@@ -10,8 +10,13 @@ import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 const testCases = [
   {
     name: 'Forbidden Error',
-    in: [new ForbiddenError([], "Can't do that"), 'run tests'],
+    in: [new ForbiddenError([], 'Permission denied'), 'run tests'],
     out: 'Your ACL token does not grant permission to run tests.',
+  },
+  {
+    name: 'Forbidden Error with custom message',
+    in: [new ForbiddenError([], 'Custom message.'), 'run tests'],
+    out: 'Custom message.',
   },
   {
     name: 'Generic Error',
