@@ -53,6 +53,38 @@
 
   .timeline-object {
     margin-bottom: 1em;
+    position: relative;
+    // overflow: hidden;
+
+    .waterfall-viz {
+      position: absolute;
+      width: calc(100% - 20px);
+      left: 10px;
+      bottom: 0;
+
+      .time-marker {
+        position: absolute;
+        left: 0;
+        top: 100%;
+        transform: translate(-25%, -50%);
+        border: 1px solid $blue;
+        background: lighten($blue, 30%);
+        width: 10px;
+        height: 10px;
+        border-radius: 10px;
+      }
+
+      .time-span {
+        position: absolute;
+        left: 0;
+        top: calc(100% - 2px);
+        height: 4px;
+        background: lighten($blue, 15%) !important;
+        border: none !important;
+        // border-top: 1px solid rgba(0, 0, 255, 1);
+      }
+
+    }
 
     &:last-child {
       margin-bottom: 0;
