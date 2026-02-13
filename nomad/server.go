@@ -1483,6 +1483,15 @@ func (s *Server) setupRaft() error {
 		s.raftStore = store
 		stable = store
 
+		// If online verification of the raft log store is enabled, wire up the
+		// periodic verifier. The verifier will run in the background and attempt
+		// to exercise the store's verification routines (when supported) at the
+		// configured interval.
+		if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.VerificationEnabled {
+			// Start the verifier in background; it will stop when server shuts down.
+			s.startRaftLogVerifier()
+		}
+
 		// Wrap the store in a LogCache to improve performance, unless disabled.
 		disableLogCache := s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.DisableLogCache
 		if disableLogCache {
@@ -1612,6 +1621,93 @@ func (s *Server) raftWALSegmentSize() int {
 		return s.config.RaftLogStoreConfig.WALSegmentSize
 	}
 	return raftwal.DefaultSegmentSize
+}
+
+// startRaftLogVerifier launches a goroutine that periodically verifies the raft
+// log store (when the configured store supports verification). It will run
+// until the server shutdown context is done. Verification is best-effort: any
+// error is logged; the verifier keeps running on the next interval.
+func (s *Server) startRaftLogVerifier() {
+	// Guard against calling before s.shutdownCtx is initialized
+	if s.shutdownCtx == nil {
+		return
+	}
+
+	interval := 5 * time.Minute
+	if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.VerificationInterval > 0 {
+		interval = s.config.RaftLogStoreConfig.VerificationInterval
+	}
+
+	// Run as a background goroutine
+	go func() {
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		s.logger.Info("starting raft logstore verifier", "interval", interval)
+		for {
+			select {
+			case <-s.shutdownCtx.Done():
+				s.logger.Info("stopping raft logstore verifier")
+				return
+			case <-t.C:
+				s.verifyRaftStore()
+			}
+		}
+	}()
+}
+
+// verifyRaftStore performs health checks on the configured raft store. For
+// BoltDB stores, it collects database statistics including transaction counts
+// and page information. For WAL stores, it verifies that log indices are
+// monotonically increasing. This is called periodically by
+// startRaftLogVerifier.
+func (s *Server) verifyRaftStore() {
+	if s.raftStore == nil {
+		s.logger.Debug("raft logstore verifier: no raft store available yet")
+		return
+	}
+
+	// Perform basic health check by verifying we can read index information
+	first, err := s.raftStore.FirstIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get first index", "error", err)
+		return
+	}
+
+	last, err := s.raftStore.LastIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get last index", "error", err)
+		return
+	}
+
+	// Perform store-specific verification
+	switch store := s.raftStore.(type) {
+	case *raftboltdb.BoltStore:
+		// Get BoltDB statistics for health monitoring
+		stats := store.Stats()
+		s.logger.Debug("raft logstore verifier: BoltDB store verification",
+			"first_index", first,
+			"last_index", last,
+			"open_tx", stats.OpenTxN,
+			"free_pages", stats.FreePageN,
+			"pending_pages", stats.PendingPageN)
+
+	case *raftwal.WAL:
+		// Check if WAL indices are monotonic
+		isMonotonic := store.IsMonotonic()
+		if !isMonotonic {
+			s.logger.Warn("raft logstore verifier: WAL indices are not monotonic")
+		}
+		s.logger.Debug("raft logstore verifier: WAL store verification",
+			"first_index", first,
+			"last_index", last,
+			"is_monotonic", isMonotonic)
+
+	default:
+		s.logger.Debug("raft logstore verifier: store is accessible",
+			"first_index", first,
+			"last_index", last,
+			"type", fmt.Sprintf("%T", s.raftStore))
+	}
 }
 
 // checkRaftVersionFile reads the Raft version file and returns an error if
