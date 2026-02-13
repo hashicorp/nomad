@@ -141,6 +141,9 @@ func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) e
 		return fmt.Errorf("failed to close BoltDB store: %w", err)
 	}
 
+	// Wait for file handles to be released on Windows before attempting rename.
+	waitForFileHandleRelease()
+
 	// Rename the old BoltDB file to preserve it as a backup with timestamp.
 	timestamp := time.Now().Format("20060102-150405")
 	backupPath := fmt.Sprintf("%s.migrated.%s", boltPath, timestamp)
@@ -219,6 +222,13 @@ func preflightChecks(boltPath, walDir, raftDir string) error {
 	}
 
 	return nil
+}
+
+// waitForFileHandleRelease adds a small delay to allow the OS to release file
+// handles after closing. This is particularly important on Windows where file
+// handles may not be immediately released.
+func waitForFileHandleRelease() {
+	time.Sleep(100 * time.Millisecond)
 }
 
 // cleanupWAL removes the WAL directory, retrying on Windows to handle
