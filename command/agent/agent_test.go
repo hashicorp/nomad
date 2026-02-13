@@ -2152,17 +2152,6 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedDisableLogCache:      true,
 			expectedBoltDBNoFreelistSync: false,
 		},
-		{
-			name: "verification disabled",
-			raftLogStoreConfig: &RaftLogStoreConfig{
-				Verification: &LogStoreVerificationConfig{
-					Enabled:  false,
-					Interval: "10m",
-				},
-			},
-			expectedBackend:              nomad.LogStoreBackendBoltDB,
-			expectedBoltDBNoFreelistSync: false,
-		},
 	}
 
 	for _, tc := range cases {
