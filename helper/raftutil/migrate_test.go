@@ -360,7 +360,11 @@ func TestMigrateToWAL_MarkerFileCleanupOnFailure(t *testing.T) {
 
 func TestMigrateToWAL_PermissionError(t *testing.T) {
 	// This test requires the ability to create a read-only directory.
-	// Skip on platforms where this is not reliable (e.g., Windows running as admin).
+	// skip when running as root (e.g., on Linux CI with sudo).
+	if os.Geteuid() == 0 {
+		t.Skip("test requires non-root user to enforce permission checks")
+	}
+
 	raftDir := t.TempDir()
 
 	logs := makeLogs(1, 3)
