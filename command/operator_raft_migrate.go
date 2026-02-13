@@ -105,7 +105,9 @@ func (c *OperatorRaftMigrateCommand) Run(args []string) int {
 		}
 	}
 
-	progress := make(chan string, 64)
+	// Buffer of 1 is sufficient since sendProgress() already handles slow
+	// consumers by dropping messages with a non-blocking select.
+	progress := make(chan string, 1)
 	done := make(chan error, 1)
 
 	go func() {
