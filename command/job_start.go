@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/posener/complete"
 )
@@ -33,7 +32,7 @@ Alias: nomad start
 
  When ACLs are enabled, this command requires a token with either the
  'submit-job' or 'register-job' capability for the job's namespace.
- 
+
 General Options:
 
  ` + generalOptionsUsage(usageOptsDefault) + `
@@ -65,19 +64,9 @@ func (c *JobStartCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobStartCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
+
 func (c *JobStartCommand) Name() string { return "job start" }
 
 func (c *JobStartCommand) Run(args []string) int {

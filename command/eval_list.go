@@ -97,13 +97,12 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 func (c *EvalListCommand) Name() string { return "eval list" }
 
 func (c *EvalListCommand) Run(args []string) int {
-	var monitor, verbose, json, openURL bool
+	var verbose, json, openURL bool
 	var perPage int
 	var tmpl, pageToken, filter, filterJobID, filterStatus string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")

@@ -76,6 +76,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-ui":      complete.PredictNothing,
+			"-wait":    complete.PredictAnything,
 		})
 }
 

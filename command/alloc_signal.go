@@ -153,6 +153,7 @@ func (c *AllocSignalCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-s":       complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-task":    complete.PredictAnything,
 		})
 }
 func (c *AllocSignalCommand) AutocompleteArgs() complete.Predictor {

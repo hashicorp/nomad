@@ -183,6 +183,15 @@ func (c *AllocRestartCommand) Synopsis() string {
 	return "Restart a running allocation"
 }
 
+func (c *AllocRestartCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-all-tasks": complete.PredictNothing,
+			"-verbose":   complete.PredictNothing,
+			"-task":      complete.PredictAnything,
+		})
+}
+
 func (c *AllocRestartCommand) AutocompleteArgs() complete.Predictor {
 	// Here we attempt to autocomplete allocations for any position of arg.
 	// We should eventually try to auto complete the task name if the arg is
