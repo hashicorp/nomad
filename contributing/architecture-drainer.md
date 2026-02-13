@@ -116,8 +116,8 @@ flowchart TD
     JobWatcher -- "4. Drain(): allocs for job that need draining" --> NodeDrainer
     NodeDrainer -- "5. AllocUpdateDesiredTransition\n(raft shim)" --> StateStore
 
-    StateStore -. 6. EvalDequeue .-> scheduler
-    StateStore -. 7. GetAllocs .-> clients
+    StateStore -. "6. EvalDequeue" .-> scheduler
+    StateStore -. "7. GetAllocs" .-> clients
 ```
 
 The second is when allocation migrations are complete. The clients update the
