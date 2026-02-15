@@ -314,9 +314,9 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	evalID := resp.EvalID
 
-	jobNamespace := c.Meta.namespace
-	if jobNamespace == "" {
-		jobNamespace = "default"
+	jobNamespace := "default"
+	if job.Namespace != nil && *job.Namespace != "" {
+		jobNamespace = *job.Namespace
 	}
 
 	// Check if we should enter monitor mode
