@@ -277,6 +277,12 @@ func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanRespons
 			c.Colorize().Color(strings.TrimSpace(formatJobDiff(resp.Diff, verbose)))))
 	}
 
+	if resp.CauseDeployment {
+		c.Ui.Output("deployment time!")
+	} else {
+		c.Ui.Output("no deployment")
+	}
+
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
 	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job, c.Colorize())))
