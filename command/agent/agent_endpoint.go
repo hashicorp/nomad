@@ -563,6 +563,62 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
+type reloadResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+	if !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	currConf := s.agent.GetConfig().Copy()
+	newConf := currConf
+
+	s.logger.Debug("loading configuration files for reload", "paths", currConf.ConfigPaths)
+
+	for _, path := range currConf.ConfigPaths {
+		cfgFromFile, err := LoadConfig(path)
+		if err != nil {
+			s.logger.Error("failed to load config file", "file", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
+			return nil, CodedError(400, err.Error())
+		}
+		if cfgFromFile != nil {
+			newConf = newConf.Merge(cfgFromFile)
+		}
+	}
+
+	if err := newConf.normalizeAddrs(); err != nil {
+		s.logger.Error("failed to normalize configuration addresses", "error", err, "path", "/v1/agent/reload", "method", req.Method)
+		return nil, CodedError(400, err.Error())
+	}
+
+	// I need to check back on this, it was not reloading TLS until I cleared the checksum and key loader
+	if newConf.TLSConfig != nil {
+		newConf.TLSConfig.Checksum = ""
+		newConf.TLSConfig.KeyLoader = nil
+	}
+
+	if err := s.agent.FullReload(newConf); err != nil {
+		s.logger.Error("failed to reload agent configuration", "error", err, "path", "/v1/agent/reload", "method", req.Method)
+		return nil, CodedError(400, err.Error())
+	}
+
+	response := reloadResponse{
+		Message: "agent configuration reloaded",
+	}
+
+	return response, nil
+}
+
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	client := s.agent.Client()
 	if client == nil {

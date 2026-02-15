@@ -169,6 +169,9 @@ type Config struct {
 	// List of config files that have been loaded (in order)
 	Files []string `hcl:"-"`
 
+	// ConfigPaths stores the original config flag values
+	ConfigPaths []string `hcl:"-"`
+
 	// TLSConfig provides TLS related configuration for the Nomad server and
 	// client
 	TLSConfig *config.TLSConfig `hcl:"tls"`
@@ -2125,6 +2128,8 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Merge config files lists
 	result.Files = append(result.Files, b.Files...)
+
+	result.ConfigPaths = append(result.ConfigPaths, b.ConfigPaths...)
 
 	// Add the http API response header map values
 	if result.HTTPAPIResponseHeaders == nil {
