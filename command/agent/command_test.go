@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -262,6 +263,17 @@ func TestCommand_NullCharInRegion(t *testing.T) {
 func TestIsValidConfig(t *testing.T) {
 	ci.Parallel(t)
 
+	tempDir := t.TempDir()
+	dirPath := filepath.Join(tempDir, "path1")
+	filePath := filepath.Join(tempDir, "afile")
+	nonExistingPath := filepath.Join(tempDir, "non_existing_path")
+
+	os.Mkdir(dirPath, 0o755)
+	fd, err := os.Create(filePath)
+	require.NoError(t, err)
+	// We just need it to exist, no need to have open descriptor.
+	fd.Close()
+
 	cases := []struct {
 		name string
 		conf Config // merged into DefaultConfig()
@@ -465,18 +477,35 @@ func TestIsValidConfig(t *testing.T) {
 					Enabled: true,
 					HostVolumes: []*structs.ClientHostVolumeConfig{
 						{
-							Name:     "test",
+							Name:     "directoryVolume",
 							ReadOnly: true,
-							Path:     "/random/path1",
+							Path:     dirPath,
 						},
 						{
-							Name:     "test",
+							Name:     "fileVolume",
 							ReadOnly: true,
-							Path:     "/random/path2",
+							Path:     filePath,
 						},
 					},
 				},
 			},
+		},
+	{
+			name: "MissingVolumePath",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "missingVolume",
+							ReadOnly: true,
+							Path:     nonExistingPath,
+						},
+					},
+				},
+			},
+			err: fmt.Sprintf("stat %s: no such file or directory", nonExistingPath),
 		},
 		{
 			name: "BadOIDCIssuer",
