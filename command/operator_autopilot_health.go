@@ -17,14 +17,14 @@ type OperatorAutopilotHealthCommand struct {
 }
 
 func (c *OperatorAutopilotHealthCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient))
-}
-
-func (c *OperatorAutopilotHealthCommand) AutocompleteArgs() complete.Predictor {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json": complete.PredictNothing,
 		})
+}
+
+func (c *OperatorAutopilotHealthCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *OperatorAutopilotHealthCommand) Name() string { return "operator autopilot health" }

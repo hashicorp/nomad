@@ -12,6 +12,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type MonitorCommand struct {
@@ -66,6 +68,31 @@ func (c *MonitorCommand) Synopsis() string {
 }
 
 func (c *MonitorCommand) Name() string { return "monitor" }
+
+func (c *MonitorCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-log-level":            complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
+			"-log-include-location": complete.PredictNothing,
+			"-node-id": complete.PredictFunc(func(a complete.Args) []string {
+				client, err := c.Meta.Client()
+				if err != nil {
+					return nil
+				}
+				resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+				if err != nil {
+					return []string{}
+				}
+				return resp.Matches[contexts.Nodes]
+			}),
+			"-server-id": complete.PredictAnything,
+			"-json":      complete.PredictNothing,
+		})
+}
+
+func (c *MonitorCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
 
 func (c *MonitorCommand) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
