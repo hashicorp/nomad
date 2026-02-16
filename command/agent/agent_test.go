@@ -2079,6 +2079,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 		expectedBoltDBNoFreelistSync bool
 		expectedDisableLogCache      bool
 		expectedWALSegmentSize       int
+		expectedVerificationEnabled  bool
 	}{
 		{
 			name:                         "defaults when nothing is set",
@@ -2142,6 +2143,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
 			expectedVerificationEnabled:  false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
 	}
 
