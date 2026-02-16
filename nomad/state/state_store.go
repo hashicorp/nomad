@@ -589,7 +589,7 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		for tg, dstate := range existing.TaskGroups {
 			newDstate := deployment.TaskGroups[tg]
 			if dstate != nil && newDstate != nil && dstate.Promoted && !newDstate.Promoted {
-				return fmt.Errorf("deployment promotion cannot be undone") // write skew
+				return errors.New("deployment promotion cannot be undone") // write skew
 			}
 		}
 	} else {

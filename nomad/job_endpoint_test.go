@@ -8972,7 +8972,7 @@ func TestIntegration_SystemDeploymentHealth(t *testing.T) {
 	time.Sleep(time.Second)
 
 	err = srv.workers[0].invokeScheduler(snap, eval, evalToken)
-	if err != nil { // this is racy with the deplyoment watcher, so we won't always see it
+	if err != nil { // this is racy with the deployment watcher, so we won't always see it
 		t.Log("scheduler had write skew with deployment")
 		must.EqError(t, err,
 			"failed to process evaluation: deployment promotion cannot be undone")

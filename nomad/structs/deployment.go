@@ -316,7 +316,6 @@ func (d *DeploymentState) MergeClientValues(c *DeploymentState) {
 	d.HealthyAllocs = c.HealthyAllocs
 	d.UnhealthyAllocs = c.UnhealthyAllocs
 	d.PlacedAllocs = c.PlacedAllocs
-	//d.PlacedCanaries = c.PlacedCanaries // hm... not sure about this one?
 	d.RequireProgressBy = c.RequireProgressBy
 }
 
