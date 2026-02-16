@@ -5,45 +5,45 @@ on:
       - main
       - release/**
     paths-ignore:
-      - "README.md"
-      - "CHANGELOG.md"
-      - ".changelog/**"
-      - ".tours/**"
-      - "contributing/**"
-      - "demo/**"
-      - "dev/**"
-      - "e2e/**"
-      - "integrations/**"
-      - "pkg/**"
-      - "scripts/**"
-      - "terraform/**"
-      - "ui/**"
-      - "website/**"
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
   push:
     branches:
       - main
       - release/**
     paths-ignore:
-      - "README.md"
-      - "CHANGELOG.md"
-      - ".changelog/**"
-      - ".tours/**"
-      - "contributing/**"
-      - "demo/**"
-      - "dev/**"
-      - "e2e/**"
-      - "integrations/**"
-      - "pkg/**"
-      - "scripts/**"
-      - "terraform/**"
-      - "ui/**"
-      - "website/**"
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
 
 env:
   VAULT_VERSION: 1.4.1
 jobs:
   test-windows:
-    runs-on: "windows-2022-16core"
+    runs-on: 'windows-2022-16core'
     env:
       GOTESTSUM_PATH: c:\tmp\test-reports
     steps:
