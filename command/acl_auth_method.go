@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 // Ensure ACLAuthMethodCommand satisfies the cli.Command interface.
@@ -59,6 +60,30 @@ func (a *ACLAuthMethodCommand) Name() string { return "acl auth-method" }
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLAuthMethodCommand) Run(_ []string) int { return cli.RunResultHelp }
+
+// ACLAuthMethodPredictor returns an autocomplete predictor that can be used across
+// multiple auth method commands.
+func ACLAuthMethodPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		methods, _, err := client.ACLAuthMethods().List(&api.QueryOptions{})
+		if err != nil {
+			return []string{}
+		}
+		matches := make([]string, 0, len(methods))
+		for _, method := range methods {
+			if strings.HasPrefix(method.Name, a.Last) {
+				matches = append(matches, method.Name)
+			}
+		}
+
+		return matches
+	})
+}
 
 // outputAuthMethod can be used to output the auth method to the UI within the
 // passed meta object.

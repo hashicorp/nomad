@@ -35,7 +35,7 @@ func (c *ACLPolicyDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLPolicyDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLPolicyPredictor(c.Meta.Client)
 }
 
 func (c *ACLPolicyDeleteCommand) Synopsis() string {

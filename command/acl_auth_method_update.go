@@ -98,7 +98,7 @@ func (a *ACLAuthMethodUpdateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (a *ACLAuthMethodUpdateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLAuthMethodPredictor(a.Meta.Client)
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.

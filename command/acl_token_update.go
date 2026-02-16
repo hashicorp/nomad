@@ -66,7 +66,7 @@ func (c *ACLTokenUpdateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLTokenUpdateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLTokenPredictor(c.Meta.Client)
 }
 
 func (c *ACLTokenUpdateCommand) Synopsis() string {

@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 // Ensure ACLRoleCommand satisfies the cli.Command interface.
@@ -63,6 +65,28 @@ func (a *ACLRoleCommand) Name() string { return "acl role" }
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLRoleCommand) Run(_ []string) int { return cli.RunResultHelp }
+
+// ACLRolePredictor returns an autocomplete predictor that can be used across
+// multiple role commands.
+func ACLRolePredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		// List ACL roles with prefix matching
+		roles, _, err := client.ACLRoles().List(&api.QueryOptions{
+			Prefix: a.Last,
+		})
+		if err != nil {
+			return []string{}
+		}
+
+		return helper.ConvertSlice(roles,
+			func(r *api.ACLRoleListStub) string { return r.ID })
+	})
+}
 
 // formatACLRole formats and converts the ACL role API object into a string KV
 // representation suitable for console output.

@@ -85,12 +85,13 @@ func (a *ACLBindingRuleUpdateCommand) AutocompleteFlags() complete.Flags {
 			),
 			"-bind-name": complete.PredictAnything,
 			"-json":      complete.PredictNothing,
+			"-no-merge":  complete.PredictNothing,
 			"-t":         complete.PredictAnything,
 		})
 }
 
 func (a *ACLBindingRuleUpdateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLBindingRulePredictor(a.Meta.Client)
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.
