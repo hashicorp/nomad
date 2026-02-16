@@ -76,6 +76,9 @@ type ACL struct {
 	quota    string
 	plugin   string
 
+	// Fine-grained capabilities for policies that don't need namespace globbing
+	operatorCapabilities capabilitySet
+
 	// The attributes below detail a virtual policy that we never expose
 	// directly to the end user.
 	client       string
@@ -122,6 +125,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	svTxn := iradix.New[capabilitySet]().Txn()
 	wsvTxn := iradix.New[capabilitySet]().Txn()
+
+	operatorCapabilities := make(capabilitySet)
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -282,6 +287,17 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 		if policy.Operator != nil {
 			acl.operator = maxPrivilege(acl.operator, policy.Operator.Policy)
+			if !operatorCapabilities.Check(OperatorCapabilityDeny) {
+				for _, cap := range policy.Operator.Capabilities {
+					if cap == OperatorCapabilityDeny {
+						// Deny always takes precedence
+						operatorCapabilities.Clear()
+						operatorCapabilities.Set(OperatorCapabilityDeny)
+						break
+					}
+					operatorCapabilities.Set(cap)
+				}
+			}
 		}
 		if policy.Quota != nil {
 			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
@@ -303,6 +319,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	acl.variables = svTxn.Commit()
 	acl.wildcardVariables = wsvTxn.Commit()
+
+	acl.operatorCapabilities = operatorCapabilities
 
 	acl.client = PolicyDeny
 	acl.server = PolicyDeny
@@ -846,6 +864,22 @@ func (a *ACL) AllowOperatorWrite() bool {
 	case a.aclsDisabled, a.management:
 		return true
 	case a.operator == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowOperatorOperation checks if a given operation is allowed for operator
+func (a *ACL) AllowOperatorOperation(op string) bool {
+	switch {
+	case a == nil:
+		return false
+	case a.aclsDisabled, a.management:
+		return true
+	case a.operator == PolicyWrite:
+		return true
+	case a.operatorCapabilities.Check(op):
 		return true
 	default:
 		return false

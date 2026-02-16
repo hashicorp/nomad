@@ -229,7 +229,8 @@ func TestParse(t *testing.T) {
 					Policy: PolicyWrite,
 				},
 				Operator: &OperatorPolicy{
-					Policy: PolicyDeny,
+					Policy:       PolicyDeny,
+					Capabilities: []string{"deny"},
 				},
 				Quota: &QuotaPolicy{
 					Policy: PolicyRead,
@@ -455,7 +456,8 @@ func TestParse(t *testing.T) {
 					Policy: PolicyWrite,
 				},
 				Operator: &OperatorPolicy{
-					Policy: PolicyDeny,
+					Policy:       PolicyDeny,
+					Capabilities: []string{"deny"},
 				},
 				Quota: &QuotaPolicy{
 					Policy: PolicyRead,

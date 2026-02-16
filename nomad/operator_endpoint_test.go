@@ -806,6 +806,9 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 
 	deniedToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
+	snapshotSavePolicy := `operator { capabilities = ["snapshot-save"] }`
+	snapshotSaveToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1002, "test-snapshot-save", snapshotSavePolicy)
+
 	/////////  Actually run query now
 	cases := []struct {
 		name    string
@@ -814,6 +817,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 		err     error
 	}{
 		{"root", root.SecretID, 0, nil},
+		{"snapshot_save_capability", snapshotSaveToken.SecretID, 0, nil},
 		{"no_permission_token", deniedToken.SecretID, 403, structs.ErrPermissionDenied},
 		{"invalid token", uuid.Generate(), 403, structs.ErrPermissionDenied},
 		{"unauthenticated", "", 403, structs.ErrPermissionDenied},
