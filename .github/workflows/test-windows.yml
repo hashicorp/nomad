@@ -1,9 +1,6 @@
 name: test-windows
 on:
   pull_request:
-    branches:
-      - main
-      - release/**
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
