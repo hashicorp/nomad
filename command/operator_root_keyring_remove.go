@@ -25,7 +25,8 @@ Usage: nomad operator root keyring remove [options] <key ID>
   Remove an encryption key from the cluster. This operation may only be
   performed on keys that are not the active key.
 
-  If ACLs are enabled, this command requires a management token.
+  If ACLs are enabled, this command requires a token with the operator:write
+  policy or the operator:keyring-delete capability.
 
 General Options:
 

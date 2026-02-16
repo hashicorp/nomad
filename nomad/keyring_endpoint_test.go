@@ -27,6 +27,9 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
+	policy := `operator { capabilities = ["keyring-rotate", "keyring-read", "keyring-delete"] }`
+	token := mock.CreatePolicyAndToken(t, state, 10, "test-keyring", policy)
+
 	// Upsert a new key
 	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
@@ -80,7 +83,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:        "global",
 				MinQueryIndex: getResp.Index,
-				AuthToken:     rootToken.SecretID,
+				AuthToken:     token.SecretID,
 			},
 		}
 		errCh <- msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
@@ -107,7 +110,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
-	delReq.AuthToken = rootToken.SecretID
+	delReq.AuthToken = token.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
 	must.EqError(t, err, "active root key cannot be deleted - call rotate first")
 
@@ -128,7 +131,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			AuthToken: rootToken.SecretID,
+			AuthToken: token.SecretID,
 		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
@@ -259,8 +262,12 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	must.NoError(t, err)
 
-	// Rotate the key
+	// Create a token with keyring-rotate capability
+	keyringRotatePolicy := `operator { capabilities = ["keyring-rotate"] }`
+	keyringRotateToken := mock.CreatePolicyAndToken(t, store, 1001,
+		"test-keyring-rotate", keyringRotatePolicy)
 
+	// Rotate the key
 	rotateReq := &structs.KeyringRotateRootKeyRequest{
 		WriteRequest: structs.WriteRequest{
 			Region: "global",
@@ -270,13 +277,22 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
-	rotateReq.AuthToken = rootToken.SecretID
+	// Test with keyring-rotate capability token
+	rotateReq.AuthToken = keyringRotateToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
 	must.NoError(t, err)
 	must.Greater(t, updateResp.Index, rotateResp.Index)
 	key2 := rotateResp.Key
 
-	// Verify we have a new key and the old one is inactive
+	// Test with root token
+	rotateResp = structs.KeyringRotateRootKeyResponse{}
+	rotateReq.AuthToken = rootToken.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	must.NoError(t, err)
+	must.Greater(t, updateResp.Index, rotateResp.Index)
+	key3 := rotateResp.Key
+
+	// Verify we have a new key and the old ones are inactive
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
@@ -288,19 +304,19 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	must.NoError(t, err)
 	must.Greater(t, updateResp.Index, listResp.Index)
-	must.Len(t, 3, listResp.Keys) // bootstrap + old + new
+	must.Len(t, 4, listResp.Keys) // bootstrap + old + 2 new
 
 	for _, keyMeta := range listResp.Keys {
 		switch keyMeta.KeyID {
-		case key0.KeyID, key1.KeyID:
+		case key0.KeyID, key1.KeyID, key2.KeyID:
 			must.True(t, keyMeta.IsInactive(), must.Sprint("older keys must be inactive"))
-		case key2.KeyID:
-			must.True(t, keyMeta.IsActive(), must.Sprint("expected new key to be active"))
+		case key3.KeyID:
+			must.True(t, keyMeta.IsActive(), must.Sprint("expected newest key to be active"))
 		}
 	}
 
 	getReq := &structs.KeyringGetRootKeyRequest{
-		KeyID: key2.KeyID,
+		KeyID: key3.KeyID,
 		QueryOptions: structs.QueryOptions{
 			Region: "global",
 		},
@@ -324,21 +340,21 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
 	must.NoError(t, err)
 	must.Greater(t, updateResp.Index, rotateResp.Index)
-	key3 := rotateResp.Key
+	key4 := rotateResp.Key
 
 	listResp = structs.KeyringListRootKeyMetaResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	must.NoError(t, err)
 	must.Greater(t, updateResp.Index, listResp.Index)
-	must.Len(t, 4, listResp.Keys) // bootstrap + old + new + prepublished
+	must.Len(t, 5, listResp.Keys) // bootstrap + old + old active + current active + prepublished
 
 	for _, keyMeta := range listResp.Keys {
 		switch keyMeta.KeyID {
-		case key0.KeyID, key1.KeyID:
+		case key0.KeyID, key1.KeyID, key2.KeyID:
 			must.True(t, keyMeta.IsInactive(), must.Sprint("older keys must be inactive"))
-		case key2.KeyID:
-			must.True(t, keyMeta.IsActive(), must.Sprint("expected active key to remain active"))
 		case key3.KeyID:
+			must.True(t, keyMeta.IsActive(), must.Sprint("expected current active key to remain active"))
+		case key4.KeyID:
 			must.True(t, keyMeta.IsPrepublished(), must.Sprint("expected new key to be prepublished"))
 		}
 	}
