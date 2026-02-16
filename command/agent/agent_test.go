@@ -2131,6 +2131,18 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
 		},
+		{
+			name: "verification disabled",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Verification: &LogStoreVerificationConfig{
+					Enabled:  false,
+					Interval: "10m",
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedVerificationEnabled:  false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -2148,6 +2160,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
 			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
 			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
+			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
 
 			// After conversion, legacy field should be cleared
 			must.Nil(t, conf.Server.RaftBoltConfig)

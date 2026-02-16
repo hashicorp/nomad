@@ -637,8 +637,10 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// precedence, but we still support the deprecated top-level raft_boltdb
 	// block for backwards compatibility.
 	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
-		Backend:        nomad.LogStoreBackendBoltDB,
-		WALSegmentSize: raftwal.DefaultSegmentSize, // 64MB by default
+		Backend:              nomad.LogStoreBackendBoltDB,
+		WALSegmentSize:       raftwal.DefaultSegmentSize, // 64MB by default
+		VerificationEnabled:  true,
+		VerificationInterval: 5 * time.Minute,
 	}
 	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
 		if lsc.Backend != "" {
@@ -650,6 +652,17 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
 			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
+		}
+		if lsc.Verification != nil {
+			conf.RaftLogStoreConfig.VerificationEnabled = lsc.Verification.Enabled
+			if lsc.Verification.Interval != "" {
+				dur, err := time.ParseDuration(lsc.Verification.Interval)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse raft_logstore verification interval %q: %w",
+						lsc.Verification.Interval, err)
+				}
+				conf.RaftLogStoreConfig.VerificationInterval = dur
+			}
 		}
 	} else if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
 		// Backwards compatibility: migrate deprecated raft_boltdb settings

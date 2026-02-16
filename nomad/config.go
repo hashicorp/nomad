@@ -487,6 +487,13 @@ type RaftLogStoreConfig struct {
 
 	// DisableLogCache disables the in-memory raft log cache.
 	DisableLogCache bool
+
+	// VerificationEnabled controls whether online log store verification is
+	// active.
+	VerificationEnabled bool
+
+	// VerificationInterval is how often log store verification runs.
+	VerificationInterval time.Duration
 }
 
 func (c *Config) Copy() *Config {

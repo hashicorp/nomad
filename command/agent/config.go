@@ -978,6 +978,9 @@ type RaftLogStoreConfig struct {
 	// DisableLogCache disables the in-memory raft log cache.
 	// Default: false.
 	DisableLogCache bool `hcl:"disable_log_cache"`
+
+	// Verification configures online verification of the raft log store.
+	Verification *LogStoreVerificationConfig `hcl:"verification"`
 }
 
 func (r *RaftLogStoreConfig) Copy() *RaftLogStoreConfig {
@@ -988,6 +991,7 @@ func (r *RaftLogStoreConfig) Copy() *RaftLogStoreConfig {
 	nr := *r
 	nr.BoltDB = r.BoltDB.Copy()
 	nr.WAL = r.WAL.Copy()
+	nr.Verification = r.Verification.Copy()
 	return &nr
 }
 
@@ -2745,6 +2749,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		if b.Search.MinTermLength > 0 {
 			result.Search.MinTermLength = b.Search.MinTermLength
 		}
+	}
+
+	if b.RaftLogStoreConfig != nil {
+		result.RaftLogStoreConfig = b.RaftLogStoreConfig.Copy()
 	}
 
 	if b.RaftLogStoreConfig != nil {
