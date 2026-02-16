@@ -5,45 +5,45 @@ on:
       - main
       - release/**
     paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'ui/**'
-      - 'website/**'
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".changelog/**"
+      - ".tours/**"
+      - "contributing/**"
+      - "demo/**"
+      - "dev/**"
+      - "e2e/**"
+      - "integrations/**"
+      - "pkg/**"
+      - "scripts/**"
+      - "terraform/**"
+      - "ui/**"
+      - "website/**"
   push:
     branches:
       - main
       - release/**
     paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'ui/**'
-      - 'website/**'
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".changelog/**"
+      - ".tours/**"
+      - "contributing/**"
+      - "demo/**"
+      - "dev/**"
+      - "e2e/**"
+      - "integrations/**"
+      - "pkg/**"
+      - "scripts/**"
+      - "terraform/**"
+      - "ui/**"
+      - "website/**"
 
 env:
   VAULT_VERSION: 1.4.1
 jobs:
   test-windows:
-    runs-on: 'windows-2022-16core'
+    runs-on: "windows-2022-16core"
     env:
       GOTESTSUM_PATH: c:\tmp\test-reports
     steps:
@@ -94,8 +94,7 @@ jobs:
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter \
             github.com/hashicorp/nomad/client/allocdir \
-            github.com/hashicorp/nomad/plugins/base \
-            github.com/hashicorp/nomad/helper/raftutil
+            github.com/hashicorp/nomad/plugins/base
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: results.xml
