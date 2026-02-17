@@ -4,7 +4,7 @@
 ~}}
 
 <div>
-  <JobEditor::Alert 
+  <JobEditor::Alert
     @data={{merge (hash error=this.error stage=this.stage) this.data}}
     @fns={{this.fns}}
   />
@@ -22,7 +22,7 @@
             <div class="hds-button__text">Upload file</div>
             <input
             type="file"
-              onchange={{action this.fns.onUpload}}
+              {{on "change" this.fns.onUpload}}
               accept=".hcl,.json,.nomad"
             />
           </label>
@@ -38,5 +38,11 @@
       </header>
     {{/if}}
     {{did-update this.setDefinitionOnModel this.definition}}
-    {{component (concat 'job-editor/' this.stage) data=this.data fns=this.fns}}
+    {{#if (eq this.stage "review")}}
+      <JobEditor::Review @data={{this.data}} @fns={{this.fns}} />
+    {{else if (eq this.stage "edit")}}
+      <JobEditor::Edit @data={{this.data}} @fns={{this.fns}} />
+    {{else}}
+      <JobEditor::Read @data={{this.data}} @fns={{this.fns}} />
+    {{/if}}
 </div>
