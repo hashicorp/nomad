@@ -18,7 +18,7 @@
           @route="administration.tokens.new"
           {{keyboard-shortcut
             pattern=(array "n" "t")
-            action=(action this.goToNewToken)
+            action=this.goToNewToken
             label="Create Token"
           }}
           data-test-create-token
@@ -45,6 +45,7 @@
         (hash key="expirationTime" label="Expires" isSortable=true)
         (hash key="roles" label="Roles")
         (hash key="policies" label="Policies")
+
         (hash key="delete" label="Delete")
       }}
       @sortBy="name"
@@ -53,7 +54,7 @@
         <B.Tr
           {{keyboard-shortcut
             enumerated=true
-            action=(action "openToken" B.data)
+            action=(fn this.openToken B.data)
           }}
           data-test-token-row
         >

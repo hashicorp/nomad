@@ -7,21 +7,32 @@
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
-<section class="section">
-  <Hds::PageHeader class="variable-title" as |PH|>
-    <PH.Title>/{{this.absolutePath}}</PH.Title>
-    <PH.Actions>
-      {{#if this.namespaceOptions}}
-        <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
-          <dd.ToggleButton
-            @text="Namespace ({{this.namespaceSelection}})"
-            @color="secondary"
-          />
-          {{#each this.namespaceOptions as |option|}}
-            <dd.Radio
-              name={{option.key}}
-              {{on "change" (action this.setNamespace option.key)}}
-              checked={{eq this.namespaceSelection option.key}}
+  <section class="section">
+    <Hds::PageHeader class="variable-title" as |PH|>
+      <PH.Title>/{{this.absolutePath}}</PH.Title>
+      <PH.Actions>
+          {{#if this.namespaceOptions}}
+            <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
+              <dd.ToggleButton @text="Namespace ({{this.namespaceSelection}})" @color="secondary" />
+              {{#each this.namespaceOptions as |option|}}
+                <dd.Radio
+                  name={{option.key}}
+                  {{on "change" (fn this.setNamespace option.key)}}
+                  checked={{eq this.namespaceSelection option.key}}
+                >
+                  {{option.label}}
+                </dd.Radio>
+              {{/each}}
+            </Hds::Dropdown>
+          {{/if}}
+
+          {{#if (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)}}
+            <div
+              {{keyboard-shortcut
+                pattern=(array "n" "v")
+                action=this.goToNewVariable
+                label="Create Variable"
+              }}
             >
               {{option.label}}
             </dd.Radio>

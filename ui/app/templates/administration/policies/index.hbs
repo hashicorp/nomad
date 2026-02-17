@@ -17,7 +17,7 @@
           @route="administration.policies.new"
           {{keyboard-shortcut
             pattern=(array "n" "p")
-            action=(action this.goToNewPolicy)
+            action=this.goToNewPolicy
             label="Create Policy"
           }}
           data-test-create-policy
@@ -46,7 +46,7 @@
         <B.Tr
           {{keyboard-shortcut
             enumerated=true
-            action=(action "openPolicy" B.data)
+            action=(fn this.openPolicy B.data)
           }}
           data-test-policy-row
         >

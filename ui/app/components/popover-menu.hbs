@@ -8,10 +8,8 @@
   @ariaLabelledBy="label-popover-menu"
   @horizontalPosition="right"
   @disabled={{this.isDisabled}}
-  @onOpen={{action
-    (queue (action (mut this.isOpen) true) (action this.capture))
-  }}
-  @onClose={{action (mut this.isOpen) false}}
+  @onOpen={{queue (fn (mut this.isOpen) true) this.capture}}
+  @onClose={{fn (mut this.isOpen) false}}
   as |dd|
 >
   <dd.Trigger
@@ -22,7 +20,7 @@
       (if this.isDisabled " is-disabled")
     }}
     aria-label={{this.tooltip}}
-    {{on "keyup" (action "openOnArrowDown" dd)}}
+    {{on "keyup" (fn this.openOnArrowDown dd)}}
   >
     {{this.label}}
     <Hds::Icon @name="chevron-down" @isInline={{true}} />

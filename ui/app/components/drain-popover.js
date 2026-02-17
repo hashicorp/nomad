@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
@@ -118,6 +118,7 @@ export default class DrainPopover extends Component {
   })
   drain;
 
+  @action
   preventDefault(e) {
     e.preventDefault();
   }

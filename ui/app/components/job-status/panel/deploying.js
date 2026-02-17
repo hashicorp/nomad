@@ -4,6 +4,7 @@
  */
 
 import Component from '@glimmer/component';
+import { action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
@@ -38,6 +39,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
   // Called via did-insert; sets a static array of "outgoing"
   // allocations we can track throughout a deployment
+  @action
   establishOldAllocBlockIDs() {
     this.oldVersionAllocBlockIDs = this.allocations.filter(
       (a) => a.clientStatus === 'running' && a.isOld,
