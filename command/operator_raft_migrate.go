@@ -25,7 +25,11 @@ Usage: nomad operator raft migrate-backend <path to nomad data dir>
 
   The command copies all raft log entries and stable store keys from the
   existing raft.db (BoltDB) into a new WAL directory. On success the old
-  raft.db file is renamed to raft.db.migrated as a backup.
+  raft.db file is renamed to raft.db.migrated.<timestamp> as a backup.
+
+  If migration fails, any partially written WAL directory is automatically
+  removed and the original raft.db file is left untouched. This allows you
+  to safely retry the migration after addressing the failure cause.
 
   After migration completes, configure the server with:
 
@@ -91,7 +95,7 @@ func (c *OperatorRaftMigrateCommand) Run(args []string) int {
 
 	if !yes {
 		c.Ui.Output(fmt.Sprintf("This will migrate the raft log store in %s from BoltDB to WAL.", raftDir))
-		c.Ui.Output("The Nomad server must be stopped. The old raft.db will be preserved as raft.db.migrated.")
+		c.Ui.Output("The Nomad server must be stopped. The old raft.db will be preserved as raft.db.migrated.<timestamp>.")
 		c.Ui.Output("")
 
 		confirm, err := c.Ui.Ask("Type 'yes' to confirm migration: ")
