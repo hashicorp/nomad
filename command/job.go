@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type JobCommand struct {
@@ -49,4 +51,21 @@ func (f *JobCommand) Name() string { return "job" }
 
 func (f *JobCommand) Run(args []string) int {
 	return cli.RunResultHelp
+}
+
+// JobPredictor returns an autocomplete predictor that can be used across
+// multiple commands
+func JobPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }

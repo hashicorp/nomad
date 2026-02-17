@@ -74,6 +74,7 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 			"-json":    complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-ui":      complete.PredictNothing,
+			"-stats":   complete.PredictNothing,
 		})
 }
 

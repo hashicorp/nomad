@@ -182,6 +182,9 @@ func (c *AllocPauseCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-mode":    complete.PredictNothing,
+			"-state":   complete.PredictSet("pause", "run", "scheduled"),
+			"-status":  complete.PredictNothing,
+			"-task":    complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		},
 	)

@@ -39,11 +39,13 @@ func (c *JobTagUnsetCommand) Synopsis() string {
 
 func (c *JobTagUnsetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-name": complete.PredictAnything,
+		})
 }
 
 func (c *JobTagUnsetCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobTagUnsetCommand) Name() string { return "job tag unset" }

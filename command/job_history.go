@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
@@ -86,18 +85,7 @@ func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobHistoryCommand) Name() string { return "job history" }

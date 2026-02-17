@@ -58,7 +58,7 @@ Login Options:
 
   -login-token
     Login token used for authentication that will be exchanged for a Nomad ACL
-    Token. It is only required if using auth method type other than OIDC. 
+    Token. It is only required if using auth method type other than OIDC.
 
   -json
     Output the ACL token in JSON format.

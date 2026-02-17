@@ -83,11 +83,13 @@ func (c *JobDispatchCommand) Synopsis() string {
 func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-meta":              complete.PredictAnything,
-			"-detach":            complete.PredictNothing,
-			"-idempotency-token": complete.PredictAnything,
-			"-verbose":           complete.PredictNothing,
-			"-ui":                complete.PredictNothing,
+			"-meta":               complete.PredictAnything,
+			"-detach":             complete.PredictNothing,
+			"-idempotency-token":  complete.PredictAnything,
+			"-verbose":            complete.PredictNothing,
+			"-ui":                 complete.PredictNothing,
+			"-id-prefix-template": complete.PredictAnything,
+			"-priority":           complete.PredictAnything,
 		})
 }
 
