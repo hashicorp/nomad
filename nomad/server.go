@@ -1642,7 +1642,6 @@ func (s *Server) startRaftLogVerifier() {
 		for {
 			select {
 			case <-s.shutdownCtx.Done():
-				s.logger.Info("stopping raft logstore verifier")
 				return
 			case <-t.C:
 				s.verifyRaftStore()
@@ -1657,11 +1656,6 @@ func (s *Server) startRaftLogVerifier() {
 // monotonically increasing. This is called periodically by
 // startRaftLogVerifier.
 func (s *Server) verifyRaftStore() {
-	if s.raftStore == nil {
-		s.logger.Debug("raft logstore verifier: no raft store available yet")
-		return
-	}
-
 	// Perform basic health check by verifying we can read index information
 	first, err := s.raftStore.FirstIndex()
 	if err != nil {
@@ -1699,10 +1693,7 @@ func (s *Server) verifyRaftStore() {
 			"is_monotonic", isMonotonic)
 
 	default:
-		s.logger.Debug("raft logstore verifier: store is accessible",
-			"first_index", first,
-			"last_index", last,
-			"type", fmt.Sprintf("%T", s.raftStore))
+		s.logger.Error("raft logstore verifier: unknown store type")
 	}
 }
 

@@ -2755,10 +2755,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.RaftLogStoreConfig = b.RaftLogStoreConfig.Copy()
 	}
 
-	if b.RaftLogStoreConfig != nil {
-		result.RaftLogStoreConfig = b.RaftLogStoreConfig.Copy()
-	}
-
 	if b.RaftBoltConfig != nil {
 		result.RaftBoltConfig = &RaftBoltConfig{
 			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
