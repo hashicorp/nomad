@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<button {{action "toggleOpen"}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
+<button {{on "click" this.toggleOpen}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
   <Hds::Icon @name={{if this.isOpen "chevron-down" "chevron-right"}} @isInline={{true}} class="icon-vertical-bump-down" />
   {{this.taskGroup.name}}
 </button>
@@ -11,7 +11,7 @@
   <ul class="task-list">
     {{#each this.sortedTasks as |task|}}
       {{#if this.shouldOpenInNewWindow}}
-        <a {{on "click" (action "openInNewWindow" this.taskGroup.job this.taskGroup task)}} href="#" class="task-item" data-test-task>
+        <a {{on "click" (fn this.openInNewWindow this.taskGroup.job this.taskGroup task)}} href="#" class="task-item" data-test-task>
           <Exec::TaskContents
             @task={{task}}
             @active={{and this.currentRouteIsThisTaskGroup (eq task.name this.activeTaskName)}}

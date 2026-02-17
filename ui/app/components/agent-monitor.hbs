@@ -14,10 +14,10 @@
       @options={{this.levels}}
       @selected={{this.level}}
       @searchEnabled={{false}}
-      @onChange={{action this.setLevel}} as |level|>
+      @onChange={{this.setLevel}} as |level|>
       <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
     </PowerSelect>
-    <button data-test-toggle class="button is-white is-compact pull-right" {{action this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
+    <button data-test-toggle class="button is-white is-compact pull-right" {{on "click" this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
       <Hds::Icon @name={{if this.logger.isStreaming "pause" "play"}} @isInline={{true}} />
     </button>
   </div>

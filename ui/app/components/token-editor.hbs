@@ -173,7 +173,7 @@
                 <label>
                   <input type="checkbox"
                     checked={{find-by "name" B.data.name @token.policies}}
-                    {{on "change" (action this.updateTokenPolicies B.data)}}
+                    {{on "change" (fn this.updateTokenPolicies B.data)}}
                   />
                 </label>
               </B.Td>
@@ -221,7 +221,7 @@
                 <label>
                   <input type="checkbox"
                     checked={{find-by "name" B.data.name @token.roles}}
-                    {{on "change" (action this.updateTokenRoles B.data)}}
+                    {{on "change" (fn this.updateTokenRoles B.data)}}
                   />
                 </label>
               </B.Td>

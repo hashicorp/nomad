@@ -6,6 +6,7 @@
 // @ts-check
 
 import Controller from '@ember/controller';
+import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
@@ -23,6 +24,7 @@ export default class VariablesNewController extends Controller {
   @tracked
   view = 'table';
 
+  @action
   toggleView() {
     if (this.view === 'table') {
       this.view = 'json';

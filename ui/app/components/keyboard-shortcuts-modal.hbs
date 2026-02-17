@@ -32,11 +32,11 @@
                 <span class="recording">Recording; ESC to cancel.</span>
               {{else}}
                 {{#if command.custom}}
-                  <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
+                  <button type="button" class="reset-to-default" {{on "click" (fn this.keyboard.resetCommandToDefault command)}}>reset to default</button>
                 {{/if}}
               {{/if}}
 
-              <button data-test-rebinder disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
+              <button data-test-rebinder disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (fn this.keyboard.rebindCommand command)}}>
                 {{#each command.pattern as |key|}}
                   <span>{{clean-keycommand key}}</span>
                 {{/each}}

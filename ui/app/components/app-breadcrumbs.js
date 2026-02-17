@@ -4,8 +4,10 @@
  */
 
 import Component from '@glimmer/component';
+import { action } from '@ember/object';
 
 export default class AppBreadcrumbsComponent extends Component {
+  @action
   isOneCrumbUp(iter = 0, totalNum = 0) {
     return iter === totalNum - 2;
   }

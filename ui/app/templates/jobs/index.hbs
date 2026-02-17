@@ -88,7 +88,7 @@
             @color="critical"
             @icon="delete"
             @size="medium"
-            {{on "click" (action this.resetFilters)}}
+            {{on "click" this.resetFilters}}
           />
         {{/if}}
 
@@ -109,7 +109,7 @@
         {{keyboard-shortcut
           label="Run Job"
           pattern=(array "r" "u" "n")
-          action=(action this.goToRun)
+          action=this.goToRun
         }}
       >
         <Hds::Button
@@ -137,9 +137,9 @@
         <B.Tr
           {{keyboard-shortcut
             enumerated=true
-            action=(action "gotoJob" B.data)
+            action=(fn this.gotoJob B.data)
           }}
-          {{on "click" (action this.gotoJob B.data)}}
+          {{on "click" (fn this.gotoJob B.data)}}
           class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
           data-test-job-row={{B.data.plainId}}
           data-test-modify-index={{B.data.modifyIndex}}
@@ -227,7 +227,7 @@
         <span {{keyboard-shortcut
           label="First Page"
           pattern=(array "{" "{")
-          action=(action this.handlePageChange "first")}}
+          action=(fn this.handlePageChange "first")}}
         >
           <Hds::Button
             @text="First"
@@ -237,13 +237,13 @@
             @iconPosition="leading"
             disabled={{not this.cursorAt}}
             data-test-pager="first"
-            {{on "click" (action this.handlePageChange "first")}}
+            {{on "click" (fn this.handlePageChange "first")}}
           />
         </span>
         <span {{keyboard-shortcut
           label="Previous Page"
           pattern=(array "[" "[")
-          action=(action this.handlePageChange "prev")}}
+          action=(fn this.handlePageChange "prev")}}
         >
           <Hds::Button
             @text="Previous"
@@ -253,13 +253,13 @@
             @iconPosition="leading"
             disabled={{not this.cursorAt}}
             data-test-pager="previous"
-            {{on "click" (action this.handlePageChange "prev")}}
+            {{on "click" (fn this.handlePageChange "prev")}}
           />
         </span>
         <span {{keyboard-shortcut
           label="Next Page"
           pattern=(array "]" "]")
-          action=(action this.handlePageChange "next")}}
+          action=(fn this.handlePageChange "next")}}
         >
           <Hds::Button
             @text="Next"
@@ -269,13 +269,13 @@
             @iconPosition="trailing"
             disabled={{not this.nextToken}}
             data-test-pager="next"
-            {{on "click" (action this.handlePageChange "next")}}
+            {{on "click" (fn this.handlePageChange "next")}}
           />
         </span>
         <span {{keyboard-shortcut
           label="Last Page"
           pattern=(array "}" "}")
-          action=(action this.handlePageChange "last")}}
+          action=(fn this.handlePageChange "last")}}
         >
           <Hds::Button
             @text="Last"
@@ -285,7 +285,7 @@
             @size="small"
             disabled={{not this.nextToken}}
             data-test-pager="last"
-            {{on "click" (action this.handlePageChange "last")}}
+            {{on "click" (fn this.handlePageChange "last")}}
           />
         </span>
       </div>
@@ -309,7 +309,7 @@
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (action this.correctFilterKey this.model.error.correction)}}
+              {{on "click" (fn this.correctFilterKey this.model.error.correction)}}
 
             />?
           {{else if this.model.error.suggestion}}
@@ -322,7 +322,7 @@
                 @size="small"
                 @color="tertiary"
                 @icon="bulb"
-                {{on "click" (action this.suggestFilter suggestion)}}
+                {{on "click" (fn this.suggestFilter suggestion)}}
               /></li>
             {{/each}}
             </ul>
@@ -336,7 +336,7 @@
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (action this.suggestFilter
+              {{on "click" (fn this.suggestFilter
                 (hash example=this.exampleFilter)
               )}}
             />
@@ -348,7 +348,7 @@
             @color="tertiary"
             @icon="arrow-left"
             @size="small"
-            {{on "click" (action this.resetFilters)}}
+{{on "click" this.resetFilters}}
           />
 
           <F.LinkStandalone @icon="docs" @text="Learn more about Filter Expressions" @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions" @iconPosition="trailing" />

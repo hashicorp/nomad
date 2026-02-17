@@ -17,7 +17,7 @@
               {{#each this.namespaceOptions as |option|}}
                 <dd.Radio
                   name={{option.key}}
-                  {{on "change" (action this.setNamespace option.key)}}
+                  {{on "change" (fn this.setNamespace option.key)}}
                   checked={{eq this.namespaceSelection option.key}}
                 >
                   {{option.label}}
@@ -30,7 +30,7 @@
             <div
               {{keyboard-shortcut
                 pattern=(array "n" "v")
-                action=(action this.goToNewVariable)
+                action=this.goToNewVariable
                 label="Create Variable"
               }}
             >

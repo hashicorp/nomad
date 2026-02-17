@@ -16,7 +16,7 @@
           @route="administration.namespaces.new"
           {{keyboard-shortcut
             pattern=(array "n" "n")
-            action=(action this.goToNewNamespace)
+            action=this.goToNewNamespace
             label="Create Namespace"
           }}
           data-test-create-namespace
@@ -41,7 +41,7 @@
     <B.Tr
         {{keyboard-shortcut
         enumerated=true
-        action=(action "openNamespace" B.data)
+        action=(fn this.openNamespace B.data)
         }}
         data-test-namespace-row
     >

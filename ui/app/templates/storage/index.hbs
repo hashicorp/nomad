@@ -18,7 +18,7 @@
         {{#each this.optionsNamespaces as |option|}}
           <dd.Radio
             name={{option.key}}
-            {{on "change" (action (mut this.qpNamespace) option.key)}}
+            {{on "change" (fn (mut this.qpNamespace) option.key)}}
             checked={{eq this.qpNamespace option.key}}
           >
             {{option.label}}
@@ -45,7 +45,7 @@
             @type="search"
             @value={{this.csiFilter}}
             placeholder="Search CSI Volumes"
-            {{on "input" (action this.applyFilter "csi")}}
+            {{on "input" (fn this.applyFilter "csi")}}
           />
         </div>
       </header>
@@ -55,13 +55,13 @@
           @columns={{this.csiColumns}}
           @sortBy={{this.csiSortProperty}}
           @sortOrder={{if this.csiSortDescending "desc" "asc"}}
-          @onSort={{action this.handleSort "csi"}}
+          @onSort={{fn this.handleSort "csi"}}
           >
           <:body as |B|>
             <B.Tr data-test-csi-volume-row
               {{keyboard-shortcut
                 enumerated=true
-                action=(action this.openCSI B.data)
+                action=(fn this.openCSI B.data)
               }}
             >
               <B.Td data-test-csi-volume-name>
@@ -126,14 +126,14 @@
           @currentPage={{this.csiPage}}
           @pageSizes={{this.pageSizes}}
           @currentPageSize={{this.userSettings.pageSize}}
-          @onPageChange={{action this.handlePageChange "csi"}}
-          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+          @onPageChange={{fn this.handlePageChange "csi"}}
+          @onPageSizeChange={{fn (mut this.userSettings.pageSize)}}
         />
       {{else}}
         <div class="empty-message" data-test-empty-csi-volumes-list-headline>
           {{#if this.csiFilter}}
             <p>No CSI volumes match your search for "{{this.csiFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.csiFilter) "") (action this.handlePageChange "csi" 1))}} />
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (fn (mut this.csiFilter) "") (fn this.handlePageChange "csi" 1))}} />
           {{else}}
             <p>No CSI Volumes found</p>
           {{/if}}
@@ -154,7 +154,7 @@
             @type="search"
             @value={{this.dhvFilter}}
             placeholder="Search Dynamic Host Volumes"
-            {{on "input" (action this.applyFilter "dhv")}}
+            {{on "input" (fn this.applyFilter "dhv")}}
           />
         </div>
       </header>
@@ -164,13 +164,13 @@
           @columns={{this.dhvColumns}}
           @sortBy={{this.dhvSortProperty}}
           @sortOrder={{if this.dhvSortDescending "desc" "asc"}}
-          @onSort={{action this.handleSort "dhv"}}
+          @onSort={{fn this.handleSort "dhv"}}
         >
           <:body as |B|>
             <B.Tr data-test-dhv-row
               {{keyboard-shortcut
                 enumerated=true
-                action=(action this.openDHV B.data)
+                action=(fn this.openDHV B.data)
               }}
             >
               <B.Td>
@@ -205,14 +205,14 @@
           @currentPage={{this.dhvPage}}
           @pageSizes={{this.pageSizes}}
           @currentPageSize={{this.userSettings.pageSize}}
-          @onPageChange={{action this.handlePageChange "dhv"}}
-          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+          @onPageChange={{fn this.handlePageChange "dhv"}}
+          @onPageSizeChange={{fn (mut this.userSettings.pageSize)}}
         />
       {{else}}
         <div class="empty-message" data-test-empty-dhv-list-headline>
           {{#if this.dhvFilter}}
             <p>No dynamic host volumes match your search for "{{this.dhvFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.dhvFilter) "") (action this.handlePageChange "dhv" 1))}} />
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (fn (mut this.dhvFilter) "") (fn this.handlePageChange "dhv" 1))}} />
           {{else}}
             <p>No Dynamic Host Volumes found</p>
           {{/if}}

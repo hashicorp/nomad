@@ -12,7 +12,7 @@
   {{window-resize this.reflow}}>
   {{#each @items as |item|}}
     <div data-test-flex-masonry-item class="flex-masonry-item">
-      {{yield item (action this.reflow)}}
+      {{yield item this.reflow}}
     </div>
   {{/each}}
 </div>

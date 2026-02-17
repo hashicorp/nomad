@@ -7,16 +7,14 @@
   @ariaLabel="label-multi-select-dropdown"
   @ariaLabelledBy="{{this.elementId}}-label"
   @horizontalPosition="auto"
-  @onOpen={{action
-    (queue (action (mut this.isOpen) true) (action this.capture))
-  }}
-  @onClose={{action (mut this.isOpen) false}}
+  @onOpen={{queue (fn (mut this.isOpen) true) this.capture}}
+  @onClose={{fn (mut this.isOpen) false}}
   as |dd|
 >
   <dd.Trigger
     data-test-dropdown-trigger
     class="dropdown-trigger"
-    {{on "keyup" (action "openOnArrowDown" dd)}}
+    {{on "keyup" (fn this.openOnArrowDown dd)}}
   >
     <div class="dropdown-trigger-label" id="{{this.elementId}}-label">
       {{this.label}}
@@ -40,7 +38,7 @@
             data-test-dropdown-option={{option.key}}
             class="dropdown-option"
             tabindex="0"
-            onkeyup={{action "traverseList" option}}
+            {{on "keyup" (fn this.traverseList option)}}
             role="group"
           >
             <label>
@@ -49,7 +47,7 @@
                 tabindex="-1"
                 checked={{includes option.key this.selection}}
                 role="option"
-                onchange={{action "toggle" option}}
+                {{on "change" (fn this.toggle option)}}
               />
               {{option.label}}
             </label>

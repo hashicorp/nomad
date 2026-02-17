@@ -6,7 +6,7 @@
 <td data-test-job-name
   {{keyboard-shortcut
     enumerated=true
-    action=(action "gotoJob" @job)
+    action=(fn this.gotoJob @job)
   }}
 >
   <LinkTo

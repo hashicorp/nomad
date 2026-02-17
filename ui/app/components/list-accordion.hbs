@@ -7,14 +7,14 @@
 {{yield (hash
     head=(component "list-accordion/accordion-head"
       isOpen=item.isOpen
-      onOpen=(action (queue
-        (action (mut item.isOpen) true)
-        (action this.onToggle item.item item.isOpen)
-      ))
-      onClose=(action (queue
-        (action (mut item.isOpen) false)
-        (action this.onToggle item.item item.isOpen)
-      ))
+      onOpen=(queue
+        (fn (mut item.isOpen) true)
+        (fn this.onToggle item.item item.isOpen)
+      )
+      onClose=(queue
+        (fn (mut item.isOpen) false)
+        (fn this.onToggle item.item item.isOpen)
+      )
     )
     body=(component "list-accordion/accordion-body" isOpen=item.isOpen)
     item=item.item

@@ -59,6 +59,7 @@ export default class DefinitionController extends Controller.extend(
     this.view = selectedView;
   }
 
+  @action
   onSubmit() {
     this.router.transitionTo('jobs.job', this.job.idWithNamespace);
   }

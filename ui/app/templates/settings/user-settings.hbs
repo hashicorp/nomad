@@ -15,7 +15,7 @@
           name="word-wrap"
           @id="word-wrap"
           checked={{this.wordWrap}}
-          {{on "change" (action (mut this.wordWrap) (not this.wordWrap))}}
+          {{on "change" (fn (mut this.wordWrap) (not this.wordWrap))}}
         as |F|>
           <F.Label>Word Wrap</F.Label>
           <F.HelperText>Wrap lines of text in logs and exec terminals in the UI</F.HelperText>
@@ -24,7 +24,7 @@
           name="jostle"
           @id="jostle"
           checked={{this.liveUpdateJobsIndex}}
-          {{on "change" (action (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex))}}
+          {{on "change" (fn (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex))}}
         as |F|>
           <F.Label>Live Updates to <LinkTo @route="jobs.index">Jobs Index</LinkTo></F.Label>
           <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>

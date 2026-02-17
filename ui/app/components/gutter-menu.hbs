@@ -15,7 +15,7 @@
         class="gutter-toggle"
         aria-label="menu"
         role="img"
-        onclick={{action this.onHamburgerClick}}
+        {{on "click" this.onHamburgerClick}}
       >
         <HamburgerMenu />
       </span>
@@ -54,7 +54,7 @@
             {{keyboard-shortcut
               menuLevel=true
               pattern=(array "g" "o")
-              action=(action this.transitionTo 'optimize')
+              action=(fn this.transitionTo 'optimize')
             }}
           >
             <LinkTo
@@ -137,7 +137,7 @@
             {{keyboard-shortcut
               menuLevel=true
               pattern=(array "g" "a")
-              action=(action this.transitionTo 'administration')
+              action=(fn this.transitionTo 'administration')
             }}
           >
             <LinkTo
@@ -166,5 +166,5 @@
 <div
   data-test-gutter-backdrop
   class="gutter-backdrop {{if this.isOpen "is-open"}}"
-  onclick={{action this.onHamburgerClick}}
+  {{on "click" this.onHamburgerClick}}
 ></div>

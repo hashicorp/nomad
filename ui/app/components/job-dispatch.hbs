@@ -31,7 +31,7 @@
                 class="input {{if meta.error "is-danger"}}"
                 type="text"
                 value={{meta.value}}
-                oninput={{action (mut meta.value) value="target.value"}}
+                oninput={{pick "target.value" (fn (mut meta.value))}}
                 required={{meta.required}} >
 
               <p class="help {{if meta.error "has-text-danger"}}">
@@ -57,7 +57,7 @@
           data-test-payload-editor
           {{code-mirror
             theme="hashi"
-            onUpdate=(action (mut this.payload))
+            onUpdate=(fn (mut this.payload))
             mode="javascript"
             screenReaderLabel="Payload definition"
           }}
@@ -74,7 +74,7 @@
   </div>
 
   <div>
-    <button data-test-dispatch-button class="button is-primary" type="button" onclick={{action "dispatch"}}>Dispatch</button>
-    <button data-test-cancel-button class="button is-white" type="button" onclick={{action "cancel"}}>Cancel</button>
+    <button data-test-dispatch-button class="button is-primary" type="button" {{on "click" this.dispatch}}>Dispatch</button>
+    <button data-test-cancel-button class="button is-white" type="button" {{on "click" this.cancel}}>Cancel</button>
   </div>
 </form>

@@ -14,14 +14,14 @@
   <span class="pull-right">
 
     {{#unless this.fileTypeIsUnknown}}
-      <button data-test-log-action="raw" class="button is-white is-compact" onclick={{action "downloadFile"}} type="button">View Raw File</button>
+      <button data-test-log-action="raw" class="button is-white is-compact" {{on "click" this.downloadFile}} type="button">View Raw File</button>
     {{/unless}}
     {{#if (and this.isLarge this.isStreamable)}}
-      <button data-test-log-action="head" class="button is-white is-compact" onclick={{action "gotoHead"}} type="button">Head</button>
-      <button data-test-log-action="tail" class="button is-white is-compact" onclick={{action "gotoTail"}} type="button">Tail</button>
+      <button data-test-log-action="head" class="button is-white is-compact" {{on "click" this.gotoHead}} type="button">Head</button>
+      <button data-test-log-action="tail" class="button is-white is-compact" {{on "click" this.gotoTail}} type="button">Tail</button>
     {{/if}}
     {{#if this.isStreamable}}
-      <button data-test-log-action="toggle-stream" class="button is-white is-compact" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Pause" "Start"}} streaming">
+      <button data-test-log-action="toggle-stream" class="button is-white is-compact" {{on "click" this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Pause" "Start"}} streaming">
         <Hds::Icon @name={{if this.logger.isStreaming "pause" "play"}} @isInline={{true}} />
       </button>
     {{/if}}
@@ -37,7 +37,7 @@
       <h3 class="empty-message-headline">Unsupported File Type</h3>
       <p class="empty-message-body message">The Nomad UI could not render this file, but you can still view the file directly.</p>
       <p class="empty-message-body">
-        <button data-test-log-action="raw" class="button is-light" onclick={{action "downloadFile"}} type="button">View Raw File</button>
+        <button data-test-log-action="raw" class="button is-light" {{on "click" this.downloadFile}} type="button">View Raw File</button>
       </p>
     </div>
   {{/if}}

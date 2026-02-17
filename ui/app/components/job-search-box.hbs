@@ -10,11 +10,11 @@
   placeholder="Name contains myJob"
   @icon="search"
   @width="300px"
-  {{on "input" (action this.updateSearchText)}}
+  {{on "input" this.updateSearchText}}
   {{keyboard-shortcut 
     label="Search Jobs"
     pattern=(array "Shift+F")
-    action=(action this.focus)
+    action=this.focus
   }}
   data-test-jobs-search
 />

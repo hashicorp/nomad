@@ -15,7 +15,7 @@
       <Toggle
         data-test-cpu-toggle
         @isActive={{@cpu.isActive}}
-        @onToggle={{action @toggleRecommendation @cpu.recommendation}}
+        @onToggle={{fn @toggleRecommendation @cpu.recommendation}}
         @isDisabled={{not @cpu.recommendation}}
         title={{concat 'CPU for ' @task.name}}
         aria-label="CPU for {{@task.name}}"
@@ -27,7 +27,7 @@
       <Toggle
         data-test-memory-toggle
         @isActive={{@memory.isActive}}
-        @onToggle={{action @toggleRecommendation @memory.recommendation}}
+        @onToggle={{fn @toggleRecommendation @memory.recommendation}}
         @isDisabled={{not @memory.recommendation}}
         title={{concat 'Memory for ' @task.name}}
         aria-label="Memory for {{@task.name}}"

@@ -32,7 +32,7 @@
     class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
     @text={{this.text}}
     @onSuccess={{perform this.indicateSuccess}}
-    @onError={{action (mut this.state) "error"}}
+    @onError={{fn (mut this.state) "error"}}
   >
     <Hds::Icon @name="clipboard-copy" />
     {{yield}}

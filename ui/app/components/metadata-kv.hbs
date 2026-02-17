@@ -18,8 +18,8 @@
           type="submit"
           class="button is-primary"
           {{on "click" (queue
-            (action @onKVSave (hash key=this.prefixedKey value=this.value))
-            (action (mut this.editing) false)
+            (fn @onKVSave (hash key=this.prefixedKey value=this.value))
+            (fn (mut this.editing) false)
           )}}
         >
           Update {{this.prefixedKey}}
@@ -29,8 +29,8 @@
           type="button"
           class="button is-danger"
           {{on "click" (queue
-            (action @onKVSave (hash key=this.prefixedKey value=null))
-            (action (mut this.editing) false)
+            (fn @onKVSave (hash key=this.prefixedKey value=null))
+            (fn (mut this.editing) false)
           )}}
         >
           Delete Property
@@ -39,10 +39,10 @@
           data-test-cancel-metadata
           type="button"
           class="button"
-          {{on "click" 
+          {{on "click"
             (queue
-              (action (mut this.editing) false)
-              (action (mut this.value) @value)
+              (fn (mut this.editing) false)
+              (fn (mut this.value) @value)
             )
           }}
         >
@@ -64,8 +64,8 @@
       <span data-test-value>{{@value}}</span>
       {{#if @editable}}
       <button class="button is-light is-compact edit-existing-metadata-button" type="button"
-        {{on "click" (action (mut this.editing) true)}}
-        
+        {{on "click" (fn (mut this.editing) true)}}
+
       >Edit</button>
       {{/if}}
     </td>

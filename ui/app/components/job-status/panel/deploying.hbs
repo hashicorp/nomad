@@ -6,7 +6,7 @@
 <div class="job-status-panel boxed-section active-deployment" data-test-job-status-panel>
   <div class="boxed-section-head hds-foreground-primary">
     <div class="boxed-section-row"
-      {{did-insert (action this.establishOldAllocBlockIDs)}}
+      {{did-insert this.establishOldAllocBlockIDs}}
       >
         <h2>Status:
           <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="filled" />
@@ -42,7 +42,7 @@
               <A.Button
                 {{keyboard-shortcut
                   pattern=(array "p" "r" "o" "m" "o" "t" "e")
-                  action=(action (perform this.promote))
+                  action=(perform this.promote)
                 }}
                 data-test-promote-canary @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
                 {{/if}}

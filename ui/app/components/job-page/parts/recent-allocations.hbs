@@ -66,11 +66,11 @@
             @data-test-allocation={{row.model.id}}
             @allocation={{row.model}}
             @context="job"
-            @onClick={{action "gotoAllocation" row.model}}
+            @onClick={{fn this.gotoAllocation row.model}}
             @showSubTasks={{this.showSubTasks}}
             {{keyboard-shortcut
               enumerated=true
-              action=(action "gotoAllocation" row.model)
+              action=(fn this.gotoAllocation row.model)
             }}
           />
 

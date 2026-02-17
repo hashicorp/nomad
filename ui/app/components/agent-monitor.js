@@ -5,7 +5,7 @@
 
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -71,6 +71,7 @@ export default class AgentMonitor extends Component {
     );
   }
 
+  @action
   setLevel(level) {
     this.logger.stop();
     this.set('level', level);
@@ -78,6 +79,7 @@ export default class AgentMonitor extends Component {
     this.updateLogger();
   }
 
+  @action
   toggleStream() {
     this.set('streamMode', 'streaming');
     this.toggleProperty('isStreaming');

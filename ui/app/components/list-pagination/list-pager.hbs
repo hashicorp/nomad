@@ -12,7 +12,7 @@
     {{(modifier
       this.includeKeyboardNav
       label=(if (eq this.label "Next page") "Next Page" "Previous Page")
-      action=(action "gotoRoute")
+      action=this.gotoRoute
       pattern=(if (eq this.label "Next page") (array "]" "]") (array "[" "["))
     )}}
   >

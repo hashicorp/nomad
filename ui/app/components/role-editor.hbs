@@ -48,7 +48,7 @@
 						<label>
 							<input type="checkbox"
 								checked={{find-by "name" B.data.name @role.policies}}
-								{{on "change" (action this.updateRolePolicies B.data)}}
+								{{on "change" (fn this.updateRolePolicies B.data)}}
 							/>
 						</label>
 					</B.Td>

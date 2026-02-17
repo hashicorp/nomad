@@ -11,7 +11,7 @@
         <p>The logs for this task are inaccessible. Check the condition of the node the allocation is on.</p>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-connection-error-dismiss class="button is-danger" onclick={{action (mut this.noConnection) false}} type="button">Okay</button>
+        <button data-test-connection-error-dismiss class="button is-danger" {{on "click" (fn (mut this.noConnection) false)}} type="button">Okay</button>
       </div>
     </div>
   </div>
@@ -24,20 +24,20 @@
         <p>Logs unavailable. Log collection may be disabled.</p>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-connection-error-dismiss class="button is-danger" onclick={{action (mut this.logsDisabled) false}} type="button">Okay</button>
+        <button data-test-connection-error-dismiss class="button is-danger" {{on "click" (fn (mut this.logsDisabled) false)}} type="button">Okay</button>
       </div>
     </div>
   </div>
 {{/if}}
 <div class="boxed-section-head task-log-head">
   <span>
-    <button data-test-log-action="stdout" class="button {{if (eq this.mode "stdout") "is-info"}}" {{action "setMode" "stdout"}} type="button">stdout</button>
-    <button data-test-log-action="stderr" class="button {{if (eq this.mode "stderr") "is-danger"}}" {{action "setMode" "stderr"}} type="button">stderr</button>
+    <button data-test-log-action="stdout" class="button {{if (eq this.mode "stdout") "is-info"}}" {{on "click" (fn this.setMode "stdout")}} type="button">stdout</button>
+    <button data-test-log-action="stderr" class="button {{if (eq this.mode "stderr") "is-danger"}}" {{on "click" (fn this.setMode "stderr")}} type="button">stderr</button>
   </span>
   <span class="pull-right">
     <span class="header-toggle">
       <Hds::Form::Toggle::Field
-        {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
+        {{keyboard-shortcut label="Toggle word wrap" action=this.toggleWrap pattern=(array "w" "w") menuLevel=true }}
         checked={{this.wrapped}}
         {{on "change" this.toggleWrap}}
         data-test-word-wrap-toggle
@@ -45,9 +45,9 @@
         <F.Label>Word Wrap</F.Label>
       </Hds::Form::Toggle::Field>
     </span>
-    <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}} type="button">Head</button>
-    <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}} type="button">Tail</button>
-    <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
+    <button data-test-log-action="head" class="button is-white" {{on "click" this.gotoHead}} type="button">Head</button>
+    <button data-test-log-action="tail" class="button is-white" {{on "click" this.gotoTail}} type="button">Tail</button>
+    <button data-test-log-action="toggle-stream" class="button is-white" {{on "click" this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
       <Hds::Icon @name={{if this.logger.isStreaming "pause" "play"}} />
     </button>
   </span>

@@ -13,9 +13,9 @@
   class={{if (eq @service.provider "nomad") "is-interactive"}}
 >
   <td
-    {{keyboard-shortcut 
+    {{keyboard-shortcut
       enumerated=true
-      action=(action "gotoService" @service)
+      action=(fn this.gotoService @service)
     }}
   >
     {{#if (eq @service.provider "nomad")}}

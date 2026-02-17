@@ -5,12 +5,12 @@
 
 <GlobalHeader
   @class="page-header"
-  @onHamburgerClick={{action (mut this.isGutterOpen) true}}>
+  @onHamburgerClick={{fn (mut this.isGutterOpen) true}}>
   <AppBreadcrumbs />
 </GlobalHeader>
 <GutterMenu
   @class="page-body"
   @isOpen={{this.isGutterOpen}}
-  @onHamburgerClick={{action (mut this.isGutterOpen) false}}>
+  @onHamburgerClick={{fn (mut this.isGutterOpen) false}}>
   {{yield}}
 </GutterMenu>

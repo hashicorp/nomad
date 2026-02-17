@@ -6,7 +6,7 @@
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
 import {
   classNames,
@@ -46,6 +46,7 @@ export default class ServerAgentRow extends Component {
     return currentURL.replace(/%40/g, '@') === targetURL.replace(/%40/g, '@');
   }
 
+  @action
   goToAgent() {
     const transition = () =>
       this.router.transitionTo('servers.server', this.agent);

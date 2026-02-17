@@ -9,7 +9,7 @@
   {{did-insert this.onResize}}
   {{window-resize this.onResize}}
   {{on "mousemove" this.setLegendPosition}}
-  {{on "mouseleave" (action (mut this.showLegend) false)}}
+  {{on "mouseleave" (fn (mut this.showLegend) false)}}
 >
 
   <svg

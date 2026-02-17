@@ -6,13 +6,13 @@
 <tr class="task-sub-row {{if @active "is-active"}}"
 	{{keyboard-shortcut
 		enumerated=true
-		action=(action "gotoTask" this.task.allocation this.task)
+		action=(fn this.gotoTask this.task.allocation this.task)
 	}}
 >
 	<td colspan={{@namespan}}>
 		<div class="name-grid">
 			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>{{this.task.name}}</LinkTo>
-			<button type="button" class="logs-sidebar-trigger button is-borderless is-inline is-compact" onclick={{action "handleTaskLogsClick" this.task}}>
+			<button type="button" class="logs-sidebar-trigger button is-borderless is-inline is-compact" {{on "click" (fn this.handleTaskLogsClick this.task)}}>
 				<Hds::Icon @name="logs" @isInline={{true}} />View Logs
 			</button>
 		</div>

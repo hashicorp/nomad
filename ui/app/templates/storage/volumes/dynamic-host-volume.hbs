@@ -77,12 +77,12 @@
             <AllocationRow
               {{keyboard-shortcut
                 enumerated=true
-                action=(action "gotoAllocation" row.model)
+                action=(fn this.gotoAllocation row.model)
               }}
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
-              @onClick={{action "gotoAllocation" row.model}} />
+              @onClick={{fn this.gotoAllocation row.model}} />
           </t.body>
         </ListTable>
       {{else}}

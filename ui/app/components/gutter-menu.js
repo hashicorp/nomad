@@ -5,7 +5,7 @@
 
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -44,6 +44,7 @@ export default class GutterMenu extends Component {
   onHamburgerClick() {}
 
   // Seemingly redundant, but serves to ensure the action is passed to the keyboard service correctly
+  @action
   transitionTo(destination) {
     return this.router.transitionTo(destination);
   }

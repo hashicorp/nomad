@@ -15,7 +15,7 @@
           {{#each @data.namespaceOptions as |option|}}
             <dd.Radio
               name={{option.key}}
-              {{on "change" (action @fns.onSelect option.key)}}
+              {{on "change" (fn @fns.onSelect option.key)}}
               checked={{eq @data.selection option.key}}
             >
               {{option.label}}

@@ -14,11 +14,11 @@
       {{keyboard-shortcut 
         label="Toggle View (JSON/List)"
         pattern=(array "j")
-        action=(action this.toggleView)
+        action=this.toggleView
       }}
       checked={{eq this.view "json"}}
       data-test-json-toggle
-      {{on "change" (action this.toggleView)}}
+      {{on "change" this.toggleView}}
     as |F|>
       <F.Label>JSON</F.Label>
     </Hds::Form::Toggle::Field>
@@ -27,7 +27,7 @@
       {{keyboard-shortcut 
         label="Copy Variable"
         pattern=(array "c" "v")
-        action=(action this.copyVariable)}}
+        action=this.copyVariable}}
     >
       <Hds::Copy::Button
         @text="Copy"
@@ -117,11 +117,11 @@
             <button
               class="show-hide-values button is-borderless is-compact"
               type="button"
-              {{on "click" (action this.toggleRowVisibility B.data)}}
+              {{on "click" (fn this.toggleRowVisibility B.data)}}
               {{keyboard-shortcut 
                 label="Toggle Variable Visibility"
                 pattern=(array "v")
-                action=(action this.toggleRowVisibility B.data)
+                action=(fn this.toggleRowVisibility B.data)
               }}
 
             >

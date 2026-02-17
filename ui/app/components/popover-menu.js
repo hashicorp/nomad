@@ -29,6 +29,7 @@ export default class PopoverMenu extends Component {
 
   dropdown = null;
 
+  @action
   capture(dropdown) {
     // It's not a good idea to grab a dropdown reference like this, but it's necessary
     // in order to invoke dropdown.actions.close in traverseList as well as

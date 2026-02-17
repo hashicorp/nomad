@@ -56,13 +56,13 @@
 			@value={{this.path}}
 			placeholder="nomad/jobs/my-job/my-group/my-task"
       @isInvalid={{or this.duplicatePathWarning (and @model.isNew this.hasInvalidPath)}}
-      {{on "input" (action this.setModelPath)}}
+      {{on "input" this.setModelPath}}
       disabled={{not @model.isNew}}
 			{{autofocus}}
       data-test-path-input
 		as |F|>
 			<F.Label>Path</F.Label>
-      
+
       {{#if this.duplicatePathWarning}}
         <F.Error data-test-duplicate-variable-error>
           There is already a variable located at
@@ -94,8 +94,8 @@
 		</Hds::Form::TextInput::Field>
 
 
-    <VariableForm::NamespaceFilter 
-      @data={{hash 
+    <VariableForm::NamespaceFilter
+      @data={{hash
         disabled=(not @model.isNew)
         selection=this.variableNamespace
         namespaceOptions=this.namespaceOptions
@@ -122,7 +122,7 @@
           {{code-mirror
             content=this.JSONItems
             onUpdate=this.updateCode
-            extraKeys=(hash Cmd-Enter=(action "save"))
+            extraKeys=(hash Cmd-Enter=this.save)
           }}
         ></div>
         {{#if this.JSONError}}
@@ -139,14 +139,14 @@
             data-test-var-key
             class="input"
             {{autofocus ignore=(eq iter 0)}}
-            {{on "input" (action this.validateKey entry)}}
+            {{on "input" (fn this.validateKey entry)}}
           as |F|>
             <F.Label>Key</F.Label>
           </Hds::Form::TextInput::Field>
           <VariableForm::InputGroup @entry={{entry}} />
           <Hds::Button @text="Delete" @color="critical" class="delete-entry-button"
             disabled={{eq this.keyValues.length 1}}
-            {{on "click" (action this.deleteRow entry)}}
+            {{on "click" (fn this.deleteRow entry)}}
           />
           {{#each-in entry.warnings as |k v|}}
             <span class="key-value-error help is-danger">

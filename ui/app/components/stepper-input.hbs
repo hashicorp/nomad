@@ -17,9 +17,9 @@
   disabled={{this.disabled}}
   id="stepper-input-{{this.elementId}}"
   class="stepper-input-input"
-  onFocus={{action "selectValue"}}
-  onKeyUp={{action "resetTextInput"}}
-  onChange={{action "setValue"}}
+  {{on "focus" this.selectValue}}
+  {{on "keyup" this.resetTextInput}}
+  {{on "change" this.setValue}}
 />
 <button
   data-test-stepper-decrement
@@ -27,7 +27,7 @@
   aria-label="decrement"
   class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (lte this.internalValue this.min)}}
-  onclick={{action "decrement"}}
+  {{on "click" this.decrement}}
   type="button"
 >
   <Hds::Icon @name="minus" />
@@ -38,7 +38,7 @@
   aria-label="increment"
   class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (gte this.internalValue this.max)}}
-  onclick={{action "increment"}}
+  {{on "click" this.increment}}
   type="button"
 >
   <Hds::Icon @name="plus" />

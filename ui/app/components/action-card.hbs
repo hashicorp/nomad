@@ -30,7 +30,7 @@
         {{else}}
           <Hds::Button @text="Clear"
             @color="secondary"
-            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+            {{on "click" (fn this.nomadActions.clearActionInstance this.instance)}}
           />
         {{/if}}
       {{else}}
@@ -44,7 +44,7 @@
         {{else}}
           <Hds::Button @text="Clear"
             @color="secondary"
-            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+            {{on "click" (fn this.nomadActions.clearActionInstance this.instance)}}
           />
         {{/if}}
       {{/if}}
@@ -60,7 +60,7 @@
       @iconPosition="trailing"
       @text={{peer.allocShortID}}
       @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
-      {{on "click" (action this.selectPeer peer)}}
+      {{on "click" (fn this.selectPeer peer)}}
     />
     {{/each}}
   </Hds::ButtonSet>

@@ -5,7 +5,7 @@
 
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { classNames } from '@ember-decorators/component';
@@ -39,6 +39,7 @@ export default class Children extends Component.extend(Sortable) {
   @alias('children') listToSort;
   @alias('listSorted') sortedChildren;
 
+  @action
   resetPagination() {
     if (this.currentPage != null) {
       this.set('currentPage', 1);

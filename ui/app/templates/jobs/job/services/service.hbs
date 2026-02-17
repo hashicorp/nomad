@@ -23,7 +23,7 @@
           <td
             {{keyboard-shortcut
               enumerated=true
-              action=(action "gotoAllocation" row.model.allocation)
+              action=(fn this.gotoAllocation row.model.allocation)
             }}
           >
             <LinkTo

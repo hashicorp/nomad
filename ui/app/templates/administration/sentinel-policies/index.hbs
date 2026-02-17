@@ -14,7 +14,7 @@ SPDX-License-Identifier: BUSL-1.1
         <span
           {{keyboard-shortcut
             pattern=(array "n" "p" )
-            action=(action this.goToNewPolicy)
+            action=this.goToNewPolicy
             label="Create Policy"
           }}
         >
@@ -23,7 +23,7 @@ SPDX-License-Identifier: BUSL-1.1
         <span
           {{keyboard-shortcut
             pattern=(array "n" "t" "p")
-            action=(action this.goToTemplateGallery)
+            action=this.goToTemplateGallery
             label="Create Policy from Template"
           }}
         >
@@ -39,7 +39,7 @@ SPDX-License-Identifier: BUSL-1.1
   <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.model}}
     @columns={{this.columns}} @sortBy="name">
     <:body as |B|>
-      <B.Tr {{keyboard-shortcut enumerated=true action=(action "openPolicy" B.data) }} data-test-sentinel-policy-row>
+      <B.Tr {{keyboard-shortcut enumerated=true action=(fn this.openPolicy B.data) }} data-test-sentinel-policy-row>
         <B.Td>
           <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="administration.sentinel-policies.policy"
             @model={{B.data.name}}>{{B.data.name}}</LinkTo>

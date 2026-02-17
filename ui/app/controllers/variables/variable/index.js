@@ -73,6 +73,7 @@ export default class VariablesVariableIndexController extends Controller {
   @tracked
   view = 'table';
 
+  @action
   toggleView() {
     if (this.view === 'table') {
       this.view = 'json';
@@ -91,6 +92,7 @@ export default class VariablesVariableIndexController extends Controller {
     );
   }
 
+  @action
   toggleRowVisibility(kv) {
     set(kv, 'isVisible', !kv.isVisible);
   }

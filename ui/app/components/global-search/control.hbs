@@ -10,15 +10,15 @@
     @ariaLabelledBy="label-global-search"
     @searchEnabled={{true}}
     @search={{perform this.search}}
-    @onInput={{action 'ensureMinimumLength'}}
-    @onChange={{action 'selectOption'}}
-    @onFocus={{action 'openOnClickOrTab'}}
-    @onClose={{action 'onCloseEvent'}}
+    @onInput={{this.ensureMinimumLength}}
+    @onChange={{this.selectOption}}
+    @onFocus={{this.openOnClickOrTab}}
+    @onClose={{this.onCloseEvent}}
     @dropdownClass="global-search-dropdown"
     @calculatePosition={{this.calculatePosition}}
     @searchMessageComponent="global-search/message"
     @triggerComponent="global-search/trigger"
-    @registerAPI={{action 'storeSelect'}}
+    @registerAPI={{this.storeSelect}}
     as |option|>
     {{option.label}}
   </PowerSelect>

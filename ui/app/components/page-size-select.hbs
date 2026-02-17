@@ -15,7 +15,7 @@
     @ariaLabelledBy="label-page-size-select"
     @options={{this.pageSizeOptions}}
     @selected={{this.userSettings.pageSize}}
-    @onChange={{action (queue (action (mut this.userSettings.pageSize)) (action this.onChange))
+    @onChange={{queue (fn (mut this.userSettings.pageSize)) this.onChange
     }} as |option|
   >
     {{option}}

@@ -46,6 +46,7 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
       .filter((allocs) => allocs.length > 0).length;
   }
 
+  @action
   calcPerc(count) {
     if (this.args.compact) {
       const totalGaps =

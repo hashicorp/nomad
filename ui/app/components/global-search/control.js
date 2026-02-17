@@ -242,6 +242,7 @@ export default class GlobalSearchControl extends Component {
     }
   }
 
+  @action
   calculatePosition(trigger) {
     const { top, left, width } = trigger.getBoundingClientRect();
     return {

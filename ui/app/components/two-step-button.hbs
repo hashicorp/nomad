@@ -27,8 +27,8 @@
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
     {{on "click" (queue
-      (action this.setToIdle)
-      (action this.onCancel)
+      this.setToIdle
+      this.onCancel
     )}}
   />
   <Hds::Button
@@ -39,8 +39,8 @@
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
     {{on "click" (queue
-      (action this.setToIdle)
-      (action this.onConfirm)
+      this.setToIdle
+      this.onConfirm
     )}}
   />
 {{/if}}

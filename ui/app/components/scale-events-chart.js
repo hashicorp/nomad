@@ -5,7 +5,7 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { get } from '@ember/object';
+import { action, get } from '@ember/object';
 import { copy } from 'ember-copy';
 
 export default class ScaleEventsChart extends Component {
@@ -44,6 +44,7 @@ export default class ScaleEventsChart extends Component {
     }));
   }
 
+  @action
   toggleEvent(ev) {
     if (
       this.activeEvent &&

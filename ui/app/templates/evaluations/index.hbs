@@ -11,7 +11,7 @@
         <SearchBox
           data-test-evaluations-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this._resetTokens}}
+          @onChange={{this._resetTokens}}
           @placeholder="Search evaluations..."
         />
       </div>
@@ -22,28 +22,28 @@
             @label="Namespace"
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
-            @onSelect={{action this.setQueryParam "qpNamespace"}}
+            @onSelect={{fn this.setQueryParam "qpNamespace"}}
           />
           <SingleSelectDropdown
             data-test-evaluation-status-facet
             @label="Status"
             @options={{this.optionsEvaluationsStatus}}
             @selection={{this.status}}
-            @onSelect={{action this.setQueryParam "status"}}
+            @onSelect={{fn this.setQueryParam "status"}}
           />
           <SingleSelectDropdown
             data-test-evaluation-triggered-by-facet
             @label="Triggered By"
             @options={{this.optionsTriggeredBy}}
             @selection={{this.triggeredBy}}
-            @onSelect={{action this.setQueryParam "triggeredBy"}}
+            @onSelect={{fn this.setQueryParam "triggeredBy"}}
           />
           <SingleSelectDropdown
             data-test-evaluation-type-facet
             @label="Type"
             @options={{this.optionsType}}
             @selection={{this.type}}
-            @onSelect={{action this.setQueryParam "type"}}
+            @onSelect={{fn this.setQueryParam "type"}}
           />
         </div>
       </div>

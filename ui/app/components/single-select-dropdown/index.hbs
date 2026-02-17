@@ -12,7 +12,7 @@
     @selected={{this.activeOption}}
     @searchEnabled={{gt @options.length 10}}
     @searchField="label"
-    @onChange={{action this.setSelection}}
+    @onChange={{this.setSelection}}
     @dropdownClass="dropdown-options"
     as |option|>
     <span class="ember-power-select-prefix">{{@label}}: </span>

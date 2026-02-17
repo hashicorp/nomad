@@ -10,7 +10,7 @@
   checked={{this.isActive}}
   disabled={{this.isDisabled}}
   class="input"
-  onchange={{action this.onToggle}}
+  {{on "change" this.onToggle}}
 />
 <span data-test-toggler class="toggler"></span>
 {{yield}}
