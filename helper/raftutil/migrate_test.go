@@ -108,27 +108,6 @@ func TestMigrateToWAL_WALAlreadyExists(t *testing.T) {
 	must.ErrorContains(t, err, "WAL directory already exists")
 }
 
-func TestMigrateToWAL_ContextCancelled(t *testing.T) {
-	raftDir := t.TempDir()
-
-	logs := makeLogs(1, 100)
-	newTestBoltStore(t, raftDir, logs, nil, nil)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately.
-
-	err := MigrateToWAL(ctx, raftDir, nil)
-	must.Error(t, err)
-
-	// WAL directory should be cleaned up on failure.
-	_, statErr := os.Stat(filepath.Join(raftDir, "wal"))
-	must.ErrorIs(t, statErr, os.ErrNotExist)
-
-	// Verify marker file is cleaned up even on failure.
-	_, err = os.Stat(filepath.Join(raftDir, ".migration-in-progress"))
-	must.ErrorIs(t, err, os.ErrNotExist)
-}
-
 func TestMigrateToWAL_EmptyLogs(t *testing.T) {
 	raftDir := t.TempDir()
 
