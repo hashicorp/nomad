@@ -394,6 +394,22 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
+
+		// We need to ensure that UpsertPlanResults doesn't overwrite fields
+		// that are owned by the client, like HealthyAllocs
+		existing, err := s.deploymentByIDImpl(nil, results.Deployment.ID, txn)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+		if existing != nil {
+			for tgName, dstate := range results.Deployment.TaskGroups {
+				existDstate := existing.TaskGroups[tgName]
+				if existDstate != nil {
+					dstate.MergeClientValues(existDstate)
+				}
+			}
+		}
+
 		if err := s.upsertDeploymentImpl(index, results.Deployment, txn); err != nil {
 			return err
 		}
@@ -560,15 +576,22 @@ func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployme
 
 func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *txn) error {
 	// Check if the deployment already exists
-	existing, err := txn.First("deployment", "id", deployment.ID)
+	raw, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
 	// Setup the indexes and timestamps correctly
-	if existing != nil {
-		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
+	if raw != nil {
+		existing := raw.(*structs.Deployment)
+		deployment.CreateIndex = existing.CreateIndex
 		deployment.ModifyIndex = index
+		for tg, dstate := range existing.TaskGroups {
+			newDstate := deployment.TaskGroups[tg]
+			if dstate != nil && newDstate != nil && dstate.Promoted && !newDstate.Promoted {
+				return errors.New("deployment promotion cannot be undone") // write skew
+			}
+		}
 	} else {
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index

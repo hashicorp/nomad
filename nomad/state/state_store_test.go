@@ -5584,11 +5584,15 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		Canary: true,
 	}
 
+	must.False(t, alloc.DeploymentStatus.IsHealthy())
+
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
+	// note this is the equivalent of the "stripped" alloc update that the
+	// client sends
 	update := &structs.Allocation{
 		ID:           alloc.ID,
 		NodeID:       alloc.NodeID,
@@ -5596,8 +5600,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy: pointer.Of(true),
-			Canary:  false,
+			Canary: false, // should not update
 		},
 	}
 	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
@@ -5607,8 +5610,25 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, out)
 	must.True(t, out.DeploymentStatus.Canary)
+
+	update = update.Copy()
+	update.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: pointer.Of(true), // should update
+		Canary:  false,            // should not update
+	}
+	must.NoError(t, state.UpdateAllocsFromClient(
+		structs.MsgTypeTestSetup, 1010, []*structs.Allocation{update}))
+
+	out, err = state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	must.True(t, out.DeploymentStatus.Canary)
 	must.NotNil(t, out.DeploymentStatus.Healthy)
 	must.True(t, *out.DeploymentStatus.Healthy)
+
+	d, err := state.DeploymentByID(nil, deployment.ID)
+	must.NoError(t, err)
+	must.Eq(t, 1, d.TaskGroups[alloc.TaskGroup].HealthyAllocs)
 }
 
 // TestStateStore_UpdateAllocsFromClient_UpdateNodes verifies that the relevant
