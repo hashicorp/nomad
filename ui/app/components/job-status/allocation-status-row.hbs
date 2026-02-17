@@ -20,7 +20,9 @@
                 @canary={{canary}}
                 @steady={{@steady}}
                 @count={{allocsByCanary.length}}
-                @width={{compute (action this.calcPerc) allocsByCanary.length}}
+                @width={{compute
+                  this.calcPerc allocsByCanary.length
+                }}
                 @compact={{@compact}}
                 @allocs={{allocsByCanary}}
               />

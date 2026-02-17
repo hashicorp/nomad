@@ -60,10 +60,7 @@
           <Hds::Button
             @text="Clear"
             @color="secondary"
-            {{on
-              "click"
-              (action this.nomadActions.clearActionInstance this.instance)
-            }}
+            {{on "click" (fn this.nomadActions.clearActionInstance this.instance)}}
           />
         {{/if}}
       {{else}}
@@ -83,10 +80,7 @@
           <Hds::Button
             @text="Clear"
             @color="secondary"
-            {{on
-              "click"
-              (action this.nomadActions.clearActionInstance this.instance)
-            }}
+            {{on "click" (fn this.nomadActions.clearActionInstance this.instance)}}
           />
         {{/if}}
       {{/if}}
@@ -94,21 +88,18 @@
   </Hds::PageHeader>
 
   {{#if this.instance.peerID}}
-    <Hds::ButtonSet class="peers">
-      {{#each
-        (filter-by "peerID" this.instance.peerID this.nomadActions.actionsQueue)
-        as |peer|
-      }}
-        <Hds::Button
-          class="peer"
-          @icon={{if (eq peer.state "running") "loading" null}}
-          @iconPosition="trailing"
-          @text={{peer.allocShortID}}
-          @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
-          {{on "click" (action this.selectPeer peer)}}
-        />
-      {{/each}}
-    </Hds::ButtonSet>
+  <Hds::ButtonSet class="peers">
+    {{#each (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue) as |peer|}}
+    <Hds::Button
+      class="peer"
+      @icon={{if (eq peer.state "running") "loading" null}}
+      @iconPosition="trailing"
+      @text={{peer.allocShortID}}
+      @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
+      {{on "click" (fn this.selectPeer peer)}}
+    />
+    {{/each}}
+  </Hds::ButtonSet>
   {{/if}}
 
   <div class="messages">

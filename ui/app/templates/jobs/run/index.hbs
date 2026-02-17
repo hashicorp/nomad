@@ -19,11 +19,5 @@
         version of the original job, rather than a new job.</A.Description>
     </Hds::Alert>
   {{/if}}
-  <JobEditor
-    @job={{this.model}}
-    @context="new"
-    @onSubmit={{action this.onSubmit}}
-    @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-    data-test-job-editor
-  />
+  <JobEditor @job={{this.model}} @context="new" @onSubmit={{this.onSubmit}} @handleSaveAsTemplate={{this.handleSaveAsTemplate}} data-test-job-editor />
 </section>

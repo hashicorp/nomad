@@ -8,32 +8,28 @@
   data-test-job-status-panel
 >
   <div class="boxed-section-head hds-foreground-primary">
-    <div
-      class="boxed-section-row"
-      {{did-insert (action this.establishOldAllocBlockIDs)}}
-    >
-      <h2>Status:
-        <Hds::Badge
-          @text="Deploying {{@job.latestDeployment.shortId}}"
-          @color="highlight"
-          @type="filled"
-        />
-      </h2>
-      <div class="pull-right">
-        {{#if @job.latestDeployment.isRunning}}
-          {{#if (can "fail deployment" namespace=@job.namespaceId)}}
-            <Hds::Button
-              data-test-fail
-              {{on "click" (perform this.fail)}}
-              disabled={{this.fail.isRunning}}
-              @color="critical"
-              @text="Fail Deployment"
-              {{keyboard-shortcut
-                label="Fail Deployment"
-                pattern=(array "f" "a" "i" "l")
-                action=(perform this.fail)
-              }}
-            />
+    <div class="boxed-section-row"
+      {{did-insert this.establishOldAllocBlockIDs}}
+      >
+        <h2>Status:
+          <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="filled" />
+        </h2>
+        <div class="pull-right">
+          {{#if @job.latestDeployment.isRunning}}
+            {{#if (can "fail deployment" namespace=@job.namespace)}}
+              <Hds::Button
+                data-test-fail
+                {{on "click" (perform this.fail)}}
+                disabled={{this.fail.isRunning}}
+                @color="critical"
+                @text="Fail Deployment"
+                {{keyboard-shortcut
+                  label="Fail Deployment"
+                  pattern=(array "f" "a" "i" "l")
+                  action=(perform this.fail)
+                }}
+              />
+            {{/if}}
           {{/if}}
         {{/if}}
       </div>
@@ -54,7 +50,7 @@
               <A.Button
                 {{keyboard-shortcut
                   pattern=(array "p" "r" "o" "m" "o" "t" "e")
-                  action=(action (perform this.promote))
+                  action=(perform this.promote)
                 }}
                 data-test-promote-canary
                 @text="Promote Canary"

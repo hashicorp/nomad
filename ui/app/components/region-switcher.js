@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import classic from 'ember-classic-decorator';
 
@@ -20,6 +20,7 @@ export default class RegionSwitcher extends Component {
     return this.get('system.regions').toArray().sort();
   }
 
+  @action
   async gotoRegion(region) {
     // Note: redundant but as long as we're using PowerSelect, the implicit set('activeRegion')
     // is not something we can await, so we do it explicitly here.
