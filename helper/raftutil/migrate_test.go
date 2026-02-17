@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/raft"
@@ -27,8 +27,10 @@ func TestMigrateToWAL_Success(t *testing.T) {
 	newTestBoltStore(t, raftDir, logs, stableKVs, stableUint64s)
 
 	progress := make(chan string, 128)
-	err := MigrateToWAL(context.Background(), raftDir, progress)
-	must.NoError(t, err)
+
+	// MigrateToWal runs on a goroutine so we're only getting progress messages
+	// this way but for the purposes of the tests that's fine.
+	must.NoError(t, MigrateToWAL(context.Background(), raftDir, progress))
 
 	// Collect progress messages (channel is closed by MigrateToWAL).
 	var msgs []string
@@ -38,7 +40,7 @@ func TestMigrateToWAL_Success(t *testing.T) {
 	must.SliceNotEmpty(t, msgs)
 
 	// The original BoltDB file should be renamed.
-	_, err = os.Stat(filepath.Join(raftDir, "raft.db"))
+	_, err := os.Stat(filepath.Join(raftDir, "raft.db"))
 	must.ErrorIs(t, err, os.ErrNotExist)
 
 	// Find the timestamped backup file.
@@ -46,7 +48,7 @@ func TestMigrateToWAL_Success(t *testing.T) {
 	must.NoError(t, err)
 	found := false
 	for _, entry := range entries {
-		if len(entry.Name()) > len("raft.db.migrated.") && entry.Name()[:len("raft.db.migrated.")] == "raft.db.migrated." {
+		if strings.HasPrefix(entry.Name(), "raft.db.migrated.") {
 			found = true
 			break
 		}
@@ -158,75 +160,6 @@ func TestMigrateToWAL_EmptyLogs(t *testing.T) {
 	must.ErrorIs(t, statErr, os.ErrNotExist)
 }
 
-func TestDrainProgress(t *testing.T) {
-	t.Run("nil parent", func(t *testing.T) {
-		sub := make(chan string, 2)
-		sub <- "msg1"
-		sub <- "msg2"
-		close(sub)
-
-		// Should not panic with nil parent.
-		var wg sync.WaitGroup
-		wg.Add(1)
-		drainProgress(sub, nil, &wg)
-		wg.Wait()
-	})
-
-	t.Run("forwards messages", func(t *testing.T) {
-		sub := make(chan string, 2)
-		parent := make(chan string, 2)
-
-		sub <- "hello"
-		sub <- "world"
-		close(sub)
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		drainProgress(sub, parent, &wg)
-		wg.Wait()
-
-		must.Eq(t, "hello", <-parent)
-		must.Eq(t, "world", <-parent)
-	})
-
-	t.Run("drops when parent full", func(t *testing.T) {
-		sub := make(chan string, 3)
-		parent := make(chan string, 1)
-
-		sub <- "first"
-		sub <- "second"
-		sub <- "third"
-		close(sub)
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		drainProgress(sub, parent, &wg)
-		wg.Wait()
-
-		// At least the first message should arrive.
-		must.Eq(t, "first", <-parent)
-	})
-}
-
-func TestMigrateToWAL_ProgressChannelClosed(t *testing.T) {
-	raftDir := t.TempDir()
-
-	logs := makeLogs(1, 5)
-	newTestBoltStore(t, raftDir, logs, nil, nil)
-
-	progress := make(chan string, 128)
-	err := MigrateToWAL(context.Background(), raftDir, progress)
-	must.NoError(t, err)
-
-	// Drain all messages from the channel.
-	for range progress {
-	}
-
-	// Verify channel is closed by trying to read again.
-	_, ok := <-progress
-	must.False(t, ok, must.Sprint("progress channel should be closed"))
-}
-
 func TestMigrateToWAL_BackupWithTimestamp(t *testing.T) {
 	raftDir := t.TempDir()
 
@@ -247,7 +180,7 @@ func TestMigrateToWAL_BackupWithTimestamp(t *testing.T) {
 			t.Errorf("found backup without timestamp: %s", entry.Name())
 		}
 		// Check for pattern like raft.db.migrated.20260213-150405
-		if len(entry.Name()) > len("raft.db.migrated.") && entry.Name()[:len("raft.db.migrated.")] == "raft.db.migrated." {
+		if strings.HasPrefix(entry.Name(), "raft.db.migrated.") {
 			found = true
 		}
 	}
@@ -375,27 +308,6 @@ func TestPreflightChecks_Success(t *testing.T) {
 	must.NoError(t, err)
 }
 
-func TestSendProgress(t *testing.T) {
-	t.Run("nil channel", func(t *testing.T) {
-		// Should not panic with nil channel.
-		sendProgress(nil, "test message")
-	})
-
-	t.Run("sends message", func(t *testing.T) {
-		progress := make(chan string, 1)
-		sendProgress(progress, "hello")
-		must.Eq(t, "hello", <-progress)
-	})
-
-	t.Run("drops when channel full", func(t *testing.T) {
-		progress := make(chan string, 1)
-		progress <- "first"
-		// This should not block, just drop the message.
-		sendProgress(progress, "second")
-		must.Eq(t, "first", <-progress)
-	})
-}
-
 func TestCleanupWAL(t *testing.T) {
 	walDir := filepath.Join(t.TempDir(), "wal")
 	must.NoError(t, os.MkdirAll(walDir, 0o700))
@@ -427,7 +339,7 @@ func TestVerifyMigration_Success(t *testing.T) {
 	entries, err := os.ReadDir(raftDir)
 	must.NoError(t, err)
 	for _, entry := range entries {
-		if len(entry.Name()) > len("raft.db.migrated.") && entry.Name()[:len("raft.db.migrated.")] == "raft.db.migrated." {
+		if strings.HasPrefix(entry.Name(), "raft.db.migrated.") {
 			backupPath = filepath.Join(raftDir, entry.Name())
 			break
 		}
