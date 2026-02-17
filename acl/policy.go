@@ -132,6 +132,15 @@ const (
 	VariablesCapabilityDeny    = "deny"
 )
 
+const (
+	// The following are the fine-grained capabilities that can be granted for
+	// operator-level operations. Deny takes precedence and overwrites all other
+	// capabilities.
+	OperatorCapabilityDeny         = "deny"
+	OperatorCapabilitySnapshotSave = "snapshot-save"
+	OperatorCapabilityLicenseRead  = "license-read"
+)
+
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
 	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
@@ -217,7 +226,8 @@ type NodePolicy struct {
 }
 
 type OperatorPolicy struct {
-	Policy string
+	Policy       string
+	Capabilities []string
 }
 
 type QuotaPolicy struct {
@@ -380,6 +390,16 @@ func isNodePoolCapabilityValid(cap string) bool {
 	}
 }
 
+// isOperatorCapabilityValid ensures the given capability is valid for an operator policy
+func isOperatorCapabilityValid(cap string) bool {
+	switch cap {
+	case OperatorCapabilityDeny, OperatorCapabilitySnapshotSave, OperatorCapabilityLicenseRead:
+		return true
+	default:
+		return false
+	}
+}
+
 func expandNodePoolPolicy(policy string) []string {
 	switch policy {
 	case PolicyDeny:
@@ -392,6 +412,21 @@ func expandNodePoolPolicy(policy string) []string {
 			NodePoolCapabilityRead,
 			NodePoolCapabilityWrite,
 		}
+	default:
+		return nil
+	}
+}
+
+// expandOperatorPolicy provides the equivalent set of capabilities for
+// an operator policy
+func expandOperatorPolicy(policy string) []string {
+	switch policy {
+	case PolicyDeny:
+		return []string{OperatorCapabilityDeny}
+	case PolicyRead:
+		return []string{OperatorCapabilityLicenseRead}
+	case PolicyWrite:
+		return []string{OperatorCapabilitySnapshotSave, OperatorCapabilityLicenseRead}
 	default:
 		return nil
 	}
@@ -597,8 +632,22 @@ func Parse(rules string, strict bool) (*Policy, error) {
 		return nil, fmt.Errorf("Invalid node policy: %#v", p.Node)
 	}
 
-	if p.Operator != nil && !isPolicyValid(p.Operator.Policy) {
-		return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+	if p.Operator != nil {
+		if p.Operator.Policy != "" && !isPolicyValid(p.Operator.Policy) {
+			return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+		}
+		for _, cap := range p.Operator.Capabilities {
+			if !isOperatorCapabilityValid(cap) {
+				return nil, fmt.Errorf("Invalid operator capability '%s'", cap)
+			}
+		}
+
+		// Expand the short hand policy to the capabilities and
+		// add to any existing capabilities
+		if p.Operator.Policy != "" {
+			extraCap := expandOperatorPolicy(p.Operator.Policy)
+			p.Operator.Capabilities = append(p.Operator.Capabilities, extraCap...)
+		}
 	}
 
 	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {

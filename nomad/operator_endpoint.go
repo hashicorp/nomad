@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 
+	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/peers"
@@ -596,7 +597,7 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 		}
 		handleFailure(code, err)
 		return
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilitySnapshotSave) {
 		handleFailure(403, structs.ErrPermissionDenied)
 		return
 	}

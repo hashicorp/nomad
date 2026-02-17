@@ -1090,3 +1090,114 @@ func TestAgentDebug(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowOperatorOperation(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name      string
+		policy    string
+		operation string
+		expect    bool
+	}{
+		{
+			name:      "policy write allows snapshot-save",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows license-read",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read allows license-read",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read denies snapshot-save",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name: "policy deny overrides all capabilities",
+			policy: `operator { policy = "deny"
+                                capabilities = ["license-read"] }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    false,
+		},
+		{
+			name: "capability snapshot-save allows snapshot-save over read policy",
+			policy: `operator { policy = "read"
+                                capabilities = ["snapshot-save"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "capability license-read allows license-read",
+			policy:    `operator { capabilities = ["license-read"] }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "multiple capabilities allow respective operations",
+			policy:    `operator { capabilities = ["snapshot-save", "license-read"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "capability deny denies all operations",
+			policy:    `operator { capabilities = ["deny"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "capability deny takes precedence over other capabilities",
+			policy:    `operator { capabilities = ["snapshot-save", "deny"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "deny everything without an operator policy",
+			policy:    `agent { policy = "read" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			must.NoError(t, err)
+
+			got := acl.AllowOperatorOperation(tc.operation)
+			must.Eq(t, tc.expect, got)
+		})
+	}
+
+	t.Run("nil ACL denies all operations", func(t *testing.T) {
+		var acl *ACL
+		must.False(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+	})
+
+	t.Run("management token allows all operations", func(t *testing.T) {
+		acl, err := NewACL(true, nil)
+		must.NoError(t, err)
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+	})
+
+	t.Run("ACLs disabled allows all operations", func(t *testing.T) {
+		acl := &ACL{aclsDisabled: true}
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+	})
+}
