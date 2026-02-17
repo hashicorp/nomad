@@ -2087,6 +2087,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
 		},
 		{
 			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
@@ -2096,6 +2097,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
 		},
 		{
 			name: "new raft_logstore with boltdb backend",
@@ -2108,6 +2110,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: true,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
 		},
 		{
 			name: "new raft_logstore with wal backend",
@@ -2121,6 +2124,7 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedBoltDBNoFreelistSync: false,
 			expectedDisableLogCache:      false,
 			expectedWALSegmentSize:       128 * 1024 * 1024,
+			expectedVerificationEnabled:  false,
 		},
 		{
 			name: "disable log cache",
@@ -2131,19 +2135,20 @@ func Test_convertServerConfig_RaftLogStore(t *testing.T) {
 			expectedDisableLogCache:      true,
 			expectedBoltDBNoFreelistSync: false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
 		},
 		{
-			name: "verification disabled",
+			name: "verification enabled",
 			raftLogStoreConfig: &RaftLogStoreConfig{
 				Verification: &LogStoreVerificationConfig{
-					Enabled:  false,
+					Enabled:  true,
 					Interval: "10m",
 				},
 			},
 			expectedBackend:              nomad.LogStoreBackendBoltDB,
 			expectedBoltDBNoFreelistSync: false,
-			expectedVerificationEnabled:  false,
 			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  true,
 		},
 	}
 
