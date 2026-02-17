@@ -15,6 +15,7 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	raftwal "github.com/hashicorp/raft-wal"
 	"github.com/hashicorp/raft-wal/migrate"
+	"github.com/shirou/gopsutil/v3/disk"
 	"go.etcd.io/bbolt"
 )
 
@@ -201,11 +202,12 @@ func preflightChecks(boltPath, walDir, raftDir string) error {
 	os.Remove(testFile)
 
 	// Check available disk space.
-	availableSpace, err := getAvailableSpace(raftDir)
+	usage, err := disk.Usage(raftDir)
 	if err != nil {
 		// Log warning but don't fail migration - disk space check is advisory.
 		return fmt.Errorf("unable to check available disk space: %w", err)
 	}
+	availableSpace := usage.Free
 
 	boltSize := uint64(boltInfo.Size())
 
