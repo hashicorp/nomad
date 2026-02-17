@@ -17,7 +17,7 @@
           @route="administration.roles.new"
           {{keyboard-shortcut
             pattern=(array "n" "r")
-            action=(action this.goToNewRole)
+            action=this.goToNewRole
             label="Create Role"
           }}
           data-test-create-role
@@ -45,7 +45,7 @@
         <B.Tr
           {{keyboard-shortcut
             enumerated=true
-            action=(action "openRole" B.data)
+            action=(fn this.openRole B.data)
           }}
           data-test-role-row={{B.data.name}}
         >

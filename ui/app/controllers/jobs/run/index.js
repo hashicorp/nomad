@@ -20,6 +20,7 @@ export default class RunController extends Controller {
       .setTemplate(this.model._newDefinition);
   }
 
+  @action
   onSubmit(id, namespace) {
     this.router.transitionTo('jobs.job', `${id}@${namespace || 'default'}`);
   }

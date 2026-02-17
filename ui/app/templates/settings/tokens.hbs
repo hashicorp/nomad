@@ -35,13 +35,9 @@
 
     <div class="status-notifications">
       {{#if (eq this.signInStatus "failure")}}
-        <Hds::Alert
-          data-test-token-error
-          @type="inline"
-          @color="critical"
-          @onDismiss={{action (mut this.signInStatus) null}}
-          as |A|
-        >
+        <Hds::Alert data-test-token-error @type="inline" @color="critical"
+          @onDismiss={{fn (mut this.signInStatus) null}}
+        as |A|>
           <A.Title>Token Failed to Authenticate</A.Title>
           <A.Description>The token secret you have provided does not match an
             existing token, or has expired.</A.Description>
@@ -49,13 +45,9 @@
       {{/if}}
 
       {{#if (eq this.signInStatus "jwtFailure")}}
-        <Hds::Alert
-          data-test-token-error
-          @type="inline"
-          @color="critical"
-          @onDismiss={{action (mut this.signInStatus) null}}
-          as |A|
-        >
+        <Hds::Alert data-test-token-error @type="inline" @color="critical"
+          @onDismiss={{fn (mut this.signInStatus) null}}
+        as |A|>
           <A.Title>JWT Failed to Authenticate</A.Title>
           <A.Description>You passed in a JWT, but no JWT auth methods were found</A.Description>
         </Hds::Alert>
@@ -66,9 +58,8 @@
           data-test-token-expired
           @type="inline"
           @color="critical"
-          @onDismiss={{action "clearTokenProperties"}}
-          as |A|
-        >
+          @onDismiss={{this.clearTokenProperties}}
+        as |A|>
           <A.Title>Your authentication has expired</A.Title>
           <A.Description>Expired
             {{moment-from-now this.tokenRecord.expirationTime interval=1000}}
@@ -76,13 +67,7 @@
         </Hds::Alert>
       {{else}}
         {{#if (eq this.signInStatus "success")}}
-          <Hds::Alert
-            @onDismiss={{action (mut this.signInStatus) null}}
-            data-test-token-success
-            @type="inline"
-            @color="success"
-            as |A|
-          >
+          <Hds::Alert @onDismiss={{fn (mut this.signInStatus) null}} data-test-token-success @type="inline" @color="success" as |A|>
             <A.Title>Token Authenticated!</A.Title>
             <A.Description>Your token is valid and authorized for the following
               policies.</A.Description>
@@ -91,13 +76,9 @@
       {{/if}}
 
       {{#if this.token.tokenNotFound}}
-        <Hds::Alert
-          data-test-token-not-found
-          @type="inline"
-          @color="critical"
-          @onDismiss={{action (mut this.token.tokenNotFound) false}}
-          as |A|
-        >
+        <Hds::Alert data-test-token-not-found @type="inline" @color="critical"
+          @onDismiss={{fn (mut this.token.tokenNotFound) false}}
+        as |A|>
           <A.Title>Token not found</A.Title>
           <A.Description>It may have expired, or been entered incorrectly.</A.Description>
         </Hds::Alert>
@@ -108,9 +89,8 @@
           data-test-sso-error
           @type="inline"
           @color="critical"
-          @onDismiss={{action (mut this.state) null}}
-          as |A|
-        >
+          @onDismiss={{fn (mut this.state) null}}
+        as |A|>
           <A.Title>Failed to sign in with SSO</A.Title>
           <A.Description>Your OIDC provider has failed on sign in; please try
             again or contact your SSO administrator.</A.Description>
@@ -131,7 +111,7 @@
                 @size="medium"
                 @text="Sign in with {{method.name}}"
                 @color="primary"
-                {{on "click" (action this.redirectToSSO method)}}
+                {{on "click" (fn this.redirectToSSO method)}}
               />
             {{/each}}
           </div>
@@ -176,6 +156,7 @@
           />
 
           {{#if this.currentSecretIsJWT}}
+            {{did-insert this.setCurrentAuthMethod}}
             {{#if (gt this.JWTAuthMethods.length 1)}}
               <SingleSelectDropdown
                 data-test-select-jwt

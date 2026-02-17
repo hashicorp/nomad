@@ -68,7 +68,7 @@
                       (not this.allCpuToggleDisabled)
                     }}
                     @isDisabled={{this.allCpuToggleDisabled}}
-                    @onToggle={{action
+                    @onToggle={{fn
                       this.toggleAllRecommendationsForResource
                       "CPU"
                     }}
@@ -87,7 +87,7 @@
                       (not this.allMemoryToggleDisabled)
                     }}
                     @isDisabled={{this.allMemoryToggleDisabled}}
-                    @onToggle={{action
+                    @onToggle={{fn
                       this.toggleAllRecommendationsForResource
                       "MemoryMB"
                     }}
@@ -111,7 +111,7 @@
               @active={{eq this.activeTaskToggleRowIndex index}}
               @cpu={{taskToggleRow.cpu}}
               @memory={{taskToggleRow.memory}}
-              @onClick={{action (mut this.activeTaskToggleRowIndex) index}}
+              @onClick={{fn (mut this.activeTaskToggleRowIndex) index}}
               @toggleRecommendation={{@summary.toggleRecommendation}}
             />
           {{/each}}

@@ -5,19 +5,8 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { get } from '@ember/object';
-
-function cloneEvent(event) {
-  if (event && typeof event.toJSON === 'function') {
-    return event.toJSON();
-  }
-
-  try {
-    return JSON.parse(JSON.stringify(event));
-  } catch {
-    return event;
-  }
-}
+import { action, get } from '@ember/object';
+import { copy } from 'ember-copy';
 
 export default class ScaleEventsChart extends Component {
   /** Args
@@ -55,6 +44,7 @@ export default class ScaleEventsChart extends Component {
     }));
   }
 
+  @action
   toggleEvent(ev) {
     if (
       this.activeEvent &&

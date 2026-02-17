@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -24,6 +24,7 @@ export default class Summary extends Component {
     return storageValue != null ? JSON.parse(storageValue) : true;
   }
 
+  @action
   persist(item, isOpen) {
     window.localStorage.nomadExpandJobSummary = isOpen;
     this.notifyPropertyChange('isExpanded');
