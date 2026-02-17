@@ -4,7 +4,7 @@
 ~}}
 
 <a data-test-image-link href={{this.src}} target="_blank" rel="noopener noreferrer" class="image-file-image">
-  <img data-test-image src={{this.src}} alt={{or this.alt this.fileName}} title={{this.fileName}} {{on "load" this.updateImageMeta}} />
+  <img data-test-image src={{this.src}} alt={{or this.alt this.fileName}} title={{this.fileName}} {{on "load" this.handleImageLoad}} />
 </a>
 <figcaption class="image-file-caption">
   <span class="image-file-caption-primary">
