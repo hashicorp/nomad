@@ -38,12 +38,11 @@ const (
 // (successfully or with error).
 //
 // On success the old BoltDB file is renamed to raft.db.migrated.<timestamp>.
-// On failure any partially written WAL directory is removed so the operator
-// can retry.
+// On failure any partially written WAL directory is removed and the original
+// raft.db is left untouched, allowing the operator to safely retry.
 //
-// The migration is designed to be resumable: if interrupted, the marker file
-// prevents accidental double-migration and the operator can safely retry after
-// removing the WAL directory.
+// A marker file is created during migration to help detect if the server is
+// accidentally started mid-migration.
 //
 // The Nomad server must be stopped before running this.
 func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) error {
@@ -68,7 +67,7 @@ func MigrateToWAL(ctx context.Context, raftDir string, progress chan<- string) e
 
 	sendProgress(progress, "pre-flight checks passed")
 
-	// Create migration marker file for atomicity.
+	// Create marker file to detect if server accidentally starts during migration.
 	if err := os.WriteFile(markerPath, []byte(time.Now().Format(time.RFC3339)), 0o600); err != nil {
 		return fmt.Errorf("failed to create migration marker: %w", err)
 	}
