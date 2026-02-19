@@ -4,14 +4,18 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	"github.com/mitchellh/go-glint"
+	"github.com/mitchellh/go-glint/components"
 	"github.com/posener/complete"
 )
 
@@ -253,5 +257,203 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		// Because this is before monitor, newline so we don't scrunch
 		c.Ui.Warn("")
 	}
-	return mon.monitor(resp.EvalID)
+
+	// Monitor evaluation
+	if mon.monitor(resp.EvalID) != 0 {
+		return 1
+	}
+
+	// Monitor dispatched job allocations with deployment-style display
+	return c.monitorDispatchedJob(client, resp.DispatchedJobID, namespace, verbose, length)
+}
+
+// allocIsStable determines if an allocation has reached a stable state
+func allocIsStable(alloc *api.AllocationListStub) bool {
+	// Terminal client states are always stable
+	switch alloc.ClientStatus {
+	case api.AllocClientStatusComplete,
+		api.AllocClientStatusFailed,
+		api.AllocClientStatusLost:
+		return true
+	}
+
+	// Running with desired=run is stable
+	if alloc.DesiredStatus == api.AllocDesiredStatusRun &&
+		alloc.ClientStatus == api.AllocClientStatusRunning {
+		return true
+	}
+
+	// Stop/evict desired states are terminal
+	if alloc.DesiredStatus == api.AllocDesiredStatusStop ||
+		alloc.DesiredStatus == api.AllocDesiredStatusEvict {
+		return true
+	}
+
+	return false
+}
+
+// computeDeploymentStates computes deployment-style metrics from job spec and allocations
+func computeDeploymentStates(
+	job *api.Job,
+	allocs []*api.AllocationListStub,
+) map[string]*api.DeploymentState {
+	states := make(map[string]*api.DeploymentState)
+
+	// Initialize states from job task groups
+	for _, tg := range job.TaskGroups {
+		tgName := *tg.Name
+		states[tgName] = &api.DeploymentState{
+			DesiredTotal:      *tg.Count,
+			PlacedAllocs:      0,
+			HealthyAllocs:     0,
+			UnhealthyAllocs:   0,
+			RequireProgressBy: time.Time{}, // Will be set to latest update
+		}
+	}
+
+	// Compute metrics from allocations
+	for _, alloc := range allocs {
+		state, exists := states[alloc.TaskGroup]
+		if !exists {
+			continue
+		}
+
+		// Count placed allocations
+		state.PlacedAllocs++
+
+		// Count healthy (running) and unhealthy (failed) allocations
+		switch alloc.ClientStatus {
+		case api.AllocClientStatusRunning:
+			state.HealthyAllocs++
+		case api.AllocClientStatusFailed:
+			state.UnhealthyAllocs++
+		}
+
+		// Track latest update time for progress deadline
+		allocTime := time.Unix(0, alloc.ModifyTime)
+		if allocTime.After(state.RequireProgressBy) {
+			state.RequireProgressBy = allocTime
+		}
+	}
+
+	return states
+}
+
+// monitorDispatchedJob monitors allocations with glint for interactive display
+func (c *JobDispatchCommand) monitorDispatchedJob(
+	client *api.Client,
+	jobID string,
+	namespace string,
+	verbose bool,
+	length int,
+) int {
+	// Query the dispatched job to get task group information
+	q := &api.QueryOptions{Namespace: namespace}
+	job, _, err := client.Jobs().Info(jobID, q)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+		return 1
+	}
+
+	// Set up glint for interactive display
+	d := glint.New()
+	d.SetRefreshRate(100 * time.Millisecond)
+
+	spinner := glint.Layout(
+		components.Spinner(),
+		glint.Text(fmt.Sprintf(" Monitoring allocations for job %q...", limit(jobID, length))),
+	).Row()
+
+	d.Set(spinner)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.Render(ctx)
+
+	// Polling loop
+	var lastIndex uint64
+	startTime := time.Now()
+	timeout := 5 * time.Minute
+
+	for {
+		// Query allocations with blocking
+		allocQuery := &api.QueryOptions{
+			AllowStale: true,
+			WaitIndex:  lastIndex,
+			WaitTime:   2 * time.Second,
+			Namespace:  namespace,
+		}
+
+		allocs, meta, err := client.Jobs().Allocations(jobID, false, allocQuery)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+			d.Close()
+			return 1
+		}
+		lastIndex = meta.LastIndex
+
+		// Compute deployment states from allocations
+		deploymentStates := computeDeploymentStates(job, allocs)
+
+		// Build status component with Deployed section
+		statusComponent := glint.Layout(
+			glint.Text(""),
+			glint.Style(glint.Text("Deployed"), glint.Bold()),
+			glint.Text(formatDeploymentGroups(deploymentStates, length)),
+		)
+
+		// Add Allocations section if verbose
+		if verbose {
+			allocComponent := glint.Layout(
+				glint.Text(""),
+				glint.Style(glint.Text("Allocations"), glint.Bold()),
+			)
+
+			if len(allocs) > 0 {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Text(formatAllocListStubs(allocs, verbose, length)),
+				)
+			} else {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Text("No allocations created"),
+				)
+			}
+
+			statusComponent = glint.Layout(statusComponent, allocComponent)
+		}
+
+		// Add margin and update display
+		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
+		d.Set(spinner, statusComponent)
+
+		// Check if all allocations are stable
+		allStable := true
+		hasFailures := false
+
+		for _, alloc := range allocs {
+			if !allocIsStable(alloc) {
+				allStable = false
+			}
+			if alloc.ClientStatus == api.AllocClientStatusFailed {
+				hasFailures = true
+			}
+		}
+
+		if allStable {
+			d.Close()
+			if hasFailures {
+				return 2 // Scheduling failure
+			}
+			return 0 // Success
+		}
+
+		// Check timeout
+		if time.Since(startTime) > timeout {
+			d.Close()
+			c.Ui.Warn(fmt.Sprintf("Timeout reached after %s", timeout))
+			return 1
+		}
+	}
 }

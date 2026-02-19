@@ -557,7 +557,7 @@ func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
-	base += formatDeploymentGroups(d, uuidLength)
+	base += formatDeploymentGroups(d.TaskGroups, uuidLength)
 	return base
 }
 
@@ -628,11 +628,11 @@ func formatMultiregionDeployment(regions map[string]*api.Deployment, uuidLength 
 	return formatList(rows)
 }
 
-func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
+func formatDeploymentGroups(tgs map[string]*api.DeploymentState, uuidLength int) string {
 	// Detect if we need to add these columns
 	var canaries, autorevert, progressDeadline bool
-	tgNames := make([]string, 0, len(d.TaskGroups))
-	for name, state := range d.TaskGroups {
+	tgNames := make([]string, 0, len(tgs))
+	for name, state := range tgs {
 		tgNames = append(tgNames, name)
 		if state.AutoRevert {
 			autorevert = true
@@ -665,11 +665,11 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		rowString += "|Progress Deadline"
 	}
 
-	rows := make([]string, len(d.TaskGroups)+1)
+	rows := make([]string, len(tgs)+1)
 	rows[0] = rowString
 	i := 1
 	for _, tg := range tgNames {
-		state := d.TaskGroups[tg]
+		state := tgs[tg]
 		row := fmt.Sprintf("%s|", tg)
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)

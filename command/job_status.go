@@ -547,7 +547,7 @@ func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deploymen
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
-	base += formatDeploymentGroups(d, c.length)
+	base += formatDeploymentGroups(d.TaskGroups, c.length)
 	return base
 }
 
