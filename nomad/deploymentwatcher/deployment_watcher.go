@@ -214,6 +214,7 @@ func (w *deploymentWatcher) setAllocHealth(
 	}
 
 	// Canonicalize the job in case it doesn't have namespace set
+	j = j.Copy()
 	j.Canonicalize()
 
 	// Create the request

@@ -226,6 +226,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
 		}
+		s.deployment = s.deployment.Copy() // may mutate in reconciler
 	}
 
 	// Reset the failed allocations
