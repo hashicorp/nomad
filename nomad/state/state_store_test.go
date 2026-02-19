@@ -5630,6 +5630,15 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	must.NotNil(t, out)
 	must.True(t, out.DeploymentStatus.Canary)
 
+	// Drop the task group
+
+	deployment, err = state.DeploymentByID(nil, deployment.ID)
+	must.NoError(t, err)
+	deployment = deployment.Copy()
+	deployment.TaskGroups[alloc.TaskGroup] = nil
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1005,
+		&structs.ApplyPlanResultsRequest{Deployment: deployment}))
+
 	update = update.Copy()
 	update.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: pointer.Of(true), // should update
