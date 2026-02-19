@@ -1025,14 +1025,9 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	container, err := client.ContainerInspect(context.Background(), handle.containerID)
 	must.NoError(t, err)
 
-	switch runtime.GOARCH {
-	case "amd64":
-		must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Image)
-	case "arm64":
-		must.Eq(t, "sha256:ba3a78826904c625e65a2eed1f247bbab59898f043490e7113e88907bf7c6b3b", container.Image)
-	default:
-		t.Fatalf("unsupported test architecture: %s", runtime.GOARCH)
-	}
+	// Docker returns the image field as the manifest/repo digest rather than
+	// the platform-specific image config hash.
+	must.StrEqFold(t, "sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64", container.Image)
 }
 
 func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
