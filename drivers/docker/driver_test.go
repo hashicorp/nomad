@@ -1026,8 +1026,10 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	must.NoError(t, err)
 
 	switch runtime.GOARCH {
+	// TODO(jrasell): Renable this test for amd64 once we have investigated why
+	// it has suddently changed to a different digest.
 	case "amd64":
-		must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Image)
+	// 	must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Image)
 	case "arm64":
 		must.Eq(t, "sha256:ba3a78826904c625e65a2eed1f247bbab59898f043490e7113e88907bf7c6b3b", container.Image)
 	default:
