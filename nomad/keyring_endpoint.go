@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -44,7 +45,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringRotate) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -135,7 +136,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringRead) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -326,7 +327,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringDelete) {
 		return structs.ErrPermissionDenied
 	}
 

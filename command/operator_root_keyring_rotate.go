@@ -24,7 +24,8 @@ Usage: nomad operator root keyring rotate [options]
 
   Generate a new encryption key for all future variables.
 
-  If ACLs are enabled, this command requires a management token.
+  If ACLs are enabled, this command requires a token with the operator:write
+  policy or the operator:keyring-rotate capability.
 
 General Options:
 

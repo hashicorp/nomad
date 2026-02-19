@@ -1113,15 +1113,51 @@ func TestAllowOperatorOperation(t *testing.T) {
 			expect:    true,
 		},
 		{
+			name:      "policy write allows keyring-rotate",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows keyring-read",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows keyring-delete",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringDelete,
+			expect:    true,
+		},
+		{
 			name:      "policy read allows license-read",
 			policy:    `operator { policy = "read" }`,
 			operation: OperatorCapabilityLicenseRead,
 			expect:    true,
 		},
 		{
+			name:      "policy read allows keyring-read",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
 			name:      "policy read denies snapshot-save",
 			policy:    `operator { policy = "read" }`,
 			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies keyring-rotate",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies keyring-delete",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringDelete,
 			expect:    false,
 		},
 		{
@@ -1145,10 +1181,34 @@ func TestAllowOperatorOperation(t *testing.T) {
 			expect:    true,
 		},
 		{
+			name:      "capability keyring-rotate allows keyring-rotate",
+			policy:    `operator { capabilities = ["keyring-rotate"] }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    true,
+		},
+		{
+			name:      "capability keyring-read allows keyring-read",
+			policy:    `operator { capabilities = ["keyring-read"] }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
+			name:      "capability keyring-delete allows keyring-delete",
+			policy:    `operator { capabilities = ["keyring-delete"] }`,
+			operation: OperatorCapabilityKeyringDelete,
+			expect:    true,
+		},
+		{
 			name:      "multiple capabilities allow respective operations",
 			policy:    `operator { capabilities = ["snapshot-save", "license-read"] }`,
 			operation: OperatorCapabilitySnapshotSave,
 			expect:    true,
+		},
+		{
+			name:      "capability snapshot-save does not permit keyring-rotate",
+			policy:    `operator { capabilities = ["snapshot-save"] }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    false,
 		},
 		{
 			name:      "capability deny denies all operations",
@@ -1193,11 +1253,13 @@ func TestAllowOperatorOperation(t *testing.T) {
 		must.NoError(t, err)
 		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
 		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityKeyringRotate))
 	})
 
 	t.Run("ACLs disabled allows all operations", func(t *testing.T) {
 		acl := &ACL{aclsDisabled: true}
 		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
 		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityKeyringRotate))
 	})
 }
