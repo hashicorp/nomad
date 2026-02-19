@@ -1,51 +1,69 @@
 #!/usr/bin/env bash
 
 # run by the release-finalize.yml github action workflow
-# * start from a release/A.B.C branch
-# * revert notification channel and remove generated static files
-# * update version in version.go and LAST_RELEASE in GNUMakefile
-# * commit and merge changes into the source release/A.B.x branch
-
-# by default, it will do everything except for `git push`
-# unless you `export DO_PUSH=true`
+# * merge MERGE_FROM branch (release/A.B.C)
+#   into MERGE_INTO (release/A.B.x or main)
+#   * squash release commits if target is main
+# * remove generated static files
+# * update version in version.go and scripts/release/previous.version
+# * finalize workflow will commit changes
 
 [ -n "$DEBUG" ] && set -x
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/check-working-dir"
+source "$(dirname "${BASH_SOURCE[0]}")/shared"
 
 echo 'Checking variables'
   MERGE_FROM="${MERGE_FROM:-$(git branch --show-current)}"
-  DO_PUSH="${DO_PUSH:-false}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
-\`\`\`
-# required:
 export NEW_VERSION='${NEW_VERSION?is required}'
 export MERGE_INTO='${MERGE_INTO?is required}'
-# derived:
 export MERGE_FROM='$MERGE_FROM'
-# other:
-export DO_PUSH='$DO_PUSH'
-
 $0
-\`\`\`
 
 VARS
 
+trap check_unstaged_changes EXIT
+
 echo 'Ensuring branches'
-  # merge-from second, so we proceed from there.
-  for b in "$MERGE_INTO" "$MERGE_FROM"; do
+  # merge-into second, so we proceed from there.
+  for b in "$MERGE_FROM" "$MERGE_INTO"; do
     git fetch origin "$b"
     git switch "$b"
     git pull origin "$b"
   done
 echo
 
-echo 'Updating magic strings in magic files'
-  # restore original notification_channel
-  git restore --source="origin/$MERGE_INTO" -- .release/ci.hcl
+# if the target is main, we cherry-pick from the source and call it a day.
+if [ "$MERGE_INTO" == "${MAIN_BRANCH:-main}" ]; then
+  echo 'Target branch is main; squashing release commits'
 
+  # find commits for this release in source branch.
+  # commit messages in release-{prepare,finalize}.yml workflows match this format.
+  msg="^release:.* ${NEW_VERSION}$"
+  commits="$(git log --grep "$msg" --reverse --pretty='%H' "$MERGE_FROM")"
+  [ -n "$commits" ] || { echo "::error::found no commits for '$msg'"; exit 1; }
+  echo -e "commits:\n$commits"
+
+  # squash (--no-commit) to exclude the generated files from git history;
+  # they're huge, and remain in other branches for posterity.
+  if ! echo "$commits" | xargs git cherry-pick --no-commit; then
+    echo "::error::failed to cherry-pick release commits"
+    exit 1
+  fi
+
+  exit # nothing else to do
+fi
+
+echo "Merging changes from '$MERGE_FROM' into '$MERGE_INTO'"
+  if ! git merge --no-edit "$MERGE_FROM"; then
+    echo "::error::failed to merge $MERGE_FROM into $MERGE_INTO"
+    exit 1
+  fi
+echo
+
+echo 'Updating magic strings in magic files'
   if [ -n "$(semver get prerel "$NEW_VERSION")" ]; then
     echo "$NEW_VERSION is a prerelease; reverting changelog"
     # we'll re-update changelog for GA.
@@ -55,51 +73,21 @@ echo 'Updating magic strings in magic files'
     echo "$NEW_VERSION is not a prerelease; bumping versions"
     next_patch="$(semver bump patch "$NEW_VERSION")"
     sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${next_patch}|g" version/version.go
-    sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s).*$|\1$NEW_VERSION|g" GNUmakefile
+
+    # previous version to use next time the changelog is generated
+    sed -i.bak "s/^[^#].*/$NEW_VERSION/" scripts/release/previous.version
   fi
 
   # set VersionPrerelease back to "dev"
   sed -i.bak -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1dev|g" version/version.go
 
-  rm -f version/version.go.bak GNUmakefile.bak
+  rm -f version/version.go.bak scripts/release/previous.version.bak
+  git diff --color=always version/version.go scripts/release/previous.version
+  git add version/version.go scripts/release/previous.version
 echo
 
 echo 'Removing generated static assets'
   # These generated files are only needed when building the final
   # binary and should be not be present in the repository afterwards.
-  find . -name '*.generated.go' -exec git rm -f '{}' \;
+  git rm -f ./{nomad,client}/structs/*.generated.go
 echo
-
-push() {
-  if [ "$DO_PUSH" == 'true' ]; then
-    git push origin "$1"
-  else
-    echo "::warning::DO_PUSH != true, so skipping 'git push origin $1'"
-  fi
-}
-
-echo 'Committing changes'
-  # Display staged and unstaged diffs, skipping deleted files to avoid
-  # cluttering the output with the generated files.
-  git status
-  git diff --diff-filter=d --color=always HEAD | /bin/cat
-  git add -A .
-
-  if git diff-index --quiet HEAD --; then
-    echo '::notice::No files were updated'
-  else
-    git commit --message "release: Prepare for next release post-$NEW_VERSION"
-    push "$MERGE_FROM"
-  fi
-echo
-
-echo "Merging changes from '$MERGE_FROM' into '$MERGE_INTO'"
-  git switch "$MERGE_INTO"
-  if ! git merge --no-edit "$MERGE_FROM"; then
-    echo "::error::failed to merge $MERGE_FROM into $MERGE_INTO"
-    git status
-    git diff --color=always | /bin/cat
-    exit 1
-  fi
-  push "$MERGE_INTO"
-
