@@ -22,7 +22,7 @@ merged.
   ensure regressions will be caught.
 - [ ] **Documentation** If the change impacts user-facing functionality such as the CLI, API, UI,
   and job configuration, please update the Nomad product documentation, which is stored in the
-  [`web-unified-docs` repo](../web-unified-docs/). Refer to the [`web-unified-docs` contributor guide](../web-unified-docs/tree/CONTRIBUTING.md) for docs guidelines.
+  [`web-unified-docs` repo](https://github.com/hashicorp/web-unified-docs/). Refer to the [`web-unified-docs` contributor guide](https://github.com/hashicorp/web-unified-docs/blob/main/CONTRIBUTING.md) for docs guidelines.
   Please also consider whether the change requires notes within the [upgrade
   guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific). If you would like help with the docs, tag the `nomad-docs` team in this PR.
 
