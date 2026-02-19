@@ -7,6 +7,8 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
+const REF_TIME = new Date();
+
 export default Factory.extend({
   id: () => `${faker.random.uuid()}`,
   name() {
@@ -15,6 +17,14 @@ export default Factory.extend({
 
   pluginID() {
     return faker.hacker.noun();
+  },
+
+  // Nanosecond timestamps matching the Nomad API format
+  modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  createTime() {
+    return (
+      faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000
+    );
   },
 
   state() {

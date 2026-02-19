@@ -74,6 +74,13 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     const allocations = server.createList('allocation', 3);
     allocations.forEach((alloc) => assignAlloc(volume, alloc));
 
+    // Freeze moment's time reference so relative times ("2 days ago") are
+    // deterministic across Percy snapshot runs.
+    const originalMomentNow = moment.now;
+    const latestModifyTime = Math.max(...allocations.map((a) => a.modifyTime));
+    // Pin "now" to 1 hour after the latest allocation modify time
+    moment.now = () => Math.floor(latestModifyTime / 1000000) + 3600000;
+
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(VolumeDetail.allocations.length, allocations.length);
@@ -84,6 +91,8 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
         assert.equal(allocation.id, VolumeDetail.allocations.objectAt(idx).id);
       });
     await percySnapshot(assert);
+
+    moment.now = originalMomentNow;
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {

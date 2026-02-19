@@ -6,9 +6,7 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
-import { run } from '@ember/runloop';
 import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -42,7 +40,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
     // Make sure the node has an unhealthy driver
     node.update({
-      driver: assign(node.drivers, {
+      driver: Object.assign(node.drivers, {
         docker: {
           detected: true,
           healthy: false,
@@ -343,7 +341,7 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find((request) => request.status === 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made'
     );
@@ -366,8 +364,8 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .reject((request) => request.url.includes('fuzzy'))
-        .findBy('method', 'POST').url,
+        .filter((request) => !request.url.includes('fuzzy'))
+        .find((request) => request.method === 'POST').url,
       `/v1/allocation/${allocation.id}/stop`,
       'Stop request is made for the allocation'
     );
@@ -379,7 +377,9 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.restart.confirm();
 
     assert.equal(
-      server.pretender.handledRequests.findBy('method', 'PUT').url,
+      server.pretender.handledRequests.find(
+        (request) => request.method === 'PUT'
+      ).url,
       `/v1/client/allocation/${allocation.id}/restart`,
       'Restart request is made for the allocation'
     );
@@ -389,10 +389,9 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.restartAll.confirm();
 
     assert.ok(
-      server.pretender.handledRequests.filterBy(
-        'requestBody',
-        JSON.stringify({ AllTasks: true })
-      ),
+      server.pretender.handledRequests.filter(
+        (request) => request.requestBody === JSON.stringify({ AllTasks: true })
+      ).length,
       'Restart all tasks request is made for the allocation'
     );
   });
@@ -402,14 +401,19 @@ module('Acceptance | allocation detail', function (hooks) {
 
     await Allocation.stop.idle();
 
-    run.later(() => {
-      assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
-      assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
-      assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
-      server.pretender.resolve(server.pretender.requestReferences[0].request);
-    }, 500);
+    // Start the stop process without awaiting — pretender holds the request
+    const stopping = Allocation.stop.confirm();
 
-    await Allocation.stop.confirm();
+    // Wait for the idle button to reappear (setToIdle runs synchronously on confirm click)
+    await waitFor('[data-test-stop] [data-test-idle-button]');
+
+    assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
+    assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
+    assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
+
+    // Resolve the held request so settled() can complete
+    server.pretender.resolve(server.pretender.requestReferences[0].request);
+    await stopping;
   });
 
   test('if stopping or restarting fails, an error message is shown', async function (assert) {
