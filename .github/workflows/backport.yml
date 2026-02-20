@@ -19,8 +19,6 @@ jobs:
         env:
           BACKPORT_LABEL_REGEXP: "backport/(?P<target>website)"
           BACKPORT_TARGET_TEMPLATE: "stable-{{.target}}"
-          # Enabling this option increased the number of backport failures.
-          BACKPORT_MERGE_COMMIT: false
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       - name: Backport changes to targeted release branch
         run: |
