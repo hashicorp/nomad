@@ -313,9 +313,21 @@ func (s *Sandbox) runCmd(env *parameters) error {
 		return err
 	}
 
-	// merge the artifact contents into the real destination
-	if err := mergeDirectories(at, atTemporaryDest, atFinalDest); err != nil {
-		return err
+	// if in file mode, simply move the file into place. otherwise
+	// merge the directories.
+	if env.Mode == getter.ClientModeFile {
+		if err := at.MkdirAll(filepath.Dir(atFinalDest), 0755); err != nil {
+			return err
+		}
+
+		if err := at.Rename(atTemporaryDest, atFinalDest); err != nil {
+			return err
+		}
+	} else {
+		// merge the artifact contents into the real destination
+		if err := mergeDirectories(at, atTemporaryDest, atFinalDest); err != nil {
+			return err
+		}
 	}
 
 	// the artifact contents will have the owner set correctly

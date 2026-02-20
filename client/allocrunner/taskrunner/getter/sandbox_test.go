@@ -107,6 +107,41 @@ func TestSandbox_Get_inspection(t *testing.T) {
 		return taskDir, sbox, env
 	}
 
+	t.Run("in file mode", func(t *testing.T) {
+		artifact := &structs.TaskArtifact{
+			GetterSource: "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod",
+			RelativeDest: "local/downloads/go.mod",
+			GetterMode:   "file",
+		}
+
+		t.Run("default", func(t *testing.T) {
+			ac := artifactConfig(10 * time.Second)
+			sbox := New(ac, logger)
+
+			_, taskDir := SetupDir(t)
+			env := noopTaskEnv(taskDir)
+			sbox.ac.DisableFilesystemIsolation = true
+
+			err := sbox.Get(env, artifact, "nobody")
+			must.NoError(t, err)
+			must.FileContains(t, filepath.Join(taskDir, "local", "downloads", "go.mod"), "module github.com/hashicorp/go-set")
+		})
+
+		t.Run("DisableArtifactInspection", func(t *testing.T) {
+			ac := artifactConfig(10 * time.Second)
+			sbox := New(ac, logger)
+
+			_, taskDir := SetupDir(t)
+			env := noopTaskEnv(taskDir)
+			sbox.ac.DisableFilesystemIsolation = true
+			sbox.ac.DisableArtifactInspection = true
+
+			err := sbox.Get(env, artifact, "nobody")
+			must.NoError(t, err)
+			must.FileContains(t, filepath.Join(taskDir, "local", "downloads", "go.mod"), "module github.com/hashicorp/go-set")
+		})
+	})
+
 	t.Run("symlink escaped sandbox", func(t *testing.T) {
 		dir, err := os.MkdirTemp(t.TempDir(), "fake-repo")
 		must.NoError(t, err, must.Sprint("failed to create local repo directory"))
@@ -506,7 +541,7 @@ func TestSandbox_Get_inspection_behavior(t *testing.T) {
 		})
 	})
 
-	t.Run("http file", func(t *testing.T) {
+	t.Run("http file - any mode", func(t *testing.T) {
 		src, _ := servTestFile(t, "test-file")
 		artifact := &structs.TaskArtifact{
 			RelativeDest: "download",
@@ -592,6 +627,77 @@ func TestSandbox_Get_inspection_behavior(t *testing.T) {
 
 				err := sbox.Get(env, artifact, "nobody")
 				must.ErrorContains(t, err, "not a directory")
+			})
+		})
+	})
+
+	t.Run("http file - file mode", func(t *testing.T) {
+		src, _ := servTestFile(t, "test-file")
+		artifact := &structs.TaskArtifact{
+			RelativeDest: "download/test-file",
+			GetterSource: src,
+			GetterMode:   "file",
+		}
+
+		// When using go-getter directly, an http file fetch in file mode  is successful when the
+		// destination does not exist. Confirm direct usage and inspection usage behave the same.
+		t.Run("path does not exist", func(t *testing.T) {
+			t.Run("direct", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetup()
+				err := sbox.Get(env, artifact, "nobody")
+				must.NoError(t, err)
+				must.FileContains(t, filepath.Join(taskDir, artifact.RelativeDest), testFileContent)
+			})
+
+			t.Run("inspection", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetupInspect()
+				err := sbox.Get(env, artifact, "nobody")
+				must.NoError(t, err)
+				must.FileContains(t, filepath.Join(taskDir, artifact.RelativeDest), testFileContent)
+			})
+		})
+
+		// When using go-getter directly, an http file fetch in file mode is unsuccessful if the
+		// destination already exists as a directory. Confirm direct and inspection usage behave
+		// the same.
+		t.Run("directory exist", func(t *testing.T) {
+			t.Run("direct", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetup()
+				makeExistingFile(filepath.Join(taskDir, artifact.RelativeDest, "existing-file"))
+
+				err := sbox.Get(env, artifact, "nobody")
+				must.ErrorContains(t, err, "is a directory")
+			})
+
+			t.Run("inspection", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetupInspect()
+				makeExistingFile(filepath.Join(taskDir, artifact.RelativeDest, "existing-file"))
+
+				err := sbox.Get(env, artifact, "nobody")
+				must.ErrorContains(t, err, "is a directory")
+			})
+		})
+
+		// When using go-getter directly, an http file fetch in file mode is successful
+		// if the destination already exists as a file. Confirm direct usage and inspection
+		// usage behave the same.
+		t.Run("file exist", func(t *testing.T) {
+			t.Run("direct", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetup()
+				makeExistingFile(filepath.Join(taskDir, artifact.RelativeDest))
+
+				err := sbox.Get(env, artifact, "nobody")
+				must.NoError(t, err)
+				must.FileContains(t, filepath.Join(taskDir, artifact.RelativeDest), testFileContent)
+			})
+
+			t.Run("inspection", func(t *testing.T) {
+				taskDir, sbox, env := sandboxSetupInspect()
+				makeExistingFile(filepath.Join(taskDir, artifact.RelativeDest))
+
+				err := sbox.Get(env, artifact, "nobody")
+				must.NoError(t, err)
+				must.FileContains(t, filepath.Join(taskDir, artifact.RelativeDest), testFileContent)
 			})
 		})
 	})
