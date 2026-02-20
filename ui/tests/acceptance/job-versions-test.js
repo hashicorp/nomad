@@ -14,6 +14,7 @@ import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
 import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 let job;
 let namespace;
 let versions;
@@ -23,6 +24,7 @@ module('Acceptance | job versions', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    faker.seed(1);
     server.create('node-pool');
     server.create('namespace');
     namespace = server.create('namespace');

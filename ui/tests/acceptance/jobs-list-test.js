@@ -802,7 +802,7 @@ module('Acceptance | jobs list', function (hooks) {
     await click(`[data-test-allocation="${allocID}"]`);
     await click(`[data-test-task-row="${task.name}"]`);
     assert.dom('.time-based-alert').exists();
-    await percySnapshot(assert);
+    await percySnapshot('Task detail with time-based alert');
   });
 
   module('Pagination', function () {
@@ -1585,7 +1585,7 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('[data-test-empty-jobs-list]')
           .includesText('Did you mistype a key?');
         assert.dom('[data-test-filter-suggestion]').exists();
-        await percySnapshot(assert);
+        await percySnapshot('Filter suggestion for unknown key');
 
         await JobsList.search.fillIn('Name == surelyDoesntExist');
         assert
@@ -1594,7 +1594,7 @@ module('Acceptance | jobs list', function (hooks) {
             'No jobs match your current filter selection: Name == surelyDoesntExist'
           );
         assert.dom('[data-test-filter-random-suggestion]').exists();
-        await percySnapshot(assert);
+        await percySnapshot('Filter no results with random suggestion');
 
         localStorage.removeItem('nomadPageSize');
       });
