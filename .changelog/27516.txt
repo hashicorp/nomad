@@ -1,0 +1,3 @@
+```release-note:bug
+job status: Fixes regression setting job status when jobs have matching prefix
+```
