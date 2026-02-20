@@ -136,6 +136,9 @@ message FingerprintResponse {
     // HealthDescription is a human readable message describing the current
     // state of driver health
     string health_description = 3;
+
+    // Err is set if any driver error occurred while waiting for the fingerprint
+    string err = 4;
 }
 
 message RecoverTaskRequest {

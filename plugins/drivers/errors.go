@@ -3,9 +3,11 @@
 
 package drivers
 
-import "fmt"
+import "errors"
 
-var ErrTaskNotFound = fmt.Errorf("task not found for given id")
+var ErrTaskNotFound = errors.New("task not found for given id")
+
+var ErrChannelClosed = errors.New("channel closed")
 
 var DriverRequiresRootMessage = "Driver must run as root"
 
