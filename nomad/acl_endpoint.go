@@ -411,7 +411,7 @@ func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLP
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_claim_policies"}, time.Now())
 
 	// Should only be called using a workload identity
-	claims := args.GetIdentity().Claims
+	claims := args.GetIdentity().GetClaims()
 	if claims == nil {
 		// Calling this RPC without a workload identity is either a bug or an
 		// attacker as this RPC is not exposed to users directly.
