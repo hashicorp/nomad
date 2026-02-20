@@ -125,6 +125,10 @@ func (d *driverPluginClient) handleFingerprint(reqCtx context.Context, ch chan *
 			HealthDescription: pb.HealthDescription,
 		}
 
+		if pb.Err != "" {
+			f.Err = errors.New(pb.Err)
+		}
+
 		select {
 		case <-reqCtx.Done():
 			return
@@ -201,9 +205,14 @@ func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch c
 	if err != nil {
 		result.Err = grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx)
 	} else {
-		result.ExitCode = int(resp.Result.ExitCode)
-		result.Signal = int(resp.Result.Signal)
-		result.OOMKilled = resp.Result.OomKilled
+		// Set result values if the result is provided in the
+		// response. It is possible only the Err value is set
+		// in the response (channel close error).
+		if resp.Result != nil {
+			result.ExitCode = int(resp.Result.ExitCode)
+			result.Signal = int(resp.Result.Signal)
+			result.OOMKilled = resp.Result.OomKilled
+		}
 		if len(resp.Err) > 0 {
 			result.Err = errors.New(resp.Err)
 		}

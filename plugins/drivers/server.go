@@ -86,9 +86,16 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 		case f, ok := <-ch:
 
 			if !ok {
-				return nil
+				return ErrChannelClosed
 			}
+
+			var errStr string
+			if f.Err != nil {
+				errStr = f.Err.Error()
+			}
+
 			resp := &proto.FingerprintResponse{
+				Err:               errStr,
 				Attributes:        dstructs.ConvertStructAttributeMap(f.Attributes),
 				Health:            healthStateToProto(f.Health),
 				HealthDescription: f.HealthDescription,
@@ -161,9 +168,7 @@ func (b *driverPluginServer) WaitTask(ctx context.Context, req *proto.WaitTaskRe
 		return nil, ctx.Err()
 	case result, ok = <-ch:
 		if !ok {
-			return &proto.WaitTaskResponse{
-				Err: "channel closed",
-			}, nil
+			return nil, ErrChannelClosed
 		}
 	}
 
@@ -367,6 +372,7 @@ func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.
 
 	for {
 		event := <-ch
+
 		if event == nil {
 			break
 		}
