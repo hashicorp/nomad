@@ -1,3 +1,13 @@
+##  (February 20, 2026)
+
+BUG FIXES:
+
+* acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
+* artifact: Fix artifact inspection when using  mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
+* job status: Fixes regression setting job status when jobs have matching prefix [[GH-27516](https://github.com/hashicorp/nomad/issues/27516)]
+* state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher [[GH-27548](https://github.com/hashicorp/nomad/issues/27548)]
+
 ## 1.8.20 Enterprise (February 11, 2026)
 
 SECURITY:
