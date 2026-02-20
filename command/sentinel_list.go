@@ -21,7 +21,7 @@ Usage: nomad sentinel list [options]
   List is used to display all the installed Sentinel policies.
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-read capability.
 
 General Options:
 

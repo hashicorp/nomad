@@ -99,6 +99,10 @@ func TestParse(t *testing.T) {
 			operator {
 				policy = "deny"
 			}
+			sentinel {
+				policy = "read"
+				capabilities = ["sentinel-delete"]
+			}
 			quota {
 				policy = "read"
 			}
@@ -231,6 +235,13 @@ func TestParse(t *testing.T) {
 				Operator: &OperatorPolicy{
 					Policy:       PolicyDeny,
 					Capabilities: []string{"deny"},
+				},
+				Sentinel: &SentinelPolicy{
+					Policy: PolicyRead,
+					Capabilities: []string{
+						SentinelCapabilityDelete,
+						SentinelCapabilityRead,
+					},
 				},
 				Quota: &QuotaPolicy{
 					Policy: PolicyRead,
@@ -938,6 +949,16 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid plugin policy",
+			nil,
+		},
+		{
+			`sentinel {	policy = "invalid" }`,
+			"Invalid sentinel policy",
+			nil,
+		},
+		{
+			`sentinel { capabilities = ["invalid-capability"] }`,
+			"Invalid sentinel capability",
 			nil,
 		},
 	}

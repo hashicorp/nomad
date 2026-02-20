@@ -1263,3 +1263,135 @@ func TestAllowOperatorOperation(t *testing.T) {
 		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityKeyringRotate))
 	})
 }
+
+func TestAllowSentinelOperation(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name      string
+		policy    string
+		operation string
+		expect    bool
+	}{
+		{
+			name:      "policy write allows sentinel-read",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows sentinel-submit",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows sentinel-delete",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilityDelete,
+			expect:    true,
+		},
+		{
+			name:      "policy read allows sentinel-read",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read denies sentinel-submit",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies sentinel-delete",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilityDelete,
+			expect:    false,
+		},
+		{
+			name: "policy deny overrides all capabilities",
+			policy: `sentinel { policy = "deny"
+                                capabilities = ["sentinel-read"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name: "capability sentinel-submit allows sentinel-submit over read policy",
+			policy: `sentinel { policy = "read"
+                                capabilities = ["sentinel-submit"] }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "capability sentinel-read allows sentinel-read",
+			policy:    `sentinel { capabilities = ["sentinel-read"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "multiple capabilities allow respective operations",
+			policy:    `sentinel { capabilities = ["sentinel-read", "sentinel-submit"] }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "capability deny denies all operations",
+			policy:    `sentinel { capabilities = ["deny"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name:      "capability deny takes precedence over other capabilities",
+			policy:    `sentinel { capabilities = ["sentinel-read", "deny"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name:      "deny everything without a sentinel policy",
+			policy:    `agent { policy = "read" }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			must.NoError(t, err)
+
+			got := acl.AllowSentinelOperation(tc.operation)
+			must.Eq(t, tc.expect, got)
+		})
+	}
+
+	t.Run("nil ACL denies all operations", func(t *testing.T) {
+		var acl *ACL
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+	})
+
+	t.Run("management token allows all operations", func(t *testing.T) {
+		acl, err := NewACL(true, nil)
+		must.NoError(t, err)
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
+
+	t.Run("ACLs disabled denies all operations", func(t *testing.T) {
+		acl := &ACL{aclsDisabled: true}
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
+
+	t.Run("server write policy allows all operations", func(t *testing.T) {
+		acl := &ACL{server: PolicyWrite}
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
+}
