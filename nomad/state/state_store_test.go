@@ -4950,28 +4950,47 @@ func TestStateStore_EvalIsUserDeleteSafe(t *testing.T) {
 func TestStateStore_EvalsByJob(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	t.Run("return all evals for job", func(t *testing.T) {
+		state := testStateStore(t)
 
-	eval1 := mock.Eval()
-	eval2 := mock.Eval()
-	eval2.JobID = eval1.JobID
-	eval3 := mock.Eval()
-	evals := []*structs.Evaluation{eval1, eval2}
+		eval1 := mock.Eval()
+		eval2 := mock.Eval()
+		eval2.JobID = eval1.JobID
+		eval3 := mock.Eval()
+		evals := []*structs.Evaluation{eval1, eval2}
 
-	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, evals)
-	must.NoError(t, err)
-	err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval3})
-	must.NoError(t, err)
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, evals)
+		must.NoError(t, err)
+		err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval3})
+		must.NoError(t, err)
 
-	ws := memdb.NewWatchSet()
-	out, err := state.EvalsByJob(ws, eval1.Namespace, eval1.JobID)
-	must.NoError(t, err)
+		ws := memdb.NewWatchSet()
+		out, err := state.EvalsByJob(ws, eval1.Namespace, eval1.JobID)
+		must.NoError(t, err)
 
-	sort.Sort(EvalIDSort(evals))
-	sort.Sort(EvalIDSort(out))
+		sort.Sort(EvalIDSort(evals))
+		sort.Sort(EvalIDSort(out))
 
-	must.Eq(t, evals, out)
-	must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
+		must.Eq(t, evals, out)
+		must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
+	})
+
+	t.Run("excludes job with matching prefix", func(t *testing.T) {
+		state := testStateStore(t)
+		eval1 := mock.Eval()
+		eval1.JobID = "hello"
+		must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1}))
+
+		eval2 := mock.Eval()
+		eval2.JobID = "hellohello"
+		must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval2}))
+
+		ws := memdb.NewWatchSet()
+		evals, err := state.EvalsByJob(ws, structs.DefaultNamespace, "hello")
+		must.NoError(t, err)
+		must.Len(t, 1, evals)
+		must.Eq(t, evals[0].JobID, eval1.JobID)
+	})
 }
 
 func TestStateStore_Evals(t *testing.T) {
@@ -7317,9 +7336,8 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			name: "reschedulable alloc is pending waiting for replacement",
 			setup: func(t *testing.T, txn *txn) *structs.Job {
 				j := mock.Job()
-				if j.TaskGroups[0].ReschedulePolicy == nil {
-					t.Fatal("test job has no reschedule policy")
-				}
+				must.NotNil(t, j.TaskGroups[0].ReschedulePolicy)
+
 				a := mock.Alloc()
 				a.Job = j
 				a.JobID = j.ID
@@ -7366,6 +7384,28 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				e.JobID = j.ID
 				e.Status = structs.EvalStatusComplete
 				err = txn.Insert("evals", e)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name: "filters evals with matching job ID prefix",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+
+				j := mock.Job()
+				must.NotNil(t, j.TaskGroups[0].ReschedulePolicy)
+
+				e1 := mock.Eval()
+				e1.JobID = j.ID
+				e1.Status = structs.EvalStatusComplete
+				err := txn.Insert("evals", e1)
+				must.NoError(t, err)
+
+				e2 := mock.Eval()
+				e2.JobID = fmt.Sprintf("%s%s", j.ID, j.ID)
+				e2.Status = structs.EvalStatusPending
+				err = txn.Insert("evals", e2)
 				must.NoError(t, err)
 				return j
 			},

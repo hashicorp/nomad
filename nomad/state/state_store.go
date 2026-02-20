@@ -3923,6 +3923,11 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 
 		e := raw.(*structs.Evaluation)
 
+		// The prefix lookup could return evals for another job with the same prefix
+		if e.JobID != jobID {
+			continue
+		}
+
 		out = append(out, e)
 	}
 	return out, nil
@@ -5571,7 +5576,6 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	}
 
 	// If there is a non-terminal allocation, the job is running.
-	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
 		if !alloc.(*structs.Allocation).TerminalStatus() {
 			return structs.JobStatusRunning, nil
@@ -5585,16 +5589,20 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 
 	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		hasEval = true
-		if !raw.(*structs.Evaluation).TerminalStatus() {
+		eval := raw.(*structs.Evaluation)
+		if eval.JobID != job.ID {
+			continue
+		}
+		if !eval.TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
+		hasEval = true
 	}
 
 	// The job is dead if all allocations for this version are terminal,
-	// all evals are terminal. In the event a jobs allocs and evals
+	// and all evals are terminal. In the event a jobs allocs and evals
 	// are all GC'd, we don't want the job to be marked pending.
-	if evalDelete || hasEval || hasAlloc || job.Stop {
+	if evalDelete || hasEval || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
