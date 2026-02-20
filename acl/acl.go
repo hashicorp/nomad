@@ -73,11 +73,13 @@ type ACL struct {
 	agent    string
 	node     string
 	operator string
+	sentinel string
 	quota    string
 	plugin   string
 
 	// Fine-grained capabilities for policies that don't need namespace globbing
 	operatorCapabilities capabilitySet
+	sentinelCapabilities capabilitySet
 
 	// The attributes below detail a virtual policy that we never expose
 	// directly to the end user.
@@ -127,6 +129,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	wsvTxn := iradix.New[capabilitySet]().Txn()
 
 	operatorCapabilities := make(capabilitySet)
+	sentinelCapabilities := make(capabilitySet)
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -299,6 +302,20 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 				}
 			}
 		}
+		if policy.Sentinel != nil {
+			acl.sentinel = maxPrivilege(acl.sentinel, policy.Sentinel.Policy)
+			if !sentinelCapabilities.Check(SentinelCapabilityDeny) {
+				for _, cap := range policy.Sentinel.Capabilities {
+					if cap == SentinelCapabilityDeny {
+						// Deny always takes precedence
+						sentinelCapabilities.Clear()
+						sentinelCapabilities.Set(SentinelCapabilityDeny)
+						break
+					}
+					sentinelCapabilities.Set(cap)
+				}
+			}
+		}
 		if policy.Quota != nil {
 			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
 		}
@@ -321,6 +338,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl.wildcardVariables = wsvTxn.Commit()
 
 	acl.operatorCapabilities = operatorCapabilities
+	acl.sentinelCapabilities = sentinelCapabilities
 
 	acl.client = PolicyDeny
 	acl.server = PolicyDeny
@@ -880,6 +898,26 @@ func (a *ACL) AllowOperatorOperation(op string) bool {
 	case a.operator == PolicyWrite:
 		return true
 	case a.operatorCapabilities.Check(op):
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowSentinelOperation checks if a given operation is allowed for sentinel
+func (a *ACL) AllowSentinelOperation(op string) bool {
+	switch {
+	case a == nil:
+		return false
+	case a.aclsDisabled:
+		return false // Sentinel is entirely disabled when ACLs are disabled
+	case a.management:
+		return true
+	case a.sentinel == PolicyWrite:
+		return true
+	case a.server == PolicyWrite:
+		return true // needed to support cross-region replication
+	case a.sentinelCapabilities.Check(op):
 		return true
 	default:
 		return false

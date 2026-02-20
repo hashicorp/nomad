@@ -26,7 +26,7 @@ Usage: nomad sentinel apply [options] <name> <file>
   from stdin by specifying "-".
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-submit capability.
 
 General Options:
 
