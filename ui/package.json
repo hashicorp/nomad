@@ -19,7 +19,7 @@
     "lint:js": "eslint . --cache",
     "lint:js:fix": "eslint . --fix",
     "local:exam": "ember exam --server --load-balance --parallel=4",
-    "local:qunitdom": "ember test --server --query=dockcontainer",
+    "local:test": "ember test --server",
     "percy": "percy",
     "precommit": "lint-staged",
     "seedless-test": "USE_PERCY=false ember test",

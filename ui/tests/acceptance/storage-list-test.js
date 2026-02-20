@@ -449,7 +449,12 @@ module('Acceptance | storage list', function (hooks) {
       // 9 rows should be present
       assert.dom('[data-test-dhv-row]').exists({ count: 9 });
 
-      server.create('dynamic-host-volume', { name: 'tenth-volume' });
+      // Use an explicit modifyTime in the future so this volume sorts first
+      const futureTime = (Date.now() + 60000) * 1000000;
+      server.create('dynamic-host-volume', {
+        name: 'tenth-volume',
+        modifyTime: futureTime,
+      });
 
       await controller.watchDHV.perform({
         type: 'host',
@@ -469,8 +474,11 @@ module('Acceptance | storage list', function (hooks) {
       // 10 rows should be present
       assert.dom('[data-test-dhv-row]').exists({ count: 10 });
 
-      // Create one more
-      server.create('dynamic-host-volume', { name: 'eleventh-volume' });
+      // Create one more with an even newer modifyTime
+      server.create('dynamic-host-volume', {
+        name: 'eleventh-volume',
+        modifyTime: futureTime + 60000 * 1000000,
+      });
 
       await controller.watchDHV.perform({
         type: 'host',
