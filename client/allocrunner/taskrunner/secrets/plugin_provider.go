@@ -39,6 +39,18 @@ func NewExternalPluginProvider(plugin commonplugins.SecretsPlugin, pluginName, s
 	}
 }
 
+// InterpolateEnv applies the given interpolation function to all environment
+// variable values in rawEnv, then updates the underlying plugin with the
+// interpolated values. This supports late interpolation of references like
+// ${secret.X.Y} after template-based providers have resolved.
+func (p *ExternalPluginProvider) InterpolateEnv(rawEnv map[string]string, interpolate func(string) string) {
+	interpolated := make(map[string]string, len(rawEnv))
+	for k, v := range rawEnv {
+		interpolated[k] = interpolate(v)
+	}
+	p.plugin.SetEnv(interpolated)
+}
+
 func (p *ExternalPluginProvider) Fetch(ctx context.Context) (map[string]string, error) {
 	resp, err := p.plugin.Fetch(ctx, p.path)
 	if err != nil {

@@ -30,6 +30,11 @@ const (
 type SecretsPlugin interface {
 	CommonPlugin
 	Fetch(ctx context.Context, path string) (*SecretResponse, error)
+
+	// SetEnv replaces the environment variables that will be passed to the
+	// plugin process. This supports late interpolation of env values after
+	// secrets from other providers have been resolved.
+	SetEnv(env map[string]string)
 }
 
 type SecretResponse struct {
@@ -97,6 +102,10 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 	}
 
 	return res, nil
+}
+
+func (e *externalSecretsPlugin) SetEnv(env map[string]string) {
+	e.env = env
 }
 
 func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*SecretResponse, error) {

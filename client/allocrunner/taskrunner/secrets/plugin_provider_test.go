@@ -6,6 +6,7 @@ package secrets
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/commonplugins"
@@ -33,6 +34,10 @@ func (m *MockSecretPlugin) Fetch(ctx context.Context, path string) (*commonplugi
 
 func (m *MockSecretPlugin) Parse() (map[string]string, error) {
 	return nil, nil
+}
+
+func (m *MockSecretPlugin) SetEnv(env map[string]string) {
+	m.Called(env)
 }
 
 // SecretsPlugin is tested in commonplugins package. We can use a mock here to test how
@@ -82,5 +87,37 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 			"secret.test.testkey": "testvalue",
 		}
 		must.Eq(t, exp, result)
+	})
+}
+
+func TestExternalPluginProvider_InterpolateEnv(t *testing.T) {
+	t.Run("interpolates env values and calls SetEnv", func(t *testing.T) {
+		mockPlugin := new(MockSecretPlugin)
+		mockPlugin.On("SetEnv", map[string]string{
+			"TOKEN":    "resolved-value",
+			"STATIC":   "unchanged",
+			"COMBINED": "prefix-resolved-value-suffix",
+		}).Return()
+
+		provider := NewExternalPluginProvider(mockPlugin, "test-provider", "test", "test")
+
+		rawEnv := map[string]string{
+			"TOKEN":    "${secret.creds.token}",
+			"STATIC":   "unchanged",
+			"COMBINED": "prefix-${secret.creds.token}-suffix",
+		}
+
+		interpolate := func(s string) string {
+			replacer := map[string]string{
+				"${secret.creds.token}": "resolved-value",
+			}
+			for old, new := range replacer {
+				s = strings.ReplaceAll(s, old, new)
+			}
+			return s
+		}
+
+		provider.InterpolateEnv(rawEnv, interpolate)
+		mockPlugin.AssertExpectations(t)
 	})
 }

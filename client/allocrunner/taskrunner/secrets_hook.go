@@ -98,7 +98,7 @@ func (h *secretsHook) Name() string {
 }
 
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	tmplProvider, pluginProvider, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
+	tmplProvider, pluginProvider, rawEnvMaps, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
 	}
@@ -167,6 +167,16 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 	h.envBuilder.SetSecrets(m)
 
+	// Interpolate plugin env values now that template secrets are available.
+	// This enables references like ${secret.X.Y} in the env block of custom
+	// secret providers, where X.Y was resolved by a template-based provider.
+	taskEnv := h.envBuilder.Build()
+	for i, p := range pluginProvider {
+		if epp, ok := p.(*secrets.ExternalPluginProvider); ok {
+			epp.InterpolateEnv(rawEnvMaps[i], taskEnv.ReplaceEnv)
+		}
+	}
+
 	// Set secrets from plugin providers
 	for _, p := range pluginProvider {
 		vars, err := p.Fetch(ctx)
@@ -180,10 +190,11 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	return nil
 }
 
-func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider, []PluginProvider, error) {
+func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider, []PluginProvider, []map[string]string, error) {
 	// Any configuration errors will be found when calling the secret providers constructor,
 	// so use a multierror to collect all errors and return them to the user at the same time.
 	tmplProvider, pluginProvider, mErr := []TemplateProvider{}, []PluginProvider{}, new(multierror.Error)
+	rawEnvMaps := []map[string]string{}
 
 	for idx, s := range h.secrets {
 		if s == nil {
@@ -214,10 +225,11 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				continue
 			}
 			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path))
+			rawEnvMaps = append(rawEnvMaps, s.Env)
 		}
 	}
 
-	return tmplProvider, pluginProvider, mErr.ErrorOrNil()
+	return tmplProvider, pluginProvider, rawEnvMaps, mErr.ErrorOrNil()
 }
 
 func (h *secretsHook) setupPluginEnv(env map[string]string) map[string]string {

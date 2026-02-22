@@ -407,4 +407,103 @@ fi`
 
 		must.Eq(t, exp, taskEnv.Build().TaskSecrets)
 	})
+
+	t.Run("interpolates secret references in plugin env", func(t *testing.T) {
+		// Setup Nomad variable server that returns a token
+		secretsResp := `
+		{
+		  "CreateIndex": 812,
+		  "CreateTime": 1750782609539170600,
+		  "Items": {
+		    "token": "my-secret-token"
+		  },
+		  "ModifyIndex": 812,
+		  "ModifyTime": 1750782609539170600,
+		  "Namespace": "default",
+		  "Path": "nomad/jobs/creds"
+		}
+		`
+		count := 0
+		nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
+			fmt.Fprintln(w, secretsResp)
+			count += 1
+		}))
+		t.Cleanup(nomadServer.Close)
+
+		l, d := bufconndialer.New()
+		nomadServer.Listener = l
+		nomadServer.Start()
+
+		clientConfig := config.DefaultConfig()
+		clientConfig.TemplateDialer = d
+		clientConfig.TemplateConfig.DisableSandbox = true
+		clientConfig.CommonPluginDir = t.TempDir()
+
+		// Create plugin that echoes back the SERVICE_TOKEN env var
+		pluginDir := filepath.Join(clientConfig.CommonPluginDir, "secrets")
+		err := os.MkdirAll(pluginDir, 0755)
+		must.NoError(t, err)
+
+		pluginPath := filepath.Join(pluginDir, "test-plugin")
+		testPlugin := fmt.Sprintf(basePlugin, `"received_token": "${SERVICE_TOKEN}"`)
+		err = os.WriteFile(pluginPath, []byte(testPlugin), 0755)
+		must.NoError(t, err)
+
+		taskDir := t.TempDir()
+		alloc := mock.MinAlloc()
+		task := alloc.Job.TaskGroups[0].Tasks[0]
+
+		taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
+		conf := &secretsHookConfig{
+			logger:         testlog.HCLogger(t),
+			lifecycle:      trtesting.NewMockTaskHooks(),
+			events:         &trtesting.MockEmitter{},
+			clientConfig:   clientConfig,
+			envBuilder:     taskEnv,
+			nomadNamespace: "default",
+			jobId:          "test-job",
+		}
+
+		// First secret: nomad variable that resolves token
+		// Second secret: plugin that references the resolved token via ${secret.creds.token}
+		secretHook := newSecretsHook(conf, []*structs.Secret{
+			{
+				Name:     "creds",
+				Provider: "nomad",
+				Path:     "nomad/jobs/creds",
+				Config: map[string]any{
+					"namespace": "default",
+				},
+			},
+			{
+				Name:     "my_plugin",
+				Provider: "test-plugin",
+				Path:     "/some/path",
+				Env: map[string]string{
+					"SERVICE_TOKEN": "${secret.creds.token}",
+				},
+			},
+		})
+
+		req := &interfaces.TaskPrestartRequest{
+			Alloc:   alloc,
+			Task:    task,
+			TaskDir: &allocdir.TaskDir{Dir: taskDir, SecretsDir: taskDir},
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		t.Cleanup(cancel)
+
+		err = secretHook.Prestart(ctx, req, &interfaces.TaskPrestartResponse{})
+		must.NoError(t, err)
+
+		secrets := taskEnv.Build().TaskSecrets
+
+		// Verify the nomad variable was resolved
+		must.Eq(t, "my-secret-token", secrets["secret.creds.token"])
+
+		// Verify the plugin received the interpolated token value
+		must.Eq(t, "my-secret-token", secrets["secret.my_plugin.received_token"])
+	})
 }
