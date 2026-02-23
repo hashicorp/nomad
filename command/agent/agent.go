@@ -133,6 +133,11 @@ type Agent struct {
 	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
+
+	// tlsMetrics is the process that handles periodically emitting agent TLS
+	// certificate expiry metrics. If the agent is not configured within TLS,
+	// this will be nil, so callers should check before attempting to use it.
+	tlsMetrics *tlsMetrics
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -167,6 +172,17 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	}
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
+	}
+
+	// If the agent is configured with TLS, set up the TLS metrics process to
+	// emit certificate expiry metrics and start this.
+	if !a.config.TLSConfig.IsEmpty() {
+		tlsMetrics, err := newTLSMetrics(a.logger, a.config.TLSConfig, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up TLS expiration metrics: %w", err)
+		}
+		a.tlsMetrics = tlsMetrics
+		tlsMetrics.start(a.config.Telemetry.collectionInterval)
 	}
 
 	return a, nil
@@ -1445,6 +1461,15 @@ func (a *Agent) Shutdown() error {
 	}
 
 	a.logger.Info("requesting shutdown")
+
+	// Stop the TLS metrics emitter if it is running. In the background this
+	// closes the channel that the routine is polling on which is fine, but in
+	// the future the agent may also want to use waitgroups to ensure routines
+	// such as this one have fully stopped before allowing shutdown to complete.
+	if a.tlsMetrics != nil {
+		a.tlsMetrics.stop()
+	}
+
 	if a.client != nil {
 		// Task API must be closed separately from other HTTP servers and should
 		// happen before the client is shutdown
@@ -1582,6 +1607,32 @@ func (a *Agent) Reload(newConfig *Config) error {
 		current.TLSConfig = newConfig.TLSConfig.Copy()
 	}
 
+	// The metric reload function is used to stop/start the TLS metrics emitter
+	// when we are reloading the TLS configuration. We need to do this in both a
+	// full reload and a partial reload, so new certificates are picked up.
+	//
+	// A failure to initialize the TLS metrics emitter is not considered
+	// terminal to the reload but is logged. This error can only occur when we
+	// attempt to read the certificates, so it would indicate a problem with the
+	// certificate files/permissions that would also impact the agent TLS
+	// configuration as a whole. In fact, if we succeed in the ShouldReload
+	// check, we should succeed here as that too reads the files.
+	tlsMetricReloadFn := func() {
+		tlsMetrics, err := newTLSMetrics(a.logger, newConfig.TLSConfig, nil)
+		if err != nil {
+			a.logger.Error("failed to initialize TLS metrics emitter", "error", err)
+		} else {
+			// We have successfully initialized the new TLS metrics emitter, so
+			// we can stop the old one (if it exists) and start the new one.
+			if a.tlsMetrics != nil {
+				a.tlsMetrics.stop()
+			}
+
+			a.tlsMetrics = tlsMetrics
+			a.tlsMetrics.start(newConfig.Telemetry.collectionInterval)
+		}
+	}
+
 	if !current.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
 		// This is just a TLS configuration reload, we don't need to refresh
 		// existing network connections
@@ -1597,6 +1648,8 @@ func (a *Agent) Reload(newConfig *Config) error {
 			return err
 		}
 
+		tlsMetricReloadFn()
+
 		current.TLSConfig = newConfig.TLSConfig
 		current.TLSConfig.KeyLoader = keyloader
 		a.config = current
@@ -1604,8 +1657,17 @@ func (a *Agent) Reload(newConfig *Config) error {
 	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 		fullUpdateTLSConfig()
+
+		// We are moving from TLS to non-TLS, so we should stop the TLS metrics
+		// emitter as it will no longer be relevant.
+		if a.tlsMetrics != nil {
+			a.tlsMetrics.stop()
+			a.tlsMetrics = nil
+		}
+
 	} else if !newConfig.TLSConfig.IsEmpty() && current.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
+		tlsMetricReloadFn()
 		fullUpdateTLSConfig()
 	}
 
