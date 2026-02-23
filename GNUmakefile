@@ -50,12 +50,6 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
-# LAST_RELEASE is used for generating the changelog. It is the last released GA
-# or backport version, without the leading "v". main should have the latest
-# published release here, and release branches should point to the latest
-# published release in their X.Y release line.
-LAST_RELEASE ?= 1.11.2
-
 default: help
 
 ifeq (Linux,$(THIS_OS))
