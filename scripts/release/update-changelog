@@ -5,43 +5,44 @@
 # * create a changelog file with only this one version's entry
 #   * we'll store it as a github artifact and use it later
 #     to create a github release.
-# * update and commit CHANGELOG.md
+# * add the entry to CHANGELOG.md and `git add` it
 
 [ -n "$DEBUG" ] && set -x
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/check-working-dir"
+source "$(dirname "${BASH_SOURCE[0]}")/shared"
 # note also that changelog-build is not `git worktree` friendly.
 # https://github.com/hashicorp/go-changelog/pull/49
 # -> https://github.com/go-git/go-git/issues/1812
 
 echo 'Checking variables'
+  # NEW_VERSION is only for display, e.g. in changelog header, not functional
+  NEW_VERSION="${NEW_VERSION:-$(make version)}"
   SOURCE_BRANCH="${SOURCE_BRANCH:-$(git branch --show-current)}"
+  # LAST_RELEASE is the last released GA or backport version.
+  # main branch should have the latest published release, and
+  # release branches should have the latest in their A.B.x release line.
+  LAST_RELEASE="${LAST_RELEASE:-$(grep -v '^#' scripts/release/previous.version)}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
-\`\`\`
-# required:
-export NEW_VERSION='${NEW_VERSION?is required}'
-export LAST_RELEASE='${LAST_RELEASE?is required}'
-# derived:
+export NEW_VERSION='$NEW_VERSION'
 export SOURCE_BRANCH='$SOURCE_BRANCH'
-
+export LAST_RELEASE='$LAST_RELEASE'
 $0
-\`\`\`
 
 VARS
+[ -z "$NEW_VERSION" ]   && { echo 'NEW_VERSION is empty';   exit 1; }
+[ -z "$SOURCE_BRANCH" ] && { echo 'SOURCE_BRANCH is empty'; exit 1; }
+[ -z "$LAST_RELEASE" ]  && { echo 'LAST_RELEASE is empty';  exit 1; }
 
 echo 'Ensuring source branch'
   git fetch origin "$SOURCE_BRANCH"
   git switch "$SOURCE_BRANCH"
-  git pull origin "$SOURCE_BRANCH"
 echo
 
 cl_file="$(mktemp -t changelog-XXXXX-$NEW_VERSION.md)"
 
 echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD))"
-  # changelog-build does checkouts, so hold on to current branch
-  _start_branch="$(git branch --show-current)"
   changelog-build \
     -last-release "v$LAST_RELEASE" \
     -this-release HEAD \
@@ -49,9 +50,10 @@ echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD
     -changelog-template .changelog/changelog.tmpl \
     -note-template .changelog/note.tmpl \
     -local-fs > "$cl_file"
-  # back to where we came from
-  git switch "$_start_branch"
-  
+
+  # changelog-build does checkouts, so return to source branch
+  git switch "$SOURCE_BRANCH"
+
   lines="$(wc -l "$cl_file" | awk '{print$1}')"
   if [ "$lines" -eq 0 ]; then
     echo "::error::Generated changelog is empty"
@@ -59,7 +61,7 @@ echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD
   fi
 echo
 
-echo "Updating CHANGELOG.md"
+echo 'Updating CHANGELOG.md'
   {
     echo "## ${NEW_VERSION//+ent/ Enterprise} ($(date '+%B %d, %Y'))"
     cat "$cl_file"
@@ -69,11 +71,15 @@ echo "Updating CHANGELOG.md"
   mv "changelog.tmp.md" CHANGELOG.md
 echo
 
-echo "Committing changes"
+echo 'Adding changes'
+  git diff --color=always | /bin/cat
   git add CHANGELOG.md
   git status
-  git diff --cached --color=always | /bin/cat
-  git commit -m "release: Update changelog for $NEW_VERSION"
 echo
 
-echo "file=$cl_file" >> "${GITHUB_OUTPUT:-/dev/stderr}"
+cat <<EOF >> "${GITHUB_OUTPUT:-/dev/stderr}"
+contents<<MD
+$(cat "$cl_file")
+MD
+file=$cl_file
+EOF

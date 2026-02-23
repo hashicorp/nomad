@@ -5,48 +5,47 @@
 # * update notification channel in ci.hcl and version in version.go
 # * generate static assets (make prerelease)
 # * commit and push changes to a new release/A.B.C branch
-# * output the new branch and commit ref to be built
-
-# by default, it will do everything except for `git push`
-# unless you `export DO_PUSH=true`
+# * prepare workflow will commit changes
 
 [ -n "$DEBUG" ] && set -x
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/check-working-dir"
+source "$(dirname "${BASH_SOURCE[0]}")/shared"
 
 echo 'Checking variables'
+  # starting with a release line branch like 'release/A.B.x'
   SOURCE_BRANCH="${SOURCE_BRANCH:-$(git branch --show-current)}"
-  NEW_BRANCH="${NEW_BRANCH:-release/$NEW_VERSION}" # default release/A.B.C
-  REPO="${REPO:-nomad}"
+
+  # make a new specific release branch 'release/A.B.C'
+  branch_prefix="$(cut -d/ -f1 <<< "$SOURCE_BRANCH")"
+  if [ -z "$branch_prefix" ]; then
+    echo 'expect source branch to have a "/" in it, e.g. "release/A.B.x"'
+    exit 1
+  fi
+  NEW_BRANCH="${NEW_BRANCH:-$branch_prefix/$NEW_VERSION}"
+
+  REPO="${REPO:-$(basename "$PWD")}"
   GO_TAGS="${GO_TAGS:-release}"
-  DO_PUSH="${DO_PUSH:-false}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
-\`\`\`
-# required:
 export NEW_VERSION='${NEW_VERSION?is required}'
-export SLACK_CHANNEL='${SLACK_CHANNEL?is required}'
-# derived:
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 export NEW_BRANCH='$NEW_BRANCH'
-# other:
-export DO_PUSH='$DO_PUSH'
 export REPO='$REPO'
 export GO_TAGS='$GO_TAGS'
 export GOPRIVATE='${GOPRIVATE:-}'
-
 $0
-\`\`\`
 
 VARS
+
+trap check_unstaged_changes EXIT
 
 echo 'Checking required commands'
   semver --version
   # these are run by `make prerelease`
   go version
-  printf 'buf: '; buf --version
-  printf 'pnpm: '; pnpm --version
+  echo 'buf:' ; buf --version
+  echo 'pnpm:' ; pnpm --version
 echo
 
 echo 'Ensuring source branch'
@@ -55,47 +54,27 @@ echo 'Ensuring source branch'
   git pull origin "$SOURCE_BRANCH"
 echo
 
-echo 'Updating magic strings in magic files'
-  sed -i.bak -e "s|\(notification_channel * = *\"\\)[^\"]*|\1$SLACK_CHANNEL|g" .release/ci.hcl
-  
+echo 'Creating new branch'
+  git switch --force-create "$NEW_BRANCH"
+echo
+
+echo 'Updating version.go'
+  v_go='version/version.go'
   release=$(semver get release "$NEW_VERSION")
   prerel=$(semver get prerel "$NEW_VERSION")
   sed -i.bak \
     -e "s|\(Version * = *\"\)[^\"]*|\1${release}|g" \
     -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1${prerel}|g" \
-    version/version.go
-
-  rm -f version/version.go.bak .release/ci.hcl.bak
+    "$v_go"
+  rm -f "$v_go.bak"
+  git diff --color=always "$v_go"
+  git add "$v_go"
 echo
 
 echo '::group::Generate static assets'
   make prerelease
-  # add the files now, so `git diff` doesn't show their noisy contents
   git add --force \
     ./{nomad,client}/structs/*.generated.go \
     ./command/agent/bindata_assetfs.go
 echo '::endgroup::'
-
-echo 'Committing changes'
-  git switch --force-create "$NEW_BRANCH"
-  git status
-  git diff --color=always | /bin/cat
-  git add --all .
-
-  if git diff-index --quiet HEAD --; then
-    echo "::warning::No files were updated by prepare script"
-    exit
-  else
-    git commit --message "release: Generate files for $NEW_VERSION"
-  fi
 echo
-
-if [ "$DO_PUSH" == 'true' ]; then
-  echo "Pushing changes to $NEW_BRANCH"
-  git push origin -f "$NEW_BRANCH"
-else
-  echo '::warning::DO_PUSH != true, so skipping `git push`'
-fi
-
-# output ref for subsequent build job
-echo "build-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT:-/dev/stderr}"
