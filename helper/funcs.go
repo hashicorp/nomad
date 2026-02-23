@@ -392,7 +392,6 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 //
 // Returns the time.Ticker and also a StopFunc, forcing the caller to deal
 // with stopping the time.Ticker to avoid leaking a goroutine.
-
 func NewSafeTicker(duration time.Duration) (*time.Ticker, StopFunc) {
 	if duration <= 0 {
 		// Avoid panic by using the smallest positive value. This is close enough

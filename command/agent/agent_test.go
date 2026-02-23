@@ -1117,6 +1117,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// Switch to the correct certificates and reload
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1165,6 +1168,9 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1178,9 +1184,13 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	agent := &Agent{
 		auditor: &noOpAuditor{},
 		config:  agentConfig,
+		logger:  testlog.HCLogger(t),
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1214,6 +1224,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1230,6 +1243,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1309,6 +1325,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1325,6 +1344,10 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
 	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
 	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+
+	// Ensure that the TLS metric emitter has been initialized on the agent
+	// after enabling TLS.
+	must.NotNil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
@@ -1366,6 +1389,10 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	assert.Nil(err)
 
 	assert.True(agent.config.TLSConfig.IsEmpty())
+
+	// Ensure that the TLS metric emitter has been cleaned up on the agent
+	// after disabling TLS.
+	must.Nil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_VaultConfig(t *testing.T) {
@@ -1716,6 +1743,9 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	)
 
 	sameAgentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1728,6 +1758,9 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.Client.Enabled = false
+		c.Telemetry = &Telemetry{
+			collectionInterval: time.Second,
+		}
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
