@@ -204,8 +204,17 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 	}
 
-	// Parse durations for Consul and Vault config blocks if provided.
+	// Parse durations and env tokens for Consul config blocks if provided
 	for _, consulConfig := range c.Consuls {
+
+		if consulConfig.Token == "" {
+			// BACKCOMPAT: set the consul token to CONSUL_HTTP_TOKEN
+			consulConfig.Token = os.Getenv("CONSUL_HTTP_TOKEN")
+			// Override with cluster specific token if available
+			if token := os.Getenv(fmt.Sprintf("CONSUL_HTTP_TOKEN_%s", consulConfig.Name)); token != "" {
+				consulConfig.Token = token
+			}
+		}
 
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
@@ -226,6 +235,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	// Parse durations for Vault config blocks if provided.
 	for _, vaultConfig := range c.Vaults {
 
 		if vaultConfig.DefaultIdentity != nil {
