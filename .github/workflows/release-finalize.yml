@@ -10,21 +10,27 @@ on:
         required: true
     inputs:
       repo:
-        description: 'GitHub repository, e.g. hashicorp/nomad'
+        description: "GitHub repository, e.g. hashicorp/nomad"
         type: string
         required: true
       version:
-        description: 'Version that was released'
+        description: "Version that was released"
         type: string
         required: true
       merge-from:
-        description: 'Specific-version branch to merge from, e.g. release/1.11.99'
+        description: "Specific-version branch to merge from, e.g. release/1.11.99"
         type: string
         required: true
       merge-into:
-        description: 'Long-lived branch to merge into, e.g. release/1.11.x'
+        description: "Long-lived branch to merge into, e.g. release/1.11.x"
         type: string
         required: true
+
+      # test inputs
+      main-branch:
+        description: "Name of the repo main branch, may override for testing"
+        type: string
+        default: "main"
 
 jobs:
   finalize:
@@ -50,8 +56,19 @@ jobs:
 
       - name: Run finalize script
         env:
-          DO_PUSH: true
           NEW_VERSION: ${{ inputs.version }}
           MERGE_INTO: ${{ inputs.merge-into }}
+          MAIN_BRANCH: ${{ inputs.main-branch }}
           DEBUG: ${{ runner.debug }}
         run: ./scripts/release/finalize
+
+      - name: Commit and push changes
+        run: |-
+          msg="release: Prepare for next release after ${{ inputs.version }}"
+          if [ "${{ inputs.merge-into }}" == "${{ inputs.main-branch }}" ]; then
+            msg="release: ${{ inputs.version }}"
+          fi
+          set -x
+          git switch ${{ inputs.merge-into }}
+          git commit -m "$msg"
+          git push origin ${{ inputs.merge-into }}

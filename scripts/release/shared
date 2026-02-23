@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+if [ ! -f version/version.go ]; then
+  echo 'No version/version.go file here. Are you in the nomad/ repo root?'
+  exit 1
+fi
+
+if [ -z "${ALLOW_DIRTY_WORKTREE:-}" ] && ! git diff-index --quiet HEAD --; then
+  git status
+  echo '==========================='
+
+  # this is probably a human
+  if [ -t 1 ]; then
+    tput bold setaf 3 # yellow
+    echo '!! Need a clean worktree !!'
+    tput sgr0 # reset
+    echo 'If you run this here, your local git will be modified.'
+    echo 'Run this to get a fresh, separate worktree:'
+    tput bold setaf 2 # green
+    echo '$ git clone "$PWD" /tmp/nomad && pushd /tmp/nomad'
+    tput sgr0
+    echo 'then try again.'
+
+  else # probably a robot
+    echo '!! Need a clean worktree !!'
+  fi
+  echo '==========================='
+  exit 1
+fi
+
+# trapped on exit in prepare and finalize scripts
+check_unstaged_changes() {
+  local exit_code=$?
+  # ls-files --modified also catches merge/cherry-pick conflicts
+  local unstaged="$(git ls-files --modified)"
+  if [ -n "$unstaged" ]; then
+    git diff --color=always | /bin/cat
+    git status
+    echo "::error::Unexpected changes left unstaged"
+    exit_code=1
+  fi
+  exit "$exit_code"
+}
