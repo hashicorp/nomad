@@ -208,9 +208,8 @@ func ParseConfigFile(path string) (*Config, error) {
 	for _, consulConfig := range c.Consuls {
 
 		if consulConfig.Token == "" {
-			// BACKCOMPAT: set the consul token to CONSUL_HTTP_TOKEN
-			consulConfig.Token = os.Getenv("CONSUL_HTTP_TOKEN")
-			// Override with cluster specific token if available
+			// The default consul config looks for "CONSUL_HTTP_TOKEN". Here we allow for cluster
+			// specific tokens by looking for a consul token env with the cluster name as a suffix.
 			if token := os.Getenv(fmt.Sprintf("CONSUL_HTTP_TOKEN_%s", consulConfig.Name)); token != "" {
 				consulConfig.Token = token
 			}
