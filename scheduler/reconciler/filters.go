@@ -117,7 +117,6 @@ type allocContext struct {
 	alloc           *structs.Allocation
 	shouldReconnect bool
 	taintedNode     *structs.Node
-	nodeIsTainted   bool
 	now             time.Time
 }
 
@@ -226,7 +225,8 @@ var classificationRules = []classificationRule{
 	// Priority 12: Untainted/ready node with reconnect
 	{
 		condition: func(aCtx allocContext) bool {
-			return (!aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)) &&
+			return (aCtx.taintedNode == nil || (aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusReady)) &&
 				aCtx.shouldReconnect
 		},
 		category: categoryReconnecting,
@@ -234,7 +234,8 @@ var classificationRules = []classificationRule{
 	// Priority 13: Untainted/ready node
 	{
 		condition: func(aCtx allocContext) bool {
-			return !aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)
+			return aCtx.taintedNode == nil || (aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusReady)
 		},
 		category: categoryUntainted,
 	},
@@ -318,7 +319,7 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 		}
 
 		// Get node taint information
-		ctx.taintedNode, ctx.nodeIsTainted = state.TaintedNodes[alloc.NodeID]
+		ctx.taintedNode, _ = state.TaintedNodes[alloc.NodeID]
 
 		// Apply classification rules in order (first match wins)
 		classified := false
