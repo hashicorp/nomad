@@ -2189,6 +2189,11 @@ func (s *Server) Stats() map[string]map[string]string {
 		"runtime": goruntime.RuntimeStats(),
 	}
 
+	// Add logstore backend information to raft stats
+	if s.config.RaftLogStoreConfig != nil {
+		stats["raft"]["logstore_backend"] = s.config.RaftLogStoreConfig.Backend
+	}
+
 	return stats
 }
 
