@@ -10,10 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/http"
+	"net/http/httptest"
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -229,6 +233,104 @@ func TestEncrypter_loadKeyFromStore_emptyRSA(t *testing.T) {
 	unwrappedKey, err := encrypter.loadKeyFromStore(path)
 	must.NoError(t, err)
 	must.NotNil(t, unwrappedKey)
+}
+
+// TestEncrypter_HAFailedWrites exercises the behavior of keyring rotation with
+// HA KMS (for Nomad Enterprise) when one of the KMS is down. We want to fail
+// the rotation here and not persist the keys.
+func TestEncrypter_HAFailedWrites(t *testing.T) {
+
+	srv := &Server{
+		logger:      testlog.HCLogger(t),
+		config:      &Config{},
+		shutdownCtx: t.Context(),
+	}
+
+	tmpDir := t.TempDir()
+	encrypter, err := NewEncrypter(srv, tmpDir)
+	must.NoError(t, err)
+
+	// build two fake Vault transit encryption servers so we can control the
+	// failed responses
+	newMockVaultServer := func(name string, enabled *atomic.Bool) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Logf("vault %s got %s", name, r.URL)
+			if !enabled.Load() {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]any{
+					"errors": []string{"Vault is sealed or unavailable"},
+				})
+				return
+			}
+			if strings.Contains(r.URL.Path, "/transit/encrypt/") {
+				var req map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				plaintext, _ := req["plaintext"].(string)
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]any{
+					"data": map[string]any{ // note: not actually encrypted!
+						"ciphertext":  fmt.Sprintf("vault:v1:%s", plaintext),
+						"key_version": 1,
+					},
+				})
+				return
+			}
+		}))
+	}
+
+	var fakeVault1Enabled atomic.Bool
+	fakeVault1Enabled.Store(true)
+	fakeVault1 := newMockVaultServer("fake_vault1", &fakeVault1Enabled)
+	t.Cleanup(fakeVault1.Close)
+
+	var fakeVault2Enabled atomic.Bool
+	fakeVault2Enabled.Store(false)
+	fakeVault2 := newMockVaultServer("fake_vault2", &fakeVault2Enabled)
+	t.Cleanup(fakeVault2.Close)
+
+	// Nomad CE doesn't support multiple providers, so override the logic in
+	// getProviderConfigs; unfortunately this makes causing this test to fail in
+	// the correct order flaky, because the map iteration will be random
+	encrypter.providerConfigs = map[string]*structs.KEKProviderConfig{
+		"transit.fake_vault1": {
+			Provider: structs.KEKProviderVaultTransit,
+			Name:     "fake_vault1",
+			Active:   true,
+			Config: map[string]string{
+				"address":    fakeVault1.URL,
+				"key_name":   "transit_key_name",
+				"mount_path": "transit/",
+			},
+		},
+		"transit.fake_vault2": {
+			Provider: structs.KEKProviderVaultTransit,
+			Name:     "fake_vault2",
+			Active:   true,
+			Config: map[string]string{
+				"address":    fakeVault2.URL,
+				"key_name":   "transit_key_name",
+				"mount_path": "transit/",
+			},
+		},
+	}
+
+	entries, err := os.ReadDir(tmpDir)
+	must.NoError(t, err)
+	must.Len(t, 0, entries)
+
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+	_, err = encrypter.AddUnwrappedKey(key, false)
+	must.ErrorContains(t, err, "Vault is sealed or unavailable")
+
+	// ensure we haven't left any legacy keystore files behind
+	entries, err = os.ReadDir(tmpDir)
+	must.NoError(t, err)
+	must.Len(t, 0, entries)
 }
 
 // TestEncrypter_Restore exercises the entire reload of a keystore,
