@@ -243,7 +243,7 @@ func TestEncrypter_HAFailedWrites(t *testing.T) {
 	srv := &Server{
 		logger:      testlog.HCLogger(t),
 		config:      &Config{},
-		shutdownCtx: context.TODO(),
+		shutdownCtx: t.Context(),
 	}
 
 	tmpDir := t.TempDir()
