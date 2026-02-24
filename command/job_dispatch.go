@@ -74,6 +74,10 @@ Dispatch Options:
   -verbose
     Display full information.
 
+  -wait
+    Wait for all task groups to complete (all allocations reach terminal state).
+    Without this flag, the command returns after the evaluation completes.
+
   -ui
     Open the dispatched job in the browser.
 `
@@ -91,6 +95,7 @@ func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 			"-detach":             complete.PredictNothing,
 			"-idempotency-token":  complete.PredictAnything,
 			"-verbose":            complete.PredictNothing,
+			"-wait":               complete.PredictNothing,
 			"-ui":                 complete.PredictNothing,
 			"-id-prefix-template": complete.PredictAnything,
 			"-priority":           complete.PredictAnything,
@@ -124,7 +129,7 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobDispatchCommand) Name() string { return "job dispatch" }
 
 func (c *JobDispatchCommand) Run(args []string) int {
-	var detach, verbose, openURL bool
+	var detach, verbose, wait, openURL bool
 	var idempotencyToken string
 	var meta []string
 	var idPrefixTemplate string
@@ -134,6 +139,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&wait, "wait", false, "")
 	flags.StringVar(&idempotencyToken, "idempotency-token", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
@@ -263,33 +269,12 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Monitor dispatched job allocations with deployment-style display
-	return c.monitorDispatchedJob(client, resp.DispatchedJobID, namespace, verbose, length)
-}
-
-// allocIsStable determines if an allocation has reached a stable state
-func allocIsStable(alloc *api.AllocationListStub) bool {
-	// Terminal client states are always stable
-	switch alloc.ClientStatus {
-	case api.AllocClientStatusComplete,
-		api.AllocClientStatusFailed,
-		api.AllocClientStatusLost:
-		return true
+	// Monitor dispatched job allocations with deployment-style display (only if -wait flag is set)
+	if wait {
+		return c.monitorDispatchedJob(client, resp.DispatchedJobID, namespace, verbose, length)
 	}
 
-	// Running with desired=run is stable
-	if alloc.DesiredStatus == api.AllocDesiredStatusRun &&
-		alloc.ClientStatus == api.AllocClientStatusRunning {
-		return true
-	}
-
-	// Stop/evict desired states are terminal
-	if alloc.DesiredStatus == api.AllocDesiredStatusStop ||
-		alloc.DesiredStatus == api.AllocDesiredStatusEvict {
-		return true
-	}
-
-	return false
+	return 0
 }
 
 // computeDeploymentStates computes deployment-style metrics from job spec and allocations
@@ -428,20 +413,43 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
 		d.Set(spinner, statusComponent)
 
-		// Check if all allocations are stable
-		allStable := true
+		// Check if all task groups have completed
+		allTaskGroupsComplete := true
 		hasFailures := false
 
-		for _, alloc := range allocs {
-			if !allocIsStable(alloc) {
-				allStable = false
+		for tgName, state := range deploymentStates {
+			// Count terminal allocations for this task group
+			terminalCount := 0
+			failedCount := 0
+
+			for _, alloc := range allocs {
+				if alloc.TaskGroup != tgName {
+					continue
+				}
+
+				switch alloc.ClientStatus {
+				case api.AllocClientStatusComplete:
+					terminalCount++
+				case api.AllocClientStatusFailed:
+					terminalCount++
+					failedCount++
+				case api.AllocClientStatusLost:
+					terminalCount++
+					failedCount++
+				}
 			}
-			if alloc.ClientStatus == api.AllocClientStatusFailed {
+
+			// Task group is complete when all desired allocations are terminal
+			if terminalCount < state.DesiredTotal {
+				allTaskGroupsComplete = false
+			}
+
+			if failedCount > 0 {
 				hasFailures = true
 			}
 		}
 
-		if allStable {
+		if allTaskGroupsComplete {
 			d.Close()
 			if hasFailures {
 				return 2 // Scheduling failure
