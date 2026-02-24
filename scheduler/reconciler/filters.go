@@ -131,166 +131,147 @@ type classificationRule struct {
 // getClassificationRules returns the ordered list of classification rules.
 // Rules are evaluated in order, first match wins.
 // To add new cases, simply add new rules to this list in the appropriate priority order.
-var getClassificationRules = func() []classificationRule {
-	return []classificationRule{
-		// Priority 1: Failed reconnect cases
-		{
-			name: "failed-reconnect-still-running",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.shouldReconnect &&
-					aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed
-			},
-			category: categoryReconnecting,
+var classificationRules = []classificationRule{
+	// Priority 1: Failed reconnect cases
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.shouldReconnect &&
+				aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed
 		},
-		// Priority 2: Server-terminal allocations (stopped replacements)
-		{
-			name: "server-terminal-no-reconnect",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
-					aCtx.alloc.ServerTerminalStatus()
-			},
-			category: categoryIgnore,
+		category: categoryReconnecting,
+	},
+	// Priority 2: Server-terminal allocations (stopped replacements)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
+				aCtx.alloc.ServerTerminalStatus()
 		},
-		// Priority 3: Terminal canaries that need migration
-		{
-			name: "terminal-canary-migrate",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
-					aCtx.alloc.DeploymentStatus.IsCanary() &&
-					aCtx.alloc.DesiredTransition.ShouldMigrate()
-			},
-			category: categoryMigrate,
+		category: categoryIgnore,
+	},
+	// Priority 3: Terminal canaries that need migration
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
+				aCtx.alloc.DeploymentStatus.IsCanary() &&
+				aCtx.alloc.DesiredTransition.ShouldMigrate()
 		},
-		// Priority 4: Other terminal allocations
-		{
-			name: "terminal-no-reconnect",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect
-			},
-			category: categoryUntainted,
+		category: categoryMigrate,
+	},
+	// Priority 4: Other terminal allocations
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect
 		},
-		// Priority 5: Expired allocations
-		{
-			name: "expired",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.alloc.Expired(aCtx.now)
-			},
-			category: categoryExpiring,
+		category: categoryUntainted,
+	},
+	// Priority 5: Expired allocations
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.Expired(aCtx.now)
 		},
-		// Priority 6: Failed reconnect marked to stop
-		{
-			name: "failed-reconnect-stopped",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.shouldReconnect &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed &&
-					aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusStop
-			},
-			category: categoryIgnore,
+		category: categoryExpiring,
+	},
+	// Priority 6: Failed reconnect marked to stop
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.shouldReconnect &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed &&
+				aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusStop
 		},
-		// Priority 7: Disconnected node - unknown alloc
-		{
-			name: "disconnected-node-unknown-alloc",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
-			},
-			category: categoryUntainted,
+		category: categoryIgnore,
+	},
+	// Priority 7: Disconnected node - unknown alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
 		},
-		// Priority 8: Disconnected node - pending alloc
-		{
-			name: "disconnected-node-pending-alloc",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusPending
-			},
-			category: categoryLost,
+		category: categoryUntainted,
+	},
+	// Priority 8: Disconnected node - pending alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusPending
 		},
-		// Priority 9: Disconnected node - no disconnect timeout
-		{
-			name: "disconnected-node-no-timeout",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
-					aCtx.alloc.DisconnectTimeout(aCtx.now) == aCtx.now
-			},
-			category: categoryLost,
+		category: categoryLost,
+	},
+	// Priority 9: Disconnected node - no disconnect timeout
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.DisconnectTimeout(aCtx.now) == aCtx.now
 		},
-		// Priority 10: Disconnected node - within grace period
-		{
-			name: "disconnected-node-grace-period",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.Status == structs.NodeStatusDisconnected
-			},
-			category: categoryDisconnecting,
+		category: categoryLost,
+	},
+	// Priority 10: Disconnected node - within grace period
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected
 		},
-		// Priority 11: Migrate flag set
-		{
-			name: "migrate-flag-set",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.alloc.DesiredTransition.ShouldMigrate()
-			},
-			category: categoryMigrate,
+		category: categoryDisconnecting,
+	},
+	// Priority 11: Migrate flag set
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.DesiredTransition.ShouldMigrate()
 		},
-		// Priority 12: Untainted/ready node with reconnect
-		{
-			name: "untainted-or-ready-reconnect",
-			condition: func(aCtx allocContext) bool {
-				return (!aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)) &&
-					aCtx.shouldReconnect
-			},
-			category: categoryReconnecting,
+		category: categoryMigrate,
+	},
+	// Priority 12: Untainted/ready node with reconnect
+	{
+		condition: func(aCtx allocContext) bool {
+			return (!aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)) &&
+				aCtx.shouldReconnect
 		},
-		// Priority 13: Untainted/ready node
-		{
-			name: "untainted-or-ready-node",
-			condition: func(aCtx allocContext) bool {
-				return !aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)
-			},
-			category: categoryUntainted,
+		category: categoryReconnecting,
+	},
+	// Priority 13: Untainted/ready node
+	{
+		condition: func(aCtx allocContext) bool {
+			return !aCtx.nodeIsTainted || (aCtx.taintedNode != nil && aCtx.taintedNode.Status == structs.NodeStatusReady)
 		},
-		// Priority 14: Node GC'd (nil)
-		{
-			name: "node-gcd",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode == nil
-			},
-			category: categoryLost,
+		category: categoryUntainted,
+	},
+	// Priority 14: Node GC'd (nil)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode == nil
 		},
-		// Priority 15: Terminal node, no replace, unknown alloc
-		{
-			name: "terminal-node-no-replace-unknown",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.TerminalStatus() &&
-					!aCtx.alloc.ReplaceOnDisconnect() &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
-			},
-			category: categoryUntainted,
+		category: categoryLost,
+	},
+	// Priority 15: Terminal node, no replace, unknown alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.TerminalStatus() &&
+				!aCtx.alloc.ReplaceOnDisconnect() &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
 		},
-		// Priority 16: Terminal node, no replace, running alloc
-		{
-			name: "terminal-node-no-replace-running",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil &&
-					aCtx.taintedNode.TerminalStatus() &&
-					!aCtx.alloc.ReplaceOnDisconnect() &&
-					aCtx.alloc.ClientStatus == structs.AllocClientStatusRunning
-			},
-			category: categoryDisconnecting,
+		category: categoryUntainted,
+	},
+	// Priority 16: Terminal node, no replace, running alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.TerminalStatus() &&
+				!aCtx.alloc.ReplaceOnDisconnect() &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusRunning
 		},
-		// Priority 17: Terminal node (all other cases)
-		{
-			name: "terminal-node",
-			condition: func(aCtx allocContext) bool {
-				return aCtx.taintedNode != nil && aCtx.taintedNode.TerminalStatus()
-			},
-			category: categoryLost,
+		category: categoryDisconnecting,
+	},
+	// Priority 17: Terminal node (all other cases)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil && aCtx.taintedNode.TerminalStatus()
 		},
-	}
+		category: categoryLost,
+	},
 }
 
 // filterByTainted takes a set of tainted nodes and filters the allocation set
@@ -322,8 +303,6 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 		categoryExpiring:      &expiring,
 	}
 
-	rules := getClassificationRules()
-
 	for _, alloc := range set {
 		// Build the context for classification
 		ctx := allocContext{
@@ -343,7 +322,7 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 
 		// Apply classification rules in order (first match wins)
 		classified := false
-		for _, rule := range rules {
+		for _, rule := range classificationRules {
 			if rule.condition(ctx) {
 				targetSet := categoryMap[rule.category]
 				(*targetSet)[alloc.ID] = alloc
