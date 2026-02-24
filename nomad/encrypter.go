@@ -802,12 +802,26 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 
 	wrappedKeys := structs.NewRootKey(rootKey.Meta)
 
+	// we need to ensure we don't leave unrecorded legacy keys on disk if we got
+	// any errors, so collect all the paths we write
+	paths := []string{}
+	cleanup := func() {
+		for _, path := range paths {
+			err := os.Remove(path)
+			if err != nil {
+				e.log.Error("could not remove uncommitted legacy key",
+					"path", path, "error", err)
+			}
+		}
+	}
+
 	for _, provider := range e.providerConfigs {
 		if !provider.Active {
 			continue
 		}
 		wrappedKey, err := e.encryptDEK(rootKey, provider)
 		if err != nil {
+			cleanup()
 			return nil, err
 		}
 
@@ -821,11 +835,21 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 		case provider.Provider == structs.KEKProviderAEAD: // !isUpgraded
 			kek := wrappedKey.KeyEncryptionKey
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 
 		default: // !isUpgraded
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 		}
 
 		wrappedKeys.WrappedKeys = append(wrappedKeys.WrappedKeys, wrappedKey)
@@ -881,7 +905,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 
 func (e *Encrypter) writeKeyToDisk(
 	meta *structs.RootKeyMeta, provider *structs.KEKProviderConfig,
-	wrappedKey *structs.WrappedKey, kek []byte) error {
+	wrappedKey *structs.WrappedKey, kek []byte) (string, error) {
 
 	// the on-disk keystore flattens the keys wrapped for the individual
 	// KMS providers out to their own files
@@ -896,7 +920,7 @@ func (e *Encrypter) writeKeyToDisk(
 
 	buf, err := json.Marshal(diskWrapper)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	filename := fmt.Sprintf("%s.%s%s",
@@ -904,9 +928,9 @@ func (e *Encrypter) writeKeyToDisk(
 	path := filepath.Join(e.keystorePath, filename)
 	err = os.WriteFile(path, buf, 0o600)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return path, nil
 }
 
 // loadKeyFromStore deserializes a root key from disk.
