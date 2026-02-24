@@ -370,7 +370,13 @@ reporting {
 keyring "awskms" {
   active     = true
   region     = "us-east-1"
-  kms_key_id = "alias/kms-nomad-keyring"
+  kms_key_id = "alias/kms-nomad-keyring-us"
+}
+
+keyring "awskms" {
+  active     = true
+  region     = "eu-west-2"
+  kms_key_id = "alias/kms-nomad-keyring-eu"
 }
 
 keyring "aead" {
