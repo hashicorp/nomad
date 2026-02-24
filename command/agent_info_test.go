@@ -72,6 +72,7 @@ func TestAgentInfoCommand_LogStoreBackend(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, "logstore_backend")
+	must.StrContains(t, out, "boltdb")
 }
 
 func TestAgentInfoCommand_LogStoreBackend_WAL(t *testing.T) {
