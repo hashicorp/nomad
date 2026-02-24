@@ -381,7 +381,15 @@ var basicConfig = &Config{
 			Active:   true,
 			Config: map[string]string{
 				"region":     "us-east-1",
-				"kms_key_id": "alias/kms-nomad-keyring",
+				"kms_key_id": "alias/kms-nomad-keyring-us",
+			},
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "eu-west-2",
+				"kms_key_id": "alias/kms-nomad-keyring-eu",
 			},
 		},
 	},

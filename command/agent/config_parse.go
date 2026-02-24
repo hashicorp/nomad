@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -367,7 +368,11 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	helper.RemoveEqualFold(&c.ExtraKeysHCL, "keyring")
+	// The `keyring` blocks are parsed separately from the Decode method, as we
+	// support multiple entries. The decoder will put the "keyring" key in the
+	// ExtraKeysHCL slice, so we need to remove it here.
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return strings.EqualFold(s, "keyring") })
+
 	for _, provider := range c.KEKProviders {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider.String())
 	}
