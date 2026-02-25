@@ -35,28 +35,27 @@ echo 'Ensuring branches'
   done
 echo
 
-# if the target is main, we cherry-pick from the source and call it a day.
+# if the target is main, grab files from the source branch,
+# which during a release will be a .x branch, which means
+# we get (a subset of) the changes defined below this condition.
 if [ "$MERGE_INTO" == "${MAIN_BRANCH:-main}" ]; then
-  echo 'Target branch is main; squashing release commits'
+  echo "Target branch is main; checking out files from '$MERGE_FROM'"
 
-  # find commits for this release in source branch.
-  # commit messages in release-{prepare,finalize}.yml workflows match this format.
-  msg="^release:.* ${NEW_VERSION}$"
-  commits="$(git log --grep "$msg" --reverse --pretty='%H' "$MERGE_FROM")"
-  [ -n "$commits" ] || { echo "::error::found no commits for '$msg'"; exit 1; }
-  echo -e "commits:\n$commits"
+  # using a simple `checkout` to bypass merge conflicts
+  git checkout "$MERGE_FROM" \
+    version/version.go \
+    scripts/release/previous.version \
+    command/agent/bindata_assetfs.go \
+    ;
 
-  # squash (--no-commit) to exclude the generated files from git history;
-  # they're huge, and remain in other branches for posterity.
-  if ! echo "$commits" | xargs git cherry-pick --no-commit; then
-    echo "::error::failed to cherry-pick release commits"
-    exit 1
-  fi
+  # excluding files: *.generated.go, CHANGELOG.md
 
   exit # nothing else to do
 fi
 
 echo "Merging changes from '$MERGE_FROM' into '$MERGE_INTO'"
+  # there should never be a merge conflict, because MERGE_FROM
+  # was originally created from MERGE_INTO (a .x branch) during prepare.
   if ! git merge --no-edit "$MERGE_FROM"; then
     echo "::error::failed to merge $MERGE_FROM into $MERGE_INTO"
     exit 1

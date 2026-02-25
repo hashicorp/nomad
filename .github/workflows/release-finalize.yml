@@ -66,9 +66,9 @@ jobs:
         run: |-
           msg="release: Prepare for next release after ${{ inputs.version }}"
           if [ "${{ inputs.merge-into }}" == "${{ inputs.main-branch }}" ]; then
-            msg="release: ${{ inputs.version }}"
+            msg="release: Copy files after ${{ inputs.version }}"
           fi
           set -x
-          git switch ${{ inputs.merge-into }}
+          git status
           git commit -m "$msg"
           git push origin ${{ inputs.merge-into }}
