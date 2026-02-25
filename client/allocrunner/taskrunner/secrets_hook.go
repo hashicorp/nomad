@@ -214,15 +214,15 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				tmplProvider = append(tmplProvider, p)
 			}
 		default:
-			// Add/overwrite the nomad namespace and jobID envVars
-			s.Env = h.setupPluginEnv(s.Env)
-
 			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue
 			}
 			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path))
+
+			// Add/overwrite the nomad namespace and jobID envVars
+			s.Env = h.setupPluginEnv(s.Env)
 			rawEnvMaps = append(rawEnvMaps, s.Env)
 		}
 	}
