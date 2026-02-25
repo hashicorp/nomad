@@ -6,7 +6,6 @@ package secrets
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/commonplugins"
@@ -22,8 +21,8 @@ func (m *MockSecretPlugin) Fingerprint(ctx context.Context) (*commonplugins.Plug
 	return nil, nil
 }
 
-func (m *MockSecretPlugin) Fetch(ctx context.Context, path string) (*commonplugins.SecretResponse, error) {
-	args := m.Called()
+func (m *MockSecretPlugin) Fetch(ctx context.Context, path string, env map[string]string) (*commonplugins.SecretResponse, error) {
+	args := m.Called(ctx, path, env)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -45,11 +44,11 @@ func (m *MockSecretPlugin) SetEnv(env map[string]string) {
 func TestExternalPluginProvider_Fetch(t *testing.T) {
 	t.Run("errors if fetch errors", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(nil, errors.New("something bad"))
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("something bad"))
 
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
 
-		vars, err := testProvider.Fetch(t.Context())
+		vars, err := testProvider.Fetch(t.Context(), nil)
 		must.ErrorContains(t, err, "something bad")
 		must.Nil(t, vars)
 	})
@@ -57,21 +56,21 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 	t.Run("errors if fetch response contains error", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
 		testError := "something bad"
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(&commonplugins.SecretResponse{
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(&commonplugins.SecretResponse{
 			Result: nil,
 			Error:  &testError,
 		}, nil)
 
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
 
-		vars, err := testProvider.Fetch(t.Context())
+		vars, err := testProvider.Fetch(t.Context(), nil)
 		must.ErrorContains(t, err, "provider \"test-provider\" for secret \"test\" response contained error")
 		must.Nil(t, vars)
 	})
 
 	t.Run("formats response correctly", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(&commonplugins.SecretResponse{
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(&commonplugins.SecretResponse{
 			Result: map[string]string{
 				"testkey": "testvalue",
 			},
@@ -80,44 +79,12 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 
 		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
 
-		result, err := testProvider.Fetch(t.Context())
+		result, err := testProvider.Fetch(t.Context(), nil)
 		must.NoError(t, err)
 
 		exp := map[string]string{
 			"secret.test.testkey": "testvalue",
 		}
 		must.Eq(t, exp, result)
-	})
-}
-
-func TestExternalPluginProvider_InterpolateEnv(t *testing.T) {
-	t.Run("interpolates env values and calls SetEnv", func(t *testing.T) {
-		mockPlugin := new(MockSecretPlugin)
-		mockPlugin.On("SetEnv", map[string]string{
-			"TOKEN":    "resolved-value",
-			"STATIC":   "unchanged",
-			"COMBINED": "prefix-resolved-value-suffix",
-		}).Return()
-
-		provider := NewExternalPluginProvider(mockPlugin, "test-provider", "test", "test")
-
-		rawEnv := map[string]string{
-			"TOKEN":    "${secret.creds.token}",
-			"STATIC":   "unchanged",
-			"COMBINED": "prefix-${secret.creds.token}-suffix",
-		}
-
-		interpolate := func(s string) string {
-			replacer := map[string]string{
-				"${secret.creds.token}": "resolved-value",
-			}
-			for old, new := range replacer {
-				s = strings.ReplaceAll(s, old, new)
-			}
-			return s
-		}
-
-		provider.InterpolateEnv(rawEnv, interpolate)
-		mockPlugin.AssertExpectations(t)
 	})
 }

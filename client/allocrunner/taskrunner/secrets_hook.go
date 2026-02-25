@@ -28,7 +28,7 @@ type TemplateProvider interface {
 }
 
 type PluginProvider interface {
-	Fetch(context.Context) (map[string]string, error)
+	Fetch(context.Context, map[string]string) (map[string]string, error)
 }
 
 type secretsHookConfig struct {
@@ -167,19 +167,17 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 	h.envBuilder.SetSecrets(m)
 
-	// Interpolate plugin env values now that template secrets are available.
-	// This enables references like ${secret.X.Y} in the env block of custom
-	// secret providers, where X.Y was resolved by a template-based provider.
 	taskEnv := h.envBuilder.Build()
-	for i, p := range pluginProvider {
-		if epp, ok := p.(*secrets.ExternalPluginProvider); ok {
-			epp.InterpolateEnv(rawEnvMaps[i], taskEnv.ReplaceEnv)
-		}
-	}
 
-	// Set secrets from plugin providers
-	for _, p := range pluginProvider {
-		vars, err := p.Fetch(ctx)
+	for i, p := range pluginProvider {
+		pluginProviderEnv := rawEnvMaps[i]
+
+		interpolatedEnv := make(map[string]string, len(pluginProviderEnv))
+		for k, v := range rawEnvMaps[i] {
+			interpolatedEnv[k] = taskEnv.ReplaceEnv(v)
+		}
+
+		vars, err := p.Fetch(ctx, interpolatedEnv)
 		if err != nil {
 			return err
 		}
@@ -219,7 +217,7 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 			// Add/overwrite the nomad namespace and jobID envVars
 			s.Env = h.setupPluginEnv(s.Env)
 
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Env)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue
