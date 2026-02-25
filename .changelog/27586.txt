@@ -1,0 +1,3 @@
+```release-note:bug
+http: Ensure the correct HTTP protocol version is set on event stream responses
+```

@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -305,5 +307,39 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 		require.NotNil(t, networkResource)
 		require.Equal(t, 5000, networkResource.ReservedPorts[0].Value)
 		require.NotEqual(t, 0, networkResource.DynamicPorts[0].Value)
+	})
+}
+
+func TestEventStream_ProtoVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+
+		// Make a raw TCP connection to the agent's HTTP listener so that the
+		// real net/http server handles the request. Unlike
+		// httptest.NewRecorder, the real ResponseWriter implements
+		// http.Hijacker.
+		conn, err := net.DialTimeout("tcp", s.Server.Addr, 5*time.Second)
+		must.NoError(t, err)
+		defer conn.Close()
+
+		reqLine := "GET /v1/event/stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		_, err = conn.Write([]byte(reqLine))
+		must.NoError(t, err)
+
+		// Set a read deadline so we don't block forever; we only need the
+		// status line which arrives immediately.
+		must.NoError(t, conn.SetReadDeadline(time.Now().Add(1*time.Second)))
+
+		// The response is only 17 bytes, but give a little room for future
+		// proofing subtle changes to the response format.
+		buf := make([]byte, 46)
+		n, err := conn.Read(buf)
+		must.NoError(t, err)
+		must.Greater(t, 0, n)
+
+		// The status line should be HTTP/1.1 200 OK, which indicates that the
+		// server is responding with the same protocol version as the request.
+		must.StrContains(t, string(buf[:n]), "HTTP/1.1 200 OK")
 	})
 }

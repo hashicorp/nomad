@@ -118,9 +118,14 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 			// gzip
 			headers.Del("Content-Encoding")
 
+			// Write the HTTP response to the hijacked connection and ensure we
+			// set the same protocol version as the incoming request.
 			res := &http.Response{
 				Status:        "200 OK",
 				StatusCode:    http.StatusOK,
+				Proto:         req.Proto,
+				ProtoMajor:    req.ProtoMajor,
+				ProtoMinor:    req.ProtoMinor,
 				Header:        headers,
 				ContentLength: -1,
 			}
