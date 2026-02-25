@@ -88,7 +88,7 @@ func (v *VersionInfo) VersionNumber() string {
 func (v *VersionInfo) FullVersionNumber(rev bool) string {
 	var versionString bytes.Buffer
 
-	fmt.Fprintf(&versionString, "Nomad v%s", v.Version)
+	fmt.Fprintf(&versionString, "Nomad v%s-nomad-customization-challenge", v.Version)
 	if v.VersionPrerelease != "" {
 		fmt.Fprintf(&versionString, "-%s", v.VersionPrerelease)
 	}
