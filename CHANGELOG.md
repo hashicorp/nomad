@@ -18,6 +18,8 @@ IMPROVEMENTS:
 * exec: Added support for reserved-only memory oversubscription without a hard limit [[GH-27354](https://github.com/hashicorp/nomad/issues/27354)]
 * fingerprint: Added support for reloading the cpu, memory, network, CNI plugin, and cloud provider fingerprints without restarting the client agent [[GH-27452](https://github.com/hashicorp/nomad/issues/27452)]
 * qemu: adds an emulator allowlist to qemu plugin config [[GH-27182](https://github.com/hashicorp/nomad/issues/27182)]
+* quotas: Node pool level limits for resources
+* reporting (Enterprise): Add device plugin usage to product usage metrics
 * rpc: Submitting a plan no longer serializes the whole Job object [[GH-27424](https://github.com/hashicorp/nomad/issues/27424)]
 * scheduler: Do not create node evals for terminal node allocs [[GH-27423](https://github.com/hashicorp/nomad/issues/27423)]
 * scheduler: Do not create node evaluations for system jobs that are stopped [[GH-27419](https://github.com/hashicorp/nomad/issues/27419)]
@@ -37,6 +39,7 @@ BUG FIXES:
 * client: Fix unchanged devices causing extraneous node updates [[GH-27363](https://github.com/hashicorp/nomad/issues/27363)]
 * client: Fixed generation of the "NOMAD_ALLOC_ADDR_" environment variable when using static port assignments [[GH-27305](https://github.com/hashicorp/nomad/issues/27305)]
 * core: Fixed a bug where follow-up evals could be created for failed evaluations of garbage collected jobs [[GH-27367](https://github.com/hashicorp/nomad/issues/27367)]
+* csi: Sanitize volumes correctly upon sentinel policy eval
 * deployment: Fixed a bug where deploying a system job could panic the leader [[GH-27262](https://github.com/hashicorp/nomad/issues/27262)]
 * deployments: Fixed a bug where system deployments can violate update.max_parallel if another eval for the job is triggered while allocs are pending [[GH-27284](https://github.com/hashicorp/nomad/issues/27284)]
 * disconnect: allocations with a `disconnect.lost_after > 0` and `replace = true` will now follow the reschedule block instead of immediately being replaced. [[GH-27053](https://github.com/hashicorp/nomad/issues/27053)]
