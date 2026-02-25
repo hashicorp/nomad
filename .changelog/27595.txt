@@ -1,0 +1,3 @@
+```release-note:bug
+config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as `task_identity`
+```
