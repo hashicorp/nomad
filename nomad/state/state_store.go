@@ -402,10 +402,11 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 			return fmt.Errorf("deployment lookup failed: %v", err)
 		}
 		if existing != nil {
-			for tgName, dstate := range results.Deployment.TaskGroups {
-				existDstate := existing.TaskGroups[tgName]
-				if existDstate != nil {
+			for tgName, existDstate := range existing.TaskGroups {
+				if dstate := results.Deployment.TaskGroups[tgName]; dstate != nil {
 					dstate.MergeClientValues(existDstate)
+				} else {
+					results.Deployment.TaskGroups[tgName] = existDstate
 				}
 			}
 		}
