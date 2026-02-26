@@ -22,6 +22,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
@@ -65,6 +66,7 @@ module('Acceptance | job run', function (hooks) {
   setupCodeMirror(hooks);
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     // Required for placing allocations (a result of creating jobs)
     server.create('node-pool');
     server.create('node');

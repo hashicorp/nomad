@@ -12,12 +12,14 @@ import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | sentinel policies', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    faker.seed(1);
     window.localStorage.clear();
     window.sessionStorage.clear();
     allScenarios.policiesTestCluster(server, { sentinel: true });
@@ -213,7 +215,7 @@ module('Acceptance | sentinel policies', function (hooks) {
       'New Policy page has query param'
     );
 
-    await percySnapshot(assert);
+    await percySnapshot('New sentinel policy from template');
 
     assert.dom('[data-test-policy-name-input]').hasValue('no-friday-deploys');
     assert

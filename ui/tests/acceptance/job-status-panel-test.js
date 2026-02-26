@@ -34,6 +34,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
     assert.expect(5);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -186,6 +187,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
     assert.expect(9);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -264,6 +266,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
     assert.expect(7);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -438,6 +441,7 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
+    faker.seed(1);
     let groupAllocCount = 50;
 
     let job = server.create('job', {
