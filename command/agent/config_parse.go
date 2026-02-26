@@ -385,6 +385,12 @@ func extraKeys(c *Config) error {
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
 
+	// When using JSON object format (vs array format) for consul/vault blocks,
+	// HCL1 also leaks the sub-block keys to the top-level ExtraKeysHCL.
+	for _, k := range []string{"service_identity", "task_identity", "default_identity"} {
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
+	}
+
 	// The fingerprinter labels will be added to the ExtraKeysHCL slice by
 	// hcl.Decode, so we need to remove them here.
 	//
