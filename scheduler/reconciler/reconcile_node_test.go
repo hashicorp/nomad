@@ -650,8 +650,9 @@ func TestNodeDeployments(t *testing.T) {
 	tg.Update = structs.DefaultUpdateStrategy
 	job.TaskGroups = append(job.TaskGroups, tg)
 
-	// Create two alive nodes.
-	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}}
+	// Create three live nodes, one of which is old
+	nodes := []*structs.Node{{ID: "foo"}, {ID: "bar"}, {ID: "baz"}}
+	nodes[2].Attributes = map[string]string{"nomad.version": "1.8.20+ent"}
 
 	// Stopped job to make sure we handle these correctly
 	stoppedJob := job.Copy()
@@ -680,6 +681,7 @@ func TestNodeDeployments(t *testing.T) {
 		job                                   *structs.Job
 		liveAllocs                            []*structs.Allocation
 		terminalAllocs                        structs.TerminalByNodeByName
+		nodes                                 []*structs.Node
 		existingDeployment                    *structs.Deployment
 		newDeployment                         bool
 		expectedNewDeploymentStatus           string
@@ -690,6 +692,7 @@ func TestNodeDeployments(t *testing.T) {
 			job:            job,
 			liveAllocs:     allocs,
 			terminalAllocs: nil,
+			nodes:          nodes[0:1],
 			existingDeployment: &structs.Deployment{
 				JobCreateIndex: job.CreateIndex,
 				JobVersion:     job.Version,
@@ -704,6 +707,7 @@ func TestNodeDeployments(t *testing.T) {
 			job:            job,
 			liveAllocs:     allocs,
 			terminalAllocs: nil,
+			nodes:          nodes, // includes old node
 			existingDeployment: &structs.Deployment{
 				JobID:             job.ID,
 				JobCreateIndex:    job.CreateIndex,
@@ -729,6 +733,7 @@ func TestNodeDeployments(t *testing.T) {
 			job:            stoppedJob,
 			liveAllocs:     allocs,
 			terminalAllocs: nil,
+			nodes:          nodes[0:1],
 			existingDeployment: &structs.Deployment{
 				JobCreateIndex: job.CreateIndex,
 				JobVersion:     job.Version,
@@ -743,6 +748,7 @@ func TestNodeDeployments(t *testing.T) {
 			job:                                   newJobWithNoAllocs,
 			liveAllocs:                            allocs,
 			terminalAllocs:                        nil,
+			nodes:                                 nodes[0:1],
 			existingDeployment:                    nil,
 			newDeployment:                         true,
 			expectedNewDeploymentStatus:           structs.DeploymentStatusRunning,
@@ -754,6 +760,18 @@ func TestNodeDeployments(t *testing.T) {
 			liveAllocs: nil,
 			terminalAllocs: map[string]map[string]*structs.Allocation{
 				nodes[0].ID: {terminalAlloc.ID: terminalAlloc}},
+			nodes:                                 nodes[0:1],
+			existingDeployment:                    nil,
+			newDeployment:                         false,
+			expectedNewDeploymentStatus:           "",
+			expectedDeploymenStatusUpdateContains: "",
+		},
+		{
+			name:                                  "new job with old node should have no deployment",
+			job:                                   newJobWithNoAllocs,
+			liveAllocs:                            allocs,
+			terminalAllocs:                        nil,
+			nodes:                                 nodes,
 			existingDeployment:                    nil,
 			newDeployment:                         false,
 			expectedNewDeploymentStatus:           "",
@@ -764,7 +782,7 @@ func TestNodeDeployments(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			nr := NewNodeReconciler(tc.existingDeployment)
-			nr.Compute(tc.job, nodes, nil, nil, tc.liveAllocs, tc.terminalAllocs)
+			nr.Compute(tc.job, tc.nodes, nil, nil, tc.liveAllocs, tc.terminalAllocs)
 			if tc.newDeployment {
 				must.NotNil(t, nr.DeploymentCurrent, must.Sprintf("expected a non-nil deployment"))
 				must.Eq(t, nr.DeploymentCurrent.Status, tc.expectedNewDeploymentStatus)

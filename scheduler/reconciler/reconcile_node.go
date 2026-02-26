@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -17,7 +18,7 @@ type NodeReconciler struct {
 	DeploymentCurrent *structs.Deployment
 	DeploymentUpdates []*structs.DeploymentStatusUpdate
 
-	// COMPAT(1.14.0):
+	// COMPAT(1.11.0):
 	// compatHasSameVersionAllocs indicates that the reconciler found some
 	// allocations that were for the version being deployed
 	compatHasSameVersionAllocs bool
@@ -67,12 +68,23 @@ func (nr *NodeReconciler) Compute(
 		result.Append(diff)
 	}
 
-	// COMPAT(1.14.0) prevent a new deployment from being created in the case
+	// COMPAT(1.11.0) prevent a new deployment from being created in the case
 	// where we've upgraded the cluster while a legacy rolling deployment was in
 	// flight, otherwise we won't have HealthAllocs tracking and will never mark
 	// the deployment as complete
 	if !compatHadExistingDeployment && nr.compatHasSameVersionAllocs {
 		nr.DeploymentCurrent = nil
+	}
+	// COMPAT(1.11.0) prevent a new deployment from being created in the case
+	// where we've upgraded the cluster while there are any older nodes in the
+	// eligible set, otherwise we won't have HealthAllocs tracking and will
+	// never mark the deployment as complete
+	if !compatHadExistingDeployment {
+		for _, node := range eligibleNodes {
+			if nr.compatNodeTooOldForDeployment(node) {
+				nr.DeploymentCurrent = nil
+			}
+		}
 	}
 
 	return result
@@ -515,6 +527,21 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	}
 
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
+}
+
+var minVersionSystemDeployments = version.Must(version.NewVersion("1.11.0"))
+
+func (nr *NodeReconciler) compatNodeTooOldForDeployment(node *structs.Node) bool {
+	if node == nil {
+		return false
+	}
+	if nodeVersionStr, ok := node.Attributes["nomad.version"]; ok {
+		nodeVersion, err := version.NewVersion(nodeVersionStr)
+		if err == nil && nodeVersion.LessThan(minVersionSystemDeployments) {
+			return true
+		}
+	}
+	return false
 }
 
 // materializeSystemTaskGroups is used to materialize all the task groups

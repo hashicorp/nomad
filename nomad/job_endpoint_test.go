@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	nomadVersion "github.com/hashicorp/nomad/version"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
@@ -8701,6 +8702,7 @@ func TestIntegration_SystemDeploymentHealth(t *testing.T) {
 
 	for range 4 {
 		node := mock.Node()
+		node.Attributes["nomad.version"] = nomadVersion.Version
 		req := &structs.NodeRegisterRequest{
 			Node:         node,
 			WriteRequest: structs.WriteRequest{Region: region},
