@@ -17,6 +17,7 @@ import moduleForJob, {
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import percySnapshot from '@percy/ember';
 import { createRestartableJobs } from 'nomad-ui/mirage/scenarios/default';
+import faker from 'nomad-ui/mirage/faker';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', {
@@ -347,6 +348,7 @@ module('Acceptance | ui block', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    faker.seed(1);
     window.localStorage.clear();
     server.create('agent');
     server.create('node-pool');
@@ -439,6 +441,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   let job, managementToken, clientToken;
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     server.createList('namespace', 2);
     server.create('node-pool');
     server.create('node');
@@ -816,6 +819,7 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     server.create('agent');
     server.create('node-pool');
     server.create('node');

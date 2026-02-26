@@ -396,6 +396,7 @@ export default Factory.extend({
         namespace: job.namespace,
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
+        allocStatusDistribution: job.allocStatusDistribution,
         shallow: job.shallow,
         noActiveDeployment: job.noActiveDeployment,
       });
@@ -419,6 +420,7 @@ export default Factory.extend({
         namespace: job.namespace,
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
+        allocStatusDistribution: job.allocStatusDistribution,
         shallow: job.shallow,
         noActiveDeployment: job.noActiveDeployment,
       });

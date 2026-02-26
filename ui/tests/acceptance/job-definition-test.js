@@ -5,6 +5,7 @@
 
 import { click, currentURL } from '@ember/test-helpers';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -21,6 +22,7 @@ module('Acceptance | job definition', function (hooks) {
   setupCodeMirror(hooks);
 
   hooks.beforeEach(async function () {
+    faker.seed(1);
     server.create('node-pool');
     server.create('node');
     server.create('job');
@@ -144,6 +146,7 @@ module('Acceptance | job definition | full specification', function (hooks) {
   setupCodeMirror(hooks);
 
   hooks.beforeEach(async function () {
+    faker.seed(1);
     server.create('node-pool');
     server.create('node');
     server.create('job');

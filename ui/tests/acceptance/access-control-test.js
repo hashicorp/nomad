@@ -12,6 +12,7 @@ import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 // Several related tests within Access Control are contained in the Tokens, Roles,
 // and Policies acceptance tests.
@@ -21,6 +22,7 @@ module('Acceptance | access control', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     window.localStorage.clear();
     window.sessionStorage.clear();
     // server.create('token');

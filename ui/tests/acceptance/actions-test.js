@@ -276,7 +276,7 @@ module('Acceptance | actions', function (hooks) {
       'Running on an orphan alloc results in 1 further action instance'
     );
 
-    await percySnapshot(assert);
+    await percySnapshot('Actions flyout with multiple instances');
   });
 
   test('Running actions from a task row', async function (assert) {
