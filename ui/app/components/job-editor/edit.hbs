@@ -10,7 +10,7 @@
     <div class="pull-right" style="display: flex">
       <span class="header-toggle">
         <Hds::Form::Toggle::Field
-          {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") menuLevel=true }}
+          {{keyboard-shortcut label="Toggle word wrap" action=@fns.onToggleWrap pattern=(array "w" "w") menuLevel=true }}
           checked={{@data.shouldWrap}}
           {{on "change" @fns.onToggleWrap}}
         as |F|>

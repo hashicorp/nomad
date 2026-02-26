@@ -9,7 +9,7 @@
     <div class="pull-right" style="display: flex">
         <span class="header-toggle">
           <Hds::Form::Toggle::Field
-            {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") menuLevel=true }}
+            {{keyboard-shortcut label="Toggle word wrap" action=@fns.onToggleWrap pattern=(array "w" "w") menuLevel=true }}
             checked={{@data.shouldWrap}}
             {{on "change" @fns.onToggleWrap}}
           as |F|>
@@ -19,14 +19,14 @@
 
         <Tooltip @condition={{unless @data.hasSpecification true false}} @isFullText={{true}} @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format.">
             <div class="job-definition-select {{unless @data.hasSpecification " disabled"}}" data-test-select={{@data.view}}>
-                <button 
+                <button
                     class="button is-small is-borderless {{if (eq @data.view "job-spec") "is-active"}}"
                     type="button"
                     {{on "click" (fn @fns.onSelect "job-spec")}}
                 >
                     Job Spec
                 </button>
-                <button 
+                <button
                     class="button is-small is-borderless {{if (eq @data.view "full-definition") "is-active"}}"
                     type="button"
                     {{on "click" (fn @fns.onSelect "full-definition")}}
@@ -34,7 +34,7 @@
                 >
                     Full Definition
                 </button>
-            </div>        
+            </div>
         </Tooltip>
 
         <button
@@ -50,16 +50,16 @@
     </div>
     <div class="boxed-section-body is-full-bleed">
     {{#if (eq @data.view "job-spec")}}
-        <div 
+        <div
             data-test-job-spec-view
             {{code-mirror
             content=@data.definition
             mode=(if (eq @data.format "json") "javascript" "ruby")
             readOnly=true
-            screenReaderLabel="Job specification"          
+            screenReaderLabel="Job specification"
             theme="hashi-read-only"
             lineWrapping=@data.shouldWrap
-            }} 
+            }}
         />
     {{else}}
         <div

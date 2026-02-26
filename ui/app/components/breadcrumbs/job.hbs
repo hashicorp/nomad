@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Trigger @onError={{action this.onError}} @do={{this.fetchParent}} as |trigger|>
+<Trigger @onError={{this.onError}} @do={{this.fetchParent}} as |trigger|>
   {{did-insert trigger.fns.do}}
   {{#if trigger.data.isBusy}}
     <li>
@@ -18,7 +18,7 @@
         <LinkTo
           @route="jobs.job.index"
           @model={{trigger.data.result}}
-          data-test-breadcrumb={{"jobs.job.index"}}
+          data-test-breadcrumb="jobs.job.index"
         >
           <dl>
             <dt>
@@ -37,14 +37,14 @@
         label="Go up a level"
         pattern=(array "u")
         menuLevel=true
-        action=(action this.traverseUpALevel (array "jobs.job" this.job.idWithNamespace))
+        action=this.traverseUpALevel
         exclusive=true
       )}}
     >
       <LinkTo
         @route="jobs.job.index"
         @model={{this.job}}
-        data-test-breadcrumb={{"jobs.job.index"}}
+        data-test-breadcrumb="jobs.job.index"
         data-test-job-breadcrumb
       >
         <dl>

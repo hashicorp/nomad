@@ -3,20 +3,20 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{! template-lint-disable no-unknown-arguments-for-builtin-components }}
 <li data-test-breadcrumb-default
   {{(modifier
     this.maybeKeyboardShortcut
     label="Go up a level"
     pattern=(array "u")
     menuLevel=true
-    action=(action this.traverseUpALevel @crumb.args)
+    action=this.traverseUpALevel
     exclusive=true
   )}}
 >
   <LinkTo
-    @params={{@crumb.args}}
-    data-test-breadcrumb={{@crumb.args.firstObject}}>
+    @route={{this.route}}
+    @models={{this.models}}
+    data-test-breadcrumb={{this.route}}>
     {{#if @crumb.title}}
       <dl>
         <dt>

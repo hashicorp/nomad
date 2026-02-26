@@ -17,6 +17,11 @@ export default class BreadcrumbsJob extends BreadcrumbsTemplate {
   }
 
   @action
+  traverseUpALevel() {
+    this.router.transitionTo('jobs.job', this.job.idWithNamespace);
+  }
+
+  @action
   onError(err) {
     assert(`Error:  ${err.message}`);
   }

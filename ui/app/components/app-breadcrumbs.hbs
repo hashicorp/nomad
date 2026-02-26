@@ -6,7 +6,11 @@
 <Breadcrumbs as |breadcrumbs|>
   {{#each breadcrumbs as |crumb iter|}}
     {{#let crumb.args.crumb as |c|}}
-      {{component (concat "breadcrumbs/" (or c.type "default")) crumb=c isOneCrumbUp=(action this.isOneCrumbUp iter breadcrumbs.length)}}
+      {{#if (eq c.type "job")}}
+        <Breadcrumbs::Job @crumb={{c}} @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}} />
+      {{else}}
+        <Breadcrumbs::Default @crumb={{c}} @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}} />
+      {{/if}}
     {{/let}}
   {{/each}}
 </Breadcrumbs>
