@@ -1,0 +1,6 @@
+```release-note:bug
+consul: fixes bug where clients were passing node token to connect envoy container, causing acl not found errors
+```
+```release-note:improvement
+consul (enterprise): adds ability to specify cluster specific consul tokens with environment variables
+```

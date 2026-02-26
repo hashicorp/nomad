@@ -1294,3 +1294,20 @@ func TestConfig_Fingerprint(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_ParseConsulEnv(t *testing.T) {
+	t.Setenv("CONSUL_HTTP_TOKEN_other", "other-consul-cluster-token")
+	cfg := DefaultConfig()
+	fc, err := LoadConfig("testdata/extra-consul.hcl")
+	must.NoError(t, err)
+	cfg = cfg.Merge(fc)
+
+	found := false
+	for _, cc := range cfg.Consuls {
+		if cc.Name == "other" {
+			must.Eq(t, cc.Token, "other-consul-cluster-token")
+			found = true
+		}
+	}
+	must.True(t, found)
+}
