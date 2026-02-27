@@ -1,0 +1,3 @@
+```release-note:improvement
+events: Added a Purge flag to JobDeregistered event type to differentiate between stopped and deleted jobs
+```

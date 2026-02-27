@@ -698,34 +698,44 @@ func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
-	t.SkipNow()
-}
-
 func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	ci.Parallel(t)
+
+	upsertedJob := &structs.Job{ID: "upserted-job", Namespace: "default"}
+	purgedJob := &structs.Job{ID: "purged-job", Namespace: "default"}
 
 	changes := Changes{
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  &structs.Job{},
+				Before: upsertedJob,
+				After:  upsertedJob, // updated (stop, not purge)
 			},
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  nil, // deleted
+				Before: purgedJob,
+				After:  nil, // deleted (purged)
 			},
 		},
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event := eventsFromChanges(nil, changes)
-	must.NotNil(t, event)
+	events := eventsFromChanges(nil, changes)
+	must.NotNil(t, events)
+	must.Len(t, 2, events.Events)
 
-	must.Len(t, 2, event.Events)
+	// first event: upserted job (stop) — Purge should be false
+	upsertEvent := events.Events[0]
+	upsertPayload, ok := upsertEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.False(t, upsertPayload.Purge)
+
+	// second event: deleted job (purge) — Purge should be true
+	purgeEvent := events.Events[1]
+	purgePayload, ok := purgeEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.True(t, purgePayload.Purge)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
