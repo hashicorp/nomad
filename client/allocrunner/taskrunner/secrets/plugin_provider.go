@@ -23,6 +23,9 @@ type ExternalPluginProvider struct {
 
 	// path is the secret location used in Fetch
 	path string
+
+	// env is the set of environment variables passed into plugin
+	env map[string]string
 }
 
 type Response struct {
@@ -30,17 +33,24 @@ type Response struct {
 	Error  *string           `json:"error,omitempty"`
 }
 
-func NewExternalPluginProvider(plugin commonplugins.SecretsPlugin, pluginName, secretName, path string) *ExternalPluginProvider {
+func NewExternalPluginProvider(plugin commonplugins.SecretsPlugin, pluginName, secretName, path string, env map[string]string) *ExternalPluginProvider {
 	return &ExternalPluginProvider{
 		plugin:     plugin,
 		pluginName: pluginName,
 		secretName: secretName,
 		path:       path,
+		env:        env,
 	}
 }
 
-func (p *ExternalPluginProvider) Fetch(ctx context.Context, env map[string]string) (map[string]string, error) {
-	resp, err := p.plugin.Fetch(ctx, p.path, env)
+func (p *ExternalPluginProvider) InterpolateEnv(interpolate func(string) string) {
+	for key, value := range p.env {
+		p.env[key] = interpolate(value)
+	}
+}
+
+func (p *ExternalPluginProvider) Fetch(ctx context.Context) (map[string]string, error) {
+	resp, err := p.plugin.Fetch(ctx, p.path, p.env)
 	if err != nil {
 		return nil, fmt.Errorf("failed executing plugin %q for secret %q: %w", p.pluginName, p.secretName, err)
 	}

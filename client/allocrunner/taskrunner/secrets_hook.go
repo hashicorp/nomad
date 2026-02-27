@@ -28,7 +28,7 @@ type TemplateProvider interface {
 }
 
 type PluginProvider interface {
-	Fetch(context.Context, map[string]string) (map[string]string, error)
+	Fetch(context.Context) (map[string]string, error)
 }
 
 type secretsHookConfig struct {
@@ -98,7 +98,7 @@ func (h *secretsHook) Name() string {
 }
 
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	tmplProvider, pluginProvider, rawEnvMaps, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
+	tmplProvider, pluginProvider, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
 	}
@@ -169,15 +169,11 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 	taskEnv := h.envBuilder.Build()
 
-	for i, p := range pluginProvider {
-		pluginProviderEnv := rawEnvMaps[i]
-
-		interpolatedEnv := make(map[string]string, len(pluginProviderEnv))
-		for k, v := range rawEnvMaps[i] {
-			interpolatedEnv[k] = taskEnv.ReplaceEnv(v)
+	for _, p := range pluginProvider {
+		if ep, ok := p.(*secrets.ExternalPluginProvider); ok {
+			ep.InterpolateEnv(taskEnv.ReplaceEnv)
 		}
-
-		vars, err := p.Fetch(ctx, interpolatedEnv)
+		vars, err := p.Fetch(ctx)
 		if err != nil {
 			return err
 		}
@@ -188,11 +184,10 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	return nil
 }
 
-func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider, []PluginProvider, []map[string]string, error) {
+func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider, []PluginProvider, error) {
 	// Any configuration errors will be found when calling the secret providers constructor,
 	// so use a multierror to collect all errors and return them to the user at the same time.
 	tmplProvider, pluginProvider, mErr := []TemplateProvider{}, []PluginProvider{}, new(multierror.Error)
-	rawEnvMaps := []map[string]string{}
 
 	for idx, s := range h.secrets {
 		if s == nil {
@@ -219,15 +214,13 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				multierror.Append(mErr, err)
 				continue
 			}
-			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path))
-
 			// Add/overwrite the nomad namespace and jobID envVars
 			s.Env = h.setupPluginEnv(s.Env)
-			rawEnvMaps = append(rawEnvMaps, s.Env)
+			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path, s.Env))
 		}
 	}
 
-	return tmplProvider, pluginProvider, rawEnvMaps, mErr.ErrorOrNil()
+	return tmplProvider, pluginProvider, mErr.ErrorOrNil()
 }
 
 func (h *secretsHook) setupPluginEnv(env map[string]string) map[string]string {
