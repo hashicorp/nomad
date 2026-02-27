@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -4272,50 +4271,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Check if the alloc requires sticky volumes. If yes, find a node
 			// that has the right volume and update the task group volume
 			// claims table
-			for _, tg := range alloc.Job.TaskGroups {
-				for _, v := range tg.Volumes {
-					if !v.Sticky {
-						continue
-					}
-					sv := &structs.TaskGroupHostVolumeClaim{
-						ID:            uuid.Generate(),
-						Namespace:     alloc.Namespace,
-						JobID:         alloc.JobID,
-						TaskGroupName: tg.Name,
-						AllocID:       alloc.ID,
-						VolumeName:    v.Source,
-					}
-
-					allocNode, err := s.NodeByID(nil, alloc.NodeID)
-					if err != nil {
-						return err
-					}
-
-					// since there's no existing claim, find a volume and register a claim
-					for _, v := range allocNode.HostVolumes {
-						if v.Name != sv.VolumeName {
-							continue
-						}
-
-						sv.VolumeID = v.ID
-
-						// has this volume been claimed already?
-						existingClaim, err := s.GetTaskGroupHostVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
-						if err != nil {
-							return err
-						}
-
-						// if the volume has already been claimed, we don't have to do anything. The
-						// feasibility checker in the scheduler will verify alloc placement.
-						if existingClaim != nil {
-							continue
-						}
-
-						if err := s.upsertTaskGroupHostVolumeClaimImpl(index, sv, txn); err != nil {
-							return err
-						}
-					}
-				}
+			err = s.updateStickyVolumeClaimsFromAlloc(txn, index, alloc)
+			if err != nil {
+				return err
 			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex

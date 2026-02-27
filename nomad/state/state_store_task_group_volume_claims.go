@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -186,4 +187,78 @@ func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string
 	}
 
 	return txn.Commit()
+}
+
+func (s *StateStore) updateStickyVolumeClaimsFromAlloc(txn *txn, index uint64, alloc *structs.Allocation) error {
+	var node *structs.Node
+	var err error
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg != nil {
+		for _, req := range tg.Volumes {
+			if !req.Sticky {
+				continue
+			}
+			if node == nil {
+				node, err = s.NodeByID(nil, alloc.NodeID)
+				if err != nil {
+					return err
+				}
+			}
+			for _, v := range node.HostVolumes {
+				if v.Name != req.Source {
+					continue
+				}
+				claim, err := s.claimToUpsertForAlloc(txn, alloc, req.Source, v)
+				if err != nil {
+					return err
+				}
+				if claim == nil {
+					continue
+				}
+				if err := s.upsertTaskGroupHostVolumeClaimImpl(index, claim, txn); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// claimToUpsertForAlloc returns any claim that needs to be upserted for the allocation
+func (s *StateStore) claimToUpsertForAlloc(txn *txn, alloc *structs.Allocation, source string, chv *structs.ClientHostVolumeConfig) (*structs.TaskGroupHostVolumeClaim, error) {
+
+	claim := &structs.TaskGroupHostVolumeClaim{
+		ID:            uuid.Generate(),
+		Namespace:     alloc.Namespace,
+		JobID:         alloc.JobID,
+		TaskGroupName: alloc.TaskGroup,
+		AllocID:       alloc.ID,
+		VolumeName:    source,
+		VolumeID:      chv.ID,
+	}
+
+	raw, err := txn.First(TableTaskGroupHostVolumeClaim,
+		indexID, alloc.Namespace, alloc.JobID, alloc.TaskGroup, chv.ID)
+	if err != nil {
+		return nil, err
+	}
+	if raw == nil {
+		return claim, nil
+	}
+	existingClaim := raw.(*structs.TaskGroupHostVolumeClaim)
+	if existingClaim.AllocID == alloc.ID {
+		return nil, nil // this is our claim already, nothing to do
+	}
+	if existingClaim.AllocID != "" {
+		existingAlloc, err := s.allocByIDImpl(txn, nil, existingClaim.AllocID)
+		if err != nil {
+			return nil, err
+		}
+		if existingAlloc != nil && existingAlloc.TerminalStatus() {
+			// this allocation is a replacement for the claim
+			claim.ID = existingClaim.ID
+			return claim, nil
+		}
+	}
+	return claim, nil
 }
