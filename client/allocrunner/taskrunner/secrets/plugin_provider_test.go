@@ -35,10 +35,6 @@ func (m *MockSecretPlugin) Parse() (map[string]string, error) {
 	return nil, nil
 }
 
-func (m *MockSecretPlugin) SetEnv(env map[string]string) {
-	m.Called(env)
-}
-
 // SecretsPlugin is tested in commonplugins package. We can use a mock here to test how
 // the ExternalPluginProvider handles various error scenarios when calling Fetch.
 func TestExternalPluginProvider_Fetch(t *testing.T) {
