@@ -32,6 +32,7 @@ job "custom_secret" {
       secret "testsecret" {
         provider = "test_secret_plugin"
         path     = "some/path"
+        timeout  = "30s"
         env {
           // The custom plugin will output this as part of the result field
           TEST_ENV = "${var.secret_value}"
