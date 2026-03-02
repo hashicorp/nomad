@@ -29,7 +29,7 @@ const (
 
 type SecretsPlugin interface {
 	CommonPlugin
-	Fetch(ctx context.Context, path string) (*SecretResponse, error)
+	Fetch(ctx context.Context, path string, env map[string]string) (*SecretResponse, error)
 }
 
 type SecretResponse struct {
@@ -42,15 +42,12 @@ type externalSecretsPlugin struct {
 
 	// pluginPath is the path on the host to the plugin executable
 	pluginPath string
-
-	// env is optional envVars passed to the plugin process
-	env map[string]string
 }
 
 // NewExternalSecretsPlugin creates an instance of a secrets plugin by validating the plugin
 // binary exists and is executable, and parsing any string key/value pairs out of the config
 // which will be used as environment variables for Fetch.
-func NewExternalSecretsPlugin(commonPluginDir string, name string, env map[string]string) (*externalSecretsPlugin, error) {
+func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
 	// validate plugin
 	if runtime.GOOS == "windows" {
 		name += ".exe"
@@ -67,10 +64,7 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string, env map[strin
 		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, name)
 	}
 
-	return &externalSecretsPlugin{
-		pluginPath: executable,
-		env:        env,
-	}, nil
+	return &externalSecretsPlugin{pluginPath: executable}, nil
 }
 
 func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
@@ -99,7 +93,7 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 	return res, nil
 }
 
-func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*SecretResponse, error) {
+func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string, env map[string]string) (*SecretResponse, error) {
 	plugCtx, cancel := context.WithTimeout(ctx, SecretsCmdTimeout)
 	defer cancel()
 
@@ -108,8 +102,8 @@ func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string) (*Secret
 		"CPI_OPERATION=fetch",
 	}
 
-	for env, val := range e.env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", env, val))
+	for envKey, val := range env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", envKey, val))
 	}
 
 	stdout, stderr, err := runPlugin(cmd, SecretsKillTimeout)
