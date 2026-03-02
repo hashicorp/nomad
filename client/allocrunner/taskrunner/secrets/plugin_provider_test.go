@@ -21,8 +21,8 @@ func (m *MockSecretPlugin) Fingerprint(ctx context.Context) (*commonplugins.Plug
 	return nil, nil
 }
 
-func (m *MockSecretPlugin) Fetch(ctx context.Context, path string) (*commonplugins.SecretResponse, error) {
-	args := m.Called()
+func (m *MockSecretPlugin) Fetch(ctx context.Context, path string, env map[string]string) (*commonplugins.SecretResponse, error) {
+	args := m.Called(ctx, path, env)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -40,9 +40,9 @@ func (m *MockSecretPlugin) Parse() (map[string]string, error) {
 func TestExternalPluginProvider_Fetch(t *testing.T) {
 	t.Run("errors if fetch errors", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(nil, errors.New("something bad"))
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("something bad"))
 
-		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
+		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test", nil)
 
 		vars, err := testProvider.Fetch(t.Context())
 		must.ErrorContains(t, err, "something bad")
@@ -52,12 +52,12 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 	t.Run("errors if fetch response contains error", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
 		testError := "something bad"
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(&commonplugins.SecretResponse{
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(&commonplugins.SecretResponse{
 			Result: nil,
 			Error:  &testError,
 		}, nil)
 
-		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
+		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test", nil)
 
 		vars, err := testProvider.Fetch(t.Context())
 		must.ErrorContains(t, err, "provider \"test-provider\" for secret \"test\" response contained error")
@@ -66,14 +66,14 @@ func TestExternalPluginProvider_Fetch(t *testing.T) {
 
 	t.Run("formats response correctly", func(t *testing.T) {
 		mockSecretPlugin := new(MockSecretPlugin)
-		mockSecretPlugin.On("Fetch", mock.Anything).Return(&commonplugins.SecretResponse{
+		mockSecretPlugin.On("Fetch", mock.Anything, mock.Anything, mock.Anything).Return(&commonplugins.SecretResponse{
 			Result: map[string]string{
 				"testkey": "testvalue",
 			},
 			Error: nil,
 		}, nil)
 
-		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test")
+		testProvider := NewExternalPluginProvider(mockSecretPlugin, "test-provider", "test", "test", nil)
 
 		result, err := testProvider.Fetch(t.Context())
 		must.NoError(t, err)
