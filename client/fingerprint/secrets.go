@@ -54,7 +54,7 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 	plugins := map[string]string{}
 	for name := range files {
 		name = strings.TrimSuffix(name, ".exe")
-		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginDir, name, nil)
+		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginDir, name)
 		if err != nil {
 			return err
 		}

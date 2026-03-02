@@ -167,8 +167,12 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 	h.envBuilder.SetSecrets(m)
 
-	// Set secrets from plugin providers
+	taskEnv := h.envBuilder.Build()
+
 	for _, p := range pluginProvider {
+		if ep, ok := p.(*secrets.ExternalPluginProvider); ok {
+			ep.InterpolateEnv(taskEnv.ReplaceEnv)
+		}
 		vars, err := p.Fetch(ctx)
 		if err != nil {
 			return err
@@ -205,15 +209,14 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				tmplProvider = append(tmplProvider, p)
 			}
 		default:
-			// Add/overwrite the nomad namespace and jobID envVars
-			s.Env = h.setupPluginEnv(s.Env)
-
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Env)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue
 			}
-			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path))
+			// Add/overwrite the nomad namespace and jobID envVars
+			s.Env = h.setupPluginEnv(s.Env)
+			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path, s.Env))
 		}
 	}
 
