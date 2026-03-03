@@ -317,10 +317,10 @@ func connLimiter(connLimit int, logger log.Logger) func(conn net.Conn, state htt
 	limiter := rate.NewLimiter(10, 100)
 
 	tooManyConnsMsg := "Your IP is issuing too many concurrent connections, please rate limit your calls\n"
-	tooManyRequestsResponse := []byte(fmt.Sprintf("HTTP/1.1 429 Too Many Requests\r\n"+
+	tooManyRequestsResponse := fmt.Appendf(nil, "HTTP/1.1 429 Too Many Requests\r\n"+
 		"Content-Type: text/plain\r\n"+
 		"Content-Length: %d\r\n"+
-		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg))
+		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg)
 	return connlimit.NewLimiter(connlimit.Config{
 		MaxConnsPerClientIP: connLimit,
 	}).HTTPConnStateFuncWithErrorHandler(func(err error, conn net.Conn) {
