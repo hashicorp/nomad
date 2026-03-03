@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
@@ -118,9 +119,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 	var (
 		srvs                       []*HTTPServer
 		serverInitializationErrors error
-
-		connCount int         = 0
-		countMux  *sync.Mutex = &sync.Mutex{}
+		connCount                  atomic.Int32
 	)
 
 	// Get connection handshake timeout limit
@@ -190,7 +189,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		httpServer := http.Server{
 			Addr:      srv.Addr,
 			Handler:   handlers.CompressHandler(srv.mux),
-			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, &connCount, countMux, srv.logger),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, &connCount, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
 
@@ -207,11 +206,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		defer ticker.Stop()
 		for {
 			<-ticker.C
-
-			// lock connCount to avoid torn reads, as this is updated by ConnState callbacks
-			countMux.Lock()
-			metrics.SetGauge([]string{"nomad", "agent", "http", "connections"}, float32(connCount))
-			countMux.Unlock()
+			metrics.SetGauge([]string{"nomad", "agent", "http", "connections"}, float32(connCount.Load()))
 		}
 	}()
 
@@ -268,20 +263,17 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 //
 // If limit > 0, a per-address connection limit will be enabled regardless of
 // TLS. If connLimit == 0 there is no connection limit.
-func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, connCount *int, connMux *sync.Mutex, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, connCount *atomic.Int32, logger log.Logger) func(conn net.Conn, state http.ConnState) {
 	connLimiter := connLimiter(connLimit, logger)
 	if !isTLS || handshakeTimeout == 0 {
 		return func(conn net.Conn, state http.ConnState) {
-			connMux.Lock()
 
 			switch state {
 			case http.StateNew:
-				*connCount++
+				connCount.Add(1)
 			case http.StateClosed:
-				*connCount--
+				connCount.Add(-1)
 			}
-
-			connMux.Unlock()
 
 			// Call connection limiter if enabled
 			if connLimit > 0 {
@@ -293,11 +285,10 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, co
 	// Return conn state callback with connection limiting and a
 	// handshake timeout.
 	return func(conn net.Conn, state http.ConnState) {
-		connMux.Lock()
 
 		switch state {
 		case http.StateNew:
-			*connCount++
+			connCount.Add(1)
 			// Set deadline to prevent slow send before TLS handshake or first
 			// byte of request.
 			conn.SetDeadline(time.Now().Add(handshakeTimeout))
@@ -308,10 +299,8 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, co
 			// set sensible blanket timeouts here.
 			conn.SetDeadline(time.Time{})
 		case http.StateClosed:
-			*connCount--
+			connCount.Add(-1)
 		}
-
-		connMux.Unlock()
 
 		// Call connection limiter if enabled
 		if connLimit > 0 {
