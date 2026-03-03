@@ -1625,10 +1625,11 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.Devices = []*structs.RequestedDevice{}
 		for _, d := range in.Devices {
 			out.Devices = append(out.Devices, &structs.RequestedDevice{
-				Name:        d.Name,
-				Count:       *d.Count,
-				Constraints: ApiConstraintsToStructs(d.Constraints),
-				Affinities:  ApiAffinitiesToStructs(d.Affinities),
+				Name:         d.Name,
+				Count:        *d.Count,
+				Constraints:  ApiConstraintsToStructs(d.Constraints),
+				Affinities:   ApiAffinitiesToStructs(d.Affinities),
+				ShareDevices: ApiSharingToStructs(d.ShareDevices),
 			})
 		}
 	}
@@ -2328,4 +2329,15 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 		return CodedError(400, "Eval priority must be between 1 and 100 inclusively")
 	}
 	return nil
+}
+
+func ApiSharingToStructs(in *api.ShareDevices) *structs.ShareDevices {
+	if in == nil {
+		return nil
+	}
+	return &structs.ShareDevices{
+		Enabled:        in.Enabled,
+		SharedDeviceId: in.SharedDeviceId,
+	}
+
 }
