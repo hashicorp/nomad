@@ -16,12 +16,35 @@ import (
 const (
 	// DeviceTypeGPU is a canonical device type for a GPU.
 	DeviceTypeGPU = "gpu"
+
+	SharingUnset      DeviceSharing = ""
+	SharingIneligible DeviceSharing = "ineligible"
+	SharingActive     DeviceSharing = "active"
+	SharingInactive   DeviceSharing = "inactive"
 )
 
 var (
 	// ErrPluginDisabled indicates that the device plugin is disabled
 	ErrPluginDisabled = fmt.Errorf("device is not enabled")
 )
+
+// DeviceSharing is an enum string that reports on the presence and
+// current state of sharing subsystems on the device
+
+type DeviceSharing string
+
+func (s *DeviceSharing) String() string {
+	switch *s {
+	case SharingInactive:
+		return "inactive"
+	case SharingIneligible:
+		return "inelegible"
+	case SharingActive:
+		return "active"
+	default:
+		return "unset"
+	}
+}
 
 // DevicePlugin is the interface for a plugin that can expose detected devices
 // to Nomad and inform it how to mount them.
@@ -133,6 +156,9 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+
+	// Shared marks whether Device Sharing is enabled
+	Shared DeviceSharing
 }
 
 // Validate validates that the device is valid

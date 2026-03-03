@@ -3,7 +3,9 @@
 
 package structs
 
-import "maps"
+import (
+	"maps"
+)
 
 // DeviceAccounter is used to account for device usage on a node. It can detect
 // when a node is oversubscribed and can be used for deciding what devices are
@@ -109,20 +111,22 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 		for _, tr := range a.AllocatedResources.Tasks {
 
 			// Go through each assigned device group
-			for _, device := range tr.Devices {
-				devID := device.ID()
+			for _, allocatedDeviceGroup := range tr.Devices {
 
+				devName := allocatedDeviceGroup.ID()
 				// Go through each assigned device
-				for _, instanceID := range device.DeviceIDs {
+				for _, instanceID := range allocatedDeviceGroup.DeviceIDs {
 
 					// Mark that we are using the device. It may not be in the
 					// map if the device is no longer being fingerprinted, is
 					// unhealthy, etc.
-					if devInst, ok := d.Devices[*devID]; ok {
-						if i, ok := devInst.Instances[instanceID]; ok {
+					if devAccounter, ok := d.Devices[*devName]; ok {
+						if i, ok := devAccounter.Instances[instanceID]; ok {
 							// Mark that the device is in use
-							devInst.Instances[instanceID]++
-
+							devAccounter.Instances[instanceID]++
+							if shared := isShared(instanceID, devAccounter); shared {
+								continue
+							}
 							if i != 0 {
 								collision = true
 							}
@@ -134,6 +138,20 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	}
 
 	return
+}
+
+// Loops through the []*NodeDevices in DeviceAccounterInstance.Device
+// and returns a bool to indicate whether the device matching the supplied
+// instanceID is shared
+func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
+	for _, device := range accounterInst.Device.Instances {
+		if device.ID == instanceID {
+			if device.Shared == DeviceSharingActive {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // AddReserved marks the device instances in the passed device reservation as

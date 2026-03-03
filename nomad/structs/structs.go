@@ -3061,6 +3061,10 @@ type RequestedDevice struct {
 	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
+
+	// Shared indicates whether the job should be placed on a shared device
+	// and is willing to share
+	Shared DeviceSharing
 }
 
 func (r *RequestedDevice) String() string {
@@ -3575,6 +3579,18 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
+// DeviceSharing is an enum string that parallels device.DeviceSharing
+// and reports on the presence and state of sharing subsystems on a
+// device
+type DeviceSharing string
+
+const (
+	DeviceSharingIneligible DeviceSharing = "ineligible"
+	DeviceSharingUnset      DeviceSharing = ""
+	DeviceSharingActive     DeviceSharing = "active"
+	DeviceSharingInactive   DeviceSharing = "inactive"
+)
+
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
 	// ID is the ID of the device.
@@ -3590,6 +3606,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	// Shared is a string enum some devices use to report
+	/// status and presence of sharing subsystems
+	Shared DeviceSharing
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {
@@ -3608,6 +3628,8 @@ func (n *NodeDevice) Equal(o *NodeDevice) bool {
 	} else if n.HealthDescription != o.HealthDescription {
 		return false
 	} else if !n.Locality.Equal(o.Locality) {
+		return false
+	} else if n.Shared != o.Shared {
 		return false
 	}
 
