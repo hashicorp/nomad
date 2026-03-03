@@ -1648,6 +1648,20 @@ func TestBinPackIterator_Devices(t *testing.T) {
 		},
 	}
 
+	sharedNvidiaNode := mock.SharedNvidiaNode()
+	sharedDevs := sharedNvidiaNode.NodeResources.Devices[0].Instances
+	sharedNvidiaDevices := []string{sharedDevs[0].ID, sharedDevs[1].ID}
+
+	sharedNvidiaDev0 := mock.Alloc()
+	sharedNvidiaDev0.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{
+		{
+			Type:      "gpu",
+			Vendor:    "nvidia",
+			Name:      "1080ti",
+			DeviceIDs: []string{sharedNvidiaDevices[0]},
+			WillShare: map[string]bool{sharedNvidiaDevices[0]: true},
+		},
+	}
 	type devPlacementTuple struct {
 		Count      int
 		ExcludeIDs []string
@@ -1887,6 +1901,66 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			},
 			PlannedAllocs: []*structs.Allocation{nvidiaDev0},
 		},
+		{
+			Name: "shared request with planned uses",
+			Node: sharedNvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web2",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:         "nvidia/gpu/1080ti",
+									Count:        1,
+									ShareDevices: &structs.ShareDevices{Enabled: true},
+								},
+							},
+						},
+					},
+					{
+						Name: "web3",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:         "nvidia/gpu/1080ti",
+									Count:        1,
+									ShareDevices: &structs.ShareDevices{Enabled: true},
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web2": {
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count:      1,
+						ExcludeIDs: []string{sharedNvidiaDevices[1]},
+					},
+				},
+				"web3": {
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count:      1,
+						ExcludeIDs: []string{sharedNvidiaDevices[1]},
+					},
+				},
+			},
+			PlannedAllocs: []*structs.Allocation{sharedNvidiaDev0},
+		},
 	}
 
 	for _, c := range cases {
@@ -1958,9 +2032,9 @@ func TestBinPackIterator_Devices(t *testing.T) {
 }
 
 // Tests that bin packing iterator fails due to overprovisioning of devices
+// when devices are not shared. Demonstrates shared devices do not fail
 // This test has devices at task level
 func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
-	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1999,71 +2073,124 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 		},
 	}
 
-	// Add a planned alloc that takes up a gpu
-	plan := ctx.Plan()
-	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+	for _, tc := range []struct {
+		name           string
+		nodes          []*RankedNode
+		deviceShared   bool
+		taskWillShare  bool
+		allocWillShare bool
+		rankedNodes    int
+		exhaustedNodes int
+	}{
 		{
-			AllocatedResources: &structs.AllocatedResources{
-				Tasks: map[string]*structs.AllocatedTaskResources{
-					"web": {
-						Cpu: structs.AllocatedCpuResources{
-							CpuShares: 2048,
-						},
-						Memory: structs.AllocatedMemoryResources{
-							MemoryMB: 2048,
-						},
-						Networks: []*structs.NetworkResource{},
-						Devices: []*structs.AllocatedDeviceResource{
-							{
-								Vendor:    "nvidia",
-								Type:      "gpu",
-								Name:      "SOME-GPU",
-								DeviceIDs: []string{"1"},
+			name:           "expect failure",
+			nodes:          nodes,
+			rankedNodes:    0,
+			exhaustedNodes: 1,
+		},
+		{
+			name:           "shared device, expect success",
+			nodes:          nodes,
+			deviceShared:   true,
+			rankedNodes:    1,
+			exhaustedNodes: 0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := MockContext(t)
+			nodes := tc.nodes
+			// , existing allocation, and task
+			if tc.deviceShared {
+				var n []*RankedNode
+
+				//mark gpu as SharingActive on RankedNodes
+				for _, v := range tc.nodes {
+					newNode := v.Node.Copy()
+					newNode.NodeResources.Devices[0].Instances[0].Shared = structs.DeviceSharingActive
+					n = append(n, &RankedNode{
+						Node: newNode,
+					})
+				}
+				//overwrite RankedNodes
+				nodes = n
+			}
+
+			plan := ctx.Plan()
+			plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+				{
+					AllocatedResources: &structs.AllocatedResources{
+						Tasks: map[string]*structs.AllocatedTaskResources{
+							"web": {
+								Cpu: structs.AllocatedCpuResources{
+									CpuShares: 2048,
+								},
+								Memory: structs.AllocatedMemoryResources{
+									MemoryMB: 2048,
+								},
+								Networks: []*structs.NetworkResource{},
+								Devices: []*structs.AllocatedDeviceResource{
+									{
+										Vendor:    "nvidia",
+										Type:      "gpu",
+										Name:      "SOME-GPU",
+										DeviceIDs: []string{"1"},
+									},
+								},
 							},
 						},
+						Shared: structs.AllocatedSharedResources{},
 					},
 				},
-				Shared: structs.AllocatedSharedResources{},
-			},
-		},
-	}
-	static := NewStaticRankIterator(ctx, nodes)
-
-	// Create a task group with gpu device specified
-	taskGroup := &structs.TaskGroup{
-		EphemeralDisk: &structs.EphemeralDisk{},
-		Tasks: []*structs.Task{
-			{
-				Name: "web",
-				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
-					Networks: []*structs.NetworkResource{},
-					Devices: structs.ResourceDevices{
-						{
-							Name:  "nvidia/gpu",
-							Count: 1,
+			}
+			tg := &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Networks: []*structs.NetworkResource{},
+							Devices: structs.ResourceDevices{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+								},
+							},
+							NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
 						},
 					},
-					NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Networks: []*structs.NetworkResource{},
+							Devices: structs.ResourceDevices{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+								},
+							},
+							NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
+						},
+					},
 				},
-			},
-		},
-		Networks: []*structs.NetworkResource{},
+				Networks: []*structs.NetworkResource{},
+			}
+			static := NewStaticRankIterator(ctx, nodes)
+			binp := NewBinPackIterator(ctx, static, true, 0)
+			binp.SetTaskGroup(tg)
+			binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+			scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+			out := collectRanked(scoreNorm)
+
+			// check if we get the expected number of rankedNodes (0 or 1)
+			must.SliceLen(t, tc.rankedNodes, out)
+			must.Eq(t, tc.exhaustedNodes, ctx.metrics.DimensionExhausted["devices: no devices match request"])
+		})
 	}
-
-	binp := NewBinPackIterator(ctx, static, true, 0)
-	binp.SetTaskGroup(taskGroup)
-	binp.SetSchedulerConfiguration(testSchedulerConfig)
-
-	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
-
-	out := collectRanked(scoreNorm)
-
-	// We expect a placement failure because we need 1 GPU device
-	// and the other one is taken
-	must.SliceEmpty(t, out)
-	must.Eq(t, 1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
 }
 
 func TestBinPackIterator_Device_Preemption_MultipleDeviceRequests(t *testing.T) {
