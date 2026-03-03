@@ -4,6 +4,8 @@
 package main
 
 import (
+	"context"
+
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/plugins"

@@ -148,3 +148,42 @@ func NvidiaNode() *structs.Node {
 	_ = n.ComputeClass()
 	return n
 }
+
+// SharedNvidiaNode returns a node with two sharing enabled instances of an Nvidia GPU
+func SharedNvidiaNode() *structs.Node {
+	n := Node()
+	n.NodeResources.Processors.Topology = structs.MockWorkstationTopology()
+	n.NodeResources.Devices = []*structs.NodeDeviceResource{
+		{
+			Type:   "gpu",
+			Vendor: "nvidia",
+			Name:   "1080ti",
+			Attributes: map[string]*psstructs.Attribute{
+				"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+				"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+			},
+			Instances: []*structs.NodeDevice{
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:00.1", // node 0
+					},
+					Shared: structs.DeviceSharingActive,
+				},
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:01.1", // node 0
+					},
+					Shared: structs.DeviceSharingActive,
+				},
+			},
+		},
+	}
+	_ = n.ComputeClass()
+	return n
+}

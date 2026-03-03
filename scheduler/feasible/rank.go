@@ -224,7 +224,6 @@ NEXTNODE:
 			iter.ctx.Logger().Named("binpack").Error("failed retrieving proposed allocations", "error", err)
 			continue
 		}
-
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
 		// the node. If it does collide though, it means we found a bug! So

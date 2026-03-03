@@ -74,6 +74,9 @@ message DetectedDevice {
   // hw_locality is optionally set to expose hardware locality information for
   // more optimal placement decisions.
   DeviceLocality hw_locality = 4;
+
+  // shared reports on the presence and state of a device sharing daemon
+  Shared shared = 5;
 }
 
 // DeviceLocality is used to expose HW locality information about a device.
@@ -176,4 +179,16 @@ message DeviceStats {
 
   // timestamp is the time the statistics were collected.
   google.protobuf.Timestamp timestamp = 3;
+}
+
+// DeviceSharing is a representation of the DeviceSharing string enum
+message DeviceSharing {
+  Shared shared = 1;
+}
+
+enum Shared {
+  SHARED_UNSET = 0;
+  SHARED_ACTIVE = 1;
+  SHARED_INACTIVE = 2;
+  SHARED_INELIGIBLE = 3;
 }

@@ -63,6 +63,7 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 		Healthy:    in.Healthy,
 		HealthDesc: in.HealthDescription,
 		HwLocality: convertProtoDeviceLocality(in.HwLocality),
+		Shared:     Shared(in.GetShared()),
 	}
 }
 
@@ -199,6 +200,7 @@ func convertStructDevice(in *Device) *proto.DetectedDevice {
 		Healthy:           in.Healthy,
 		HealthDescription: in.HealthDesc,
 		HwLocality:        convertStructDeviceLocality(in.HwLocality),
+		Shared:            convertShared(in.Shared),
 	}
 }
 
@@ -387,4 +389,17 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 		Stats:     structs.ConvertStructStatObject(in.Stats),
 		Timestamp: ts,
 	}
+}
+
+func convertShared(s Shared) proto.Shared {
+
+	switch s.String() {
+	case "ineligible":
+		return proto.Shared_SHARED_INELIGIBLE
+	case "active":
+		return proto.Shared_SHARED_ACTIVE
+	case "inactive":
+		return proto.Shared_SHARED_INACTIVE
+	}
+	return proto.Shared_SHARED_UNSET
 }
