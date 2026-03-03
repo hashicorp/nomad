@@ -55,6 +55,9 @@ message DeviceGroup {
   // attributes allows adding attributes to be used for constraints or
   // affinities.
   map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 5;
+
+  // shared reports on the presence and state of a device sharing daemon in the group
+  DeviceSharing shared = 6;
 }
 
 // DetectedDevice is a single detected device.
@@ -74,6 +77,9 @@ message DetectedDevice {
   // hw_locality is optionally set to expose hardware locality information for
   // more optimal placement decisions.
   DeviceLocality hw_locality = 4;
+
+  // shared reports on the presence and state of a device sharing daemon
+  DeviceSharing shared = 5;
 }
 
 // DeviceLocality is used to expose HW locality information about a device.
@@ -176,4 +182,9 @@ message DeviceStats {
 
   // timestamp is the time the statistics were collected.
   google.protobuf.Timestamp timestamp = 3;
+}
+
+// DeviceSharing is a representation of the DeviceSharing string enum
+message DeviceSharing {
+  string shared = 1;
 }
