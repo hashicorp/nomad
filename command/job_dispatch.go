@@ -340,26 +340,15 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 	verbose bool,
 	length int,
 ) int {
-	/* 	// Query the dispatched job to get task group information
-	   	q := &api.QueryOptions{
-	   		Namespace: namespace,
-	   	}
-	   	job, _, err := client.Jobs().Info(jobID, q)
-	   	if err != nil {
-	   		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
-	   		return 1
-	   	} */
-
 	// Set up glint for interactive display
 	d := glint.New()
-	//defer d.Close()
-
-	d.SetRefreshRate(100 * time.Millisecond)
+	defer d.Close()
 
 	spinner := glint.Layout(
 		components.Spinner(),
 		glint.Text(fmt.Sprintf(" Monitoring allocations for job %q...", limit(jobID, length))),
 	).Row()
+	d.SetRefreshRate(100 * time.Millisecond)
 
 	d.Set(spinner)
 
@@ -371,7 +360,7 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 	var lastIndex uint64
 	startTime := time.Now()
 	timeout := 5 * time.Minute
-	d.Close()
+
 	for {
 
 		jobQuery := &api.QueryOptions{
@@ -381,7 +370,6 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 			Namespace:  namespace,
 		}
 
-		// ensure lastIndex is updated for next query even if error occurs
 		job, meta, err := client.Jobs().Info(jobID, jobQuery)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
@@ -393,16 +381,15 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 			AllowStale: true,
 			Namespace:  namespace,
 		}
-
 		summary, _, err := client.Jobs().Summary(jobID, allocQuery)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
 			return 1
 		}
 
-		// Build status component with Deployed section
 		statusComponent := glint.Layout(
 			glint.Text(""),
+			glint.Text(formatTime(time.Now())),
 			glint.Style(glint.Text("Deployed"), glint.Bold()),
 			glint.Text(formatTaskGroups(summary.Summary)),
 		)
@@ -437,15 +424,11 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 
 			statusComponent = glint.Layout(statusComponent, allocComponent)
 		}
-		d := glint.New()
+
 		// Add margin and update display
 		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
 		d.Set(spinner, statusComponent)
 
-		// Check if all task groups have completed
-		d.Close()
-
-		fmt.Println("Job Status:", *job.Status)
 		if *job.Status == "dead" {
 			for _, state := range summary.Summary {
 				if state.Failed >= 0 {
