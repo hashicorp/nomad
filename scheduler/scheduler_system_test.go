@@ -4491,3 +4491,78 @@ func TestSystemSched_CanariesWithInfeasibleNodesLimit(t *testing.T) {
 	must.Eq(t, 1, plan.Annotations.DesiredTGUpdates["web"].Canary,
 		must.Sprintf("expected canaries: %#v", plan.Annotations.DesiredTGUpdates))
 }
+
+// TestSystemSched_NilDeploymentState verifies that the system scheduler does
+// not panic when it encounters a deployment with a nil DeploymentState entry.
+// This can happen when a prior evaluation sets a task group's dstate to nil
+// because it had no feasible candidate nodes, while the deployment finishes
+// successfully. If another task group still had candidates, the deployment is
+// persisted with mixed nil/non-nil entries. On a subsequent evaluation when the
+// nodes recover, the scheduler would dereference the nil dstate and panic.
+func TestSystemSched_NilDeploymentState(t *testing.T) {
+	ci.Parallel(t)
+	h := tests.NewHarness(t)
+
+	// Create 2 eligible nodes
+	nodes := createNodes(t, h, 2)
+
+	// Create a system job with 2 task groups so that when one TG's dstate is
+	// nil, the other keeps the deployment alive.
+	job := mock.SystemJob()
+	tg2 := job.TaskGroups[0].Copy()
+	tg2.Name = "api"
+	tg2.Tasks[0].Name = "api"
+	job.TaskGroups = append(job.TaskGroups, tg2)
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create running allocations for both task groups on both nodes.
+	var allocs []*structs.Allocation
+	for _, node := range nodes {
+		for _, tg := range job.TaskGroups {
+			alloc := mock.AllocForNodeWithoutReservedPort(node)
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.TaskGroup = tg.Name
+			alloc.Name = structs.AllocName(job.Name, tg.Name, 0)
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			allocs = append(allocs, alloc)
+		}
+	}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Create a successful deployment where "web" has a nil dstate (simulating
+	// a prior eval where that TG had no feasible nodes) while "api" has a
+	// non-nil dstate (keeping the deployment from being entirely nil'd out).
+	d := mock.Deployment()
+	d.JobID = job.ID
+	d.JobVersion = job.Version
+	d.Status = structs.DeploymentStatusSuccessful
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"web": nil,
+		"api": {DesiredTotal: 2, HealthyAllocs: 2},
+	}
+	must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
+
+	// Create an eval. Both nodes are eligible so both TGs will have a candidate
+	// count >= 1, which means the scheduler will look up the dstate for "web"
+	// and find it nil.
+	eval := &structs.Evaluation{
+		Namespace:   job.Namespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(
+		t,
+		h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}),
+	)
+
+	// Process the evaluation which varifies that the scheduler does not panic
+	// and correctly processes the eval.
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
