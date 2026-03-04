@@ -3712,3 +3712,128 @@ func TestCheckAttributeConstraint(t *testing.T) {
 		}
 	}
 }
+
+func TestHostVolume_ProposedAllocMeetsClaim(t *testing.T) {
+	ci.Parallel(t)
+
+	allocID := uuid.Generate()
+	volID0, volID1 := uuid.Generate(), uuid.Generate()
+	nodeID0, nodeID1 := uuid.Generate(), uuid.Generate()
+
+	makeAlloc := func(id, job, tg, desiredStatus, clientStatus string) *structs.Allocation {
+		alloc := &structs.Allocation{
+			Namespace:     structs.DefaultNamespace,
+			ID:            id,
+			JobID:         job,
+			TaskGroup:     tg,
+			DesiredStatus: desiredStatus,
+			ClientStatus:  clientStatus,
+			NodeID:        nodeID0,
+		}
+		return alloc
+	}
+
+	makeClaim := func(allocID, volID string) *structs.TaskGroupHostVolumeClaim {
+		return &structs.TaskGroupHostVolumeClaim{
+			ID:            uuid.Generate(),
+			AllocID:       allocID,
+			VolumeID:      volID,
+			Namespace:     structs.DefaultNamespace,
+			JobID:         "job0",
+			TaskGroupName: "tg0",
+			VolumeName:    "database",
+		}
+	}
+
+	vol0 := &structs.HostVolume{Namespace: structs.DefaultNamespace, ID: volID0, NodeID: nodeID0}
+	vol1 := &structs.HostVolume{Namespace: structs.DefaultNamespace, ID: volID1, NodeID: nodeID1}
+
+	testCases := []struct {
+		name     string
+		proposed *structs.Allocation
+		claim    *structs.TaskGroupHostVolumeClaim
+		vol      *structs.HostVolume
+		nodeID   string
+		expect   bool
+	}{
+		{
+			name: "terminal alloc fails claim",
+			proposed: makeAlloc(allocID, "job0", "tg0",
+				structs.AllocDesiredStatusStop, structs.AllocClientStatusComplete),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: false,
+		},
+		{
+			name: "exact alloc ID matches claim",
+			proposed: makeAlloc(allocID, "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: true,
+		},
+		{
+			name: "different alloc for task group matches claim",
+			proposed: makeAlloc("different-alloc", "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: true,
+		},
+		{
+			name: "job mismatch fails claim",
+			proposed: makeAlloc("different-alloc", "job1", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: false,
+		},
+		{
+			name: "volume mismatch fails claim",
+			proposed: makeAlloc("different-alloc", "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol1,
+			nodeID: nodeID1,
+			expect: false,
+		},
+		{
+			name: "node-volume mismatch fails claim",
+			proposed: makeAlloc("different-alloc", "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID1, // note: should be impossible
+			expect: false,
+		},
+		{
+			name: "pending alloc with exact ID match returns true",
+			proposed: makeAlloc(allocID, "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusPending),
+			claim:  makeClaim(allocID, volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: true,
+		},
+		{
+			name: "running alloc with all conditions matched returns true",
+			proposed: makeAlloc("new-alloc", "job0", "tg0",
+				structs.AllocDesiredStatusRun, structs.AllocClientStatusRunning),
+			claim:  makeClaim("old-alloc", volID0),
+			vol:    vol0,
+			nodeID: nodeID0,
+			expect: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := proposedAllocMeetsClaim(tc.proposed, tc.claim, tc.vol, tc.nodeID)
+			must.Eq(t, tc.expect, result)
+		})
+	}
+}

@@ -258,13 +258,10 @@ NEXT:
 
 		// the proposed alloc might be the exact same alloc or it could be an
 		// alloc from earlier in this eval that we've successfully placed
-		proposed, err := h.ctx.ProposedAllocs(alloc.NodeID)
+		proposed, err := h.ctx.ProposedAllocs(vol.NodeID)
 		if err == nil {
 			for _, proposedAlloc := range proposed {
-				if proposedAlloc.ID == claim.AllocID ||
-					(proposedAlloc.TaskGroup == taskGroupName &&
-						vol.NodeID == alloc.NodeID &&
-						vol.ID == claim.VolumeID) {
+				if proposedAllocMeetsClaim(proposedAlloc, claim, vol, alloc.NodeID) {
 					continue NEXT
 				}
 			}
@@ -288,6 +285,28 @@ NEXT:
 			h.volumeReqs = append(h.volumeReqs, req)
 		}
 	}
+}
+
+// proposedAllocMeetsClaim determines if a proposed alloc (existing non-terminal
+// or newly proposed this eval) satisfies a volume claim
+func proposedAllocMeetsClaim(
+	proposed *structs.Allocation,
+	claim *structs.TaskGroupHostVolumeClaim,
+	vol *structs.HostVolume,
+	nodeID string, // node ID of the alloc in the claim, should always match volume
+) bool {
+	if proposed.TerminalStatus() {
+		return false // evicted or being replaced
+	}
+	if proposed.ID == claim.AllocID {
+		return true // exact match
+	}
+
+	return proposed.Namespace == claim.Namespace &&
+		proposed.JobID == claim.JobID &&
+		proposed.TaskGroup == claim.TaskGroupName &&
+		proposed.NodeID == nodeID &&
+		vol.ID == claim.VolumeID
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
