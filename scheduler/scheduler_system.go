@@ -397,9 +397,12 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		// Grab the deployment state for this task group. If it doesn't exist,
+		// this means this task group is being placed for the first time, so we
+		// can skip the canary logic and just set the desired total. The entry
+		// can also be nil, if the node is infeasible.
 		dstate, ok := s.deployment.TaskGroups[tg.Name]
-		// no deployment for this TG
-		if !ok {
+		if !ok || dstate == nil {
 			continue
 		}
 
