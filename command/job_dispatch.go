@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -277,21 +278,28 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	return 0
 }
 
-// computeDeploymentStates computes deployment-style metrics from job spec and allocations
-func computeDeploymentStates(
-	job *api.Job,
-	allocs []*api.AllocationListStub,
-) map[string]*api.DeploymentState {
-	states := make(map[string]*api.DeploymentState)
+// DispatchedJobState tracks the state of a dispatched job for a given task group.
+type DispatchedJobState struct {
+	ProgressDeadline  time.Duration
+	RequireProgressBy time.Time
+	DesiredTotal      int
+	PlacedAllocs      int
+	RunningAllocs     int
+	FailedAllocs      int
+}
+
+func computeDispatchedJobStates(job *api.Job, allocs []*api.AllocationListStub,
+) map[string]*DispatchedJobState {
+	states := make(map[string]*DispatchedJobState)
 
 	// Initialize states from job task groups
 	for _, tg := range job.TaskGroups {
 		tgName := *tg.Name
-		states[tgName] = &api.DeploymentState{
+		states[tgName] = &DispatchedJobState{
 			DesiredTotal:      *tg.Count,
 			PlacedAllocs:      0,
-			HealthyAllocs:     0,
-			UnhealthyAllocs:   0,
+			RunningAllocs:     0,
+			FailedAllocs:      0,
 			RequireProgressBy: time.Time{}, // Will be set to latest update
 		}
 	}
@@ -309,9 +317,9 @@ func computeDeploymentStates(
 		// Count healthy (running) and unhealthy (failed) allocations
 		switch alloc.ClientStatus {
 		case api.AllocClientStatusRunning:
-			state.HealthyAllocs++
+			state.RunningAllocs++
 		case api.AllocClientStatusFailed:
-			state.UnhealthyAllocs++
+			state.FailedAllocs++
 		}
 
 		// Track latest update time for progress deadline
@@ -332,16 +340,20 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 	verbose bool,
 	length int,
 ) int {
-	// Query the dispatched job to get task group information
-	q := &api.QueryOptions{Namespace: namespace}
-	job, _, err := client.Jobs().Info(jobID, q)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
-		return 1
-	}
+	/* 	// Query the dispatched job to get task group information
+	   	q := &api.QueryOptions{
+	   		Namespace: namespace,
+	   	}
+	   	job, _, err := client.Jobs().Info(jobID, q)
+	   	if err != nil {
+	   		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+	   		return 1
+	   	} */
 
 	// Set up glint for interactive display
 	d := glint.New()
+	//defer d.Close()
+
 	d.SetRefreshRate(100 * time.Millisecond)
 
 	spinner := glint.Layout(
@@ -359,36 +371,53 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 	var lastIndex uint64
 	startTime := time.Now()
 	timeout := 5 * time.Minute
-
+	d.Close()
 	for {
-		// Query allocations with blocking
-		allocQuery := &api.QueryOptions{
+
+		jobQuery := &api.QueryOptions{
 			AllowStale: true,
 			WaitIndex:  lastIndex,
-			WaitTime:   2 * time.Second,
+			WaitTime:   5 * time.Second,
 			Namespace:  namespace,
 		}
 
-		allocs, meta, err := client.Jobs().Allocations(jobID, false, allocQuery)
+		// ensure lastIndex is updated for next query even if error occurs
+		job, meta, err := client.Jobs().Info(jobID, jobQuery)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
-			d.Close()
 			return 1
 		}
 		lastIndex = meta.LastIndex
 
-		// Compute deployment states from allocations
-		deploymentStates := computeDeploymentStates(job, allocs)
+		allocQuery := &api.QueryOptions{
+			AllowStale: true,
+			Namespace:  namespace,
+		}
+
+		summary, _, err := client.Jobs().Summary(jobID, allocQuery)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+			return 1
+		}
 
 		// Build status component with Deployed section
 		statusComponent := glint.Layout(
 			glint.Text(""),
 			glint.Style(glint.Text("Deployed"), glint.Bold()),
-			glint.Text(formatDeploymentGroups(deploymentStates, length)),
+			glint.Text(formatTaskGroups(summary.Summary)),
 		)
 
 		// Add Allocations section if verbose
 		if verbose {
+			allocQuery := &api.QueryOptions{
+				AllowStale: true,
+				Namespace:  namespace,
+			}
+			allocs, _, err := client.Jobs().Allocations(jobID, true, allocQuery)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+				return 1
+			}
 			allocComponent := glint.Layout(
 				glint.Text(""),
 				glint.Style(glint.Text("Allocations"), glint.Bold()),
@@ -397,7 +426,7 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 			if len(allocs) > 0 {
 				allocComponent = glint.Layout(
 					allocComponent,
-					glint.Text(formatAllocListStubs(allocs, verbose, length)),
+					glint.Text(formatAllocListStubs(allocs, true, length)),
 				)
 			} else {
 				allocComponent = glint.Layout(
@@ -408,60 +437,62 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 
 			statusComponent = glint.Layout(statusComponent, allocComponent)
 		}
-
+		d := glint.New()
 		// Add margin and update display
 		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
 		d.Set(spinner, statusComponent)
 
 		// Check if all task groups have completed
-		allTaskGroupsComplete := true
-		hasFailures := false
+		d.Close()
 
-		for tgName, state := range deploymentStates {
-			// Count terminal allocations for this task group
-			terminalCount := 0
-			failedCount := 0
-
-			for _, alloc := range allocs {
-				if alloc.TaskGroup != tgName {
-					continue
-				}
-
-				switch alloc.ClientStatus {
-				case api.AllocClientStatusComplete:
-					terminalCount++
-				case api.AllocClientStatusFailed:
-					terminalCount++
-					failedCount++
-				case api.AllocClientStatusLost:
-					terminalCount++
-					failedCount++
+		fmt.Println("Job Status:", *job.Status)
+		if *job.Status == "dead" {
+			for _, state := range summary.Summary {
+				if state.Failed >= 0 {
+					return 2
 				}
 			}
-
-			// Task group is complete when all desired allocations are terminal
-			if terminalCount < state.DesiredTotal {
-				allTaskGroupsComplete = false
-			}
-
-			if failedCount > 0 {
-				hasFailures = true
-			}
-		}
-
-		if allTaskGroupsComplete {
-			d.Close()
-			if hasFailures {
-				return 2 // Scheduling failure
-			}
-			return 0 // Success
+			return 0
 		}
 
 		// Check timeout
 		if time.Since(startTime) > timeout {
-			d.Close()
 			c.Ui.Warn(fmt.Sprintf("Timeout reached after %s", timeout))
 			return 1
 		}
 	}
+}
+
+func formatTaskGroups(tgs map[string]api.TaskGroupSummary) string {
+
+	tgNames := make([]string, 0, len(tgs))
+	for name, _ := range tgs {
+		tgNames = append(tgNames, name)
+		/* 	if state.ProgressDeadline != 0 {
+			progressDeadline = true
+		} */
+	}
+
+	// Sort the task group names to get a reliable ordering
+	sort.Strings(tgNames)
+
+	// Build the row string
+	rowString := "Task Group|"
+	rowString += "Queued|"
+	rowString += "Complete|Failed|Running|Starting|Lost|Unknown"
+
+	rows := make([]string, len(tgs)+1)
+	rows[0] = rowString
+	i := 1
+
+	for _, tg := range tgNames {
+		state := tgs[tg]
+		row := fmt.Sprintf("%s|", tg)
+		row += fmt.Sprintf("%d|%d|%d|%d|%d|%d|%d", state.Queued, state.Complete, state.Failed,
+			state.Running, state.Starting, state.Lost, state.Unknown)
+		rows[i] = row
+		i++
+	}
+
+	return formatList(rows)
 }
