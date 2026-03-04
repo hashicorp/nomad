@@ -36,6 +36,7 @@ const (
 	TopicCSIPlugin      Topic = "CSIPlugin"
 	TopicOperator       Topic = "Operator"
 	TopicAll            Topic = "*"
+	TopicVariable       Topic = "Variable"
 
 	TypeNodeRegistration              = "NodeRegistration"
 	TypeNodeDeregistration            = "NodeDeregistration"
@@ -73,6 +74,8 @@ const (
 	TypeCSIVolumeDeregistered         = "CSIVolumeDeregistered"
 	TypeCSIVolumeClaim                = "CSIVolumeClaim"
 	TypeUtilizationSnapshotUpserted   = "UtilizationSnapshotUpserted"
+
+	TypeVariableUpdated = "VariableUpdated"
 )
 
 // Event represents a change in Nomads state.
@@ -215,4 +218,8 @@ type CSIVolumeEvent struct {
 // used as an event in the event stream
 type CSIPluginEvent struct {
 	Plugin *CSIPlugin
+}
+
+type VariableEvent struct {
+	Metadata *VariableMetadata
 }

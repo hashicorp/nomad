@@ -46,6 +46,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.CSIVolumeRegisterRequestType:                 structs.TypeCSIVolumeRegistered,
 	structs.CSIVolumeDeregisterRequestType:               structs.TypeCSIVolumeDeregistered,
 	structs.CSIVolumeClaimRequestType:                    structs.TypeCSIVolumeClaim,
+	structs.VarApplyStateRequestType:                     structs.TypeVariableUpdated,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -239,6 +240,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				FilterKeys: []string{before.ID},
 				Payload: &structs.CSIPluginEvent{
 					Plugin: before,
+				},
+			}, true
+		case TableVariables:
+			before, ok := change.Before.(*structs.VariableEncrypted)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic:     structs.TopicVariable,
+				Key:       before.Path,
+				Namespace: before.Namespace,
+				Payload: &structs.VariableEvent{
+					Metadata: &before.VariableMetadata,
 				},
 			}, true
 		default:
@@ -468,6 +482,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			FilterKeys: []string{after.ID},
 			Payload: &structs.CSIPluginEvent{
 				Plugin: after,
+			},
+		}, true
+	case TableVariables:
+		after, ok := change.After.(*structs.VariableEncrypted)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic:     structs.TopicVariable,
+			Key:       after.Path,
+			Namespace: after.Namespace,
+			Payload: &structs.VariableEvent{
+				Metadata: &after.VariableMetadata,
 			},
 		}, true
 	default:

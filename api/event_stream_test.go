@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
 )
 
@@ -50,6 +50,10 @@ func TestTopic_String(t *testing.T) {
 		{
 			inputTopic:     TopicService,
 			expectedOutput: "Service",
+		},
+		{
+			inputTopic:     TopicVariable,
+			expectedOutput: "Variable",
 		},
 		{
 			inputTopic:     TopicAll,
@@ -385,6 +389,23 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				must.Eq(t, "us-east-1a", a.Datacenter)
 				must.Eq(t, "some-service-id", a.ID)
 				must.Eq(t, "some-service-namespace-id", a.Namespace)
+			},
+		},
+		{
+			desc:  "variable",
+			input: []byte(`{"Topic":"Variable","Payload":{"Variable":{"Namespace":"default","Path":"app/config","ModifyIndex":42,"Items":{"env":"prod"}}}}`),
+			expectFn: func(t *testing.T, event Event) {
+				must.Eq(t, TopicVariable, event.Topic)
+				v, err := event.Variable()
+				must.NoError(t, err)
+				must.Eq(t, &Variable{
+					Namespace:   "default",
+					Path:        "app/config",
+					ModifyIndex: 42,
+					Items: VariableItems{
+						"env": "prod",
+					},
+				}, v)
 			},
 		},
 	}
