@@ -715,7 +715,7 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 			{
 				Table:  "jobs",
 				Before: purgedJob,
-				After:  nil, // deleted (purged)
+				After:  nil, // deleted (or purged)
 			},
 		},
 		MsgType: structs.JobDeregisterRequestType,
@@ -725,17 +725,17 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	must.NotNil(t, events)
 	must.Len(t, 2, events.Events)
 
-	// first event: upserted job (stop) — Purge should be false
+	// first event: upserted job (stop) — Deleted should be false
 	upsertEvent := events.Events[0]
 	upsertPayload, ok := upsertEvent.Payload.(*structs.JobEvent)
 	must.True(t, ok)
-	must.False(t, upsertPayload.Purge)
+	must.False(t, upsertPayload.Deleted)
 
-	// second event: deleted job (purge) — Purge should be true
+	// second event: deleted job (purge) — Deleted should be true
 	purgeEvent := events.Events[1]
 	purgePayload, ok := purgeEvent.Payload.(*structs.JobEvent)
 	must.True(t, ok)
-	must.True(t, purgePayload.Purge)
+	must.True(t, purgePayload.Deleted)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {

@@ -144,8 +144,8 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:       before.ID,
 				Namespace: before.Namespace,
 				Payload: &structs.JobEvent{
-					Job:   before,
-					Purge: true,
+					Job:     before,
+					Deleted: true,
 				},
 			}, true
 		case "nodes":

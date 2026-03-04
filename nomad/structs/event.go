@@ -124,9 +124,9 @@ func (j *EventJson) Copy() *EventJson {
 type JobEvent struct {
 	Job *Job
 
-	// Purge indicates whether the job was deleted from the state store. This
+	// Deleted indicates whether the job was deleted from the state store. This
 	// field is only set for JobDeregistered events.
-	Purge bool `json:",omitempty"`
+	Deleted bool `json:",omitempty"`
 }
 
 // EvaluationEvent holds a newly updated Eval.

@@ -90,6 +90,17 @@ func (e *Event) Job() (*Job, error) {
 	return out.Job, nil
 }
 
+// DeregisteredJob returns a Job struct from a given event payload. If the Event
+// Topic is Job this will return a valid Job and whether that job was deleted
+// (purged).
+func (e *Event) DeregisteredJob() (*Job, bool, error) {
+	out, err := e.decodePayload()
+	if err != nil {
+		return nil, false, err
+	}
+	return out.Job, out.Deleted, nil
+}
+
 // Node returns a Node struct from a given event payload. If the
 // Event Topic is Node this will return a valid Node.
 func (e *Event) Node() (*Node, error) {
@@ -125,6 +136,7 @@ type eventPayload struct {
 	Deployment *Deployment          `mapstructure:"Deployment"`
 	Evaluation *Evaluation          `mapstructure:"Evaluation"`
 	Job        *Job                 `mapstructure:"Job"`
+	Deleted    bool                 `mapstructure:"Deleted"`
 	Node       *Node                `mapstructure:"Node"`
 	NodePool   *NodePool            `mapstructure:"NodePool"`
 	Service    *ServiceRegistration `mapstructure:"Service"`
