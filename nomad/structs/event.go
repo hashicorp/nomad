@@ -123,6 +123,10 @@ func (j *EventJson) Copy() *EventJson {
 // JobEvent holds a newly updated Job.
 type JobEvent struct {
 	Job *Job
+
+	// Deleted indicates whether the job was deleted from the state store. This
+	// field is only set for JobDeregistered events.
+	Deleted bool `json:",omitempty"`
 }
 
 // EvaluationEvent holds a newly updated Eval.
