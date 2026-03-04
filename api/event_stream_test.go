@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
 )
 
@@ -338,11 +338,26 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 			},
 		},
 		{
+			desc:  "job",
 			input: []byte(`{"Topic": "Job", "Payload": {"Job":{"ID":"some-id","Namespace":"some-namespace-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				must.Eq(t, TopicJob, event.Topic)
 				j, err := event.Job()
 				must.NoError(t, err)
+				must.Eq(t, &Job{
+					ID:        pointerOf("some-id"),
+					Namespace: pointerOf("some-namespace-id"),
+				}, j)
+			},
+		},
+		{
+			desc:  "deregistered job",
+			input: []byte(`{"Topic": "Job", "Payload": {"Job":{"ID":"some-id","Namespace":"some-namespace-id"}, "Deleted": true}}`),
+			expectFn: func(t *testing.T, event Event) {
+				must.Eq(t, TopicJob, event.Topic)
+				j, deleted, err := event.DeregisteredJob()
+				must.NoError(t, err)
+				must.True(t, deleted, must.Sprint("did not populated Deleted value"))
 				must.Eq(t, &Job{
 					ID:        pointerOf("some-id"),
 					Namespace: pointerOf("some-namespace-id"),
