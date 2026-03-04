@@ -194,14 +194,20 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 	selectedVolID := nodeToVolMap[selectedNodeID]
 
 	t.Logf("[%v] volume %q on node %q was selected",
-		time.Since(start), selectedVolID, selectedNodeID)
+		time.Since(start), selectedVolID[:8], selectedNodeID[:8])
+
+	claims, _, err := nomad.TaskGroupHostVolumeClaims().List(
+		&nomadapi.TaskGroupHostVolumeClaimsListRequest{JobID: jobSub.JobID()}, nil)
+	must.NoError(t, err)
+	must.Len(t, 1, claims)
+	must.Eq(t, allocID1, claims[0].AllocID)
 
 	// Test: force reschedule
 
 	_, err = nomad.Allocations().Stop(alloc, nil)
 	must.NoError(t, err)
 
-	t.Logf("[%v] stopped allocation %q", time.Since(start), alloc.ID)
+	t.Logf("[%v] stopped allocation %q", time.Since(start), alloc.ID[:8])
 
 	var allocID2 string
 
@@ -229,11 +235,18 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 	newAlloc, _, err := nomad.Allocations().Info(allocID2, nil)
 	must.NoError(t, err)
 	must.Eq(t, selectedNodeID, newAlloc.NodeID)
-	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
+	t.Logf("[%v] replacement alloc %q is running on %q",
+		time.Since(start), newAlloc.ID[:8], newAlloc.NodeID[:8])
+
+	claims, _, err = nomad.TaskGroupHostVolumeClaims().List(
+		&nomadapi.TaskGroupHostVolumeClaimsListRequest{JobID: jobSub.JobID()}, nil)
+	must.NoError(t, err)
+	must.Len(t, 1, claims)
+	must.Eq(t, allocID2, claims[0].AllocID)
 
 	// Test: drain node
 
-	t.Logf("[%v] draining node %q", time.Since(start), selectedNodeID)
+	t.Logf("[%v] draining node %q", time.Since(start), selectedNodeID[:8])
 	cleanup, err := drainNode(nomad, selectedNodeID, time.Second*20)
 	t.Cleanup(cleanup)
 	must.NoError(t, err)
@@ -245,10 +258,10 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 				return err
 			}
 
-			got := map[string]string{}
-
+			got := ""
 			for _, eval := range evals {
-				got[eval.ID[:8]] = fmt.Sprintf("status=%q trigger=%q create_index=%d",
+				got += fmt.Sprintf("eval=%s status=%s trigger=%s create_index=%d\n",
+					eval.ID[:8],
 					eval.Status,
 					eval.TriggeredBy,
 					eval.CreateIndex,
@@ -258,13 +271,24 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 				}
 			}
 
-			return fmt.Errorf("expected blocked eval, got evals => %#v", got)
+			allocs, _, err := nomad.Jobs().Allocations(jobSub.JobID(), true, nil)
+			if err != nil {
+				return err
+			}
+			if len(allocs) > 2 {
+				for _, alloc := range allocs {
+					got += fmt.Sprintf("alloc=%s status=%s\n", alloc.ID[:8], alloc.ClientStatus)
+				}
+				return fmt.Errorf("alloc should not have started, got:\n%s", got)
+			}
+
+			return fmt.Errorf("expected blocked eval, got:\n%s", got)
 		}),
 		wait.Timeout(10*time.Second),
 		wait.Gap(50*time.Millisecond),
 	))
 
-	t.Logf("[%v] undraining node %q", time.Since(start), selectedNodeID)
+	t.Logf("[%v] undraining node %q", time.Since(start), selectedNodeID[:8])
 	cleanup()
 
 	var allocID3 string
@@ -279,7 +303,7 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 				if a.ID != allocID1 && a.ID != allocID2 {
 					allocID3 = a.ID
 					if a.ClientStatus != api.AllocClientStatusRunning {
-						return fmt.Errorf("replacement alloc %q not running", allocID3)
+						return fmt.Errorf("replacement alloc %q not running", allocID3[:8])
 					}
 				}
 			}
@@ -291,9 +315,8 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 
 	newAlloc, _, err = nomad.Allocations().Info(allocID3, nil)
 	must.NoError(t, err)
-	must.Eq(t, selectedNodeID, newAlloc.NodeID)
-	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
-
+	must.Eq(t, selectedNodeID, newAlloc.NodeID, must.Sprint("started on wrong node"))
+	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID[:8])
 }
 
 func drainNode(nomad *nomadapi.Client, nodeID string, timeout time.Duration) (func(), error) {
