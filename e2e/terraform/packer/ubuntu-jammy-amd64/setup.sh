@@ -96,11 +96,11 @@ sudo apt-get install -y openjdk-17-jdk-headless
 # CNI
 echo "Installing CNI plugins"
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v1.8.0/cni-plugins-linux-amd64-v1.8.0.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v1.9.0/cni-plugins-linux-amd64-v1.9.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 echo "Installing consul-cni plugin"
-sudo hc-install install --path /opt/cni/bin --version 1.5.1 consul-cni
+sudo hc-install install --path /opt/cni/bin --version 1.9.5 consul-cni
 
 echo "Installing custom test plugins"
 # for .conf and .json config tests
