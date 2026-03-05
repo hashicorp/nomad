@@ -9,8 +9,12 @@ on:
       gh-token:
         required: true
     inputs:
+      org:
+        description: "GitHub org"
+        type: string
+        default: "hashicorp"
       repo:
-        description: "GitHub repository, e.g. hashicorp/nomad"
+        description: "GitHub repository, e.g. nomad or nomad-enterprise"
         type: string
         required: true
       version:
@@ -56,7 +60,7 @@ jobs:
       - name: Checkout nomad
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: ${{ inputs.repo }}
+          repository: ${{ inputs.org }}/${{ inputs.repo }}
           ref: ${{ inputs.source-branch }}
           fetch-depth: 0
           fetch-tags: true # for changelog
@@ -122,9 +126,10 @@ jobs:
 
           # summarize and output
 
+          base_url="https://github.com/${{ inputs.org }}/${{ inputs.repo }}"
           cat <<SUMM >> "$GITHUB_STEP_SUMMARY"
-          Release branch: [$branch](https://github.com/${{ inputs.repo }}/tree/$branch)
-          Build sha: [\`$sha\`](https://github.com/${{ inputs.repo }}/commit/$sha)
+          Release branch: [$branch]($base_url/tree/$branch)
+          Build sha: [\`$sha\`]($base_url/commit/$sha)
           SUMM
 
           cat <<OUT >> "$GITHUB_OUTPUT"
