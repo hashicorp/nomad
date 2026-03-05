@@ -2709,7 +2709,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	variable := mock.VariableEncrypted()
 	variable.KeyID = key2.KeyID
 
-	setResp := store.VarSet(601, &structs.VarApplyStateRequest{
+	setResp := store.VarSet(structs.VarApplyStateRequestType, 601, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: variable,
 	})
