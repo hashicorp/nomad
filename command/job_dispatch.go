@@ -4,14 +4,19 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	"github.com/mitchellh/go-glint"
+	"github.com/mitchellh/go-glint/components"
 	"github.com/posener/complete"
 )
 
@@ -70,6 +75,10 @@ Dispatch Options:
   -verbose
     Display full information.
 
+  -wait
+    Wait for all task groups to complete (all allocations reach terminal state).
+    Without this flag, the command returns after the evaluation completes.
+
   -ui
     Open the dispatched job in the browser.
 `
@@ -87,6 +96,7 @@ func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 			"-detach":             complete.PredictNothing,
 			"-idempotency-token":  complete.PredictAnything,
 			"-verbose":            complete.PredictNothing,
+			"-wait":               complete.PredictNothing,
 			"-ui":                 complete.PredictNothing,
 			"-id-prefix-template": complete.PredictAnything,
 			"-priority":           complete.PredictAnything,
@@ -120,7 +130,7 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobDispatchCommand) Name() string { return "job dispatch" }
 
 func (c *JobDispatchCommand) Run(args []string) int {
-	var detach, verbose, openURL bool
+	var detach, verbose, wait, openURL bool
 	var idempotencyToken string
 	var meta []string
 	var idPrefixTemplate string
@@ -130,6 +140,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&wait, "wait", false, "")
 	flags.StringVar(&idempotencyToken, "idempotency-token", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
@@ -253,5 +264,218 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		// Because this is before monitor, newline so we don't scrunch
 		c.Ui.Warn("")
 	}
-	return mon.monitor(resp.EvalID)
+
+	// Monitor evaluation
+	if mon.monitor(resp.EvalID) != 0 {
+		return 1
+	}
+
+	// Monitor dispatched job allocations with deployment-style display (only if -wait flag is set)
+	if wait {
+		return c.monitorDispatchedJob(client, resp.DispatchedJobID, namespace, verbose, length)
+	}
+
+	return 0
+}
+
+// DispatchedJobState tracks the state of a dispatched job for a given task group.
+type DispatchedJobState struct {
+	ProgressDeadline  time.Duration
+	RequireProgressBy time.Time
+	DesiredTotal      int
+	PlacedAllocs      int
+	RunningAllocs     int
+	FailedAllocs      int
+}
+
+func computeDispatchedJobStates(job *api.Job, allocs []*api.AllocationListStub,
+) map[string]*DispatchedJobState {
+	states := make(map[string]*DispatchedJobState)
+
+	// Initialize states from job task groups
+	for _, tg := range job.TaskGroups {
+		tgName := *tg.Name
+		states[tgName] = &DispatchedJobState{
+			DesiredTotal:      *tg.Count,
+			PlacedAllocs:      0,
+			RunningAllocs:     0,
+			FailedAllocs:      0,
+			RequireProgressBy: time.Time{}, // Will be set to latest update
+		}
+	}
+
+	// Compute metrics from allocations
+	for _, alloc := range allocs {
+		state, exists := states[alloc.TaskGroup]
+		if !exists {
+			continue
+		}
+
+		// Count placed allocations
+		state.PlacedAllocs++
+
+		// Count healthy (running) and unhealthy (failed) allocations
+		switch alloc.ClientStatus {
+		case api.AllocClientStatusRunning:
+			state.RunningAllocs++
+		case api.AllocClientStatusFailed:
+			state.FailedAllocs++
+		}
+
+		// Track latest update time for progress deadline
+		allocTime := time.Unix(0, alloc.ModifyTime)
+		if allocTime.After(state.RequireProgressBy) {
+			state.RequireProgressBy = allocTime
+		}
+	}
+
+	return states
+}
+
+// monitorDispatchedJob monitors allocations with glint for interactive display
+func (c *JobDispatchCommand) monitorDispatchedJob(
+	client *api.Client,
+	jobID string,
+	namespace string,
+	verbose bool,
+	length int,
+) int {
+	// Set up glint for interactive display
+	d := glint.New()
+	defer d.Close()
+
+	spinner := glint.Layout(
+		components.Spinner(),
+		glint.Text(fmt.Sprintf(" Monitoring allocations for job %q...", limit(jobID, length))),
+	).Row()
+	d.SetRefreshRate(100 * time.Millisecond)
+
+	d.Set(spinner)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.Render(ctx)
+
+	// Polling loop
+	var lastIndex uint64
+	startTime := time.Now()
+	timeout := 5 * time.Minute
+
+	for {
+
+		jobQuery := &api.QueryOptions{
+			AllowStale: true,
+			WaitIndex:  lastIndex,
+			WaitTime:   5 * time.Second,
+			Namespace:  namespace,
+		}
+
+		job, meta, err := client.Jobs().Info(jobID, jobQuery)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+			return 1
+		}
+		lastIndex = meta.LastIndex
+
+		allocQuery := &api.QueryOptions{
+			AllowStale: true,
+			Namespace:  namespace,
+		}
+		summary, _, err := client.Jobs().Summary(jobID, allocQuery)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+			return 1
+		}
+
+		statusComponent := glint.Layout(
+			glint.Text(""),
+			glint.Text(formatTime(time.Now())),
+			glint.Style(glint.Text("Deployed"), glint.Bold()),
+			glint.Text(formatTaskGroups(summary.Summary)),
+		)
+
+		// Add Allocations section if verbose
+		if verbose {
+			allocQuery := &api.QueryOptions{
+				AllowStale: true,
+				Namespace:  namespace,
+			}
+			allocs, _, err := client.Jobs().Allocations(jobID, true, allocQuery)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error querying allocations: %s", err))
+				return 1
+			}
+			allocComponent := glint.Layout(
+				glint.Text(""),
+				glint.Style(glint.Text("Allocations"), glint.Bold()),
+			)
+
+			if len(allocs) > 0 {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Text(formatAllocListStubs(allocs, true, length)),
+				)
+			} else {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Text("No allocations created"),
+				)
+			}
+
+			statusComponent = glint.Layout(statusComponent, allocComponent)
+		}
+
+		// Add margin and update display
+		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
+		d.Set(spinner, statusComponent)
+
+		if *job.Status == "dead" {
+			for _, state := range summary.Summary {
+				if state.Failed >= 0 {
+					return 2
+				}
+			}
+			return 0
+		}
+
+		// Check timeout
+		if time.Since(startTime) > timeout {
+			c.Ui.Warn(fmt.Sprintf("Timeout reached after %s", timeout))
+			return 1
+		}
+	}
+}
+
+func formatTaskGroups(tgs map[string]api.TaskGroupSummary) string {
+
+	tgNames := make([]string, 0, len(tgs))
+	for name, _ := range tgs {
+		tgNames = append(tgNames, name)
+		/* 	if state.ProgressDeadline != 0 {
+			progressDeadline = true
+		} */
+	}
+
+	// Sort the task group names to get a reliable ordering
+	sort.Strings(tgNames)
+
+	// Build the row string
+	rowString := "Task Group|"
+	rowString += "Queued|"
+	rowString += "Complete|Failed|Running|Starting|Lost|Unknown"
+
+	rows := make([]string, len(tgs)+1)
+	rows[0] = rowString
+	i := 1
+
+	for _, tg := range tgNames {
+		state := tgs[tg]
+		row := fmt.Sprintf("%s|", tg)
+		row += fmt.Sprintf("%d|%d|%d|%d|%d|%d|%d", state.Queued, state.Complete, state.Failed,
+			state.Running, state.Starting, state.Lost, state.Unknown)
+		rows[i] = row
+		i++
+	}
+
+	return formatList(rows)
 }
