@@ -1344,6 +1344,52 @@ func TestEvents_CSIPlugins(t *testing.T) {
 	must.Eq(t, "NodeRegistration", events[2].Type)
 }
 
+func TestEvents_Variables(t *testing.T) {
+	ci.Parallel(t)
+	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer store.StopEventBroker()
+
+	variable := mock.VariableEncrypted()
+
+	// Upsert the variable straight into state.
+	writeTxn := store.db.WriteTxn(10)
+	resp := store.varSetTxn(writeTxn, 10, &structs.VarApplyStateRequest{Var: variable})
+	must.True(t, resp.IsOk())
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.VarApplyStateRequestType}
+	receivedChange := eventsFromChanges(writeTxn, upsertChange)
+	must.NotNil(t, receivedChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicVariable, receivedChange.Events[0].Topic)
+	must.Eq(t, variable.Path, receivedChange.Events[0].Key)
+	must.Eq(t, structs.TypeVariableUpdated, receivedChange.Events[0].Type)
+	must.Eq(t, uint64(10), receivedChange.Events[0].Index)
+
+	eventPayload := receivedChange.Events[0].Payload.(*structs.VariableEvent)
+	must.Eq(t, variable.VariableMetadata, *eventPayload.Metadata)
+
+	// Delete the variable.
+	deleteTxn := store.db.WriteTxn(20)
+	deleteResp := store.svDeleteTxn(deleteTxn, 20, &structs.VarApplyStateRequest{Var: variable})
+	must.True(t, deleteResp.IsOk())
+	deleteTxn.Txn.Commit()
+
+	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.VarApplyStateRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
+	must.NotNil(t, receivedDeleteChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicVariable, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, variable.Path, receivedDeleteChange.Events[0].Key)
+	must.Eq(t, structs.TypeVariableUpdated, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
+}
+
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 

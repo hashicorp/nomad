@@ -1,0 +1,3 @@
+```release-note:improvement
+variables: Add variable events to the event stream
+```
