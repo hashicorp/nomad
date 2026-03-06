@@ -99,6 +99,182 @@ func (set allocSet) filterOldTerminalAllocs(a ReconcilerState) (remain, ignore a
 	return remain, ignored
 }
 
+// allocCategory represents the classification category for an allocation
+type allocCategory string
+
+const (
+	categoryUntainted     allocCategory = "untainted"
+	categoryMigrate       allocCategory = "migrate"
+	categoryLost          allocCategory = "lost"
+	categoryDisconnecting allocCategory = "disconnecting"
+	categoryReconnecting  allocCategory = "reconnecting"
+	categoryIgnore        allocCategory = "ignore"
+	categoryExpiring      allocCategory = "expiring"
+)
+
+// allocContext holds all the contextual information needed to classify an allocation
+type allocContext struct {
+	alloc           *structs.Allocation
+	shouldReconnect bool
+	taintedNode     *structs.Node
+	now             time.Time
+}
+
+// classificationRule defines a single decision rule in the classification table
+type classificationRule struct {
+	name      string
+	condition func(ctx allocContext) bool
+	category  allocCategory
+}
+
+// getClassificationRules returns the ordered list of classification rules.
+// Rules are evaluated in order, first match wins.
+// To add new cases, simply add new rules to this list in the appropriate priority order.
+var classificationRules = []classificationRule{
+	// Priority 1: Failed reconnect cases
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.shouldReconnect &&
+				aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed
+		},
+		category: categoryReconnecting,
+	},
+	// Priority 2: Server-terminal allocations (stopped replacements)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
+				aCtx.alloc.ServerTerminalStatus()
+		},
+		category: categoryIgnore,
+	},
+	// Priority 3: Terminal canaries that need migration
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect &&
+				aCtx.alloc.DeploymentStatus.IsCanary() &&
+				aCtx.alloc.DesiredTransition.ShouldMigrate()
+		},
+		category: categoryMigrate,
+	},
+	// Priority 4: Other terminal allocations
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.TerminalStatus() && !aCtx.shouldReconnect
+		},
+		category: categoryUntainted,
+	},
+	// Priority 5: Expired allocations
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.Expired(aCtx.now)
+		},
+		category: categoryExpiring,
+	},
+	// Priority 6: Failed reconnect marked to stop
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.shouldReconnect &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusFailed &&
+				aCtx.alloc.DesiredStatus == structs.AllocDesiredStatusStop
+		},
+		category: categoryIgnore,
+	},
+	// Priority 7: Disconnected node - unknown alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
+		},
+		category: categoryUntainted,
+	},
+	// Priority 8: Disconnected node - pending alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusPending
+		},
+		category: categoryLost,
+	},
+	// Priority 9: Disconnected node - no disconnect timeout
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected &&
+				aCtx.alloc.DisconnectTimeout(aCtx.now) == aCtx.now
+		},
+		category: categoryLost,
+	},
+	// Priority 10: Disconnected node - within grace period
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusDisconnected
+		},
+		category: categoryDisconnecting,
+	},
+	// Priority 11: Migrate flag set
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.alloc.DesiredTransition.ShouldMigrate()
+		},
+		category: categoryMigrate,
+	},
+	// Priority 12: Untainted/ready node with reconnect
+	{
+		condition: func(aCtx allocContext) bool {
+			return (aCtx.taintedNode == nil || (aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusReady)) &&
+				aCtx.shouldReconnect
+		},
+		category: categoryReconnecting,
+	},
+	// Priority 13: Untainted/ready node
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode == nil || (aCtx.taintedNode != nil &&
+				aCtx.taintedNode.Status == structs.NodeStatusReady)
+		},
+		category: categoryUntainted,
+	},
+	// Priority 14: Node GC'd (nil)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode == nil
+		},
+		category: categoryLost,
+	},
+	// Priority 15: Terminal node, no replace, unknown alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.TerminalStatus() &&
+				!aCtx.alloc.ReplaceOnDisconnect() &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusUnknown
+		},
+		category: categoryUntainted,
+	},
+	// Priority 16: Terminal node, no replace, running alloc
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil &&
+				aCtx.taintedNode.TerminalStatus() &&
+				!aCtx.alloc.ReplaceOnDisconnect() &&
+				aCtx.alloc.ClientStatus == structs.AllocClientStatusRunning
+		},
+		category: categoryDisconnecting,
+	},
+	// Priority 17: Terminal node (all other cases)
+	{
+		condition: func(aCtx allocContext) bool {
+			return aCtx.taintedNode != nil && aCtx.taintedNode.TerminalStatus()
+		},
+		category: categoryLost,
+	},
+}
+
 // filterByTainted takes a set of tainted nodes and filters the allocation set
 // into the following groups:
 // 1. Those that exist on untainted nodes
@@ -117,128 +293,49 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 	ignore = make(allocSet)
 	expiring = make(allocSet)
 
-	for _, alloc := range set {
-		shouldReconnect := false
+	// Create a map for quick category assignment
+	categoryMap := map[allocCategory]*allocSet{
+		categoryUntainted:     &untainted,
+		categoryMigrate:       &migrate,
+		categoryLost:          &lost,
+		categoryDisconnecting: &disconnecting,
+		categoryReconnecting:  &reconnecting,
+		categoryIgnore:        &ignore,
+		categoryExpiring:      &expiring,
+	}
 
-		// Only compute reconnect for unknown, running, and failed since they
-		// need to go through the reconnect logic.
+	for _, alloc := range set {
+		// Build the context for classification
+		ctx := allocContext{
+			alloc: alloc,
+			now:   state.Now,
+		}
+
+		// Compute shouldReconnect - only for unknown, running, and failed allocs
 		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
 			alloc.ClientStatus == structs.AllocClientStatusRunning ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
-			shouldReconnect = alloc.NeedsToReconnect()
+			ctx.shouldReconnect = alloc.NeedsToReconnect()
 		}
 
-		// Failed allocs that need to be reconnected must be added to
-		// reconnecting so that they can be handled as a failed reconnect.
-		if shouldReconnect &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
-			alloc.ClientStatus == structs.AllocClientStatusFailed {
-			reconnecting[alloc.ID] = alloc
-			continue
+		// Get node taint information
+		ctx.taintedNode, _ = state.TaintedNodes[alloc.NodeID]
+
+		// Apply classification rules in order (first match wins)
+		classified := false
+		for _, rule := range classificationRules {
+			if rule.condition(ctx) {
+				targetSet := categoryMap[rule.category]
+				(*targetSet)[alloc.ID] = alloc
+				classified = true
+				break
+			}
 		}
 
-		if alloc.TerminalStatus() && !shouldReconnect {
-			// Server-terminal allocs, if they should not reconnect,
-			// are probably stopped replacements and should be ignored
-			if alloc.ServerTerminalStatus() {
-				ignore[alloc.ID] = alloc
-				continue
-			}
-
-			// Terminal canaries that have been marked for migration need to be
-			// migrated, otherwise we block deployments from progressing by
-			// counting them as running canaries.
-			if alloc.DeploymentStatus.IsCanary() && alloc.DesiredTransition.ShouldMigrate() {
-				migrate[alloc.ID] = alloc
-				continue
-			}
-
-			// Terminal allocs, if not reconnect, are always untainted as they
-			// should never be migrated.
+		// Default: untainted (if no rule matched)
+		if !classified {
 			untainted[alloc.ID] = alloc
-			continue
 		}
-
-		// The alloc is expired. These end up getting added to "lost" but this
-		// skips having to evaluate the reconnecting logic for these allocs.
-		if alloc.Expired(state.Now) {
-			expiring[alloc.ID] = alloc
-			continue
-		}
-
-		// Ignore failed allocs that need to be reconnected and that have been
-		// marked to stop by the server.
-		if shouldReconnect &&
-			alloc.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusStop {
-			ignore[alloc.ID] = alloc
-			continue
-		}
-
-		taintedNode, nodeIsTainted := state.TaintedNodes[alloc.NodeID]
-		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
-			// ignore allocs already marked unknown, they should already have a followup eval
-			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
-				untainted[alloc.ID] = alloc
-				continue
-			}
-			// If the alloc is pending mark it lost so it is replaced immediately.
-			if alloc.ClientStatus == structs.AllocClientStatusPending {
-				lost[alloc.ID] = alloc
-				continue
-			}
-			// Allocs with nil disconnect blocks or disconnect.lost_after == 0 are lost
-			if alloc.DisconnectTimeout(state.Now) == state.Now {
-				lost[alloc.ID] = alloc
-				continue
-			}
-			disconnecting[alloc.ID] = alloc
-			continue
-		}
-
-		// Non-terminal allocs that should migrate should always migrate
-		if alloc.DesiredTransition.ShouldMigrate() {
-			migrate[alloc.ID] = alloc
-			continue
-		}
-
-		if !nodeIsTainted || (taintedNode != nil && taintedNode.Status == structs.NodeStatusReady) {
-			// Filter allocs on a node that is now re-connected to be resumed.
-			if shouldReconnect {
-				reconnecting[alloc.ID] = alloc
-				continue
-			}
-
-			// Otherwise, Node is untainted so alloc is untainted
-			untainted[alloc.ID] = alloc
-			continue
-		}
-
-		// Allocs on GC'd (nil) or lost nodes are Lost
-		if taintedNode == nil {
-			lost[alloc.ID] = alloc
-			continue
-		}
-
-		// Allocs on terminal nodes that can't be rescheduled need to be treated
-		// differently than those that can.
-		if taintedNode.TerminalStatus() {
-			if !alloc.ReplaceOnDisconnect() {
-				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
-					untainted[alloc.ID] = alloc
-					continue
-				} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
-					disconnecting[alloc.ID] = alloc
-					continue
-				}
-			}
-
-			lost[alloc.ID] = alloc
-			continue
-		}
-
-		// All other allocs are untainted
-		untainted[alloc.ID] = alloc
 	}
 
 	return
