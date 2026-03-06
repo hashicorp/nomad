@@ -27,6 +27,19 @@ const (
 	SecretsKillTimeout = 2 * time.Second
 )
 
+// SecretsPluginOption is a functional option for configuring an externalSecretsPlugin
+type SecretsPluginOption func(*externalSecretsPlugin)
+
+// WithTimeout sets a custom timeout for plugin execution.
+// If not specified or set to 0, defaults to SecretsCmdTimeout (10 seconds).
+func WithTimeout(timeout time.Duration) SecretsPluginOption {
+	return func(p *externalSecretsPlugin) {
+		if timeout > 0 {
+			p.timeout = timeout
+		}
+	}
+}
+
 type SecretsPlugin interface {
 	CommonPlugin
 	Fetch(ctx context.Context, path string, env map[string]string) (*SecretResponse, error)
@@ -42,12 +55,15 @@ type externalSecretsPlugin struct {
 
 	// pluginPath is the path on the host to the plugin executable
 	pluginPath string
+
+	// timeout is the duration after which the plugin command is sent SIGTERM
+	timeout time.Duration
 }
 
 // NewExternalSecretsPlugin creates an instance of a secrets plugin by validating the plugin
 // binary exists and is executable, and parsing any string key/value pairs out of the config
 // which will be used as environment variables for Fetch.
-func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSecretsPlugin, error) {
+func NewExternalSecretsPlugin(commonPluginDir string, name string, opts ...SecretsPluginOption) (*externalSecretsPlugin, error) {
 	// validate plugin
 	if runtime.GOOS == "windows" {
 		name += ".exe"
@@ -64,11 +80,22 @@ func NewExternalSecretsPlugin(commonPluginDir string, name string) (*externalSec
 		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, name)
 	}
 
-	return &externalSecretsPlugin{pluginPath: executable}, nil
+	// Create plugin with default timeout
+	plugin := &externalSecretsPlugin{
+		pluginPath: executable,
+		timeout:    SecretsCmdTimeout,
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(plugin)
+	}
+
+	return plugin, nil
 }
 
 func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
-	plugCtx, cancel := context.WithTimeout(ctx, SecretsCmdTimeout)
+	plugCtx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fingerprint")
@@ -94,7 +121,7 @@ func (e *externalSecretsPlugin) Fingerprint(ctx context.Context) (*PluginFingerp
 }
 
 func (e *externalSecretsPlugin) Fetch(ctx context.Context, path string, env map[string]string) (*SecretResponse, error) {
-	plugCtx, cancel := context.WithTimeout(ctx, SecretsCmdTimeout)
+	plugCtx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(plugCtx, e.pluginPath, "fetch", path)

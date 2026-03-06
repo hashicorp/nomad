@@ -1474,6 +1474,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 				Name:     s.Name,
 				Provider: s.Provider,
 				Path:     s.Path,
+				Timeout:  s.Timeout,
 				Config:   s.Config,
 				Env:      s.Env,
 			})
