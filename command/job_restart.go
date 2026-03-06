@@ -256,7 +256,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Use prefix matching to find job.
-	job, err := c.JobByPrefix(c.client, c.jobID, nil)
+	job, err := c.JobByPrefix(c.client, c.jobID, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

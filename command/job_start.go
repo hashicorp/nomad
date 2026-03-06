@@ -104,7 +104,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	job, err := c.JobByPrefix(client, jobIDPrefix, nil)
+	job, err := c.JobByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

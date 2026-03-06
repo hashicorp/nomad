@@ -94,7 +94,7 @@ func (c *JobTagUnsetCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(job)
-	jobID, _, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, _, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

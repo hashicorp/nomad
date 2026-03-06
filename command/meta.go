@@ -311,10 +311,6 @@ func (m *Meta) FormatWarnings(header string, warnings string) string {
 		))
 }
 
-// JobByPrefixFilterFunc is a function used to filter jobs when performing a
-// prefix match. Only jobs that return true are included in the prefix match.
-type JobByPrefixFilterFunc func(*api.JobListStub) bool
-
 // NoJobWithPrefixError is the error returned when the job prefix doesn't
 // return any matches.
 type NoJobWithPrefixError struct {
@@ -328,7 +324,7 @@ func (e *NoJobWithPrefixError) Error() string {
 // JobByPrefix returns the job that best matches the given prefix. Returns an
 // error if there are no matches or if there are more than one exact match
 // across namespaces.
-func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (*api.Job, error) {
+func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter string) (*api.Job, error) {
 	jobID, namespace, err := m.JobIDByPrefix(client, prefix, filter)
 	if err != nil {
 		return nil, err
@@ -348,24 +344,18 @@ func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefix
 // Returns the prefix itself if job prefix search is not allowed and an error
 // if there are no matches or if there are more than one exact match across
 // namespaces.
-func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (string, string, error) {
-	// Search job by prefix. Return an error if there is not an exact match.
-	jobs, _, err := client.Jobs().PrefixList(prefix)
+func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter string) (string, string, error) {
+	maxResults := 20 // reduce load for large sets
+	jobs, _, err := client.Jobs().ListOptions(nil, &api.QueryOptions{
+		Prefix:  prefix,
+		Filter:  filter,
+		PerPage: int32(maxResults),
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
 			return prefix, "", nil
 		}
 		return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
-	}
-
-	if filter != nil {
-		var filtered []*api.JobListStub
-		for _, j := range jobs {
-			if filter(j) {
-				filtered = append(filtered, j)
-			}
-		}
-		jobs = filtered
 	}
 
 	if len(jobs) == 0 {
@@ -374,11 +364,16 @@ func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPref
 	if len(jobs) > 1 {
 		exactMatch := prefix == jobs[0].ID
 		matchInMultipleNamespaces := m.allNamespaces() && jobs[0].ID == jobs[1].ID
+		truncatedMsg := ""
+		if len(jobs) >= maxResults {
+			truncatedMsg = "\n(results may be truncated)"
+		}
 		if !exactMatch || matchInMultipleNamespaces {
 			return "", "", fmt.Errorf(
-				"Prefix %q matched multiple jobs\n\n%s",
+				"Prefix %q matched multiple jobs\n\n%s%s",
 				prefix,
 				createStatusListOutput(jobs, m.allNamespaces()),
+				truncatedMsg,
 			)
 		}
 	}
