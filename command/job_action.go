@@ -32,10 +32,10 @@ Usage: nomad job action [options] <action>
 
   Perform a predefined command inside the environment of the given allocation
   and job, or given task, group and job.
-  
+
   Either an allocation or a task and group must be provided; for example, either
   of the following will work:
-  
+
     nomad job action -alloc=<alloc-id> -job=<job-name> <action>
     nomad job action -task=<task-name> -group=<group-name> -job=<job-name> <action>
 
@@ -182,7 +182,7 @@ func (c *JobActionCommand) Run(args []string) int {
 			return 1
 		}
 
-		jobID, ns, err := c.JobIDByPrefix(client, job, nil)
+		jobID, ns, err := c.JobIDByPrefix(client, job, "")
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
