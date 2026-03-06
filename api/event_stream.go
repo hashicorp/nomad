@@ -21,7 +21,6 @@ const (
 	TopicNode       Topic = "Node"
 	TopicNodePool   Topic = "NodePool"
 	TopicService    Topic = "Service"
-	TopicVariable   Topic = "Variable"
 	TopicAll        Topic = "*"
 )
 
@@ -121,14 +120,6 @@ func (e *Event) Service() (*ServiceRegistration, error) {
 	return out.Service, nil
 }
 
-func (e *Event) Variable() (*Variable, error) {
-	out, err := e.decodePayload()
-	if err != nil {
-		return nil, err
-	}
-	return out.Variable, nil
-}
-
 type eventPayload struct {
 	Allocation *Allocation          `mapstructure:"Allocation"`
 	Deployment *Deployment          `mapstructure:"Deployment"`
@@ -137,7 +128,6 @@ type eventPayload struct {
 	Node       *Node                `mapstructure:"Node"`
 	NodePool   *NodePool            `mapstructure:"NodePool"`
 	Service    *ServiceRegistration `mapstructure:"Service"`
-	Variable   *Variable            `mapstructure:"Variable"`
 }
 
 func (e *Event) decodePayload() (*eventPayload, error) {
