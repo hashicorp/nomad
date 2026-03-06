@@ -23,6 +23,7 @@ const (
 	DeviceTypeGPU = "gpu"
 
 	SharingIneligible DeviceSharing = "ineligible"
+	SharingUnset DeviceSharing = "unset"
 	SharingActive     DeviceSharing = "active"
 	SharingInactive   DeviceSharing = "inactive"
 )
