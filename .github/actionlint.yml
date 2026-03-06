@@ -4,6 +4,7 @@
 self-hosted-runner:
   # Labels of self-hosted runner in array of string
   labels:
+    - ondemand
     - custom-windows-medium
     - windows-2022-16core
     - custom-linux-xxl-nomad-20.04
