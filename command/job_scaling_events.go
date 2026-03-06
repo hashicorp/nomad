@@ -90,7 +90,7 @@ func (j *JobScalingEventsCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := j.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := j.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		j.Ui.Error(err.Error())
 		return 1

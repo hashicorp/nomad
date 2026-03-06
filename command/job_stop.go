@@ -148,7 +148,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			}
 
 			// Check if the job exists
-			job, err := c.JobByPrefix(client, jobID, nil)
+			job, err := c.JobByPrefix(client, jobID, "")
 			if err != nil {
 				c.Ui.Error(err.Error())
 				statusCh <- 1

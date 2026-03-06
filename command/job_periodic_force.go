@@ -120,9 +120,7 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
-		return j.Periodic
-	})
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "Periodic is not nil")
 	if err != nil {
 		var noPrefixErr *NoJobWithPrefixError
 		if errors.As(err, &noPrefixErr) {

@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: Reduced server overhead when dispatching jobs or forcing periodic jobs from the CLI
+```
+
+```release-note:improvement
+cli: Truncate results when job commands return a large set of jobs that match the provided ID prefix
+```
