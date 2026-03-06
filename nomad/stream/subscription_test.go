@@ -178,3 +178,30 @@ func TestFilter_FilterKeys(t *testing.T) {
 
 	require.Equal(t, 1, cap(actual))
 }
+
+func TestFilter_CustomFilter(t *testing.T) {
+	ci.Parallel(t)
+
+	event1 := structs.Event{Topic: "Test", Key: "One", Namespace: "foo"}
+	event2 := structs.Event{Topic: "Test", Key: "Two", Namespace: "foo"}
+	event3 := structs.Event{Topic: "Test", Key: "Two", Namespace: "bar"}
+	events := []structs.Event{event1, event2, event3}
+
+	req := &SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			"*": {"*"},
+		},
+		Namespaces: []string{"foo", "bar"},
+		FilterFn: func(event structs.Event) bool {
+			if event.Namespace == "foo" && event.Key == "Two" {
+				return false
+			}
+			return true
+		},
+	}
+	actual := filter(req, events)
+
+	expected := []structs.Event{event1, event3}
+	require.Equal(t, expected, actual)
+	require.Equal(t, 2, cap(actual))
+}
