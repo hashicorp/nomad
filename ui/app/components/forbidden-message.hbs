@@ -18,7 +18,7 @@
       {{#if this.authMethods}}
         Sign in with
         {{#each this.authMethods as |authMethod|}}
-          <LinkTo @route="settings.tokens">{{authMethod.name}}</LinkTo>,
+          <a href="#" {{on "click" (fn this.redirectToSSO authMethod)}}>{{authMethod.name}}</a>{{if (not-eq authMethod this.authMethods.lastObject) "," ""}}
         {{/each}}
         or
       {{/if}}

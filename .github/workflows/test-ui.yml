@@ -131,6 +131,7 @@ jobs:
           retention-days: 90
 
       - name: finalize
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.fork == false
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
