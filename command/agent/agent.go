@@ -632,6 +632,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		AdditionalPubKeys: agentConfig.Server.licenseAdditionalPublicKeys,
 		LicenseEnvBytes:   agentConfig.Server.LicenseEnv,
 		LicensePath:       agentConfig.Server.LicensePath,
+		NonProduction:     agentConfig.Server.NonProduction,
 	}
 
 	// Add the search configuration
@@ -698,6 +699,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
 
 	conf.Reporting = agentConfig.Reporting
+	// Pass the server's production status through to the reporting config
+	conf.Reporting.NonProduction = agentConfig.Server.NonProduction
 
 	conf.KEKProviderConfigs = agentConfig.KEKProviders
 

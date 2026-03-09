@@ -800,6 +800,11 @@ type ServerConfig struct {
 
 	// LogFile is used by MonitorExport to stream a server's log file
 	LogFile string `hcl:"log_file"`
+
+	// NonProduction allows users to flag cluster as non production
+	// for license instantiation and reporting. Requires a valid non
+	// production license at instantiation
+	NonProduction bool `hcl:"non_production"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -2784,6 +2789,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.StartTimeout = b.StartTimeout
 	}
 
+	if b.NonProduction {
+		result.NonProduction = true
+	}
 	// Merge the client introduction config.
 	if b.ClientIntroduction != nil {
 		result.ClientIntroduction = result.ClientIntroduction.Merge(b.ClientIntroduction)
