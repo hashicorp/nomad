@@ -146,6 +146,9 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+
+	// Shared marks whether the Device Sharing is enabled
+	Shared DeviceSharing
 }
 
 // Validate validates that the device is valid

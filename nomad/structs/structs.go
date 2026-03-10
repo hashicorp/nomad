@@ -44,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
@@ -3494,6 +3495,7 @@ type NodeDeviceResource struct {
 	Name       string
 	Instances  []*NodeDevice
 	Attributes map[string]*psstructs.Attribute
+	Shared     device.DeviceSharing
 }
 
 func (n *NodeDeviceResource) ID() *DeviceIdTuple {
@@ -3546,7 +3548,10 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	} else if n.Name != o.Name {
 		return false
 	}
-
+	// Check the Sharing Status
+	if n.Shared != o.Shared {
+		return false
+	}
 	// Check the attributes
 	if len(n.Attributes) != len(o.Attributes) {
 		return false

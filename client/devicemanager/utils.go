@@ -57,6 +57,7 @@ func convertDeviceGroup(d *device.DeviceGroup) *structs.NodeDeviceResource {
 		Name:       d.Name,
 		Instances:  convertDevices(d.Devices),
 		Attributes: psstructs.CopyMapStringAttribute(d.Attributes),
+		Shared:     d.Shared,
 	}
 }
 
