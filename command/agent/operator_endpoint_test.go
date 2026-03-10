@@ -496,6 +496,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 {
   "MemoryOversubscriptionEnabled": true,
   "PauseEvalBroker": true,
+  "NodeLimitForSpreadAndAffinity": 123,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "ServiceSchedulerEnabled": true
@@ -525,6 +526,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		require.True(t, reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 		require.True(t, reply.SchedulerConfig.MemoryOversubscriptionEnabled)
 		require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+		require.Equal(t, reply.SchedulerConfig.GetNodeLimitForSpreadAndAffinity(), uint(123))
 	})
 }
 

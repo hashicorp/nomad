@@ -209,6 +209,10 @@ const (
 	// SchedulerAlgorithmSpread indicates that the scheduler should spread
 	// allocations as evenly as possible over the available hardware.
 	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
+
+	// DefaultNodeLimitForSpreadAndAffinity is the default value of
+	// NodeLimitForSpreadAndAffinity if not specified
+	DefaultNodeLimitForSpreadAndAffinity = 100
 )
 
 // SchedulerConfiguration is the config for controlling scheduler behavior
@@ -233,6 +237,13 @@ type SchedulerConfiguration struct {
 	// during leadership transitions.
 	PauseEvalBroker bool `hcl:"pause_eval_broker"`
 
+	// NodeLimitForSpreadAndAffinity limits the number of randomly selected feasible nodes
+	// to consider when scheduling a job that specifies spread and/or affinity. Defaults
+	// to 100 nodes if unset. Lower numbers result in better scheduler performance and
+	// more randomization of jobs across nodes. Higher numbers result in more
+	// deterministic application of spread and/or affinity.
+	NodeLimitForSpreadAndAffinity uint `hcl:"node_limit_for_spread_and_affinity"`
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -253,6 +264,13 @@ func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorith
 	}
 
 	return s.SchedulerAlgorithm
+}
+
+func (s *SchedulerConfiguration) GetNodeLimitForSpreadAndAffinity() uint {
+	if s == nil || s.NodeLimitForSpreadAndAffinity == 0 {
+		return DefaultNodeLimitForSpreadAndAffinity
+	}
+	return s.NodeLimitForSpreadAndAffinity
 }
 
 // WithNodePool returns a new SchedulerConfiguration with the node pool

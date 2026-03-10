@@ -51,6 +51,7 @@ func TestOperatorSchedulerSetConfig_Run(t *testing.T) {
 		"-preempt-service-scheduler=true",
 		"-preempt-sysbatch-scheduler=true",
 		"-preempt-system-scheduler=false",
+		"-node-limit-for-spread-and-affinity=200",
 	}
 	must.Zero(t, c.Run(modifyingArgs))
 	s := ui.OutputWriter.String()
@@ -69,6 +70,7 @@ func TestOperatorSchedulerSetConfig_Run(t *testing.T) {
 		MemoryOversubscriptionEnabled: true,
 		RejectJobRegistration:         true,
 		PauseEvalBroker:               true,
+		NodeLimitForSpreadAndAffinity: 200,
 	}, modifiedConfig.SchedulerConfig)
 
 	ui.ErrorWriter.Reset()
@@ -108,4 +110,5 @@ func schedulerConfigEquals(t *testing.T, expected, actual *api.SchedulerConfigur
 	must.Eq(t, expected.MemoryOversubscriptionEnabled, actual.MemoryOversubscriptionEnabled)
 	must.Eq(t, expected.PauseEvalBroker, actual.PauseEvalBroker)
 	must.Eq(t, expected.PreemptionConfig, actual.PreemptionConfig)
+	must.Eq(t, expected.NodeLimitForSpreadAndAffinity, actual.NodeLimitForSpreadAndAffinity)
 }

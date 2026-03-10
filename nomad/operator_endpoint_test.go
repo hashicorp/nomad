@@ -551,13 +551,14 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	rpcCodec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Disable preemption and pause the eval broker.
+	// Disable preemption, pause the eval broker, and set a custom node limit.
 	arg := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: false,
 			},
-			PauseEvalBroker: true,
+			PauseEvalBroker:               true,
+			NodeLimitForSpreadAndAffinity: 200,
 		},
 	}
 	arg.Region = s1.config.Region
@@ -581,6 +582,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	require.NotZero(t, reply.Index)
 	require.False(t, reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+	require.Equal(t, uint(200), reply.SchedulerConfig.GetNodeLimitForSpreadAndAffinity())
 
 	require.False(t, s1.evalBroker.Enabled())
 	require.False(t, s1.blockedEvals.Enabled())
