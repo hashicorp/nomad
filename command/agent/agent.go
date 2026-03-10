@@ -138,7 +138,7 @@ type Agent struct {
 	// configReloader is a callback that triggers a full agent configuration
 	// reload, equivalent to SIGHUP
 	configReloader func() error
-  
+
 	// tlsMetrics is the process that handles periodically emitting agent TLS
 	// certificate expiry metrics. If the agent is not configured within TLS,
 	// this will be nil, so callers should check before attempting to use it.
