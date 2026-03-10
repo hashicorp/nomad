@@ -151,7 +151,7 @@ func NvidiaNode() *structs.Node {
 	return n
 }
 
-// NvidiaNode returns a node with two instances of a shared Nvidia GPU
+// SharedNvidiaNode returns a node with two instances of a shared Nvidia GPU
 func SharedNvidiaNode() *structs.Node {
 	n := Node()
 	n.NodeResources.Processors.Topology = structs.MockWorkstationTopology()
