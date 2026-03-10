@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -78,7 +78,9 @@ Snapshot Inspect Options:
 }
 
 func (c *OperatorSnapshotInspectCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{}
+	return complete.Flags{
+		"-json": complete.PredictNothing,
+	}
 }
 
 func (c *OperatorSnapshotInspectCommand) AutocompleteArgs() complete.Predictor {

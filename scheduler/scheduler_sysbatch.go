@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -232,8 +232,7 @@ func (s *SysBatchScheduler) computeJobAllocs() error {
 
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(nil)
-	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
-		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+	r := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted, live, term)
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", r.Fields()...)
 	}

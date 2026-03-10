@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package fingerprint
@@ -54,7 +54,7 @@ func (s *SecretsPluginFingerprint) Fingerprint(request *FingerprintRequest, resp
 	plugins := map[string]string{}
 	for name := range files {
 		name = strings.TrimSuffix(name, ".exe")
-		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginDir, name, nil)
+		plug, err := commonplugins.NewExternalSecretsPlugin(request.Config.CommonPluginDir, name)
 		if err != nil {
 			return err
 		}

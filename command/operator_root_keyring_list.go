@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -23,7 +23,8 @@ Usage: nomad operator root keyring list [options]
   List the currently installed keys. This list returns key metadata and not
   sensitive key material.
 
-  If ACLs are enabled, this command requires a management token.
+  If ACLs are enabled, this command requires a token with the operator:read
+  policy or the operator:keyring-read capability.
 
 General Options:
 

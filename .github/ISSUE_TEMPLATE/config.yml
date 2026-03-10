@@ -3,9 +3,12 @@
 
 blank_issues_enabled: false
 contact_links:
+  - name: Create a documentation issue
+    url: https://github.com/hashicorp/web-unified-docs/issues
+    about: Create a Nomad documentation bug or content request in the    web-unified-docs repository.
   - name: Ask a Question
     url: https://discuss.hashicorp.com/c/nomad
     about: If you have a question, or are looking for advice, please post on our Discuss forum.
-  - name: Nomad Learn Tracks
-    url: https://learn.hashicorp.com/nomad
-    about: Please check out our Learn Guides. These hands on guides deal with many of the tasks common to using Nomad.
+  - name: Nomad Tutorials
+    url: https://developer.hashicorp.com/nomad/tutorials
+    about: Please check out our tutorials. These tutorials provide in-depth   learning on Nomad features.

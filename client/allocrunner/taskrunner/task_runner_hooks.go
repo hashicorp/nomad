@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -89,6 +89,7 @@ func (tr *TaskRunner) initHooks() {
 			clientConfig:   tr.clientConfig,
 			envBuilder:     tr.envBuilder,
 			nomadNamespace: tr.alloc.Job.Namespace,
+			jobId:          tr.alloc.Job.ID,
 		}, task.Secrets))
 	}
 
@@ -188,10 +189,11 @@ func (tr *TaskRunner) initHooks() {
 	// initial registration may be updated to include script checks, which must
 	// be handled with this hook.
 	tr.runnerHooks = append(tr.runnerHooks, newScriptCheckHook(scriptCheckHookConfig{
-		alloc:  tr.Alloc(),
-		task:   tr.Task(),
-		consul: tr.consulServiceClient,
-		logger: hookLogger,
+		alloc:           tr.Alloc(),
+		task:            tr.Task(),
+		consul:          tr.consulServiceClient,
+		logger:          hookLogger,
+		arHookResources: tr.allocHookResources,
 	}))
 
 	// If this task has a pause schedule, initialize the pause (Enterprise)

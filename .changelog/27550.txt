@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims
+```

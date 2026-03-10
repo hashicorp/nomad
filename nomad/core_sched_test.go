@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -6,10 +6,12 @@ package nomad
 import (
 	"fmt"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	version "github.com/hashicorp/go-version"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -17,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -84,7 +87,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
@@ -180,7 +183,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC, job has all terminal allocs and one pending eval
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
@@ -250,7 +253,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
@@ -289,12 +292,11 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJob := mock.Job()
 	stoppedJob.Type = structs.JobTypeBatch
 	stoppedJob.Status = structs.JobStatusDead
-	stoppedJob.Stop = true
 	stoppedJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob.Copy()))
 
 	stoppedJobEval := mock.Eval()
 	stoppedJobEval.Status = structs.EvalStatusComplete
@@ -322,6 +324,9 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, jobModifyIdx+3,
 		[]*structs.Allocation{stoppedJobStoppedAlloc, stoppedJobLostAlloc}))
+
+	stoppedJob.Stop = true
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+4, nil, stoppedJob.Copy()))
 
 	// A "dead" job containing one "complete" eval with:
 	//	1. A "stopped" alloc
@@ -498,7 +503,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	// Create a core scheduler, no time modifications
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx)
@@ -592,7 +597,7 @@ func TestCoreScheduler_EvalGC_JobVersionTag(t *testing.T) {
 		t.Helper()
 		snap, err := store.Snapshot()
 		must.NoError(t, err)
-		core := NewCoreScheduler(s1, snap)
+		core := NewCoreScheduler(s1, snap, nil)
 
 		idx, err := store.LatestIndex()
 		must.NoError(t, err)
@@ -674,7 +679,8 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
-	store.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job.Copy()))
 
 	// Insert "lost" alloc
 	alloc2 := mock.Alloc()
@@ -712,7 +718,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
@@ -810,7 +816,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-			core := NewCoreScheduler(server, snap)
+			core := NewCoreScheduler(server, snap, nil)
 
 			// Attempt the GC
 			gc := server.coreJobEval(structs.CoreJobForceGC, 1002)
@@ -868,7 +874,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-			core := NewCoreScheduler(server, snap)
+			core := NewCoreScheduler(server, snap, nil)
 
 			// Attempt the GC
 			gc := server.coreJobEval(structs.CoreJobNodeGC, 2000)
@@ -919,7 +925,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobNodeGC, 2000)
@@ -960,7 +966,8 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	store.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -970,7 +977,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobNodeGC, 2000)
@@ -1011,7 +1018,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobForceGC, 1000)
@@ -1065,7 +1072,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1092,7 +1099,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	// Create a core scheduler
 	snap, err = store.Snapshot()
 	must.NoError(t, err)
-	core = NewCoreScheduler(s1, snap)
+	core = NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1171,7 +1178,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1218,7 +1225,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core = NewCoreScheduler(s1, snap)
+	core = NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1309,7 +1316,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1417,7 +1424,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
@@ -1503,7 +1510,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-			core := NewCoreScheduler(server, snap)
+			core := NewCoreScheduler(server, snap, nil)
 
 			// Attempt the GC
 			gc := server.coreJobEval(structs.CoreJobForceGC, 1002)
@@ -1559,7 +1566,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobForceGC, 1002)
@@ -1591,7 +1598,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core = NewCoreScheduler(s1, snap)
+	core = NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobForceGC, 2002)
@@ -1631,7 +1638,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobForceGC, 1002)
@@ -1663,7 +1670,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core = NewCoreScheduler(s1, snap)
+	core = NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobForceGC, 2002)
@@ -1729,7 +1736,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		// ensure all objects that can be GC'd are.
 		stateSnapshot, err := testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
-		coreScheduler := NewCoreScheduler(testServer, stateSnapshot)
+		coreScheduler := NewCoreScheduler(testServer, stateSnapshot, nil)
 
 		testJobGCEval1 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
 		must.NoError(t, coreScheduler.Process(testJobGCEval1))
@@ -1759,7 +1766,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		// the job as it has non-terminal allocs.
 		stateSnapshot, err = testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
-		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot, nil)
 
 		testJobGCEval2 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
 		must.NoError(t, coreScheduler.Process(testJobGCEval2))
@@ -1791,7 +1798,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		// should be removed.
 		stateSnapshot, err = testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
-		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot, nil)
 
 		testJobGCEval3 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
 		must.NoError(t, coreScheduler.Process(testJobGCEval3))
@@ -1843,7 +1850,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobDeploymentGC, 2000)
@@ -1890,7 +1897,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			// Create a core scheduler
 			snap, err := store.Snapshot()
 			assert.Nil(err, "Snapshot")
-			core := NewCoreScheduler(server, snap)
+			core := NewCoreScheduler(server, snap, nil)
 
 			// Attempt the GC
 			gc := server.coreJobEval(structs.CoreJobForceGC, 1000)
@@ -1920,7 +1927,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	evals := []string{"a", "b", "c"}
 	allocs := []string{"1", "2", "3"}
@@ -1959,7 +1966,7 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 
 	deployments := []string{"a", "b", "c"}
 	// Set the max ids per reap to something lower.
@@ -1991,7 +1998,7 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	core := NewCoreScheduler(s1, snap)
+	core := NewCoreScheduler(s1, snap, nil)
 	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
 
 	// Set the max ids per reap to something lower.
@@ -2303,7 +2310,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(srv, snap)
+	core := NewCoreScheduler(srv, snap, nil)
 
 	// Attempt the GC
 	index++
@@ -2348,7 +2355,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	snap, err = store.Snapshot()
 	must.NoError(t, err)
-	core = NewCoreScheduler(srv, snap)
+	core = NewCoreScheduler(srv, snap, nil)
 
 	// Retry
 	index++
@@ -2510,7 +2517,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	snap, err := store.Snapshot()
 	require.NoError(t, err)
 
-	core := NewCoreScheduler(srv, snap)
+	core := NewCoreScheduler(srv, snap, nil)
 
 	index, _ = snap.LatestIndex()
 	index++
@@ -2548,7 +2555,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 
 	snap, err := srv.State().Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(srv, snap)
+	core := NewCoreScheduler(srv, snap, nil)
 
 	index, _ := srv.State().LatestIndex()
 	index++
@@ -2587,7 +2594,7 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	// run the core job
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(srv, snap)
+	core := NewCoreScheduler(srv, snap, nil)
 	index := key0.ModifyIndex + 1
 	eval := srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, index)
 	c := core.(*CoreScheduler)
@@ -2717,6 +2724,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	alloc.SigningKeyID = key3.KeyID
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 810, nil, alloc.Job))
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 850, []*structs.Allocation{alloc}))
 
@@ -2730,6 +2738,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusFailed
 	alloc2.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc2.SigningKeyID = key4.KeyID
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 910, nil, alloc2.Job))
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 950, []*structs.Allocation{alloc2}))
 
@@ -2746,7 +2755,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	// run the core job
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
-	core := NewCoreScheduler(srv, snap)
+	core := NewCoreScheduler(srv, snap, nil)
 	eval := srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, 2000)
 	c := core.(*CoreScheduler)
 	must.NoError(t, c.rootKeyGC(eval, time.Now()))
@@ -2844,6 +2853,93 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 			return originalKey.IsInactive()
 		}),
 	), must.Sprint("variable rekey should be complete"))
+}
+
+func TestCoreScheduler_variablesRekey_timeout(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup a test server and set the eval nack timeout to 0. This will force
+	// the core scheduler to immediately timeout the rekey operation and
+	// schedule a followup eval.
+	testServer, testServerCleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EvalNackTimeout = 0
+	})
+	defer testServerCleanup()
+	testutil.WaitForKeyring(t, testServer.RPC, "global")
+
+	store := testServer.fsm.State()
+	rootKey, err := store.GetActiveRootKey(nil)
+	must.NotNil(t, rootKey, must.Sprint("expected keyring to be bootstapped"))
+	must.NoError(t, err)
+
+	// Create some variables to be rekeyed.
+	for i := 0; i < 3; i++ {
+		req := &structs.VariablesApplyRequest{
+			Op:           structs.VarOpSet,
+			Var:          mock.Variable(),
+			WriteRequest: structs.WriteRequest{Region: testServer.config.Region},
+		}
+		resp := &structs.VariablesApplyResponse{}
+		must.NoError(t, testServer.RPC("Variables.Apply", req, resp))
+	}
+
+	// Rotate the keyring and then mark the origianal root key as rekeying, so
+	// we can then issue the rekey operation.
+	rotateReq := structs.KeyringRotateRootKeyRequest{
+		WriteRequest: structs.WriteRequest{
+			Region: testServer.config.Region,
+		},
+	}
+	var rotateResp structs.KeyringRotateRootKeyResponse
+	must.NoError(t, testServer.RPC("Keyring.Rotate", &rotateReq, &rotateResp))
+
+	rekey := rootKey.MakeRekeying()
+	must.NoError(t, store.UpsertRootKey(rotateResp.Index+1, rekey, false))
+
+	stateSnapshot, err := testServer.State().Snapshot()
+	must.NoError(t, err)
+
+	mockPlanner := newMockPlanner()
+	coreScheduler := NewCoreScheduler(testServer, stateSnapshot, mockPlanner)
+
+	rekeyEval := structs.Evaluation{
+		ID:          uuid.Generate(),
+		Namespace:   "-",
+		Priority:    structs.CoreJobPriority,
+		Type:        structs.JobTypeCore,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       structs.CoreJobVariablesRekey,
+		Status:      structs.EvalStatusPending,
+	}
+
+	must.NoError(t, coreScheduler.Process(&rekeyEval))
+
+	// Ensure that a followup eval was scheduled due to the timeout which will
+	// handle continuing the rekey operation.
+	mockPlanner.lock.RLock()
+	must.MapLen(t, 1, mockPlanner.evals)
+	for _, eval := range mockPlanner.evals {
+		must.Eq(t, structs.CoreJobVariablesRekey, eval.JobID)
+	}
+	mockPlanner.lock.RUnlock()
+
+	// The rotated key should still be in the rekeying state. This allows
+	// operators to accurately track the progress of the rekey operation.
+	rekeyingKey, err := store.RootKeyByID(nil, rekey.KeyID)
+	must.NoError(t, err)
+	must.True(t, rekeyingKey.IsRekeying(), must.Sprint("key should still be in rekeying state"))
+
+	// Iterate the existing variables to ensure they have not been rekeyed and
+	// that they still correctly have the original root key ID assigned.
+	varList, err := store.Variables(nil)
+	must.NoError(t, err)
+
+	for raw := varList.Next(); raw != nil; raw = varList.Next() {
+		variable := raw.(*structs.VariableEncrypted)
+		must.Eq(t, rootKey.KeyID, variable.KeyID, must.Sprintf(
+			"variable %q should not have been rekeyed yet", variable.Path))
+	}
 }
 
 func TestCoreScheduler_FailLoop(t *testing.T) {
@@ -2947,7 +3043,7 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	// Generate the core scheduler.
 	snap, err := testServer.State().Snapshot()
 	must.NoError(t, err)
-	coreScheduler := NewCoreScheduler(testServer, snap)
+	coreScheduler := NewCoreScheduler(testServer, snap, nil)
 
 	// Trigger global and local periodic garbage collection runs.
 	index, err := testServer.State().LatestIndex()
@@ -3050,7 +3146,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	// which should delete all expired tokens.
 	snap, err := testServer.State().Snapshot()
 	must.NoError(t, err)
-	coreScheduler := NewCoreScheduler(testServer, snap)
+	coreScheduler := NewCoreScheduler(testServer, snap, nil)
 
 	index, err := testServer.State().LatestIndex()
 	must.NoError(t, err)
@@ -3065,4 +3161,41 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 
 	tokens = fromIteratorFunc(iter)
 	must.SliceContainsAll(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
+}
+
+// mockPlanner is an implementation of the Planner interface for testing that
+// allows us to store and query its usage without inacting change in the system.
+type mockPlanner struct {
+
+	// evals stores the evaluations created via CreateEval.
+	evals map[string]*structs.Evaluation
+
+	// lock protects access to the internal maps and is coarse-grained for
+	// simplicity and test purposes.
+	lock sync.RWMutex
+}
+
+func newMockPlanner() *mockPlanner {
+	return &mockPlanner{
+		evals: make(map[string]*structs.Evaluation),
+	}
+}
+
+func (m *mockPlanner) SubmitPlan(_ *structs.Plan) (*structs.PlanResult, sstructs.State, error) {
+	return nil, nil, nil
+}
+
+func (m *mockPlanner) UpdateEval(_ *structs.Evaluation) error { return nil }
+
+func (m *mockPlanner) CreateEval(eval *structs.Evaluation) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.evals[eval.ID] = eval
+	return nil
+}
+
+func (m *mockPlanner) ReblockEval(_ *structs.Evaluation) error { return nil }
+
+func (m *mockPlanner) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
+	return false
 }

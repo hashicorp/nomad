@@ -1,42 +1,52 @@
 # The build workflow is responsible for building Nomad on all our supported
-# platforms. The compiled artifacts are then uploaded to GitHub. This upload
-# triggers the CRT prepare workflow, which downloads the artifacts and then
-# uploads them to our internal store.
+# platforms. The compiled artifacts are then uploaded to GitHub.
+#
+# The completion of this workflow (specifically "build.yml") triggers the
+# CRT prepare workflow, which downloads the GitHub artifacts produced here
+# and uploads them to our internal store (Artifactory).
 #
 # The workflow can be triggered in two ways:
-#  - pushes to main or long-lived release line branches (eg. 1.10.x)
-#  - dispatched via the release workflow (release.yml).
-#
-# The workflow should not be triggered from short-lived release branches;
-# branches that are cut from the long-lived ones in order to release Nomad. The
-# release workflow should be the only process responsible for triggering the
-# build workflow. This is because the release workflow performs a commit and
-# push of updated generated assets to the release branch. If this push triggers
-# a build, it will conflict with the release build process which shares the same
-# Git SHA and result in a last-write-wins to our internal store.
+#  - push to main or long-lived release line branches (eg. 1.10.x)
+#    via build-on-push.yml
+#  - dispatched during a release
+
 name: build
 
+# special identifier set only on workflow dispatch,
+# so the release automation can watch for a specific run.
+run-name: ${{ inputs.run-name || 'Build' }}
+
 on:
-  push:
-    branches:
-      # 'main' is our forever branch where all changes get merged.
-      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
-      # '1.10.x' and '1.10.x+ent' but excludes short-lived release branches such
-      # as '1.10.0' and '1.10.0+ent'.
-      - main
-      - 'release/[0-9].[0-9]+.x*'
-  workflow_dispatch:
+  # build-on-push.yml uses this as a reusable workflow on:push
+  workflow_call:
     inputs:
       build-ref:
         description: 'The git ref to build from'
         type: string
-        default: ''
-        required: false
+        required: true # gets set to github.ref on:push
       make-prerelease:
-        description: "Run prerelease to generate files"
-        type: "boolean"
+        description: 'Run prerelease to generate files'
+        type: boolean
         required: false
-        default: true
+        default: true # run `make prerelease` here when triggered on:push
+
+  # we call `gh workflow run` during releases
+  workflow_dispatch:
+    inputs:
+      run-name:
+        description: "Value to specify as the workflow's run-name"
+        type: string
+        required: false
+        default: ''
+      build-ref:
+        description: 'The git ref to build'
+        type: string
+        required: true # must specify what to build during a release
+      make-prerelease:
+        description: 'Run prerelease to generate files'
+        type: boolean
+        required: false
+        default: false # `make prerelease` run in advance by release-prepare.yml
 
 env:
   PKG_NAME: "nomad"

@@ -7,9 +7,22 @@ inputs:
   issue:
     required: true
     description: JIRA issue to transition
+  resolution:
+    required: false
+    description: Resolution name to apply to issue
   transition:
     required: true
     description: Transition name to apply to issue
+  fixed-version:
+    required: false
+    description: Version fixed (only used if resolution set. Use 'auto' for detection in nomad.)
+  timeline-url:
+    required: false
+    description: GitHub API issue timeline URL (required if fixed-version is set to 'auto')
+  project:
+    required: false
+    description: JIRA project (required for setting fixed-version)
+    default: NMD
 
 runs:
   using: composite
@@ -20,3 +33,7 @@ runs:
     env:
       ISSUE: ${{ inputs.issue }}
       TRANSITION: ${{ inputs.transition }}
+      RESOLUTION: ${{ inputs.resolution }}
+      FIXED_VERSION: ${{ inputs.fixed-version }}
+      TIMELINE_URL: ${{ inputs.timeline-url }}
+      PROJECT: ${{ inputs.project }}

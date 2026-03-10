@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # lifecycle hook test job for service jobs. touches, removes, and tests

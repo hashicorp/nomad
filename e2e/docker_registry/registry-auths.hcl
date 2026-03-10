@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # This job runs after the private registry is up and running, when we know

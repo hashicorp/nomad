@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -24,11 +24,11 @@ Usage: nomad job periodic force <job id>
   This is used to immediately run a periodic job, even if it violates the job's
   prohibit_overlap setting.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'force-periodic-job' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID. The 'read-job' capability is required to monitor
+  the resulting evaluation when -detach is not used.
 
 General Options:
 
@@ -120,9 +120,7 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
-		return j.Periodic
-	})
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "Periodic is not nil")
 	if err != nil {
 		var noPrefixErr *NoJobWithPrefixError
 		if errors.As(err, &noPrefixErr) {
@@ -147,6 +145,6 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalID)
 }

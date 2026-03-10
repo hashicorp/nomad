@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -167,7 +167,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], "")
 		if err != nil {
 			l.Ui.Error(err.Error())
 			return 1

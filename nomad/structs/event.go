@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -123,6 +123,10 @@ func (j *EventJson) Copy() *EventJson {
 // JobEvent holds a newly updated Job.
 type JobEvent struct {
 	Job *Job
+
+	// Deleted indicates whether the job was deleted from the state store. This
+	// field is only set for JobDeregistered events.
+	Deleted bool `json:",omitempty"`
 }
 
 // EvaluationEvent holds a newly updated Eval.

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -260,10 +260,11 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1004, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1005, nil, alloc.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
 	req := &nstructs.AllocSpecificRequest{
@@ -384,6 +385,8 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	tokenGoodFineGrain := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityGCAllocation}))
+
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
@@ -408,6 +411,11 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
+		},
+		{
+			Name:          "fine grain token",
+			Token:         tokenGoodFineGrain.SecretID,
 			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 	}
@@ -551,10 +559,11 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1004, node.Copy()))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1005, nil, alloc.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
 	req := &nstructs.AllocSpecificRequest{
@@ -1077,6 +1086,161 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 			require.NotNil(t, err)
 			require.Contains(t, err.Error(), c.ExpectedError)
 		})
+	}
+}
+
+// TestClientAllocations_SetPauseState tests the SetPauseState RPC method for client allocations, but a successful test includes an enterprise-only error.
+func TestClientAllocations_SetPauseState(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start a server and client
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.config.RPCAddr.String()}
+		c.GCDiskUsageThreshold = 100.0
+	})
+	defer cleanupC()
+
+	// Force an allocation onto the node
+	a := mock.Alloc()
+	a.Job.Type = nstructs.JobTypeService
+	a.NodeID = c.NodeID()
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
+		Name:   "web",
+		Driver: "mock_driver",
+		Config: map[string]interface{}{
+			"run_for": "10s",
+		},
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	// Upsert the allocation
+	state := s.State()
+	must.Nil(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
+	must.Nil(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != nstructs.AllocClientStatusRunning {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not running: %v", c.NodeID(), err)
+	})
+
+	// Make the request without having an alloc id
+	req := &nstructs.AllocPauseRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp nstructs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+	must.NotNil(t, err)
+	must.ErrorContains(t, err, "missing AllocID")
+
+	{
+		req := &nstructs.AllocPauseRequest{
+			AllocID:      a.ID,
+			QueryOptions: nstructs.QueryOptions{Region: "global"},
+		}
+		var resp nstructs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Request with an incorrect token
+	{
+		token := mock.CreatePolicyAndToken(t, s.State(), 1003, "invalid", mock.NodePolicy(acl.PolicyDeny))
+		req := &nstructs.AllocPauseRequest{
+			AllocID: a.ID,
+			QueryOptions: nstructs.QueryOptions{
+				Region:    "global",
+				AuthToken: token.SecretID,
+			},
+		}
+		var resp nstructs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	successfulError := "Enterprise only" // we got past the ACL check
+	if s.EnterpriseState.Features() > 0 {
+		successfulError = "Could not find task runner for task"
+	}
+
+	// Request with an valid token
+	{
+		token := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+		req := &nstructs.AllocPauseRequest{
+			AllocID: a.ID,
+			QueryOptions: nstructs.QueryOptions{
+				Region:    "global",
+				AuthToken: token.SecretID,
+			},
+		}
+		var resp nstructs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, successfulError)
+	}
+
+	// Request with an valid fine grain token
+	{
+		token := mock.CreatePolicyAndToken(t, s.State(), 1007, "valid-token", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPauseAllocation}))
+		req := &nstructs.AllocPauseRequest{
+			AllocID: a.ID,
+			QueryOptions: nstructs.QueryOptions{
+				Region:    "global",
+				AuthToken: token.SecretID,
+			},
+		}
+		var resp nstructs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, successfulError)
+	}
+
+	// Request with an management token
+	{
+		req := &nstructs.AllocPauseRequest{
+			AllocID: a.ID,
+			QueryOptions: nstructs.QueryOptions{
+				Region:    "global",
+				AuthToken: root.SecretID,
+			},
+		}
+		var resp nstructs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.SetPauseState", req, &resp)
+		must.NotNil(t, err)
+		must.ErrorContains(t, err, successfulError)
 	}
 }
 

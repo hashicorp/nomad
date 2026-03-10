@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -143,6 +143,7 @@ type Config struct {
 	// determined dynamically.
 	DiskTotalMB int
 
+	// DEPRECATED: Remove in Nomad 1.13.0. Use Reserved.Disk instead.
 	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
 	// determined dynamically.
 	DiskFreeMB int
@@ -395,6 +396,10 @@ type Config struct {
 
 	// LogFile is used by MonitorExport to stream a server's log file
 	LogFile string `hcl:"log_file"`
+
+	// Fingerprinters is a map of fingerprinter configurations by name. This
+	// currently only applies to env fingerprinters such as "env_aws".
+	Fingerprinters map[string]*Fingerprint
 }
 
 type APIListenerRegistrar interface {
@@ -920,7 +925,7 @@ func DefaultConfig() *Config {
 		TemplateConfig:          DefaultTemplateConfig(),
 		RPCHoldTimeout:          5 * time.Second,
 		RPCSessionConfig:        yamux.DefaultConfig(),
-		CNIPath:                 "/opt/cni/bin",
+		CNIPath:                 DefaultCNIPath,
 		CNIConfigDir:            "/opt/cni/config",
 		CNIInterfacePrefix:      "eth",
 		HostNetworks:            map[string]*structs.ClientHostNetworkConfig{},
@@ -931,6 +936,7 @@ func DefaultConfig() *Config {
 			MinDynamicUser: 80_000,
 			MaxDynamicUser: 89_999,
 		},
+		Fingerprinters: map[string]*Fingerprint{},
 	}
 
 	return cfg

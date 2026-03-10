@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -110,10 +110,6 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			t.Fatal("failed deployments should never result in new deployments")
 		}
 
-		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
-			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
-		}
-
 		if ar.jobState.DeploymentCurrent == nil && ar.jobState.DeploymentOld == nil && len(ar.jobState.ExistingAllocs) == 0 {
 			count := 0
 			for _, tg := range ar.jobState.Job.TaskGroups {
@@ -185,8 +181,8 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			must.GreaterEq(t, tgUpdates.Migrate, tgUpdates.Stop,
 				tprintf("migrated allocs should be stopped"))
 
-			must.GreaterEq(t, tgUpdates.RescheduleLater, tgUpdates.Ignore,
-				tprintf("reschedule-later allocs should be ignored"))
+			must.GreaterEq(t, tgUpdates.RescheduleLater, tgUpdates.Ignore+tgUpdates.Disconnect,
+				tprintf("reschedule-later allocs should be ignored or disconnected"))
 		}
 
 	}
@@ -302,9 +298,8 @@ func genClusterState(idg *idGenerator, now time.Time) *rapid.Generator[ClusterSt
 			nodes, func(n *structs.Node) string { return n.ID })
 
 		return ClusterState{
-			TaintedNodes:                taintedNodes,
-			SupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected_clients"),
-			Now:                         now,
+			TaintedNodes: taintedNodes,
+			Now:          now,
 		}
 	})
 }

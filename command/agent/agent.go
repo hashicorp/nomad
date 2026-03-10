@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	raftwal "github.com/hashicorp/raft-wal"
 	"github.com/hashicorp/yamux"
 )
 
@@ -137,6 +138,11 @@ type Agent struct {
 	// configReloader is a callback that triggers a full agent configuration
 	// reload, equivalent to SIGHUP
 	configReloader func() error
+  
+	// tlsMetrics is the process that handles periodically emitting agent TLS
+	// certificate expiry metrics. If the agent is not configured within TLS,
+	// this will be nil, so callers should check before attempting to use it.
+	tlsMetrics *tlsMetrics
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -171,6 +177,17 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	}
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
+	}
+
+	// If the agent is configured with TLS, set up the TLS metrics process to
+	// emit certificate expiry metrics and start this.
+	if !a.config.TLSConfig.IsEmpty() {
+		tlsMetrics, err := newTLSMetrics(a.logger, a.config.TLSConfig, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up TLS expiration metrics: %w", err)
+		}
+		a.tlsMetrics = tlsMetrics
+		tlsMetrics.start(a.config.Telemetry.collectionInterval)
 	}
 
 	return a, nil
@@ -631,9 +648,47 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
-	// Set the raft bolt parameters
-	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
-		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
+	// Validate that legacy and new raft config aren't both set
+	if agentConfig.Server.RaftBoltConfig != nil && agentConfig.Server.RaftLogStoreConfig != nil {
+		return nil, fmt.Errorf("cannot specify both deprecated 'raft_boltdb' and 'raft_logstore' blocks; use 'raft_logstore' only")
+	}
+
+	// Set the raft log store parameters. The new raft_logstore block takes
+	// precedence, but we still support the deprecated top-level raft_boltdb
+	// block for backwards compatibility.
+	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
+		Backend:              nomad.LogStoreBackendBoltDB,
+		WALSegmentSize:       raftwal.DefaultSegmentSize, // 64MB by default
+		VerificationEnabled:  false,
+		VerificationInterval: 5 * time.Minute,
+	}
+	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
+		if lsc.Backend != "" {
+			conf.RaftLogStoreConfig.Backend = lsc.Backend
+		}
+		conf.RaftLogStoreConfig.DisableLogCache = lsc.DisableLogCache
+		if lsc.BoltDB != nil {
+			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = lsc.BoltDB.NoFreelistSync
+		}
+		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
+			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
+		}
+		if lsc.Verification != nil {
+			conf.RaftLogStoreConfig.VerificationEnabled = lsc.Verification.Enabled
+			if lsc.Verification.Interval != "" {
+				dur, err := time.ParseDuration(lsc.Verification.Interval)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse raft_logstore verification interval %q: %w",
+						lsc.Verification.Interval, err)
+				}
+				conf.RaftLogStoreConfig.VerificationInterval = dur
+			}
+		}
+	} else if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		// Backwards compatibility: migrate deprecated raft_boltdb settings
+		conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
+		// Clear the legacy field after migration
+		agentConfig.Server.RaftBoltConfig = nil
 	}
 
 	// Interpret job_max_source_size as bytes from string value
@@ -773,6 +828,12 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
 		Please refer to the guide https://developer.hashicorp.com/nomad/docs/configuration/consul
 		to configure Nomad to work with Consul.`)
+	}
+
+	// Log deprecation message about setting disk_free_mb
+	if c.DiskFreeMB != 0 {
+		a.logger.Warn(`disk_free_mb is deprecated and ignored by Nomad.
+		Please use client.reserved.disk to configure reservable disk for scheduling.`)
 	}
 
 	// If the operator has not set an intro token via the CLI or an environment
@@ -1083,6 +1144,16 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Drain = drainConfig
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
+
+	// Iterate the fingerprinter configs and populate the client mapping. The
+	// validation function returns a suitable error that can be returned without
+	// formatting.
+	for _, fingerprinterCfg := range agentConfig.Client.Fingerprinters {
+		if err := fingerprinterCfg.Validate(); err != nil {
+			return nil, err
+		}
+		conf.Fingerprinters[fingerprinterCfg.Name] = fingerprinterCfg
+	}
 
 	conf.LogFile = agentConfig.LogFile
 	return conf, nil
@@ -1433,6 +1504,15 @@ func (a *Agent) Shutdown() error {
 	}
 
 	a.logger.Info("requesting shutdown")
+
+	// Stop the TLS metrics emitter if it is running. In the background this
+	// closes the channel that the routine is polling on which is fine, but in
+	// the future the agent may also want to use waitgroups to ensure routines
+	// such as this one have fully stopped before allowing shutdown to complete.
+	if a.tlsMetrics != nil {
+		a.tlsMetrics.stop()
+	}
+
 	if a.client != nil {
 		// Task API must be closed separately from other HTTP servers and should
 		// happen before the client is shutdown
@@ -1582,6 +1662,32 @@ func (a *Agent) Reload(newConfig *Config) error {
 		current.TLSConfig = newConfig.TLSConfig.Copy()
 	}
 
+	// The metric reload function is used to stop/start the TLS metrics emitter
+	// when we are reloading the TLS configuration. We need to do this in both a
+	// full reload and a partial reload, so new certificates are picked up.
+	//
+	// A failure to initialize the TLS metrics emitter is not considered
+	// terminal to the reload but is logged. This error can only occur when we
+	// attempt to read the certificates, so it would indicate a problem with the
+	// certificate files/permissions that would also impact the agent TLS
+	// configuration as a whole. In fact, if we succeed in the ShouldReload
+	// check, we should succeed here as that too reads the files.
+	tlsMetricReloadFn := func() {
+		tlsMetrics, err := newTLSMetrics(a.logger, newConfig.TLSConfig, nil)
+		if err != nil {
+			a.logger.Error("failed to initialize TLS metrics emitter", "error", err)
+		} else {
+			// We have successfully initialized the new TLS metrics emitter, so
+			// we can stop the old one (if it exists) and start the new one.
+			if a.tlsMetrics != nil {
+				a.tlsMetrics.stop()
+			}
+
+			a.tlsMetrics = tlsMetrics
+			a.tlsMetrics.start(newConfig.Telemetry.collectionInterval)
+		}
+	}
+
 	if !current.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
 		// This is just a TLS configuration reload, we don't need to refresh
 		// existing network connections
@@ -1597,6 +1703,8 @@ func (a *Agent) Reload(newConfig *Config) error {
 			return err
 		}
 
+		tlsMetricReloadFn()
+
 		current.TLSConfig = newConfig.TLSConfig
 		current.TLSConfig.KeyLoader = keyloader
 		a.config = current
@@ -1604,8 +1712,17 @@ func (a *Agent) Reload(newConfig *Config) error {
 	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 		fullUpdateTLSConfig()
+
+		// We are moving from TLS to non-TLS, so we should stop the TLS metrics
+		// emitter as it will no longer be relevant.
+		if a.tlsMetrics != nil {
+			a.tlsMetrics.stop()
+			a.tlsMetrics = nil
+		}
+
 	} else if !newConfig.TLSConfig.IsEmpty() && current.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
+		tlsMetricReloadFn()
 		fullUpdateTLSConfig()
 	}
 

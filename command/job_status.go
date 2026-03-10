@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -61,22 +60,29 @@ General Options:
 
 Status Options:
 
-  -short
-    Display short output. Used only when a single job is being
-    queried, and drops verbose information about allocations.
-
-  -evals
-    Display the evaluations associated with the job.
-
   -all-allocs
     Display all allocations matching the job ID, including those from an older
     instance of the job.
 
-  -verbose
-    Display full information.
+  -evals
+    Display the evaluations associated with the job.
+
+  -json
+    Output the job status in JSON format.
+
+  -short
+    Display short output. Used only when a single job is being
+    queried, and drops verbose information about allocations.
+
+  -t
+    Format and display the job status using a Go template.
 
   -ui
     Open the job status page in the browser.
+
+  -verbose
+    Display full information.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -90,25 +96,16 @@ func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-all-allocs": complete.PredictNothing,
 			"-evals":      complete.PredictNothing,
+			"-json":       complete.PredictNothing,
 			"-short":      complete.PredictNothing,
+			"-t":          complete.PredictAnything,
 			"-verbose":    complete.PredictNothing,
 			"-ui":         complete.PredictNothing,
 		})
 }
 
 func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobStatusCommand) Name() string { return "status" }
@@ -209,7 +206,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Try querying the job
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -797,7 +794,7 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 
 		c.Ui.Output(fmt.Sprintf("Task Group %q:", tg))
 		metrics := failedEval.FailedTGAllocs[tg]
-		c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
+		c.Ui.Output(formatAllocMetrics(metrics, c.Colorize(), false, "  "))
 		if i != len(sorted)-1 {
 			c.Ui.Output("")
 		}

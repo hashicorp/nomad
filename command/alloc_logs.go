@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -172,7 +172,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if l.job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], "")
 		if err != nil {
 			l.Ui.Error(err.Error())
 			return 1

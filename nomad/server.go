@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -29,6 +29,8 @@ import (
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	raftwal "github.com/hashicorp/raft-wal"
+	walmetrics "github.com/hashicorp/raft-wal/metrics"
 	"github.com/hashicorp/serf/serf"
 	"go.etcd.io/bbolt"
 
@@ -102,6 +104,13 @@ const (
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
 )
 
+// raftBackend is satisfied by both *raftboltdb.BoltStore and *wal.WAL.
+type raftBackend interface {
+	raft.LogStore
+	raft.StableStore
+	Close() error
+}
+
 // Server is Nomad server which manages the job queues,
 // schedulers, and notification bus for agents.
 type Server struct {
@@ -116,7 +125,7 @@ type Server struct {
 	// region to protect operations that require strong consistency
 	raft          *raft.Raft
 	raftLayer     *RaftLayer
-	raftStore     *raftboltdb.BoltStore
+	raftStore     raftBackend
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
@@ -172,19 +181,15 @@ type Server struct {
 	nodeConns     map[string][]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
-	// peers is used to track the known Nomad servers. This is
-	// used for region forwarding and clustering.
-	peers      map[string][]*peers.Parts
-	localPeers map[raft.ServerAddress]*peers.Parts
-	peerLock   sync.RWMutex
-
 	// serf is the Serf cluster containing only Nomad
 	// servers. This is used for multi-region federation
 	// and automatic clustering within regions.
 	serf *serf.Serf
 
-	// peersCache is used to cache the parsed Nomad server member peer parts.
-	// This is used to avoid re-parsing the Serf tags on every access.
+	// peersPartsCache is used to cache the parsed Nomad server member peer
+	// parts. This is used to avoid re-parsing the Serf tags on every access and
+	// is used for RPC connection management, discovery, and server version
+	// checking.
 	peersCache *peers.PeerCache
 
 	// bootstrapped indicates if Server has bootstrapped or not.
@@ -329,6 +334,11 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc) (*Server, error) {
+	// Validate that deprecated config fields are not set
+	if config.RaftBoltNoFreelistSync {
+		return nil, fmt.Errorf("deprecated config field 'RaftBoltNoFreelistSync' is set; use 'RaftLogStoreConfig.BoltDBNoFreelistSync' instead")
+	}
+
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -357,8 +367,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		rpcServer:               rpc.NewServer(),
 		streamingRpcs:           structs.NewStreamingRpcRegistry(),
 		nodeConns:               make(map[string][]*nodeConnState),
-		peers:                   make(map[string][]*peers.Parts),
-		localPeers:              make(map[raft.ServerAddress]*peers.Parts),
 		peersCache:              peers.NewPeerCache(),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
@@ -1419,32 +1427,88 @@ func (s *Server) setupRaft() error {
 			return fmt.Errorf("failed to write Raft version file: %v", err)
 		}
 
-		// Create the BoltDB backend, with NoFreelistSync option
-		store, raftErr := raftboltdb.New(raftboltdb.Options{
-			Path:   filepath.Join(path, "raft.db"),
-			NoSync: false, // fsync each log write
-			BoltOptions: &bbolt.Options{
-				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
-			},
-			MsgpackUseNewTimeFormat: true,
-		})
-		if raftErr != nil {
-			return raftErr
+		// Determine the raft log store backend to use.
+		backend := LogStoreBackendBoltDB
+		if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.Backend != "" {
+			backend = s.config.RaftLogStoreConfig.Backend
 		}
+
+		var store raftBackend
+		switch backend {
+		case LogStoreBackendWAL:
+			// Check for an existing BoltDB store that needs migration.
+			boltPath := filepath.Join(path, "raft.db")
+			if _, statErr := os.Stat(boltPath); statErr == nil {
+				return fmt.Errorf(
+					"existing BoltDB raft store found at %s; "+
+						"run 'nomad operator raft migrate-backend %s' while the server "+
+						"is stopped to migrate to the WAL backend, then start the server again",
+					boltPath, s.config.DataDir)
+			}
+
+			walDir := filepath.Join(path, "wal")
+			if err := ensurePath(walDir, true); err != nil {
+				return fmt.Errorf("failed to create WAL directory: %v", err)
+			}
+
+			walStore, walErr := s.openRaftWAL(walDir)
+			if walErr != nil {
+				return fmt.Errorf("failed to open WAL log store: %v", walErr)
+			}
+			store = walStore
+
+		case LogStoreBackendBoltDB:
+			// Create the BoltDB backend, with NoFreelistSync option
+			noFreelistSync := false
+			if s.config.RaftLogStoreConfig != nil {
+				noFreelistSync = s.config.RaftLogStoreConfig.BoltDBNoFreelistSync
+			}
+
+			boltStore, boltErr := raftboltdb.New(raftboltdb.Options{
+				Path:   filepath.Join(path, "raft.db"),
+				NoSync: false, // fsync each log write
+				BoltOptions: &bbolt.Options{
+					NoFreelistSync: noFreelistSync,
+				},
+				MsgpackUseNewTimeFormat: true,
+			})
+			if boltErr != nil {
+				return boltErr
+			}
+			store = boltStore
+			s.logger.Info("setting up raft bolt store", "no_freelist_sync", noFreelistSync)
+
+			// Start publishing bboltdb metrics
+			go boltStore.RunMetrics(s.shutdownCtx, 0)
+
+		default:
+			return fmt.Errorf("unsupported raft log store backend: %q", backend)
+		}
+
 		s.raftStore = store
 		stable = store
-		s.logger.Info("setting up raft bolt store", "no_freelist_sync", s.config.RaftBoltNoFreelistSync)
 
-		// Start publishing bboltdb metrics
-		go store.RunMetrics(s.shutdownCtx, 0)
-
-		// Wrap the store in a LogCache to improve performance
-		cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
-		if err != nil {
-			store.Close()
-			return err
+		// If online verification of the raft log store is enabled, wire up the
+		// periodic verifier. The verifier will run in the background and attempt
+		// to exercise the store's verification routines (when supported) at the
+		// configured interval.
+		if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.VerificationEnabled {
+			// Start the verifier in background; it will stop when server shuts down.
+			s.startRaftLogVerifier()
 		}
-		log = cacheStore
+
+		// Wrap the store in a LogCache to improve performance, unless disabled.
+		disableLogCache := s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.DisableLogCache
+		if disableLogCache {
+			log = store
+		} else {
+			cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
+			if err != nil {
+				store.Close()
+				return err
+			}
+			log = cacheStore
+		}
 
 		// Create the snapshot store
 		snapshots, err := raft.NewFileSnapshotStore(path, snapshotsRetained, s.config.LogOutput)
@@ -1533,6 +1597,104 @@ func (s *Server) setupRaft() error {
 		return err
 	}
 	return nil
+}
+
+// openRaftWAL opens a raft-wal log store in the given directory. It reads
+// WAL-specific options from s.config.RaftLogStoreConfig.
+func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
+	mc := walmetrics.NewGoMetricsCollector(
+		[]string{"nomad", "raft", "wal"}, nil, nil,
+	)
+	walStore, err := raftwal.Open(dir,
+		raftwal.WithLogger(s.logger.Named("wal")),
+		raftwal.WithSegmentSize(s.config.RaftLogStoreConfig.WALSegmentSize),
+		raftwal.WithMetricsCollector(mc),
+	)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Info("setting up raft WAL store",
+		"dir", dir,
+		"segment_size", s.config.RaftLogStoreConfig.WALSegmentSize,
+	)
+	return walStore, nil
+}
+
+// startRaftLogVerifier launches a goroutine that periodically verifies the raft
+// log store (when the configured store supports verification). It will run
+// until the server shutdown context is done. Verification is best-effort: any
+// error is logged; the verifier keeps running on the next interval.
+func (s *Server) startRaftLogVerifier() {
+	// Guard against calling before s.shutdownCtx is initialized
+	if s.shutdownCtx == nil {
+		return
+	}
+
+	interval := 5 * time.Minute
+	if s.config.RaftLogStoreConfig != nil && s.config.RaftLogStoreConfig.VerificationInterval > 0 {
+		interval = s.config.RaftLogStoreConfig.VerificationInterval
+	}
+	// Run as a background goroutine
+	go func() {
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		s.logger.Info("starting raft logstore verifier", "interval", interval)
+		for {
+			select {
+			case <-s.shutdownCtx.Done():
+				return
+			case <-t.C:
+				s.verifyRaftStore()
+			}
+		}
+	}()
+}
+
+// verifyRaftStore performs health checks on the configured raft store. For
+// BoltDB stores, it collects database statistics including transaction counts
+// and page information. For WAL stores, it verifies that log indices are
+// monotonically increasing. This is called periodically by
+// startRaftLogVerifier.
+func (s *Server) verifyRaftStore() {
+	// Perform basic health check by verifying we can read index information
+	first, err := s.raftStore.FirstIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get first index", "error", err)
+		return
+	}
+
+	last, err := s.raftStore.LastIndex()
+	if err != nil {
+		s.logger.Error("raft logstore verifier: failed to get last index", "error", err)
+		return
+	}
+
+	// Perform store-specific verification
+	switch store := s.raftStore.(type) {
+	case *raftboltdb.BoltStore:
+		// Get BoltDB statistics for health monitoring
+		stats := store.Stats()
+		s.logger.Debug("raft logstore verifier: BoltDB store verification",
+			"first_index", first,
+			"last_index", last,
+			"open_tx", stats.OpenTxN,
+			"free_pages", stats.FreePageN,
+			"pending_pages", stats.PendingPageN)
+
+	case *raftwal.WAL:
+		// Check if WAL indices are monotonic
+		isMonotonic := store.IsMonotonic()
+		if !isMonotonic {
+			s.logger.Warn("raft logstore verifier: WAL indices are not monotonic")
+		}
+		s.logger.Debug("raft logstore verifier: WAL store verification",
+			"first_index", first,
+			"last_index", last,
+			"is_monotonic", isMonotonic)
+
+	default:
+		s.logger.Error("raft logstore verifier: unknown store type")
+	}
 }
 
 // checkRaftVersionFile reads the Raft version file and returns an error if
@@ -1984,13 +2146,7 @@ func (s *Server) isReadyForConsistentReads() bool {
 
 // Regions returns the known regions in the cluster.
 func (s *Server) Regions() []string {
-	s.peerLock.RLock()
-	defer s.peerLock.RUnlock()
-
-	regions := make([]string, 0, len(s.peers))
-	for region := range s.peers {
-		regions = append(regions, region)
-	}
+	regions := s.peersCache.RegionNames()
 	sort.Strings(regions)
 	return regions
 }
@@ -2026,11 +2182,16 @@ func (s *Server) Stats() map[string]map[string]string {
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"leader_addr":   string(leader),
 			"bootstrap":     fmt.Sprintf("%v", s.isSingleServerCluster()),
-			"known_regions": toString(uint64(len(s.peers))),
+			"known_regions": toString(uint64(s.peersCache.RegionNum())),
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
 		"runtime": goruntime.RuntimeStats(),
+	}
+
+	// Add logstore backend information to raft stats
+	if s.config.RaftLogStoreConfig != nil {
+		stats["raft"]["logstore_backend"] = s.config.RaftLogStoreConfig.Backend
 	}
 
 	return stats

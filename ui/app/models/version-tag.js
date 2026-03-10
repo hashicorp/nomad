@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,5 +11,6 @@ export default class VersionTagModel extends Fragment {
   @attr() description;
   @attr() taggedTime;
   @attr('number') versionNumber;
+  @attr('string') jobNamespace;
   @attr('string') jobName;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/shoenig/test/must"
 )
 
@@ -56,6 +57,42 @@ func TestAgentInfoCommand_Run_Gotemplate(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, "last_log_index")
+}
+
+func TestAgentInfoCommand_LogStoreBackend(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address=" + url})
+	must.Zero(t, code)
+
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, "logstore_backend")
+	must.StrContains(t, out, "boltdb")
+}
+
+func TestAgentInfoCommand_LogStoreBackend_WAL(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, func(c *agent.Config) {
+		c.Server.RaftLogStoreConfig = &agent.RaftLogStoreConfig{
+			Backend: "wal",
+		}
+	})
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address=" + url})
+	must.Zero(t, code)
+
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, "logstore_backend")
+	must.StrContains(t, out, "wal")
 }
 
 func TestAgentInfoCommand_Fails(t *testing.T) {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -402,6 +402,24 @@ module('Acceptance | tokens', function (hooks) {
 
   test('SSO Sign-in flow: Regular User', async function (assert) {
     server.create('auth-method', { name: 'vault' });
+    server.create('token', { name: 'Thelonious' });
+
+    await Tokens.visit();
+    assert.dom('[data-test-auth-method]').exists({ count: 1 });
+    await click('button[data-test-auth-method]');
+    assert.ok(currentURL().startsWith('/oidc-mock'));
+    let newTokenButton = [...findAll('button')].filter((btn) =>
+      btn.textContent.includes('Sign In as Thelonious')
+    )[0];
+    assert.dom(newTokenButton).exists();
+    await click(newTokenButton);
+
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
+  });
+
+  test('SSO Sign-in flow: Requires iss param', async function (assert) {
+    server.create('auth-method', 'issuerRequired', { name: 'okta' });
     server.create('token', { name: 'Thelonious' });
 
     await Tokens.visit();

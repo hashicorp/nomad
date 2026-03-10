@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "nomad_addr" {
@@ -34,16 +34,6 @@ variable "server_count" {
 
 variable "client_count" {
   description = "The expected number of Ubuntu clients."
-  type        = number
-}
-
-variable "jobs_count" {
-  description = "The number of jobs that should be running in the cluster"
-  type        = number
-}
-
-variable "alloc_count" {
-  description = "Number of allocation that should be running in the cluster"
   type        = number
 }
 

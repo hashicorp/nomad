@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,6 +14,11 @@ export default class BreadcrumbsJob extends BreadcrumbsTemplate {
 
   get hasParent() {
     return !!this.job.belongsTo('parent').id();
+  }
+
+  @action
+  traverseUpALevel() {
+    this.router.transitionTo('jobs.job', this.job.idWithNamespace);
   }
 
   @action

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -213,7 +213,7 @@ func TestAllocations_Info(t *testing.T) {
 	// Fetch alloc info.
 	qo.WaitIndex = qm.LastIndex
 	alloc, _, err := a.Info(allocs[0].ID, qo)
-
+	must.NoError(t, err)
 	must.NotNil(t, alloc.NetworkStatus)
 }
 

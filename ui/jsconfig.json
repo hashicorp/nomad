@@ -1,7 +1,20 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "target": "es2015",
-    "moduleResolution": "node"
-  } 
+    "target": "es2020",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "nomad-ui/*": ["app/*"],
+      "nomad-ui/tests/*": ["tests/*"]
+    }
+  },
+  "include": [
+    "app/**/*",
+    "tests/**/*",
+    "config/**/*",
+    "lib/**/*",
+    "mirage/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "tmp", ".git"]
 }

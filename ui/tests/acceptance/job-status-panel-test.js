@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -34,6 +34,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
     assert.expect(5);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -186,6 +187,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
     assert.expect(9);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -264,6 +266,7 @@ module('Acceptance | job status panel', function (hooks) {
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
     assert.expect(7);
+    faker.seed(1);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -438,6 +441,7 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
+    faker.seed(1);
     let groupAllocCount = 50;
 
     let job = server.create('job', {
@@ -1062,6 +1066,125 @@ module('Acceptance | job status panel', function (hooks) {
       assert
         .dom('.previous-allocations-heading')
         .hasTextContaining(`Previous allocations: ${allocCount} running`);
+    });
+
+    test('Fail/Promote Deployment buttons are present if permissions allow', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+      server.create('token');
+
+      server.createList('namespace', 3);
+      server.db.nodes.remove();
+
+      server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      const job1 = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        namespace: server.db.namespaces[0].id,
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      const job2 = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        namespace: server.db.namespaces[1].id,
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      const job3 = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        namespace: server.db.namespaces[2].id,
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      server.db.allocations.update({
+        jobVersion: 0,
+        clientStatus: 'running',
+        deploymentStatus: {
+          Healthy: true,
+          Canary: true,
+        },
+      });
+
+      const policy = server.create('policy', {
+        id: 'deployment-policy',
+        name: 'deployment-policy',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'fail-deployment'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'promote-deployment'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await visit(`/jobs/${job1.id}@${job1.namespaceId}`);
+      assert.dom('[data-test-fail]').exists().doesNotHaveAttribute('disabled');
+      assert
+        .dom('[data-test-promote-canary]')
+        .exists()
+        .doesNotHaveAttribute('disabled');
+
+      await visit(`/jobs/${job2.id}@${job2.namespaceId}`);
+      assert.dom('[data-test-fail]').exists().doesNotHaveAttribute('disabled');
+      assert.dom('[data-test-promote-canary]').doesNotExist();
+
+      await visit(`/jobs/${job3.id}@${job3.namespaceId}`);
+      assert.dom('[data-test-fail]').doesNotExist();
+      assert
+        .dom('[data-test-promote-canary]')
+        .exists()
+        .doesNotHaveAttribute('disabled');
     });
   });
 });

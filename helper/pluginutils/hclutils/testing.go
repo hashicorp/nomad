@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package hclutils
@@ -6,6 +6,7 @@ package hclutils
 import (
 	"testing"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 )

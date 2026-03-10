@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "nomad_addr" {
@@ -38,11 +38,6 @@ variable "consul_token" {
   description = "The Secret ID of an ACL token to make requests to Consul with"
   type        = string
   sensitive   = true
-}
-
-variable "availability_zone" {
-  description = "The AZ where the cluster is being run"
-  type        = string
 }
 
 variable "vault_addr" {

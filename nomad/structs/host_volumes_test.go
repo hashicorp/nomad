@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -99,7 +99,7 @@ func TestHostVolume_Validate(t *testing.T) {
 	* capacity_max (100000) must be larger than capacity_min (200000)
 	* invalid attachment mode: "bad"
 	* invalid constraint: 1 error occurred:
-	* No LTarget provided but is required by constraint
+	* no attribute provided but is required by operator
 
 
 

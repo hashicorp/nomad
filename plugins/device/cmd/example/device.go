@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package example
@@ -249,6 +249,11 @@ func getDeviceGroup(devices []*device.Device) *device.DeviceGroup {
 		Type:    deviceType,
 		Name:    deviceName,
 		Devices: devices,
+		Attributes: map[string]*structs.Attribute{
+			"cool-attribute": {
+				String: pointer.Of("attribute-wearing-sunglasses"),
+			},
+		},
 	}
 }
 

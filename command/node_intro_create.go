@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -71,6 +71,8 @@ func (n *NodeIntroCreateCommand) AutocompleteFlags() complete.Flags {
 			"-node-pool": nodePoolPredictor(n.Client, nil),
 			"-json":      complete.PredictNothing,
 			"-t":         complete.PredictAnything,
+			"-node-name": complete.PredictAnything,
+			"-ttl":       complete.PredictAnything,
 		})
 }
 

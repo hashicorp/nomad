@@ -1,15 +1,13 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -24,11 +22,11 @@ Usage: nomad job revert [options] <job> <version|tag>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'revert-job' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID. The 'read-job' capability is required to monitor
+  the resulting evaluation when -detach is not used.
 
   If the version number is specified, the job will be reverted to the exact
   version number. If a version tag is specified, the job will be reverted to
@@ -44,10 +42,6 @@ Revert Options:
     Return immediately instead of entering monitor mode. After job revert,
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
-
-  -consul-token
-   The Consul token used to verify that the caller has access to the Service
-   Identity policies associated in the targeted version of the job.
 
   -verbose
     Display full information.
@@ -68,31 +62,18 @@ func (c *JobRevertCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobRevertCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobRevertCommand) Name() string { return "job revert" }
 
 func (c *JobRevertCommand) Run(args []string) int {
 	var detach, verbose bool
-	var consulToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.StringVar(&consulToken, "consul-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -119,12 +100,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the Consul token
-	if consulToken == "" {
-		// Check the environment variable
-		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
-	}
-
 	// Parse the job version or version tag
 	var revertVersion uint64
 
@@ -142,7 +117,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -150,7 +125,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 
 	// Prefix lookup matched a single job
 	q := &api.WriteOptions{Namespace: namespace}
-	resp, _, err := client.Jobs().Revert(jobID, revertVersion, nil, q, consulToken, "")
+	resp, _, err := client.Jobs().Revert(jobID, revertVersion, nil, q, "", "")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
@@ -168,6 +143,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(resp.EvalID)
 }

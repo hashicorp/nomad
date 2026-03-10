@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -1639,6 +1639,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	if in.NUMA != nil {
 		out.NUMA = &structs.NUMA{
 			Affinity: in.NUMA.Affinity,
+			Devices:  slices.Clone(in.NUMA.Devices),
 		}
 	}
 
@@ -2133,6 +2134,19 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		return nil
 	}
 
+	var identities []*structs.WorkloadIdentity
+
+	if ids := in.Identities; len(ids) > 0 {
+		identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
+			if id == nil {
+				continue
+			}
+
+			identities = append(identities, apiWorkloadIdentityToStructs(id))
+		}
+	}
+
 	return &structs.SidecarTask{
 		Name:          in.Name,
 		Driver:        in.Driver,
@@ -2146,6 +2160,7 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
 		VolumeMounts:  apiVolumeMountsToStructs(in.VolumeMounts),
+		Identities:    identities,
 	}
 }
 

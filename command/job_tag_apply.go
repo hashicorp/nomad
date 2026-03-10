@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -22,9 +22,9 @@ Usage: nomad job tag apply [options] <jobname>
 
   Save a job version to prevent it from being garbage-collected and allow it to
   be diffed and reverted by name.
-  
+
   Example usage:
- 
+
     nomad job tag apply -name "My Golden Version" \
 		-description "The version we can roll back to if needed" <jobname>
 
@@ -62,12 +62,12 @@ func (c *JobTagApplyCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-name":        complete.PredictAnything,
 			"-description": complete.PredictAnything,
-			"-version":     complete.PredictNothing,
+			"-version":     complete.PredictAnything,
 		})
 }
 
 func (c *JobTagApplyCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobTagApplyCommand) Name() string { return "job tag apply" }
@@ -114,7 +114,7 @@ func (c *JobTagApplyCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(job)
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

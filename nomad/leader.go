@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -93,18 +93,17 @@ var minVersionDynamicHostVolumes = version.Must(version.NewVersion("1.10.0"))
 // minVersionNodeIdentity is the Nomad version at which the node identity
 // feature was introduced. It forms the minimum version all local servers must
 // meet before the feature can be used.
-//
-// TODO(jrasell): Update this when we have a stable release with node identity
-// support.
-var minVersionNodeIdentity = version.Must(version.NewVersion("1.11.0-beta.1"))
+var minVersionNodeIdentity = version.Must(version.NewVersion("1.11.0"))
 
 // minVersionNodeIntro is the Nomad version at which the node introduction
 // feature was introduced. It forms the minimum version all local servers must
 // meet before the feature can be used.
-//
-// TODO(jrasell): Update this when we have a stable release with node
-// introduction support.
-var minVersionNodeIntro = version.Must(version.NewVersion("1.11.0-beta.1"))
+var minVersionNodeIntro = version.Must(version.NewVersion("1.11.0"))
+
+// minVersionPlanLeanJob is the Nomad version at which we stopped serializing full Job
+// object during plan submission. If all local servers don't meet the requirement,
+// we submit a full Job object like we used to before.
+var minVersionPlanLeanJob = version.Must(version.NewVersion("1.12.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -1100,20 +1099,21 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			// instead.
 			if eval.Type != structs.JobTypeCore {
 
-				// Create a follow-up evaluation that will be used to retry the
-				// scheduling for the job after the cluster is hopefully more stable
-				// due to the fairly large backoff.
-				followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
-					time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
-
-				followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
-				updateEval.NextEval = followupEval.ID
 				updateEval.UpdateModifyTime()
+				req := structs.EvalUpdateRequest{
+					Evals: []*structs.Evaluation{updateEval},
+				}
+
+				// Create a follow-up evaluation that will be used to retry the
+				// scheduling for the job after the cluster is hopefully more
+				// stable due to the fairly large backoff.
+				followupEval := s.createFailedFollowup(eval)
+				if followupEval != nil {
+					updateEval.NextEval = followupEval.ID
+					req.Evals = append(req.Evals, followupEval)
+				}
 
 				// Update via Raft
-				req := structs.EvalUpdateRequest{
-					Evals: []*structs.Evaluation{updateEval, followupEval},
-				}
 				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
 					s.logger.Error("failed to update failed eval and create a follow-up",
 						"eval", hclog.Fmt("%#v", updateEval), "error", err)
@@ -1124,6 +1124,27 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			s.evalBroker.Ack(eval.ID, token)
 		}
 	}
+}
+
+// createFailedFollowup creates a follow-up eval from the failed eval
+// provided. Will return nil if the evaluation has been orphaned and no longer
+// needs a follow-up
+func (s *Server) createFailedFollowup(eval *structs.Evaluation) *structs.Evaluation {
+	// we don't want to create failed follow-up evals if the evaluation's job
+	// has been GC'd
+	job, err := s.State().JobByID(nil, eval.Namespace, eval.JobID)
+	if err != nil {
+		s.logger.Error("failed to read job for eval", "error", err)
+		return nil
+	}
+	if job == nil {
+		return nil
+	}
+
+	followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
+		time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+
+	return eval.CreateFailedFollowUpEval(followupEvalWait)
 }
 
 // reapDupBlockedEvaluations is used to reap duplicate blocked evaluations and

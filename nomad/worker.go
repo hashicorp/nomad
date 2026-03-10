@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -623,7 +623,7 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 	// Create the scheduler, or use the special core scheduler
 	var sched sstructs.Scheduler
 	if eval.Type == structs.JobTypeCore {
-		sched = NewCoreScheduler(w.srv, snap)
+		sched = NewCoreScheduler(w.srv, snap, w)
 	} else {
 		sched, err = scheduler.NewScheduler(eval.Type, w.logger, w.srv.workersEventCh, snap, w)
 		if err != nil {
@@ -656,6 +656,16 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
 
+	// Figure out whether we need to submit a plan that contains a full job or
+	// a new, "lean" plan with just the basic job info (ns, id and ver)
+	if w.ServersMeetMinimumVersion(minVersionPlanLeanJob, false) {
+		plan.JobInfo = &structs.PlanJobTuple{
+			Namespace: plan.Job.Namespace,
+			ID:        plan.Job.ID,
+		}
+		plan.Job = nil
+	}
+
 	// Add the evaluation token to the plan
 	plan.EvalToken = w.evalToken
 
@@ -664,14 +674,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	plan.SnapshotIndex = w.snapshotIndex
 
 	// Normalize stopped and preempted allocs before RPC
-	normalizePlan := w.srv.peersCache.ServersMeetMinimumVersion(
-		w.srv.Region(),
-		MinVersionPlanNormalization,
-		true,
-	)
-	if normalizePlan {
-		plan.NormalizeAllocations()
-	}
+	plan.NormalizeAllocations()
 
 	// Setup the request
 	req := structs.PlanRequest{

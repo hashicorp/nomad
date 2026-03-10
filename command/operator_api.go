@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -13,8 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 // Stdin represents the system's standard input, but it's declared as a
@@ -90,7 +91,10 @@ func (*OperatorAPICommand) Synopsis() string {
 func (c *OperatorAPICommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-dryrun": complete.PredictNothing,
+			"-dryrun":  complete.PredictNothing,
+			"-X":       complete.PredictAnything,
+			"-filter":  complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
 		})
 }
 
@@ -207,7 +211,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	apiR := apiC.Raw()
 
 	setQueryParams(config, path)
-	verboseSocket(config, fmt.Sprintf("* Trying %s...", config.URL().EscapedPath()))
+	verboseSocket(config, "* Trying %s...", config.URL().EscapedPath())
 
 	req, err := http.NewRequest(c.method, path.String(), c.body)
 	if err != nil {
@@ -216,7 +220,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	}
 
 	h := req.URL.Hostname()
-	verboseSocket(config, fmt.Sprintf("* Connected to %s (%s)", h, config.URL().EscapedPath()))
+	verboseSocket(config, "* Connected to %s (%s)", h, config.URL().EscapedPath())
 	verbose("> %s %s %s", c.method, req.URL.Path, req.Proto)
 
 	// Set headers from command line

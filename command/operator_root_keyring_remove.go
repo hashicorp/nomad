@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -25,7 +25,8 @@ Usage: nomad operator root keyring remove [options] <key ID>
   Remove an encryption key from the cluster. This operation may only be
   performed on keys that are not the active key.
 
-  If ACLs are enabled, this command requires a management token.
+  If ACLs are enabled, this command requires a token with the operator:write
+  policy or the operator:keyring-delete capability.
 
 General Options:
 
@@ -46,7 +47,10 @@ func (c *OperatorRootKeyringRemoveCommand) Synopsis() string {
 }
 
 func (c *OperatorRootKeyringRemoveCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-force": complete.PredictNothing,
+		})
 }
 
 func (c *OperatorRootKeyringRemoveCommand) AutocompleteArgs() complete.Predictor {
@@ -58,11 +62,9 @@ func (c *OperatorRootKeyringRemoveCommand) Name() string {
 }
 
 func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
-	var force, verbose bool
-
+	var force bool
 	flags := c.Meta.FlagSet("root keyring remove", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&force, "force", false, "Forces deletion of the root keyring even if it's in use.")
 
 	if err := flags.Parse(args); err != nil {

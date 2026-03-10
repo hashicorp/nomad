@@ -1,0 +1,6 @@
+```release-note:bug
+keyring: Ensure follow-up rekey evals can be successfully created.
+```
+```release-note:bug
+keyring: Do not mark the key as inactive until all follow-up rekey evals have completed.
+```

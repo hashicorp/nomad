@@ -1,0 +1,3 @@
+```release-note:bug
+dispatch: Fixed a bug where concurrent dispatch requests could ignore the idempotency token
+```

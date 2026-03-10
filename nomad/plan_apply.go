@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -242,11 +242,19 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	now := time.Now().UTC()
 	unixNow := now.UnixNano()
 
+	// try to pull the job from the state by ID if the plan doesn't already contain it
+	job := plan.Job
+	if job == nil {
+		var err error
+		job, err = p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job: plan.Job,
-		},
+		Job:               job,
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
 		IneligibleNodes:   result.IneligibleNodes,
@@ -256,74 +264,37 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 
-	if p.srv.peersCache.ServersMeetMinimumVersion(p.srv.Region(), MinVersionPlanNormalization, true) {
-		// Initialize the allocs request using the new optimized log entry format.
-		// Determine the minimum number of updates, could be more if there
-		// are multiple updates per node
-		req.AllocsStopped = make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
-		req.AllocsUpdated = make([]*structs.Allocation, 0, len(result.NodeAllocation))
-		req.AllocsPreempted = make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+	// Initialize the allocs request using the new optimized log entry format.
+	// Determine the minimum number of updates, could be more if there
+	// are multiple updates per node
+	req.AllocsStopped = make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+	req.AllocsUpdated = make([]*structs.Allocation, 0, len(result.NodeAllocation))
+	req.AllocsPreempted = make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
 
-		for _, updateList := range result.NodeUpdate {
-			for _, stoppedAlloc := range updateList {
-				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, unixNow))
-			}
+	for _, updateList := range result.NodeUpdate {
+		for _, stoppedAlloc := range updateList {
+			req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, unixNow))
 		}
+	}
 
-		for _, allocList := range result.NodeAllocation {
-			req.AllocsUpdated = append(req.AllocsUpdated, allocList...)
-		}
+	for _, allocList := range result.NodeAllocation {
+		req.AllocsUpdated = append(req.AllocsUpdated, allocList...)
+	}
 
-		// Set the time the alloc was applied for the first time. This can be used
-		// to approximate the scheduling time.
-		updateAllocTimestamps(req.AllocsUpdated, unixNow)
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
-		err := signAllocIdentities(p.srv.encrypter, plan.Job, req.AllocsUpdated, now)
-		if err != nil {
-			return nil, err
-		}
+	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, now); err != nil {
+		return nil, err
+	}
 
-		for _, preemptions := range result.NodePreemptions {
-			for _, preemptedAlloc := range preemptions {
-				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, unixNow))
+	for _, preemptions := range result.NodePreemptions {
+		for _, preemptedAlloc := range preemptions {
+			req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, unixNow))
 
-				// Gather jobids to create follow up evals
-				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
-			}
-		}
-	} else {
-		// COMPAT 0.11: This branch is deprecated and will only be used to support
-		// application of older log entries. Expected to be removed in a future version.
-
-		// Determine the minimum number of updates, could be more if there
-		// are multiple updates per node
-		minUpdates := len(result.NodeUpdate)
-		minUpdates += len(result.NodeAllocation)
-
-		// Initialize using the older log entry format for Alloc and NodePreemptions
-		req.Alloc = make([]*structs.Allocation, 0, minUpdates)
-		req.NodePreemptions = make([]*structs.Allocation, 0, len(result.NodePreemptions))
-
-		for _, updateList := range result.NodeUpdate {
-			req.Alloc = append(req.Alloc, updateList...)
-		}
-		for _, allocList := range result.NodeAllocation {
-			req.Alloc = append(req.Alloc, allocList...)
-		}
-
-		for _, preemptions := range result.NodePreemptions {
-			req.NodePreemptions = append(req.NodePreemptions, preemptions...)
-		}
-
-		// Set the time the alloc was applied for the first time. This can be used
-		// to approximate the scheduling time.
-		updateAllocTimestamps(req.Alloc, unixNow)
-
-		// Set modify time for preempted allocs if any
-		// Also gather jobids to create follow up evals
-		for _, alloc := range req.NodePreemptions {
-			alloc.ModifyTime = unixNow
-			appendNamespacedJobID(preemptedJobIDs, alloc)
+			// Gather jobids to create follow up evals
+			appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
 		}
 	}
 
@@ -561,7 +532,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//the plan applier.
 				logger.Info("plan for node rejected, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
-					"namespace", plan.Job.Namespace)
+					"namespace", plan.JobInfo.Namespace)
 			}
 			// Set that this is a partial commit and store the node that was
 			// rejected so the plan applier can detect repeated plan rejections
@@ -806,7 +777,7 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 // as non reschedulables when lost or if the allocs are being updated to lost.
 func isValidForDownNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.PreventReplaceOnDisconnect()) &&
+		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && !alloc.ReplaceOnDisconnect()) &&
 			(alloc.ClientStatus != structs.AllocClientStatusLost) {
 			return false
 		}

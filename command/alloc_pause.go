@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -182,6 +182,9 @@ func (c *AllocPauseCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-mode":    complete.PredictNothing,
+			"-state":   complete.PredictSet("pause", "run", "scheduled"),
+			"-status":  complete.PredictNothing,
+			"-task":    complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		},
 	)

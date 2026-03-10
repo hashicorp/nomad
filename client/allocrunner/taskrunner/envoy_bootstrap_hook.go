@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -317,9 +317,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	}
 
 	// Create environment
-	bootstrapEnv := bootstrap.env(os.Environ())
-	// append nomad environment variables to the bootstrap environment
-	bootstrapEnv = append(bootstrapEnv, h.groupEnv()...)
+	bootstrapEnv := bootstrap.env(h.groupEnv())
 
 	// Write env to file for debugging
 	envFile, err := os.Create(bootstrapEnvPath)

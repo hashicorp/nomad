@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -250,7 +250,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Diff the required and existing allocations
 	nr := reconciler.NewNodeReconciler(s.deployment)
 	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted,
-		live, term, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+		live, term)
 	if s.logger.IsDebug() {
 		s.logger.Debug("reconciled current state with desired state", reconciliationResult.Fields()...)
 	}
@@ -397,9 +397,12 @@ func (s *SystemScheduler) computeJobAllocs() error {
 			continue
 		}
 
+		// Grab the deployment state for this task group. If it doesn't exist,
+		// this means this task group is being placed for the first time, so we
+		// can skip the canary logic and just set the desired total. The entry
+		// can also be nil, if the node is infeasible.
 		dstate, ok := s.deployment.TaskGroups[tg.Name]
-		// no deployment for this TG
-		if !ok {
+		if !ok || dstate == nil {
 			continue
 		}
 
@@ -700,6 +703,25 @@ func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResu
 				limits[tg.Name] = tg.Update.MaxParallel
 			} else {
 				limits[tg.Name] = jobLimit
+			}
+		}
+	}
+
+	if s.deployment != nil {
+		for _, a := range reconciled.Ignore {
+			if a.Alloc == nil {
+				continue
+			}
+			if a.Alloc.DeploymentID != s.deployment.ID {
+				continue
+			}
+			// explicitly unhealthy don't count against max_parallel
+			if a.Alloc.DeploymentStatus.IsUnhealthy() {
+				continue
+			}
+			// If not yet explicitly set to healthy (nil) decrement.
+			if !a.Alloc.DeploymentStatus.IsHealthy() {
+				limits[a.Alloc.TaskGroup]--
 			}
 		}
 	}

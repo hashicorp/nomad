@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -484,33 +484,33 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
+	mockJob := mock.Job()
+	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, mockJob))
+
 	// setup
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
-	job := alloc.Job
+	alloc.JobID = mockJob.ID
 	alloc.Job = nil
+	alloc2.JobID = mockJob.ID
 	alloc2.Job = nil
 
 	d := mock.Deployment()
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
-
 	eval := mock.Eval()
-	eval.JobID = job.ID
+	eval.JobID = mockJob.ID
 
 	// Create an eval
 	must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
+		Job:           mockJob,
+		Deployment:    d,
+		EvalID:        eval.ID,
 	}
 
 	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))
@@ -698,34 +698,44 @@ func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
-	t.SkipNow()
-}
-
 func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	ci.Parallel(t)
+
+	upsertedJob := &structs.Job{ID: "upserted-job", Namespace: "default"}
+	purgedJob := &structs.Job{ID: "purged-job", Namespace: "default"}
 
 	changes := Changes{
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  &structs.Job{},
+				Before: upsertedJob,
+				After:  upsertedJob, // updated (stop, not purge)
 			},
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  nil, // deleted
+				Before: purgedJob,
+				After:  nil, // deleted (or purged)
 			},
 		},
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event := eventsFromChanges(nil, changes)
-	must.NotNil(t, event)
+	events := eventsFromChanges(nil, changes)
+	must.NotNil(t, events)
+	must.Len(t, 2, events.Events)
 
-	must.Len(t, 2, event.Events)
+	// first event: upserted job (stop) — Deleted should be false
+	upsertEvent := events.Events[0]
+	upsertPayload, ok := upsertEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.False(t, upsertPayload.Deleted)
+
+	// second event: deleted job (purge) — Deleted should be true
+	purgeEvent := events.Events[1]
+	purgePayload, ok := purgeEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.True(t, purgePayload.Deleted)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {

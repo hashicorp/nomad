@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package volumewatcher
@@ -32,6 +32,10 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
 	index, _ := store.LatestIndex()
+
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 	index++
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
@@ -55,7 +59,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	// verify no change has been made
 	must.MapLen(t, 1, vol.ReadClaims)
 	must.MapLen(t, 0, vol.PastClaims)
-	must.Eq(t, 0, srv.countCSIUnpublish)
+	must.Eq(t, 0, srv.countCSIUnpublish.Load())
 
 	alloc = alloc.Copy()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
@@ -70,7 +74,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 
 	err = w.volumeReapImpl(vol)
 	must.NoError(t, err)
-	must.Eq(t, 1, srv.countCSIUnpublish)
+	must.Eq(t, 1, srv.countCSIUnpublish.Load())
 
 	// simulate updated past claim from a previous pass
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
@@ -84,7 +88,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	err = w.volumeReapImpl(vol)
 	must.NoError(t, err)
 	must.MapLen(t, 1, vol.PastClaims)
-	must.Eq(t, 2, srv.countCSIUnpublish)
+	must.Eq(t, 2, srv.countCSIUnpublish.Load())
 
 	// claim emitted by a GC event
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
@@ -97,7 +101,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	err = w.volumeReapImpl(vol)
 	must.NoError(t, err)
 	must.MapLen(t, 2, vol.PastClaims) // alloc claim + GC claim
-	must.Eq(t, 4, srv.countCSIUnpublish)
+	must.Eq(t, 4, srv.countCSIUnpublish.Load())
 
 	// release claims of a previously GC'd allocation
 	vol.ReadAllocs[alloc.ID] = nil
@@ -111,7 +115,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	err = w.volumeReapImpl(vol)
 	must.NoError(t, err)
 	must.MapLen(t, 2, vol.PastClaims) // alloc claim + GC claim
-	must.Eq(t, 6, srv.countCSIUnpublish)
+	must.Eq(t, 6, srv.countCSIUnpublish.Load())
 }
 
 func TestVolumeReapBadState(t *testing.T) {
@@ -141,5 +145,5 @@ func TestVolumeReapBadState(t *testing.T) {
 
 	err = w.volumeReapImpl(vol)
 	must.NoError(t, err)
-	must.Eq(t, 2, srv.countCSIUnpublish)
+	must.Eq(t, 2, srv.countCSIUnpublish.Load())
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/posener/complete"
 )
@@ -31,8 +30,8 @@ Alias: nomad start
  nodes. The monitor will end once job placement is done. It is safe to exit the
  monitor early using ctrl+c.
 
- When ACLs are enabled, this command requires a token with the 'submit-job'
- capability for the job's namespace.
+ When ACLs are enabled, this command requires a token with either the
+ 'submit-job' or 'register-job' capability for the job's namespace.
 
 General Options:
 
@@ -65,19 +64,9 @@ func (c *JobStartCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobStartCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
+
 func (c *JobStartCommand) Name() string { return "job start" }
 
 func (c *JobStartCommand) Run(args []string) int {
@@ -115,7 +104,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	job, err := c.JobByPrefix(client, jobIDPrefix, nil)
+	job, err := c.JobByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -197,7 +186,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(resp.EvalID)
 }
 

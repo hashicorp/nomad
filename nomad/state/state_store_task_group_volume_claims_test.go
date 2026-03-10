@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -185,4 +185,138 @@ func TestStateStore_TaskGroupHostVolumeClaimsByFields(t *testing.T) {
 		foundClaims = append(foundClaims, claim)
 	}
 	must.SliceLen(t, 3, foundClaims)
+}
+
+func TestStateStore_claimUpsertForAlloc(t *testing.T) {
+	ci.Parallel(t)
+	store := testStateStore(t)
+
+	job := mock.Job()
+	node := mock.Node()
+	volumeID := uuid.Generate()
+	chv := &structs.ClientHostVolumeConfig{
+		Name:     "test-volume",
+		Path:     "/data",
+		ReadOnly: false,
+		ID:       volumeID,
+	}
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 11, node))
+
+	makeAlloc := func() *structs.Allocation {
+		alloc := mock.Alloc()
+		alloc.JobID = job.ID
+		alloc.Job = job
+		alloc.NodeID = node.ID
+		alloc.TaskGroup = "web"
+		alloc.Namespace = structs.DefaultNamespace
+		return alloc
+	}
+
+	t.Run("no existing claim creates new claim", func(t *testing.T) {
+		txn := store.db.WriteTxn(100)
+		t.Cleanup(func() { txn.Abort() })
+
+		alloc := makeAlloc()
+		claim, err := store.claimToUpsertForAlloc(txn, alloc, "test-volume", chv)
+		must.NoError(t, err)
+		must.NotNil(t, claim)
+		must.Eq(t, alloc.ID, claim.AllocID)
+		must.Eq(t, alloc.JobID, claim.JobID)
+		must.Eq(t, alloc.TaskGroup, claim.TaskGroupName)
+		must.Eq(t, alloc.Namespace, claim.Namespace)
+		must.Eq(t, "test-volume", claim.VolumeName)
+		must.Eq(t, volumeID, claim.VolumeID)
+	})
+
+	t.Run("existing claim for same alloc is no-op", func(t *testing.T) {
+		alloc := makeAlloc()
+		existingClaim := &structs.TaskGroupHostVolumeClaim{
+			ID:            uuid.Generate(),
+			Namespace:     alloc.Namespace,
+			JobID:         alloc.JobID,
+			TaskGroupName: alloc.TaskGroup,
+			AllocID:       alloc.ID,
+			VolumeName:    "test-volume",
+			VolumeID:      volumeID,
+		}
+
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(
+			structs.MsgTypeTestSetup, 200, existingClaim))
+
+		txn := store.db.WriteTxn(201)
+		t.Cleanup(func() { txn.Abort() })
+
+		claim, err := store.claimToUpsertForAlloc(txn, alloc, "test-volume", chv)
+		must.NoError(t, err)
+		must.Nil(t, claim) // alloc already owns this claim
+	})
+
+	t.Run("existing claim with terminal alloc gets updated for new alloc", func(t *testing.T) {
+		oldAlloc := makeAlloc()
+		oldAlloc.ClientStatus = structs.AllocClientStatusComplete
+		must.NoError(t, store.UpsertAllocs(
+			structs.MsgTypeTestSetup, 300, []*structs.Allocation{oldAlloc}))
+
+		existingClaim := &structs.TaskGroupHostVolumeClaim{
+			ID:            uuid.Generate(),
+			Namespace:     oldAlloc.Namespace,
+			JobID:         oldAlloc.JobID,
+			TaskGroupName: oldAlloc.TaskGroup,
+			AllocID:       oldAlloc.ID,
+			VolumeName:    "test-volume",
+			VolumeID:      volumeID,
+		}
+
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(
+			structs.MsgTypeTestSetup, 301, existingClaim))
+
+		newAlloc := makeAlloc()
+		newAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+		txn := store.db.WriteTxn(302)
+		t.Cleanup(func() { txn.Abort() })
+
+		claim, err := store.claimToUpsertForAlloc(txn, newAlloc, "test-volume", chv)
+		must.NoError(t, err)
+		must.NotNil(t, claim)
+		must.Eq(t, existingClaim.ID, claim.ID) // reuse the existing claim ID
+		must.Eq(t, newAlloc.ID, claim.AllocID) // update to new alloc ID
+		must.Eq(t, newAlloc.JobID, claim.JobID)
+		must.Eq(t, newAlloc.TaskGroup, claim.TaskGroupName)
+	})
+
+	t.Run("existing claim with running alloc gets new claim for new alloc", func(t *testing.T) {
+		existingAlloc := makeAlloc()
+		existingAlloc.ClientStatus = structs.AllocClientStatusRunning
+		must.NoError(t, store.UpsertAllocs(
+			structs.MsgTypeTestSetup, 400, []*structs.Allocation{existingAlloc}))
+
+		existingClaim := &structs.TaskGroupHostVolumeClaim{
+			ID:            uuid.Generate(),
+			Namespace:     existingAlloc.Namespace,
+			JobID:         existingAlloc.JobID,
+			TaskGroupName: existingAlloc.TaskGroup,
+			AllocID:       existingAlloc.ID,
+			VolumeName:    "test-volume",
+			VolumeID:      volumeID,
+		}
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(
+			structs.MsgTypeTestSetup, 401, existingClaim))
+
+		newAlloc := makeAlloc()
+		newAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+		txn := store.db.WriteTxn(402)
+		t.Cleanup(func() { txn.Abort() })
+
+		claim, err := store.claimToUpsertForAlloc(txn, newAlloc, "test-volume", chv)
+		must.NoError(t, err)
+		must.NotNil(t, claim)
+		must.NotEq(t, existingClaim.ID, claim.ID) // must be new claim ID
+		must.Eq(t, newAlloc.ID, claim.AllocID)
+		must.Eq(t, newAlloc.JobID, claim.JobID)
+		must.Eq(t, newAlloc.TaskGroup, claim.TaskGroupName)
+	})
 }

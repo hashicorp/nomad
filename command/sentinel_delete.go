@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -21,7 +21,7 @@ Usage: nomad sentinel delete [options] <name>
   Delete is used to delete an existing Sentinel policy.
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-delete capability.
 
 General Options:
 

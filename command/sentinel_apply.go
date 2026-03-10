@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -26,7 +26,7 @@ Usage: nomad sentinel apply [options] <name> <file>
   from stdin by specifying "-".
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-submit capability.
 
 General Options:
 
@@ -53,8 +53,8 @@ func (c *SentinelApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-description": complete.PredictAnything,
-			"-scope":       complete.PredictAnything,
-			"-level":       complete.PredictAnything,
+			"-scope":       complete.PredictSet("submit-job", "submit-host-volume", "submit-csi-volume"),
+			"-level":       complete.PredictSet("advisory", "soft-mandatory", "hard-mandatory"),
 		})
 }
 

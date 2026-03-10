@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package deploymentwatcher
@@ -214,6 +214,7 @@ func (w *deploymentWatcher) setAllocHealth(
 	}
 
 	// Canonicalize the job in case it doesn't have namespace set
+	j = j.Copy()
 	j.Canonicalize()
 
 	// Create the request

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package oidc
@@ -87,6 +87,7 @@ func (s *CallbackServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		State:       q.Get("state"),
 		ClientNonce: s.clientNonce,
 		Code:        q.Get("code"),
+		Iss:         q.Get("iss"),
 	}
 
 	// Send our result. We don't block here because the channel should be

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -213,6 +213,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		VerifySSL: pointer.Of(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
 		Namespace: def.Namespace,
+		Token:     def.Token,
 	}
 }
 

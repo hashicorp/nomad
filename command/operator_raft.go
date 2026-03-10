@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -41,6 +41,10 @@ Usage: nomad operator raft <subcommand> [options]
   persisted in data dir in JSON format.
 
       $ nomad operator raft state /var/nomad/data
+
+  Migrate the raft log store from BoltDB to WAL:
+
+      $ nomad operator raft migrate-backend /var/nomad/data
 
   Please see the individual subcommand help for detailed usage information.
 

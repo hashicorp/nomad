@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: MPL-2.0
 
 # Serve the contents of our CSI volume with a little web server.

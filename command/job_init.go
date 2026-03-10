@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -59,7 +59,10 @@ func (c *JobInitCommand) Synopsis() string {
 func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-short": complete.PredictNothing,
+			"-short":          complete.PredictNothing,
+			"-connect":        complete.PredictNothing,
+			"-list-templates": complete.PredictNothing,
+			"-template":       complete.PredictAnything,
 		})
 }
 

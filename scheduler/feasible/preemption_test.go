@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package feasible
@@ -1323,9 +1323,10 @@ func TestPreemption_Normal(t *testing.T) {
 					Node: node,
 				},
 			}
-			state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
+			state.UpsertNode(structs.MsgTypeTestSetup, 999, node)
 			for _, alloc := range tc.currentAllocations {
 				alloc.NodeID = node.ID
+				must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 			}
 			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
 

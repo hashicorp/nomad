@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -310,6 +310,7 @@ type ClientConfig struct {
 	// DiskTotalMB is used to override any detected or default total disk space.
 	DiskTotalMB int `hcl:"disk_total_mb"`
 
+	// DEPRECATED: Remove in Nomad 1.13.0. Use Reserved.Disk instead.
 	// DiskFreeMB is used to override any detected or default free disk space.
 	DiskFreeMB int `hcl:"disk_free_mb"`
 
@@ -437,15 +438,20 @@ type ClientConfig struct {
 	// Users is used to configure parameters around operating system users.
 	Users *config.UsersConfig `hcl:"users"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int `hcl:"node_max_allocs"`
 
 	// LogFile is used by MonitorExport to stream a client's log file
 	LogFile string `hcl:"log_file"`
+
+	// Fingerprinters contains configuration for individual fingerprinters. The
+	// external configuration is a slice but later converted to a map for
+	// internal use.
+	Fingerprinters []*client.Fingerprint `hcl:"fingerprint"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -468,6 +474,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
 	nc.Users = c.Users.Copy()
+	nc.Fingerprinters = helper.CopySlice(c.Fingerprinters)
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -737,7 +744,14 @@ type ServerConfig struct {
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
 
+	// RaftLogStoreConfig configures the raft log store backend.
+	RaftLogStoreConfig *RaftLogStoreConfig `hcl:"raft_logstore"`
+
 	// RaftBoltConfig configures boltdb as used by raft.
+	//
+	// Deprecated: Use RaftLogStoreConfig.BoltDB instead. This field is kept
+	// for backwards compatibility and will be merged into RaftLogStoreConfig
+	// if both are set.
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
 
 	// RaftSnapshotThreshold controls how many outstanding logs there must be
@@ -811,6 +825,7 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
+	ns.RaftLogStoreConfig = s.RaftLogStoreConfig.Copy()
 	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
 	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
 	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
@@ -947,6 +962,79 @@ func (r *RaftBoltConfig) Copy() *RaftBoltConfig {
 
 	nr := *r
 	return &nr
+}
+
+// RaftLogStoreConfig is used in servers to configure the raft log store
+// backend. It replaces the top-level raft_boltdb block with a unified
+// configuration that supports both boltdb and WAL backends.
+type RaftLogStoreConfig struct {
+	// Backend selects the raft log store backend: "boltdb" or "wal".
+	// Default: "boltdb".
+	Backend string `hcl:"backend"`
+
+	// BoltDB configures the boltdb backend, used when Backend is "boltdb".
+	BoltDB *RaftBoltConfig `hcl:"boltdb"`
+
+	// WAL configures the wal backend, used when Backend is "wal".
+	WAL *WALConfig `hcl:"wal"`
+
+	// DisableLogCache disables the in-memory raft log cache.
+	// Default: false.
+	DisableLogCache bool `hcl:"disable_log_cache"`
+
+	// Verification configures online verification of the raft log store.
+	Verification *LogStoreVerificationConfig `hcl:"verification"`
+}
+
+func (r *RaftLogStoreConfig) Copy() *RaftLogStoreConfig {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	nr.BoltDB = r.BoltDB.Copy()
+	nr.WAL = r.WAL.Copy()
+	nr.Verification = r.Verification.Copy()
+	return &nr
+}
+
+// WALConfig configures the raft-wal backend.
+type WALConfig struct {
+	// SegmentSizeMB is the soft limit in megabytes before a new WAL segment
+	// is rotated. Default: 64.
+	SegmentSizeMB int `hcl:"segment_size_mb"`
+}
+
+func (w *WALConfig) Copy() *WALConfig {
+	if w == nil {
+		return nil
+	}
+
+	nw := *w
+	return &nw
+}
+
+// LogStoreVerificationConfig configures online verification of the raft log
+// store, which periodically verifies stored logs against the in-memory FSM to
+// detect corruption.
+type LogStoreVerificationConfig struct {
+	// Enabled controls whether log store verification is active.
+	// Default: false.
+	Enabled bool `hcl:"enabled"`
+
+	// Interval is how often log store verification runs, as a duration string
+	// (e.g. "5m").
+	// Default: "5m".
+	Interval string `hcl:"interval"`
+}
+
+func (v *LogStoreVerificationConfig) Copy() *LogStoreVerificationConfig {
+	if v == nil {
+		return nil
+	}
+
+	nv := *v
+	return &nv
 }
 
 // PlanRejectionTracker is used in servers to configure the plan rejection
@@ -1753,12 +1841,13 @@ func DefaultConfig() *Config {
 			},
 			TemplateConfig:                 client.DefaultTemplateConfig(),
 			BindWildcardDefaultHostNetwork: true,
-			CNIPath:                        "/opt/cni/bin",
+			CNIPath:                        client.DefaultCNIPath,
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
 			Drain:                          nil,
 			Users:                          config.DefaultUsersConfig(),
+			Fingerprinters:                 []*client.Fingerprint{},
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -2159,6 +2248,37 @@ func mergeKEKProviderConfigs(left, right []*structs.KEKProviderConfig) []*struct
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].ID() < results[j].ID()
 	})
+
+	return results
+}
+
+func mergeClientFingerprinterConfigs(left, right []*client.Fingerprint) []*client.Fingerprint {
+	if len(left) == 0 {
+		return right
+	}
+	if len(right) == 0 {
+		return left
+	}
+	results := []*client.Fingerprint{}
+	doMerge := func(dstConfigs, srcConfigs []*client.Fingerprint) []*client.Fingerprint {
+		for _, src := range srcConfigs {
+			var found bool
+			for i, dst := range dstConfigs {
+				if dst.Name == src.Name {
+					dstConfigs[i] = dst.Merge(src)
+					found = true
+					break
+				}
+			}
+			if !found {
+				dstConfigs = append(dstConfigs, src)
+			}
+		}
+		return dstConfigs
+	}
+
+	results = doMerge(results, left)
+	results = doMerge(results, right)
 
 	return results
 }
@@ -2636,6 +2756,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		}
 	}
 
+	if b.RaftLogStoreConfig != nil {
+		result.RaftLogStoreConfig = b.RaftLogStoreConfig.Copy()
+	}
+
 	if b.RaftBoltConfig != nil {
 		result.RaftBoltConfig = &RaftBoltConfig{
 			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
@@ -2886,6 +3010,10 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.IntroToken != "" {
 		result.IntroToken = b.IntroToken
+	}
+
+	if b.Fingerprinters != nil {
+		result.Fingerprinters = mergeClientFingerprinterConfigs(c.Fingerprinters, b.Fingerprinters)
 	}
 
 	return &result

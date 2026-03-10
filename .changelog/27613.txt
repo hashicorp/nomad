@@ -1,0 +1,3 @@
+```release-note:bug
+dynamic host volumes: Fixed a bug with sticky volumes where replacement allocations would not use the previous volume claim
+```

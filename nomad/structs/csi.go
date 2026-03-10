@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -232,15 +232,6 @@ func (s *CSISecrets) String() string {
 
 func (s *CSISecrets) GoString() string {
 	return s.String()
-}
-
-// Sanitize returns a copy of the CSISecrets with sensitive data redacted
-func (s *CSISecrets) Sanitize() *CSISecrets {
-	redacted := CSISecrets{}
-	for k := range *s {
-		redacted[k] = "[REDACTED]"
-	}
-	return &redacted
 }
 
 type CSIVolumeClaim struct {
@@ -576,6 +567,27 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	}
 
 	return out
+}
+
+// Sanitize returns a deep copy of the volume, with sensitive fields redacted
+func (v *CSIVolume) Sanitize() *CSIVolume {
+	if v == nil {
+		return nil
+	}
+
+	clean := v.Copy()
+
+	// would be better not to have at all but left in and redacted for backwards
+	// compatibility with the existing API
+	clean.Secrets = nil
+
+	// MountFlags can contain secrets, so we always redact it but want to show
+	// the user that we have the value
+	if v.MountOptions != nil {
+		clean.MountOptions = clean.MountOptions.Sanitize()
+	}
+
+	return clean
 }
 
 // Claim updates the allocations and changes the volume state

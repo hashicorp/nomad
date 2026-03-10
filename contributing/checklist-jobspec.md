@@ -39,12 +39,20 @@ required in the original `jobspec` package.
 
 ## Docs
 
-* [ ] Changelog
+* [ ] Changelog entry in your code PR.
+
+Find Nomad product docs in the `web-unified-docs` repo. Refer to the
+[`web-unified-docs` contributor
+guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+instructions. If you need help with docs, [create an issue in the web-unified
+docs repo](https://github.com/hashicorp/web-unified-docs/issues). On the Issue
+form, choose "Nomad" as the product so that your issue is assigned to the
+nomad-docs team.
+
 * [ ] Jobspec entry https://developer.hashicorp.com/nomad/docs/job-specification/index.html
-* [ ] Jobspec sidebar entry https://github.com/hashicorp/nomad/blob/main/website/data/docs-navigation.js
 * [ ] Job JSON API entry https://developer.hashicorp.com/nomad/api/json-jobs.html
 * [ ] Sample Response output in API https://developer.hashicorp.com/nomad/api/jobs.html
-* [ ] Consider if it needs a guide https://developer.hashicorp.com/nomad/guides/index.html
+* [ ] Consider if your change needs a user guide.
 
 ## JSON Encoding
 

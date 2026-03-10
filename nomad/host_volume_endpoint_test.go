@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -119,7 +119,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	* capacity_max (100000) must be larger than capacity_min (200000)
 	* invalid attachment mode: "bad"
 	* invalid constraint: 1 error occurred:
-	* No LTarget provided but is required by constraint
+	* no attribute provided but is required by operator
 
 
 
@@ -346,6 +346,9 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			Source: vol2.Name,
 		}}
 		index++
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
+		index++
 		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup,
 			index, []*structs.Allocation{alloc}))
 
@@ -354,7 +357,8 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
-				AuthToken: token},
+				AuthToken: token,
+			},
 		}
 		var delResp structs.HostVolumeDeleteResponse
 

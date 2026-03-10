@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -202,7 +202,7 @@ func TestMeta_JobByPrefix(t *testing.T) {
 	testCases := []struct {
 		name          string
 		prefix        string
-		filterFunc    JobByPrefixFilterFunc
+		filter        string
 		expectedError string
 	}{
 		{
@@ -216,10 +216,8 @@ func TestMeta_JobByPrefix(t *testing.T) {
 		{
 			name:   "match with filter",
 			prefix: "job-",
-			filterFunc: func(j *api.JobListStub) bool {
-				// Filter out jobs with "job-" so that only "job-2" matches.
-				return j.ID == "job-2"
-			},
+			// Filter out jobs so that only "job-2" matches.
+			filter: `ID == "job-2"`,
 		},
 		{
 			name:          "multiple matches",
@@ -240,7 +238,7 @@ func TestMeta_JobByPrefix(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			job, err := meta.JobByPrefix(client, tc.prefix, tc.filterFunc)
+			job, err := meta.JobByPrefix(client, tc.prefix, tc.filter)
 			if tc.expectedError != "" {
 				must.Nil(t, job)
 				must.ErrorContains(t, err, tc.expectedError)

@@ -1,12 +1,15 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -23,9 +26,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	nomadVersion "github.com/hashicorp/nomad/version"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1042,6 +1047,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
+	registerJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRegisterJob}))
+
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
 	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
@@ -1112,6 +1119,12 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			Name:        "with a token that also has csi-register-plugin, accepted",
 			Job:         newCSIPluginJob(),
 			Token:       pluginToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a register job token",
+			Job:         mock.Job(),
+			Token:       registerJobToken.SecretID,
 			ErrExpected: false,
 		},
 	}
@@ -2623,6 +2636,15 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	var validResp2 structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
 	require.Nil(err)
+
+	// Try with a valid fine-grained token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityRevertJob}))
+
+	revertReq.AuthToken = validFineGrainToken.SecretID
+	var validResp3 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp3)
+	require.Nil(err)
 }
 
 func TestJobEndpoint_Stable(t *testing.T) {
@@ -2746,6 +2768,15 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 	stableReq.AuthToken = validToken.SecretID
 	var validStableResp2 structs.JobStabilityResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp2)
+	require.Nil(err)
+
+	// Attempt to fetch with a valid fine-grained token
+	validFineGrainedToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid-fine-grained",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityStableJob}))
+
+	stableReq.AuthToken = validFineGrainedToken.SecretID
+	var validStableResp3 structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp3)
 	require.Nil(err)
 
 	// Check that the job is marked stable
@@ -2977,18 +3008,27 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp2)
 	require.Nil(err)
 
+	// Fetch the response with a valid fine-grained token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityEvaluateJob}))
+
+	reEval.AuthToken = validFineGrainToken.SecretID
+	var validResp3 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp3)
+	require.Nil(err)
+
 	// Lookup the evaluation
 	ws := memdb.NewWatchSet()
-	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	eval, err := state.EvalByID(ws, validResp3.EvalID)
 	require.Nil(err)
 	require.NotNil(eval)
 
-	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.CreateIndex, validResp3.EvalCreateIndex)
 	require.Equal(eval.Priority, job.Priority)
 	require.Equal(eval.Type, job.Type)
 	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobRegister)
 	require.Equal(eval.JobID, job.ID)
-	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.JobModifyIndex, validResp3.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
@@ -3194,6 +3234,84 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Deregister and purge
 	req := &structs.JobDeregisterRequest{
 		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect success with a valid management token
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a fine-grained valid token for purge
+	purgeFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = purgeFineGrainToken.SecretID
+	var purgeFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &purgeFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.AuthToken = validToken.SecretID
+
+	// Deregistration is idempotent
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	must.NoError(t, err)
+}
+func TestJobEndpoint_Deregister_Purge_ACL(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	require.Nil(err)
+
+	// Deregister and purge
+	req := &structs.JobDeregisterRequest{
+		JobID: job.ID,
 		Purge: true,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -3225,8 +3343,26 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.Nil(err)
 	require.NotEqual(validResp.Index, 0)
 
+	// Expect success with a fine-grained valid token for purge
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPurgeJob}))
+	req.AuthToken = validFineGrainToken.SecretID
+	var validFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validFineGrainResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect failure with a fine-grained valid token for deregister without purge
+	invalidFineGrainToken := mock.CreatePolicyAndToken(t, state, 1006, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeregisterJob}))
+	req.AuthToken = invalidFineGrainToken.SecretID
+	var invalidFineGrainResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidFineGrainResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
 	// Expect success with a valid token
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	req.AuthToken = validToken.SecretID
 
@@ -5226,11 +5362,14 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	// Create the register request
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
+	alloc2.Job = alloc1.Job.Copy()
 	alloc2.JobID = alloc1.JobID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc2.Job))
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5247,8 +5386,8 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	if resp2.Index != 1002 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 1002)
 	}
 
 	if len(resp2.Allocations) != 2 {
@@ -5269,10 +5408,13 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	// Create allocations for a job
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
+	alloc2.Job = alloc1.Job.Copy()
 	alloc2.JobID = alloc1.JobID
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc2.Job))
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc1, alloc2})
 	require.Nil(err)
 
 	// Look up allocations for that job
@@ -5291,7 +5433,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	require.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with an invalid token should fail
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get.AuthToken = invalidToken.SecretID
@@ -5307,7 +5449,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	require.Nil(err)
 
 	// Attempt to fetch the response with valid management token should succeed
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get.AuthToken = validToken.SecretID
@@ -5330,24 +5472,21 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.JobID = "job1"
+	alloc2.Job.ID = "job1"
 	state := s1.fsm.State()
 
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
-		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc1.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1}))
 	})
 
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(198, mock.JobSummary(alloc2.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 199, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}))
 	})
 
 	// Lookup the jobs
@@ -6064,6 +6203,7 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
 
 	// Create a plan request
 	job := mock.Job()
@@ -6087,6 +6227,15 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Try with a fine-grain token
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityPlanJob}))
+
+	planReq.AuthToken = validFineGrainToken.SecretID
+	var planResp2 structs.JobPlanResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp2)
+	require.Nil(t, err)
 }
 
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
@@ -8476,4 +8625,430 @@ func TestJob_GetServiceRegistrations(t *testing.T) {
 			tc.testFn(t, server, aclToken)
 		})
 	}
+}
+
+func TestJob_TagVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	must.Nil(t, err)
+
+	// Tag the job version
+	tagVersionReq := &structs.JobApplyTagRequest{
+		JobID: job.ID,
+		Tag: &structs.JobVersionTag{
+			Name:        "release",
+			Description: "Release version tag",
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	tagVersionReq.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &invalidResp)
+	must.NotNil(t, err)
+	must.StrContains(t, err.Error(), "Permission denied")
+
+	// Tagging a job with a management token should succeed
+	tagVersionReq.AuthToken = root.SecretID
+	var resp structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp)
+	must.Nil(t, err)
+
+	// Looking up the job with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	tagVersionReq.AuthToken = validToken.SecretID
+	var resp2 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp2)
+	must.Nil(t, err)
+
+	// Looking up the job with a valid fine-grain token should succeed
+	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityTagJobVersion}))
+	tagVersionReq.AuthToken = validFineGrainToken.SecretID
+	var resp3 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp3)
+	must.Nil(t, err)
+
+	must.Eq(t, "release", resp3.Name)
+	must.Eq(t, "Release version tag", resp3.Description)
+	must.NotNil(t, resp3.TaggedTime)
+}
+
+func TestIntegration_SystemDeploymentHealth(t *testing.T) {
+
+	srv, token, cleanupSrv := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 1
+	})
+	defer cleanupSrv()
+	codec := rpcClient(t, srv)
+	region := srv.Region()
+	testutil.WaitForKeyring(t, srv.RPC, region)
+
+	for range 4 {
+		node := mock.Node()
+		node.Attributes["nomad.version"] = nomadVersion.Version
+		req := &structs.NodeRegisterRequest{
+			Node:         node,
+			WriteRequest: structs.WriteRequest{Region: region},
+		}
+		resp := &structs.NodeUpdateResponse{}
+		err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, resp)
+		must.NoError(t, err)
+	}
+
+	// have to get the version we wrote to state
+	nodes := map[string]*structs.Node{}
+	iter, _ := srv.State().Nodes(nil)
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		node := raw.(*structs.Node)
+		nodes[node.ID] = node
+	}
+
+	wr := structs.WriteRequest{AuthToken: token.SecretID, Region: region}
+
+	job := mock.SystemJob()
+	strat := structs.DefaultUpdateStrategy.Copy()
+	strat.Canary = 50     // 2 nodes
+	strat.MaxParallel = 4 // all nodes
+	strat.AutoPromote = true
+	job.Update = *strat
+	job.TaskGroups[0].Update = strat
+
+	jobReq := &structs.JobRegisterRequest{Job: job, WriteRequest: wr}
+	jobResp := &structs.JobRegisterResponse{}
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, jobResp)
+	must.NoError(t, err)
+
+	evalID := jobResp.EvalID
+	var dID string
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			eval, err := srv.State().EvalByID(nil, evalID)
+			if err != nil {
+				return err
+			}
+			if eval == nil || eval.DeploymentID == "" {
+				return fmt.Errorf("deployment not created for eval: %+v", eval)
+			}
+			dID = eval.DeploymentID
+			return nil
+		}),
+		wait.Timeout(time.Second*2),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	// simulates updates of allocs from client
+	updateFromClient := func(alloc *structs.Allocation, healthyYet, isCanary bool) {
+		codec := rpcClient(t, srv)
+		stripped := &structs.Allocation{
+			ID:           alloc.ID,
+			NodeID:       alloc.NodeID,
+			ClientStatus: structs.AllocClientStatusRunning,
+			DeploymentStatus: &structs.AllocDeploymentStatus{
+				Healthy: pointer.Of(true),
+				Canary:  isCanary,
+			},
+		}
+		if healthyYet {
+			stripped.DeploymentStatus.Healthy = pointer.Of(true)
+		}
+
+		nodeSecretID := nodes[alloc.NodeID].SecretID
+		must.NotEq(t, "", nodeSecretID, must.Sprint("node secret must exist"))
+
+		req := &structs.AllocUpdateRequest{
+			Alloc:        []*structs.Allocation{stripped},
+			WriteRequest: structs.WriteRequest{AuthToken: nodeSecretID, Region: region},
+		}
+		resp := &structs.GenericResponse{}
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, resp)
+		must.NoError(t, err)
+	}
+
+	// pause the eval broker so we have precise control over when scheduling happens
+	srv.evalBroker.SetEnabled(false)
+	t.Log("eval broker paused")
+
+	now := time.Now().UnixNano()
+	eval := &structs.Evaluation{
+		ID:          uuid.Generate(),
+		Namespace:   job.Namespace,
+		Priority:    50,
+		Type:        job.Type,
+		TriggeredBy: structs.EvalTriggerDeploymentWatcher, // doesn't matter
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+		CreateTime:  now,
+		ModifyTime:  now,
+	}
+
+	t.Log("marking some allocs as healthy")
+	allocs, _ := srv.State().AllocsByJob(nil, job.Namespace, job.ID, true)
+	updateFromClient(allocs[0], true, false)  // is healthy
+	updateFromClient(allocs[1], true, false)  // is healthy
+	updateFromClient(allocs[2], true, false)  // is healthy
+	updateFromClient(allocs[3], false, false) // not yet healthy
+
+	t.Log("simulating an eval being dequeued but not processed before all allocs healthy")
+	// simulate an eval getting dequeued right before the remaining allocs get
+	// marked healthy, so that the snapshot is stale
+	evalToken := uuid.Generate()
+	_, _, err = srv.raftApply(structs.EvalUpdateRequestType, &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: wr,
+		EvalToken:    evalToken,
+	})
+	must.NoError(t, err)
+	snap, err := srv.State().Snapshot()
+	must.NoError(t, err)
+	srv.evalBroker.unack[eval.ID] = &unackEval{
+		Eval:      eval,
+		Token:     evalToken,
+		NackTimer: time.NewTimer(time.Minute),
+	}
+
+	t.Log("marking remaining alloc as healthy")
+	updateFromClient(allocs[3], true, false) // now healthy
+
+	t.Log("invoking scheduler with stale snapshot")
+	err = srv.workers[0].invokeScheduler(snap, eval, evalToken)
+	must.NoError(t, err)
+
+	srv.evalBroker.SetEnabled(true)
+	t.Log("eval broker unpaused")
+
+	t.Log("waiting for successful deployment")
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			d, err := srv.State().DeploymentByID(nil, dID)
+			if err != nil {
+				return err
+			}
+			if d.Status != structs.DeploymentStatusSuccessful {
+				return fmt.Errorf("deployment not successful: %+v", d)
+			}
+			return nil
+		}),
+		wait.Timeout(3*time.Second),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	t.Log("updating job to produce canaries")
+	job, _ = srv.State().JobByID(nil, job.Namespace, job.ID)
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].Resources.CPU++
+
+	jobReq = &structs.JobRegisterRequest{Job: job, WriteRequest: wr}
+	jobResp = &structs.JobRegisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, jobResp)
+	must.NoError(t, err)
+	t.Log("job updated")
+
+	evalID = jobResp.EvalID
+	dID = ""
+
+	canaryIDs := []string{}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			eval, err := srv.State().EvalByID(nil, evalID)
+			if err != nil {
+				return err
+			}
+			if eval == nil || eval.DeploymentID == "" {
+				return fmt.Errorf("deployment not created for eval: %+v", eval)
+			}
+			dID = eval.DeploymentID
+
+			d, err := srv.State().DeploymentByID(nil, dID)
+			if err != nil {
+				return err
+			}
+			canaryIDs = d.TaskGroups["web"].PlacedCanaries
+			if len(canaryIDs) != 2 {
+				return fmt.Errorf("expected 2 canaries: %+v", d.TaskGroups)
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second*2),
+		wait.Gap(time.Millisecond*10),
+	))
+	canaryIDs = slices.Clone(canaryIDs)
+	sort.Strings(canaryIDs)
+	t.Log("new deployment created")
+
+	canaries := []*structs.Allocation{}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			canaries = []*structs.Allocation{}
+			allocs, _ := srv.State().AllocsByJob(nil, job.Namespace, job.ID, true)
+			if len(allocs) != 6 {
+				return fmt.Errorf("expected 4 old allocs + 2 canaries: %+v", allocs)
+			}
+			for _, alloc := range allocs {
+				if slices.Contains(canaryIDs, alloc.ID) {
+					canaries = append(canaries, alloc)
+				}
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second*2),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	// pause the eval broker so we have precise control over when scheduling happens
+	srv.evalBroker.SetEnabled(false)
+	t.Log("eval broker paused")
+
+	now = time.Now().UnixNano()
+	eval = &structs.Evaluation{
+		ID:          uuid.Generate(),
+		Namespace:   job.Namespace,
+		Priority:    50,
+		Type:        job.Type,
+		TriggeredBy: structs.EvalTriggerDeploymentWatcher, // doesn't matter
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+		CreateTime:  now,
+		ModifyTime:  now,
+	}
+
+	updateFromClient(canaries[0], true, true)  // now healthy
+	updateFromClient(canaries[1], false, true) // not yet healthy
+
+	t.Log("simulating an eval being dequeued but not processed before all canaries healthy")
+	evalToken = uuid.Generate()
+	_, _, err = srv.raftApply(structs.EvalUpdateRequestType, &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: wr,
+		EvalToken:    evalToken,
+	})
+	must.NoError(t, err)
+	snap, err = srv.State().Snapshot()
+	must.NoError(t, err)
+	srv.evalBroker.unack[eval.ID] = &unackEval{
+		Eval:      eval,
+		Token:     evalToken,
+		NackTimer: time.NewTimer(time.Minute),
+	}
+
+	t.Log("marking remaining canary as healthy")
+	updateFromClient(canaries[1], true, true) // now healthy
+
+	t.Log("waiting for promotion")
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			d, err := srv.State().DeploymentByID(nil, dID)
+			if err != nil {
+				return err
+			}
+			if !d.TaskGroups["web"].Promoted {
+				return fmt.Errorf("deployment not promoted: %+v", d)
+			}
+			return nil
+		}),
+		wait.Timeout(2*time.Second),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	time.Sleep(time.Second)
+
+	err = srv.workers[0].invokeScheduler(snap, eval, evalToken)
+	if err != nil { // this is racy with the deployment watcher, so we won't always see it
+		t.Log("scheduler had write skew with deployment")
+		must.EqError(t, err,
+			"failed to process evaluation: deployment promotion cannot be undone")
+	} else {
+		// note: this is the reconciler output, not the resulting plan
+		eval, _ = srv.State().EvalByID(nil, eval.ID)
+		must.Eq(t, 2, eval.PlanAnnotations.DesiredTGUpdates["web"].Ignore)
+		must.Eq(t, 2, eval.PlanAnnotations.DesiredTGUpdates["web"].DestructiveUpdate)
+	}
+
+	// ensure dstate hasn't been mutated incorrectly
+	d, _ := srv.State().DeploymentByID(nil, dID)
+	dstate := d.TaskGroups["web"]
+	must.Eq(t, 2, dstate.DesiredCanaries)
+	must.Eq(t, 2, dstate.HealthyAllocs)
+	gotCanaryIds := slices.Clone(dstate.PlacedCanaries)
+	sort.Strings(gotCanaryIds)
+	must.Eq(t, canaryIDs, gotCanaryIds)
+	must.True(t, dstate.Promoted)
+
+	srv.evalBroker.SetEnabled(true)
+	t.Log("eval broker unpaused")
+
+	t.Log("waiting for remaining allocs")
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			allocs, _ = srv.State().AllocsByJob(nil, job.Namespace, job.ID, true)
+			if len(allocs) != 8 {
+				buf := new(bytes.Buffer)
+				for _, alloc := range allocs {
+					fmt.Fprintf(buf, "\talloc=%s v=%d status=%s canary=%v\n",
+						alloc.ID[:8], alloc.Job.Version, alloc.ClientStatus,
+						alloc.DeploymentStatus.Canary)
+				}
+
+				return fmt.Errorf("expected 8 allocs, got %d:\n%#v", len(allocs), buf.String())
+			}
+			return nil
+		}),
+		wait.Timeout(3*time.Second),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	allocs, _ = srv.State().AllocsByJob(nil, job.Namespace, job.ID, true)
+	for _, alloc := range allocs {
+		if alloc.Job.Version == 1 && alloc.DeploymentStatus == nil {
+			updateFromClient(alloc, true, false)
+		}
+	}
+
+	t.Log("waiting for successful deployment")
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			d, err := srv.State().DeploymentByID(nil, dID)
+			if err != nil {
+				return err
+			}
+			if d.Status != structs.DeploymentStatusSuccessful {
+				return fmt.Errorf("deployment not successful: %+v", d)
+			}
+			return nil
+		}),
+		wait.Timeout(3*time.Second),
+		wait.Gap(time.Millisecond*10),
+	))
+
+	// ensure dstate hasn't been mutated incorrectly
+	d, _ = srv.State().DeploymentByID(nil, dID)
+	dstate = d.TaskGroups["web"]
+	must.Eq(t, 2, dstate.DesiredCanaries)
+	must.Eq(t, 4, dstate.HealthyAllocs)
+	gotCanaryIds = slices.Clone(dstate.PlacedCanaries)
+	sort.Strings(gotCanaryIds)
+	must.Eq(t, canaryIDs, gotCanaryIds)
+	must.True(t, dstate.Promoted)
+
 }

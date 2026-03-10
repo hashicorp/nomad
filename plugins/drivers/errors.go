@@ -1,11 +1,13 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
 
-import "fmt"
+import "errors"
 
-var ErrTaskNotFound = fmt.Errorf("task not found for given id")
+var ErrTaskNotFound = errors.New("task not found for given id")
+
+var ErrChannelClosed = errors.New("channel closed")
 
 var DriverRequiresRootMessage = "Driver must run as root"
 

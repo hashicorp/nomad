@@ -50,12 +50,6 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
-# LAST_RELEASE is used for generating the changelog. It is the last released GA
-# or backport version, without the leading "v". main should have the latest
-# published release here, and release branches should point to the latest
-# published release in their X.Y release line.
-LAST_RELEASE ?= 1.11.0
-
 default: help
 
 ifeq (Linux,$(THIS_OS))
@@ -241,8 +235,7 @@ proto: ## Generate protobuf bindings
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 changelog: ## Generate changelog from entries
-	@changelog-build -last-release v$(LAST_RELEASE) -this-release HEAD \
-		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
+	./scripts/release/update-changelog
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
@@ -287,6 +280,10 @@ dev: hclfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
 
+.PHONY: dev-static
+dev-static:
+	@$(MAKE) CGO_ENABLED=0 dev ## Build a dev binary with no CGO
+
 .PHONY: prerelease
 prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
@@ -297,12 +294,21 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
+.PHONY: release-static
+release-static: GO_TAGS=ui codegen_generated release
+release-static: CGO_ENABLED=0
+release-static: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+	@echo "==> Results:"
+	@tree --dirsfirst $(PROJECT_ROOT)/pkg
+
 .PHONY: test-nomad
-test-nomad: GOTEST_PKGS=$(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
+# we run this target in CI, so retry failures to mitigate flakes
+GOTEST_RERUN_FAILS ?= 3
+test-nomad: GOTEST_PKGS = $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
 test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
 	@echo "==> with packages $(GOTEST_PKGS)"
-	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
+	gotestsum --format=testname --rerun-fails=$(GOTEST_RERUN_FAILS) --packages="$(GOTEST_PKGS)" -- \
 		-cover \
 		-timeout=25m \
 		-count=1 \
@@ -454,16 +460,10 @@ cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
 
 .PHONY: test
-test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
-test: ## Use this target as a smoke test
-	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
-	@echo "==> with packages: $(GOTEST_PKGS)"
-	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
-		-cover \
-		-timeout=25m \
-		-count=1 \
-		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS)
+# in contrast with `test-nomad`, this is meant for humans,
+# as directed by contributing/README.md, so do not retry failures.
+test: GOTEST_RERUN_FAILS = 0
+test: test-nomad
 
 .PHONY: copywriteheaders
 copywriteheaders:

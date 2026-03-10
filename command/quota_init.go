@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -130,6 +130,10 @@ limit {
       variables    = 1000   # in MB
       host_volumes = 100000 # in MB
     }
+    node_pool "example" {
+      cpu    = 500
+      memory = 100
+    }
   }
 }
 `)
@@ -155,6 +159,10 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
         "Storage": {
           "Variables": 1000,
           "HostVolumes": 100000
+        },
+        "NodePool": {
+          "CPU": 500,
+          "MemoryMB": 1000
         }
       }
     }

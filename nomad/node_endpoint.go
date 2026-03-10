@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -294,8 +294,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(args.Node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -467,14 +465,7 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 	reply.LeaderRPCAddr = string(leaderAddr)
 
 	// Reply with config information required for future RPC requests
-	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for _, v := range n.srv.localPeers {
-		reply.Servers = append(reply.Servers,
-			&structs.NodeServerInfo{
-				RPCAdvertiseAddr: v.RPCAddr.String(),
-				Datacenter:       v.Datacenter,
-			})
-	}
+	reply.Servers = n.srv.peersCache.LocalPeersServerInfo()
 
 	ws := memdb.NewWatchSet()
 
@@ -879,8 +870,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Set the reply index and leader
 	reply.Index = index
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -916,9 +905,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNodeWrite() &&
-		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
-		return structs.ErrPermissionDenied
+	} else if err := n.checkNodeDrainAuth(aclObj, args); err != nil {
+		return err
 	}
 
 	// Verify the arguments
@@ -1001,6 +989,40 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Set the reply index
 	reply.Index = index
 	return nil
+}
+
+// checkNodeDrainAuth is a helper function to provide the authentication logic
+// for the UpdateDrain RPC.
+func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrainRequest) error {
+
+	if aclObj.AllowNodeWrite() {
+		return nil
+	}
+
+	// If the ACL object has client operations allowed, check if the identity
+	// matches the node being drained. This allows nodes to drain themselves.
+	if aclObj.AllowClientOp() {
+
+		identity := args.GetIdentity()
+
+		// If the client ID is set and matches the node ID, allow the operation
+		// to proceed. This covers the case where a node is using its secret ID
+		// to authenticate.
+		if identity.ClientID == args.NodeID {
+			return nil
+		}
+
+		identityClaims := identity.GetClaims()
+
+		// If the request is using a node identity, check and ensure the node ID
+		// claim matches the node being drained. This covers the case where a
+		// node is using its node identity JWT to authenticate.
+		if identityClaims.IsNode() && identityClaims.NodeIdentityClaims.NodeID == args.NodeID {
+			return nil
+		}
+	}
+
+	return structs.ErrPermissionDenied
 }
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
@@ -1158,8 +1180,6 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	// Set the reply index
 	reply.Index = evalIndex
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -1799,7 +1819,9 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		// node pool. We could perform an entire feasibility check here, but
 		// datacenter/pool is a good optimization to start with as their
 		// cardinality tends to be low so the check shouldn't add much work.
-		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) {
+		// If the job is stopped, skip it as well, otherwise we will create an
+		// eval with state and broker overhead that will be an immediate no-op.
+		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) && !job.Stopped() {
 			sysJobs = append(sysJobs, job)
 		}
 	}
@@ -1816,18 +1838,57 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
-		// Deduplicate on JobID
+
+		// Perform the deduplication first. This means that if we have decided
+		// to create an evalaution for a job, we won't skip it even if
+		// subsequent allocations for the same job would not create an eval.
 		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
-		jobIDs[alloc.JobNamespacedID()] = struct{}{}
+
+		switch alloc.Job.Type {
+
+		// Skip allocations that are fully terminal on both server and client
+		// side. We require BOTH to be terminal (not just TerminalStatus which
+		// is an OR) because we only want to skip when the server has stopped
+		// the alloc AND the client has finished stopping it. This is a fairly
+		// defensive check and we prefer to err on the side of creating an eval
+		// that may be a no-op rather than skipping eval creation when it should
+		// be created.
+		case structs.JobTypeService:
+			if alloc.ServerTerminalStatus() && alloc.ClientTerminalStatus() {
+				continue
+			}
+
+		// For batch jobs, we only want to create evals for non-terminal
+		// allocations. Terminal batch allocations should not be retried
+		// otherwise the job status will flap between dead and pending each time
+		// the node updates while the allocation is still held in state.
+		case structs.JobTypeBatch:
+			if alloc.Terminated() {
+				continue
+			}
 
 		// If it's a sysbatch job, skip it. Sysbatch job evals should only ever
 		// be created by periodic-job if they are periodic, and job-register or
 		// job-scaling if they are not. Calling the system scheduler by
 		// node-update trigger can cause unnecessary or premature allocations
 		// to be created.
-		if alloc.Job.Type == structs.JobTypeSysBatch {
+		case structs.JobTypeSysBatch:
+			continue
+
+		// Skip system jobs as they are handled by the next loop below.
+		case structs.JobTypeSystem:
+			continue
+
+		// Skip creation for all other job types as a catch-all. This is only
+		// core jobs as all other types are matched above, and these job types
+		// should never hit this code path.
+		//
+		// This is primarily future-proofing to ensure that if new job types
+		// are added, they don't accidentally get evals created for them here.
+		// New job types should have their own explicit handling above.
+		default:
 			continue
 		}
 
@@ -1848,6 +1909,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 	}
 
 	// Create an evaluation for each system job.
@@ -1856,7 +1918,6 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1874,6 +1935,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[job.NamespacedID()] = struct{}{}
 	}
 
 	// Create the Raft transaction

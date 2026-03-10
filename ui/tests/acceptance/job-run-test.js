@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -22,6 +22,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
@@ -65,6 +66,7 @@ module('Acceptance | job run', function (hooks) {
   setupCodeMirror(hooks);
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     // Required for placing allocations (a result of creating jobs)
     server.create('node-pool');
     server.create('node');
@@ -150,6 +152,40 @@ module('Acceptance | job run', function (hooks) {
           {
             Name: newNamespace,
             Capabilities: ['scale-job', 'submit-job', 'read-job', 'list-jobs'],
+          },
+        ],
+      },
+    });
+
+    clientTokenWithPolicy.policyIds = [policy.id];
+    clientTokenWithPolicy.save();
+    window.localStorage.nomadTokenSecret = clientTokenWithPolicy.secretId;
+
+    await JobRun.visit({ namespace: newNamespace });
+    assert.equal(currentURL(), `/jobs/run?namespace=${newNamespace}`);
+  });
+
+  test('when using fine grained client token user can still go to job page if they have correct permissions', async function (assert) {
+    const clientTokenWithPolicy = server.create('token');
+    const newNamespace = 'second-namespace';
+
+    server.create('namespace', { id: newNamespace });
+    server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+      namespaceId: newNamespace,
+    });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: newNamespace,
+            Capabilities: ['register-job', 'read-job', 'list-jobs'],
           },
         ],
       },

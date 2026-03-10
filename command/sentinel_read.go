@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -21,7 +21,7 @@ Usage: nomad sentinel read [options] <name>
   Read is used to inspect a Sentinel policy.
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-read capability.
 
 General Options:
 

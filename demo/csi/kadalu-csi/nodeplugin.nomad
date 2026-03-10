@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: MPL-2.0
 
 # Please refer 'controller.nomad' file for  variable and job descriptions

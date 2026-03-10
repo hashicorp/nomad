@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -76,7 +76,7 @@ Node Drain Options:
     the drain is being disabled. This is useful when an existing drain is being
     cancelled but additional scheduling on the node is not desired.
 
-  -m 
+  -m
     Message for the drain update operation. Registered in drain metadata as
     "message" during drain enable and "cancel_message" during drain disable.
 
@@ -111,6 +111,7 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 			"-meta":            complete.PredictNothing,
 			"-self":            complete.PredictNothing,
 			"-yes":             complete.PredictNothing,
+			"-monitor":         complete.PredictNothing,
 		})
 }
 

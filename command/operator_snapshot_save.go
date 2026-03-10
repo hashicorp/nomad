@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -26,8 +26,8 @@ Usage: nomad operator snapshot save [options] <file>
   Retrieves an atomic, point-in-time snapshot of the state of the Nomad servers
   which includes jobs, nodes, allocations, periodic jobs, and ACLs.
 
-  If ACLs are enabled, a management token must be supplied in order to perform
-  snapshot operations.
+  If ACLs are enabled, a token with operator:write or the operator:snapshot-save
+  capability must be supplied in order to perform snapshot operations.
 
   To create a snapshot from the leader server and save it to "backup.snap":
 
@@ -66,7 +66,8 @@ Snapshot Save Options:
 func (c *OperatorSnapshotSaveCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-stale": complete.PredictAnything,
+			"-stale":  complete.PredictNothing,
+			"-redact": complete.PredictNothing,
 		})
 }
 

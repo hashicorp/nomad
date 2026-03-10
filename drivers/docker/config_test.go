@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -203,7 +203,6 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 		Auth: DockerAuth{
 			Username:   "myusername",
 			Password:   "mypassword",
-			Email:      "myemail@example.com",
 			ServerAddr: "https://example.com",
 		},
 		AuthSoftFail:            true,

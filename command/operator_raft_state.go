@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -77,7 +77,7 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Find raft.db folder
+	// Find the raft data directory
 	raftPath, err := raftutil.FindRaftDir(args[0])
 	if err != nil {
 		c.Ui.Error(err.Error())

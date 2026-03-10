@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -1761,6 +1761,11 @@ func sidecarTaskDiff(old, new *SidecarTask, contextual bool) *ObjectDiff {
 	// Resources diff
 	if rDiff := old.Resources.Diff(new.Resources, contextual); rDiff != nil {
 		diff.Objects = append(diff.Objects, rDiff)
+	}
+
+	// identities diff
+	if idDiffs := idSliceDiffs(old.Identities, new.Identities, contextual); idDiffs != nil {
+		diff.Objects = append(diff.Objects, idDiffs...)
 	}
 
 	// LogConfig diff

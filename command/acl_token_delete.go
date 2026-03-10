@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -33,7 +33,7 @@ func (c *ACLTokenDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLTokenDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLTokenPredictor(c.Meta.Client)
 }
 
 func (c *ACLTokenDeleteCommand) Synopsis() string {

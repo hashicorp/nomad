@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -18,6 +18,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -1117,6 +1118,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// Switch to the correct certificates and reload
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1165,6 +1169,9 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1178,9 +1185,13 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	agent := &Agent{
 		auditor: &noOpAuditor{},
 		config:  agentConfig,
+		logger:  testlog.HCLogger(t),
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1214,6 +1225,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1230,6 +1244,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1309,6 +1326,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1325,6 +1345,10 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
 	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
 	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+
+	// Ensure that the TLS metric emitter has been initialized on the agent
+	// after enabling TLS.
+	must.NotNil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
@@ -1366,6 +1390,10 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	assert.Nil(err)
 
 	assert.True(agent.config.TLSConfig.IsEmpty())
+
+	// Ensure that the TLS metric emitter has been cleaned up on the agent
+	// after disabling TLS.
+	must.Nil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_VaultConfig(t *testing.T) {
@@ -1716,6 +1744,9 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	)
 
 	sameAgentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1728,6 +1759,9 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.Client.Enabled = false
+		c.Telemetry = &Telemetry{
+			collectionInterval: time.Second,
+		}
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -2065,4 +2099,132 @@ func Test_convertServerConfig_clientIntroduction(t *testing.T) {
 			must.Eq(t, tc.expectedNodeIntroductionConfig, serverConf.NodeIntroductionConfig)
 		})
 	}
+}
+
+func Test_convertServerConfig_RaftLogStore(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name                         string
+		raftLogStoreConfig           *RaftLogStoreConfig
+		raftBoltConfig               *RaftBoltConfig
+		expectedBackend              string
+		expectedBoltDBNoFreelistSync bool
+		expectedDisableLogCache      bool
+		expectedWALSegmentSize       int
+		expectedVerificationEnabled  bool
+	}{
+		{
+			name:                         "defaults when nothing is set",
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
+			raftBoltConfig: &RaftBoltConfig{
+				NoFreelistSync: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "new raft_logstore with boltdb backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendBoltDB,
+				BoltDB: &RaftBoltConfig{
+					NoFreelistSync: true,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "new raft_logstore with wal backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendWAL,
+				WAL: &WALConfig{
+					SegmentSizeMB: 128,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendWAL,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       128 * 1024 * 1024,
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "disable log cache",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				DisableLogCache: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedDisableLogCache:      true,
+			expectedBoltDBNoFreelistSync: false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "verification enabled",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Verification: &LogStoreVerificationConfig{
+					Enabled:  true,
+					Interval: "10m",
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftLogStoreConfig = tc.raftLogStoreConfig
+			conf.Server.RaftBoltConfig = tc.raftBoltConfig
+
+			serverConf, err := convertServerConfig(conf)
+			must.NoError(t, err)
+			must.NotNil(t, serverConf.RaftLogStoreConfig)
+			must.Eq(t, tc.expectedBackend, serverConf.RaftLogStoreConfig.Backend)
+			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
+			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
+			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
+			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
+
+			// After conversion, legacy field should be cleared
+			must.Nil(t, conf.Server.RaftBoltConfig)
+		})
+	}
+}
+
+func Test_convertServerConfig_RaftLogStore_RejectsMixedConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := DevConfig(nil)
+	must.NoError(t, conf.normalizeAddrs())
+
+	// Set both legacy and new config
+	conf.Server.RaftLogStoreConfig = &RaftLogStoreConfig{
+		Backend: nomad.LogStoreBackendBoltDB,
+		BoltDB: &RaftBoltConfig{
+			NoFreelistSync: false,
+		},
+	}
+	conf.Server.RaftBoltConfig = &RaftBoltConfig{
+		NoFreelistSync: true,
+	}
+
+	_, err := convertServerConfig(conf)
+	must.ErrorContains(t, err, "cannot specify both deprecated 'raft_boltdb' and 'raft_logstore'")
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler (Enterprise): Fixed a bug where tasks were not placed on same numa node as reserved device
+```

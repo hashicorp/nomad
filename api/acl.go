@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -1231,6 +1231,8 @@ type ACLOIDCCompleteAuthRequest struct {
 	ClientNonce string
 	State       string
 	Code        string
+
+	Iss string
 
 	// RedirectURI is the URL that authorization should redirect to. This is a
 	// required parameter.

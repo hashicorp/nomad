@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/cli"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
@@ -21,8 +22,9 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Detect characters that are not valid identifiers to emit a warning when they
@@ -514,7 +516,10 @@ func parseVariableSpecImpl(result *api.Variable, list *ast.ObjectList) error {
 				return fmt.Errorf("%s must be integer; got (%T) %[2]v", index, value)
 			}
 			idx := uint64(vInt)
-			n := strings.ReplaceAll(strings.Title(strings.ReplaceAll(index, "_", " ")), " ", "")
+			n := strings.ReplaceAll(
+				cases.Title(language.English).String(
+					strings.ReplaceAll(index, "_", " "),
+				), " ", "")
 			m[n] = idx
 			delete(m, index)
 		}
@@ -526,7 +531,10 @@ func parseVariableSpecImpl(result *api.Variable, list *ast.ObjectList) error {
 			if !ok {
 				return fmt.Errorf("%s must be a int64; got a (%T) %[2]v", index, value)
 			}
-			n := strings.ReplaceAll(strings.Title(strings.ReplaceAll(index, "_", " ")), " ", "")
+			n := strings.ReplaceAll(
+				cases.Title(language.English).String(
+					strings.ReplaceAll(index, "_", " "),
+				), " ", "")
 			m[n] = vInt
 			delete(m, index)
 		}

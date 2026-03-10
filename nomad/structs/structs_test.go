@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
@@ -735,7 +736,7 @@ func testJob() *Job {
 		},
 		Constraints: []*Constraint{
 			{
-				LTarget: "$attr.kernel.name",
+				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
@@ -3645,75 +3646,154 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 func TestConstraint_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	c := &Constraint{}
-	err := c.Validate()
-	require.Error(t, err, "Missing constraint operand")
-
-	c = &Constraint{
-		LTarget: "$attr.kernel.name",
-		RTarget: "linux",
-		Operand: "=",
+	testCases := []struct {
+		name             string
+		inputConstraint  *Constraint
+		expectedErrorMsg string
+	}{
+		{
+			name:             "missing operand",
+			inputConstraint:  &Constraint{},
+			expectedErrorMsg: "Missing constraint operand",
+		},
+		{
+			name: "valid",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid regex",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "(foo",
+				Operand: ConstraintRegex,
+			},
+			expectedErrorMsg: "missing closing",
+		},
+		{
+			name: "invalid version",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "~> foo",
+				Operand: ConstraintVersion,
+			},
+			expectedErrorMsg: "malformed constraint",
+		},
+		{
+			name: "invalid semver",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "~> foo",
+				Operand: ConstraintSemver,
+			},
+			expectedErrorMsg: "Malformed constraint",
+		},
+		{
+			name: "valid semver",
+			inputConstraint: &Constraint{
+				LTarget: "${attr.kernel.name}",
+				RTarget: ">= 0.6.1",
+				Operand: ConstraintSemver,
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid zero distinct",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "0",
+				Operand: ConstraintDistinctProperty,
+			},
+			expectedErrorMsg: "count of 1 or greater",
+		},
+		{
+			name: "invalid negative distinct",
+			inputConstraint: &Constraint{
+				LTarget: "$attr.kernel.name",
+				RTarget: "-1",
+				Operand: ConstraintDistinctProperty,
+			},
+			expectedErrorMsg: "to uint64",
+		},
+		{
+			name: "valid distinct hosts",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintDistinctHosts,
+			},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "invalid set contains",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContains,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid set contains all",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContainsAll,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid set contains any",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: ConstraintSetContainsAny,
+			},
+			expectedErrorMsg: "requires an RTarget",
+		},
+		{
+			name: "invalid regex",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "foo",
+				Operand: ConstraintRegex,
+			},
+			expectedErrorMsg: "no attribute provided but is required by operator",
+		},
+		{
+			name: "invalid operand",
+			inputConstraint: &Constraint{
+				LTarget: "",
+				RTarget: "",
+				Operand: "foo",
+			},
+			expectedErrorMsg: "Unknown constraint type",
+		},
+		{
+			name: "invalid constraint attribure",
+			inputConstraint: &Constraint{
+				LTarget: "${platform.aws.placement.availability-zone}",
+				RTarget: "3",
+				Operand: ">",
+			},
+			expectedErrorMsg: "unsupported attribute",
+		},
 	}
-	err = c.Validate()
-	require.NoError(t, err)
 
-	// Perform additional regexp validation
-	c.Operand = ConstraintRegex
-	c.RTarget = "(foo"
-	err = c.Validate()
-	require.Error(t, err, "missing closing")
-
-	// Perform version validation
-	c.Operand = ConstraintVersion
-	c.RTarget = "~> foo"
-	err = c.Validate()
-	require.Error(t, err, "Malformed constraint")
-
-	// Perform semver validation
-	c.Operand = ConstraintSemver
-	err = c.Validate()
-	require.Error(t, err, "Malformed constraint")
-
-	c.RTarget = ">= 0.6.1"
-	require.NoError(t, c.Validate())
-
-	// Perform distinct_property validation
-	c.Operand = ConstraintDistinctProperty
-	c.RTarget = "0"
-	err = c.Validate()
-	require.Error(t, err, "count of 1 or greater")
-
-	c.RTarget = "-1"
-	err = c.Validate()
-	require.Error(t, err, "to uint64")
-
-	// Perform distinct_hosts validation
-	c.Operand = ConstraintDistinctHosts
-	c.LTarget = ""
-	c.RTarget = ""
-	if err := c.Validate(); err != nil {
-		t.Fatalf("expected valid constraint: %v", err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputConstraint.Validate()
+			if tc.expectedErrorMsg != "" {
+				must.ErrorContains(t, actualError, tc.expectedErrorMsg)
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
 	}
-
-	// Perform set_contains* validation
-	c.RTarget = ""
-	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
-		c.Operand = o
-		err = c.Validate()
-		require.Error(t, err, "requires an RTarget")
-	}
-
-	// Perform LTarget validation
-	c.Operand = ConstraintRegex
-	c.RTarget = "foo"
-	c.LTarget = ""
-	err = c.Validate()
-	require.Error(t, err, "No LTarget")
-
-	// Perform constraint type validation
-	c.Operand = "foo"
-	err = c.Validate()
-	require.Error(t, err, "Unknown constraint type")
 }
 
 func TestAffinity_Validate(t *testing.T) {
@@ -4956,27 +5036,6 @@ func TestAllocation_ReservedCores(t *testing.T) {
 
 }
 
-func TestAllocation_Index(t *testing.T) {
-	ci.Parallel(t)
-
-	a1 := Allocation{
-		Name:      "example.cache[1]",
-		TaskGroup: "cache",
-		JobID:     "example",
-		Job: &Job{
-			ID:         "example",
-			TaskGroups: []*TaskGroup{{Name: "cache"}}},
-	}
-	e1 := uint(1)
-	a2 := a1.Copy()
-	a2.Name = "example.cache[713127]"
-	e2 := uint(713127)
-
-	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
-	}
-}
-
 func TestTaskArtifact_Validate_Source(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5271,91 +5330,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	}
 }
 
-func TestPlan_NormalizeAllocations(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodeUpdate:      make(map[string][]*Allocation),
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	stoppedAlloc := MockAlloc()
-	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost, "followup-eval-id")
-	preemptedAlloc := MockAlloc()
-	preemptingAllocID := uuid.Generate()
-	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
-
-	plan.NormalizeAllocations()
-
-	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
-	expectedStoppedAlloc := &Allocation{
-		ID:                 stoppedAlloc.ID,
-		DesiredDescription: desiredDesc,
-		ClientStatus:       AllocClientStatusLost,
-		FollowupEvalID:     "followup-eval-id",
-	}
-	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
-	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
-	expectedPreemptedAlloc := &Allocation{
-		ID:                    preemptedAlloc.ID,
-		PreemptedByAllocation: preemptingAllocID,
-	}
-	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
-}
-
-func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodeUpdate: make(map[string][]*Allocation),
-	}
-	alloc := MockAlloc()
-	desiredDesc := "Desired desc"
-
-	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost, "")
-
-	expectedAlloc := new(Allocation)
-	*expectedAlloc = *alloc
-	expectedAlloc.DesiredDescription = desiredDesc
-	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
-	expectedAlloc.ClientStatus = AllocClientStatusLost
-	expectedAlloc.Job = nil
-	expectedAlloc.AllocStates = []*AllocState{{
-		Field: AllocStateFieldClientStatus,
-		Value: "lost",
-	}}
-
-	// This value is set to time.Now() in AppendStoppedAlloc, so clear it
-	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
-	appendedAlloc.AllocStates[0].Time = time.Time{}
-
-	assert.Equal(t, expectedAlloc, appendedAlloc)
-	assert.Equal(t, alloc.Job, plan.Job)
-}
-
-func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	ci.Parallel(t)
-	plan := &Plan{
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	alloc := MockAlloc()
-	preemptingAllocID := uuid.Generate()
-
-	plan.AppendPreemptedAlloc(alloc, preemptingAllocID)
-
-	appendedAlloc := plan.NodePreemptions[alloc.NodeID][0]
-	expectedAlloc := &Allocation{
-		ID:                    alloc.ID,
-		PreemptedByAllocation: preemptingAllocID,
-		JobID:                 alloc.JobID,
-		Namespace:             alloc.Namespace,
-		DesiredStatus:         AllocDesiredStatusEvict,
-		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
-		AllocatedResources:    alloc.AllocatedResources,
-		TaskResources:         alloc.TaskResources,
-		SharedResources:       alloc.SharedResources,
-	}
-	assert.Equal(t, expectedAlloc, appendedAlloc)
-}
-
 func TestMsgPackTags(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5375,1047 +5349,6 @@ func TestMsgPackTags(t *testing.T) {
 			must.True(t, ok, must.Sprint("_struct field not found"))
 			must.Eq(t, `codec:",omitempty"`, field.Tag, must.Sprint("bad _struct tag"))
 		})
-	}
-}
-
-func TestAllocation_Terminated(t *testing.T) {
-	ci.Parallel(t)
-	type desiredState struct {
-		ClientStatus  string
-		DesiredStatus string
-		Terminated    bool
-	}
-	harness := []desiredState{
-		{
-			ClientStatus:  AllocClientStatusPending,
-			DesiredStatus: AllocDesiredStatusStop,
-			Terminated:    false,
-		},
-		{
-			ClientStatus:  AllocClientStatusRunning,
-			DesiredStatus: AllocDesiredStatusStop,
-			Terminated:    false,
-		},
-		{
-			ClientStatus:  AllocClientStatusFailed,
-			DesiredStatus: AllocDesiredStatusStop,
-			Terminated:    true,
-		},
-		{
-			ClientStatus:  AllocClientStatusFailed,
-			DesiredStatus: AllocDesiredStatusRun,
-			Terminated:    true,
-		},
-	}
-
-	for _, state := range harness {
-		alloc := Allocation{}
-		alloc.DesiredStatus = state.DesiredStatus
-		alloc.ClientStatus = state.ClientStatus
-		if alloc.Terminated() != state.Terminated {
-			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
-		}
-	}
-}
-
-func TestAllocation_ShouldReschedule(t *testing.T) {
-	ci.Parallel(t)
-	type testCase struct {
-		Desc               string
-		FailTime           time.Time
-		ClientStatus       string
-		DesiredStatus      string
-		ReschedulePolicy   *ReschedulePolicy
-		RescheduleTrackers []*RescheduleEvent
-		ShouldReschedule   bool
-	}
-	fail := time.Now()
-
-	harness := []testCase{
-		{
-			Desc:             "Reschedule when desired state is stop",
-			ClientStatus:     AllocClientStatusPending,
-			DesiredStatus:    AllocDesiredStatusStop,
-			FailTime:         fail,
-			ReschedulePolicy: nil,
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Disabled rescheduling",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 0, Interval: 1 * time.Minute},
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Reschedule when client status is complete",
-			ClientStatus:     AllocClientStatusComplete,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: nil,
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Reschedule with nil reschedule policy",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: nil,
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Reschedule with unlimited and attempts >0",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Unlimited: true},
-			ShouldReschedule: true,
-		},
-		{
-			Desc:             "Reschedule when client status is complete",
-			ClientStatus:     AllocClientStatusComplete,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: nil,
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Reschedule with policy when client status complete",
-			ClientStatus:     AllocClientStatusComplete,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
-			ShouldReschedule: false,
-		},
-		{
-			Desc:             "Reschedule with no previous attempts",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
-			ShouldReschedule: true,
-		},
-		{
-			Desc:             "Reschedule with leftover attempts",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
-			FailTime:         fail,
-			RescheduleTrackers: []*RescheduleEvent{
-				{
-					RescheduleTime: fail.Add(-1 * time.Minute).UTC().UnixNano(),
-				},
-			},
-			ShouldReschedule: true,
-		},
-		{
-			Desc:             "Reschedule with too old previous attempts",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 5 * time.Minute},
-			RescheduleTrackers: []*RescheduleEvent{
-				{
-					RescheduleTime: fail.Add(-6 * time.Minute).UTC().UnixNano(),
-				},
-			},
-			ShouldReschedule: true,
-		},
-		{
-			Desc:             "Reschedule with no leftover attempts",
-			ClientStatus:     AllocClientStatusFailed,
-			DesiredStatus:    AllocDesiredStatusRun,
-			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
-			RescheduleTrackers: []*RescheduleEvent{
-				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
-				},
-				{
-					RescheduleTime: fail.Add(-4 * time.Minute).UTC().UnixNano(),
-				},
-			},
-			ShouldReschedule: false,
-		},
-	}
-
-	for _, state := range harness {
-		alloc := Allocation{}
-		alloc.DesiredStatus = state.DesiredStatus
-		alloc.ClientStatus = state.ClientStatus
-		alloc.RescheduleTracker = &RescheduleTracker{
-			Events:         state.RescheduleTrackers,
-			LastReschedule: "",
-		}
-
-		t.Run(state.Desc, func(t *testing.T) {
-			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
-				t.Fatalf("expected %v but got %v", state.ShouldReschedule, got)
-			}
-		})
-
-	}
-}
-
-func TestAllocation_LastEventTime(t *testing.T) {
-	ci.Parallel(t)
-	type testCase struct {
-		desc                  string
-		taskState             map[string]*TaskState
-		expectedLastEventTime time.Time
-	}
-	t1 := time.Now().UTC()
-
-	testCases := []testCase{
-		{
-			desc:                  "nil task state",
-			expectedLastEventTime: t1,
-		},
-		{
-			desc:                  "empty task state",
-			taskState:             make(map[string]*TaskState),
-			expectedLastEventTime: t1,
-		},
-		{
-			desc: "Finished At not set",
-			taskState: map[string]*TaskState{"foo": {State: "start",
-				StartedAt: t1.Add(-2 * time.Hour)}},
-			expectedLastEventTime: t1,
-		},
-		{
-			desc: "One finished ",
-			taskState: map[string]*TaskState{"foo": {State: "start",
-				StartedAt:  t1.Add(-2 * time.Hour),
-				FinishedAt: t1.Add(-1 * time.Hour)}},
-			expectedLastEventTime: t1.Add(-1 * time.Hour),
-		},
-		{
-			desc: "Multiple task groups",
-			taskState: map[string]*TaskState{"foo": {State: "start",
-				StartedAt:  t1.Add(-2 * time.Hour),
-				FinishedAt: t1.Add(-1 * time.Hour)},
-				"bar": {State: "start",
-					StartedAt:  t1.Add(-2 * time.Hour),
-					FinishedAt: t1.Add(-40 * time.Minute)}},
-			expectedLastEventTime: t1.Add(-40 * time.Minute),
-		},
-		{
-			desc: "No finishedAt set, one task event, should use modify time",
-			taskState: map[string]*TaskState{"foo": {
-				State:     "run",
-				StartedAt: t1.Add(-2 * time.Hour),
-				Events: []*TaskEvent{
-					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
-				}},
-			},
-			expectedLastEventTime: t1,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			alloc := &Allocation{CreateTime: t1.UnixNano(), ModifyTime: t1.UnixNano()}
-			alloc.TaskStates = tc.taskState
-			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
-		})
-	}
-}
-
-func TestAllocation_NextDelay(t *testing.T) {
-	ci.Parallel(t)
-	type testCase struct {
-		desc                       string
-		reschedulePolicy           *ReschedulePolicy
-		alloc                      *Allocation
-		expectedRescheduleTime     time.Time
-		expectedRescheduleEligible bool
-	}
-	now := time.Now()
-	testCases := []testCase{
-		{
-			desc: "Allocation hasn't failed yet",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "constant",
-				Delay:         5 * time.Second,
-			},
-			alloc:                      &Allocation{},
-			expectedRescheduleTime:     time.Time{},
-			expectedRescheduleEligible: false,
-		},
-		{
-			desc:                       "Allocation has no reschedule policy",
-			alloc:                      &Allocation{},
-			expectedRescheduleTime:     time.Time{},
-			expectedRescheduleEligible: false,
-		},
-		{
-			desc: "Allocation lacks task state",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "constant",
-				Delay:         5 * time.Second,
-				Unlimited:     true,
-			},
-			alloc:                      &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
-			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "linear delay, unlimited restarts, no reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "constant",
-				Delay:         5 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "dead",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-			},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "linear delay with reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "constant",
-				Delay:         5 * time.Second,
-				Interval:      10 * time.Minute,
-				Attempts:      2,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{{
-						RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
-						Delay:          5 * time.Second,
-					}},
-				}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "linear delay with reschedule tracker, attempts exhausted",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "constant",
-				Delay:         5 * time.Second,
-				Interval:      10 * time.Minute,
-				Attempts:      2,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: false,
-		},
-		{
-			desc: "exponential delay - no reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "exponential",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-			},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "exponential delay with reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "exponential",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          20 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "exponential delay with delay ceiling reached",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "exponential",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-15 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          20 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          40 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
-							Delay:          80 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(90 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			// Test case where most recent reschedule ran longer than delay ceiling
-			desc: "exponential delay, delay ceiling reset condition met",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "exponential",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-15 * time.Minute)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          20 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          40 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          80 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          90 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          90 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-15 * time.Minute).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay - no reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay with reschedule tracker",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-5 * time.Second).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(10 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay with more events",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      90 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-2 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          15 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          25 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay with delay ceiling reached",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      50 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-15 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          15 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          25 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
-							Delay:          40 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(50 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay with delay reset condition met",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      50 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-5 * time.Minute)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          15 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          25 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          40 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-5 * time.Minute).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-		{
-			desc: "fibonacci delay with the most recent event that reset delay value",
-			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "fibonacci",
-				Delay:         5 * time.Second,
-				MaxDelay:      50 * time.Second,
-				Unlimited:     true,
-			},
-			alloc: &Allocation{
-				ClientStatus: AllocClientStatusFailed,
-				TaskStates: map[string]*TaskState{"foo": {State: "start",
-					StartedAt:  now.Add(-1 * time.Hour),
-					FinishedAt: now.Add(-5 * time.Second)}},
-				RescheduleTracker: &RescheduleTracker{
-					Events: []*RescheduleEvent{
-						{
-							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          10 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          15 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          25 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          40 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
-							Delay:          50 * time.Second,
-						},
-						{
-							RescheduleTime: now.Add(-1 * time.Minute).UTC().UnixNano(),
-							Delay:          5 * time.Second,
-						},
-					},
-				}},
-			expectedRescheduleTime:     now.Add(-5 * time.Second).Add(5 * time.Second),
-			expectedRescheduleEligible: true,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			require := require.New(t)
-			j := testJob()
-			if tc.reschedulePolicy != nil {
-				j.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
-			}
-			tc.alloc.Job = j
-			tc.alloc.TaskGroup = j.TaskGroups[0].Name
-			reschedTime, allowed := tc.alloc.NextRescheduleTime()
-			require.Equal(tc.expectedRescheduleEligible, allowed)
-			require.Equal(tc.expectedRescheduleTime, reschedTime)
-		})
-	}
-
-}
-
-func TestAllocation_NeedsToReconnect(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name     string
-		states   []*AllocState
-		expected bool
-	}{
-		{
-			name:     "no state",
-			expected: false,
-		},
-		{
-			name:     "never disconnected",
-			states:   []*AllocState{},
-			expected: false,
-		},
-		{
-			name: "disconnected once",
-			states: []*AllocState{
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now(),
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "disconnect reconnect disconnect",
-			states: []*AllocState{
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now().Add(-2 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusRunning,
-					Time:  time.Now().Add(-1 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now(),
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "disconnect multiple times before reconnect",
-			states: []*AllocState{
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now().Add(-2 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now().Add(-1 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusRunning,
-					Time:  time.Now(),
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "disconnect after multiple updates",
-			states: []*AllocState{
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusPending,
-					Time:  time.Now().Add(-2 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusRunning,
-					Time:  time.Now().Add(-1 * time.Minute),
-				},
-				{
-					Field: AllocStateFieldClientStatus,
-					Value: AllocClientStatusUnknown,
-					Time:  time.Now(),
-				},
-			},
-			expected: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			alloc := MockAlloc()
-			alloc.AllocStates = tc.states
-
-			got := alloc.NeedsToReconnect()
-			require.Equal(t, tc.expected, got)
-		})
-	}
-}
-
-func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
-	ci.Parallel(t)
-	testNow := time.Now()
-
-	testAlloc := MockAlloc()
-
-	testCases := []struct {
-		name            string
-		taskGroup       string
-		disconnectGroup *DisconnectStrategy
-		expected        bool
-		expectedTime    time.Time
-	}{
-		{
-			name:         "missing_task_group",
-			taskGroup:    "missing-task-group",
-			expected:     false,
-			expectedTime: time.Time{},
-		},
-		{
-			name:            "missing_disconnect_group",
-			taskGroup:       "web",
-			disconnectGroup: nil,
-			expected:        true,
-			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
-		},
-		{
-			name:            "empty_disconnect_group",
-			taskGroup:       "web",
-			disconnectGroup: &DisconnectStrategy{},
-			expected:        true,
-			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
-		},
-		{
-			name:      "replace_enabled",
-			taskGroup: "web",
-			disconnectGroup: &DisconnectStrategy{
-				Replace: pointer.Of(true),
-			},
-			expected:     true,
-			expectedTime: testNow,
-		},
-		{
-			name:      "replace_disabled",
-			taskGroup: "web",
-			disconnectGroup: &DisconnectStrategy{
-				Replace: pointer.Of(false),
-			},
-			expected:     false,
-			expectedTime: testNow,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			alloc := testAlloc.Copy()
-
-			alloc.TaskGroup = tc.taskGroup
-			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
-
-			time, eligible := alloc.RescheduleTimeOnDisconnect(testNow)
-
-			must.Eq(t, tc.expected, eligible)
-			must.Eq(t, tc.expectedTime, time)
-		})
-	}
-}
-
-func TestAllocation_LastStartOfTask(t *testing.T) {
-	ci.Parallel(t)
-	testNow := time.Now()
-
-	alloc := MockAlloc()
-	alloc.TaskStates = map[string]*TaskState{
-		"task-with-restarts": {
-			StartedAt:   testNow.Add(-30 * time.Minute),
-			Restarts:    3,
-			LastRestart: testNow.Add(-5 * time.Minute),
-		},
-		"task-without-restarts": {
-			StartedAt: testNow.Add(-30 * time.Minute),
-			Restarts:  0,
-		},
-	}
-
-	testCases := []struct {
-		name     string
-		taskName string
-		expected time.Time
-	}{
-		{
-			name:     "missing_task",
-			taskName: "missing-task",
-			expected: time.Time{},
-		},
-		{
-			name:     "task_with_restarts",
-			taskName: "task-with-restarts",
-			expected: testNow.Add(-5 * time.Minute),
-		},
-		{
-			name:     "task_without_restarts",
-			taskName: "task-without-restarts",
-			expected: testNow.Add(-30 * time.Minute),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			alloc.TaskGroup = "web"
-			got := alloc.LastStartOfTask(tc.taskName)
-
-			must.Eq(t, tc.expected, got)
-		})
-	}
-}
-
-func TestAllocation_Canonicalize_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := MockAlloc()
-	alloc.AllocatedResources = nil
-	alloc.TaskResources = map[string]*Resources{
-		"web": {
-			CPU:      500,
-			MemoryMB: 256,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []Port{{Label: "http", Value: 9876}},
-				},
-			},
-		},
-	}
-	alloc.SharedResources = &Resources{
-		DiskMB: 150,
-	}
-	alloc.Canonicalize()
-
-	expected := &AllocatedResources{
-		Tasks: map[string]*AllocatedTaskResources{
-			"web": {
-				Cpu: AllocatedCpuResources{
-					CpuShares: 500,
-				},
-				Memory: AllocatedMemoryResources{
-					MemoryMB: 256,
-				},
-				Networks: []*NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []Port{{Label: "http", Value: 9876}},
-					},
-				},
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: 150,
-		},
-	}
-
-	require.Equal(t, expected, alloc.AllocatedResources)
-}
-
-// TestAllocation_Canonicalize_New asserts that an alloc with latest
-// schema isn't modified with Canonicalize
-func TestAllocation_Canonicalize_New(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := MockAlloc()
-	copy := alloc.Copy()
-
-	alloc.Canonicalize()
-	require.Equal(t, copy, alloc)
-}
-
-func TestRescheduleTracker_Copy(t *testing.T) {
-	ci.Parallel(t)
-	type testCase struct {
-		original *RescheduleTracker
-		expected *RescheduleTracker
-	}
-	cases := []testCase{
-		{nil, nil},
-		{&RescheduleTracker{Events: []*RescheduleEvent{
-			{RescheduleTime: 2,
-				PrevAllocID: "12",
-				PrevNodeID:  "12",
-				Delay:       30 * time.Second},
-		}}, &RescheduleTracker{Events: []*RescheduleEvent{
-			{RescheduleTime: 2,
-				PrevAllocID: "12",
-				PrevNodeID:  "12",
-				Delay:       30 * time.Second},
-		}}},
-	}
-
-	for _, tc := range cases {
-		if got := tc.original.Copy(); !reflect.DeepEqual(got, tc.expected) {
-			t.Fatalf("expected %v but got %v", *tc.expected, *got)
-		}
 	}
 }
 
@@ -6934,49 +5867,6 @@ func TestIsRecoverable(t *testing.T) {
 	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
 		t.Errorf("Explicitly recoverable errors *should* be recoverable")
 	}
-}
-
-func TestACLTokenSetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	tk := &ACLToken{
-		Name:     "foo",
-		Type:     ACLClientToken,
-		Policies: []string{"foo", "bar"},
-		Global:   false,
-	}
-	out1 := tk.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out1, tk.Hash)
-
-	tk.Policies = []string{"foo"}
-	out2 := tk.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, tk.Hash)
-	assert.Equal(t, out2, tk.Hash)
-	assert.NotEqual(t, out1, out2)
-}
-
-func TestACLPolicySetHash(t *testing.T) {
-	ci.Parallel(t)
-
-	ap := &ACLPolicy{
-		Name:        "foo",
-		Description: "great policy",
-		Rules:       "node { policy = \"read\" }",
-	}
-	out1 := ap.SetHash()
-	assert.NotNil(t, out1)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out1, ap.Hash)
-
-	ap.Rules = "node { policy = \"write\" }"
-	out2 := ap.SetHash()
-	assert.NotNil(t, out2)
-	assert.NotNil(t, ap.Hash)
-	assert.Equal(t, out2, ap.Hash)
-	assert.NotEqual(t, out1, out2)
 }
 
 func TestTaskEventPopulate(t *testing.T) {
@@ -7599,6 +6489,105 @@ func TestNodeResources_Merge(t *testing.T) {
 			},
 		},
 	}, res)
+}
+
+func TestDevicesEquals(t *testing.T) {
+	ci.Parallel(t)
+
+	// we'll compare modified copies of this
+	orig := &NodeResources{
+		Devices: []*NodeDeviceResource{{
+			Vendor: "test-vendor",
+			Type:   "test-type",
+			Name:   "test-name",
+			Instances: []*NodeDevice{{
+				ID:                uuid.Short(),
+				Healthy:           true,
+				HealthDescription: "so healthy",
+				Locality: &NodeDeviceLocality{
+					PciBusID: "another-one-rides-the-bus",
+				},
+			}},
+			Attributes: map[string]*psstructs.Attribute{
+				"test-attr": {String: pointer.Of("test-value")},
+			},
+		}},
+	}
+
+	// equal copy
+	cp := orig.Copy()
+	equal := DevicesEquals(orig.Devices, cp.Devices)
+	must.True(t, equal, must.Sprint("unchanged copy should be equal"))
+
+	// unequal changes
+	for _, tc := range []struct {
+		name   string
+		change func(*NodeResources)
+	}{
+		{
+			name: "nil devices",
+			change: func(r *NodeResources) {
+				r.Devices = nil
+			},
+		},
+		{
+			name: "diff count",
+			change: func(r *NodeResources) {
+				r.Devices = []*NodeDeviceResource{} // zero
+			},
+		},
+		{
+			name: "diff vendor",
+			change: func(r *NodeResources) {
+				r.Devices[0].Vendor = "another-vendor"
+			},
+		},
+		{
+			name: "diff type",
+			change: func(r *NodeResources) {
+				r.Devices[0].Type = "another-type"
+			},
+		},
+		{
+			name: "diff name",
+			change: func(r *NodeResources) {
+				r.Devices[0].Name = "another-name"
+			},
+		},
+		{
+			name: "diff attribute count",
+			change: func(r *NodeResources) {
+				delete(r.Devices[0].Attributes, "test-attr")
+			},
+		},
+		{
+			name: "diff attribute",
+			change: func(r *NodeResources) {
+				r.Devices[0].Attributes["test-attr"] = &psstructs.Attribute{
+					String: pointer.Of("another-value"),
+				}
+			},
+		},
+		{
+			name: "diff instance count",
+			change: func(r *NodeResources) {
+				r.Devices[0].Instances = []*NodeDevice{} // zero
+			},
+		},
+		{
+			name: "diff instance",
+			change: func(r *NodeResources) {
+				r.Devices[0].Instances[0].Healthy = false
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cp = orig.Copy()
+			tc.change(cp)
+			equal = DevicesEquals(orig.Devices, cp.Devices)
+			must.False(t, equal, must.Sprint("changed device should not equal original"))
+		})
+	}
 }
 
 func TestAllocatedPortMapping_Equal(t *testing.T) {

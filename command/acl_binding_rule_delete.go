@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -40,7 +40,7 @@ func (a *ACLBindingRuleDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (a *ACLBindingRuleDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLBindingRulePredictor(a.Meta.Client)
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.

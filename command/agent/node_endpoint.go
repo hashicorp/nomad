@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -104,11 +104,14 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	if out.Allocs == nil {
 		out.Allocs = make([]*structs.Allocation, 0)
 	}
+
+	sanitizedAllocs := []*structs.Allocation{}
 	for _, alloc := range out.Allocs {
 		alloc = alloc.Sanitize()
 		alloc.SetEventDisplayMessages()
+		sanitizedAllocs = append(sanitizedAllocs, alloc)
 	}
-	return out.Allocs, nil
+	return sanitizedAllocs, nil
 }
 
 func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request,

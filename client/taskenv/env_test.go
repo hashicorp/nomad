@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskenv
@@ -857,6 +857,21 @@ func Test_addNetNamespacePort(t *testing.T) {
 				"NOMAD_ALLOC_ADDR_http":      "172.26.64.11:80",
 			},
 			name: "single input port",
+		},
+		{
+			inputPorts: structs.AllocatedPorts{
+				{Label: "http", Value: 80},
+			},
+			inputNetwork: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.64.11",
+			},
+			expectedOutput: map[string]string{
+				"NOMAD_ALLOC_INTERFACE_http": "eth0",
+				"NOMAD_ALLOC_IP_http":        "172.26.64.11",
+				"NOMAD_ALLOC_ADDR_http":      "172.26.64.11:80",
+			},
+			name: "single static input port",
 		},
 		{
 			inputPorts: structs.AllocatedPorts{

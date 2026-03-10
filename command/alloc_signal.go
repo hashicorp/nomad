@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -153,6 +153,7 @@ func (c *AllocSignalCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-s":       complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-task":    complete.PredictAnything,
 		})
 }
 func (c *AllocSignalCommand) AutocompleteArgs() complete.Predictor {

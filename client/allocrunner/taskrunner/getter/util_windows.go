@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build windows
@@ -8,6 +8,8 @@ package getter
 import (
 	"os"
 	"path/filepath"
+
+	log "github.com/hashicorp/go-hclog"
 )
 
 // lockdown is not implemented on Windows
@@ -16,7 +18,7 @@ func lockdownAvailable() bool {
 }
 
 // lockdown is not implemented on Windows
-func lockdown(string, string, []string) error {
+func lockdown(log.Logger, string, string, []string) error {
 	return nil
 }
 

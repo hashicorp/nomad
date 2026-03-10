@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/joseutil"
-	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -157,7 +156,7 @@ func (e *Encrypter) loadKeystore() error {
 
 	keyErrors := map[string]error{}
 
-	return filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
+	filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("could not read path %s from keystore: %v", path, err)
 		}
@@ -186,8 +185,8 @@ func (e *Encrypter) loadKeystore() error {
 
 		key, err := e.loadKeyFromStore(path)
 		if err != nil {
-			keyErrors[id] = err
-			return fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			keyErrors[id] = fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			return nil
 		}
 		if key.Meta.KeyID != id {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
@@ -203,6 +202,16 @@ func (e *Encrypter) loadKeystore() error {
 		delete(keyErrors, id)
 		return nil
 	})
+
+	if len(keyErrors) == 0 {
+		return nil
+	}
+
+	var mErr multierror.Error
+	for _, err := range keyErrors {
+		mErr = *multierror.Append(&mErr, err)
+	}
+	return mErr.ErrorOrNil()
 }
 
 // IsReady blocks until all in-flight decrypt tasks are complete, or the context
@@ -793,12 +802,26 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 
 	wrappedKeys := structs.NewRootKey(rootKey.Meta)
 
+	// we need to ensure we don't leave unrecorded legacy keys on disk if we got
+	// any errors, so collect all the paths we write
+	paths := []string{}
+	cleanup := func() {
+		for _, path := range paths {
+			err := os.Remove(path)
+			if err != nil {
+				e.log.Error("could not remove uncommitted legacy key",
+					"path", path, "error", err)
+			}
+		}
+	}
+
 	for _, provider := range e.providerConfigs {
 		if !provider.Active {
 			continue
 		}
 		wrappedKey, err := e.encryptDEK(rootKey, provider)
 		if err != nil {
+			cleanup()
 			return nil, err
 		}
 
@@ -812,11 +835,21 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 		case provider.Provider == structs.KEKProviderAEAD: // !isUpgraded
 			kek := wrappedKey.KeyEncryptionKey
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 
 		default: // !isUpgraded
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 		}
 
 		wrappedKeys.WrappedKeys = append(wrappedKeys.WrappedKeys, wrappedKey)
@@ -872,7 +905,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 
 func (e *Encrypter) writeKeyToDisk(
 	meta *structs.RootKeyMeta, provider *structs.KEKProviderConfig,
-	wrappedKey *structs.WrappedKey, kek []byte) error {
+	wrappedKey *structs.WrappedKey, kek []byte) (string, error) {
 
 	// the on-disk keystore flattens the keys wrapped for the individual
 	// KMS providers out to their own files
@@ -887,7 +920,7 @@ func (e *Encrypter) writeKeyToDisk(
 
 	buf, err := json.Marshal(diskWrapper)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	filename := fmt.Sprintf("%s.%s%s",
@@ -895,9 +928,9 @@ func (e *Encrypter) writeKeyToDisk(
 	path := filepath.Join(e.keystorePath, filename)
 	err = os.WriteFile(path, buf, 0o600)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return path, nil
 }
 
 // loadKeyFromStore deserializes a root key from disk.
@@ -1189,7 +1222,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 		cfg := krr.srv.GetConfig()
 		self := fmt.Sprintf("%s.%s", cfg.NodeName, cfg.Region)
 
-		for _, peer := range krr.getAllPeers() {
+		for _, peer := range krr.srv.peersCache.LocalPeers() {
 			if peer.Name == self {
 				continue
 			}
@@ -1221,14 +1254,4 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 
 	krr.logger.Debug("added key", "key", keyID)
 	return nil
-}
-
-func (krr *KeyringReplicator) getAllPeers() []*peers.Parts {
-	krr.srv.peerLock.RLock()
-	defer krr.srv.peerLock.RUnlock()
-	peers := make([]*peers.Parts, 0, len(krr.srv.localPeers))
-	for _, peer := range krr.srv.localPeers {
-		peers = append(peers, peer.Copy())
-	}
-	return peers
 }

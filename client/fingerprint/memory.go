@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package fingerprint
@@ -56,3 +56,6 @@ func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 
 	return nil
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *MemoryFingerprint) Reload() {}

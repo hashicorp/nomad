@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -35,7 +35,7 @@ func (c *ACLPolicyDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *ACLPolicyDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return ACLPolicyPredictor(c.Meta.Client)
 }
 
 func (c *ACLPolicyDeleteCommand) Synopsis() string {

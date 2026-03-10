@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -57,6 +57,7 @@ func (s *ServiceListCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-json": complete.PredictNothing,
 			"-t":    complete.PredictAnything,
+			"-name": complete.PredictAnything,
 		})
 }
 

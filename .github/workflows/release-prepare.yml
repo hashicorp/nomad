@@ -1,0 +1,138 @@
+name: Prepare Nomad release branch
+
+# create a specific release/A.B.C branch from a long-lived
+# release/A.B.x branch and prepare it to be built.
+
+on:
+  workflow_call:
+    secrets:
+      gh-token:
+        required: true
+    inputs:
+      org:
+        description: "GitHub org"
+        type: string
+        default: "hashicorp"
+      repo:
+        description: "GitHub repository, e.g. nomad or nomad-enterprise"
+        type: string
+        required: true
+      version:
+        description: "Version to be released"
+        type: string
+        required: true
+      source-branch:
+        description: "Source branch to cut the release branch from, e.g. release/1.11.x"
+        type: string
+        required: true
+    outputs:
+      build-sha:
+        description: "git sha of the commit to use in the build workflow"
+        value: ${{ jobs.prepare.outputs.build-sha }}
+      new-branch:
+        description: "name of the new branch created for this release"
+        value: ${{ jobs.prepare.outputs.new-branch }}
+      changelog:
+        description: "contents of the changelog"
+        value: ${{ jobs.prepare.outputs.changelog }}
+
+jobs:
+  prepare:
+    outputs:
+      new-branch: ${{ steps.push.outputs.new-branch }}
+      build-sha: ${{ steps.push.outputs.build-sha }}
+      changelog: ${{ steps.changelog.outputs.contents }}
+
+    # TODO: self-hosted runners? CI vault?
+    runs-on: ubuntu-latest
+
+    steps:
+      # TODO: check github check status of source-branch?
+      # e.g. https://github.com/marketplace/actions/wait-for-github-status-check
+
+      - name: Git config
+        # note: the global url is mainly for the go toolchain for private repos
+        run: |-
+          git config --global user.email "github-team-nomad-core@hashicorp.com"
+          git config --global user.name "hc-github-team-nomad-core"
+          git config --global url.'https://${{ secrets.gh-token }}@github.com'.insteadOf 'https://github.com'
+
+      - name: Checkout nomad
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ inputs.org }}/${{ inputs.repo }}
+          ref: ${{ inputs.source-branch }}
+          fetch-depth: 0
+          fetch-tags: true # for changelog
+          token: ${{ secrets.gh-token }}
+
+      - name: Semver CLI
+        uses: ./.github/actions/semver
+        with:
+          validate_version: ${{ inputs.version }}
+
+      # need go for changelog-build and static assets
+      - name: Setup Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version-file: ".go-version"
+
+      - name: Update changelog
+        id: changelog # output: contents, file
+        env:
+          NEW_VERSION: ${{ inputs.version }}
+          ALLOW_DIRTY_WORKTREE: true
+          DEBUG: ${{ runner.debug }}
+        run: |-
+          echo '::group::install changelog-build'
+          go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+          echo '::endgroup::'
+          ./scripts/release/update-changelog
+
+      - name: Store changelog
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: "changelog"
+          path: ${{ steps.changelog.outputs.file }}
+          overwrite: true
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Install Go dependencies
+        run: make deps
+
+      - name: Setup JS
+        uses: ./.github/actions/setup-js
+
+      - name: Run prepare script
+        env:
+          NEW_VERSION: ${{ inputs.version }}
+          GO_TAGS: release ${{ endsWith(inputs.version, '+ent') && 'ent consulent' }}
+          GOPRIVATE: "github.com/hashicorp"
+          ALLOW_DIRTY_WORKTREE: true
+          DEBUG: ${{ runner.debug }}
+        run: ./scripts/release/prepare
+
+      - name: Push changes and set outputs
+        id: push
+        run: |-
+          git status
+          git commit -m "release: Generate files and changelog for ${{ inputs.version }}"
+
+          branch="$(git branch --show-current)"
+          sha="$(git rev-parse HEAD)"
+
+          git push origin --force "$branch"
+
+          # summarize and output
+
+          base_url="https://github.com/${{ inputs.org }}/${{ inputs.repo }}"
+          cat <<SUMM >> "$GITHUB_STEP_SUMMARY"
+          Release branch: [$branch]($base_url/tree/$branch)
+          Build sha: [\`$sha\`]($base_url/commit/$sha)
+          SUMM
+
+          cat <<OUT >> "$GITHUB_OUTPUT"
+          new-branch=$branch
+          build-sha=$sha
+          OUT

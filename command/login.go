@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -58,7 +58,7 @@ Login Options:
 
   -login-token
     Login token used for authentication that will be exchanged for a Nomad ACL
-    Token. It is only required if using auth method type other than OIDC. 
+    Token. It is only required if using auth method type other than OIDC.
 
   -json
     Output the ACL token in JSON format.
@@ -256,6 +256,7 @@ func (l *LoginCommand) loginOIDC(ctx context.Context, client *api.Client) (*api.
 		ClientNonce:    callbackServer.Nonce(),
 		Code:           req.Code,
 		State:          req.State,
+		Iss:            req.Iss,
 	}
 
 	token, _, err := client.ACLAuth().CompleteAuth(&cbArgs, nil)

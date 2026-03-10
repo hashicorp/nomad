@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -1207,10 +1207,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		}
 	}
 
-	memoryLimit := taskResources.Memory.MemoryMB
-	if max := taskResources.Memory.MemoryMaxMB; max > memoryLimit {
-		memoryLimit = max
-	}
+	memoryLimit := max(taskResources.Memory.MemoryMB, taskResources.Memory.MemoryMaxMB)
 
 	cpusetCpus := make([]string, len(taskResources.Cpu.ReservedCores))
 	for i, v := range taskResources.Cpu.ReservedCores {

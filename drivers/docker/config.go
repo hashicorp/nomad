@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -518,7 +518,6 @@ type TaskConfig struct {
 type DockerAuth struct {
 	Username   string `codec:"username"`
 	Password   string `codec:"password"`
-	Email      string `codec:"email"`
 	ServerAddr string `codec:"server_address"`
 }
 

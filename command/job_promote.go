@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
@@ -30,10 +29,10 @@ Usage: nomad job promote [options] <job id>
   a new version or failed backwards by reverting to an older version using the
   "nomad job revert" command.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job',
-  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
-  capability is required to run the command with a job prefix instead of the
-  exact job ID.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'promote-job' capability and the 'read-job' capability for the
+  job's namespace. The 'list-jobs' capability is required to run the command
+  with a job prefix instead of the exact job ID.
 
 General Options:
 
@@ -70,18 +69,7 @@ func (c *JobPromoteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobPromoteCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobPromoteCommand) Name() string { return "job promote" }
@@ -123,7 +111,7 @@ func (c *JobPromoteCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -167,6 +155,6 @@ func (c *JobPromoteCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(u.EvalID)
 }

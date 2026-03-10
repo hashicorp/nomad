@@ -12,6 +12,11 @@ on:
         required: true
         type: boolean
         default: false
+      changelog-last-release:
+        description: 'Release version to compare against when generating the changelog'
+        required: false
+        type: string
+        default: ''
       notification-channel:
         description: 'Slack channel to use for notifications'
         required: false
@@ -119,9 +124,12 @@ jobs:
           echo "::group::Fetch all git repo"
           git fetch --unshallow
           echo "::endgroup::"
-
-          echo -e "## ${{ github.event.inputs.version }} ($(date '+%B %d, %Y'))\n$(make changelog)\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
+          version="${{ github.event.inputs.version }}"
+          header="${version//+ent/ Enterprise}"
+          echo -e "## $header ($(date '+%B %d, %Y'))\n$(make changelog)\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
           git diff --color=always CHANGELOG.md
+        env:
+          LAST_RELEASE: ${{ github.event.inputs.changelog-last-release }}
 
       - name: Generate static assets
         id: generate-static-assets

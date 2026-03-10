@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -116,6 +116,7 @@ type SidecarTask struct {
 	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	VolumeMounts  []*VolumeMount         `hcl:"volume_mount,block"`
+	Identities    []*WorkloadIdentity    `hcl:"identity,block"`
 }
 
 func (st *SidecarTask) Canonicalize() {

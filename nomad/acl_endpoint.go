@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -411,7 +411,7 @@ func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLP
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_claim_policies"}, time.Now())
 
 	// Should only be called using a workload identity
-	claims := args.GetIdentity().Claims
+	claims := args.GetIdentity().GetClaims()
 	if claims == nil {
 		// Calling this RPC without a workload identity is either a bug or an
 		// attacker as this RPC is not exposed to users directly.
@@ -2765,6 +2765,20 @@ func (a *ACL) OIDCCompleteAuth(
 	oidcProvider, err := a.oidcProviderCache.Get(authMethod)
 	if err != nil {
 		return fmt.Errorf("failed to generate OIDC provider: %v", err)
+	}
+
+	// Check if the OIDC provider requires the `iss` parameter to be
+	// validated
+	providerMetadata := struct {
+		AuthorizationResponseIssParameterSupported bool `json:"authorization_response_iss_parameter_supported"`
+	}{}
+	if err := oidcProvider.Claims(&providerMetadata); err != nil {
+		return fmt.Errorf("failed to retrieve OIDC provider metadata: %w", err)
+	}
+	if providerMetadata.AuthorizationResponseIssParameterSupported {
+		if args.Iss == "" || args.Iss != authMethod.Config.OIDCDiscoveryURL {
+			return errors.New("invalid or missing issuer parameter in callback")
+		}
 	}
 
 	// Retrieve the request generated in OIDCAuthURL()

@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "nodeID" {
@@ -25,7 +25,7 @@ job "checks_task_restart_helper" {
     }
 
     constraint {
-      attribute = "${node.unique_id}"
+      attribute = "${node.unique.id}"
       value     = "${var.nodeID}"
     }
 

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -17,7 +18,7 @@ type NodeReconciler struct {
 	DeploymentCurrent *structs.Deployment
 	DeploymentUpdates []*structs.DeploymentStatusUpdate
 
-	// COMPAT(1.14.0):
+	// COMPAT(1.11.0):
 	// compatHasSameVersionAllocs indicates that the reconciler found some
 	// allocations that were for the version being deployed
 	compatHasSameVersionAllocs bool
@@ -39,7 +40,6 @@ func (nr *NodeReconciler) Compute(
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	live []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
-	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 
 	// Build a mapping of nodes to all their allocs.
@@ -64,17 +64,27 @@ func (nr *NodeReconciler) Compute(
 	result := new(NodeReconcileResult)
 	for nodeID, allocs := range nodeAllocs {
 		diff := nr.computeForNode(job, nodeID, eligibleNodes,
-			notReadyNodes, taintedNodes, required, allocs, terminal,
-			serverSupportsDisconnectedClients)
+			notReadyNodes, taintedNodes, required, allocs, terminal)
 		result.Append(diff)
 	}
 
-	// COMPAT(1.14.0) prevent a new deployment from being created in the case
+	// COMPAT(1.11.0) prevent a new deployment from being created in the case
 	// where we've upgraded the cluster while a legacy rolling deployment was in
 	// flight, otherwise we won't have HealthAllocs tracking and will never mark
 	// the deployment as complete
 	if !compatHadExistingDeployment && nr.compatHasSameVersionAllocs {
 		nr.DeploymentCurrent = nil
+	}
+	// COMPAT(1.11.0) prevent a new deployment from being created in the case
+	// where we've upgraded the cluster while there are any older nodes in the
+	// eligible set, otherwise we won't have HealthAllocs tracking and will
+	// never mark the deployment as complete
+	if !compatHadExistingDeployment {
+		for _, node := range eligibleNodes {
+			if nr.compatNodeTooOldForDeployment(node) {
+				nr.DeploymentCurrent = nil
+			}
+		}
 	}
 
 	return result
@@ -104,7 +114,6 @@ func (nr *NodeReconciler) computeForNode(
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	liveAllocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
-	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *NodeReconcileResult {
 	result := new(NodeReconcileResult)
 
@@ -150,16 +159,13 @@ func (nr *NodeReconciler) computeForNode(
 			dstate = nr.DeploymentCurrent.TaskGroups[tg.Name]
 		}
 
-		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
-
 		reconnect := false
 		expired := false
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
-		if supportsDisconnectedClients &&
-			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
-				alloc.ClientStatus == structs.AllocClientStatusRunning) {
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
+			alloc.ClientStatus == structs.AllocClientStatusRunning {
 			reconnect = alloc.NeedsToReconnect()
 			if reconnect {
 				expired = alloc.Expired(time.Now())
@@ -177,7 +183,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// Expired unknown allocs are lost. Expired checks that status is unknown.
-		if supportsDisconnectedClients && expired {
+		if expired {
 			result.Lost = append(result.Lost, AllocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -187,8 +193,7 @@ func (nr *NodeReconciler) computeForNode(
 		}
 
 		// Ignore unknown allocs that we want to reconnect eventually.
-		if supportsDisconnectedClients &&
-			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
 			result.Ignore = append(result.Ignore, AllocTuple{
 				Name:      name,
@@ -202,8 +207,7 @@ func (nr *NodeReconciler) computeForNode(
 		node, nodeIsTainted := taintedNodes[alloc.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
-		if supportsDisconnectedClients &&
-			!nodeIsTainted &&
+		if !nodeIsTainted &&
 			reconnect {
 
 			// Record the new ClientStatus to indicate to future evals that the
@@ -232,7 +236,6 @@ func (nr *NodeReconciler) computeForNode(
 
 			// Filter running allocs on a node that is disconnected to be marked as unknown.
 			if node != nil &&
-				supportsDisconnectedClients &&
 				node.Status == structs.NodeStatusDisconnected &&
 				alloc.ClientStatus == structs.AllocClientStatusRunning {
 
@@ -524,6 +527,21 @@ func (nr *NodeReconciler) createDeployment(job *structs.Job, tg *structs.TaskGro
 	}
 
 	nr.DeploymentCurrent.TaskGroups[tg.Name] = dstate
+}
+
+var minVersionSystemDeployments = version.Must(version.NewVersion("1.11.0"))
+
+func (nr *NodeReconciler) compatNodeTooOldForDeployment(node *structs.Node) bool {
+	if node == nil {
+		return false
+	}
+	if nodeVersionStr, ok := node.Attributes["nomad.version"]; ok {
+		nodeVersion, err := version.NewVersion(nodeVersionStr)
+		if err == nil && nodeVersion.LessThan(minVersionSystemDeployments) {
+			return true
+		}
+	}
+	return false
 }
 
 // materializeSystemTaskGroups is used to materialize all the task groups

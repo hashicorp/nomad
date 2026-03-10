@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type AllocStopCommand struct {
@@ -146,10 +148,34 @@ func (c *AllocStopCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(resp.EvalID)
 }
 
 func (c *AllocStopCommand) Synopsis() string {
 	return "Stop and reschedule a running allocation"
+}
+
+func (c *AllocStopCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":            complete.PredictNothing,
+			"-verbose":           complete.PredictNothing,
+			"-no-shutdown-delay": complete.PredictNothing,
+		})
+}
+
+func (c *AllocStopCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }

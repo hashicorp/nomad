@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -1009,14 +1009,14 @@ func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 	// Create 5 nodes in each datacenter.
 	// Use two loops so nodes are separated by datacenter.
 	nodes := []*structs.Node{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		node := mock.Node()
 		node.Name = fmt.Sprintf("node-dc1-%d", i)
 		node.Datacenter = "dc1"
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		node := mock.Node()
 		node.Name = fmt.Sprintf("node-dc2-%d", i)
 		node.Datacenter = "dc2"
@@ -1045,7 +1045,7 @@ func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 	// Create allocs for this job version with one being a canary and another
 	// marked as failed.
 	allocs := []*structs.Allocation{}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job1
 		alloc.JobID = job1.ID
@@ -1099,10 +1099,15 @@ func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 
 		must.Len(t, 1, allocs)
 		alloc := allocs[0]
-		must.SliceContains(t, alloc.Job.Datacenters, node.Datacenter, must.Sprintf(
+
+		expect := "dc2"
+		if alloc.RescheduleTracker != nil {
+			expect = "dc1"
+		}
+
+		must.Eq(t, expect, node.Datacenter, must.Sprintf(
 			"alloc for job in datacenter %q placed in %q",
-			alloc.Job.Datacenters,
-			node.Datacenter,
+			expect, node.Datacenter,
 		))
 	}
 }
@@ -1143,14 +1148,14 @@ func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
 	// Create 5 nodes in each node pool.
 	// Use two loops so nodes are separated by node pool.
 	nodes := []*structs.Node{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		node := mock.Node()
 		node.Name = fmt.Sprintf("node-binpack-%d", i)
 		node.NodePool = poolBinpack.Name
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		node := mock.Node()
 		node.Name = fmt.Sprintf("node-spread-%d", i)
 		node.NodePool = poolSpread.Name
@@ -1179,7 +1184,7 @@ func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
 	// Create allocs for this job version with one being a canary and another
 	// marked as failed.
 	allocs := []*structs.Allocation{}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job1
 		alloc.JobID = job1.ID
@@ -1233,10 +1238,15 @@ func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
 
 		must.Len(t, 1, allocs)
 		alloc := allocs[0]
-		must.Eq(t, alloc.Job.NodePool, node.NodePool, must.Sprintf(
+
+		expect := poolSpread.Name
+		if alloc.RescheduleTracker != nil {
+			expect = poolBinpack.Name
+		}
+
+		must.Eq(t, expect, node.NodePool, must.Sprintf(
 			"alloc for job in node pool %q placed in node in node pool %q",
-			alloc.Job.NodePool,
-			node.NodePool,
+			expect, node.NodePool,
 		))
 	}
 }
@@ -3628,7 +3638,8 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	for _, alloc := range allocs {
-		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
+		must.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, alloc.Job))
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
@@ -3688,8 +3699,7 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	job.Stop = true
-	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -3699,6 +3709,9 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	job.Stop = true
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	// Create a summary where the queued allocs are set as we want to assert
 	// they get zeroed out.
@@ -3764,6 +3777,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		reschedule bool
 		terminal   bool
 		lost       bool
+		inplace    bool
 	}{
 		{
 			name:    "should stop is running should be lost",
@@ -3800,6 +3814,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			desired:    structs.AllocDesiredStatusRun,
 			client:     structs.AllocClientStatusFailed,
 			reschedule: true,
+			inplace:    true,
 		},
 		{
 			name:    "should evict is running should be lost",
@@ -3857,12 +3872,19 @@ func TestServiceSched_NodeDown(t *testing.T) {
 				must.Len(t, 0, h.Plans, must.Sprint("expected no plan"))
 			} else {
 				must.Len(t, 1, h.Plans, must.Sprint("expected plan"))
-
 				plan := h.Plans[0]
-				out := plan.NodeUpdate[node.ID]
-				must.Len(t, 1, out)
 
-				outAlloc := out[0]
+				var outAlloc *structs.Allocation
+				if tc.inplace {
+					out := plan.NodeAllocation[node.ID]
+					must.Len(t, 1, out)
+					outAlloc = out[0]
+				} else {
+					out := plan.NodeUpdate[node.ID]
+					must.Len(t, 1, out)
+					outAlloc = out[0]
+				}
+
 				if tc.migrate {
 					must.NotEq(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
 				} else if tc.reschedule {
@@ -3995,7 +4017,8 @@ func TestServiceSched_StopOnClientAfter(t *testing.T) {
 			must.Eq(t, structs.AllocClientStatusLost, alloc.ClientStatus)
 
 			// 1 if rescheduled, 2 for rescheduled later
-			test.Len(t, tc.expectedAllocStates, alloc.AllocStates)
+			test.Len(t, tc.expectedAllocStates, alloc.AllocStates,
+				test.Sprint("unexpected allocation states"))
 
 			if tc.expectBlockedEval {
 				must.Eq(t, structs.EvalStatusBlocked, followupEval.Status)
@@ -4999,13 +5022,14 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 
 	// "use up" resources on the node so the follow-up will block
 	node.NodeResources.Memory.MemoryMB = 200
+
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Process the follow-up eval, which results in a stop but not a replacement
 	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
 	must.Len(t, 4, h.Plans)
-	must.MapLen(t, 1, h.Plans[3].NodeUpdate)     // stop
-	must.MapLen(t, 0, h.Plans[3].NodeAllocation) // place
+	must.MapLen(t, 0, h.Plans[3].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[3].NodeAllocation) // update
 
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	must.NoError(t, err)
@@ -5028,10 +5052,14 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
 	must.Len(t, 4, h.Plans, must.Sprint("expected no new plan"))
 
-	// bypass the timer check by setting the alloc's follow-up eval ID to be the
-	// blocked eval
 	alloc, err = h.State.AllocByID(ws, replacementAllocID)
 	must.NoError(t, err)
+	must.NotNil(t, alloc)
+	must.NotNil(t, alloc.RescheduleTracker)
+	must.Eq(t, structs.LastRescheduleFailedToPlace, alloc.RescheduleTracker.LastReschedule)
+
+	// bypass the timer check by setting the alloc's follow-up eval ID to be the
+	// blocked eval
 	alloc = alloc.Copy()
 	alloc.FollowupEvalID = blockedEval.ID
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
@@ -5136,13 +5164,13 @@ func TestServiceSched_BlockedDisconnectReplace(t *testing.T) {
 	followupEval0 := h.CreateEvals[0]
 	followupEval1 := h.CreateEvals[1]
 
-	must.Eq(t, structs.EvalStatusBlocked, followupEval0.Status)
-	must.Eq(t, structs.EvalStatusPending, followupEval1.Status)
+	must.Eq(t, structs.EvalStatusPending, followupEval0.Status) // max-client-disconnect
+	must.Eq(t, structs.EvalStatusPending, followupEval1.Status) // alloc-reschedule
 
 	// TODO: the top-level scheduler calls its own time.Now not shared with the
 	// reconciler
 	//	must.Eq(t, now.Add(lostAfterDuration), followupEval1.WaitUntil)
-	must.True(t, followupEval1.WaitUntil.After(now.Add(lostAfterDuration)))
+	must.True(t, followupEval0.WaitUntil.After(now.Add(lostAfterDuration)))
 
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Evaluation{followupEval0, followupEval1}))

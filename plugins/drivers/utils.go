@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -469,6 +469,10 @@ func TaskStatsFromProto(pb *proto.TaskStats) (*TaskResourceUsage, error) {
 }
 
 func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
+	if ru == nil {
+		return &proto.TaskResourceUsage{}
+	}
+
 	cpu := &proto.CPUUsage{
 		MeasuredFields:   cpuUsageMeasuredFieldsToProto(ru.CpuStats.Measured),
 		SystemMode:       ru.CpuStats.SystemMode,

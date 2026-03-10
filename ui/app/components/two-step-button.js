@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -27,6 +27,7 @@ export default class TwoStepButton extends Component {
   disabled = false;
   alignRight = false;
   inlineText = false;
+  title = '';
   onConfirm() {}
   onCancel() {}
   onPrompt() {}

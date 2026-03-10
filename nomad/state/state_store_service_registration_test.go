@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -660,6 +660,12 @@ func TestAlloc_ServiceRegistrationLifecycle(t *testing.T) {
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc0.Job))
+
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc1.Job))
+
+	index++
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index,
 		[]*structs.Allocation{alloc0, alloc1}))
 
@@ -695,9 +701,7 @@ func TestAlloc_ServiceRegistrationLifecycle(t *testing.T) {
 	index++
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
-			AllocUpdateRequest: structs.AllocUpdateRequest{
-				AllocsStopped: []*structs.AllocationDiff{&diff},
-			},
+			AllocsStopped: []*structs.AllocationDiff{&diff},
 		}))
 
 	iter, err = store.GetServiceRegistrationsByAllocID(nil, alloc1.ID)

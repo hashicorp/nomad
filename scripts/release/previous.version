@@ -1,0 +1,3 @@
+# this is the last version that was published.
+# value updated by scripts/release/finalize, consumed by update-changelog.
+1.11.2

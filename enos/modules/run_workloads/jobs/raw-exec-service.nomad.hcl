@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "alloc_count" {
@@ -6,7 +6,7 @@ variable "alloc_count" {
   default = 1
 }
 
-job "service-raw" {
+job "service-raw-exec" {
 
   group "service-raw" {
     count = var.alloc_count

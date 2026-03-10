@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -20,7 +20,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )
 
@@ -57,13 +57,14 @@ type ErrJobRestartPlacementFailure struct {
 	EvalID    string
 	TaskGroup string
 	Failures  *api.AllocationMetric
+	colorize  *colorstring.Colorize
 }
 
 func (e ErrJobRestartPlacementFailure) Error() string {
 	return fmt.Sprintf("Evaluation %q has placement failures for group %q:\n%s",
 		e.EvalID,
 		e.TaskGroup,
-		formatAllocMetrics(e.Failures, false, strings.Repeat(" ", 4)),
+		formatAllocMetrics(e.Failures, e.colorize, false, strings.Repeat(" ", 4)),
 	)
 }
 
@@ -231,18 +232,7 @@ func (c *JobRestartCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobRestartCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobRestartCommand) Name() string { return "job restart" }
@@ -266,7 +256,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Use prefix matching to find job.
-	job, err := c.JobByPrefix(c.client, c.jobID, nil)
+	job, err := c.JobByPrefix(c.client, c.jobID, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -1053,6 +1043,7 @@ func (c *JobRestartCommand) monitorPlacementFailures(
 					EvalID:    limit(eval.ID, c.length),
 					TaskGroup: alloc.TaskGroup,
 					Failures:  failures,
+					colorize:  c.Colorize(),
 				}
 				return
 			}

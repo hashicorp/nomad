@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -39,11 +39,13 @@ func (c *JobTagUnsetCommand) Synopsis() string {
 
 func (c *JobTagUnsetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-name": complete.PredictAnything,
+		})
 }
 
 func (c *JobTagUnsetCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobTagUnsetCommand) Name() string { return "job tag unset" }
@@ -92,7 +94,7 @@ func (c *JobTagUnsetCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(job)
-	jobID, _, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, _, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

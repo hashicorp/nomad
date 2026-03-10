@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
-set -xeuo pipefail
+set -euo pipefail
 
 TIMEOUT=10
 INTERVAL=2

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -76,6 +76,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-ui":      complete.PredictNothing,
+			"-wait":    complete.PredictAnything,
 		})
 }
 

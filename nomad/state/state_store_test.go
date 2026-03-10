@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -106,7 +106,6 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	test.True(t, resp.(bool))
 }
 
-// COMPAT 0.11: Uses AllocUpdateRequest.Alloc
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are created
@@ -128,11 +127,9 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
-		EvalID: eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Job:           job,
+		EvalID:        eval.ID,
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -168,6 +165,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	stoppedAlloc := mock.Alloc()
 	stoppedAlloc.Job = job
+	stoppedAlloc.JobID = job.ID
 	stoppedAllocDiff := &structs.AllocationDiff{
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: "desired desc",
@@ -175,14 +173,15 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 	preemptedAlloc := mock.Alloc()
 	preemptedAlloc.Job = job
+	preemptedAlloc.JobID = job.ID
 	preemptedAllocDiff := &structs.AllocationDiff{
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
 
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, job))
 	must.NoError(t, state.UpsertAllocs(
-		structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+		structs.MsgTypeTestSetup, 999, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
 	mJob := job.Copy()
@@ -198,11 +197,9 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			AllocsUpdated: []*structs.Allocation{alloc},
-			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
-			Job:           mJob,
-		},
+		AllocsUpdated:   []*structs.Allocation{alloc},
+		AllocsStopped:   []*structs.AllocationDiff{stoppedAllocDiff},
+		Job:             mJob,
 		EvalID:          eval.ID,
 		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
 	}
@@ -260,7 +257,9 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	alloc2 := mock.Alloc()
 	job := alloc.Job
 	alloc.Job = nil
+	alloc.JobID = job.ID
 	alloc2.Job = nil
+	alloc2.JobID = job.ID
 
 	d := mock.Deployment()
 	alloc.DeploymentID = d.ID
@@ -276,12 +275,10 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
+		Job:           job,
+		Deployment:    d,
+		EvalID:        eval.ID,
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -318,12 +315,10 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 
 	// Create another plan
 	res = structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{allocNew, allocNew2},
-			Job:   job,
-		},
-		Deployment: d2,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{allocNew, allocNew2},
+		Job:           job,
+		Deployment:    d2,
+		EvalID:        eval.ID,
 	}
 
 	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1001, &res)
@@ -367,6 +362,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 
 	// Insert alloc that will be preempted in the plan
 	preemptedAlloc := mock.Alloc()
+	preemptedAlloc.JobID = job.ID
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{preemptedAlloc})
 	must.NoError(t, err)
 
@@ -382,12 +378,10 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
+		AllocsUpdated:   []*structs.Allocation{alloc},
+		Job:             job,
 		EvalID:          eval.ID,
-		NodePreemptions: []*structs.Allocation{minimalPreemptedAlloc},
+		AllocsPreempted: []*structs.AllocationDiff{minimalPreemptedAlloc.AllocationDiff()},
 		PreemptionEvals: []*structs.Evaluation{eval2},
 	}
 
@@ -448,6 +442,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}))
 	alloc := mock.Alloc()
 	alloc.Job = nil
+	alloc.JobID = job.ID
 
 	dnew := mock.Deployment()
 	dnew.JobID = job.ID
@@ -462,10 +457,8 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
+		AllocsUpdated:     []*structs.Allocation{alloc},
+		Job:               job,
 		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 		EvalID:            eval.ID,
@@ -527,11 +520,9 @@ func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc},
-			Job:   job,
-		},
-		EvalID: eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Job:           job,
+		EvalID:        eval.ID,
 	}
 
 	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
@@ -3622,20 +3613,25 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	// Volume IDs
 	vol0, vol1 := uuid.Generate(), uuid.Generate()
 
-	// Create a node running a healthy instance of the plugin
-	node := mock.Node()
-	pluginID := "minnie"
-	alloc := mock.Alloc()
-	alloc.DesiredStatus = "run"
-	alloc.ClientStatus = "running"
-	alloc.NodeID = node.ID
-	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+	mockJob := mock.Job()
+	mockJob.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
 		"foo": {
 			Name:   "foo",
 			Source: vol0,
 			Type:   "csi",
 		},
 	}
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, mockJob))
+
+	// Create a node running a healthy instance of the plugin
+	node := mock.Node()
+	pluginID := "minnie"
+	alloc := mock.Alloc()
+	alloc.JobID = mockJob.ID
+	alloc.Job = mockJob
+	alloc.DesiredStatus = "run"
+	alloc.ClientStatus = "running"
+	alloc.NodeID = node.ID
 
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		pluginID: {
@@ -3739,7 +3735,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// Allocs
 	a0 := mock.Alloc()
+	a0.JobID = mockJob.ID
+	a0.Job = mockJob
 	a1 := mock.Alloc()
+	a1.JobID = mockJob.ID
+	a1.Job = mockJob
 	index++
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{a0, a1})
 	must.NoError(t, err)
@@ -4520,10 +4520,21 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
+
+	mockJob1 := mock.Job()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 898, nil, mockJob1))
+
+	mockJob2 := mock.Job()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 899, nil, mockJob2))
+
 	eval1 := mock.Eval()
+	eval1.JobID = mockJob1.ID
 	eval2 := mock.Eval()
+	eval2.JobID = mockJob2.ID
 	alloc1 := mock.Alloc()
+	alloc1.JobID = mockJob1.ID
 	alloc2 := mock.Alloc()
+	alloc2.JobID = mockJob2.ID
 
 	// Create watchsets so we can test that upsert fires the watch
 	watches := make([]memdb.WatchSet, 12)
@@ -4939,28 +4950,47 @@ func TestStateStore_EvalIsUserDeleteSafe(t *testing.T) {
 func TestStateStore_EvalsByJob(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	t.Run("return all evals for job", func(t *testing.T) {
+		state := testStateStore(t)
 
-	eval1 := mock.Eval()
-	eval2 := mock.Eval()
-	eval2.JobID = eval1.JobID
-	eval3 := mock.Eval()
-	evals := []*structs.Evaluation{eval1, eval2}
+		eval1 := mock.Eval()
+		eval2 := mock.Eval()
+		eval2.JobID = eval1.JobID
+		eval3 := mock.Eval()
+		evals := []*structs.Evaluation{eval1, eval2}
 
-	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, evals)
-	must.NoError(t, err)
-	err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval3})
-	must.NoError(t, err)
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, evals)
+		must.NoError(t, err)
+		err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval3})
+		must.NoError(t, err)
 
-	ws := memdb.NewWatchSet()
-	out, err := state.EvalsByJob(ws, eval1.Namespace, eval1.JobID)
-	must.NoError(t, err)
+		ws := memdb.NewWatchSet()
+		out, err := state.EvalsByJob(ws, eval1.Namespace, eval1.JobID)
+		must.NoError(t, err)
 
-	sort.Sort(EvalIDSort(evals))
-	sort.Sort(EvalIDSort(out))
+		sort.Sort(EvalIDSort(evals))
+		sort.Sort(EvalIDSort(out))
 
-	must.Eq(t, evals, out)
-	must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
+		must.Eq(t, evals, out)
+		must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
+	})
+
+	t.Run("excludes job with matching prefix", func(t *testing.T) {
+		state := testStateStore(t)
+		eval1 := mock.Eval()
+		eval1.JobID = "hello"
+		must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1}))
+
+		eval2 := mock.Eval()
+		eval2.JobID = "hellohello"
+		must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval2}))
+
+		ws := memdb.NewWatchSet()
+		evals, err := state.EvalsByJob(ws, structs.DefaultNamespace, "hello")
+		must.NoError(t, err)
+		must.Len(t, 1, evals)
+		must.Eq(t, evals[0].JobID, eval1.JobID)
+	})
 }
 
 func TestStateStore_Evals(t *testing.T) {
@@ -5573,11 +5603,15 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		Canary: true,
 	}
 
+	must.False(t, alloc.DeploymentStatus.IsHealthy())
+
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
+	// note this is the equivalent of the "stripped" alloc update that the
+	// client sends
 	update := &structs.Allocation{
 		ID:           alloc.ID,
 		NodeID:       alloc.NodeID,
@@ -5585,8 +5619,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy: pointer.Of(true),
-			Canary:  false,
+			Canary: false, // should not update
 		},
 	}
 	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
@@ -5596,8 +5629,34 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, out)
 	must.True(t, out.DeploymentStatus.Canary)
+
+	// Drop the task group
+
+	deployment, err = state.DeploymentByID(nil, deployment.ID)
+	must.NoError(t, err)
+	deployment = deployment.Copy()
+	deployment.TaskGroups[alloc.TaskGroup] = nil
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1005,
+		&structs.ApplyPlanResultsRequest{Deployment: deployment}))
+
+	update = update.Copy()
+	update.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: pointer.Of(true), // should update
+		Canary:  false,            // should not update
+	}
+	must.NoError(t, state.UpdateAllocsFromClient(
+		structs.MsgTypeTestSetup, 1010, []*structs.Allocation{update}))
+
+	out, err = state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	must.True(t, out.DeploymentStatus.Canary)
 	must.NotNil(t, out.DeploymentStatus.Healthy)
 	must.True(t, *out.DeploymentStatus.Healthy)
+
+	d, err := state.DeploymentByID(nil, deployment.ID)
+	must.NoError(t, err)
+	must.Eq(t, 1, d.TaskGroups[alloc.TaskGroup].HealthyAllocs)
 }
 
 // TestStateStore_UpdateAllocsFromClient_UpdateNodes verifies that the relevant
@@ -5818,7 +5877,9 @@ func TestStateStore_UpsertAlloc_AllocsByNamespace(t *testing.T) {
 
 	must.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc3.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc2.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc3.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, alloc4.Job))
 
 	// Create watchsets so we can test that update fires the watch
 	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
@@ -5951,6 +6012,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	allocWithClaimedVol.Job = stickyJob
 	allocWithClaimedVol.NodeID = nodes[1].ID
 
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, allocWithClaimedVol.Job))
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocWithClaimedVol}))
 
 	// there must be exactly one claim in the state
@@ -5983,6 +6045,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	allocWithNoClaimedVol.Job = stickyJob2
 	allocWithNoClaimedVol.NodeID = nodes[1].ID
 
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, allocWithNoClaimedVol.Job))
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{allocWithNoClaimedVol}))
 
 	// make sure we recorded a claim
@@ -6044,6 +6107,9 @@ func TestStateStore_UpsertAlloc_NextAllocation(t *testing.T) {
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.PreviousAllocation = alloc1.ID
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 901, nil, alloc2.Job))
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	must.NoError(t, err)
@@ -6158,39 +6224,38 @@ func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
 	}
 }
 
-// This test ensures an allocation can be updated when there is no job
-// associated with it. This will happen when a job is stopped by an user which
-// has non-terminal allocations on clients
-func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
+// TestStateStore_UpdateAlloc_JobPurge tests that updating an allocation after
+// its job has been purged does not recreate the allocation in state.
+func TestStateStore_UpdateAlloc_JobPurge(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	// Upsert a job
-	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	// Upsert a job.
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
-	must.NoError(t, err)
-
+	// The DeleteJob function calls the DeleteJobTxn method, which is called
+	// when a job is purged and is the only caller. Here we simulate the job
+	// being purged from the state which will remove the job from the state and
+	// all associated allocations.
 	must.NoError(t, state.DeleteJob(1001, alloc.Namespace, alloc.JobID))
 
-	// Update the desired state of the allocation to stop
-	allocCopy := alloc.Copy()
-	allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{allocCopy}))
-
-	// Update the client state of the allocation to complete
-	allocCopy1 := allocCopy.Copy()
+	// Update the client state of the allocation to complete and use the state
+	// function which is triggered by the client updater process RPC call. This
+	// should no return an error, but also not re-create the allocation in
+	// state as it has already been removed by the purge.
+	allocCopy1 := alloc.Copy()
 	allocCopy1.ClientStatus = structs.AllocClientStatusComplete
-	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{allocCopy1}))
+	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{allocCopy1}))
 
-	ws := memdb.NewWatchSet()
-	out, _ := state.AllocByID(ws, alloc.ID)
-	// Update the modify index of the alloc before comparing
-	allocCopy1.ModifyIndex = 1003
-	must.Eq(t, out, allocCopy1)
+	// Ensure the client allocation update was a noop due to the job being
+	// purged.
+	out, err := state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.Nil(t, out)
 }
 
 func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
@@ -6614,15 +6679,14 @@ func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
-	must.NoError(t, err)
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	alloc2 := new(structs.Allocation)
 	*alloc2 = *alloc
 	alloc2.DesiredStatus = structs.AllocDesiredStatusEvict
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
-	must.NoError(t, err)
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2}))
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
@@ -6649,7 +6713,8 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 	}
 
 	for idx, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+idx), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+idx), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+idx), nil, alloc.Job))
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
@@ -6685,7 +6750,8 @@ func TestStateStore_AllocsByNodeTerminal(t *testing.T) {
 	}
 
 	for idx, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+idx), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+idx), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+idx), nil, alloc.Job))
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
@@ -6721,11 +6787,13 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 	for range 10 {
 		alloc := mock.Alloc()
 		alloc.JobID = "foo"
+		alloc.Job.ID = "foo"
 		allocs = append(allocs, alloc)
 	}
 
 	for i, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+i), nil, alloc.Job))
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
@@ -6819,7 +6887,8 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	}
 
 	for i, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+i), nil, alloc.Job))
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
@@ -6910,9 +6979,13 @@ func TestStateStore_AllocsByIDPrefix_Namespaces(t *testing.T) {
 	ns2.Name = "namespace2"
 
 	alloc1.Namespace = ns1.Name
+	alloc1.Job.Namespace = ns1.Name
 	alloc2.Namespace = ns2.Name
+	alloc2.Job.Namespace = ns2.Name
 
 	must.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc2.Job))
 	must.NoError(t, state.UpsertAllocs(
 		structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
@@ -6959,7 +7032,8 @@ func TestStateStore_Allocs(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	for i, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+i), nil, alloc.Job))
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
@@ -6996,7 +7070,8 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	for i, alloc := range allocs {
-		state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID))
+		must.NoError(t, state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, uint64(900+i), nil, alloc.Job))
 	}
 	// Set some previous alloc ids
 	allocs[1].PreviousAllocation = allocs[0].ID
@@ -7030,6 +7105,8 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 
 	// Insert another alloc, verify index of previous alloc also got updated
 	alloc := mock.Alloc()
+	alloc.Job = allocs[0].Job
+	alloc.JobID = allocs[0].JobID
 	alloc.PreviousAllocation = allocs[0].ID
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
 	must.NoError(t, err)
@@ -7268,9 +7345,8 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			name: "reschedulable alloc is pending waiting for replacement",
 			setup: func(t *testing.T, txn *txn) *structs.Job {
 				j := mock.Job()
-				if j.TaskGroups[0].ReschedulePolicy == nil {
-					t.Fatal("test job has no reschedule policy")
-				}
+				must.NotNil(t, j.TaskGroups[0].ReschedulePolicy)
+
 				a := mock.Alloc()
 				a.Job = j
 				a.JobID = j.ID
@@ -7317,6 +7393,28 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				e.JobID = j.ID
 				e.Status = structs.EvalStatusComplete
 				err = txn.Insert("evals", e)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name: "filters evals with matching job ID prefix",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+
+				j := mock.Job()
+				must.NotNil(t, j.TaskGroups[0].ReschedulePolicy)
+
+				e1 := mock.Eval()
+				e1.JobID = j.ID
+				e1.Status = structs.EvalStatusComplete
+				err := txn.Insert("evals", e1)
+				must.NoError(t, err)
+
+				e2 := mock.Eval()
+				e2.JobID = fmt.Sprintf("%s%s", j.ID, j.ID)
+				e2.Status = structs.EvalStatusPending
+				err = txn.Insert("evals", e2)
 				must.NoError(t, err)
 				return j
 			},
@@ -8176,7 +8274,8 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 	// Insert an alloc for a random deployment
 	a := mock.Alloc()
 	a.DeploymentID = d1.ID
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, a.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))
 
 	// Set health against the terminal deployment
 	req := &structs.ApplyDeploymentAllocHealthRequest{
@@ -8185,7 +8284,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 			HealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 4, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 5, req)
 	if err == nil || !strings.Contains(err.Error(), "not part of deployment") {
 		t.Fatalf("expected error because the alloc isn't part of the deployment: %v", err)
 	}
@@ -8197,20 +8296,23 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 
 	state := testStateStore(t)
 
+	// Create a job to roll back to
+	mockJob := mock.Job()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, mockJob))
+
 	// Insert a deployment
 	d := mock.Deployment()
 	d.TaskGroups["web"].ProgressDeadline = 5 * time.Minute
-	must.NoError(t, state.UpsertDeployment(1, d))
+	must.NoError(t, state.UpsertDeployment(2, d))
 
 	// Insert two allocations
 	a1 := mock.Alloc()
 	a1.DeploymentID = d.ID
+	a1.JobID = mockJob.ID
 	a2 := mock.Alloc()
 	a2.DeploymentID = d.ID
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{a1, a2}))
-
-	// Create a job to roll back to
-	j := mock.Job()
+	a2.JobID = mockJob.ID
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{a1, a2}))
 
 	// Create an eval that should be upserted
 	e := mock.Eval()
@@ -8233,12 +8335,12 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 			HealthyAllocationIDs:   []string{a1.ID},
 			UnhealthyAllocationIDs: []string{a2.ID},
 		},
-		Job:              j,
+		Job:              mockJob,
 		Eval:             e,
 		DeploymentUpdate: u,
 		Timestamp:        ts,
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 3, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 4, req)
 	must.NoError(t, err)
 
 	// Check that the status was updated properly
@@ -8257,7 +8359,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 	}
 
 	// Check that the job was created
-	jout, _ := state.JobByID(ws, j.Namespace, j.ID)
+	jout, _ := state.JobByID(ws, mockJob.Namespace, mockJob.ID)
 	must.NoError(t, err)
 	if jout == nil {
 		t.Fatalf("bad: %#v", jout)
@@ -10059,6 +10161,36 @@ func TestStateStore_CancelFollowupEvalsOnReconnect(t *testing.T) {
 			must.Eq(t, "", alloc.FollowupEvalID)
 		})
 	}
+}
+
+func TestStateStore_CheckIdempotencyToken(t *testing.T) {
+	ci.Parallel(t)
+
+	store := testStateStore(t)
+	parent := mock.BatchJob()
+	parent.ID = "parent"
+	index, _ := store.LatestIndex()
+
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, parent))
+
+	token := uuid.Generate()
+	dispatch1 := parent.Copy()
+	dispatch1.ParentID = parent.ID
+	dispatch1.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch1.DispatchIdempotencyToken = token
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, dispatch1))
+
+	found, err := store.CheckIdempotencyToken(parent.Namespace, parent.ID, token)
+	must.NoError(t, err)
+	must.NotNil(t, found)
+	must.Eq(t, index, found.CreateIndex)
+
+	other := uuid.Generate()
+	found, err = store.CheckIdempotencyToken(parent.Namespace, parent.ID, other)
+	must.NoError(t, err)
+	must.Nil(t, found)
 }
 
 // watchFired is a helper for unit tests that returns if the given watch set

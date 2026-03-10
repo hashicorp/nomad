@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -49,6 +49,9 @@ type secretsHookConfig struct {
 
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
+
+	// jobId is the ID of the job
+	jobId string
 }
 
 type secretsHook struct {
@@ -70,6 +73,9 @@ type secretsHook struct {
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
 
+	// jobId is the nomad job's ID
+	jobId string
+
 	// secrets to be fetched and populated for interpolation
 	secrets []*structs.Secret
 }
@@ -82,6 +88,7 @@ func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secrets
 		clientConfig:   conf.clientConfig,
 		envBuilder:     conf.envBuilder,
 		nomadNamespace: conf.nomadNamespace,
+		jobId:          conf.jobId,
 		secrets:        secrets,
 	}
 }
@@ -160,8 +167,12 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 	h.envBuilder.SetSecrets(m)
 
-	// Set secrets from plugin providers
+	taskEnv := h.envBuilder.Build()
+
 	for _, p := range pluginProvider {
+		if ep, ok := p.(*secrets.ExternalPluginProvider); ok {
+			ep.InterpolateEnv(taskEnv.ReplaceEnv)
+		}
 		vars, err := p.Fetch(ctx)
 		if err != nil {
 			return err
@@ -198,14 +209,28 @@ func (h *secretsHook) buildSecretProviders(secretDir string) ([]TemplateProvider
 				tmplProvider = append(tmplProvider, p)
 			}
 		default:
-			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider, s.Env)
+			plug, err := commonplugins.NewExternalSecretsPlugin(h.clientConfig.CommonPluginDir, s.Provider)
 			if err != nil {
 				multierror.Append(mErr, err)
 				continue
 			}
-			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Name, s.Path))
+			// Add/overwrite the nomad namespace and jobID envVars
+			s.Env = h.setupPluginEnv(s.Env)
+			pluginProvider = append(pluginProvider, secrets.NewExternalPluginProvider(plug, s.Provider, s.Name, s.Path, s.Env))
 		}
 	}
 
 	return tmplProvider, pluginProvider, mErr.ErrorOrNil()
+}
+
+func (h *secretsHook) setupPluginEnv(env map[string]string) map[string]string {
+	if env == nil {
+		env = make(map[string]string)
+	}
+
+	// set jobID and namespace, overwriting anything already set
+	env[taskenv.JobID] = h.jobId
+	env[taskenv.Namespace] = h.nomadNamespace
+
+	return env
 }

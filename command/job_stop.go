@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -28,10 +27,10 @@ Alias: nomad stop
   allocations and completes shutting down. It is safe to exit the monitor
   early using ctrl+c.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
-  capability is required to run the command with job prefixes instead of exact
-  job IDs.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'deregister-job' capability and 'read-job' capability for the
+  job's namespace. The 'list-jobs' capability is required to run the command
+  with job prefixes instead of exact job IDs.
 
 General Options:
 
@@ -90,18 +89,7 @@ func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobStopCommand) Name() string { return "job stop" }
@@ -160,7 +148,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			}
 
 			// Check if the job exists
-			job, err := c.JobByPrefix(client, jobID, nil)
+			job, err := c.JobByPrefix(client, jobID, "")
 			if err != nil {
 				c.Ui.Error(err.Error())
 				statusCh <- 1
@@ -239,7 +227,7 @@ func (c *JobStopCommand) Run(args []string) int {
 
 			// Start monitoring the stop eval
 			// and return result on status channel
-			mon := newMonitor(c.Ui, client, length)
+			mon := newMonitor(c.Meta, client, length)
 			statusCh <- mon.monitor(evalID)
 		}()
 	}

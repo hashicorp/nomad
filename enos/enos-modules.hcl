@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 module "fetch_binaries" {
@@ -15,6 +15,10 @@ module "run_workloads" {
 
 module "test_cluster_health" {
   source = "./modules/test_cluster_health"
+}
+
+module "test_workload_health" {
+  source = "./modules/test_workload_health"
 }
 
 module "upgrade_servers" {

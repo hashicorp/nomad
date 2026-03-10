@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,6 +14,7 @@ import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'nomad-ui/mirage/faker';
 
 const assignAlloc = (volume, alloc) => {
   volume.allocations.add(alloc);
@@ -27,6 +28,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   let volume;
 
   hooks.beforeEach(function () {
+    faker.seed(1);
     server.create('node-pool');
     server.create('node');
     server.create('job', {
@@ -71,19 +73,49 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   });
 
   test('/storage/volumes/:id should list all allocations the volume is attached to', async function (assert) {
-    const allocations = server.createList('allocation', 3);
+    // Use fixed timestamps so both absolute dates and relative times are
+    // deterministic across Percy snapshot runs.
+    const pinned = new Date('2025-06-15T12:00:00Z');
+    const pinnedNs = pinned.getTime() * 1e6; // nanoseconds
+
+    const allocations = [
+      server.create('allocation', {
+        createTime: pinnedNs - 9 * 3600e9,
+        modifyTime: pinnedNs - 9 * 3600e9,
+      }),
+      server.create('allocation', {
+        createTime: pinnedNs - 15 * 3600e9,
+        modifyTime: pinnedNs - 15 * 3600e9,
+      }),
+      server.create('allocation', {
+        createTime: pinnedNs - 1 * 3600e9,
+        modifyTime: pinnedNs - 1 * 3600e9,
+      }),
+    ];
     allocations.forEach((alloc) => assignAlloc(volume, alloc));
 
-    await VolumeDetail.visit({ id: `${volume.id}@default` });
+    // Freeze moment's time reference so relative times ("9 hours ago") are
+    // deterministic across Percy snapshot runs.
+    const originalMomentNow = moment.now;
+    moment.now = () => pinned.getTime();
 
-    assert.equal(VolumeDetail.allocations.length, allocations.length);
-    allocations
-      .sortBy('modifyIndex')
-      .reverse()
-      .forEach((allocation, idx) => {
-        assert.equal(allocation.id, VolumeDetail.allocations.objectAt(idx).id);
-      });
-    await percySnapshot(assert);
+    try {
+      await VolumeDetail.visit({ id: `${volume.id}@default` });
+
+      assert.equal(VolumeDetail.allocations.length, allocations.length);
+      allocations
+        .sortBy('modifyIndex')
+        .reverse()
+        .forEach((allocation, idx) => {
+          assert.equal(
+            allocation.id,
+            VolumeDetail.allocations.objectAt(idx).id
+          );
+        });
+      await percySnapshot(assert);
+    } finally {
+      moment.now = originalMomentNow;
+    }
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {

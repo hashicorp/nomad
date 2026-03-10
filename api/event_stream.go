@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 const (
@@ -90,6 +90,17 @@ func (e *Event) Job() (*Job, error) {
 	return out.Job, nil
 }
 
+// DeregisteredJob returns a Job struct from a given event payload. If the Event
+// Topic is Job this will return a valid Job and whether that job was deleted
+// (purged).
+func (e *Event) DeregisteredJob() (*Job, bool, error) {
+	out, err := e.decodePayload()
+	if err != nil {
+		return nil, false, err
+	}
+	return out.Job, out.Deleted, nil
+}
+
 // Node returns a Node struct from a given event payload. If the
 // Event Topic is Node this will return a valid Node.
 func (e *Event) Node() (*Node, error) {
@@ -125,6 +136,7 @@ type eventPayload struct {
 	Deployment *Deployment          `mapstructure:"Deployment"`
 	Evaluation *Evaluation          `mapstructure:"Evaluation"`
 	Job        *Job                 `mapstructure:"Job"`
+	Deleted    bool                 `mapstructure:"Deleted"`
 	Node       *Node                `mapstructure:"Node"`
 	NodePool   *NodePool            `mapstructure:"NodePool"`
 	Service    *ServiceRegistration `mapstructure:"Service"`
@@ -167,6 +179,8 @@ func (c *Client) EventStream() *EventStream {
 
 // Stream establishes a new subscription to Nomad's event stream and streams
 // results back to the returned channel.
+//
+// Events stop being emitted once the Events.Err field is non-nil.
 func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, error) {
 	r, err := e.client.newRequest("GET", "/v1/event/stream")
 	if err != nil {
@@ -219,6 +233,11 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			case <-ctx.Done():
 				return
 			case eventsCh <- &events:
+			}
+
+			// There are no recoverable Decode errors, so return on error.
+			if events.Err != nil {
+				return
 			}
 		}
 	}()

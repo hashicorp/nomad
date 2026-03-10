@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -181,6 +181,15 @@ func validateTaskExistsInAllocation(taskName string, alloc *api.Allocation) erro
 
 func (c *AllocRestartCommand) Synopsis() string {
 	return "Restart a running allocation"
+}
+
+func (c *AllocRestartCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-all-tasks": complete.PredictNothing,
+			"-verbose":   complete.PredictNothing,
+			"-task":      complete.PredictAnything,
+		})
 }
 
 func (c *AllocRestartCommand) AutocompleteArgs() complete.Predictor {

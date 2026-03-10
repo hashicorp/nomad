@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -85,6 +85,7 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]

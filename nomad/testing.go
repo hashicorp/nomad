@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -38,6 +38,21 @@ func TestACLServer(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, 
 		t.Fatalf("failed to bootstrap ACL token: %v", err)
 	}
 	return server, token, cleanup
+}
+
+func TestACLServerWithEncrypter(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, *Encrypter, func()) {
+	server, cleanup := TestServer(t, func(c *Config) {
+		c.ACLEnabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	token := mock.ACLManagementToken()
+	err := server.State().BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, token)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACL token: %v", err)
+	}
+	return server, token, server.encrypter, cleanup
 }
 
 func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {

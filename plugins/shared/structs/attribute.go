@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: MPL-2.0
 
 package structs
@@ -320,6 +320,12 @@ func (a *Attribute) Compare(b *Attribute) (int, bool) {
 	}
 
 	return a.comparator()(b)
+}
+
+// Equal returns true if two Attributes are comparable and have equal values.
+func (a *Attribute) Equal(b *Attribute) bool {
+	val, isComparable := a.Compare(b)
+	return isComparable && val == 0
 }
 
 // comparator returns the comparator function for the attribute

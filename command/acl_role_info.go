@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -61,7 +61,9 @@ func (a *ACLRoleInfoCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (a *ACLRoleInfoCommand) AutocompleteArgs() complete.Predictor { return complete.PredictNothing }
+func (a *ACLRoleInfoCommand) AutocompleteArgs() complete.Predictor {
+	return ACLRolePredictor(a.Meta.Client)
+}
 
 // Synopsis satisfies the cli.Command Synopsis function.
 func (a *ACLRoleInfoCommand) Synopsis() string { return "Fetch information on an existing ACL role" }

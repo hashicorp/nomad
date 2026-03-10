@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -97,9 +97,13 @@ func TestStateStore_IsRootKeyInUse(t *testing.T) {
 			name: "in use by alloc",
 			fn: func(store *StateStore) {
 
+				mockJob := mock.Job()
+				must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, mockJob))
+
 				keyID := uuid.Generate()
 
 				mockAlloc := mock.Alloc()
+				mockAlloc.JobID = mockJob.ID
 				mockAlloc.SigningKeyID = keyID
 
 				must.NoError(t, store.UpsertAllocs(

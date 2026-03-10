@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -30,10 +30,6 @@ func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) 
 
 func (s *Server) VerifyClaim(token string) (*structs.IdentityClaims, error) {
 	return s.auth.VerifyClaim(token)
-}
-
-func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
-	return s.auth.ResolveToken(secretID)
 }
 
 func (s *Server) ResolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*structs.ACLPolicy, error) {

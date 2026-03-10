@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -51,6 +51,7 @@ export default class JobVersion extends Component {
       this.editableTag = this.store.createRecord('versionTag');
     }
     this.editableTag.versionNumber = this.version.number;
+    this.editableTag.jobNamespace = this.version.get('job.namespace.name');
     this.editableTag.jobName = this.version.get('job.plainId');
   }
 
@@ -224,7 +225,11 @@ export default class JobVersion extends Component {
     try {
       await this.store
         .adapterFor('version-tag')
-        .deleteTag(this.editableTag.jobName, this.editableTag.name);
+        .deleteTag(
+          this.editableTag.jobNamespace,
+          this.editableTag.jobName,
+          this.editableTag.name
+        );
       this.notifications.add({
         title: 'Job Version Un-Tagged',
         color: 'success',

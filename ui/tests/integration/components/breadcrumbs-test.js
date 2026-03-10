@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -23,10 +23,10 @@ module('Integration | Component | breadcrumbs', function (hooks) {
           {{/each}}
         </ul>
       </Breadcrumbs>
-      <button data-test-button type="button" {{on "click" toggleCrumb}}>Toggle</button>
-      <Breadcrumb @crumb={{'Zoey'}} />
+      <button data-test-button type="button" {{on "click" this.toggleCrumb}}>Toggle</button>
+      <Breadcrumb @crumb="Zoey" />
       {{#if this.isRegistered}}
-        <Breadcrumb @crumb={{'Tomster'}} />
+        <Breadcrumb @crumb="Tomster" />
       {{/if}}
     `);
 

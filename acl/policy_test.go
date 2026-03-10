@@ -1,13 +1,17 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package acl
 
 import (
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -94,6 +98,10 @@ func TestParse(t *testing.T) {
 			}
 			operator {
 				policy = "deny"
+			}
+			sentinel {
+				policy = "read"
+				capabilities = ["sentinel-delete"]
 			}
 			quota {
 				policy = "read"
@@ -225,7 +233,15 @@ func TestParse(t *testing.T) {
 					Policy: PolicyWrite,
 				},
 				Operator: &OperatorPolicy{
-					Policy: PolicyDeny,
+					Policy:       PolicyDeny,
+					Capabilities: []string{"deny"},
+				},
+				Sentinel: &SentinelPolicy{
+					Policy: PolicyRead,
+					Capabilities: []string{
+						SentinelCapabilityDelete,
+						SentinelCapabilityRead,
+					},
 				},
 				Quota: &QuotaPolicy{
 					Policy: PolicyRead,
@@ -451,7 +467,8 @@ func TestParse(t *testing.T) {
 					Policy: PolicyWrite,
 				},
 				Operator: &OperatorPolicy{
-					Policy: PolicyDeny,
+					Policy:       PolicyDeny,
+					Capabilities: []string{"deny"},
 				},
 				Quota: &QuotaPolicy{
 					Policy: PolicyRead,
@@ -934,6 +951,16 @@ func TestParse(t *testing.T) {
 			"Invalid plugin policy",
 			nil,
 		},
+		{
+			`sentinel {	policy = "invalid" }`,
+			"Invalid sentinel policy",
+			nil,
+		},
+		{
+			`sentinel { capabilities = ["invalid-capability"] }`,
+			"Invalid sentinel capability",
+			nil,
+		},
 	}
 
 	for idx, tc := range tcases {
@@ -1102,4 +1129,75 @@ func TestPluginPolicy_isValid(t *testing.T) {
 			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
+}
+
+// TestPolicy_isCapabilityValid reads through the source to get all our
+// fine-grained capability constants and makes sure they're all marked as
+// valid. This prevents us from adding a new capability without marking it as
+// valid
+func TestPolicy_isCapabilityValid(t *testing.T) {
+	filename := "policy.go"
+	src, err := os.ReadFile(filename)
+	must.NoError(t, err)
+
+	// namespace
+	caps := []string{}
+	re := regexp.MustCompile(`(?m)^(?:\tNamespaceCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
+	subs := re.FindAllSubmatch(src, -1)
+	for _, sub := range subs {
+		if len(sub) > 1 {
+			caps = append(caps, string(sub[1]))
+		}
+	}
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match NamespaceCapability regex"))
+	for _, cap := range caps {
+		cap = strings.TrimSpace(cap)
+		test.True(t, isNamespaceCapabilityValid(cap), test.Sprintf("%q not valid", cap))
+	}
+
+	// variables
+	caps = []string{}
+	re = regexp.MustCompile(`(?m)^(?:\tVariablesCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
+	subs = re.FindAllSubmatch(src, -1)
+	for _, sub := range subs {
+		if len(sub) > 1 {
+			caps = append(caps, string(sub[1]))
+		}
+	}
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match VariablesCapability regex"))
+	for _, cap := range caps {
+		cap = strings.TrimSpace(cap)
+		test.True(t, isPathCapabilityValid(cap), test.Sprintf("%q not valid", cap))
+	}
+
+	// host volumes
+	caps = []string{}
+	re = regexp.MustCompile(`(?m)^(?:\tHostVolumeCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
+	subs = re.FindAllSubmatch(src, -1)
+	for _, sub := range subs {
+		if len(sub) > 1 {
+			caps = append(caps, string(sub[1]))
+		}
+	}
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match HostVolumeCapability regex"))
+	for _, cap := range caps {
+		cap = strings.TrimSpace(cap)
+		test.True(t, isHostVolumeCapabilityValid(cap), test.Sprintf("%q not valid", cap))
+	}
+
+	// node pools
+	caps = []string{}
+	re = regexp.MustCompile(`(?m)^(?:\tNodePoolCapability[A-Za-z0-9]+\s+= ")(.*)"$`)
+	subs = re.FindAllSubmatch(src, -1)
+	for _, sub := range subs {
+		if len(sub) > 1 {
+			caps = append(caps, string(sub[1]))
+		}
+	}
+	must.Greater(t, 0, len(caps), must.Sprint("no constants match NodePoolCapability regex"))
+	for _, cap := range caps {
+		cap = strings.TrimSpace(cap)
+		test.True(t, isNodePoolCapabilityValid(cap), test.Sprintf("%q not valid", cap))
+	}
+
 }

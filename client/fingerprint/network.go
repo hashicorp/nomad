@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package fingerprint
@@ -34,6 +34,9 @@ type NetworkFingerprint struct {
 	logger            log.Logger
 	interfaceDetector NetworkInterfaceDetector
 }
+
+// Reload is a no-op but implements ReloadableFingerprint
+func (f *NetworkFingerprint) Reload() {}
 
 // An interface to isolate calls to various api in net package
 // This facilitates testing where we can implement
