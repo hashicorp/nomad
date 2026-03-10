@@ -3,7 +3,9 @@
 
 package structs
 
-import "maps"
+import (
+	"maps"
+)
 
 // DeviceAccounter is used to account for device usage on a node. It can detect
 // when a node is oversubscribed and can be used for deciding what devices are
@@ -122,7 +124,9 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 						if i, ok := devInst.Instances[instanceID]; ok {
 							// Mark that the device is in use
 							devInst.Instances[instanceID]++
-
+							if devInst.Device.Shared == "active" {
+								continue
+							}
 							if i != 0 {
 								collision = true
 							}
