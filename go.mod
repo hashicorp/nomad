@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.25.7
+go 1.25.8
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
