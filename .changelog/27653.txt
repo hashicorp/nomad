@@ -1,0 +1,3 @@
+```release-note:security
+security: Upgrade tooling to Go 1.25.8
+```
