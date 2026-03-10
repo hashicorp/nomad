@@ -93,7 +93,7 @@ type RPCer interface {
 	Stats() map[string]map[string]string
 	GetConfig() *Config
 	GetMetricsSink() *metrics.InmemSink
-	FullReload(*Config) error
+	ConfigReload() error
 }
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface

@@ -675,6 +675,9 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	}
 	c.agent = agent
 
+	// reload path as SIGHUP (readConfig + agent/server/client/HTTP reload).
+	c.agent.configReloader = c.handleReload
+
 	// Setup the HTTP server
 	httpServers, err := NewHTTPServers(agent, config)
 	if err != nil {
@@ -683,7 +686,6 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		return err
 	}
 	c.httpServers = httpServers
-	agent.httpServers = httpServers
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -1167,7 +1169,6 @@ func (c *Command) reloadHTTPServer() error {
 		return err
 	}
 	c.httpServers = httpServers
-	c.agent.httpServers = httpServers
 
 	return nil
 }
@@ -1195,12 +1196,64 @@ func (c *Command) handleReload() error {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	// Using the Agent's FullReload method
-	if err := c.agent.FullReload(newConf); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to reload configuration: %v", err))
-		return nil
+	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
+	if shouldReloadAgent {
+		c.agent.logger.Debug("starting reload of agent config")
+		err := c.agent.Reload(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to reload the config", "error", err)
+			return nil
+		}
 	}
 
+	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Debug("starting reload of server config")
+		sconf, err := convertServerConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert server config", "error", err)
+			return nil
+		}
+
+		// Finalize the config to get the agent objects injected in
+		c.agent.finalizeServerConfig(sconf)
+
+		// Reload the config
+		if err := s.Reload(sconf); err != nil {
+			c.agent.logger.Error("reloading server config failed", "error", err)
+			return fmt.Errorf("reloading server config failed: %w", err)
+		}
+	}
+
+	if client := c.agent.Client(); client != nil {
+		c.agent.logger.Debug("starting reload of client config")
+		clientConfig, err := convertClientConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert client config", "error", err)
+			return nil
+		}
+
+		// Finalize the config to get the agent objects injected in
+		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
+			c.agent.logger.Error("failed to finalize client config", "error", err)
+			return nil
+		}
+
+		if err := client.Reload(clientConfig); err != nil {
+			c.agent.logger.Error("reloading client config failed", "error", err)
+			return fmt.Errorf("reloading client config failed: %w", err)
+		}
+	}
+
+	// reload HTTP server after we have reloaded both client and server, in case
+	// we error in either of the above cases. For example, reloading the http
+	// server to a TLS connection could succeed, while reloading the server's rpc
+	// connections could fail.
+	if shouldReloadHTTP {
+		err := c.reloadHTTPServer()
+		if err != nil {
+			c.agent.httpLogger.Error("reloading config failed", "error", err)
+		}
+	}
 	return nil
 }
 

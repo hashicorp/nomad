@@ -581,36 +581,9 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, structs.ErrPermissionDenied
 	}
 
-	currConf := s.agent.GetConfig().Copy()
-	newConf := currConf
-
-	s.logger.Debug("loading configuration files for reload", "paths", currConf.ConfigPaths)
-
-	for _, path := range currConf.ConfigPaths {
-		cfgFromFile, err := LoadConfig(path)
-		if err != nil {
-			s.logger.Error("failed to load config file", "file", path, "error", err, "path", "/v1/agent/reload", "method", req.Method)
-			return nil, CodedError(400, err.Error())
-		}
-		if cfgFromFile != nil {
-			newConf = newConf.Merge(cfgFromFile)
-		}
-	}
-
-	if err := newConf.normalizeAddrs(); err != nil {
-		s.logger.Error("failed to normalize configuration addresses", "error", err, "path", "/v1/agent/reload", "method", req.Method)
-		return nil, CodedError(400, err.Error())
-	}
-
-	// I need to check back on this, it was not reloading TLS until I cleared the checksum and key loader
-	if newConf.TLSConfig != nil {
-		newConf.TLSConfig.Checksum = ""
-		newConf.TLSConfig.KeyLoader = nil
-	}
-
-	if err := s.agent.FullReload(newConf); err != nil {
+	if err := s.agent.ConfigReload(); err != nil {
 		s.logger.Error("failed to reload agent configuration", "error", err, "path", "/v1/agent/reload", "method", req.Method)
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(500, err.Error())
 	}
 
 	response := reloadResponse{
