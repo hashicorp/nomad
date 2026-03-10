@@ -1532,10 +1532,7 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 }
 
 // ConfigReload triggers a full agent configuration reload, equivalent to
-// receiving a SIGHUP signal. The reload logic lives in Command.handleReload
-// and is injected via configReloader at agent construction time so that both
-// the signal handler and the reload API endpoint share exactly the same path.
-// If no reloader has been set (e.g. in test environments) it is a no-op.
+// receiving a SIGHUP signal. The reload logic lives in Command.handleReload.
 func (a *Agent) ConfigReload() error {
 	a.configLock.Lock()
 	reloader := a.configReloader
