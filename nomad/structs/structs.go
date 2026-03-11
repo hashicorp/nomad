@@ -3606,6 +3606,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	//// Shared is a string enum some devices use to report
+	//// status and presence of sharing subystems
+	//Shared DeviceSharing
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {

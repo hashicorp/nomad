@@ -83,6 +83,7 @@ func convertDevice(dev *device.Device) *structs.NodeDevice {
 		Healthy:           dev.Healthy,
 		HealthDescription: dev.HealthDesc,
 		Locality:          convertHwLocality(dev.HwLocality),
+		//Shared:            convertDeviceSharing(dev.Shared),
 	}
 }
 
