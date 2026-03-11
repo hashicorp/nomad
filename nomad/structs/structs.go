@@ -44,7 +44,6 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
@@ -3495,7 +3494,7 @@ type NodeDeviceResource struct {
 	Name       string
 	Instances  []*NodeDevice
 	Attributes map[string]*psstructs.Attribute
-	Shared     device.DeviceSharing
+	Shared     DeviceSharing
 }
 
 func (n *NodeDeviceResource) ID() *DeviceIdTuple {
@@ -3579,6 +3578,18 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 
 	return true
 }
+
+// DeviceSharing is an enum string that parallels device.DeviceSharing
+// and reports on the presence and state of sharing subsystems on a
+// device
+type DeviceSharing string
+
+const (
+	SharingIneligible DeviceSharing = "ineligible"
+	SharingUnset      DeviceSharing = "unset"
+	SharingActive     DeviceSharing = "active"
+	SharingInactive   DeviceSharing = "inactive"
+)
 
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {

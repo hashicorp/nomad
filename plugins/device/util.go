@@ -390,3 +390,22 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 		Timestamp: ts,
 	}
 }
+
+func convertProtoDeviceSharing(s *DeviceSharing) DeviceSharing {
+	if s == nil {
+		return SharingUnset
+	}
+
+	var d DeviceSharing
+	switch *s {
+	case SharingIneligible:
+		d = SharingIneligible
+	case SharingActive:
+		d = SharingActive
+	case SharingInactive:
+		d = SharingInactive
+	default:
+		d = SharingUnset
+	}
+	return d
+}
