@@ -1,3 +1,42 @@
+## 1.11.3 (March 11, 2026)
+
+SECURITY:
+
+* security: Upgrade tooling to Go 1.25.8 [[GH-27653](https://github.com/hashicorp/nomad/issues/27653)]
+
+IMPROVEMENTS:
+
+* acl (Enterprise): Added `sentinel` policy block to allow managing Sentinel policies without a management token [[GH-27556](https://github.com/hashicorp/nomad/issues/27556)]
+* acl: Added fine-grained ACL capabilities for saving snapshots and reading the Enterprise license [[GH-27525](https://github.com/hashicorp/nomad/issues/27525)]
+* acl: Added fine-grained ACL capability for rotating the keyring [[GH-27526](https://github.com/hashicorp/nomad/issues/27526)]
+* agent: Added `agent.tls.cert.expiration_seconds` and `agent.tls.ca.expiration_seconds` telemetry data points to track TLS certificate expiration. [[GH-27538](https://github.com/hashicorp/nomad/issues/27538)]
+* cli: Added autocompletions for ACL auth method, binding rule, policy, and token subcommands [[GH-27505](https://github.com/hashicorp/nomad/issues/27505)]
+* cli: Improved options autocompletions for various commands [[GH-27506](https://github.com/hashicorp/nomad/issues/27506)]
+* cli: Reduced server overhead when dispatching jobs or forcing periodic jobs from the CLI [[GH-27631](https://github.com/hashicorp/nomad/issues/27631)]
+* cli: Truncate results when job commands return a large set of jobs that match the provided ID prefix [[GH-27631](https://github.com/hashicorp/nomad/issues/27631)]
+* consul (enterprise): adds ability to specify cluster specific consul tokens with environment variables [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+* events: Added a Deleted flag to JobDeregistered event type to differentiate between stopped and deleted jobs [[GH-27614](https://github.com/hashicorp/nomad/issues/27614)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
+* artifact: Fix artifact inspection when using `file` mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* config: Fixed a bug where the keyring block could only be specified a maximum of two times [[GH-27579](https://github.com/hashicorp/nomad/issues/27579)]
+* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as `task_identity` [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
+* consul: fixes bug where clients were passing node token to connect envoy container, causing acl not found errors [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+* core: Fixed system jobs being rescheduled after a node is drained and marked eligible again [[GH-27499](https://github.com/hashicorp/nomad/issues/27499)]
+* deployments: Fixed a bug where a task group dropped from a system job could cause deployment state to be overwritten incorrectly [[GH-27604](https://github.com/hashicorp/nomad/issues/27604)]
+* deployments: Fixed a bug where system job canary state could be incorrectly changed after a promotion [[GH-27497](https://github.com/hashicorp/nomad/issues/27497)]
+* deployments: Fixed a bug where system job deployments would not be marked healthy even though all allocations were healthy [[GH-27497](https://github.com/hashicorp/nomad/issues/27497)]
+* drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
+* dynamic host volumes: Fixed a bug with sticky volumes where replacement allocations would not use the previous volume claim [[GH-27613](https://github.com/hashicorp/nomad/issues/27613)]
+* http: Ensure the correct HTTP protocol version is set on event stream responses [[GH-27586](https://github.com/hashicorp/nomad/issues/27586)]
+* job status: Fixes regression setting job status when jobs have matching prefix [[GH-27516](https://github.com/hashicorp/nomad/issues/27516)]
+* keyring (Enterprise): Fixed a bug where in mixed-version clusters with pre-1.9 servers, a keyring rotation that returns an error for an unavailable KMS could prevent future server restarts [[GH-27581](https://github.com/hashicorp/nomad/issues/27581)]
+* scheduler: Fix a potential panic in the system scheduler when deploying jobs with multiple task groups and infeasible nodes that become feasible [[GH-27571](https://github.com/hashicorp/nomad/issues/27571)]
+* scheduler: Fixed a bug where system deployments would not complete on clusters with pre-1.11.0 nodes [[GH-27605](https://github.com/hashicorp/nomad/issues/27605)]
+* state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher [[GH-27548](https://github.com/hashicorp/nomad/issues/27548)]
+
 ## 1.11.2 (February 11, 2026)
 
 SECURITY:
@@ -157,6 +196,29 @@ BUG FIXES:
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
+
+## 1.10.9 Enterprise (March 11, 2026)
+
+SECURITY:
+
+* security: Upgrade tooling to Go 1.25.8 [[GH-27653](https://github.com/hashicorp/nomad/issues/27653)]
+
+IMPROVEMENTS:
+
+* consul (enterprise): adds ability to specify cluster specific consul tokens with environment variables [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
+* artifact: Fix artifact inspection when using `file` mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* config: Fixed a bug where the keyring block could only be specified a maximum of two times [[GH-27579](https://github.com/hashicorp/nomad/issues/27579)]
+* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as `task_identity` [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
+* consul: fixes bug where clients were passing node token to connect envoy container, causing acl not found errors [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+* drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
+* http: Ensure the correct HTTP protocol version is set on event stream responses [[GH-27586](https://github.com/hashicorp/nomad/issues/27586)]
+* job status: Fixes regression setting job status when jobs have matching prefix [[GH-27516](https://github.com/hashicorp/nomad/issues/27516)]
+* keyring (Enterprise): Fixed a bug where in mixed-version clusters with pre-1.9 servers, a keyring rotation that returns an error for an unavailable KMS could prevent future server restarts [[GH-27581](https://github.com/hashicorp/nomad/issues/27581)]
+* state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher [[GH-27548](https://github.com/hashicorp/nomad/issues/27548)]
 
 ## 1.10.8 Enterprise (February 11, 2026)
 
@@ -471,6 +533,24 @@ BUG FIXES:
 * server: Validate `num_schedulers` configuration parameter is between 0 and the number of CPUs available on the machine [[GH-25441](https://github.com/hashicorp/nomad/issues/25441)]
 * services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 * services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+
+## 1.8.21 Enterprise (March 11, 2026)
+
+SECURITY:
+
+* security: Upgrade tooling to Go 1.25.8 [[GH-27653](https://github.com/hashicorp/nomad/issues/27653)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
+* artifact: Fix artifact inspection when using `file` mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* config: Fixed a bug where the keyring block could only be specified a maximum of two times [[GH-27579](https://github.com/hashicorp/nomad/issues/27579)]
+* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as `task_identity` [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
+* drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
+* http: Ensure the correct HTTP protocol version is set on event stream responses [[GH-27586](https://github.com/hashicorp/nomad/issues/27586)]
+* job status: Fixes regression setting job status when jobs have matching prefix [[GH-27516](https://github.com/hashicorp/nomad/issues/27516)]
+* keyring (Enterprise): Fixed a bug where a keyring rotation that returns an error for an unavailable KMS could prevent future server restarts
+* state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher [[GH-27548](https://github.com/hashicorp/nomad/issues/27548)]
 
 ## 1.8.20 Enterprise (February 11, 2026)
 
