@@ -8,7 +8,6 @@ variable "build_sha" {
 
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
-  distro    = "ubuntu-jammy-22.04-amd64-server-*"
   version   = "v3"
 }
 
@@ -20,16 +19,17 @@ source "amazon-ebs" "latest_ubuntu_jammy" {
   ssh_username         = "ubuntu"
   ssh_interface        = "public_ip"
 
+  # note: this is an internal baseline image and not available for use outside
+  # of HashiCorp AWS environments. You'll need to use an Ubuntu base image from
+  # Canonical if building outside that environment
   source_ami_filter {
     filters = {
-      architecture                       = "x86_64"
-      "block-device-mapping.volume-type" = "gp2"
-      name                               = "ubuntu/images/hvm-ssd/${local.distro}"
-      root-device-type                   = "ebs"
-      virtualization-type                = "hvm"
+      architecture = "x86_64"
+      name         = "hc-base-ubuntu-2404-amd64-*"
+      state        = "available"
     }
     most_recent = true
-    owners      = ["099720109477"] // Canonical
+    owners      = ["888995627335"] # hc-ami_prod
   }
 
   tags = {
