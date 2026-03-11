@@ -1,3 +1,26 @@
+## 1.10.9 Enterprise (March 11, 2026)
+
+SECURITY:
+
+* security: Upgrade tooling to Go 1.25.8 [[GH-27653](https://github.com/hashicorp/nomad/issues/27653)]
+
+IMPROVEMENTS:
+
+* consul (enterprise): adds ability to specify cluster specific consul tokens with environment variables [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+
+BUG FIXES:
+
+* acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
+* artifact: Fix artifact inspection when using  mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* config: Fixed a bug where the keyring block could only be specified a maximum of two times [[GH-27579](https://github.com/hashicorp/nomad/issues/27579)]
+* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as  [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
+* consul: fixes bug where clients were passing node token to connect envoy container, causing acl not found errors [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
+* drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
+* http: Ensure the correct HTTP protocol version is set on event stream responses [[GH-27586](https://github.com/hashicorp/nomad/issues/27586)]
+* job status: Fixes regression setting job status when jobs have matching prefix [[GH-27516](https://github.com/hashicorp/nomad/issues/27516)]
+* keyring (Enterprise): Fixed a bug where in mixed-version clusters with pre-1.9 servers, a keyring rotation that returns an error for an unavailable KMS could prevent future server restarts [[GH-27581](https://github.com/hashicorp/nomad/issues/27581)]
+* state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher [[GH-27548](https://github.com/hashicorp/nomad/issues/27548)]
+
 ## 1.10.8 Enterprise (February 11, 2026)
 
 SECURITY:
