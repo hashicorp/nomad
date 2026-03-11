@@ -6,7 +6,6 @@ package mock
 import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -128,7 +127,7 @@ func NvidiaNode() *structs.Node {
 				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
 				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 			},
-			Shared: device.SharingInactive,
+			Shared: structs.SharingInactive,
 			Instances: []*structs.NodeDevice{
 				{
 					ID:      uuid.Generate(),
@@ -166,7 +165,7 @@ func SharedNvidiaNode() *structs.Node {
 				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
 				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 			},
-			Shared: device.SharingActive,
+			Shared: structs.SharingActive,
 			Instances: []*structs.NodeDevice{
 				{
 					ID:      uuid.Generate(),

@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -238,7 +237,7 @@ func MockNvidiaNode() *Node {
 				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
 				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 			},
-			Shared: device.SharingInactive,
+			Shared: SharingInactive,
 			Instances: []*NodeDevice{
 				{
 					ID:      uuid.Generate(),

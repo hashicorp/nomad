@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -70,7 +69,7 @@ func addSharedNvidiaDevice(n *Node) *Node {
 			"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
 			"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 		},
-		Shared: device.SharingActive,
+		Shared: SharingActive,
 		Instances: []*NodeDevice{
 			{
 				ID:      uuid.Generate(),
