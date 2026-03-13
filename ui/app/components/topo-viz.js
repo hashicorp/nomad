@@ -93,6 +93,7 @@ export default class TopoViz extends Component {
   buildTopology() {
     const nodes = this.args.nodes;
     const allocations = this.args.allocations;
+    console.log('building topo', nodes, allocations);
 
     // Nodes may not have a resources property due to having an old Nomad agent version.
     const badNodes = [];
