@@ -311,6 +311,7 @@
   ],
   "server": [
     {
+      "non_production": true,
       "acl_token_gc_threshold": "12h",
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,

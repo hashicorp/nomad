@@ -178,6 +178,7 @@ var basicConfig = &Config{
 			MaxIdentityTTLHCL:     "30m",
 			MaxIdentityTTL:        30 * time.Minute,
 		},
+		NonProduction: true,
 	},
 	ACL: &ACLConfig{
 		Enabled:                  true,
