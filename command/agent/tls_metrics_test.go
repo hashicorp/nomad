@@ -14,11 +14,48 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
 
-func Test_tlsMetrics(t *testing.T) {
+func Test_newTlsMetric(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("valid combined key/cert file", func(t *testing.T) {
+		certFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "regionFoo-client-combined.pem")
+		keyFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "regionFoo-client-combined.pem")
+		caFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "nomad-agent-ca.pem")
+
+		m, err := newTLSMetrics(testlog.HCLogger(t), &config.TLSConfig{
+			CertFile: certFile,
+			KeyFile:  keyFile,
+			CAFile:   caFile,
+		}, nil)
+
+		must.NoError(t, err)
+		must.True(t, !m.certExpiry.IsZero(), must.Sprint("expected non-zero cert expiry time"))
+		must.True(t, !m.caExpiry.IsZero(), must.Sprint("expected non-zero ca expiry time"))
+	})
+
+	t.Run("valid key/cert file", func(t *testing.T) {
+		certFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "regionFoo-client-nomad.pem")
+		keyFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "regionFoo-client-nomad-key.pem")
+		caFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "nomad-agent-ca.pem")
+
+		m, err := newTLSMetrics(testlog.HCLogger(t), &config.TLSConfig{
+			CertFile: certFile,
+			KeyFile:  keyFile,
+			CAFile:   caFile,
+		}, nil)
+
+		must.NoError(t, err)
+		must.True(t, !m.certExpiry.IsZero(), must.Sprint("expected non-zero cert expiry time"))
+		must.True(t, !m.caExpiry.IsZero(), must.Sprint("expected non-zero ca expiry time"))
+	})
+}
+
+func Test_tlsMetricsEmitTest(t *testing.T) {
 	ci.Parallel(t)
 
 	// Set up an in-memory metrics sink so we can inspect emitted gauges.
@@ -91,27 +128,19 @@ func Test_tlsMetrics(t *testing.T) {
 	tm.stop()
 }
 
-func Test_certFileExpiry(t *testing.T) {
+func Test_caFileExpiry(t *testing.T) {
 	ci.Parallel(t)
-
-	t.Run("valid cert file", func(t *testing.T) {
-		certFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "regionFoo-client-nomad.pem")
-
-		expiry, err := certFileExpiry(certFile)
-		must.NoError(t, err)
-		must.True(t, !expiry.IsZero(), must.Sprint("expected non-zero expiry time"))
-	})
 
 	t.Run("valid CA file", func(t *testing.T) {
 		caFile := filepath.Join("..", "..", "helper", "tlsutil", "testdata", "nomad-agent-ca.pem")
 
-		expiry, err := certFileExpiry(caFile)
+		expiry, err := caFileExpiry(caFile)
 		must.NoError(t, err)
 		must.True(t, !expiry.IsZero(), must.Sprint("expected non-zero expiry time"))
 	})
 
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := certFileExpiry("/no/such/file.pem")
+		_, err := caFileExpiry("/no/such/file.pem")
 		must.ErrorContains(t, err, "failed to read file")
 	})
 
@@ -120,7 +149,7 @@ func Test_certFileExpiry(t *testing.T) {
 		badFile := filepath.Join(tmpDir, "not-a-cert.pem")
 		must.NoError(t, os.WriteFile(badFile, []byte("this is not PEM data"), 0600))
 
-		_, err := certFileExpiry(badFile)
+		_, err := caFileExpiry(badFile)
 		must.ErrorContains(t, err, "no PEM-encoded data found")
 	})
 
@@ -133,7 +162,7 @@ func Test_certFileExpiry(t *testing.T) {
 		badPEM := "-----BEGIN CERTIFICATE-----\nYWJjZGVm\n-----END CERTIFICATE-----\n"
 		must.NoError(t, os.WriteFile(badCertFile, []byte(badPEM), 0600))
 
-		_, err := certFileExpiry(badCertFile)
+		_, err := caFileExpiry(badCertFile)
 		must.ErrorContains(t, err, "failed to parse certificate")
 	})
 }
