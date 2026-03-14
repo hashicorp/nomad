@@ -521,6 +521,7 @@ func TestTask_Canonicalize_Secret(t *testing.T) {
 		Name:     "test-secret",
 		Provider: "test-provider",
 		Path:     "/test/path",
+		Timeout:  10 * time.Second,
 		Config:   nil,
 		Env:      nil,
 	}

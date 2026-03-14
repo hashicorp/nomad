@@ -10427,6 +10427,7 @@ type Secret struct {
 	Name     string
 	Provider string
 	Path     string
+	Timeout  time.Duration
 	Config   map[string]any
 	Env      map[string]string
 }
@@ -10442,6 +10443,8 @@ func (s *Secret) Equal(o *Secret) bool {
 	case s.Provider != o.Provider:
 		return false
 	case s.Path != o.Path:
+		return false
+	case s.Timeout != o.Timeout:
 		return false
 	case !maps.Equal(s.Config, o.Config):
 		return false
@@ -10468,6 +10471,7 @@ func (s *Secret) Copy() *Secret {
 		Name:     s.Name,
 		Provider: s.Provider,
 		Path:     s.Path,
+		Timeout:  s.Timeout,
 		Config:   confCopy.(map[string]any),
 		Env:      maps.Clone(s.Env),
 	}

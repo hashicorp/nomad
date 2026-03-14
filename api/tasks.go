@@ -1050,11 +1050,16 @@ type Secret struct {
 	Name     string            `hcl:"name,label"`
 	Provider string            `hcl:"provider,optional"`
 	Path     string            `hcl:"path,optional"`
+	Timeout  time.Duration     `hcl:"timeout,optional"`
 	Config   map[string]any    `hcl:"config,block"`
 	Env      map[string]string `hcl:"env,block"`
 }
 
 func (s *Secret) Canonicalize() {
+	if s.Timeout == 0 {
+		s.Timeout = 10 * time.Second // Kept in sync with commonplugins.SecretsCmdTimeout
+	}
+
 	if len(s.Config) == 0 {
 		s.Config = nil
 	}

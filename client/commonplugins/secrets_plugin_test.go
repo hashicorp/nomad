@@ -129,6 +129,52 @@ func TestExternalSecretsPlugin_Fetch(t *testing.T) {
 	})
 }
 
+func TestExternalSecretsPlugin_CustomTimeout(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("uses custom timeout when specified", func(t *testing.T) {
+		// Plugin sleeps for 2 seconds
+		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\nsleep 2\ncat <<EOF\n%s\nEOF\n", `{"result": {"key": "value"}}`))
+
+		// With 1 second timeout, should fail
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, WithTimeout(1*time.Second))
+		must.NoError(t, err)
+
+		_, err = plugin.Fetch(context.Background(), "test-path", nil)
+		must.Error(t, err)
+		must.ErrorContains(t, err, "signal: terminated")
+	})
+
+	t.Run("succeeds with sufficient timeout", func(t *testing.T) {
+		// Plugin sleeps for 1 second
+		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\nsleep 1\ncat <<EOF\n%s\nEOF\n", `{"result": {"key": "value"}}`))
+
+		// With 5 second timeout, should succeed
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName, WithTimeout(5*time.Second))
+		must.NoError(t, err)
+
+		res, err := plugin.Fetch(context.Background(), "test-path", nil)
+		must.NoError(t, err)
+
+		exp := map[string]string{"key": "value"}
+		must.Eq(t, res.Result, exp)
+	})
+
+	t.Run("defaults to 10s when no timeout specified", func(t *testing.T) {
+		pluginDir, pluginName := setupTestPlugin(t, fmt.Appendf([]byte{}, "#!/bin/sh\ncat <<EOF\n%s\nEOF\n", `{"result": {"key": "value"}}`))
+
+		// No timeout option, should use default 10s
+		plugin, err := NewExternalSecretsPlugin(pluginDir, pluginName)
+		must.NoError(t, err)
+
+		res, err := plugin.Fetch(context.Background(), "test-path", nil)
+		must.NoError(t, err)
+
+		exp := map[string]string{"key": "value"}
+		must.Eq(t, res.Result, exp)
+	})
+}
+
 func setupTestPlugin(t *testing.T, b []byte) (string, string) {
 	dir := t.TempDir()
 	plugin := "test-plugin"
