@@ -43,6 +43,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	conf.Server.Enabled = true
+	conf.Server.NonProduction = true
 	a := &Agent{config: conf}
 
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -58,6 +59,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, out.EnableEventBroker)
+	require.True(t, out.Reporting.NonProduction)
 
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
 	require.Equal(t, "127.0.0.1", serfAddr)
