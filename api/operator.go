@@ -319,6 +319,9 @@ type License struct {
 	// no longer be used in any capacity
 	TerminationTime time.Time
 
+	// NonProduction shows whether a license is for nonproduction deployments
+	NonProduction bool
+
 	// The product the license is valid for
 	Product string
 
