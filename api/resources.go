@@ -224,6 +224,9 @@ type NodeDeviceResource struct {
 	Instances []*NodeDevice
 
 	Attributes map[string]*Attribute
+
+	// Shared reports the MPS Sharing status of the device
+	Shared string
 }
 
 func (r NodeDeviceResource) ID() string {

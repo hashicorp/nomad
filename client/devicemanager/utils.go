@@ -57,6 +57,7 @@ func convertDeviceGroup(d *device.DeviceGroup) *structs.NodeDeviceResource {
 		Name:       d.Name,
 		Instances:  convertDevices(d.Devices),
 		Attributes: psstructs.CopyMapStringAttribute(d.Attributes),
+		Shared:     convertDeviceSharing(d.Shared),
 	}
 }
 
@@ -82,6 +83,7 @@ func convertDevice(dev *device.Device) *structs.NodeDevice {
 		Healthy:           dev.Healthy,
 		HealthDescription: dev.HealthDesc,
 		Locality:          convertHwLocality(dev.HwLocality),
+		//Shared:            convertDeviceSharing(dev.Shared),
 	}
 }
 
@@ -93,4 +95,20 @@ func convertHwLocality(l *device.DeviceLocality) *structs.NodeDeviceLocality {
 	return &structs.NodeDeviceLocality{
 		PciBusID: l.PciBusID,
 	}
+}
+
+func convertDeviceSharing(s device.DeviceSharing) structs.DeviceSharing {
+
+	var d structs.DeviceSharing
+	switch s {
+	case device.SharingIneligible:
+		d = structs.SharingIneligible
+	case device.SharingActive:
+		d = structs.SharingActive
+	case device.SharingInactive:
+		d = structs.SharingInactive
+	default:
+		d = structs.SharingUnset
+	}
+	return d
 }

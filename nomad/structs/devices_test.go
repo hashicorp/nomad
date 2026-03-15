@@ -43,6 +43,7 @@ func devNode() *Node {
 		Attributes: map[string]*psstructs.Attribute{
 			"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
 		},
+		Shared: "Inactive",
 		Instances: []*NodeDevice{
 			{
 				ID:      uuid.Generate(),
@@ -54,6 +55,33 @@ func devNode() *Node {
 			},
 		},
 	})
+	return n
+}
+
+func addSharedNvidiaDevice(n *Node) *Node {
+	n.NodeResources.Devices = append(n.NodeResources.Devices, &NodeDeviceResource{
+		Type:   "gpu",
+		Vendor: "nvidia",
+		Name:   "1080ti",
+		Attributes: map[string]*psstructs.Attribute{
+			"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+			"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+			"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+			"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+		},
+		Shared: SharingActive,
+		Instances: []*NodeDevice{
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+		},
+	},
+	)
 	return n
 }
 
@@ -150,20 +178,43 @@ func TestDeviceAccounter_AddAllocs_UnknownID(t *testing.T) {
 func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-	n := devNode()
-	d := NewDeviceAccounter(n)
-	require.NotNil(d)
+	for _, tc := range []struct {
+		name         string
+		shared       bool
+		expCollision bool
+	}{
+		{
+			name:         "standard",
+			shared:       false,
+			expCollision: true,
+		}, {
+			name:         "sharedNode",
+			shared:       true,
+			expCollision: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 
-	// Create two allocations, both with the same device
-	a1, a2 := nvidiaAlloc(), nvidiaAlloc()
+			targetDevice := 0
+			n := devNode()
+			if tc.shared {
+				n = addSharedNvidiaDevice(n)
+				targetDevice = len(n.NodeResources.Devices) - 1
+			}
+			d := NewDeviceAccounter(n)
+			must.NotNil(t, d)
+			// Create two allocations, both with the same device
+			a1, a2 := nvidiaAlloc(), nvidiaAlloc()
 
-	nvidiaDev0ID := n.NodeResources.Devices[0].Instances[0].ID
-	a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
-	a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+			nvidiaDev0ID := n.NodeResources.Devices[targetDevice].Instances[0].ID
+			a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+			a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
 
-	allocs := []*Allocation{a1, a2}
-	require.True(d.AddAllocs(allocs))
+			allocs := []*Allocation{a1, a2}
+			must.Eq(t, tc.expCollision, d.AddAllocs(allocs))
+
+		})
+	}
 }
 
 // Assert that devices are not freed when an alloc's ServerTerminalStatus is

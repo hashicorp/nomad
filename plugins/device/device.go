@@ -13,9 +13,19 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
+// DeviceSharing is an enum string that reports on the presence and
+// current state of sharing subsystems on the device
+
+type DeviceSharing string
+
 const (
 	// DeviceTypeGPU is a canonical device type for a GPU.
 	DeviceTypeGPU = "gpu"
+
+	SharingIneligible DeviceSharing = "ineligible"
+	SharingUnset      DeviceSharing = "unset"
+	SharingActive     DeviceSharing = "active"
+	SharingInactive   DeviceSharing = "inactive"
 )
 
 var (
@@ -82,6 +92,9 @@ type DeviceGroup struct {
 
 	// Attributes are a set of attributes shared for all the devices.
 	Attributes map[string]*structs.Attribute
+
+	// Shared reports on the presence and state of a device sharing daemon in the group
+	Shared DeviceSharing
 }
 
 // Validate validates that the device group is valid
@@ -133,6 +146,9 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+
+	// Shared marks whether the Device Sharing is enabled
+	Shared DeviceSharing
 }
 
 // Validate validates that the device is valid

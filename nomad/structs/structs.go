@@ -3494,6 +3494,7 @@ type NodeDeviceResource struct {
 	Name       string
 	Instances  []*NodeDevice
 	Attributes map[string]*psstructs.Attribute
+	Shared     DeviceSharing
 }
 
 func (n *NodeDeviceResource) ID() *DeviceIdTuple {
@@ -3546,7 +3547,10 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	} else if n.Name != o.Name {
 		return false
 	}
-
+	// Check the Sharing Status
+	if n.Shared != o.Shared {
+		return false
+	}
 	// Check the attributes
 	if len(n.Attributes) != len(o.Attributes) {
 		return false
@@ -3575,6 +3579,18 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
+// DeviceSharing is an enum string that parallels device.DeviceSharing
+// and reports on the presence and state of sharing subsystems on a
+// device
+type DeviceSharing string
+
+const (
+	SharingIneligible DeviceSharing = "ineligible"
+	SharingUnset      DeviceSharing = "unset"
+	SharingActive     DeviceSharing = "active"
+	SharingInactive   DeviceSharing = "inactive"
+)
+
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
 	// ID is the ID of the device.
@@ -3590,6 +3606,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	//// Shared is a string enum some devices use to report
+	//// status and presence of sharing subystems
+	//Shared DeviceSharing
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {

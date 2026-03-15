@@ -237,6 +237,7 @@ func MockNvidiaNode() *Node {
 				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
 				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 			},
+			Shared: SharingInactive,
 			Instances: []*NodeDevice{
 				{
 					ID:      uuid.Generate(),

@@ -35,6 +35,7 @@ func convertProtoDeviceGroup(in *proto.DeviceGroup) *DeviceGroup {
 		Name:       in.DeviceName,
 		Devices:    convertProtoDevices(in.Devices),
 		Attributes: structs.ConvertProtoAttributeMap(in.Attributes),
+		Shared:     DeviceSharing(in.Shared.GetShared()),
 	}
 }
 
@@ -63,6 +64,7 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 		Healthy:    in.Healthy,
 		HealthDesc: in.HealthDescription,
 		HwLocality: convertProtoDeviceLocality(in.HwLocality),
+		Shared:     DeviceSharing(in.Shared.GetShared()),
 	}
 }
 
@@ -387,4 +389,23 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 		Stats:     structs.ConvertStructStatObject(in.Stats),
 		Timestamp: ts,
 	}
+}
+
+func convertProtoDeviceSharing(s *DeviceSharing) DeviceSharing {
+	if s == nil {
+		return SharingUnset
+	}
+
+	var d DeviceSharing
+	switch *s {
+	case SharingIneligible:
+		d = SharingIneligible
+	case SharingActive:
+		d = SharingActive
+	case SharingInactive:
+		d = SharingInactive
+	default:
+		d = SharingUnset
+	}
+	return d
 }
