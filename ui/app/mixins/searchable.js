@@ -63,16 +63,22 @@ export default Mixin.create({
       return new Fuse(this.listToSearch, {
         shouldSort: true,
         threshold: 0.4,
-        location: 0,
         distance: 100,
-        tokenize: true,
-        matchAllTokens: true,
-        maxPatternLength: 32,
+        ignoreLocation: false,
         minMatchCharLength: 1,
         includeMatches: this.includeFuzzySearchMatches,
         keys: this.fuzzySearchProps || [],
-        getFn(item, key) {
-          return get(item, key);
+        getFn(item, path) {
+          const normalizedPath = Array.isArray(path) ? path.join('.') : path;
+
+          if (
+            typeof normalizedPath === 'string' ||
+            typeof normalizedPath === 'number'
+          ) {
+            return get(item, normalizedPath);
+          }
+
+          return undefined;
         },
       });
     }
@@ -109,14 +115,22 @@ export default Mixin.create({
       }
 
       if (this.fuzzySearchEnabled) {
-        let fuseSearchResults = this.fuse.search(searchTerm);
+        let fuseSearchResults = fuzzySearch(searchTerm, this.fuse);
 
         if (this.includeFuzzySearchMatches) {
           fuseSearchResults = fuseSearchResults.map((result) => {
             const item = result.item;
-            item.set('fuzzySearchMatches', result.matches);
+            if (
+              item &&
+              typeof item.set === 'function' &&
+              !isDestroyedRecord(item)
+            ) {
+              item.set('fuzzySearchMatches', result.matches || []);
+            }
             return item;
           });
+        } else {
+          fuseSearchResults = fuseSearchResults.map((result) => result.item);
         }
 
         results.push(...fuseSearchResults);
@@ -128,10 +142,16 @@ export default Mixin.create({
         );
       }
 
-      return results.uniq();
+      return results.filter((item) => !isDestroyedRecord(item)).uniq();
     }
   ),
 });
+
+function isDestroyedRecord(record) {
+  return Boolean(
+    record?.isDestroying || record?.isDestroyed || record?.destroyed,
+  );
+}
 
 function exactMatchSearch(term, list, keys) {
   if (term.length) {
@@ -153,4 +173,60 @@ function regexSearch(term, list, keys) {
     }
     return [];
   }
+}
+
+function fuzzySearch(term, fuse) {
+  const tokens = term.split(/\s+/).filter(Boolean);
+  if (!tokens.length) {
+    return [];
+  }
+
+  const firstTokenResults = fuse.search(tokens[0]);
+  if (tokens.length === 1) {
+    return firstTokenResults;
+  }
+
+  const tokenMatchesByItem = new Map();
+
+  firstTokenResults.forEach((result) => {
+    tokenMatchesByItem.set(result.item, {
+      result,
+      tokenCount: 1,
+      matches: result.matches || [],
+    });
+  });
+
+  for (let i = 1; i < tokens.length; i++) {
+    const tokenResults = fuse.search(tokens[i]);
+    const itemsForToken = new Set(tokenResults.map((result) => result.item));
+
+    tokenResults.forEach((result) => {
+      const entry = tokenMatchesByItem.get(result.item);
+      if (entry) {
+        entry.tokenCount++;
+        if (result.matches?.length) {
+          entry.matches.push(...result.matches);
+        }
+      }
+    });
+
+    tokenMatchesByItem.forEach((entry, item) => {
+      if (!itemsForToken.has(item)) {
+        tokenMatchesByItem.delete(item);
+      }
+    });
+  }
+
+  return firstTokenResults
+    .filter((result) => {
+      const entry = tokenMatchesByItem.get(result.item);
+      return entry && entry.tokenCount === tokens.length;
+    })
+    .map((result) => {
+      const entry = tokenMatchesByItem.get(result.item);
+      return {
+        ...result,
+        matches: entry?.matches || result.matches || [],
+      };
+    });
 }

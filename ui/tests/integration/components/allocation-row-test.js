@@ -5,11 +5,11 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import generateResources from '../../../mirage/data/generate-resources';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { find, render } from '@ember/test-helpers';
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -69,9 +69,9 @@ module('Integration | Component | allocation row', function (hooks) {
 
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}}
-        @enablePolling={{enablePolling}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}}
+        @enablePolling={{this.enablePolling}} />
     `);
 
     assert.equal(
@@ -109,8 +109,8 @@ module('Integration | Component | allocation row', function (hooks) {
 
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}} />
     `);
 
     assert.ok(
@@ -129,8 +129,8 @@ module('Integration | Component | allocation row', function (hooks) {
     this.setProperties({ allocation, context: 'job' });
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}} />
     `);
 
     assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
@@ -158,9 +158,9 @@ module('Integration | Component | allocation row', function (hooks) {
       this.set('allocation', allocation);
       await render(hbs`
           <AllocationRow
-            @allocation={{allocation}}
-            @context={{context}}
-            @enablePolling={{enablePolling}} />
+            @allocation={{this.allocation}}
+            @context={{this.context}}
+            @enablePolling={{this.enablePolling}} />
         `);
 
       const status = allocation.get('clientStatus');

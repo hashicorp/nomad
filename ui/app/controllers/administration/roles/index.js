@@ -11,7 +11,7 @@ import { task } from 'ember-concurrency';
 export default class AccessControlRolesIndexController extends Controller {
   @service router;
   @service notifications;
-  @service can;
+  @service abilities;
 
   get columns() {
     const defaultColumns = [
@@ -44,9 +44,9 @@ export default class AccessControlRolesIndexController extends Controller {
 
     return [
       ...defaultColumns,
-      ...(this.can.can('list token') ? [tokensColumn] : []),
-      ...(this.can.can('list policy') ? [policiesColumn] : []),
-      ...(this.can.can('destroy role') ? [deleteColumn] : []),
+      ...(this.abilities.can('list token') ? [tokensColumn] : []),
+      ...(this.abilities.can('list policy') ? [policiesColumn] : []),
+      ...(this.abilities.can('destroy role') ? [deleteColumn] : []),
     ];
   }
 

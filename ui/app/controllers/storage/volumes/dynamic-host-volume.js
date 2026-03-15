@@ -6,18 +6,18 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class DynamicHostVolumeController extends Controller {
   // Used in the template
   @service system;
+  @service router;
 
   queryParams = [
     {
-      volumeNamespace: 'namespace',
+      namespace: 'namespace',
     },
   ];
-  volumeNamespace = 'default';
+  namespace = 'default';
 
   get volume() {
     return this.model;
@@ -30,24 +30,32 @@ export default class DynamicHostVolumeController extends Controller {
     }
     return [
       {
+        label: 'Storage',
+        args: ['storage.index'],
+      },
+      {
+        label: 'Volumes',
+        args: ['storage.volumes'],
+      },
+      {
         label: volume.name,
-        args: [
-          'storage.volumes.dynamic-host-volume',
-          volume.plainId,
-          qpBuilder({
-            volumeNamespace: volume.get('namespace.name') || 'default',
-          }),
-        ],
+        args: ['storage.volumes.dynamic-host-volume', volume.idWithNamespace],
       },
     ];
   }
 
   @computed('model.allocations.@each.modifyIndex')
   get sortedAllocations() {
-    return this.model.allocations.sortBy('modifyIndex').reverse();
+    const allocations = this.model?.allocations;
+
+    if (!allocations) {
+      return [];
+    }
+
+    return allocations.sortBy('modifyIndex').reverse();
   }
 
   @action gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 }

@@ -9,6 +9,7 @@ import { inject as service } from '@ember/service';
 import { task } from 'ember-concurrency';
 
 export default class SentinelPoliciesIndexController extends Controller {
+  @service store;
   @service router;
   @service notifications;
 

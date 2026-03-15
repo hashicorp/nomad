@@ -85,7 +85,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
       .without('');
 
     // Remove any invalid node classes from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClass',
@@ -103,7 +103,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     ).compact();
 
     // Remove any invalid datacenters from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
@@ -118,7 +118,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   get optionsNodePool() {
     const availableNodePools = this.model.nodePools;
 
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpNodePool',
@@ -144,7 +144,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     ).compact();
 
     // Remove any invalid versions from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVersion',

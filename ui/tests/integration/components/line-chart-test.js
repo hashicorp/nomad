@@ -12,7 +12,7 @@ import {
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import sinon from 'sinon';
 import moment from 'moment';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';

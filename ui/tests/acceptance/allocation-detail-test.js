@@ -6,6 +6,7 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -77,7 +78,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
     assert.ok(Allocation.execButton.isPresent);
 
-    assert.ok(document.title.includes(`Allocation ${allocation.name} `));
+    assert.ok(getPageTitle().includes(`Allocation ${allocation.name} `));
 
     await Allocation.details.visitJob();
     assert.equal(

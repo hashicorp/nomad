@@ -11,7 +11,7 @@
 >
 	<td colspan={{@namespan}}>
 		<div class="name-grid">
-			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array this.task.allocation this.task}}>{{this.task.name}}</LinkTo>
+			<LinkTo title={{this.task.name}} class="task-name" @route="allocations.allocation.task" @models={{array this.task.allocation this.task.name}}>{{this.task.name}}</LinkTo>
 			<button type="button" class="logs-sidebar-trigger button is-borderless is-inline is-compact" onclick={{action "handleTaskLogsClick" this.task}}>
 				<Hds::Icon @name="logs" @isInline={{true}} />View Logs
 			</button>

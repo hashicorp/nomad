@@ -6,7 +6,7 @@
 <div class="boxed-section-head">
   Job Launches
   {{#if this.job.parameterized}}
-    {{#if (can "dispatch job" namespace=this.job.namespace)}}
+    {{#if (can "dispatch job" namespace=this.job.namespaceId)}}
       <LinkTo
         data-test-dispatch-button
         @route="jobs.job.dispatch"

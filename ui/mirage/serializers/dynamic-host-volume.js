@@ -19,6 +19,8 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeVolume(volume) {
-  volume.NodeID = volume.Node.ID;
+  if (volume.Node?.ID) {
+    volume.NodeID = volume.Node.ID;
+  }
   delete volume.Node;
 }

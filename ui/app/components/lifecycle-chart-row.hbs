@@ -11,7 +11,7 @@
   @icon={{this.taskIcon}} as |A|>
   <A.Title class="name" data-test-name>
     {{#if this.taskState}}
-      <LinkTo @route="allocations.allocation.task" @models={{array this.taskState.allocation this.taskState}}>
+      <LinkTo @route="allocations.allocation.task" @models={{array this.taskState.allocation this.taskState.name}}>
         {{this.task.name}}
       </LinkTo>
     {{else}}

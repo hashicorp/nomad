@@ -10,7 +10,7 @@ import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 export default class StorageController extends Fragment {
   @fragmentOwner() plugin;
 
-  @belongsTo('node') node;
+  @belongsTo('node', { async: true, inverse: null }) node;
   @attr('string') allocID;
 
   @attr('string') provider;

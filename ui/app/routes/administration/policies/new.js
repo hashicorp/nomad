@@ -90,11 +90,12 @@ operator {
 `;
 
 export default class AccessControlPoliciesNewRoute extends Route {
-  @service can;
+  @service store;
+  @service abilities;
   @service router;
 
   beforeModel() {
-    if (this.can.cannot('write policy')) {
+    if (this.abilities.cannot('write policy')) {
       this.router.transitionTo('/administration/policies');
     }
   }
@@ -109,8 +110,12 @@ export default class AccessControlPoliciesNewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.isNew) {
-        controller.model.destroyRecord();
+      if (controller?.model?.isNew) {
+        try {
+          controller.model.unloadRecord();
+        } catch {
+          // Record may already be disconnected during teardown.
+        }
       }
     }
   }

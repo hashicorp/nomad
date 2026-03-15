@@ -21,7 +21,7 @@ export default class ScaleEventsChart extends Component {
     // Extend the domain of the chart to the current time
     data.push({
       time: new Date(),
-      count: data.lastObject.count,
+      count: data[data.length - 1].count,
     });
 
     // Make sure the domain of the chart includes the first annotation

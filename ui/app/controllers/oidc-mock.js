@@ -6,7 +6,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 export default class OidcMockController extends Controller {
   @service router;
@@ -23,7 +23,7 @@ export default class OidcMockController extends Controller {
       url = url.concat(`&iss=${this.iss}`);
     }
 
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       this.router.transitionTo(url);
     } else {
       window.location = url;
@@ -33,7 +33,7 @@ export default class OidcMockController extends Controller {
   @action
   failToSignIn() {
     const url = `${this.redirect_uri.split('?')[0]}?state=failure`;
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       this.router.transitionTo(url);
     } else {
       window.location = url;

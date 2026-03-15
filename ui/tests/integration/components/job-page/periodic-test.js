@@ -6,10 +6,10 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import moment from 'moment';
 import { create, collection } from 'ember-cli-page-object';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import pageSizeSelect from 'nomad-ui/tests/acceptance/behaviors/page-size-select';
 import pageSizeSelectPageObject from 'nomad-ui/tests/pages/components/page-size-select';
 import {
@@ -52,11 +52,11 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
   const commonTemplate = hbs`
     <JobPage::Periodic
-      @job={{job}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}}
-      @currentPage={{currentPage}}
-      @childJobs={{job.children}}
+      @job={{this.job}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}}
+      @currentPage={{this.currentPage}}
+      @childJobs={{this.job.children}}
     />
   `;
 

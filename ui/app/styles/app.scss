@@ -5,8 +5,8 @@
 
 @use 'ember-basic-dropdown.css';
 @use 'ember-power-select.css';
+@use '@hashicorp/design-system-components.css';
 
 @import './core';
-@import '@hashicorp/design-system-components';
 @import './components';
 @import './charts';

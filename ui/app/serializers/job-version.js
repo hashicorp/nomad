@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
@@ -21,22 +20,27 @@ export default class JobVersionSerializer extends ApplicationSerializer {
   }
 
   normalizeFindHasManyResponse(store, modelClass, hash, id, requestType) {
-    const zippedVersions = hash.Versions.map((version, index) =>
-      assign({}, version, {
+    const zippedVersions = hash.Versions.map((version, index) => {
+      const normalizedVersion = Object.assign({}, version, {
         Diff: hash.Diffs && hash.Diffs[index],
         ID: `${version.ID}-${version.Version}`,
-        JobID: JSON.stringify([version.ID, version.Namespace || 'default']),
         SubmitTime: Math.floor(version.SubmitTime / 1000000),
         SubmitTimeNanos: version.SubmitTime % 1000000,
-      })
-    );
+      });
+
+      // Versions are loaded from a parent job.hasMany("versions") request,
+      // so omit ambiguous JobID payload data and let Ember Data bind back to parent.
+      delete normalizedVersion.JobID;
+
+      return normalizedVersion;
+    });
+
     return super.normalizeFindHasManyResponse(
       store,
       modelClass,
       zippedVersions,
-      hash,
       id,
-      requestType
+      requestType,
     );
   }
 }

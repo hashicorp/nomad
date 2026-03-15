@@ -23,7 +23,7 @@ module('Integration | Component | das/dismissed', function (hooks) {
     const proceedSpy = sinon.spy();
     this.set('proceedSpy', proceedSpy);
 
-    await render(hbs`<Das::Dismissed @proceed={{proceedSpy}} />`);
+    await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
 
     await componentA11yAudit(this.element, assert);
 
@@ -45,7 +45,7 @@ module('Integration | Component | das/dismissed', function (hooks) {
     const proceedSpy = sinon.spy();
     this.set('proceedSpy', proceedSpy);
 
-    await render(hbs`<Das::Dismissed @proceed={{proceedSpy}} />`);
+    await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
 
     assert.dom('[data-test-understood]').doesNotExist();
 

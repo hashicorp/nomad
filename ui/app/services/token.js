@@ -7,7 +7,6 @@ import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
-import { assign } from '@ember/polyfills';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
@@ -125,7 +124,7 @@ export default class TokenService extends Service {
       headers['X-Nomad-Token'] = token;
     }
 
-    return fetch(url, assign(options, { headers, credentials }));
+    return fetch(url, Object.assign(options, { headers, credentials }));
   }
 
   authorizedRequest(url, options) {
@@ -164,12 +163,11 @@ export default class TokenService extends Service {
         // For the sake of updating the "time left" message, we keep running the task down to the moment of expiration
         if (diff > 0) {
           if (existingNotification) {
-            existingNotification.set(
-              'message',
-              `Your token access expires ${moment(
-                this.selfToken.expirationTime
-              ).fromNow()}`
-            );
+            updateNotification(existingNotification, {
+              message: `Your token access expires ${moment(
+                this.selfToken.expirationTime,
+              ).fromNow()}`,
+            });
           } else {
             if (!this.expirationNotificationDismissed) {
               this.notifications.add({
@@ -193,7 +191,7 @@ export default class TokenService extends Service {
           }
         } else {
           if (existingNotification) {
-            existingNotification.setProperties({
+            updateNotification(existingNotification, {
               title: 'Your access has expired',
               message: `Your token will need to be re-authenticated`,
             });
@@ -213,4 +211,20 @@ function addParams(url, params) {
   const paramsStr = queryString.stringify(params);
   const delimiter = url.includes('?') ? '&' : '?';
   return `${url}${delimiter}${paramsStr}`;
+}
+
+function updateNotification(notification, props) {
+  if (typeof notification?.setProperties === 'function') {
+    notification.setProperties(props);
+    return;
+  }
+
+  if (typeof notification?.set === 'function') {
+    Object.entries(props).forEach(([key, value]) =>
+      notification.set(key, value),
+    );
+    return;
+  }
+
+  Object.assign(notification, props);
 }

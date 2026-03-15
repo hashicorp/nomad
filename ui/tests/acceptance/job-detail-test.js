@@ -300,7 +300,9 @@ moduleForJob(
       status: 'running', //  TODO: TEMP
       withPreviousStableVersion: true,
     });
-    return server.db.jobs.where({ parentId: parent.id })[0];
+    const child = server.db.jobs.where({ parentId: parent.id })[0];
+    server.db.jobs.update(child.id, { status: 'running', stopped: false });
+    return server.db.jobs.find(child.id);
   }
 );
 

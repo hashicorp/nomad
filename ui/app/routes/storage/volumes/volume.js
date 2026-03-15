@@ -30,8 +30,9 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
   }
 
   model(params) {
-    // Issue with naming collissions
-    const url = params.volume_name.split('@');
+    // Issue with naming collisions
+    const decodedVolumeName = decodeURIComponent(params.volume_name);
+    const url = decodedVolumeName.split('@');
     const namespace = url.pop();
     const name = url.join('');
 

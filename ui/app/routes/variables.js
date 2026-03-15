@@ -10,7 +10,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import PathTree from 'nomad-ui/utils/path-tree';
 
 export default class VariablesRoute extends Route.extend(WithForbiddenState) {
-  @service can;
+  @service abilities;
   @service router;
   @service store;
 
@@ -21,7 +21,7 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
   };
 
   beforeModel() {
-    if (this.can.cannot('list variables')) {
+    if (this.abilities.cannot('list variables')) {
       this.router.transitionTo('/jobs');
     }
   }
@@ -33,7 +33,7 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
       const variables = await this.store.query(
         'variable',
         { namespace },
-        { reload: true }
+        { reload: true },
       );
       return {
         variables,

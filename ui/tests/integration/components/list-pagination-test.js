@@ -6,7 +6,7 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | list pagination', function (hooks) {
@@ -28,7 +28,7 @@ module('Integration | Component | list pagination', function (hooks) {
 
     this.set('source', list100);
     await render(hbs`
-      <ListPagination @source={{source}} as |p|>
+      <ListPagination @source={{this.source}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
         <p.first><span class="first">first</span></p.first>
         <p.prev><span class="prev">prev</span></p.prev>
@@ -98,7 +98,7 @@ module('Integration | Component | list pagination', function (hooks) {
       source: list100,
     });
     await render(hbs`
-      <ListPagination @source={{source}} @size={{size}} as |p|>
+      <ListPagination @source={{this.source}} @size={{this.size}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
       </ListPagination>
     `);
@@ -122,7 +122,7 @@ module('Integration | Component | list pagination', function (hooks) {
     });
 
     await render(hbs`
-      <ListPagination @source={{source}} @spread={{spread}} @size={{size}} @page={{currentPage}} as |p|>
+      <ListPagination @source={{this.source}} @spread={{this.spread}} @size={{this.size}} @page={{this.currentPage}} as |p|>
         {{#each p.pageLinks as |link|}}
           <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
         {{/each}}
@@ -144,7 +144,7 @@ module('Integration | Component | list pagination', function (hooks) {
     });
 
     await render(hbs`
-      <ListPagination @source={{source}} @size={{size}} @page={{currentPage}} as |p|>
+      <ListPagination @source={{this.source}} @size={{this.size}} @page={{this.currentPage}} as |p|>
         {{#each p.list as |item|}}
           <div class="item">{{item}}</div>
         {{/each}}
@@ -164,7 +164,7 @@ module('Integration | Component | list pagination', function (hooks) {
   test('there are no pagination links when source is less than page size', async function (assert) {
     this.set('source', list100.slice(0, 10));
     await render(hbs`
-      <ListPagination @source={{source}} as |p|>
+      <ListPagination @source={{this.source}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
         <p.first><span class="first">first</span></p.first>
         <p.prev><span class="prev">prev</span></p.prev>
@@ -207,7 +207,7 @@ module('Integration | Component | list pagination', function (hooks) {
     const totalPages = Math.ceil(this.get('source.length') / this.size);
 
     await render(hbs`
-      <ListPagination @source={{source}} @page={{page}} @spread={{spread}} @size={{size}} as |p|>
+      <ListPagination @source={{this.source}} @page={{this.page}} @spread={{this.spread}} @size={{this.size}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
         <p.first><span class="first">first</span></p.first>
         <p.prev><span class="prev">prev</span></p.prev>

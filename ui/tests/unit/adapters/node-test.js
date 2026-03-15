@@ -5,7 +5,7 @@
 
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { setupTest } from 'ember-qunit';
 import { settled } from '@ember/test-helpers';
 

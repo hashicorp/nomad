@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { collect } from '@ember/object/computed';
@@ -12,6 +13,8 @@ import {
 } from 'nomad-ui/utils/properties/watch';
 
 export default class JobsJobServicesRoute extends Route.extend(WithWatchers) {
+  @service store;
+
   model() {
     const job = this.modelFor('jobs.job');
     return job && job.get('services').then(() => job);

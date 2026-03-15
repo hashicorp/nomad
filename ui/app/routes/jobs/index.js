@@ -14,7 +14,8 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { action } from '@ember/object';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
+import { AbortController } from 'fetch';
 
 const DEFAULT_THROTTLE = 2000;
 
@@ -213,7 +214,9 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    let err = error.errors?.objectAt(0);
+    const errorDetails = /** @type {any} */ (error).errors;
+    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    let err = errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
@@ -302,13 +305,13 @@ export default class IndexRoute extends Route.extend(
     // Now that we've set the jobIDs, immediately start watching them
     controller.watchJobs.perform(
       controller.jobIDs,
-      Ember.testing ? 0 : DEFAULT_THROTTLE,
-      'update'
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
+      'update',
     );
     // And also watch for any changes to the jobIDs list
     controller.watchJobIDs.perform(
       this.getCurrentParams(),
-      Ember.testing ? 0 : DEFAULT_THROTTLE
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
     );
   }
 

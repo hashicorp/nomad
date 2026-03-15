@@ -30,7 +30,7 @@ export default class JobDeploymentsStream extends Component {
       if (index === 0) {
         meta.showDate = true;
       } else {
-        const previousDeployment = deployments.objectAt(index - 1);
+        const previousDeployment = deployments[index - 1];
         const previousSubmitTime = previousDeployment.get('version.submitTime');
         const submitTime = deployment.get('submitTime');
         if (

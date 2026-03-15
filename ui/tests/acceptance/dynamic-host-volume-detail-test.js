@@ -6,9 +6,11 @@
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
@@ -24,6 +26,7 @@ const assignAlloc = (volume, alloc) => {
 module('Acceptance | dynamic host volume detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   let volume;
 
@@ -57,7 +60,14 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(document.title, `Dynamic Host Volume ${volume.name} - Nomad`);
+    assert.ok(
+      getPageTitle().startsWith(`Dynamic Host Volume ${volume.name} - `),
+      `title starts with the dynamic host volume name: ${getPageTitle()}`,
+    );
+    assert.ok(
+      getPageTitle().endsWith(' - Nomad'),
+      `title ends with Nomad branding: ${getPageTitle()}`,
+    );
     assert.equal(VolumeDetail.title, volume.name);
   });
 
@@ -246,6 +256,7 @@ module(
   function (hooks) {
     setupApplicationTest(hooks);
     setupMirage(hooks);
+    setupAuthenticatedAcceptance(hooks);
 
     let volume;
 

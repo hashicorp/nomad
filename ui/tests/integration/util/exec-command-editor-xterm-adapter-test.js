@@ -7,7 +7,7 @@ import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-e
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { Terminal } from 'xterm';
 import KEYS from 'nomad-ui/utils/keys';
 

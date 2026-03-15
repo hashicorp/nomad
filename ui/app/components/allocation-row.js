@@ -3,17 +3,16 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias } from '@ember/object/computed';
 import { scheduleOnce } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import classic from 'ember-classic-decorator';
+import ENV from 'nomad-ui/config/environment';
 import {
   classNames,
   tagName,
@@ -26,7 +25,7 @@ import {
 @attributeBindings(
   'data-test-allocation',
   'data-test-write-allocation',
-  'data-test-read-allocation'
+  'data-test-read-allocation',
 )
 export default class AllocationRow extends Component {
   @service store;
@@ -40,7 +39,7 @@ export default class AllocationRow extends Component {
   // Internal state
   statsError = false;
 
-  @overridable(() => !Ember.testing) enablePolling;
+  @overridable(() => ENV.environment !== 'test') enablePolling;
 
   @computed('allocation', 'allocation.isRunning')
   get stats() {
@@ -52,8 +51,17 @@ export default class AllocationRow extends Component {
     });
   }
 
-  @alias('stats.cpu.lastObject') cpu;
-  @alias('stats.memory.lastObject') memory;
+  @computed('stats.cpu.[]')
+  get cpu() {
+    const cpu = this.stats?.cpu;
+    return cpu?.[cpu.length - 1];
+  }
+
+  @computed('stats.memory.[]')
+  get memory() {
+    const memory = this.stats?.memory;
+    return memory?.[memory.length - 1];
+  }
 
   onClick() {}
 

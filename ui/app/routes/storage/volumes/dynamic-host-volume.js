@@ -15,7 +15,8 @@ export default class StorageVolumesDynamicHostVolumeRoute extends Route {
   @service system;
 
   model(params) {
-    const [id, namespace] = params.id.split('@');
+    const decodedId = decodeURIComponent(params.id);
+    const [id, namespace] = decodedId.split('@');
     const fullId = JSON.stringify([`${id}`, namespace || 'default']);
 
     return RSVP.hash({

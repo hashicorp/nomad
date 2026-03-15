@@ -17,7 +17,7 @@ export default class JobPagePartsSummaryChartComponent extends Component {
     this.router.transitionTo('jobs.job.allocations', this.args.job, {
       queryParams: {
         status: JSON.stringify(status),
-        namespace: this.args.job.get('namespace.name'),
+        namespace: this.args.job.namespaceId,
       },
     });
   }

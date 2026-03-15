@@ -27,7 +27,7 @@ export default class SystemService extends Service {
         return this.token
           .authorizedRequest(`/${namespace}/status/leader?region=${region}`)
           .then((res) => res.json());
-      })
+      }),
     );
   }
 
@@ -131,11 +131,20 @@ export default class SystemService extends Service {
 
   @computed('namespaces.[]')
   get shouldShowNamespaces() {
+    if (this._shouldShowNamespacesOverride !== undefined) {
+      return this._shouldShowNamespacesOverride;
+    }
+
     const namespaces = this.namespaces.toArray();
     return (
       namespaces.length &&
       namespaces.some((namespace) => namespace.get('id') !== 'default')
     );
+  }
+
+  set shouldShowNamespaces(value) {
+    this._shouldShowNamespacesOverride = value;
+    return value;
   }
 
   get shouldShowNodepools() {

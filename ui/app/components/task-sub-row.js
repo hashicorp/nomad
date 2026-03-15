@@ -4,7 +4,6 @@
  */
 
 // @ts-check
-import Ember from 'ember';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
@@ -12,6 +11,7 @@ import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { task, timeout } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
+import ENV from 'nomad-ui/config/environment';
 
 export default class TaskSubRowComponent extends Component {
   @service store;
@@ -35,7 +35,11 @@ export default class TaskSubRowComponent extends Component {
 
   @action
   gotoTask(allocation, task) {
-    this.router.transitionTo('allocations.allocation.task', allocation, task);
+    const taskName =
+      (typeof task?.get === 'function' ? task.get('name') : undefined) ||
+      task?.name ||
+      task;
+    this.router.transitionTo('allocations.allocation.task', allocation, taskName);
   }
 
   // Since all tasks for an allocation share the same tracker, use the registry
@@ -51,7 +55,7 @@ export default class TaskSubRowComponent extends Component {
 
   @computed
   get enablePolling() {
-    return !Ember.testing;
+    return ENV.environment !== 'test';
   }
 
   @computed('task.name', 'stats.tasks.[]')
@@ -61,8 +65,17 @@ export default class TaskSubRowComponent extends Component {
     return this.stats.tasks.findBy('task', this.task.name);
   }
 
-  @alias('taskStats.cpu.lastObject') cpu;
-  @alias('taskStats.memory.lastObject') memory;
+  @computed('taskStats.cpu.[]')
+  get cpu() {
+    const cpu = this.taskStats?.cpu;
+    return cpu?.[cpu.length - 1];
+  }
+
+  @computed('taskStats.memory.[]')
+  get memory() {
+    const memory = this.taskStats?.memory;
+    return memory?.[memory.length - 1];
+  }
 
   @(task(function* () {
     do {

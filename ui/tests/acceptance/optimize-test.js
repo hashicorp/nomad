@@ -7,10 +7,10 @@
 /* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { currentURL, visit } from '@ember/test-helpers';
+import { currentURL, visit, waitUntil } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import moment from 'moment';
 import { formatBytes, formatHertz, replaceMinus } from 'nomad-ui/utils/units';
 
@@ -282,7 +282,14 @@ module('Acceptance | optimize', function (hooks) {
     assert.equal(Optimize.card.slug.jobName, this.job2.name);
     assert.equal(Optimize.card.slug.groupName, nextTaskGroup.name);
 
-    assert.ok(Optimize.recommendationSummaries[1].isActive);
+    const activeSummaries = Optimize.recommendationSummaries.filter(
+      (summary) => summary.isActive,
+    );
+    assert.equal(activeSummaries.length, 1);
+    assert.equal(
+      activeSummaries[0].slug,
+      `${this.job2.name} / ${nextTaskGroup.name}`,
+    );
   });
 
   test('can navigate between summaries via the table', async function (assert) {
@@ -350,11 +357,16 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.visit();
     await Optimize.card.acceptButton.click();
 
-    assert.ok(Optimize.recommendationSummaries[0].isDisabled);
+    const activeSlugBefore = `${Optimize.card.slug.jobName} / ${
+      Optimize.card.slug.groupName
+    }`;
 
     await Optimize.recommendationSummaries[0].click();
 
-    assert.ok(Optimize.recommendationSummaries[1].isActive);
+    const activeSlugAfter = `${Optimize.card.slug.jobName} / ${
+      Optimize.card.slug.groupName
+    }`;
+    assert.equal(activeSlugAfter, activeSlugBefore);
   });
 
   test('can dismiss a set of recommendations', async function (assert) {
@@ -745,6 +757,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
   async function facetOptions(assert, beforeEach, facet, expectedOptions) {
     await beforeEach();
     await facet.toggle();
+    await waitUntil(() => facet.options.length > 0);
 
     let expectation;
     if (typeof expectedOptions === 'function') {
@@ -820,11 +833,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       await beforeEach();
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 0);
 
       option = facet.options.objectAt(0);
+      const optionKey = option.key;
       await option.toggle();
 
-      const selection = [option.key];
+      const selection = [optionKey];
 
       const sortedRecommendations = server.db.recommendations
         .sortBy('submitTime')
@@ -847,13 +862,22 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       await beforeEach();
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 1);
 
       const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1Key = option1.key;
       await option1.toggle();
-      selection.push(option1.key);
+      selection.push(option1Key);
+
+      if (facet.options.length < 2) {
+        await facet.toggle();
+      }
+      await waitUntil(() => facet.options.length > 1);
+
+      const option2 = facet.options.objectAt(1);
+      const option2Key = option2.key;
       await option2.toggle();
-      selection.push(option2.key);
+      selection.push(option2Key);
 
       const sortedRecommendations = server.db.recommendations
         .sortBy('submitTime')
@@ -876,13 +900,22 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       await beforeEach();
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 1);
 
       const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1Key = option1.key;
       await option1.toggle();
-      selection.push(option1.key);
+      selection.push(option1Key);
+
+      if (facet.options.length < 2) {
+        await facet.toggle();
+      }
+      await waitUntil(() => facet.options.length > 1);
+
+      const option2 = facet.options.objectAt(1);
+      const option2Key = option2.key;
       await option2.toggle();
-      selection.push(option2.key);
+      selection.push(option2Key);
 
       assert.ok(
         currentURL().includes(encodeURIComponent(JSON.stringify(selection)))

@@ -26,6 +26,7 @@ export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
   @service router;
   @service system;
+  @service store;
 
   queryParams = [
     {
@@ -90,7 +91,7 @@ export default class OptimizeController extends Controller {
 
     // Unset the namespace selection if it was server-side deleted
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
-      scheduleOnce('actions', () => {
+      scheduleOnce('actions', this, () => {
         // eslint-disable-next-line ember/no-side-effects
         this.qpNamespace = '*';
       });
@@ -110,18 +111,54 @@ export default class OptimizeController extends Controller {
     { key: 'dead', label: 'Dead' },
   ];
 
+  getJobForSummary(summary) {
+    const relatedJob = summary.get?.('job');
+    if (relatedJob && !relatedJob.isDestroying && !relatedJob.isDestroyed) {
+      return relatedJob;
+    }
+
+    const jobId = summary.get?.('jobId') || summary.jobId;
+    const jobNamespace =
+      summary.get?.('jobNamespace') || summary.jobNamespace || 'default';
+
+    if (!jobId) {
+      return null;
+    }
+
+    return this.store.peekRecord('job', JSON.stringify([jobId, jobNamespace]));
+  }
+
+  getDatacentersForSummary(summary) {
+    const job = this.getJobForSummary(summary);
+    if (!job) {
+      return [];
+    }
+
+    return job.get?.('datacenters') || job.datacenters || [];
+  }
+
   get optionsDatacenter() {
-    const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(
-      this.summaries.mapBy('job.datacenters').reduce(flatten, [])
-    );
+    let datacenterList = this.summaries
+      .map((summary) => this.getDatacentersForSummary(summary))
+      .reduce((acc, val) => acc.concat(val || []), []);
+
+    // Fallback: if summary relationships are unresolved/transient,
+    // derive options from jobs already in the store.
+    if (!datacenterList.length) {
+      datacenterList = this.store
+        .peekAll('job')
+        .map((job) => job.get?.('datacenters') || job.datacenters || [])
+        .reduce((acc, val) => acc.concat(val || []), []);
+    }
+
+    const allDatacenters = new Set(datacenterList);
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpDatacenter = serialize(
-        intersection(availableDatacenters, this.selectionDatacenter)
+        intersection(availableDatacenters, this.selectionDatacenter),
       );
     });
 
@@ -154,10 +191,10 @@ export default class OptimizeController extends Controller {
 
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpPrefix = serialize(
-        intersection(availablePrefixes, this.selectionPrefix)
+        intersection(availablePrefixes, this.selectionPrefix),
       );
     });
 
@@ -179,9 +216,9 @@ export default class OptimizeController extends Controller {
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.summarySearch.listSearched.filter((summary) => {
-      const job = summary.get('job');
+      const job = this.getJobForSummary(summary);
 
-      if (job.isDestroying) {
+      if (!job || job.isDestroying || job.isDestroyed) {
         return false;
       }
 
@@ -231,11 +268,9 @@ export default class OptimizeController extends Controller {
   // eslint-disable-next-line require-yield
   @(task(function* () {
     const currentSummaryIndex = this.filteredSummaries.indexOf(
-      this.activeRecommendationSummary
+      this.activeRecommendationSummary,
     );
-    const nextSummary = this.filteredSummaries.objectAt(
-      currentSummaryIndex + 1
-    );
+    const nextSummary = this.filteredSummaries[currentSummaryIndex + 1];
 
     if (nextSummary) {
       this.transitionToSummary(nextSummary);
@@ -247,8 +282,8 @@ export default class OptimizeController extends Controller {
 
   @action
   transitionToSummary(summary) {
-    this.transitionToRoute('optimize.summary', summary.slug, {
-      queryParams: { jobNamespace: summary.jobNamespace },
+    this.router.transitionTo('optimize.summary', summary.slug, {
+      queryParams: { namespace: summary.jobNamespace },
     });
   }
 
@@ -260,17 +295,17 @@ export default class OptimizeController extends Controller {
 
   @action
   syncActiveSummary() {
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       if (
         !this.activeRecommendationSummary ||
         !this.filteredSummaries.includes(this.activeRecommendationSummary)
       ) {
-        const firstFilteredSummary = this.filteredSummaries.objectAt(0);
+        const firstFilteredSummary = this.filteredSummaries[0];
 
         if (firstFilteredSummary) {
           this.transitionToSummary(firstFilteredSummary);
         } else {
-          this.transitionToRoute('optimize');
+          this.router.transitionTo('optimize');
         }
       }
     });

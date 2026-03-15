@@ -6,6 +6,7 @@
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { currentURL, settled } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -128,7 +129,7 @@ module('Acceptance | task group detail', function (hooks) {
     );
 
     assert.ok(
-      document.title.includes(`Task group ${taskGroup.name} - Job ${job.name}`)
+      getPageTitle().includes(`Task group ${taskGroup.name} - Job ${job.name}`)
     );
   });
 

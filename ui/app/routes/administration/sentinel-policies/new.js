@@ -42,8 +42,12 @@ export default class NewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.isNew) {
-        controller.model.destroyRecord();
+      if (controller?.model?.isNew) {
+        try {
+          controller.model.unloadRecord();
+        } catch {
+          // Record may already be disconnected during teardown.
+        }
         controller.set('template', null);
       }
     }

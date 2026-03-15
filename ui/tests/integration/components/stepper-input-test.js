@@ -12,7 +12,7 @@ import {
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -39,14 +39,14 @@ module('Integration | Component | stepper input', function (hooks) {
 
   const commonTemplate = hbs`
     <StepperInput
-      @debounce=50
-      @min={{min}}
-      @max={{max}}
-      @value={{value}}
-      @class={{classVariant}}
-      @disabled={{disabled}}
-      @onChange={{onChange}}>
-      {{label}}
+      @debounce="50"
+      @min={{this.min}}
+      @max={{this.max}}
+      @value={{this.value}}
+      @class={{this.classVariant}}
+      @disabled={{this.disabled}}
+      @onChange={{this.onChange}}>
+      {{this.label}}
     </StepperInput>
   `;
 

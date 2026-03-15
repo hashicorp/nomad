@@ -11,7 +11,9 @@ import { run } from '@ember/runloop';
 // the store.
 export default function pushPayloadToStore(store, payload, modelName) {
   run(() => {
-    store._push(payload);
-    store._didUpdateAll(modelName);
+    store.push(payload);
+    // Simulate the reactive update that findAll would trigger so computed
+    // dependencies on peekAll(modelName) re-evaluate in unit tests.
+    store.peekAll(modelName).notifyPropertyChange('[]');
   });
 }

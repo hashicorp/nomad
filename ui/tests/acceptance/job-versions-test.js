@@ -6,6 +6,7 @@
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { currentURL, click, typeIn } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -67,7 +68,7 @@ module('Acceptance | job versions', function (hooks) {
       versions.length,
       'Each version gets a row in the timeline'
     );
-    assert.equal(document.title, `Job ${job.name} versions - Nomad`);
+    assert.equal(getPageTitle(), `Job ${job.name} versions - Nomad`);
   });
 
   test('each version mentions the version number, the stability, and the submitted time', async function (assert) {

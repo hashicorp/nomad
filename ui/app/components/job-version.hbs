@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{did-update this.versionsDidUpdate this.diff}}
+{{did-update-helper this.versionsDidUpdate this.diff}}
 <section class="job-version" data-test-job-version={{this.version.number}}>
   <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
@@ -77,16 +77,16 @@
           {{#if this.version.versionTag}}
             <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
           {{else}}
-            {{#if (can "tag version" namespace=this.version.job.namespace)}}
-              <Hds::Button 
+            {{#if (can "tag version" namespace=this.version.job.namespaceId)}}
+              <Hds::Button
                 data-test-version-tag
-                class="tag-button-secondary" 
-                @text="Tag this version" 
-                @color="secondary" 
-                @size="small" 
-                @icon="tag" 
-                @iconPosition="leading" 
-                @isInline={{true}} {{on "click" (action "toggleEditTag")}} 
+                class="tag-button-secondary"
+                @text="Tag this version"
+                @color="secondary"
+                @size="small"
+                @icon="tag"
+                @iconPosition="leading"
+                @isInline={{true}} {{on "click" (action "toggleEditTag")}}
               />
             {{/if}}
           {{/if}}
@@ -114,8 +114,8 @@
                     confirmButton="is-warning"}}
                   @fadingBackground={{true}}
                   @idleText="Revert Version"
-                  @disabled={{not (can "revert job" namespace=this.version.job.namespace)}}
-                  @title={{if (can "revert job" namespace=this.version.job.namespace) null "You don’t have permission to revert"}}
+                  @disabled={{not (can "revert job" namespace=this.version.job.namespaceId)}}
+                  @title={{if (can "revert job" namespace=this.version.job.namespaceId) null "You don’t have permission to revert"}}
                   @cancelText="Cancel"
                   @confirmText="Yes, Revert Version"
                   @confirmationMessage="Are you sure you want to revert to this version?"
@@ -133,7 +133,7 @@
                   @isInline={{true}}
                   {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
                 />
-                {{#if (can "start job" namespace=this.version.job.namespace)}}
+                {{#if (can "start job" namespace=this.version.job.namespaceId)}}
                   <Hds::Button
                     data-test-clone-as-new-version
                     @text="Clone as New Version of {{this.version.job.name}}"

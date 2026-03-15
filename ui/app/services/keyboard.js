@@ -15,7 +15,6 @@ import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
 import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
-import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
@@ -202,7 +201,9 @@ export default class KeyboardService extends Service {
    */
   cleanPattern(iter) {
     iter = iter + 1; // first item should be Shift+1, not Shift+0
-    assert('Dynamic keyboard shortcuts only work up to 99 digits', iter < 100);
+    if (iter >= 100) {
+      return [];
+    }
     return [`Shift+${('0' + iter).slice(-2)}`]; // Shift+01, not Shift+1
   }
 
@@ -336,8 +337,8 @@ export default class KeyboardService extends Service {
     const targetElementName = event.target.nodeName.toLowerCase();
     const inputDisallowed =
       inputElements.includes(targetElementName) ||
-      disallowedClassNames.any((className) =>
-        event.target.classList.contains(className)
+      disallowedClassNames.some((className) =>
+        event.target.classList.contains(className),
       );
 
     // Don't fire keypress events from within an input field

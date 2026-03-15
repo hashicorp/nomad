@@ -5,13 +5,14 @@
 
 /* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, visit } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
 import { formatBytes } from 'nomad-ui/utils/units';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import moment from 'moment';
 
 import FS from 'nomad-ui/tests/pages/allocations/fs';
@@ -88,7 +89,7 @@ export default function browseFilesystem({
         'No redirect'
       );
       assert.ok(
-        document.title.includes(
+        getPageTitle().includes(
           `${pathWithLeadingSlash} - ${getTitleComponent({
             allocation: this.allocation,
             task: this.task,
@@ -362,7 +363,7 @@ export default function browseFilesystem({
 
     assert.ok(FS.fileViewer.isPresent);
 
-    const requests = this.server.pretender.handledRequests;
+    const requests = [...this.server.pretender.handledRequests];
     const secondAttempt = requests.pop();
     const firstAttempt = requests.pop();
 

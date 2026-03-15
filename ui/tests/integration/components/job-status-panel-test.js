@@ -6,8 +6,8 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { hbs } from 'ember-cli-htmlbars';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
@@ -513,7 +513,6 @@ module(
       deployment.deploymentTaskGroupSummaries.models.forEach((d) => {
         d.update({
           desiredCanaries: 0,
-          requiresPromotion: false,
           promoted: false,
         });
       });
@@ -563,7 +562,6 @@ module(
       await Promise.all(
         this.get('job.latestDeployment.taskGroupSummaries').map(async (a) => {
           await a.set('desiredCanaries', 3);
-          await a.set('requiresPromotion', true);
         })
       );
 

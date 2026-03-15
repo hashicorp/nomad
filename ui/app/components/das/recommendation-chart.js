@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { next } from '@ember/runloop';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { get } from '@ember/object';
 
 import { scaleLinear } from 'd3-scale';
@@ -344,7 +344,7 @@ export default class RecommendationChartComponent extends Component {
           label: statsKeyToLabel[key],
           value: statsWithCurrentAndRecommended[key],
         }))
-        .sortBy('value');
+        .sort((a, b) => a.value - b.value);
     } else {
       return [];
     }
