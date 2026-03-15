@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL, waitFor } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -71,7 +72,7 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.equal(Task.lifecycle, lifecycleName);
 
-    assert.ok(document.title.includes(`Task ${task.name}`));
+    assert.ok(getPageTitle().includes(`Task ${task.name}`));
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
@@ -291,7 +292,9 @@ module('Acceptance | task detail', function (hooks) {
     await Task.restart.idle();
     await Task.restart.confirm();
 
-    const request = server.pretender.handledRequests.findBy('method', 'PUT');
+    const request = server.pretender.handledRequests.find(
+      (r) => r.method === 'PUT'
+    );
     assert.equal(
       request.url,
       `/v1/client/allocation/${allocation.id}/restart`,

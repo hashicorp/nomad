@@ -7,12 +7,12 @@ import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
 export default class JobsRunTemplatesManageRoute extends Route {
-  @service can;
+  @service abilities;
   @service router;
   @service store;
 
   beforeModel() {
-    const hasPermissions = this.can.can('write variable', null, {
+    const hasPermissions = this.abilities.can('write variable', null, {
       namespace: '*',
       path: '*',
     });

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
-import { Factory, trait } from 'ember-cli-mirage';
+import { assert } from '@ember/debug';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
@@ -121,7 +121,7 @@ export default Factory.extend({
 });
 
 function assignJob(evaluation, server) {
-  Ember.assert(
+  assert(
     '[Mirage] No jobs! make sure jobs are created before evaluations',
     server.db.jobs.length
   );

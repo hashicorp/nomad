@@ -148,7 +148,7 @@
                       <strong>
                         Client:
                       </strong>
-                      <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
+                      <LinkTo data-test-client-link @route="clients.client" @model={{node.id}}>
                         {{node.shortId}}
                       </LinkTo>
                     </h3>
@@ -335,7 +335,7 @@
                     <LinkTo
                       data-test-client
                       @route="clients.client"
-                      @model={{this.activeAllocation.node}}
+                      @model={{this.activeAllocation.node.id}}
                     >
                       {{this.activeAllocation.node.shortId}}
                     </LinkTo>

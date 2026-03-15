@@ -137,12 +137,12 @@ export default class Job extends Model {
         accumulator[type.label] = { healthy: { nonCanary: [] } };
         return accumulator;
       },
-      {}
+      {},
     );
 
     // First accumulate the Running/Pending allocations
     for (const alloc of this.allocations.filter(
-      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending'
+      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending',
     )) {
       if (availableSlotsToFill === 0) {
         break;
@@ -156,7 +156,7 @@ export default class Job extends Model {
     // Sort all allocs by jobVersion in descending order
     const sortedAllocs = this.allocations
       .filter(
-        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
+        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending',
       )
       .sort((a, b) => {
         // First sort by jobVersion
@@ -327,9 +327,13 @@ export default class Job extends Model {
     if (!this.allocations) {
       return false;
     }
-    return this.allocations
-      .filter((alloc) => alloc.clientStatus === 'pending')
-      .any((alloc) => alloc.hasPausedTask);
+    const pendingAllocs =
+      this.allocations
+        .filter((alloc) => alloc.clientStatus === 'pending')
+        .toArray?.() ||
+      this.allocations.filter((alloc) => alloc.clientStatus === 'pending');
+
+    return pendingAllocs.some((alloc) => alloc.hasPausedTask);
   }
 
   // True when the job is the parent periodic or parameterized jobs
@@ -343,7 +347,30 @@ export default class Job extends Model {
 
   @computed('plainId')
   get idWithNamespace() {
-    return `${this.plainId}@${this.belongsTo('namespace').id() ?? 'default'}`;
+    let namespace = 'default';
+
+    try {
+      const [, parsedNamespace] = JSON.parse(this.id || '[]');
+      namespace = parsedNamespace || namespace;
+    } catch {
+      // Fall back to default namespace for malformed/empty ids.
+    }
+
+    return `${this.plainId}@${namespace}`;
+  }
+
+  @computed('id')
+  get namespaceId() {
+    try {
+      const [, parsedNamespace] = JSON.parse(this.id || '[]');
+      if (parsedNamespace) {
+        return parsedNamespace;
+      }
+    } catch {
+      // Fall through to relationship id fallback.
+    }
+
+    return this.belongsTo('namespace').id() || 'default';
   }
 
   @computed('periodic', 'parameterized', 'dispatched')
@@ -368,8 +395,8 @@ export default class Job extends Model {
     );
   }
 
-  @belongsTo('job', { inverse: 'children' }) parent;
-  @hasMany('job', { inverse: 'parent' }) children;
+  @belongsTo('job', { async: true, inverse: 'children' }) parent;
+  @hasMany('job', { async: true, inverse: 'parent' }) children;
 
   // The parent job name is prepended to child launch job names
   @computed('name', 'parent.content')
@@ -398,7 +425,7 @@ export default class Job extends Model {
     'type',
     'periodic',
     'parameterized',
-    'parent.{periodic,parameterized}'
+    'parent.{periodic,parameterized}',
   )
   get templateType() {
     const type = this.type;
@@ -423,7 +450,7 @@ export default class Job extends Model {
 
   @attr() datacenters;
   @fragmentArray('task-group', { defaultValue: () => [] }) taskGroups;
-  @belongsTo('job-summary') summary;
+  @belongsTo('job-summary', { async: true, inverse: 'job' }) summary;
 
   // A job model created from the jobs list response will be lacking
   // task groups. This is an indicator that it needs to be reloaded
@@ -452,35 +479,45 @@ export default class Job extends Model {
 
   @attr('number') version;
 
-  @hasMany('job-versions', { async: true }) versions;
-  @hasMany('allocations') allocations;
-  @hasMany('deployments') deployments;
-  @hasMany('evaluations') evaluations;
-  @hasMany('variables') variables;
-  @belongsTo('namespace') namespace;
-  @belongsTo('job-scale') scaleState;
-  @hasMany('services') services;
+  @hasMany('job-versions', { async: true, inverse: 'job' }) versions;
+  @hasMany('allocations', { async: true, inverse: 'job' }) allocations;
+  @hasMany('deployments', { async: true, inverse: 'job' }) deployments;
+  @hasMany('evaluations', { async: true, inverse: 'job' }) evaluations;
+  @hasMany('variables', { async: true, inverse: null }) variables;
+  @belongsTo('namespace', { async: true, inverse: null }) namespace;
+  @belongsTo('job-scale', { async: true, inverse: 'job' }) scaleState;
+  @hasMany('services', { async: true, inverse: 'job' }) services;
 
-  @hasMany('recommendation-summary') recommendationSummaries;
+  @hasMany('recommendation-summary', {
+    async: true,
+    inverse: 'job',
+  })
+  recommendationSummaries;
 
   @computed('versions.@each.stable')
   get hasStableNonCurrentVersion() {
-    return this.versions
+    const nonCurrentVersions = this.versions
       .sortBy('number')
       .reverse()
-      .slice(1)
-      .any((version) => version.get('stable'));
+      .slice(1);
+
+    const versions =
+      nonCurrentVersions?.toArray?.() || nonCurrentVersions || [];
+    return versions.some((version) => version.get('stable'));
   }
 
   @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
-    return this.versions.filterBy('stable').sortBy('number').reverse().slice(1)
-      .firstObject;
+    return this.versions
+      .filterBy('stable')
+      .sortBy('number')
+      .reverse()
+      .slice(1)[0];
   }
 
   @computed('versions.[]', 'aggregateAllocStatus.label')
   get latestVersion() {
-    return this.versions.sortBy('number').reverse().slice(1).firstObject;
+    return this.versions.sortBy('number').reverse().slice(1)[0];
   }
 
   get actions() {
@@ -490,7 +527,7 @@ export default class Job extends Model {
           .map((task) => {
             return task.get('actions')?.toArray() || [];
           })
-          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), [])
+          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), []),
       );
     }, []);
   }
@@ -549,7 +586,8 @@ export default class Job extends Model {
     if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
-    return evaluations.sortBy('modifyIndex').get('lastObject');
+    const sortedEvaluations = evaluations.sortBy('modifyIndex');
+    return sortedEvaluations[sortedEvaluations.length - 1];
   }
 
   @computed('evaluations.{@each.modifyIndex,isPending}')
@@ -561,7 +599,8 @@ export default class Job extends Model {
 
     const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
     if (failureEvaluations) {
-      return failureEvaluations.sortBy('modifyIndex').get('lastObject');
+      const sortedFailureEvaluations = failureEvaluations.sortBy('modifyIndex');
+      return sortedFailureEvaluations[sortedFailureEvaluations.length - 1];
     }
 
     return undefined;
@@ -574,7 +613,8 @@ export default class Job extends Model {
     return false;
   }
 
-  @belongsTo('deployment', { inverse: 'jobForLatest' }) latestDeployment;
+  @belongsTo('deployment', { async: true, inverse: 'jobForLatest' })
+  latestDeployment;
 
   @computed('latestDeployment', 'latestDeployment.isRunning')
   get runningDeployment() {
@@ -680,7 +720,7 @@ export default class Job extends Model {
   resetId() {
     this.set(
       'id',
-      JSON.stringify([this.plainId, this.get('namespace.name') || 'default'])
+      JSON.stringify([this.plainId, this.get('namespace.name') || 'default']),
     );
   }
 
@@ -721,7 +761,7 @@ export default class Job extends Model {
     if (this.parent.get('id')) {
       return this.variables?.findBy(
         'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
       );
     } else {
       return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
@@ -734,7 +774,7 @@ export default class Job extends Model {
     if (this.parent.get('id')) {
       return this.variables?.findBy(
         'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
       );
     } else {
       return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);

@@ -5,8 +5,8 @@
 
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
+import { Terminal } from 'xterm';
 import notifyError from 'nomad-ui/utils/notify-error';
-import { collect } from '@ember/object/computed';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import {
   watchRecord,
@@ -24,24 +24,63 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace;
+    const namespace = transition?.to?.queryParams?.namespace || 'default';
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
 
+    const findJobInStore = (jobs) => {
+      return jobs.find((job) => {
+        const compositeId = job.get('id');
+
+        if (!compositeId) {
+          return false;
+        }
+
+        try {
+          const [plainId, ns] = JSON.parse(compositeId);
+          return plainId === name && (ns || 'default') === namespace;
+        } catch {
+          return false;
+        }
+      });
+    };
+
     const jobPromise = this.store
       .findRecord('job', fullId)
+      .catch(() => this.store.findAll('job').then(findJobInStore))
       .then((job) => {
-        return job.get('allocations').then(() => job);
+        if (!job) {
+          const error = new Error(
+            `Job ${name} not found in namespace ${namespace}`
+          );
+          error.code = '404';
+          throw error;
+        }
+
+        // Ensure we hydrate the full job payload (including task groups)
+        // before building Exec UI state from allocation/task relationships.
+        return job
+          .reload()
+          .catch(() => job)
+          .then(() => job.get('allocations'))
+          .then((allocations) => {
+            // Fallback for relationship-linking mismatches: load allocations
+            // directly so Exec can still derive task groups.
+            if (!allocations?.length) {
+              return this.store.findAll('allocation', { reload: true });
+            }
+            return allocations;
+          })
+          .then(() => job);
       })
       .catch(notifyError(this));
 
-    const xtermImport = import('xterm').then((module) => module.Terminal);
-
-    return Promise.all([jobPromise, xtermImport]);
+    return Promise.all([jobPromise, Terminal]);
   }
 
   setupController(controller, [job, Terminal]) {
     super.setupController(controller, job);
+    controller.set('fallbackAllocations', this.store.peekAll('allocation'));
     controller.setUpTerminal(Terminal);
   }
 
@@ -55,5 +94,7 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
   @watchRecord('job') watch;
   @watchRelationship('allocations') watchAllocations;
 
-  @collect('watch', 'watchAllocations') watchers;
+  get watchers() {
+    return [this.watch, this.watchAllocations];
+  }
 }

@@ -5,16 +5,19 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginsList from 'nomad-ui/tests/pages/storage/plugins/list';
 
 module('Acceptance | plugins list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   hooks.beforeEach(function () {
     server.create('node-pool');
@@ -31,7 +34,9 @@ module('Acceptance | plugins list', function (hooks) {
     await PluginsList.visit();
 
     assert.equal(currentURL(), '/storage/plugins');
-    assert.equal(document.title, 'CSI Plugins - Nomad');
+    const pageTitle = getPageTitle();
+    assert.ok(pageTitle.startsWith('CSI Plugins'));
+    assert.ok(pageTitle.endsWith(' - Nomad'));
   });
 
   test('/storage/plugins should list the first page of plugins sorted by id', async function (assert) {

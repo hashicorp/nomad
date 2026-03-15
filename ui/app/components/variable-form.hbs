@@ -3,8 +3,8 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{did-update this.onViewChange @view}}
-{{did-insert this.establishKeyValues}}
+{{did-update-helper this.onViewChange @view}}
+{{did-insert-helper this.establishKeyValues}}
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}

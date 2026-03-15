@@ -6,7 +6,7 @@
 import { find, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -26,10 +26,10 @@ module('Integration | Component | toggle', function (hooks) {
 
   const commonTemplate = hbs`
     <Toggle
-      @isActive={{isActive}}
-      @isDisabled={{isDisabled}}
-      @onToggle={{onToggle}}>
-      {{label}}
+      @isActive={{this.isActive}}
+      @isDisabled={{this.isDisabled}}
+      @onToggle={{this.onToggle}}>
+      {{this.label}}
     </Toggle>
   `;
 

@@ -12,12 +12,14 @@ import classic from 'ember-classic-decorator';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { restartableTask, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
+import { AbortController } from 'fetch';
 
 @classic
 export default class IndexController extends Controller.extend(
   WithNamespaceResetting
 ) {
+  @service store;
   @service system;
   @service watchList;
 
@@ -96,7 +98,7 @@ export default class IndexController extends Controller.extend(
 
   @restartableTask *watchChildJobs(
     { id, namespace },
-    throttle = Ember.testing ? 0 : 2000
+    throttle = macroCondition(isTesting()) ? 0 : 2000
   ) {
     this.childJobs = [];
     while (true) {
@@ -120,7 +122,7 @@ export default class IndexController extends Controller.extend(
         this.childJobs = childJobs;
         yield timeout(throttle);
       }
-      if (Ember.testing) {
+      if (macroCondition(isTesting())) {
         break;
       }
     }

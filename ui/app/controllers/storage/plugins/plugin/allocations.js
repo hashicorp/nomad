@@ -17,9 +17,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-  SortableFactory(['updateTime', 'healthy'])
+  SortableFactory(['updateTime', 'healthy']),
 ) {
   @service userSettings;
+  @service router;
 
   queryParams = [
     {
@@ -76,7 +77,7 @@ export default class AllocationsController extends Controller.extend(
     'combinedAllocations.[]',
     'model.{controllers.[],nodes.[]}',
     'selectionType',
-    'selectionHealth'
+    'selectionHealth',
   )
   get filteredAllocations() {
     const { selectionType: types, selectionHealth: healths } = this;
@@ -113,7 +114,7 @@ export default class AllocationsController extends Controller.extend(
   @action
   gotoAllocation(allocation, event) {
     lazyClick([
-      () => this.transitionToRoute('allocations.allocation', allocation.id),
+      () => this.router.transitionTo('allocations.allocation', allocation.id),
       event,
     ]);
   }

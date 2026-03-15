@@ -1,5 +1,3 @@
-mirage/
-
 # unconventional js
 /blueprints/*/files/
 /vendor/
@@ -21,4 +19,7 @@ mirage/
 # ember-try
 /.node_modules.ember-try/
 /bower.json.ember-try
+/npm-shrinkwrap.json.ember-try
 /package.json.ember-try
+/package-lock.json.ember-try
+/yarn.lock.ember-try

@@ -29,8 +29,8 @@ export default class Allocation extends Model {
   @service store;
 
   @shortUUIDProperty('id') shortId;
-  @belongsTo('job') job;
-  @belongsTo('node') node;
+  @belongsTo('job', { async: true, inverse: 'allocations' }) job;
+  @belongsTo('node', { async: true, inverse: 'allocations' }) node;
   @attr('string') namespace;
   @attr('string') nodeID;
   @attr('string') name;
@@ -80,11 +80,10 @@ export default class Allocation extends Model {
     return this.get('followUpEvaluation.content');
   }
 
+  @computed('states.@each.hasRestartingEvent')
   get hasBeenRestarted() {
-    return this.states
-      .map((s) => s.events?.content)
-      .flat()
-      .find((e) => e?.type === 'Restarting');
+    const states = this.states?.toArray?.() || this.states || [];
+    return states.some((state) => state?.hasRestartingEvent);
   }
 
   @attr healthChecks;
@@ -123,16 +122,18 @@ export default class Allocation extends Model {
 
   // When allocations are server-side rescheduled, a paper trail
   // is left linking all reschedule attempts.
-  @belongsTo('allocation', { inverse: 'nextAllocation' }) previousAllocation;
-  @belongsTo('allocation', { inverse: 'previousAllocation' }) nextAllocation;
+  @belongsTo('allocation', { async: true, inverse: 'nextAllocation' })
+  previousAllocation;
+  @belongsTo('allocation', { async: true, inverse: 'previousAllocation' })
+  nextAllocation;
 
-  @hasMany('allocation', { inverse: 'preemptedByAllocation' })
+  @hasMany('allocation', { async: true, inverse: 'preemptedByAllocation' })
   preemptedAllocations;
-  @belongsTo('allocation', { inverse: 'preemptedAllocations' })
+  @belongsTo('allocation', { async: true, inverse: 'preemptedAllocations' })
   preemptedByAllocation;
   @attr('boolean') wasPreempted;
 
-  @belongsTo('evaluation') followUpEvaluation;
+  @belongsTo('evaluation', { async: true, inverse: null }) followUpEvaluation;
 
   @computed('clientStatus')
   get statusClass() {
@@ -155,7 +156,10 @@ export default class Allocation extends Model {
 
   @computed('isOld', 'jobTaskGroup', 'allocationTaskGroup')
   get taskGroup() {
-    if (!this.isOld) return this.jobTaskGroup;
+    if (!this.isOld) {
+      return this.jobTaskGroup;
+    }
+
     return this.allocationTaskGroup;
   }
 
@@ -197,7 +201,7 @@ export default class Allocation extends Model {
   @computed(
     'clientStatus',
     'followUpEvaluation.content',
-    'nextAllocation.content'
+    'nextAllocation.content',
   )
   get hasStoppedRescheduling() {
     return (

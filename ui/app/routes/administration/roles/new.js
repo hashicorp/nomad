@@ -7,11 +7,12 @@ import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
 export default class AccessControlRolesNewRoute extends Route {
-  @service can;
+  @service store;
+  @service abilities;
   @service router;
 
   beforeModel() {
-    if (this.can.cannot('write role')) {
+    if (this.abilities.cannot('write role')) {
       this.router.transitionTo('/administration/roles');
     }
   }
@@ -29,8 +30,13 @@ export default class AccessControlRolesNewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.role.isNew) {
-        controller.model.role.destroyRecord();
+      const role = controller?.model?.role;
+      if (role?.isNew) {
+        try {
+          role.unloadRecord();
+        } catch {
+          // Record may already be disconnected during teardown.
+        }
       }
     }
   }

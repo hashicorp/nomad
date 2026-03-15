@@ -7,8 +7,7 @@ import { next } from '@ember/runloop';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { AbortController } from 'fetch';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 
 module('Unit | Adapter | Volume', function (hooks) {
   setupTest(hooks);
@@ -70,9 +69,10 @@ module('Unit | Adapter | Volume', function (hooks) {
     );
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      '/v1/volumes?type=csi',
-    ]);
+    assert.deepEqual(
+      pretender.handledRequests.map((r) => r.url),
+      ['/v1/volumes?type=csi'],
+    );
   });
 
   test('When the volume has a namespace other than default, it is in the URL', async function (assert) {
@@ -86,9 +86,10 @@ module('Unit | Adapter | Volume', function (hooks) {
     this.subject().findRecord(this.store, { modelName: 'volume' }, volumeId);
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      `/v1/volume/${volumeName}?namespace=${volumeNamespace}`,
-    ]);
+    assert.deepEqual(
+      pretender.handledRequests.map((r) => r.url),
+      [`/v1/volume/${volumeName}?namespace=${volumeNamespace}`],
+    );
   });
 
   test('query can be watched', async function (assert) {

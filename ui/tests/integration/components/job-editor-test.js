@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
@@ -44,7 +43,7 @@ module('Integration | Component | job-editor', function (hooks) {
   const newJobTaskGroupName = 'redis';
   const jsonJob = (overrides) => {
     return JSON.stringify(
-      assign(
+      Object.assign(
         {},
         {
           Name: newJobName,
@@ -63,10 +62,10 @@ module('Integration | Component | job-editor', function (hooks) {
             },
           ],
         },
-        overrides
+        overrides,
       ),
       null,
-      2
+      2,
     );
   };
 
@@ -83,10 +82,10 @@ module('Integration | Component | job-editor', function (hooks) {
 
   const commonTemplate = hbs`
     <JobEditor
-      @job={{job}}
-      @context={{context}}
-      @onSubmit={{onSubmit}}
-      @handleSaveAsTemplate={{handleSaveAsTemplate}}
+      @job={{this.job}}
+      @context={{this.context}}
+      @onSubmit={{this.onSubmit}}
+      @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
     />
   `;
 

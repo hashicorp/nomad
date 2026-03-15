@@ -9,9 +9,9 @@ import Model from '@ember-data/model';
 import { alias } from '@ember/object/computed';
 
 export default class Service extends Model {
-  @belongsTo('allocation') allocation;
-  @belongsTo('job') job;
-  @belongsTo('node') node;
+  @belongsTo('allocation', { async: true, inverse: null }) allocation;
+  @belongsTo('job', { async: true, inverse: 'services' }) job;
+  @belongsTo('node', { async: true, inverse: null }) node;
 
   @attr('string') address;
   @attr('number') createIndex;

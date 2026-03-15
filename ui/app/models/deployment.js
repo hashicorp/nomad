@@ -17,8 +17,8 @@ import classic from 'ember-classic-decorator';
 export default class Deployment extends Model {
   @shortUUIDProperty('id') shortId;
 
-  @belongsTo('job', { inverse: 'deployments' }) job;
-  @belongsTo('job', { inverse: 'latestDeployment' }) jobForLatest;
+  @belongsTo('job', { async: true, inverse: 'deployments' }) job;
+  @belongsTo('job', { async: true, inverse: 'latestDeployment' }) jobForLatest;
   @attr('number') versionNumber;
 
   // If any task group is not promoted yet requires promotion and the deployment
@@ -31,7 +31,7 @@ export default class Deployment extends Model {
         .toArray()
         .some(
           (summary) =>
-            summary.get('requiresPromotion') && !summary.get('promoted')
+            summary.get('requiresPromotion') && !summary.get('promoted'),
         )
     );
   }
@@ -49,13 +49,13 @@ export default class Deployment extends Model {
   @equal('status', 'running') isRunning;
 
   @fragmentArray('task-group-deployment-summary') taskGroupSummaries;
-  @hasMany('allocations') allocations;
+  @hasMany('allocations', { async: true, inverse: null }) allocations;
 
   @computed('versionNumber', 'job.versions.content.@each.number')
   get version() {
     return (this.get('job.versions') || []).findBy(
       'number',
-      this.versionNumber
+      this.versionNumber,
     );
   }
 
@@ -85,7 +85,7 @@ export default class Deployment extends Model {
   promote() {
     assert(
       'A deployment needs to requirePromotion to be promoted',
-      this.requiresPromotion
+      this.requiresPromotion,
     );
     return this.store.adapterFor('deployment').promote(this);
   }

@@ -10,6 +10,8 @@ import { registerDestructor } from '@ember/destroyable';
 export default class KeyboardShortcutModifier extends Modifier {
   @service keyboard;
   @service router;
+  _commands = [];
+  _destructorRegistered = false;
 
   modify(
     element,
@@ -21,9 +23,13 @@ export default class KeyboardShortcutModifier extends Modifier {
       menuLevel = false,
       enumerated = false,
       exclusive = false,
-    }
+    },
   ) {
-    let commands = [
+    if (this._commands.length) {
+      this.keyboard.removeCommands(this._commands);
+    }
+
+    this._commands = [
       {
         label,
         action,
@@ -35,9 +41,13 @@ export default class KeyboardShortcutModifier extends Modifier {
       },
     ];
 
-    this.keyboard.addCommands(commands);
-    registerDestructor(this, () => {
-      this.keyboard.removeCommands(commands);
-    });
+    this.keyboard.addCommands(this._commands);
+
+    if (!this._destructorRegistered) {
+      registerDestructor(this, () => {
+        this.keyboard.removeCommands(this._commands);
+      });
+      this._destructorRegistered = true;
+    }
   }
 }

@@ -27,7 +27,7 @@ export default class ListPager extends Component {
 
   @action
   gotoRoute() {
-    this.router.transitionTo(this.router.currentRouteName, {
+    this.router.transitionTo({
       queryParams: { page: this.page },
     });
   }

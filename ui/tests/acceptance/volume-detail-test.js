@@ -5,10 +5,12 @@
 
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
@@ -29,6 +31,7 @@ const assignReadAlloc = (volume, alloc) => {
 module('Acceptance | volume detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   let volume;
 
@@ -57,7 +60,9 @@ module('Acceptance | volume detail', function (hooks) {
   test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(document.title, `CSI Volume ${volume.name} - Nomad`);
+    const pageTitle = getPageTitle();
+    assert.ok(pageTitle.startsWith(`CSI Volume ${volume.name}`));
+    assert.ok(pageTitle.endsWith(' - Nomad'));
     assert.equal(VolumeDetail.title, volume.name);
   });
 

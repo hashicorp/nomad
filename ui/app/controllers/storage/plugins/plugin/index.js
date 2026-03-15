@@ -4,9 +4,12 @@
  */
 
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 
 export default class IndexController extends Controller {
+  @service router;
+
   @computed('model.controllers.@each.updateTime')
   get sortedControllers() {
     return this.model.controllers.sortBy('updateTime').reverse();
@@ -19,6 +22,6 @@ export default class IndexController extends Controller {
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 }

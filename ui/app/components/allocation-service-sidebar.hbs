@@ -90,7 +90,7 @@
             <Tooltip @text={{@allocation.node.name}}>
               <LinkTo
                 @route="clients.client"
-                @model={{@allocation.node}}
+                @model={{@allocation.node.id}}
               >
                 {{@allocation.node.shortId}}
               </LinkTo>

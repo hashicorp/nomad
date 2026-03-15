@@ -11,18 +11,18 @@ import RSVP from 'rsvp';
 
 export default class AdministrationRoute extends Route.extend(
   withForbiddenState,
-  WithModelErrorHandling
+  WithModelErrorHandling,
 ) {
-  @service can;
+  @service abilities;
   @service store;
   @service router;
 
   beforeModel() {
     if (
-      this.can.cannot('list policies') ||
-      this.can.cannot('list roles') ||
-      this.can.cannot('list tokens') ||
-      this.can.cannot('list namespaces')
+      this.abilities.cannot('list policies') ||
+      this.abilities.cannot('list roles') ||
+      this.abilities.cannot('list tokens') ||
+      this.abilities.cannot('list namespaces')
     ) {
       this.router.transitionTo('/jobs');
     }
@@ -35,7 +35,7 @@ export default class AdministrationRoute extends Route.extend(
       roles: this.store.findAll('role', { reload: true }),
       tokens: this.store.findAll('token', { reload: true }),
       namespaces: this.store.findAll('namespace', { reload: true }),
-      sentinelPolicies: this.can.can('list sentinel-policy')
+      sentinelPolicies: this.abilities.can('list sentinel-policy')
         ? this.store.findAll('sentinel-policy', { reload: true })
         : [],
     });

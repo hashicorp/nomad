@@ -27,9 +27,10 @@ import { tracked } from '@glimmer/tracking';
 @classic
 export default class ClientController extends Controller.extend(
   Sortable,
-  Searchable
+  Searchable,
 ) {
   @service notifications;
+  @service router;
 
   queryParams = [
     {
@@ -96,7 +97,7 @@ export default class ClientController extends Controller.extend(
     'visibleAllocations.[]',
     'selectionNamespace',
     'selectionJob',
-    'selectionStatus'
+    'selectionStatus',
   )
   get filteredAllocations() {
     const { selectionNamespace, selectionJob, selectionStatus } = this;
@@ -205,7 +206,7 @@ export default class ClientController extends Controller.extend(
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 
   @action
@@ -243,12 +244,12 @@ export default class ClientController extends Controller.extend(
       new Set(
         this.model.allocations
           .filter((a) => ns.length === 0 || ns.includes(a.namespace))
-          .mapBy('plainJobId')
-      )
+          .mapBy('plainJobId'),
+      ),
     ).compact();
 
     // Update query param when the list of jobs changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set('qpJob', serialize(intersection(jobs, this.selectionJob)));
     });
@@ -259,15 +260,15 @@ export default class ClientController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionNamespace')
   get optionsNamespace() {
     const ns = Array.from(
-      new Set(this.model.allocations.mapBy('namespace'))
+      new Set(this.model.allocations.mapBy('namespace')),
     ).compact();
 
     // Update query param when the list of namespaces changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpNamespace',
-        serialize(intersection(ns, this.selectionNamespace))
+        serialize(intersection(ns, this.selectionNamespace)),
       );
     });
 

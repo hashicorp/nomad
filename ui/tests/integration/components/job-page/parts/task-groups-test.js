@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { setupRenderingTest } from 'ember-qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import {
@@ -33,13 +32,13 @@ module(
     });
 
     const props = (job, options = {}) =>
-      assign(
+      Object.assign(
         {
           job,
           sortProperty: 'name',
           sortDescending: true,
         },
-        options
+        options,
       );
 
     test('the job detail page should list all task groups', async function (assert) {

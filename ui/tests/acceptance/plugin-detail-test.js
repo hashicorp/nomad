@@ -5,10 +5,12 @@
 
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import PluginDetail from 'nomad-ui/tests/pages/storage/plugins/detail';
@@ -17,6 +19,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 module('Acceptance | plugin detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   let plugin;
 
@@ -45,7 +48,9 @@ module('Acceptance | plugin detail', function (hooks) {
   test('/storage/plugins/:id should show the plugin name in the title', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(document.title, `CSI Plugin ${plugin.id} - Nomad`);
+    const pageTitle = getPageTitle();
+    assert.ok(pageTitle.startsWith(`CSI Plugin ${plugin.id}`));
+    assert.ok(pageTitle.endsWith(' - Nomad'));
     assert.equal(PluginDetail.title, plugin.id);
   });
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 
@@ -27,7 +27,9 @@ export default Factory.extend({
   statusDescription: () => faker.lorem.sentence(),
 
   notActive: trait({
-    status: faker.helpers.randomize(DEPLOYMENT_STATUSES.without('running')),
+    status: faker.helpers.randomize(
+      DEPLOYMENT_STATUSES.filter((s) => s !== 'running')
+    ),
   }),
 
   active: trait({

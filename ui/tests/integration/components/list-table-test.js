@@ -7,7 +7,7 @@ import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import faker from 'nomad-ui/mirage/faker';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | list table', function (hooks) {
@@ -25,7 +25,7 @@ module('Integration | Component | list table', function (hooks) {
   test('component exposes a thead contextual component', async function (assert) {
     this.set('source', commonTable);
     await render(hbs`
-      <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
+      <ListTable @source={{this.source}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
         <t.head @class="head">
           <th>First Name</th>
           <th>Last Name</th>
@@ -52,7 +52,7 @@ module('Integration | Component | list table', function (hooks) {
       sortDescending: false,
     });
     await render(hbs`
-      <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
+      <ListTable @source={{this.source}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
         <t.body @class="body" as |row index|>
           <tr class="item">
             <td>{{row.model.firstName}}</td>

@@ -10,6 +10,7 @@ import { action } from '@ember/object';
 const ALL_NAMESPACE_WILDCARD = '*';
 
 export default class VariablesPathController extends Controller {
+  @service store;
   @service router;
 
   get absolutePath() {

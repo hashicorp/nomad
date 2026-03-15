@@ -5,20 +5,33 @@
 
 /* eslint-disable ember/no-controller-access-in-routes */
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
+import { scheduleOnce } from '@ember/runloop';
 
 export default class OptimizeIndexRoute extends Route {
-  async activate() {
-    // This runs late in the loading lifecycle to ensure .filteredSummaries is populated
-    const summaries = this.controllerFor('optimize').filteredSummaries;
+  @service router;
 
-    if (summaries.length) {
-      const firstSummary = summaries.objectAt(0);
+  activate() {
+    // This runs late in the loading lifecycle to ensure .filteredSummaries is populated.
+    scheduleOnce('actions', this, () => {
+      const summaries = this.controllerFor('optimize').filteredSummaries;
 
-      return this.transitionTo('optimize.summary', firstSummary.slug, {
-        queryParams: {
-          jobNamespace: firstSummary.jobNamespace || 'default',
-        },
-      });
-    }
+      if (!summaries.length) {
+        return;
+      }
+
+      const firstSummary = summaries[0];
+      this.router
+        .replaceWith('optimize.summary', firstSummary.slug, {
+          queryParams: {
+            namespace: firstSummary.jobNamespace || 'default',
+          },
+        })
+        .catch((error) => {
+          if (error?.code !== 'TRANSITION_ABORTED') {
+            throw error;
+          }
+        });
+    });
   }
 }

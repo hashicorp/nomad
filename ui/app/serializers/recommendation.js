@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 import queryString from 'query-string';
@@ -27,7 +26,7 @@ export default class RecommendationSerializer extends ApplicationSerializer {
       .buildURL('job', JSON.stringify([hash.JobID]), hash, 'findRecord')
       .split('?');
 
-    return assign(super.extractRelationships(...arguments), {
+    return Object.assign(super.extractRelationships(...arguments), {
       job: {
         links: {
           related: buildURL(jobURL, { namespace }),

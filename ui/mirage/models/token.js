@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Model, belongsTo, hasMany } from 'ember-cli-mirage';
+import { Model, belongsTo, hasMany } from 'miragejs';
 
 export default Model.extend({
   policies: hasMany(),

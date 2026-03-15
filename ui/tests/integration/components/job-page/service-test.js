@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { hbs } from 'ember-cli-htmlbars';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import {
   startJob,
   stopJob,
@@ -44,13 +43,13 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   const commonTemplate = hbs`
     <JobPage::Service
-      @job={{job}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}}
-      @currentPage={{currentPage}}
-      @gotoJob={{gotoJob}}
-      @statusMode={{statusMode}}
-      @setStatusMode={{setStatusMode}}
+      @job={{this.job}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}}
+      @currentPage={{this.currentPage}}
+      @gotoJob={{this.gotoJob}}
+      @statusMode={{this.statusMode}}
+      @setStatusMode={{this.setStatusMode}}
       />
   `;
 
@@ -67,14 +66,14 @@ module('Integration | Component | job-page/service', function (hooks) {
   const makeMirageJob = (server, props = {}) =>
     server.create(
       'job',
-      assign(
+      Object.assign(
         {
           type: 'service',
           createAllocations: false,
           status: 'running',
         },
-        props
-      )
+        props,
+      ),
     );
 
   test('Stopping a job sends a delete request for the job', async function (assert) {

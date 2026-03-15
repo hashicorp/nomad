@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL, click } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -74,7 +75,7 @@ module('Acceptance | job allocations', function (hooks) {
       );
     });
 
-    assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
+    assert.equal(getPageTitle(), `Job ${job.name} allocations - Nomad`);
   });
 
   test('clicking an allocation results in the correct endpoint being hit', async function (assert) {

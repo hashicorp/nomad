@@ -43,7 +43,12 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
     const logFetch = this.logFetch;
 
     const reader = yield logFetch(url).then((res) => {
-      const reader = res.body.getReader();
+      const body = res?.body;
+      if (!body || typeof body.getReader !== 'function') {
+        return null;
+      }
+
+      const reader = body.getReader();
       // It's possible that the logger was stopped between the time
       // polling was started and the log request responded.
       // If the logger was stopped, the reader needs to be immediately
