@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
+import ENV from 'nomad-ui/config/environment';
 
 import {
   classNames,
@@ -34,7 +33,7 @@ export default class TaskRow extends Component {
 
   @computed
   get enablePolling() {
-    return !Ember.testing;
+    return ENV.environment !== 'test';
   }
 
   // Since all tasks for an allocation share the same tracker, use the registry
@@ -52,8 +51,17 @@ export default class TaskRow extends Component {
     return this.get('stats.tasks').findBy('task', this.get('task.name'));
   }
 
-  @alias('taskStats.cpu.lastObject') cpu;
-  @alias('taskStats.memory.lastObject') memory;
+  @computed('taskStats.cpu.[]')
+  get cpu() {
+    const cpu = this.taskStats?.cpu;
+    return cpu?.[cpu.length - 1];
+  }
+
+  @computed('taskStats.memory.[]')
+  get memory() {
+    const memory = this.taskStats?.memory;
+    return memory?.[memory.length - 1];
+  }
 
   onClick() {}
 

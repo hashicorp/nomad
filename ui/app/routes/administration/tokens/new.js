@@ -7,11 +7,12 @@ import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 
 export default class AccessControlTokensNewRoute extends Route {
-  @service can;
+  @service store;
+  @service abilities;
   @service router;
 
   beforeModel() {
-    if (this.can.cannot('write token')) {
+    if (this.abilities.cannot('write token')) {
       this.router.transitionTo('/administration/tokens');
     }
   }
@@ -31,8 +32,14 @@ export default class AccessControlTokensNewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.token.isNew) {
-        controller.model.token.destroyRecord();
+      const token = controller?.model?.token;
+      if (token?.isNew) {
+        try {
+          token.unloadRecord();
+        } catch {
+          // During teardown/transition races a token may already be disconnected.
+          // In that case there is nothing left to clean up.
+        }
       }
     }
   }

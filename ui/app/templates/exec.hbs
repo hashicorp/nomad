@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "Exec"}}
+{{page-title (if this.system.activeRegion (concat "Exec - " this.system.activeRegion) "Exec")}}
 <nav class="navbar is-popup">
   <div class="navbar-brand">
     <div class="navbar-item is-logo">
@@ -13,14 +13,14 @@
     {{#if this.system.shouldShowRegions}}
       <div class="navbar-item">
         <span class="navbar-label">Region</span>
-        <span data-test-region>{{this.model.region}}</span>
+        <span data-test-region>{{or this.system.activeRegion this.model.region}}</span>
       </div>
     {{/if}}
 
     {{#if this.system.shouldShowNamespaces}}
       <div class="navbar-item">
         <span class="navbar-label">Namespace</span>
-        <span data-test-namespace>{{this.model.namespace.id}}</span>
+        <span data-test-namespace>{{or this.namespace this.model.namespace.id}}</span>
       </div>
     {{/if}}
 

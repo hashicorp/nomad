@@ -4,6 +4,7 @@
  */
 
 import AdapterError from '@ember-data/adapter/error';
+import { getPageTitle } from 'ember-page-title/test-support';
 import {
   click,
   currentRouteName,
@@ -12,7 +13,6 @@ import {
   visit,
   settled,
 } from '@ember/test-helpers';
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
@@ -34,7 +34,7 @@ let managementToken, clientToken;
 
 const jsonJob = (overrides) => {
   return JSON.stringify(
-    assign(
+    Object.assign(
       {},
       {
         Name: newJobName,
@@ -88,7 +88,7 @@ module('Acceptance | job run', function (hooks) {
     await JobRun.visit();
 
     assert.equal(currentURL(), '/jobs/run');
-    assert.equal(document.title, 'Run a job - Nomad');
+    assert.equal(getPageTitle(), 'Run a job - Nomad');
   });
 
   test('when submitting a job, the site redirects to the new job overview page', async function (assert) {

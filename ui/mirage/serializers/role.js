@@ -21,7 +21,12 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeRole(role) {
-  role.Policies = (role.Policies || []).map((policy) => {
+  const policyIds = role.PolicyIDs || role.Policies || [];
+
+  role.Policies = policyIds.map((policy) => {
+    if (typeof policy === 'object') {
+      return policy;
+    }
     return { ID: policy, Name: policy };
   });
   delete role.PolicyIDs;

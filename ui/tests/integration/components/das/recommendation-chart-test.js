@@ -22,10 +22,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
           />`
     );
 
@@ -46,10 +46,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
           />`
     );
 
@@ -70,10 +70,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
           />`
     );
 
@@ -93,10 +93,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
             @disabled={{true}}
           />`
     );
@@ -123,10 +123,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
           />`
     );
 
@@ -166,10 +166,10 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
           />`
     );
 

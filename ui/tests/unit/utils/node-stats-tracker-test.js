@@ -4,14 +4,12 @@
  */
 
 import EmberObject from '@ember/object';
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import Pretender from 'pretender';
 import NodeStatsTracker, {
   stats,
 } from 'nomad-ui/utils/classes/node-stats-tracker';
-import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
 import { settled } from '@ember/test-helpers';
@@ -21,7 +19,7 @@ module('Unit | Util | NodeStatsTracker', function () {
   const makeDate = (ts) => new Date(ts / 1000000);
 
   const MockNode = (overrides) =>
-    assign(
+    Object.assign(
       {
         id: 'some-identifier',
         resources: {
@@ -29,7 +27,7 @@ module('Unit | Util | NodeStatsTracker', function () {
           memory: 4096,
         },
       },
-      overrides
+      overrides,
     );
 
   const mockFrame = (step) => ({
@@ -81,7 +79,7 @@ module('Unit | Util | NodeStatsTracker', function () {
   test('poll results in requesting the url and calling append with the resulting JSON', async function (assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({
-      fetch,
+      fetch: (...args) => fetch(...args),
       node,
       append: sinon.spy(),
     });
@@ -96,7 +94,7 @@ module('Unit | Util | NodeStatsTracker', function () {
       this.get('/v1/client/stats', () => [200, {}, JSON.stringify(mockFrame)]);
     });
 
-    tracker.get('poll').perform();
+    await tracker.get('poll').perform();
 
     assert.equal(server.handledRequests.length, 1, 'Only one request was made');
     assert.equal(
@@ -105,7 +103,6 @@ module('Unit | Util | NodeStatsTracker', function () {
       'The correct URL was requested'
     );
 
-    await settled();
     assert.ok(
       tracker.append.calledWith(mockFrame),
       'The JSON response was passed into append as a POJO'

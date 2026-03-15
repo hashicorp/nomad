@@ -45,11 +45,12 @@ export default class AccessControlRolesRoleController extends Controller {
   deleteRole;
 
   async refreshTokens() {
-    this.tokens = this.store.peekAll('token').filter((token) =>
-      token.roles.any((role) => {
-        return role.id === decodeURIComponent(this.role.id);
-      })
-    );
+    const roleId = decodeURIComponent(this.role.id);
+
+    this.tokens = this.store.peekAll('token').filter((token) => {
+      const roleIds = token.hasMany('roles').ids() || [];
+      return roleIds.includes(roleId);
+    });
   }
 
   @task(function* () {

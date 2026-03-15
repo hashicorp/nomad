@@ -59,7 +59,7 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.can('run job', null, { namespace: 'aNamespace' }));
+    assert.ok(this.abilities.can('run job', null, { namespace: 'aNamespace' }));
   });
 
   test('it permits job run for client tokens with a policy that has default namespace submit-job and no capabilities for active namespace', function (assert) {
@@ -91,7 +91,9 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.can('run job', null, { namespace: 'anotherNamespace' }));
+    assert.ok(
+      this.abilities.can('run job', null, { namespace: 'anotherNamespace' }),
+    );
   });
 
   test('it blocks job run for client tokens with a policy that has no submit-job capability', function (assert) {
@@ -119,7 +121,9 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.cannot('run job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.cannot('run job', null, { namespace: 'aNamespace' }),
+    );
   });
 
   test('job scale requires a client token with the submit-job or scale-job capability', function (assert) {
@@ -150,25 +154,33 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:token', mockToken);
     const tokenService = this.owner.lookup('service:token');
 
-    assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.cannot('scale job', null, { namespace: 'aNamespace' }),
+    );
 
     tokenService.set(
       'selfTokenPolicies',
       makePolicies('aNamespace', 'scale-job')
     );
-    assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.can('scale job', null, { namespace: 'aNamespace' }),
+    );
 
     tokenService.set(
       'selfTokenPolicies',
       makePolicies('aNamespace', 'submit-job')
     );
-    assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.can('scale job', null, { namespace: 'aNamespace' }),
+    );
 
     tokenService.set(
       'selfTokenPolicies',
       makePolicies('bNamespace', 'scale-job')
     );
-    assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.cannot('scale job', null, { namespace: 'aNamespace' }),
+    );
   });
 
   test('job dispatch requires a client token with the dispatch-job capability', function (assert) {
@@ -200,14 +212,16 @@ module('Unit | Ability | job', function (hooks) {
     const tokenService = this.owner.lookup('service:token');
 
     assert.ok(
-      this.can.cannot('dispatch job', null, { namespace: 'aNamespace' })
+      this.abilities.cannot('dispatch job', null, { namespace: 'aNamespace' }),
     );
 
     tokenService.set(
       'selfTokenPolicies',
       makePolicies('aNamespace', 'dispatch-job')
     );
-    assert.ok(this.can.can('dispatch job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.abilities.can('dispatch job', null, { namespace: 'aNamespace' }),
+    );
   });
 
   test('it handles globs in namespace names', function (assert) {
@@ -256,21 +270,25 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.ok(
-      this.can.can(
+      this.abilities.can(
         'run job',
         null,
         { namespace: 'production-web' },
-        'The existence of a single namespace where a job can be run means that can run is enabled'
-      )
-    );
-    assert.ok(this.can.can('run job', null, { namespace: 'production-api' }));
-    assert.ok(this.can.can('run job', null, { namespace: 'production-other' }));
-    assert.ok(
-      this.can.can('run job', null, { namespace: 'something-suffixed' })
+        'The existence of a single namespace where a job can be run means that can run is enabled',
+      ),
     );
     assert.ok(
-      this.can.can('run job', null, { namespace: '000-abc-999' }),
-      'expected to be able to match against more than one wildcard'
+      this.abilities.can('run job', null, { namespace: 'production-api' }),
+    );
+    assert.ok(
+      this.abilities.can('run job', null, { namespace: 'production-other' }),
+    );
+    assert.ok(
+      this.abilities.can('run job', null, { namespace: 'something-suffixed' }),
+    );
+    assert.ok(
+      this.abilities.can('run job', null, { namespace: '000-abc-999' }),
+      'expected to be able to match against more than one wildcard',
     );
   });
 });

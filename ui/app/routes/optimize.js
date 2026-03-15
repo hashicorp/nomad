@@ -12,12 +12,13 @@ import RSVP from 'rsvp';
 
 @classic
 export default class OptimizeRoute extends Route {
-  @service can;
+  @service abilities;
   @service store;
+  @service router;
 
   beforeModel() {
-    if (this.can.cannot('accept recommendation')) {
-      this.transitionTo('jobs');
+    if (this.abilities.cannot('accept recommendation')) {
+      this.router.transitionTo('jobs');
     }
   }
 
@@ -38,7 +39,7 @@ export default class OptimizeRoute extends Route {
     await RSVP.all(
       jobs
         .filter((job) => job)
-        .map((j) => this.store.query('allocation', { job_id: j.id }))
+        .map((j) => this.store.query('allocation', { job_id: j.id })),
     );
 
     return {
@@ -52,7 +53,7 @@ export default class OptimizeRoute extends Route {
     this.store.unloadAll('recommendation-summary');
 
     next(() => {
-      this.transitionTo('optimize');
+      this.router.transitionTo('optimize');
       this.refresh();
     });
   }

@@ -7,7 +7,7 @@ import { htmlSafe } from '@ember/template';
 import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // Used to prevent XSS warnings in console

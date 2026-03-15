@@ -20,9 +20,10 @@ export default class IndexController extends Controller.extend(
     'nodesHealthyProportion',
     'provider',
   ]),
-  Searchable
+  Searchable,
 ) {
   @service userSettings;
+  @service router;
   @controller('storage/plugins') pluginsController;
 
   @alias('pluginsController.isForbidden') isForbidden;
@@ -65,7 +66,7 @@ export default class IndexController extends Controller.extend(
   @action
   gotoPlugin(plugin, event) {
     lazyClick([
-      () => this.transitionToRoute('storage.plugins.plugin', plugin.plainId),
+      () => this.router.transitionTo('storage.plugins.plugin', plugin.plainId),
       event,
     ]);
   }

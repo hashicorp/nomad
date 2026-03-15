@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { getPageTitle } from 'ember-page-title/test-support';
 import {
   currentURL,
   find,
@@ -11,6 +12,7 @@ import {
   visit,
   click,
   fillIn,
+  waitUntil,
 } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -25,7 +27,7 @@ import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
-import { run } from '@ember/runloop';
+import { _cancelTimers as cancelTimers } from '@ember/runloop';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
@@ -77,7 +79,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.ok(document.title.includes('Sign In'));
+    assert.ok(getPageTitle().includes('Sign In'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -227,7 +229,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.clear();
 
     // https://ember-concurrency.com/docs/testing-debugging/
-    setTimeout(() => run.cancelTimers(), 500);
+    setTimeout(() => cancelTimers(), 500);
 
     // Token with TTL
     await Tokens.secret(expiringToken.secretId).submit();
@@ -353,7 +355,7 @@ module('Acceptance | tokens', function (hooks) {
           .dom('.flash-message.alert-warning')
           .exists('Notification is rendered at the 10m mark');
         notificationRendered();
-        run.cancelTimers();
+        cancelTimers();
       }, 5000);
     }, 500);
     await Tokens.secret(nearlyExpiringToken.secretId).submit();
@@ -917,6 +919,10 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'High Level Role Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(
+        () => findAll('[data-test-role-policies] li').length === 1,
+      );
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 1);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('high-level');
@@ -933,6 +939,10 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'Policy And Role Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(
+        () => findAll('[data-test-role-policies] li').length === 2,
+      );
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 3);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('reader');
@@ -956,6 +966,8 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'Multi Role And Policy Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(() => findAll('[data-test-token-role]').length === 2);
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 2);
 
       assert.equal(token.roleIds.length, 2);
       assert.equal(token.policyIds.length, 1);

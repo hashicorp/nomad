@@ -7,6 +7,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
+import { A } from '@ember/array';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
@@ -23,6 +24,7 @@ import { tracked } from '@glimmer/tracking';
 export default class IndexController extends Controller.extend(Sortable) {
   @service token;
   @service store;
+  @service router;
 
   queryParams = [
     {
@@ -78,26 +80,47 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @computed('model.{healthChecks,id}', 'services')
   get servicesWithHealthChecks() {
+    const allocId = this.model.id;
+    const checks = Object.values(this.model.healthChecks || {});
+
     return this.services.map((service) => {
-      if (this.model.healthChecks) {
-        const healthChecks = Object.values(this.model.healthChecks)?.filter(
-          (check) => {
-            const refPrefix =
-              check.Task || check.Group.split('.')[1].split('[')[0];
-            const currentServiceName = `${refPrefix}-${check.Service}`;
-            return currentServiceName === service.refID;
-          }
-        );
-        healthChecks.forEach((check) => {
-          service.healthChecks.pushObject(check);
-        });
-      }
-      // Contextualize healthchecks for the allocation we're in
-      service.healthChecks = service.healthChecks.filterBy(
+      const existingHealthChecks = (service.healthChecks || []).filterBy(
         'Alloc',
-        this.model.id
+        allocId,
       );
-      return service;
+
+      const discoveredHealthChecks = checks.filter((check) => {
+        const refPrefix = check.Task || check.Group.split('.')[1].split('[')[0];
+        const currentServiceName = `${refPrefix}-${check.Service}`;
+        return currentServiceName === service.refID && check.Alloc === allocId;
+      });
+
+      const healthChecks = A([
+        ...existingHealthChecks,
+        ...discoveredHealthChecks,
+      ]);
+      const mostRecentCheckStatus = healthChecks
+        .sortBy('Timestamp')
+        .reverse()
+        .uniqBy('Check')
+        .mapBy('Status')
+        .reduce((acc, curr) => {
+          acc[curr] = (acc[curr] || 0) + 1;
+          return acc;
+        }, {});
+
+      return {
+        name: service.name,
+        provider: service.provider,
+        connect: service.connect,
+        onUpdate: service.onUpdate,
+        portLabel: service.portLabel,
+        tags: service.tags,
+        canary_tags: service.canary_tags,
+        refID: service.refID,
+        healthChecks,
+        mostRecentCheckStatus,
+      };
     });
   }
 
@@ -158,11 +181,41 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @action
   gotoTask(allocation, task) {
-    this.transitionToRoute('allocations.allocation.task', task);
+    // Defensive normalization: depending on invocation style, task can be passed
+    // as the first argument and allocation omitted.
+    if (!task && allocation?.name && allocation?.allocation) {
+      task = allocation;
+      allocation = task.allocation;
+    }
+
+    if (!allocation) {
+      allocation = task?.allocation || this.model;
+    }
+
+    if (!task) {
+      return;
+    }
+
+    const taskName =
+      (typeof task?.get === 'function' ? task.get('name') : undefined) ||
+      task?.name ||
+      task;
+
+    this.router.transitionTo(
+      'allocations.allocation.task',
+      allocation,
+      taskName,
+    );
   }
 
   @action
   taskClick(allocation, task, event) {
+    // The action helper may prepend the DOM event. Normalize to
+    // (allocation, task, event) before delegating.
+    if (allocation instanceof Event) {
+      [allocation, task, event] = [task, event, allocation];
+    }
+
     if (!(event instanceof Event)) {
       event = null;
     }
@@ -177,9 +230,9 @@ export default class IndexController extends Controller.extend(Sortable) {
     this.set('activeServiceID', service.refID);
   }
 
-  @computed('activeServiceID', 'services')
+  @computed('activeServiceID', 'servicesWithHealthChecks.[]')
   get activeService() {
-    return this.services.findBy('refID', this.activeServiceID);
+    return this.servicesWithHealthChecks.findBy('refID', this.activeServiceID);
   }
 
   @action closeSidebar() {

@@ -51,17 +51,18 @@ export default function generateExecUrl(
     );
   } else if (allocation) {
     if (get(allocation, 'taskGroup.tasks.length') === 1) {
+      const firstTask = get(allocation, 'taskGroup.tasks')[0];
       return router.urlFor(
         'exec.task-group.task',
         get(job, 'plainId'),
         get(allocation, 'taskGroup.name'),
-        get(allocation, 'taskGroup.tasks.firstObject.name'),
+        get(firstTask, 'name'),
         {
           queryParams: {
             allocation: get(allocation, 'shortId'),
             ...queryParams,
           },
-        }
+        },
       );
     } else {
       return router.urlFor(

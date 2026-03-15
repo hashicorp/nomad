@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -82,7 +83,7 @@ module('Acceptance | job clients', function (hooks) {
     const clientsInTable = Clients.clients.map((c) => c.id).sort();
     assert.deepEqual(clientsInTable, clientIDs);
 
-    assert.equal(document.title, `Job ${job.name} clients - Nomad`);
+    assert.equal(getPageTitle(), `Job ${job.name} clients - Nomad`);
   });
 
   test('dates have tooltip', async function (assert) {

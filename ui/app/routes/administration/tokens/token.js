@@ -16,12 +16,13 @@ export default class AccessControlTokensTokenRoute extends Route.extend(
 ) {
   @service store;
   @service token;
+  @service router;
 
   // Route guard to prevent you from wrecking your current token
   beforeModel() {
     let id = this.paramsFor('administration.tokens.token').id;
     if (this.token.selfToken && this.token.selfToken.id === id) {
-      this.transitionTo('/administration/tokens');
+      this.router.transitionTo('/administration/tokens');
     }
   }
 

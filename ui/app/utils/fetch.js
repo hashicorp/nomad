@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import fetch from 'fetch';
 import config from '../config/environment';
+import fetch from 'fetch';
 
 // The ember-fetch polyfill does not provide streaming
 // Additionally, Mirage/Pretender does not support fetch

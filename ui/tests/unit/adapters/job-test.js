@@ -4,12 +4,10 @@
  */
 
 import { next } from '@ember/runloop';
-import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { AbortController } from 'fetch';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { TextEncoderLite } from 'text-encoder-lite';
 import base64js from 'base64-js';
 import addToPath from 'nomad-ui/utils/add-to-path';
@@ -84,9 +82,9 @@ module('Unit | Adapter | Job', function (hooks) {
 
     await settled();
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}`],
-      'The only request made is /job/:id'
+      'The only request made is /job/:id',
     );
   });
 
@@ -102,9 +100,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}`],
-      'The only request made is /job/:id with no namespace query param'
+      'The only request made is /job/:id with no namespace query param',
     );
   });
 
@@ -120,9 +118,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}`],
-      'The request made is /job/:id with no namespace query param'
+      'The request made is /job/:id with no namespace query param',
     );
   });
 
@@ -138,9 +136,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}?namespace=${jobNamespace}`],
-      'The only request made is /job/:id?namespace=:namespace'
+      'The only request made is /job/:id?namespace=:namespace',
     );
   });
 
@@ -155,9 +153,9 @@ module('Unit | Adapter | Job', function (hooks) {
 
     assert.notOk(
       pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map((r) => r.requestHeaders)
         .some((headers) => headers['X-Nomad-Token']),
-      'No token header present on either job request'
+      'No token header present on either job request',
     );
   });
 
@@ -174,9 +172,9 @@ module('Unit | Adapter | Job', function (hooks) {
 
     assert.ok(
       pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map((r) => r.requestHeaders)
         .every((headers) => headers['X-Nomad-Token'] === secret),
-      'The token header is present on both job requests'
+      'The token header is present on both job requests',
     );
   });
 
@@ -388,9 +386,11 @@ module('Unit | Adapter | Job', function (hooks) {
       'Two findRecord requests were made'
     );
     assert.equal(
-      pretender.requestReferences.mapBy('url').uniq().length,
+      pretender.requestReferences
+        .map((r) => r.url)
+        .filter((v, i, a) => a.indexOf(v) === i).length,
       1,
-      'The two requests have the same URL'
+      'The two requests have the same URL',
     );
 
     // Schedule the cancelation and resolution before waiting
@@ -439,9 +439,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}`, '/v1/jobs'],
-      'No requests include the region query param'
+      'No requests include the region query param',
     );
   });
 
@@ -461,9 +461,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}?region=${region}`, `/v1/jobs?region=${region}`],
-      'Requests include the region query param'
+      'Requests include the region query param',
     );
   });
 
@@ -484,9 +484,9 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((r) => r.url),
       [`/v1/job/${jobName}`, '/v1/jobs'],
-      'No requests include the region query param'
+      'No requests include the region query param',
     );
   });
 
@@ -765,7 +765,7 @@ module('Unit | Adapter | Job', function (hooks) {
 });
 
 function makeMockModel(id, options) {
-  return assign(
+  return Object.assign(
     {
       relationshipFor(name) {
         return {
@@ -782,6 +782,6 @@ function makeMockModel(id, options) {
         };
       },
     },
-    options
+    options,
   );
 }

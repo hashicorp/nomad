@@ -31,7 +31,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
         .compact()
         .map((fragmentClass) => fragmentClass.mapBy('provider'))
         .flat()
-        .any((provider) => provider === 'nomad');
+        .some((provider) => provider === 'nomad');
 
       // Conditionally Long Poll /checks endpoint if alloc has nomad services
       if (anyGroupServicesAreNomad || anyTaskServicesAreNomad) {
@@ -55,6 +55,20 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       }
       const jobId = allocation.belongsTo('job').id();
       await this.store.findRecord('job', jobId);
+
+      // Force fragment-array materialization before first render so Ember does
+      // not lazily write `services` during template computation.
+      const groupServices = allocation.taskGroup?.services;
+      if (groupServices?.toArray) {
+        groupServices.toArray();
+      }
+      (allocation.states || []).forEach((state) => {
+        const taskServices = state?.task?.services;
+        if (taskServices?.toArray) {
+          taskServices.toArray();
+        }
+      });
+
       return allocation;
     } catch (e) {
       const [allocId, transition] = arguments;

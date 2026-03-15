@@ -6,7 +6,7 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import gaugeChart from 'nomad-ui/tests/pages/components/gauge-chart';
@@ -30,9 +30,9 @@ module('Integration | Component | gauge chart', function (hooks) {
 
     await render(hbs`
       <GaugeChart
-        @value={{value}}
-        @total={{total}}
-        @label={{label}} />
+        @value={{this.value}}
+        @total={{this.total}}
+        @label={{this.label}} />
     `);
 
     assert.equal(GaugeChart.label, props.label);
@@ -49,9 +49,9 @@ module('Integration | Component | gauge chart', function (hooks) {
     await render(hbs`
       <div style="width:100px">
         <GaugeChart
-          @value={{value}}
-          @total={{total}}
-          @label={{label}} />
+          @value={{this.value}}
+          @total={{this.total}}
+          @label={{this.label}} />
       </div>
     `);
 

@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -34,7 +35,7 @@ module('Acceptance | server detail', function (hooks) {
 
   test('visiting /servers/:server_name', async function (assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
-    assert.ok(document.title.includes(`Server ${agent.name}`));
+    assert.ok(getPageTitle().includes(`Server ${agent.name}`));
   });
 
   test('when the server is the leader, the title shows a leader badge', async function (assert) {

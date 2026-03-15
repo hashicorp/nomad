@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { STORAGE_PROVIDERS } from '../common';
 
@@ -53,7 +53,9 @@ export default Factory.extend({
   afterCreate(plugin, server) {
     let storageNodes;
     let storageControllers;
-    server.create('namespace', { id: 'default' });
+    if (!server.db.namespaces.find('default')) {
+      server.create('namespace', { id: 'default' });
+    }
 
     if (plugin.isMonolith) {
       const pluginJob = server.create('job', {

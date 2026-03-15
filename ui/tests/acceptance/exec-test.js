@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { module, skip, test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -73,9 +74,9 @@ module('Acceptance | exec', function (hooks) {
       region: 'region-2',
     });
 
-    assert.ok(document.title.includes('Exec - region-2'));
+    assert.ok(getPageTitle().includes('Exec - region-2'));
 
-    assert.equal(Exec.header.region.text, this.job.region);
+    assert.equal(Exec.header.region.text, 'region-2');
     assert.equal(Exec.header.namespace.text, this.job.namespace);
     assert.equal(Exec.header.job, this.job.name);
 

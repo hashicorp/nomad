@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import { generateResources } from '../common';
 
 export default Factory.extend({

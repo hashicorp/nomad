@@ -6,7 +6,7 @@
 import { find, click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -30,14 +30,14 @@ module('Integration | Component | two step button', function (hooks) {
 
   const commonTemplate = hbs`
     <TwoStepButton
-      @idleText={{idleText}}
-      @cancelText={{cancelText}}
-      @confirmText={{confirmText}}
-      @confirmationMessage={{confirmationMessage}}
-      @awaitingConfirmation={{awaitingConfirmation}}
-      @disabled={{disabled}}
-      @onConfirm={{onConfirm}}
-      @onCancel={{onCancel}} />
+      @idleText={{this.idleText}}
+      @cancelText={{this.cancelText}}
+      @confirmText={{this.confirmText}}
+      @confirmationMessage={{this.confirmationMessage}}
+      @awaitingConfirmation={{this.awaitingConfirmation}}
+      @disabled={{this.disabled}}
+      @onConfirm={{this.onConfirm}}
+      @onCancel={{this.onCancel}} />
   `;
 
   test('presents as a button in the idle state', async function (assert) {

@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { assert } from '@ember/debug';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
@@ -139,7 +140,7 @@ export default Factory.extend({
   }),
 
   afterCreate(node, server) {
-    Ember.assert(
+    assert(
       '[Mirage] No node pools! make sure node pools are created before nodes',
       server.db.nodePools.length
     );

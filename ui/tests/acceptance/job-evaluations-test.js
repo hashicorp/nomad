@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -47,7 +48,7 @@ module('Acceptance | job evaluations', function (hooks) {
       assert.equal(evaluation.id, shortId, `Evaluation ${index} is ${shortId}`);
     });
 
-    assert.equal(document.title, `Job ${job.name} evaluations - Nomad`);
+    assert.equal(getPageTitle(), `Job ${job.name} evaluations - Nomad`);
   });
 
   test('evaluations table is sortable', async function (assert) {

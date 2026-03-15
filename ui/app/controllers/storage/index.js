@@ -9,11 +9,13 @@ import { tracked } from '@glimmer/tracking';
 import Controller from '@ember/controller';
 import { scheduleOnce } from '@ember/runloop';
 import { restartableTask, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
+import { AbortController } from 'fetch';
 
 const TASK_THROTTLE = 1000;
 
 export default class IndexController extends Controller {
+  @service store;
   @service router;
   @service userSettings;
   @service system;
@@ -49,7 +51,7 @@ export default class IndexController extends Controller {
     // Unset the namespace selection if it was server-side deleted
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
-      scheduleOnce('actions', () => {
+      scheduleOnce('actions', this, () => {
         // eslint-disable-next-line ember/no-side-effects
         this.qpNamespace = '*';
       });
@@ -247,7 +249,7 @@ export default class IndexController extends Controller {
 
   @restartableTask *watchDHV(
     params,
-    throttle = Ember.testing ? 0 : TASK_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE
   ) {
     while (true) {
       const abortController = new AbortController();
@@ -270,7 +272,7 @@ export default class IndexController extends Controller {
 
       yield timeout(throttle);
 
-      if (Ember.testing) {
+      if (macroCondition(isTesting())) {
         break;
       }
     }
@@ -278,7 +280,7 @@ export default class IndexController extends Controller {
 
   @restartableTask *watchCSI(
     params,
-    throttle = Ember.testing ? 0 : TASK_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE
   ) {
     while (true) {
       const abortController = new AbortController();
@@ -301,7 +303,7 @@ export default class IndexController extends Controller {
 
       yield timeout(throttle);
 
-      if (Ember.testing) {
+      if (macroCondition(isTesting())) {
         break;
       }
     }

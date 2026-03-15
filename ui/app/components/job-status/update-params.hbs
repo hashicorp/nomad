@@ -4,7 +4,7 @@
 ~}}
 
 <Trigger @onError={{action this.onError}} @do={{this.fetchJobDefinition}} as |trigger|>
-  {{did-insert trigger.fns.do}}
+  {{did-insert-helper trigger.fns.do}}
 
   <div class="update-parameters">
     <h4 class="title is-4">Update Params</h4>

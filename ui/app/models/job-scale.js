@@ -10,7 +10,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class JobSummary extends Model {
-  @belongsTo('job') job;
+  @belongsTo('job', { async: true, inverse: 'scaleState' }) job;
 
   @fragmentArray('task-group-scale') taskGroupScales;
 }

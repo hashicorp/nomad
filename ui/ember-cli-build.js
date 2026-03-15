@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-env node */
+'use strict';
+
 const EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
 const environment = EmberApp.env();
@@ -11,19 +12,13 @@ const isProd = environment === 'production';
 const isTest = environment === 'test';
 
 module.exports = function (defaults) {
-  let app = new EmberApp(defaults, {
+  const app = new EmberApp(defaults, {
     codemirror: {
       modes: ['javascript', 'ruby'],
     },
-    babel: {
-      include: ['proposal-optional-chaining'],
-      plugins: [
-        '@babel/plugin-proposal-object-rest-spread',
-        require.resolve('ember-auto-import/babel-plugin'),
-      ],
-    },
     'ember-cli-babel': {
       includePolyfill: isProd,
+      enableTypeScriptTransform: true,
     },
     hinting: isTest,
     tests: isTest,
@@ -31,26 +26,13 @@ module.exports = function (defaults) {
       precision: 4,
       includePaths: [
         './node_modules/bulma',
-        './node_modules/@hashicorp/design-system-tokens/dist/products/css',
         './node_modules/@hashicorp/design-system-components/dist/styles',
-        './node_modules/ember-basic-dropdown/vendor',
-        './node_modules/ember-power-select/vendor',
+        './node_modules/ember-basic-dropdown/dist/vendor',
+        './node_modules/ember-power-select/dist/vendor',
       ],
     },
+    // Add options here
   });
-
-  // Use `app.import` to add additional libraries to the generated
-  // output files.
-  //
-  // If you need to use different assets in different
-  // environments, specify an object as the first parameter. That
-  // object's keys should be the environment name and the values
-  // should be the asset to use in that environment.
-  //
-  // If the library that you are including contains AMD or ES6
-  // modules that you would like to import into your application
-  // please specify an object with the list of modules as keys
-  // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
   app.import('node_modules/codemirror/lib/codemirror.css');

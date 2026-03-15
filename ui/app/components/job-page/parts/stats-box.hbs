@@ -25,10 +25,10 @@
       </span>
     {{/if}}
     {{yield to="before-namespace"}}
-    {{#if (and @job.namespace this.system.shouldShowNamespaces)}}
+    {{#if (and @job.namespaceId this.system.shouldShowNamespaces)}}
       <span class="pair" data-test-job-stat="namespace">
         <span class="term">Namespace</span>
-        {{@job.namespace.name}}
+        {{@job.namespaceId}}
       </span>
     {{/if}}
     <span class="pair" data-test-job-stat="node-pool">

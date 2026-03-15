@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* global self */
-self.deprecationWorkflow = self.deprecationWorkflow || {};
-self.deprecationWorkflow.config = {
+import setupDeprecationWorkflow from 'ember-cli-deprecation-workflow';
+
+setupDeprecationWorkflow({
   workflow: [
     { handler: 'throw', matchId: 'ember-inflector.globals' },
     { handler: 'throw', matchId: 'ember-runtime.deprecate-copy-copyable' },
@@ -21,9 +21,23 @@ self.deprecationWorkflow.config = {
       handler: 'silence',
       matchId: 'ember-glimmer.link-to.positional-arguments',
     },
+    { handler: 'silence', matchId: 'implicit-injections' },
+    { handler: 'silence', matchId: 'template-action' },
     {
       handler: 'silence',
-      matchId: 'implicit-injections',
+      matchId: 'ember-concurrency.deprecate-classic-task-api',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-concurrency.deprecate-decorator-task',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-data:deprecate-store-find',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-basic-dropdown.config-environment',
     },
   ],
-};
+});

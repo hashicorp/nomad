@@ -10,7 +10,7 @@ import { action } from '@ember/object';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 import { htmlSafe } from '@ember/template';
 import { didCancel, task, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 export default class DasRecommendationCardComponent extends Component {
   @service router;
@@ -220,7 +220,7 @@ export default class DasRecommendationCardComponent extends Component {
 
   @(task(function* () {
     this.interstitialComponent = 'accepted';
-    yield timeout(Ember.testing ? 0 : 2000);
+    yield timeout(macroCondition(isTesting()) ? 0 : 2000);
 
     this.args.proceed.perform();
     this.resetInterstitial();
@@ -234,7 +234,7 @@ export default class DasRecommendationCardComponent extends Component {
     });
 
     if (!manuallyDismissed) {
-      yield timeout(Ember.testing ? 0 : 2000);
+      yield timeout(macroCondition(isTesting()) ? 0 : 2000);
     }
 
     this.args.proceed.perform();

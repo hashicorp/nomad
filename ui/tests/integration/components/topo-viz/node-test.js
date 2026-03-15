@@ -6,7 +6,7 @@
 import { findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';

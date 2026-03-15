@@ -6,7 +6,7 @@
 import { click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import popoverMenuPageObject from 'nomad-ui/tests/pages/components/popover-menu';
@@ -27,9 +27,9 @@ module('Integration | Component | popover-menu', function (hooks) {
 
   const commonTemplate = hbs`
     <PopoverMenu
-      @isOpen={{isOpen}}
-      @label={{label}}
-      @triggerClass={{triggerClass}} as |m|>
+      @isOpen={{this.isOpen}}
+      @label={{this.label}}
+      @triggerClass={{this.triggerClass}} as |m|>
       <h1>This is a heading</h1>
       <label>This is an input: <input id="mock-input-for-test" type="text" /></label>
       <button id="mock-button-for-test" type="button" onclick={{action m.actions.close}}>Close Button</button>

@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{#let (cannot "exec allocation" namespace=this.job.namespace) as |cannotExec|}}
+{{#let (cannot "exec allocation" namespace=(or this.job.namespaceId this.job.namespace)) as |cannotExec|}}
   <div
     class="exec-open-button"
     {{keyboard-shortcut

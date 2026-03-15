@@ -4,7 +4,7 @@
  */
 
 // @ts-check
-import { default as FlashService } from 'ember-cli-flash/services/flash-messages';
+import { FlashMessagesService } from 'ember-cli-flash';
 
 /**
  * @typedef {Object} NotificationObject
@@ -19,15 +19,25 @@ import { default as FlashService } from 'ember-cli-flash/services/flash-messages
 
 /**
  * @class NotificationsService
- * @extends FlashService
+ * @extends FlashMessagesService
  * A wrapper service around Ember Flash Messages, for adding notifications to the UI
  */
-export default class NotificationsService extends FlashService {
+export default class NotificationsService extends FlashMessagesService {
   /**
    * @param {NotificationObject} notificationObject
-   * @returns {FlashService}
+   * @returns {FlashMessagesService}
    */
   add(notificationObject) {
+    const message = /** @type {any} */ (notificationObject.message);
+
+    if (
+      message &&
+      typeof message === 'object' &&
+      typeof message.toHTML !== 'function'
+    ) {
+      notificationObject.message = message.message || String(message);
+    }
+
     // Set some defaults
     if (!('type' in notificationObject)) {
       notificationObject.type = notificationObject.color || 'neutral';

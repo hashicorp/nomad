@@ -9,25 +9,47 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 export default class DasRecommendationRow extends Component {
-  @tracked cpu;
-  @tracked memory;
+  @tracked cpu = {};
+  @tracked memory = {};
+
+  get taskGroup() {
+    return this.args.summary.taskGroup;
+  }
+
+  get jobName() {
+    return (
+      this.taskGroup?.job?.name ||
+      this.args.summary.job?.name ||
+      this.args.summary.jobId
+    );
+  }
+
+  get allocationCount() {
+    return this.taskGroup?.count || 0;
+  }
 
   @action
   storeDiffs() {
     // Prevent resource toggling from affecting the summary diffs
 
+    if (!this.taskGroup) {
+      this.cpu = {};
+      this.memory = {};
+      return;
+    }
+
     const diffs = new ResourcesDiffs(
-      this.args.summary.taskGroup,
+      this.taskGroup,
       1,
       this.args.summary.recommendations,
-      this.args.summary.excludedRecommendations
+      this.args.summary.excludedRecommendations,
     );
 
     const aggregateDiffs = new ResourcesDiffs(
-      this.args.summary.taskGroup,
-      this.args.summary.taskGroup.count,
+      this.taskGroup,
+      this.taskGroup.count,
       this.args.summary.recommendations,
-      this.args.summary.excludedRecommendations
+      this.args.summary.excludedRecommendations,
     );
 
     this.cpu = {

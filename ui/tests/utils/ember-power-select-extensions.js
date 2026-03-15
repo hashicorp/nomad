@@ -11,7 +11,7 @@ import { click, settled } from '@ember/test-helpers';
 //   - selectOpen: open the select (await settled)
 //   - selectOpenChoose: choose an option (await settled)
 // Since the composite helper has two `await setted`s in it, the log changing tests can't use
-// them. These tests require a run.later(run, run.cancelTimers, ms) to be inserted between
+// them. These tests require a later(cancelTimers, ms) pause to be inserted between
 // these two moments. Doing it before opening means hanging on open not on select. Doing it
 // after means hanging after the select has occurred (too late).
 async function openIfClosedAndGetContentId(trigger) {

@@ -12,6 +12,7 @@ import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import { inject as service } from '@ember/service';
 import {
   serialize,
   deserializedQueryParam as selection,
@@ -22,8 +23,10 @@ import classic from 'ember-classic-decorator';
 export default class AllocationsController extends Controller.extend(
   Sortable,
   Searchable,
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
+  @service router;
+
   queryParams = [
     {
       currentPage: 'page',
@@ -85,7 +88,7 @@ export default class AllocationsController extends Controller.extend(
     'selectionClient',
     'selectionTaskGroup',
     'selectionVersion',
-    'selectionScheduling'
+    'selectionScheduling',
   )
   get filteredAllocations() {
     const {
@@ -166,7 +169,7 @@ export default class AllocationsController extends Controller.extend(
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 
   get optionsAllocationStatus() {
@@ -183,15 +186,15 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
     const clients = Array.from(
-      new Set(this.model.allocations.mapBy('node.shortId'))
+      new Set(this.model.allocations.mapBy('node.shortId')),
     ).compact();
 
     // Update query param when the list of clients changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClient',
-        serialize(intersection(clients, this.selectionClient))
+        serialize(intersection(clients, this.selectionClient)),
       );
     });
 
@@ -201,15 +204,15 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionTaskGroup')
   get optionsTaskGroups() {
     const taskGroups = Array.from(
-      new Set(this.model.allocations.mapBy('taskGroupName'))
+      new Set(this.model.allocations.mapBy('taskGroupName')),
     ).compact();
 
     // Update query param when the list of task groups changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpTaskGroup',
-        serialize(intersection(taskGroups, this.selectionTaskGroup))
+        serialize(intersection(taskGroups, this.selectionTaskGroup)),
       );
     });
 
@@ -219,15 +222,15 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionVersion')
   get optionsVersions() {
     const versions = Array.from(
-      new Set(this.model.allocations.mapBy('jobVersion'))
+      new Set(this.model.allocations.mapBy('jobVersion')),
     ).compact();
 
     // Update query param when the list of versions changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVersion',
-        serialize(intersection(versions, this.selectionVersion))
+        serialize(intersection(versions, this.selectionVersion)),
       );
     });
 

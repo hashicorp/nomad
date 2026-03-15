@@ -8,7 +8,7 @@ import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-ada
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { Terminal } from 'xterm';
 import { HEARTBEAT_INTERVAL } from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import sinon from 'sinon';
@@ -25,7 +25,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let firstMessage = true;
@@ -59,7 +59,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let firstMessage = true;
@@ -98,7 +98,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let mockSocket = new Object({
@@ -127,7 +127,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let mockSocket = new Object({
@@ -157,7 +157,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let mockSocket = new Object({
@@ -179,7 +179,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      <ExecTerminal @terminal={{terminal}} />
+      <ExecTerminal @terminal={{this.terminal}} />
     `);
 
     let mockSocket = new Object({

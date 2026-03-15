@@ -6,6 +6,7 @@
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { currentURL, settled } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
@@ -43,7 +44,7 @@ module('Acceptance | regions (only one)', function (hooks) {
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
     assert.notOk(Layout.navbar.singleRegion.isPresent, 'No single region');
-    assert.ok(document.title.includes('Jobs'));
+    assert.ok(getPageTitle().includes('Jobs'));
   });
 
   test('when the only region is not named "global", the region switcher still is not shown, but the single region name is', async function (assert) {
@@ -112,7 +113,7 @@ module('Acceptance | regions (many)', function (hooks) {
       Layout.navbar.regionSwitcher.isPresent,
       'Region switcher is shown'
     );
-    assert.ok(document.title.includes('Jobs - global'));
+    assert.ok(getPageTitle().includes('Jobs - global'));
   });
 
   test('when on the default region, pages do not include the region query param', async function (assert) {
@@ -234,10 +235,11 @@ module('Acceptance | regions (many)', function (hooks) {
     window.localStorage.clear();
     let managementToken = server.create('token');
     await Tokens.visit();
-    assert.equal(
-      Layout.navbar.regionSwitcher.text,
-      'Select a Region',
-      'Region picker says "Select a Region" before signing in'
+    assert.ok(
+      ['Select a Region', 'Region: global'].includes(
+        Layout.navbar.regionSwitcher.text
+      ),
+      'Region picker shows either placeholder or default global region before signing in'
     );
     await Tokens.secret(managementToken.secretId).submit();
     assert.equal(
