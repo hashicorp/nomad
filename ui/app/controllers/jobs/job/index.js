@@ -13,7 +13,6 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { restartableTask, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
-import { AbortController } from 'fetch';
 
 @classic
 export default class IndexController extends Controller.extend(

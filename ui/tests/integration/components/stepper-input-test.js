@@ -19,10 +19,9 @@ import { create } from 'ember-cli-page-object';
 import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
 
 const StepperInput = create(stepperInput());
-const valueChange = () => {
-  const initial = StepperInput.input.value;
-  return () => StepperInput.input.value !== initial;
-};
+
+const waitForStepperValue = (expectedValue) =>
+  waitUntil(() => StepperInput.input.value === String(expectedValue));
 
 module('Integration | Component | stepper input', function (hooks) {
   setupRenderingTest(hooks);
@@ -79,17 +78,17 @@ module('Integration | Component | stepper input', function (hooks) {
     await render(commonTemplate);
 
     StepperInput.increment.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue + 1);
     assert.equal(StepperInput.input.value, baseValue + 1);
     assert.notOk(this.onChange.called);
 
     StepperInput.decrement.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue);
     assert.equal(StepperInput.input.value, baseValue);
     assert.notOk(this.onChange.called);
 
     StepperInput.decrement.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue - 1);
     assert.equal(StepperInput.input.value, baseValue - 1);
     assert.notOk(this.onChange.called);
 

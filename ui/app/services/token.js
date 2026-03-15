@@ -9,12 +9,13 @@ import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
-import fetch from 'nomad-ui/utils/fetch';
+import { wrappedFetch } from 'nomad-ui/utils/wrapped-fetch';
 import classic from 'ember-classic-decorator';
 import moment from 'moment';
 
 const MINUTES_LEFT_AT_WARNING = 10;
 const EXPIRY_NOTIFICATION_TITLE = 'Your access is about to expire';
+
 @classic
 export default class TokenService extends Service {
   @service store;
@@ -124,7 +125,7 @@ export default class TokenService extends Service {
       headers['X-Nomad-Token'] = token;
     }
 
-    return fetch(url, Object.assign(options, { headers, credentials }));
+    return wrappedFetch(url, Object.assign(options, { headers, credentials }));
   }
 
   authorizedRequest(url, options) {

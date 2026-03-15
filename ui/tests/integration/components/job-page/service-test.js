@@ -5,13 +5,14 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, find, render } from '@ember/test-helpers';
+import { click, find, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import {
   startJob,
   stopJob,
   purgeJob,
+  expectError,
   expectDeleteRequest,
   expectStartRequest,
   expectPurgeRequest,
@@ -91,6 +92,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await stopJob();
     expectDeleteRequest(assert, this.server, job);
+    await settled();
   });
 
   test('Stopping a job without proper permissions disables the button', async function (assert) {
@@ -131,7 +133,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectStartRequest(assert, this.server, job);
+    await expectStartRequest(assert, this.server, job);
+    await settled();
   });
 
   test('Starting a job without proper permissions disables the button', async function (assert) {
@@ -160,6 +163,9 @@ module('Integration | Component | job-page/service', function (hooks) {
     assert.expect(1);
 
     this.token.fetchSelfTokenAndPolicies.perform();
+    const router = this.owner.lookup('service:router');
+    const transitionTo = router.transitionTo;
+    router.transitionTo = () => {};
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
@@ -172,8 +178,13 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
+    try {
+      await purgeJob();
+      expectPurgeRequest(assert, this.server, job);
+      await settled();
+    } finally {
+      router.transitionTo = transitionTo;
+    }
   });
 
   test('Recent allocations shows allocations in the job context', async function (assert) {
@@ -319,28 +330,13 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('[data-test-promote-canary]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Promote Deployment',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+    await expectError(assert, 'Could Not Promote Deployment');
 
     await componentA11yAudit(
       this.element,
       assert,
-      'scrollable-region-focusable'
+      'scrollable-region-focusable',
     ); //keyframe animation fades from opacity 0
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
   });
 
   test('Active deployment can be failed', async function (assert) {
@@ -385,27 +381,12 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('.active-deployment [data-test-fail]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Fail Deployment',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+    await expectError(assert, 'Could Not Fail Deployment');
 
     await componentA11yAudit(
       this.element,
       assert,
-      'scrollable-region-focusable'
+      'scrollable-region-focusable',
     ); //keyframe animation fades from opacity 0
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
   });
 });

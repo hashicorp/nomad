@@ -5,7 +5,7 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, find, findAll, render } from '@ember/test-helpers';
+import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import moment from 'moment';
 import { create, collection } from 'ember-cli-page-object';
@@ -17,6 +17,7 @@ import {
   stopJob,
   startJob,
   purgeJob,
+  expectError,
   expectDeleteRequest,
   expectStartRequest,
   expectPurgeRequest,
@@ -134,22 +135,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await click('[data-test-force-launch]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Force Launch',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
+    await expectError(assert, 'Could Not Force Launch');
   });
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
@@ -173,6 +159,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await stopJob();
 
     expectDeleteRequest(assert, this.server, job);
+    await settled();
   });
 
   test('Stopping a job without proper permissions results in a disabled button', async function (assert) {
@@ -220,7 +207,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectStartRequest(assert, this.server, job);
+    await expectStartRequest(assert, this.server, job);
+    await settled();
   });
 
   test('Starting a job without proper permissions disables the button', async function (assert) {
@@ -251,6 +239,9 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     assert.expect(1);
 
     this.token.fetchSelfTokenAndPolicies.perform();
+    const router = this.owner.lookup('service:router');
+    const transitionTo = router.transitionTo;
+    router.transitionTo = () => {};
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
@@ -266,8 +257,13 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
+    try {
+      await purgeJob();
+      expectPurgeRequest(assert, this.server, job);
+      await settled();
+    } finally {
+      router.transitionTo = transitionTo;
+    }
   });
 
   test('Each job row includes the submitted time', async function (assert) {

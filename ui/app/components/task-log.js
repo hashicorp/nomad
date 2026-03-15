@@ -13,7 +13,6 @@ import timeout from 'nomad-ui/utils/timeout';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import { AbortController } from 'fetch';
 
 @classic
 @classNames('boxed-section', 'task-log')

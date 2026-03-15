@@ -5,7 +5,7 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, find, render, settled, waitUntil } from '@ember/test-helpers';
+import { find, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
@@ -13,11 +13,6 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const jobName = 'test-job';
 const jobId = JSON.stringify([jobName, 'default']);
-
-const countChange = () => {
-  const initial = find('[data-test-task-group-count]').textContent;
-  return () => find('[data-test-task-group-count]').textContent !== initial;
-};
 
 let managementToken;
 let clientToken;
@@ -110,12 +105,10 @@ module('Integration | Component | task group row', function (hooks) {
     await render(commonTemplate);
     assert.equal(find('[data-test-task-group-count]').textContent, 2);
 
-    click('[data-test-scale="increment"]');
-    await waitUntil(countChange());
+    find('[data-test-scale="increment"]').click();
     assert.equal(find('[data-test-task-group-count]').textContent, 3);
 
-    click('[data-test-scale="increment"]');
-    await waitUntil(countChange());
+    find('[data-test-scale="increment"]').click();
     assert.equal(find('[data-test-task-group-count]').textContent, 4);
 
     assert.notOk(
