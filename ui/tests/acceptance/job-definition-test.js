@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { click, currentURL } from '@ember/test-helpers';
+import { click, currentURL, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
@@ -107,7 +107,9 @@ module('Acceptance | job definition', function (hooks) {
     cm.setValue(`{}`);
 
     await click('[data-test-plan]');
+    await waitUntil(() => Definition.editor.runIsPresent);
     await Definition.editor.run();
+    await waitUntil(() => currentURL() === `/jobs/${job.id}@default`);
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default`,

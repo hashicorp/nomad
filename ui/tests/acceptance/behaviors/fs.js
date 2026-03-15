@@ -363,9 +363,13 @@ export default function browseFilesystem({
 
     assert.ok(FS.fileViewer.isPresent);
 
-    const requests = [...this.server.pretender.handledRequests];
-    const secondAttempt = requests.pop();
-    const firstAttempt = requests.pop();
+    const readAtRequests = this.server.pretender.handledRequests.filter((req) =>
+      req.url.includes(`/v1/client/fs/readat/${this.allocation.id}`)
+    );
+    const firstAttempt = readAtRequests[0];
+    const secondAttempt = readAtRequests[1];
+
+    assert.equal(readAtRequests.length, 2, 'Two readat attempts were made');
 
     assert.equal(
       firstAttempt.url.split('?')[0],

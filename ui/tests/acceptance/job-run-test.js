@@ -12,6 +12,7 @@ import {
   fillIn,
   visit,
   settled,
+  waitUntil,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';
@@ -98,7 +99,11 @@ module('Acceptance | job run', function (hooks) {
 
     await JobRun.editor.editor.fillIn(spec);
     await JobRun.editor.plan();
+    await waitUntil(() => JobRun.editor.runIsPresent);
     await JobRun.editor.run();
+    await waitUntil(
+      () => currentURL() === `/jobs/${newJobName}@${newJobNamespace}`,
+    );
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}@${newJobNamespace}`,
@@ -116,7 +121,11 @@ module('Acceptance | job run', function (hooks) {
 
     await JobRun.editor.editor.fillIn(spec);
     await JobRun.editor.plan();
+    await waitUntil(() => JobRun.editor.runIsPresent);
     await JobRun.editor.run();
+    await waitUntil(
+      () => currentURL() === `/jobs/${newJobName}@${newNamespace}`,
+    );
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}@${newNamespace}`,

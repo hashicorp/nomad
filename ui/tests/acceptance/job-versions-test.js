@@ -5,7 +5,13 @@
 
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import { currentURL, click, typeIn } from '@ember/test-helpers';
+import {
+  currentURL,
+  click,
+  typeIn,
+  waitUntil,
+  find,
+} from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -118,6 +124,7 @@ module('Acceptance | job versions', function (hooks) {
         JobVersion: versionNumberRevertingTo,
       });
 
+      await waitUntil(() => currentURL() === `/jobs/${job.id}@${namespace.id}`);
       assert.equal(currentURL(), `/jobs/${job.id}@${namespace.id}`);
     }
   });
@@ -133,6 +140,7 @@ module('Acceptance | job versions', function (hooks) {
 
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
+      await waitUntil(() => Layout.inlineError.isShown);
 
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isDanger);
@@ -158,6 +166,7 @@ module('Acceptance | job versions', function (hooks) {
 
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
+      await waitUntil(() => Layout.inlineError.isShown);
 
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isWarning);
@@ -233,8 +242,8 @@ module('Acceptance | job versions', function (hooks) {
       .hasClass('editing');
 
     // equivalent of backspacing existing
-    document.querySelector('[data-test-tag-name-input]').value = '';
-    document.querySelector('[data-test-tag-description-input]').value = '';
+    find('[data-test-tag-name-input]').value = '';
+    find('[data-test-tag-description-input]').value = '';
 
     await typeIn(
       '[data-test-tagged-version="true"] [data-test-tag-name-input]',
@@ -265,6 +274,7 @@ module('Acceptance | job versions', function (hooks) {
     await click(
       '[data-test-tagged-version="true"] [data-test-tag-delete-button]'
     );
+    await waitUntil(() => !find('[data-test-tagged-version="true"]'));
     assert.dom('[data-test-tagged-version="true"]').doesNotExist();
   });
 
@@ -476,6 +486,11 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     const versionBlock = '[data-test-job-version="98"]';
     await click(`${versionBlock} [data-test-clone-and-edit]`);
     await click(`${versionBlock} [data-test-clone-as-new-job]`);
+    await waitUntil(
+      () =>
+        currentURL() ===
+        `/jobs/run?sourceString=${encodeURIComponent(testString)}`,
+    );
 
     assert.equal(
       currentURL(),

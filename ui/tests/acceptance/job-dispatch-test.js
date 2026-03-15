@@ -13,7 +13,7 @@ import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobDispatch from 'nomad-ui/tests/pages/jobs/dispatch';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 
 const REQUIRED_INDICATOR = '*';
 
@@ -209,11 +209,13 @@ function moduleForJobDispatch(title, jobFactory) {
       const childrenCountBefore = countDispatchChildren();
       await JobDispatch.dispatchButton.click();
       const childrenCountAfter = countDispatchChildren();
+      const dispatchedJobPath = `/jobs/${encodeURIComponent(`${job.id}/`)}`;
 
       assert.equal(childrenCountAfter, childrenCountBefore + 1);
-      assert.ok(
-        currentURL().startsWith(`/jobs/${encodeURIComponent(`${job.id}/`)}`)
-      );
+      await waitUntil(() => currentURL().startsWith(dispatchedJobPath));
+      assert.ok(currentURL().startsWith(dispatchedJobPath));
+      await waitUntil(() => !currentURL().includes('/dispatch'));
+      await waitFor('[data-test-job-name]');
       assert.ok(JobDetail.jobName);
     });
 

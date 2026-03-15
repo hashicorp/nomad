@@ -12,7 +12,6 @@ import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
 import Watchable from 'nomad-ui/adapters/watchable';
 import config from 'nomad-ui/config/environment';
-import { AbortController } from 'fetch';
 
 const isEnabled = config.APP.blockingQueries !== false;
 

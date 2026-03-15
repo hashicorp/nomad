@@ -388,6 +388,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 2 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let managerButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Manager')
@@ -395,6 +396,8 @@ module('Acceptance | tokens', function (hooks) {
 
     assert.dom(managerButton).exists();
     await click(managerButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     await percySnapshot(assert);
 
@@ -409,12 +412,15 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 1 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let newTokenButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Thelonious')
     )[0];
     assert.dom(newTokenButton).exists();
     await click(newTokenButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
@@ -427,12 +433,15 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 1 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let newTokenButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Thelonious')
     )[0];
     assert.dom(newTokenButton).exists();
     await click(newTokenButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
@@ -441,17 +450,21 @@ module('Acceptance | tokens', function (hooks) {
   test('It shows an error on failed SSO', async function (assert) {
     server.create('auth-method', { name: 'vault' });
     await visit('/settings/tokens?state=failure');
+    await waitUntil(() => Tokens.ssoErrorMessage);
     assert.ok(Tokens.ssoErrorMessage);
     await Tokens.clearSSOError();
+    await waitUntil(() => !Tokens.ssoErrorMessage);
     assert.equal(currentURL(), '/settings/tokens', 'State query param cleared');
     assert.notOk(Tokens.ssoErrorMessage);
 
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
 
     let failureButton = find('.button.error');
     assert.dom(failureButton).exists();
     await click(failureButton);
+    await waitUntil(() => currentURL() === '/settings/tokens?state=failure');
     assert.equal(
       currentURL(),
       '/settings/tokens?state=failure',
@@ -478,6 +491,8 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('JWT Sign-in flow: JWT method', async function (assert) {
+    const tokenService = this.owner.lookup('service:token');
+
     server.create('auth-method', { name: 'Vault', type: 'OIDC' });
     server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
     server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
@@ -496,6 +511,9 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
     ).submit();
+    await waitUntil(() => !!find('[data-test-token-name]'));
+    await waitUntil(() => !!find('[data-test-token-clear]'));
+    await waitUntil(() => !tokenService.fetchSelfTokenAndPolicies.isRunning);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
     await Tokens.clear();
@@ -504,6 +522,9 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
     ).submit();
+    await waitUntil(() => !!find('[data-test-token-name]'));
+    await waitUntil(() => !!find('[data-test-token-clear]'));
+    await waitUntil(() => !tokenService.fetchSelfTokenAndPolicies.isRunning);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText(
       `Token: ${
