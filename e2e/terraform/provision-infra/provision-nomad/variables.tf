@@ -99,3 +99,9 @@ variable "keys_dir" {
   description = "Directory where all the configuration TLS and SSH keys and certificates will be stored for provisioning"
   default     = ""
 }
+
+variable "device_plugin_local_binary" {
+  type        = string
+  description = "Path to the example device plugin binary for e2e device tests"
+  default     = ""
+}
