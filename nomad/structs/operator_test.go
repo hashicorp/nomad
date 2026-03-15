@@ -11,6 +11,40 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func TestSchedulerConfiguration_GetNodeLimitForSpreadAndAffinity(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		config   *SchedulerConfiguration
+		expected uint
+	}{
+		{
+			name:     "nil config returns default",
+			config:   nil,
+			expected: DefaultNodeLimitForSpreadAndAffinity,
+		},
+		{
+			name:     "zero value returns default",
+			config:   &SchedulerConfiguration{},
+			expected: DefaultNodeLimitForSpreadAndAffinity,
+		},
+		{
+			name: "positive value is returned",
+			config: &SchedulerConfiguration{
+				NodeLimitForSpreadAndAffinity: 42,
+			},
+			expected: 42,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expected, tc.config.GetNodeLimitForSpreadAndAffinity())
+		})
+	}
+}
+
 func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 	ci.Parallel(t)
 

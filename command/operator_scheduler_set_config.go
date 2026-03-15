@@ -22,15 +22,16 @@ type OperatorSchedulerSetConfig struct {
 	// The scheduler configuration flags allow us to tell whether the user set
 	// a value or not. This means we can safely merge the current configuration
 	// with user supplied, selective updates.
-	checkIndex               string
-	schedulerAlgorithm       string
-	memoryOversubscription   flagHelper.BoolValue
-	rejectJobRegistration    flagHelper.BoolValue
-	pauseEvalBroker          flagHelper.BoolValue
-	preemptBatchScheduler    flagHelper.BoolValue
-	preemptServiceScheduler  flagHelper.BoolValue
-	preemptSysBatchScheduler flagHelper.BoolValue
-	preemptSystemScheduler   flagHelper.BoolValue
+	checkIndex                    string
+	schedulerAlgorithm            string
+	memoryOversubscription        flagHelper.BoolValue
+	rejectJobRegistration         flagHelper.BoolValue
+	pauseEvalBroker               flagHelper.BoolValue
+	preemptBatchScheduler         flagHelper.BoolValue
+	preemptServiceScheduler       flagHelper.BoolValue
+	preemptSysBatchScheduler      flagHelper.BoolValue
+	preemptSystemScheduler        flagHelper.BoolValue
+	nodeLimitForSpreadAndAffinity flagHelper.UintValue
 }
 
 func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
@@ -41,13 +42,14 @@ func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
 				string(api.SchedulerAlgorithmBinpack),
 				string(api.SchedulerAlgorithmSpread),
 			),
-			"-memory-oversubscription":    complete.PredictSet("true", "false"),
-			"-reject-job-registration":    complete.PredictSet("true", "false"),
-			"-pause-eval-broker":          complete.PredictSet("true", "false"),
-			"-preempt-batch-scheduler":    complete.PredictSet("true", "false"),
-			"-preempt-service-scheduler":  complete.PredictSet("true", "false"),
-			"-preempt-sysbatch-scheduler": complete.PredictSet("true", "false"),
-			"-preempt-system-scheduler":   complete.PredictSet("true", "false"),
+			"-memory-oversubscription":            complete.PredictSet("true", "false"),
+			"-reject-job-registration":            complete.PredictSet("true", "false"),
+			"-pause-eval-broker":                  complete.PredictSet("true", "false"),
+			"-preempt-batch-scheduler":            complete.PredictSet("true", "false"),
+			"-preempt-service-scheduler":          complete.PredictSet("true", "false"),
+			"-preempt-sysbatch-scheduler":         complete.PredictSet("true", "false"),
+			"-preempt-system-scheduler":           complete.PredictSet("true", "false"),
+			"-node-limit-for-spread-and-affinity": complete.PredictAnything,
 		},
 	)
 }
@@ -72,6 +74,7 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	flags.Var(&o.preemptServiceScheduler, "preempt-service-scheduler", "")
 	flags.Var(&o.preemptSysBatchScheduler, "preempt-sysbatch-scheduler", "")
 	flags.Var(&o.preemptSystemScheduler, "preempt-system-scheduler", "")
+	flags.Var(&o.nodeLimitForSpreadAndAffinity, "node-limit-for-spread-and-affinity", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -134,6 +137,7 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	o.preemptServiceScheduler.Merge(&schedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	o.preemptSysBatchScheduler.Merge(&schedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 	o.preemptSystemScheduler.Merge(&schedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	o.nodeLimitForSpreadAndAffinity.Merge(&schedulerConfig.NodeLimitForSpreadAndAffinity)
 
 	// Check-and-set the new configuration.
 	result, _, err := client.Operator().SchedulerCASConfiguration(schedulerConfig, nil)
@@ -208,6 +212,13 @@ Scheduler Set Config Options:
   -preempt-system-scheduler=[true|false]
     Specifies whether preemption for system jobs is enabled. Note that if this
     is set to true, then system jobs can preempt any other jobs.
+
+  -node-limit-for-spread-and-affinity=<count>
+    Limits the number of feasible nodes to consider when scheduling a job that
+	specifies spread and/or affinity. Defaults to 100 nodes if unset. Lower
+	numbers result in better scheduler performance and more randomization of jobs
+	across nodes. Higher numbers result in more deterministic application of
+	spread and/or affinity.
 `
 	return strings.TrimSpace(helpText)
 }

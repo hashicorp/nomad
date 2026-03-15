@@ -63,16 +63,17 @@ type GenericStack struct {
 	taskGroupNetwork     *NetworkChecker
 	taskGroupSecrets     *SecretsProviderChecker
 
-	distinctHostsConstraint    *DistinctHostsIterator
-	distinctPropertyConstraint *DistinctPropertyIterator
-	binPack                    *BinPackIterator
-	jobAntiAff                 *JobAntiAffinityIterator
-	nodeReschedulingPenalty    *NodeReschedulingPenaltyIterator
-	limit                      *LimitIterator
-	maxScore                   *MaxScoreIterator
-	nodeAffinity               *NodeAffinityIterator
-	spread                     *SpreadIterator
-	scoreNorm                  *ScoreNormalizationIterator
+	distinctHostsConstraint       *DistinctHostsIterator
+	distinctPropertyConstraint    *DistinctPropertyIterator
+	binPack                       *BinPackIterator
+	jobAntiAff                    *JobAntiAffinityIterator
+	nodeReschedulingPenalty       *NodeReschedulingPenaltyIterator
+	limit                         *LimitIterator
+	maxScore                      *MaxScoreIterator
+	nodeAffinity                  *NodeAffinityIterator
+	spread                        *SpreadIterator
+	scoreNorm                     *ScoreNormalizationIterator
+	nodeLimitForSpreadAndAffinity int
 }
 
 func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
@@ -129,6 +130,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 // on the node pool being used.
 func (s *GenericStack) SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration) {
 	s.binPack.SetSchedulerConfiguration(schedConfig)
+	s.nodeLimitForSpreadAndAffinity = int(schedConfig.GetNodeLimitForSpreadAndAffinity())
 }
 
 func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
@@ -183,11 +185,11 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	if s.nodeAffinity.hasAffinities() || s.spread.hasSpreads() {
 		// scoring spread across all nodes has quadratic behavior, so
 		// we need to consider a subset of nodes to keep evaluaton times
-		// reasonable but enough to ensure spread is correct. this
-		// value was empirically determined.
-		s.limit.SetLimit(tg.Count)
-		if tg.Count < 100 {
-			s.limit.SetLimit(100)
+		// reasonable but enough to ensure spread is statistically correct.
+		if tg.Count < s.nodeLimitForSpreadAndAffinity {
+			s.limit.SetLimit(s.nodeLimitForSpreadAndAffinity)
+		} else {
+			s.limit.SetLimit(tg.Count)
 		}
 	}
 

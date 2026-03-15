@@ -997,6 +997,49 @@ func TestServiceSched_Spread(t *testing.T) {
 	}
 }
 
+// TestServiceSched_Spread_NodeLimitForSpreadAndAffinity verifies that the
+// NodeLimitForSpreadAndAffinity scheduler configuration limits the number of
+// nodes evaluated when scheduling a job with spreads.
+func TestServiceSched_Spread_NodeLimitForSpreadAndAffinity(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	const nodeLimit uint = 5
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		NodeLimitForSpreadAndAffinity: nodeLimit,
+	})
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
+		&structs.Spread{Attribute: "${node.datacenter}", Weight: 100})
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	for i := 0; i < 20; i++ {
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), mock.Node()))
+	}
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// With 20 feasible nodes but a limit of 5, only 5 should be evaluated.
+	var planned []*structs.Allocation
+	for _, allocList := range h.Plans[0].NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	must.Len(t, 1, planned)
+	must.Eq(t, int(nodeLimit), planned[0].Metrics.NodesEvaluated)
+}
+
 // TestServiceSched_JobRegister_Datacenter_Downgrade tests the case where an
 // allocation fails during a deployment with canaries, an the job changes its
 // datacenter. The replacement for the failed alloc should be placed in the

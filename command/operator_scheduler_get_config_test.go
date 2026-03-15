@@ -25,8 +25,8 @@ func TestOperatorSchedulerGetConfig_Run(t *testing.T) {
 	// Run the command, so we get the default output and test this.
 	must.Zero(t, c.Run([]string{"-address=" + addr}))
 	s := ui.OutputWriter.String()
-	must.StrContains(t, s, "Scheduler Algorithm           = binpack")
-	must.StrContains(t, s, "Preemption SysBatch Scheduler = false")
+	must.StrContains(t, s, "Scheduler Algorithm                = binpack")
+	must.StrContains(t, s, "Preemption SysBatch Scheduler      = false")
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
 
