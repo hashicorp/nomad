@@ -34,8 +34,23 @@ module('Integration | Component | fs/file', function (hooks) {
         {},
         logEncode(['Hello World'], 0),
       ]);
+      this.get(`//${HOST}/v1/client/fs/stream/:alloc_id`, () => [
+        200,
+        {},
+        logEncode(['Hello World'], 0),
+      ]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
+      this.get(`//${HOST}/v1/client/fs/cat/:alloc_id`, () => [
+        200,
+        {},
+        'Hello World',
+      ]);
       this.get('/v1/client/fs/readat/:alloc_id', () => [
+        200,
+        {},
+        'Hello World',
+      ]);
+      this.get(`//${HOST}/v1/client/fs/readat/:alloc_id`, () => [
         200,
         {},
         'Hello World',

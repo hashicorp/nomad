@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, waitFor } from '@ember/test-helpers';
+import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -317,6 +317,7 @@ module('Acceptance | task detail', function (hooks) {
 
     await Task.restart.idle();
     await Task.restart.confirm();
+    await waitUntil(() => Task.inlineError.isShown);
 
     assert.ok(Task.inlineError.isShown, 'Inline error is shown');
     assert.ok(
@@ -343,6 +344,7 @@ module('Acceptance | task detail', function (hooks) {
 
     await Task.restart.idle();
     await Task.restart.confirm();
+    await waitUntil(() => Task.inlineError.isShown);
 
     assert.ok(Task.inlineError.isShown);
     assert.ok(Task.inlineError.title.includes('Could Not Restart Task'));

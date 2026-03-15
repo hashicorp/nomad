@@ -10,7 +10,6 @@ import Controller from '@ember/controller';
 import { scheduleOnce } from '@ember/runloop';
 import { restartableTask, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
-import { AbortController } from 'fetch';
 
 const TASK_THROTTLE = 1000;
 

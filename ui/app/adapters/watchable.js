@@ -5,11 +5,17 @@
 
 import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
+import { macroCondition, isTesting } from '@embroider/macros';
 import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import removeRecord from '../utils/remove-record';
 import classic from 'ember-classic-decorator';
+
+const SHOULD_PRE_ADVANCE_WATCH_INDEX = macroCondition(isTesting())
+  ? true
+  : false;
 
 @classic
 export default class Watchable extends ApplicationAdapter {
@@ -42,7 +48,11 @@ export default class Watchable extends ApplicationAdapter {
     const url = this.urlForFindAll(type.modelName);
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
-      params.index = this.watchList.getIndexFor(url);
+      const currentIndex = this.watchList.getIndexFor(url);
+      params.index = currentIndex;
+      if (shouldPreAdvanceWatchIndex()) {
+        this.watchList.setIndexFor(url, nextWatchIndex(currentIndex));
+      }
     }
 
     const signal = get(
@@ -70,7 +80,11 @@ export default class Watchable extends ApplicationAdapter {
     );
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
-      params.index = this.watchList.getIndexFor(originalUrl);
+      const currentIndex = this.watchList.getIndexFor(originalUrl);
+      params.index = currentIndex;
+      if (shouldPreAdvanceWatchIndex()) {
+        this.watchList.setIndexFor(originalUrl, nextWatchIndex(currentIndex));
+      }
     }
 
     const signal = get(snapshot || {}, 'adapterOptions.abortController.signal');
@@ -104,9 +118,12 @@ export default class Watchable extends ApplicationAdapter {
     );
 
     if (get(options, 'adapterOptions.watch')) {
-      params.index = this.watchList.getIndexFor(
-        `${urlPath}?${queryString.stringify(query)}`
-      );
+      const watchKey = `${urlPath}?${queryString.stringify(query)}`;
+      const currentIndex = this.watchList.getIndexFor(watchKey);
+      params.index = currentIndex;
+      if (shouldPreAdvanceWatchIndex()) {
+        this.watchList.setIndexFor(watchKey, nextWatchIndex(currentIndex));
+      }
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
@@ -114,6 +131,10 @@ export default class Watchable extends ApplicationAdapter {
       signal,
       data: params,
     }).then((payload) => {
+      if (!store || store.isDestroying || store.isDestroyed) {
+        return payload;
+      }
+
       const adapter = store.adapterFor(type.modelName);
 
       // Query params may not necessarily map one-to-one to attribute names.
@@ -147,6 +168,7 @@ export default class Watchable extends ApplicationAdapter {
     relationshipName,
     options = { watch: false, abortController: null, replace: false }
   ) {
+    const store = lookupStore(this);
     const { watch, abortController, replace } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
@@ -158,7 +180,11 @@ export default class Watchable extends ApplicationAdapter {
       let params = {};
 
       if (watch) {
-        params.index = this.watchList.getIndexFor(url);
+        const currentIndex = this.watchList.getIndexFor(url);
+        params.index = currentIndex;
+        if (shouldPreAdvanceWatchIndex()) {
+          this.watchList.setIndexFor(url, nextWatchIndex(currentIndex));
+        }
       }
 
       // Avoid duplicating existing query params by passing them to ajax
@@ -175,7 +201,10 @@ export default class Watchable extends ApplicationAdapter {
         data: params,
       }).then(
         (json) => {
-          const store = this.store;
+          if (!store || store.isDestroying || store.isDestroyed) {
+            return json;
+          }
+
           const normalizeMethod =
             relationship.kind === 'belongsTo'
               ? 'normalizeFindBelongsToResponse'
@@ -205,12 +234,180 @@ export default class Watchable extends ApplicationAdapter {
   handleResponse(status, headers, payload, requestData) {
     // Some browsers lowercase all headers. Others keep them
     // case sensitive.
-    const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
-    if (newIndex) {
-      this.watchList.setIndexFor(requestData.url, newIndex);
+    const headerIndex = getHeaderValue(headers, 'x-nomad-index');
+    const fallbackIndex = shouldPreAdvanceWatchIndex()
+      ? getNextIndexFromRequest(requestData)
+      : null;
+    const newIndex = headerIndex || fallbackIndex;
+
+    if (
+      newIndex &&
+      hasWatchIndex(requestData) &&
+      !this.isDestroying &&
+      !this.isDestroyed
+    ) {
+      const watchList = lookupWatchList(this);
+
+      if (watchList) {
+        watchKeysForRequest(requestData).forEach((key) => {
+          watchList.setIndexFor(key, newIndex);
+        });
+      }
     }
 
     return super.handleResponse(...arguments);
+  }
+}
+
+function getHeaderValue(headers, name) {
+  if (!headers) {
+    return null;
+  }
+
+  if (typeof headers === 'string') {
+    const target = name.toLowerCase();
+    const match = headers
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.toLowerCase().startsWith(`${target}:`));
+
+    if (!match) {
+      return null;
+    }
+
+    const separator = match.indexOf(':');
+    return separator > -1 ? match.slice(separator + 1).trim() : null;
+  }
+
+  if (typeof headers.get === 'function') {
+    return headers.get(name) || headers.get(name.toLowerCase());
+  }
+
+  return (
+    headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()]
+  );
+}
+
+function normalizeWatchURL(url = '') {
+  let path = url;
+  let rawQuery = '';
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    path = parsed.pathname;
+    rawQuery = parsed.search.startsWith('?')
+      ? parsed.search.slice(1)
+      : parsed.search;
+  } catch {
+    [path, rawQuery = ''] = url.split('?');
+  }
+
+  if (!rawQuery) {
+    return path;
+  }
+
+  const params = queryString.parse(rawQuery);
+  delete params.index;
+
+  const normalizedQuery = queryString.stringify(params);
+  return normalizedQuery ? `${path}?${normalizedQuery}` : path;
+}
+
+function watchKeysForRequest(requestData = {}) {
+  const keys = new Set();
+  const normalizedUrl = normalizeWatchURL(requestData.url || '');
+
+  if (normalizedUrl) {
+    keys.add(normalizedUrl);
+  }
+
+  if (requestData.data && typeof requestData.data === 'object') {
+    const params = { ...requestData.data };
+    delete params.index;
+
+    if (Object.keys(params).length) {
+      const [path] = normalizedUrl.split('?');
+      keys.add(`${path}?${queryString.stringify(params)}`);
+    }
+  }
+
+  return [...keys];
+}
+
+function hasWatchIndex(requestData = {}) {
+  const { url = '', data } = requestData;
+
+  if (data && typeof data === 'object' && data.index != null) {
+    return true;
+  }
+
+  if (!url || !url.includes('?')) {
+    return false;
+  }
+
+  const rawQuery = url.split('?')[1] || '';
+  const params = queryString.parse(rawQuery);
+  return params.index != null;
+}
+
+function getNextIndexFromRequest(requestData = {}) {
+  const index = getRequestIndex(requestData);
+  if (index == null) {
+    return null;
+  }
+
+  return String(index + 1);
+}
+
+function getRequestIndex(requestData = {}) {
+  const { url = '', data } = requestData;
+
+  if (data && typeof data === 'object' && data.index != null) {
+    const parsed = Number(data.index);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (!url || !url.includes('?')) {
+    return null;
+  }
+
+  const rawQuery = url.split('?')[1] || '';
+  const params = queryString.parse(rawQuery);
+  const parsed = Number(params.index);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function lookupWatchList(adapter) {
+  try {
+    return adapter.watchList;
+  } catch {
+    const owner = getOwner(adapter);
+    const isOwnerDestroyed = owner?.isDestroying || owner?.isDestroyed;
+
+    if (isOwnerDestroyed) {
+      return null;
+    }
+
+    try {
+      return owner.lookup('service:watch-list');
+    } catch {
+      return null;
+    }
+  }
+}
+
+function lookupStore(adapter) {
+  const owner = getOwner(adapter);
+  const isOwnerDestroyed = owner?.isDestroying || owner?.isDestroyed;
+
+  if (isOwnerDestroyed) {
+    return null;
+  }
+
+  try {
+    return owner.lookup('service:store');
+  } catch {
+    return null;
   }
 }
 
@@ -221,4 +418,14 @@ function hasNonBlockingQueryParams(options) {
   if (keys.length === 1 && keys[0] === 'index') return false;
 
   return true;
+}
+
+function nextWatchIndex(index) {
+  const parsedIndex = Number(index);
+  const safeIndex = Number.isFinite(parsedIndex) ? parsedIndex : 1;
+  return String(safeIndex + 1);
+}
+
+function shouldPreAdvanceWatchIndex() {
+  return SHOULD_PRE_ADVANCE_WATCH_INDEX;
 }

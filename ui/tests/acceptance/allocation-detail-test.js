@@ -7,7 +7,13 @@
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
 import { getPageTitle } from 'ember-page-title/test-support';
-import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
+import {
+  currentURL,
+  click,
+  triggerEvent,
+  waitFor,
+  waitUntil,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -373,7 +379,9 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('allocation can be restarted', async function (assert) {
+    await waitUntil(() => !Allocation.restartAll.isDisabled);
     await Allocation.restartAll.idle();
+    await waitUntil(() => !Allocation.restart.isDisabled);
     await Allocation.restart.idle();
     await Allocation.restart.confirm();
 
@@ -385,7 +393,9 @@ module('Acceptance | allocation detail', function (hooks) {
       'Restart request is made for the allocation'
     );
 
+    await waitUntil(() => !Allocation.restart.isDisabled);
     await Allocation.restart.idle();
+    await waitUntil(() => !Allocation.restartAll.isDisabled);
     await Allocation.restartAll.idle();
     await Allocation.restartAll.confirm();
 
@@ -420,8 +430,10 @@ module('Acceptance | allocation detail', function (hooks) {
   test('if stopping or restarting fails, an error message is shown', async function (assert) {
     server.pretender.post('/v1/allocation/:id/stop', () => [403, {}, '']);
 
+    await waitUntil(() => !Allocation.stop.isDisabled);
     await Allocation.stop.idle();
     await Allocation.stop.confirm();
+    await waitUntil(() => Allocation.inlineError.isShown);
 
     assert.ok(Allocation.inlineError.isShown, 'Inline error is shown');
     assert.ok(

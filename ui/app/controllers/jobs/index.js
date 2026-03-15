@@ -12,7 +12,6 @@ import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
-import { AbortController } from 'fetch';
 
 // eslint-disable-next-line no-unused-vars
 import JobModel from '../../models/job';
