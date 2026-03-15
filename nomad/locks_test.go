@@ -34,10 +34,10 @@ func TestServer_restoreLockTTLTimers(t *testing.T) {
 		LockDelay: 15 * time.Second,
 	}
 
-	upsertResp1 := testServer.fsm.State().VarSet(10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpSet})
+	upsertResp1 := testServer.fsm.State().VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpSet})
 	must.NoError(t, upsertResp1.Error)
 
-	upsertResp2 := testServer.fsm.State().VarSet(20, &structs.VarApplyStateRequest{Var: mockVar2, Op: structs.VarOpLockAcquire})
+	upsertResp2 := testServer.fsm.State().VarSet(structs.VarApplyStateRequestType, 20, &structs.VarApplyStateRequest{Var: mockVar2, Op: structs.VarOpLockAcquire})
 	must.NoError(t, upsertResp2.Error)
 
 	// Call the server function that restores the lock TTL timers. This would
@@ -65,7 +65,7 @@ func TestServer_invalidateVariableLock(t *testing.T) {
 		LockDelay: 15 * time.Second,
 	}
 
-	upsertResp1 := testServer.fsm.State().VarSet(10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
+	upsertResp1 := testServer.fsm.State().VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
 	must.NoError(t, upsertResp1.Error)
 
 	// Create the timer manually, so we can control the invalidation for
@@ -98,7 +98,7 @@ func TestServer_createVariableLockTimer(t *testing.T) {
 		LockDelay: 10 * time.Millisecond,
 	}
 
-	upsertResp1 := testServer.fsm.State().VarSet(10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
+	upsertResp1 := testServer.fsm.State().VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
 	must.NoError(t, upsertResp1.Error)
 
 	testServer.CreateVariableLockTTLTimer(*mockVar1)
@@ -153,7 +153,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 		t.Fatalf("expected error, got %s", err)
 	}
 
-	upsertResp1 := testServer.fsm.State().VarSet(10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
+	upsertResp1 := testServer.fsm.State().VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
 	must.NoError(t, upsertResp1.Error)
 
 	testServer.CreateVariableLockTTLTimer(*mockVar1)

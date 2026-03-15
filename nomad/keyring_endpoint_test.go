@@ -54,7 +54,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	// below)
 	encryptedVar := mock.VariableEncrypted()
 	encryptedVar.KeyID = key.Meta.KeyID
-	varSetResp := state.VarSet(0, &structs.VarApplyStateRequest{Var: encryptedVar})
+	varSetResp := state.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{Var: encryptedVar})
 	must.NoError(t, varSetResp.Error)
 
 	// Get doesn't need a token here because it uses mTLS role verification

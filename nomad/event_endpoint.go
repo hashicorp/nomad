@@ -6,6 +6,7 @@ package nomad
 import (
 	"context"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
@@ -70,6 +71,22 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
+	var resolvedACLForFilter atomic.Value
+	resolvedACLForFilter.Store(resolvedACL)
+
+	var variableFilterFn func(structs.Event) bool
+	for topic := range args.Topics {
+		if topic == structs.TopicVariable || topic == structs.TopicAll {
+			variableFilterFn = func(event structs.Event) bool {
+				if event.Topic != structs.TopicVariable {
+					return true
+				}
+				return resolvedACLForFilter.Load().(*acl.ACL).AllowVariableOperation(event.Namespace, event.Key, acl.VariablesCapabilityList, nil)
+			}
+			break
+		}
+	}
+
 	// Generate the subscription request
 	subReq := &stream.SubscribeRequest{
 		Token:  args.AuthToken,
@@ -78,6 +95,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		// Namespaces is set once, in the event a users ACL is updated to include
 		// more NSes, the current event stream will not include the new NSes.
 		Namespaces: validatedNses,
+		FilterFn:   variableFilterFn,
 		Authenticate: func() error {
 			if err := e.srv.Authenticate(nil, &args); err != nil {
 				return err
@@ -86,6 +104,8 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			if err != nil {
 				return err
 			}
+			resolvedACLForFilter.Store(resolvedACL)
+
 			_, err = e.validateACL(args.Namespace, args.Topics, resolvedACL)
 			return err
 		},
@@ -296,6 +316,12 @@ func validateNsOp(namespace string, topics map[structs.Topic][]string, aclObj *a
 			}
 		case structs.TopicOperator:
 			if ok := aclObj.AllowOperatorRead(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicVariable:
+			// Require any variable access in the namespace; the per-event
+			// FilterFn on the subscription enforces path-level permissions.
+			if ok := aclObj.AllowVariableSearch(namespace); !ok {
 				return structs.ErrPermissionDenied
 			}
 		default: // including TopicAll

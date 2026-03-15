@@ -1031,7 +1031,7 @@ func TestStateStore_DeleteNamespaces_Variables(t *testing.T) {
 	sv := mock.VariableEncrypted()
 	sv.Namespace = ns.Name
 
-	resp := state.VarSet(1001, &structs.VarApplyStateRequest{
+	resp := state.VarSet(structs.VarApplyStateRequestType, 1001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: sv,
 	})

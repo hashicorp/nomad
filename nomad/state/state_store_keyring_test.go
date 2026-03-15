@@ -126,7 +126,7 @@ func TestStateStore_IsRootKeyInUse(t *testing.T) {
 				mockVariable := mock.VariableEncrypted()
 				mockVariable.KeyID = keyID
 
-				stateResp := store.VarSet(110,
+				stateResp := store.VarSet(structs.VarApplyStateRequestType, 110,
 					&structs.VarApplyStateRequest{Var: mockVariable, Op: structs.VarOpSet},
 				)
 
@@ -171,7 +171,7 @@ func TestStateStore_IsRootKeyInUse(t *testing.T) {
 				mockVariable := mock.VariableEncrypted()
 				mockVariable.KeyID = keyID
 
-				stateResp := store.VarSet(140,
+				stateResp := store.VarSet(structs.VarApplyStateRequestType, 140,
 					&structs.VarApplyStateRequest{Var: mockVariable, Op: structs.VarOpSet},
 				)
 

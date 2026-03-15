@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -469,6 +469,38 @@ func TestEventStream_validateNsOp(t *testing.T) {
 			Management:  false,
 			ExpectedErr: structs.ErrPermissionDenied,
 		},
+		{
+			Name: "list variables -- wildcard access",
+			Topics: map[structs.Topic][]string{
+				structs.TopicVariable: {"*"},
+			},
+			Policy: mock.NamespacePolicyWithVariables("default", "", nil, map[string][]string{
+				"*": {acl.VariablesCapabilityList},
+			}),
+			Namespace:   "default",
+			Management:  false,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "list variables -- no variable policy",
+			Topics: map[structs.Topic][]string{
+				structs.TopicVariable: {"*"},
+			},
+			Policy:      mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}),
+			Namespace:   "default",
+			Management:  false,
+			ExpectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			Name: "list variables -- management token",
+			Topics: map[structs.Topic][]string{
+				structs.TopicVariable: {"*"},
+			},
+			Policy:      "",
+			Namespace:   "default",
+			Management:  true,
+			ExpectedErr: nil,
+		},
 	}
 
 	for _, tc := range cases {
@@ -781,4 +813,182 @@ func TestEventStream_ACLTokenExpiry(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestEventStream_VariableFilter(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.EnableEventBroker = true
+	})
+	state := s1.fsm.State()
+	defer cleanupS1()
+
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}, map[string][]string{
+			"foo/bar/cats/*": {acl.VariablesCapabilityList},
+			"allowed/*":      {acl.VariablesCapabilityList},
+		}),
+	)
+
+	// Create request for all topics and keys
+	req := structs.EventStreamRequest{
+		Topics: map[structs.Topic][]string{"Variable": {"*"}},
+		QueryOptions: structs.QueryOptions{
+			Region:    s1.Region(),
+			Namespace: structs.DefaultNamespace,
+			AuthToken: validToken.SecretID,
+		},
+	}
+
+	handler, err := s1.StreamingRpcHandler("Event.Stream")
+	require.Nil(t, err)
+
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	streamMsg := make(chan *structs.EventStreamWrapper)
+
+	// invoke handler
+	go handler(p2)
+
+	// decode request responses
+	go func() {
+		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+		for {
+			var msg structs.EventStreamWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				errCh <- fmt.Errorf("error decoding: %w", err)
+			}
+
+			streamMsg <- &msg
+		}
+	}()
+
+	// retrieve publisher for server, send event
+	publisher, err := s1.State().EventBroker()
+	require.NoError(t, err)
+
+	event1 := &structs.Events{
+		Index: uint64(1),
+		Events: []structs.Event{
+			{
+				Topic:     "Variable",
+				Namespace: "default",
+				Key:       "foo/bar/cats/q",
+				Payload: structs.VariableMetadata{
+					Namespace: "default",
+					Path:      "foo/bar/cats/q",
+				},
+			},
+		},
+	}
+	event2 := &structs.Events{
+		Index: uint64(1),
+		Events: []structs.Event{
+			{
+				Topic:     "Variable",
+				Namespace: "default",
+				Key:       "foo/bar/baz/q",
+				Payload: structs.VariableMetadata{
+					Namespace: "default",
+					Path:      "foo/bar/baz/q",
+				},
+			},
+		},
+	}
+	event3 := &structs.Events{
+		Index: uint64(1),
+		Events: []structs.Event{
+			{
+				Topic:     "Variable",
+				Namespace: "default",
+				Key:       "restricted/bar",
+				Payload: structs.VariableMetadata{
+					Namespace: "default",
+					Path:      "restricted/bar",
+				},
+			},
+		},
+	}
+	event4 := &structs.Events{
+		Index: uint64(1),
+		Events: []structs.Event{
+			{
+				Topic:     "Variable",
+				Namespace: "default",
+				Key:       "allowed/bar",
+				Payload: structs.VariableMetadata{
+					Namespace: "default",
+					Path:      "allowed/bar",
+				},
+			},
+		},
+	}
+	publisher.Publish(event1)
+
+	// Send request
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	require.Nil(t, encoder.Encode(req))
+
+	publisher.Publish(event2)
+	publisher.Publish(event3)
+	publisher.Publish(event4)
+
+	timeout := time.After(3 * time.Second)
+	got := []structs.VariableMetadata{}
+	want := 2
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for event stream")
+		case err := <-errCh:
+			t.Fatal(err)
+		case msg := <-streamMsg:
+			if msg.Error != nil {
+				t.Fatalf("Got error: %v", msg.Error.Error())
+			}
+
+			// ignore heartbeat
+			if bytes.Equal(msg.Event.Data, stream.JsonHeartbeat.Data) {
+				continue
+			}
+
+			var event structs.Events
+			err = json.Unmarshal(msg.Event.Data, &event)
+			require.NoError(t, err)
+
+			// decode fully to ensure we received expected out
+			var out structs.VariableMetadata
+			cfg := &mapstructure.DecoderConfig{
+				Metadata: nil,
+				Result:   &out,
+			}
+			dec, err := mapstructure.NewDecoder(cfg)
+			dec.Decode(event.Events[0].Payload)
+			require.NoError(t, err)
+
+			got = append(got, out)
+			if len(got) == want {
+				break OUTER
+			}
+		}
+	}
+
+	require.ElementsMatch(t, []structs.VariableMetadata{
+		{
+			Namespace: "default",
+			Path:      "foo/bar/cats/q",
+		},
+		{
+			Namespace: "default",
+			Path:      "allowed/bar",
+		},
+	}, got)
 }
