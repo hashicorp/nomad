@@ -135,6 +135,10 @@ type Agent struct {
 
 	inmemSink *metrics.InmemSink
 
+	// configReloader is a callback that triggers a full agent configuration
+	// reload, equivalent to SIGHUP
+	configReloader func() error
+
 	// tlsMetrics is the process that handles periodically emitting agent TLS
 	// certificate expiry metrics. If the agent is not configured within TLS,
 	// this will be nil, so callers should check before attempting to use it.
@@ -1608,6 +1612,18 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	}
 
 	return agent, http
+}
+
+// ConfigReload triggers a full agent configuration reload, equivalent to
+// receiving a SIGHUP signal. The reload logic lives in Command.handleReload.
+func (a *Agent) ConfigReload() error {
+	a.configLock.Lock()
+	reloader := a.configReloader
+	a.configLock.Unlock()
+	if reloader == nil {
+		return nil
+	}
+	return reloader()
 }
 
 // Reload handles configuration changes for the agent. Provides a method that

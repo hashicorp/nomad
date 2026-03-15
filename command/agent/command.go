@@ -262,6 +262,10 @@ func (c *Command) readConfig() *Config {
 	// Merge in the enterprise overlay
 	config = config.Merge(DefaultEntConfig())
 
+	if len(configPath) > 0 {
+		config.ConfigPaths = append([]string(nil), configPath...)
+	}
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
@@ -672,6 +676,9 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		return err
 	}
 	c.agent = agent
+
+	// reload path as SIGHUP (readConfig + agent/server/client/HTTP reload).
+	c.agent.configReloader = c.handleReload
 
 	// Setup the HTTP server
 	httpServers, err := NewHTTPServers(agent, config)
