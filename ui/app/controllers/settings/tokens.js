@@ -219,13 +219,7 @@ export default class Tokens extends Controller {
         : this.token.forbiddenReturnPath;
 
     if (redirectPath && redirectPath !== '/settings/tokens') {
-      if (redirectPath.startsWith('/jobs')) {
-        this.router.transitionTo('jobs');
-      } else if (redirectPath.startsWith('/evaluations')) {
-        this.router.transitionTo('evaluations');
-      } else {
-        this.router.transitionTo(redirectPath);
-      }
+      this.router.transitionTo(redirectPath);
       this.token.postExpiryPath = null;
       this.token.forbiddenReturnPath = null;
 
