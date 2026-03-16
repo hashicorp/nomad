@@ -842,7 +842,7 @@ func TestEventStream_VariableFilter(t *testing.T) {
 	}
 
 	handler, err := s1.StreamingRpcHandler("Event.Stream")
-	require.Nil(t, err)
+	must.NoError(t, err)
 
 	p1, p2 := net.Pipe()
 	defer p1.Close()
@@ -934,7 +934,7 @@ func TestEventStream_VariableFilter(t *testing.T) {
 
 	// Send request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(t, encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	publisher.Publish(event2)
 	publisher.Publish(event3)
@@ -962,7 +962,7 @@ OUTER:
 
 			var event structs.Events
 			err = json.Unmarshal(msg.Event.Data, &event)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			// decode fully to ensure we received expected out
 			var out structs.VariableMetadata
@@ -971,8 +971,8 @@ OUTER:
 				Result:   &out,
 			}
 			dec, err := mapstructure.NewDecoder(cfg)
-			dec.Decode(event.Events[0].Payload)
-			require.NoError(t, err)
+			must.NoError(t, err)
+			must.NoError(t, dec.Decode(event.Events[0].Payload))
 
 			got = append(got, out)
 			if len(got) == want {
@@ -981,7 +981,7 @@ OUTER:
 		}
 	}
 
-	require.ElementsMatch(t, []structs.VariableMetadata{
+	must.SliceContainsAll(t, []structs.VariableMetadata{
 		{
 			Namespace: "default",
 			Path:      "foo/bar/cats/q",
