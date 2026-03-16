@@ -60,17 +60,17 @@ export default class JobDispatch extends Component {
             required,
             title: titleCase(noCase(x)),
             value: this.args.job.meta ? this.args.job.meta.get(x) : '',
-          })
+          }),
       );
 
     // Fetch the different types of parameters.
     const required = mapper(
       this.args.job.parameterizedDetails.MetaRequired || [],
-      true
+      true,
     );
     const optional = mapper(
       this.args.job.parameterizedDetails.MetaOptional || [],
-      false
+      false,
     );
 
     // Merge them, required before optional.

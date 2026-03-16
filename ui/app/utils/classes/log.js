@@ -36,7 +36,7 @@ class Log extends EmberObject.extend(Evented) {
 
   logFetch() {
     assert(
-      'Log objects need a logFetch method, which should have an interface like window.fetch'
+      'Log objects need a logFetch method, which should have an interface like window.fetch',
     );
   }
 
@@ -97,15 +97,15 @@ class Log extends EmberObject.extend(Evented) {
           origin: 'start',
           offset: 0,
         },
-        this.params
-      )
+        this.params,
+      ),
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
     const response = yield logFetch(url).then(
       (res) => res.text(),
-      fetchFailure(url)
+      fetchFailure(url),
     );
     let text = this.plainText ? response : decode(response).message;
 
@@ -127,15 +127,15 @@ class Log extends EmberObject.extend(Evented) {
           origin: 'end',
           offset: MAX_OUTPUT_LENGTH,
         },
-        this.params
-      )
+        this.params,
+      ),
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
     const response = yield logFetch(url).then(
       (res) => res.text(),
-      fetchFailure(url)
+      fetchFailure(url),
     );
     let text = this.plainText ? response : decode(response).message;
 

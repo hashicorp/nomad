@@ -11,7 +11,7 @@ export default Factory.extend({
   // in factories.token.afterCreate
   id: () =>
     `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
-      5
+      5,
     )}`,
   name() {
     return this.id;

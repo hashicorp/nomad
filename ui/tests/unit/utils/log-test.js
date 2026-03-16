@@ -47,7 +47,7 @@ const Log = _Log.extend({
       'url',
       'params',
       'logFetch',
-      'write'
+      'write',
     );
     this.set('logStreamer', MockStreamer.create(props));
   },
@@ -95,7 +95,7 @@ module('Unit | Util | Log', function (hooks) {
       log.get('gotoHead').perform();
       assert.ok(
         fetchSpy.calledWith(expectedUrl),
-        `gotoHead URL was ${expectedUrl}`
+        `gotoHead URL was ${expectedUrl}`,
       );
     });
   });
@@ -116,12 +116,12 @@ module('Unit | Util | Log', function (hooks) {
     await settled();
     assert.ok(
       log.get('output').toString().endsWith(truncationMessage),
-      'Truncation message is shown'
+      'Truncation message is shown',
     );
     assert.equal(
       log.get('output').toString().length,
       50000 + truncationMessage.length,
-      'Output is truncated the appropriate amount'
+      'Output is truncated the appropriate amount',
     );
   });
 
@@ -136,7 +136,7 @@ module('Unit | Util | Log', function (hooks) {
       log.get('gotoTail').perform();
       assert.ok(
         fetchSpy.calledWith(expectedUrl),
-        `gotoTail URL was ${expectedUrl}`
+        `gotoTail URL was ${expectedUrl}`,
       );
     });
   });
@@ -149,7 +149,7 @@ module('Unit | Util | Log', function (hooks) {
     assert.equal(
       log.get('logPointer'),
       'tail',
-      'Streaming points the log to the tail'
+      'Streaming points the log to the tail',
     );
   });
 
@@ -172,7 +172,7 @@ module('Unit | Util | Log', function (hooks) {
     assert.equal(
       log.get('output'),
       chunk1 + chunk2 + chunk3,
-      'Third chunk written'
+      'Third chunk written',
     );
   });
 

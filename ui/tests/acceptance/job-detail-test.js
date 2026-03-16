@@ -29,7 +29,7 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
       running: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
@@ -42,7 +42,7 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
       running: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
@@ -56,7 +56,7 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
       failed: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
 moduleForJobWithClientStatus(
@@ -71,7 +71,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
@@ -87,7 +87,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
@@ -103,7 +103,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
 moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
@@ -132,7 +132,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
@@ -147,7 +147,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
@@ -162,7 +162,7 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJob(
@@ -184,19 +184,19 @@ moduleForJob(
       assert.equal(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
     },
     "don't display redundant information in children table": async function (
       job,
-      assert
+      assert,
     ) {
       assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
-  }
+  },
 );
 
 moduleForJob(
@@ -214,7 +214,7 @@ moduleForJob(
     "don't display namespace in children table": async function (job, assert) {
       assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
-  }
+  },
 );
 
 moduleForJob(
@@ -237,19 +237,19 @@ moduleForJob(
       assert.equal(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
     },
     "don't display redundant information in children table": async function (
       job,
-      assert
+      assert,
     ) {
       assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
-  }
+  },
 );
 
 moduleForJob(
@@ -267,7 +267,7 @@ moduleForJob(
     "don't display namespace in children table": async function (job, assert) {
       assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
-  }
+  },
 );
 
 moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
@@ -303,7 +303,7 @@ moduleForJob(
     const child = server.db.jobs.where({ parentId: parent.id })[0];
     server.db.jobs.update(child.id, { status: 'running', stopped: false });
     return server.db.jobs.find(child.id);
-  }
+  },
 );
 
 moduleForJob(
@@ -332,17 +332,17 @@ moduleForJob(
             .filter((request) => !request.url.includes('policy'))
             .findBy('status', 404).url,
           '/v1/job/not-a-real-job',
-          'A request to the nonexistent job is made'
+          'A request to the nonexistent job is made',
         );
         assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
         assert.ok(JobDetail.error.isPresent, 'Error message is shown');
         assert.equal(
           JobDetail.error.title,
           'Not Found',
-          'Error message is for 404'
+          'Error message is for 404',
         );
       },
-  }
+  },
 );
 
 module('Acceptance | ui block', function (hooks) {
@@ -476,7 +476,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     assert.ok(
       JobDetail.statFor('namespace').text,
-      'Namespace included in stats'
+      'Namespace included in stats',
     );
   });
 
@@ -582,12 +582,12 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     assert.equal(
       JobDetail.packStatFor('name').text,
       `Name ${jobFromPack.meta['pack.name']}`,
-      `Pack name is ${jobFromPack.meta['pack.name']}`
+      `Pack name is ${jobFromPack.meta['pack.name']}`,
     );
     assert.equal(
       JobDetail.packStatFor('version').text,
       `Version ${jobFromPack.meta['pack.version']}`,
-      `Pack version is ${jobFromPack.meta['pack.version']}`
+      `Pack version is ${jobFromPack.meta['pack.version']}`,
     );
   });
 
@@ -609,7 +609,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     const groupsWithRecommendations = job.taskGroups.filter((group) =>
-      group.tasks.models.any((task) => task.recommendations.models.length)
+      group.tasks.models.any((task) => task.recommendations.models.length),
     );
     const jobRecommendationCount = groupsWithRecommendations.length;
 
@@ -639,7 +639,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     assert.equal(
       recommendation.card.slug.groupName,
-      firstRecommendationGroup.name
+      firstRecommendationGroup.name,
     );
 
     await recommendation.card.acceptButton.click();
@@ -662,9 +662,9 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests.filter((request) =>
-        request.url.includes('recommendations')
+        request.url.includes('recommendations'),
       ).length,
-      0
+      0,
     );
   });
 
@@ -831,13 +831,13 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
 
   test('Start Job depends on the job being stopped', async function (assert) {
     const restartableJob = server.db.jobs.findBy(
-      (j) => j.name === 'restartable-job'
+      (j) => j.name === 'restartable-job',
     );
     const revertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job'
+      (j) => j.name === 'revertable-job',
     );
     const nonRevertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job'
+      (j) => j.name === 'non-revertable-job',
     );
     await JobDetail.visit({ id: restartableJob.id });
 
@@ -855,16 +855,16 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     await JobDetail.visit({ id: nonRevertableJob.id });
     assert.notOk(JobDetail.start.isPresent);
     await percySnapshot(
-      'Non-revertable Job depends on having no stable job versions'
+      'Non-revertable Job depends on having no stable job versions',
     );
   });
 
   test('A revertable job depends on having stable job versions', async function (assert) {
     const revertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job'
+      (j) => j.name === 'revertable-job',
     );
     const nonRevertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job'
+      (j) => j.name === 'non-revertable-job',
     );
     await JobDetail.visit({ id: revertableJob.id });
 
@@ -878,7 +878,7 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
 
   test('A batch job with a previous version can be reverted', async function (assert) {
     const revertableSystemJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-batch-job'
+      (j) => j.name === 'revertable-batch-job',
     );
     await JobDetail.visit({ id: revertableSystemJob.id });
     assert.ok(JobDetail.revert.isPresent);
@@ -891,7 +891,7 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     await JobDetail.editAndResubmit.click();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/definition?isEditing=true&view=job-spec`
+      `/jobs/${job.id}/definition?isEditing=true&view=job-spec`,
     );
   });
 });
@@ -1180,5 +1180,5 @@ module(
       await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
       assert.ok(JobDetail.revert.isDisabled);
     });
-  }
+  },
 );

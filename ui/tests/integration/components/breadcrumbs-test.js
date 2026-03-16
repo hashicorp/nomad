@@ -47,13 +47,13 @@ module('Integration | Component | breadcrumbs', function (hooks) {
       .dom(crumbs[0])
       .hasText(
         'Zoey',
-        'Breadcrumbs maintain the order in which they are declared'
+        'Breadcrumbs maintain the order in which they are declared',
       );
     assert
       .dom(crumbs[1])
       .hasText(
         'Tomster',
-        'Breadcrumbs maintain the order in which they are declared'
+        'Breadcrumbs maintain the order in which they are declared',
       );
 
     await click('[data-test-button]');
@@ -64,7 +64,7 @@ module('Integration | Component | breadcrumbs', function (hooks) {
       .dom('[data-test-crumb]')
       .hasText(
         'Zoey',
-        'Zoey remains in the template after Tomster deregisters'
+        'Zoey remains in the template after Tomster deregisters',
       );
   });
 
@@ -84,7 +84,7 @@ module('Integration | Component | breadcrumbs', function (hooks) {
       .dom('[data-test-crumb]')
       .hasText(
         'Tomster',
-        'We can access the registered breadcrumbs in the template'
+        'We can access the registered breadcrumbs in the template',
       );
   });
 });

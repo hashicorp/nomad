@@ -70,7 +70,7 @@ module('Acceptance | policies', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/policies/${firstPolicy.name}`,
-      'remain on page after save'
+      'remain on page after save',
     );
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
@@ -91,7 +91,7 @@ module('Acceptance | policies', function (hooks) {
       ...findAll('[data-test-token-name="Example Token for Variable-Maker"]'),
     ][0].parentElement;
     const newTokenDeleteButton = newTokenRow.querySelector(
-      '[data-test-delete-token-button]'
+      '[data-test-delete-token-button]',
     );
     await click(newTokenDeleteButton);
     assert
@@ -121,11 +121,11 @@ module('Acceptance | policies', function (hooks) {
     assert.equal(
       currentURL(),
       '/administration/policies/My-Fun-Policy',
-      'redirected to the now-created policy'
+      'redirected to the now-created policy',
     );
     await visit('/administration/policies');
     const newPolicy = [...findAll('[data-test-policy-name]')].filter((a) =>
-      a.textContent.includes('My-Fun-Policy')
+      a.textContent.includes('My-Fun-Policy'),
     )[0];
     assert.ok(newPolicy, 'Policy is in the list');
     await click(newPolicy);
@@ -145,7 +145,7 @@ module('Acceptance | policies', function (hooks) {
 
     const firstPolicyName = firstPolicy.name;
     const firstPolicyLink = [...findAll('[data-test-policy-name]')].filter(
-      (row) => row.textContent.includes(firstPolicyName)
+      (row) => row.textContent.includes(firstPolicyName),
     )[0];
     await click(firstPolicyLink);
     assert.equal(currentURL(), `/administration/policies/${firstPolicyName}`);

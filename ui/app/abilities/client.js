@@ -18,7 +18,7 @@ export default class Client extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesIncludeNodeWrite'
+    'policiesIncludeNodeWrite',
   )
   canWrite;
 

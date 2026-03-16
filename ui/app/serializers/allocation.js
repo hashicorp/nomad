@@ -53,7 +53,7 @@ export default class AllocationSerializer extends ApplicationSerializer {
         state.Events = state.Events || [];
         const summary = { Name: key };
         Object.keys(state).forEach(
-          (stateKey) => (summary[stateKey] = state[stateKey])
+          (stateKey) => (summary[stateKey] = state[stateKey]),
         );
         summary.Resources =
           hash.AllocatedResources && hash.AllocatedResources.Tasks[key];

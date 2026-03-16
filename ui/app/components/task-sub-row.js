@@ -39,7 +39,11 @@ export default class TaskSubRowComponent extends Component {
       (typeof task?.get === 'function' ? task.get('name') : undefined) ||
       task?.name ||
       task;
-    this.router.transitionTo('allocations.allocation.task', allocation, taskName);
+    this.router.transitionTo(
+      'allocations.allocation.task',
+      allocation,
+      taskName,
+    );
   }
 
   // Since all tasks for an allocation share the same tracker, use the registry

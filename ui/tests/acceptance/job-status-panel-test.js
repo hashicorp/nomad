@@ -120,13 +120,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert.equal(
       jobAllocCount,
       groupAllocCount * job.taskGroups.length,
-      'Correect number of allocs generated (metatest)'
+      'Correect number of allocs generated (metatest)',
     );
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: jobAllocCount },
-        `All ${jobAllocCount} allocations are represented in the status panel`
+        `All ${jobAllocCount} allocations are represented in the status panel`,
       );
 
     groupAllocCount = 20;
@@ -164,19 +164,19 @@ module('Acceptance | job status panel', function (hooks) {
     assert.equal(
       runningAllocCount + failedAllocCount,
       groupAllocCount * job.taskGroups.length,
-      'Correect number of allocs generated (metatest)'
+      'Correect number of allocs generated (metatest)',
     );
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: runningAllocCount },
-        `All ${runningAllocCount} running allocations are represented in the status panel`
+        `All ${runningAllocCount} running allocations are represented in the status panel`,
       );
     assert
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .exists(
         { count: failedAllocCount },
-        `All ${failedAllocCount} failed allocations are represented in the status panel`
+        `All ${failedAllocCount} failed allocations are represented in the status panel`,
       );
     await percySnapshot(assert, {
       percyCSS: `
@@ -386,7 +386,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: jobAllocCount },
-        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`
+        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`,
       );
 
     groupAllocCount = 40;
@@ -420,7 +420,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: desiredUngroupedAllocCount },
-        `${desiredUngroupedAllocCount} allocations are represented ungrouped`
+        `${desiredUngroupedAllocCount} allocations are represented ungrouped`,
       );
 
     assert
@@ -430,7 +430,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.represented-allocation.rest')
       .hasText(
         `+${groupAllocCount - desiredUngroupedAllocCount}`,
-        'Summary block has the correct number of grouped allocs'
+        'Summary block has the correct number of grouped allocs',
       );
 
     await percySnapshot(assert, {
@@ -476,13 +476,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+16',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -491,13 +491,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '+10',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
 
     assert
@@ -506,13 +506,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.pending')
       .exists(
-        'pending allocations are numerous enough that a summary block exists'
+        'pending allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.pending')
       .hasText(
         '5',
-        'Summary block has the correct number of grouped pending allocs'
+        'Summary block has the correct number of grouped pending allocs',
       );
 
     assert
@@ -521,13 +521,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.unplaced')
       .exists(
-        'Unplaced allocations are numerous enough that a summary block exists'
+        'Unplaced allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.unplaced')
       .hasText(
         '5',
-        'Summary block has the correct number of grouped unplaced allocs'
+        'Summary block has the correct number of grouped unplaced allocs',
       );
     await percySnapshot(
       'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)',
@@ -536,7 +536,7 @@ module('Acceptance | job status panel', function (hooks) {
           .allocation-row td { display: none; }
           .inline-chart { visibility: hidden; }
         `,
-      }
+      },
     );
 
     // Simulate a window resize event; will recompute how many of each ought to be grouped.
@@ -552,7 +552,7 @@ module('Acceptance | job status panel', function (hooks) {
           .allocation-row td { display: none; }
           .inline-chart { visibility: hidden; }
         `,
-      }
+      },
     );
 
     assert
@@ -561,13 +561,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+18',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -576,13 +576,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '+11',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
 
     // At 500px, only running allocations have some ungrouped allocs. The rest are all fully grouped.
@@ -596,7 +596,7 @@ module('Acceptance | job status panel', function (hooks) {
           .allocation-row td { display: none; }
           .inline-chart { visibility: hidden; }
         `,
-      }
+      },
     );
 
     assert
@@ -605,13 +605,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+21',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -620,13 +620,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '15',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
   });
 
@@ -705,7 +705,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell)
       .hasText(
         '1 Restarted',
-        'Restarted cell updates when a task event with type "Restarting" is added'
+        'Restarted cell updates when a task event with type "Restarting" is added',
       );
 
     this.store
@@ -726,7 +726,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell)
       .hasText(
         '2 Restarted',
-        'Restarted cell updates when a second task event with type "Restarting" is added'
+        'Restarted cell updates when a second task event with type "Restarting" is added',
       );
 
     this.store
@@ -743,7 +743,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(rescheduledCell)
       .hasText(
         '1 Rescheduled',
-        'Rescheduled cell updates when desiredTransition is set'
+        'Rescheduled cell updates when desiredTransition is set',
       );
     assert
       .dom(rescheduledCell.querySelector('a'))
@@ -793,17 +793,17 @@ module('Acceptance | job status panel', function (hooks) {
       assert.equal(
         shownEvents.length,
         serverEvents.length * jobAllocations.length,
-        'All events are shown'
+        'All events are shown',
       );
 
       await fillIn(
         '[data-test-history-search] input',
-        serverEvents.models[0].displayMessage
+        serverEvents.models[0].displayMessage,
       );
       assert.equal(
         findAll('.timeline-object').length,
         jobAllocations.length,
-        'Only events matching the search are shown'
+        'Only events matching the search are shown',
       );
 
       await fillIn('[data-test-history-search] input', 'foo bar baz');
@@ -862,13 +862,13 @@ module('Acceptance | job status panel', function (hooks) {
         .dom('.running-allocs-title')
         .hasText(
           '5/8 Remaining Allocations Running',
-          'Completed allocations do not count toward the Remaining denominator'
+          'Completed allocations do not count toward the Remaining denominator',
         );
       assert
         .dom('.ungrouped-allocs .represented-allocation.complete')
         .exists(
           { count: 2 },
-          `2 complete allocations are represented in the status panel`
+          `2 complete allocations are represented in the status panel`,
         );
 
       // Service job should have 5 running, 3 failed, 2 unplaced
@@ -879,13 +879,13 @@ module('Acceptance | job status panel', function (hooks) {
       assert
         .dom('.ungrouped-allocs .represented-allocation.complete')
         .doesNotExist(
-          'For a service job, no copmlete allocations are represented in the status panel'
+          'For a service job, no copmlete allocations are represented in the status panel',
         );
       assert
         .dom('.ungrouped-allocs .represented-allocation.unplaced')
         .exists(
           { count: 2 },
-          `2 unplaced allocations are represented in the status panel`
+          `2 unplaced allocations are represented in the status panel`,
         );
     });
   });
@@ -943,7 +943,7 @@ module('Acceptance | job status panel', function (hooks) {
         .dom('.failed-or-lost-links > span')
         .hasText(
           '1 Restarted',
-          'Restarted cell updates when a task event with type "Restarting" is added'
+          'Restarted cell updates when a task event with type "Restarting" is added',
         );
     });
 
@@ -981,7 +981,7 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       let storedJob = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
 
       await settled();
@@ -993,7 +993,7 @@ module('Acceptance | job status panel', function (hooks) {
             jobId: job.id,
             clientStatus: 'running',
           }).length
-        } Allocations Running`
+        } Allocations Running`,
       );
 
       // Let's bring another node online!

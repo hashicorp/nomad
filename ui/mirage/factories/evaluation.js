@@ -38,7 +38,7 @@ const generateCountMap = (keysCount, list) => () => {
 const generateNodesAvailable = generateCountMap(5, DATACENTERS);
 const generateClassFiltered = generateCountMap(
   3,
-  provide(10, faker.hacker.abbreviation)
+  provide(10, faker.hacker.abbreviation),
 );
 const generateClassExhausted = generateClassFiltered;
 const generateDimensionExhausted = generateCountMap(1, [
@@ -97,8 +97,8 @@ export default Factory.extend({
         failedTaskGroupNames.push(
           ...taskGroupNames.splice(
             faker.random.number(taskGroupNames.length - 1),
-            1
-          )
+            1,
+          ),
         );
       }
 
@@ -123,7 +123,7 @@ export default Factory.extend({
 function assignJob(evaluation, server) {
   assert(
     '[Mirage] No jobs! make sure jobs are created before evaluations',
-    server.db.jobs.length
+    server.db.jobs.length,
   );
 
   const job = evaluation.jobId

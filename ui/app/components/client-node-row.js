@@ -16,7 +16,7 @@ import classic from 'ember-classic-decorator';
 @tagName('tr')
 @classNames('client-node-row', 'is-interactive')
 export default class ClientNodeRow extends Component.extend(
-  WithVisibilityDetection
+  WithVisibilityDetection,
 ) {
   @service store;
 

@@ -25,7 +25,7 @@ export default function moduleForJob(
   title,
   context,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -35,7 +35,7 @@ export default function moduleForJob(
     hooks.before(function () {
       if (context !== 'allocations' && context !== 'children') {
         throw new Error(
-          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`
+          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`,
         );
       }
     });
@@ -113,12 +113,12 @@ export default function moduleForJob(
       assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
       assert.equal(
         JobDetail.statFor('priority').text,
-        `Priority ${job.priority}`
+        `Priority ${job.priority}`,
       );
       assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
       assert.equal(
         JobDetail.statFor('node-pool').text,
-        `Node Pool ${job.nodePool}`
+        `Node Pool ${job.nodePool}`,
       );
     });
 
@@ -129,11 +129,11 @@ export default function moduleForJob(
         }
         assert.ok(
           JobDetail.allocationsSummary.isPresent,
-          'Allocations are shown in the summary section'
+          'Allocations are shown in the summary section',
         );
         assert.ok(
           JobDetail.childrenSummary.isHidden,
-          'Children are not shown in the summary section'
+          'Children are not shown in the summary section',
         );
       });
 
@@ -146,7 +146,7 @@ export default function moduleForJob(
         assert.equal(
           currentURL(),
           `/allocations/${allocationId}`,
-          'Allocation row links to allocation detail'
+          'Allocation row links to allocation detail',
         );
       });
 
@@ -206,9 +206,9 @@ export default function moduleForJob(
             `/jobs/${encodeURIComponent(job.name)}@${
               job.namespace
             }/allocations?status=${encodedStatus}`,
-            job.namespace
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
         assert.deepEqual(gotURL.pathname, expectedURL.pathname);
@@ -218,7 +218,7 @@ export default function moduleForJob(
         expectedURL.searchParams.sort();
         assert.equal(
           gotURL.searchParams.toString(),
-          expectedURL.searchParams.toString()
+          expectedURL.searchParams.toString(),
         );
       });
     }
@@ -227,11 +227,11 @@ export default function moduleForJob(
       test('children for the job are shown in the overview', async function (assert) {
         assert.ok(
           JobDetail.childrenSummary.isPresent,
-          'Children are shown in the summary section'
+          'Children are shown in the summary section',
         );
         assert.ok(
           JobDetail.allocationsSummary.isHidden,
-          'Allocations are not shown in the summary section'
+          'Allocations are not shown in the summary section',
         );
       });
     } else {
@@ -261,7 +261,7 @@ export default function moduleForJob(
 export function moduleForJobWithClientStatus(
   title,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -277,13 +277,13 @@ export function moduleForJobWithClientStatus(
       });
 
       clients.push(
-        server.create('node', { datacenter: 'dc2', status: 'ready' })
+        server.create('node', { datacenter: 'dc2', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'dc3', status: 'ready' })
+        server.create('node', { datacenter: 'dc3', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'canada-west-1', status: 'ready' })
+        server.create('node', { datacenter: 'canada-west-1', status: 'ready' }),
       );
       job = jobFactory();
       clients.forEach((c) => {
@@ -344,7 +344,7 @@ export function moduleForJobWithClientStatus(
         assert
           .dom("[data-test-tab='clients']")
           .doesNotExist(
-            'Job Detail Sub Navigation should not render Clients tab'
+            'Job Detail Sub Navigation should not render Clients tab',
           );
       });
 
@@ -354,7 +354,7 @@ export function moduleForJobWithClientStatus(
         assert.equal(
           currentRouteName(),
           'jobs.job.index',
-          'The clients route cannot be visited unless you have node:read permissions'
+          'The clients route cannot be visited unless you have node:read permissions',
         );
       });
     });

@@ -32,7 +32,7 @@ export default class AgentMonitor extends Component {
   get monitorParams() {
     assert(
       'Provide a client OR a server to AgentMonitor, not both.',
-      this.server != null || this.client != null
+      this.server != null || this.client != null,
     );
 
     const type = this.server ? 'server_id' : 'client_id';
@@ -67,7 +67,7 @@ export default class AgentMonitor extends Component {
         params: this.monitorParams,
         url: this.monitorUrl,
         tail: currentTail,
-      })
+      }),
     );
   }
 

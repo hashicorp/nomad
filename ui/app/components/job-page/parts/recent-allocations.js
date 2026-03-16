@@ -31,7 +31,7 @@ export default class RecentAllocations extends Component {
   get sortedAllocations() {
     return PromiseArray.create({
       promise: this.get('job.allocations').then((allocations) =>
-        allocations.sortBy('modifyIndex').reverse().slice(0, 5)
+        allocations.sortBy('modifyIndex').reverse().slice(0, 5),
       ),
     });
   }

@@ -28,13 +28,13 @@ module('Integration | Component | page layout', function (hooks) {
 
     assert.notOk(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is not open'
+      'Gutter menu is not open',
     );
     await click('[data-test-header-gutter-toggle]');
 
     assert.ok(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is open'
+      'Gutter menu is open',
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -46,13 +46,13 @@ module('Integration | Component | page layout', function (hooks) {
 
     assert.ok(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is open'
+      'Gutter menu is open',
     );
     await click('[data-test-gutter-gutter-toggle]');
 
     assert.notOk(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is not open'
+      'Gutter menu is not open',
     );
   });
 
@@ -63,13 +63,13 @@ module('Integration | Component | page layout', function (hooks) {
 
     assert.ok(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is open'
+      'Gutter menu is open',
     );
     await click('[data-test-gutter-backdrop]');
 
     assert.notOk(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
-      'Gutter menu is not open'
+      'Gutter menu is not open',
     );
   });
 });

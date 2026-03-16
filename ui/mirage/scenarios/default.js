@@ -41,8 +41,8 @@ export default function (server) {
   if (!activeScenario) {
     throw new Error(
       `Selected Mirage scenario does not exist.\n\n${scenario} not in list: \n\n\t${Object.keys(
-        allScenarios
-      ).join('\n\t')}`
+        allScenarios,
+      ).join('\n\t')}`,
     );
   }
 
@@ -102,7 +102,7 @@ function smallCluster(server) {
       name: 'node-with-meta',
       meta: { foo: 'bar', baz: 'qux' },
     },
-    'withMeta'
+    'withMeta',
   );
   server.createList('job', 10, { createRecommendations: true });
   server.create('job', {
@@ -331,31 +331,31 @@ function smallCluster(server) {
     .filter((a) => a.clientStatus === 'running')
     .slice(0, 10)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: false, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: false, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'running')
     .slice(10, 20)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'running')
     .slice(20, 65)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'pending')
     .slice(0, 10)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'failed')
     .slice(0, 5)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } }),
     );
 
   //#endregion Active Deployment
@@ -492,10 +492,10 @@ function smallCluster(server) {
             },
           ],
         },
-        overrides
+        overrides,
       ),
       null,
-      2
+      2,
     );
   };
 
@@ -1226,7 +1226,7 @@ function createRegions(server) {
   ['americas', 'europe', 'asia', 'some-long-name-just-to-test'].forEach(
     (id) => {
       server.create('region', { id });
-    }
+    },
   );
 }
 
@@ -1243,7 +1243,7 @@ Accessor: ${token.accessorId}
   });
 
   console.log(
-    'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
+    'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.',
   );
   console.log('=====================================');
 }
@@ -1253,7 +1253,7 @@ function getConfigValue(variableName, defaultValue) {
   if (value !== undefined) return value;
 
   console.warn(
-    `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`
+    `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`,
   );
   return defaultValue;
 }
@@ -1265,9 +1265,9 @@ function getScenarioQueryParameter() {
     console.error(
       new Error(
         `Selected Mirage scenario does not exist.\n\n${mirageScenario} not in list: \n\n\t${Object.keys(
-          allScenarios
-        ).join('\n\t')}`
-      )
+          allScenarios,
+        ).join('\n\t')}`,
+      ),
     );
     return 'smallCluster';
   }

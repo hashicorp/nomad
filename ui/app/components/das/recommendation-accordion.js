@@ -19,7 +19,7 @@ export default class DasRecommendationAccordionComponent extends Component {
   @(task(function* () {
     this.closing = true;
     this.animationContainerStyle = htmlSafe(
-      `height: ${this.accordionElement.clientHeight}px`
+      `height: ${this.accordionElement.clientHeight}px`,
     );
 
     yield timeout(10);
@@ -51,7 +51,7 @@ export default class DasRecommendationAccordionComponent extends Component {
       taskGroup,
       taskGroup.count,
       this.args.summary.recommendations,
-      this.args.summary.excludedRecommendations
+      this.args.summary.excludedRecommendations,
     );
   }
 }

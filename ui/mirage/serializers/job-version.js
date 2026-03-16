@@ -27,7 +27,7 @@ export default ApplicationSerializer.extend({
           hash.Versions.push(version);
           return hash;
         },
-        { Versions: [], Diffs: [] }
+        { Versions: [], Diffs: [] },
       );
   },
 });

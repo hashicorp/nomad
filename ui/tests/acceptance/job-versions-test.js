@@ -72,7 +72,7 @@ module('Acceptance | job versions', function (hooks) {
     assert.equal(
       Versions.versions.length,
       versions.length,
-      'Each version gets a row in the timeline'
+      'Each version gets a row in the timeline',
     );
     assert.equal(getPageTitle(), `Job ${job.name} versions - Nomad`);
   });
@@ -80,13 +80,13 @@ module('Acceptance | job versions', function (hooks) {
   test('each version mentions the version number, the stability, and the submitted time', async function (assert) {
     const version = versions.sortBy('submitTime').reverse()[0];
     const formattedSubmitTime = moment(version.submitTime / 1000000).format(
-      "MMM DD, 'YY HH:mm:ss ZZ"
+      "MMM DD, 'YY HH:mm:ss ZZ",
     );
     const versionRow = Versions.versions.objectAt(0);
 
     assert.ok(
       versionRow.text.includes(`Version #${version.version}`),
-      'Version #'
+      'Version #',
     );
     assert.equal(versionRow.stability, version.stable.toString(), 'Stability');
     assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
@@ -111,12 +111,12 @@ module('Acceptance | job versions', function (hooks) {
       await versionRowToRevertTo.revertToButton.confirm();
 
       const revertRequest = this.server.pretender.handledRequests.find(
-        (request) => request.url.includes('revert')
+        (request) => request.url.includes('revert'),
       );
 
       assert.equal(
         revertRequest.url,
-        `/v1/job/${job.id}/revert?namespace=${namespace.id}`
+        `/v1/job/${job.id}/revert?namespace=${namespace.id}`,
       );
 
       assert.deepEqual(JSON.parse(revertRequest.requestBody), {
@@ -131,7 +131,7 @@ module('Acceptance | job versions', function (hooks) {
 
   test('when reversion fails, the error message from the API is piped through to the alert', async function (assert) {
     const versionRowToRevertTo = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      (versionRow) => versionRow.revertToButton.isPresent,
     )[0];
 
     if (versionRowToRevertTo) {
@@ -157,7 +157,7 @@ module('Acceptance | job versions', function (hooks) {
 
   test('when reversion has no effect, the error message explains', async function (assert) {
     const versionRowToRevertTo = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      (versionRow) => versionRow.revertToButton.isPresent,
     )[0];
 
     if (versionRowToRevertTo) {
@@ -173,7 +173,7 @@ module('Acceptance | job versions', function (hooks) {
       assert.ok(Layout.inlineError.title.includes('Reversion Had No Effect'));
       assert.equal(
         Layout.inlineError.message,
-        'Reverting to an identical older version doesn’t produce a new version'
+        'Reverting to an identical older version doesn’t produce a new version',
       );
     } else {
       assert.expect(0);
@@ -188,12 +188,12 @@ module('Acceptance | job versions', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/versions',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Versions.error.isPresent, 'Error message is shown');
   });
@@ -247,16 +247,16 @@ module('Acceptance | job versions', function (hooks) {
 
     await typeIn(
       '[data-test-tagged-version="true"] [data-test-tag-name-input]',
-      'new-tag'
+      'new-tag',
     );
     await typeIn(
       '[data-test-tagged-version="true"] [data-test-tag-description-input]',
-      'new-description'
+      'new-description',
     );
 
     // Clicking the save button commits the changes
     await click(
-      '[data-test-tagged-version="true"] [data-test-tag-save-button]'
+      '[data-test-tagged-version="true"] [data-test-tag-save-button]',
     );
     assert
       .dom('[data-test-tagged-version="true"] .tag-button-primary')
@@ -272,7 +272,7 @@ module('Acceptance | job versions', function (hooks) {
     // Tag can subsequently be deleted
     await click('[data-test-tagged-version="true"] .tag-button-primary');
     await click(
-      '[data-test-tagged-version="true"] [data-test-tag-delete-button]'
+      '[data-test-tagged-version="true"] [data-test-tag-delete-button]',
     );
     await waitUntil(() => !find('[data-test-tagged-version="true"]'));
     assert.dom('[data-test-tagged-version="true"]').doesNotExist();
@@ -294,7 +294,7 @@ module('Acceptance | job versions', function (hooks) {
 
     // Clicking the save button commits the changes
     await click(
-      '[data-test-tagged-version="false"] [data-test-tag-save-button]'
+      '[data-test-tagged-version="false"] [data-test-tag-save-button]',
     );
 
     assert
@@ -303,16 +303,16 @@ module('Acceptance | job versions', function (hooks) {
 
     await typeIn(
       '[data-test-tagged-version="false"] [data-test-tag-name-input]',
-      'new-tag'
+      'new-tag',
     );
     await typeIn(
       '[data-test-tagged-version="false"] [data-test-tag-description-input]',
-      'new-description'
+      'new-description',
     );
 
     // Clicking the save button commits the changes
     await click(
-      '[data-test-tagged-version="false"] [data-test-tag-save-button]'
+      '[data-test-tagged-version="false"] [data-test-tag-save-button]',
     );
 
     assert
@@ -383,7 +383,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
       .dom('[data-test-clone-and-edit]')
       .exists(
         { count: 2 },
-        'Current job version doesnt have clone or revert buttons'
+        'Current job version doesnt have clone or revert buttons',
       );
 
     const versionBlock = '[data-test-job-version="98"]';
@@ -391,12 +391,12 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert
       .dom(`${versionBlock} [data-test-clone-as-new-version]`)
       .doesNotExist(
-        'Confirmation-stage clone-as-new-version button doesnt exist on initial load'
+        'Confirmation-stage clone-as-new-version button doesnt exist on initial load',
       );
     assert
       .dom(`${versionBlock} [data-test-clone-as-new-job]`)
       .doesNotExist(
-        'Confirmation-stage clone-as-new-job button doesnt exist on initial load'
+        'Confirmation-stage clone-as-new-job button doesnt exist on initial load',
       );
 
     await click(`${versionBlock} [data-test-clone-and-edit]`);
@@ -404,13 +404,13 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert
       .dom(`${versionBlock} [data-test-clone-as-new-version]`)
       .exists(
-        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit',
       );
 
     assert
       .dom(`${versionBlock} [data-test-clone-as-new-job]`)
       .exists(
-        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit',
       );
 
     assert
@@ -426,7 +426,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert
       .dom(`${versionBlock} [data-test-clone-as-new-version]`)
       .doesNotExist(
-        'Confirmation-stage clone-as-new-version button doesnt exist after clicking cancel'
+        'Confirmation-stage clone-as-new-version button doesnt exist after clicking cancel',
       );
   });
 
@@ -438,7 +438,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=job-spec`,
-      'Taken to the definition page in edit mode'
+      'Taken to the definition page in edit mode',
     );
 
     await percySnapshot(assert);
@@ -452,7 +452,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=0&view=job-spec`,
-      'Taken to the definition page in edit mode'
+      'Taken to the definition page in edit mode',
     );
   });
 
@@ -465,7 +465,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=full-definition`,
-      'Taken to the definition page in edit mode'
+      'Taken to the definition page in edit mode',
     );
 
     assert.dom('[data-test-json-warning]').exists();
@@ -495,7 +495,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/run?sourceString=${encodeURIComponent(testString)}`,
-      'Taken to the new job page'
+      'Taken to the new job page',
     );
     assert.dom('[data-test-job-name-warning]').exists();
   });
@@ -670,7 +670,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     assert
       .dom('[data-test-clone-and-edit]')
       .doesNotExist(
-        'Current job version should not have clone or revert buttons'
+        'Current job version should not have clone or revert buttons',
       );
   });
 
@@ -714,13 +714,13 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     assert
       .dom(`[data-test-clone-as-new-version]`)
       .exists(
-        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit',
       );
 
     assert
       .dom(`[data-test-clone-as-new-job]`)
       .exists(
-        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit',
       );
 
     await Versions.visit({ id: `${job2.id}@${namespace2.id}` });
@@ -733,13 +733,13 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     assert
       .dom(`[data-test-clone-as-new-version]`)
       .exists(
-        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit',
       );
 
     assert
       .dom(`[data-test-clone-as-new-job]`)
       .exists(
-        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit',
       );
 
     await Versions.visit({ id: `${job3.id}@${namespace3.id}` });
@@ -752,13 +752,13 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     assert
       .dom(`[data-test-clone-as-new-version]`)
       .doesNotExist(
-        'Confirmation-stage clone-as-new-version button does not exist after clicking clone and edit'
+        'Confirmation-stage clone-as-new-version button does not exist after clicking clone and edit',
       );
 
     assert
       .dom(`[data-test-clone-as-new-job]`)
       .exists(
-        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit',
       );
   });
 

@@ -125,7 +125,7 @@ export default class File extends Component {
     'fileUrl',
     'mode',
     'serverTimeout',
-    'useServer'
+    'useServer',
   )
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
@@ -142,7 +142,7 @@ export default class File extends Component {
           }
           return response;
         },
-        (error) => this.nextErrorState(error)
+        (error) => this.nextErrorState(error),
       );
 
     return Log.create({

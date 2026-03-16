@@ -37,7 +37,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const deployment = await this.store.findRecord(
         'deployment',
-        deploymentRecord.id
+        deploymentRecord.id,
       );
       this.server.pretender.handledRequests.length = 0;
 
@@ -73,7 +73,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       assert.equal(
         `${request.method} ${request.url}`,
-        testCase.promote(deployment.id)
+        testCase.promote(deployment.id),
       );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
@@ -89,7 +89,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       assert.equal(
         `${request.method} ${request.url}`,
-        testCase.fail(deployment.id)
+        testCase.fail(deployment.id),
       );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,

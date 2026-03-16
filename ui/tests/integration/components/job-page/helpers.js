@@ -55,11 +55,11 @@ export async function expectError(assert, title) {
   assert.equal(
     find('[data-test-job-error-title]').textContent,
     title,
-    'Appropriate error is shown'
+    'Appropriate error is shown',
   );
   assert.ok(
     find('[data-test-job-error-body]').textContent.includes('ACL'),
-    'The error message mentions ACLs'
+    'The error message mentions ACLs',
   );
 
   await click('[data-test-job-error-close]');
@@ -67,7 +67,7 @@ export async function expectError(assert, title) {
 
   assert.notOk(
     find('[data-test-job-error-title]'),
-    'Error message is dismissable'
+    'Error message is dismissable',
   );
 }
 
@@ -78,7 +78,7 @@ export function expectDeleteRequest(assert, server, job) {
     server.pretender.handledRequests
       .filterBy('method', 'DELETE')
       .find((req) => req.url === expectedURL),
-    'DELETE URL was made correctly'
+    'DELETE URL was made correctly',
   );
 }
 
@@ -89,7 +89,7 @@ export function expectPurgeRequest(assert, server, job) {
     server.pretender.handledRequests
       .filterBy('method', 'DELETE')
       .find((req) => req.url === expectedURL),
-    'DELETE URL was made correctly'
+    'DELETE URL was made correctly',
   );
 }
 

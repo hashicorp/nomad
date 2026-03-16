@@ -16,7 +16,7 @@ module('Unit | Helper | formatVolumeName', function () {
         volumeExtension: '[arbitrary]',
       }),
       expectation,
-      'false perAlloc'
+      'false perAlloc',
     );
     assert.equal(
       formatVolumeName(null, {
@@ -25,7 +25,7 @@ module('Unit | Helper | formatVolumeName', function () {
         volumeExtension: '[arbitrary]',
       }),
       expectation,
-      'null perAlloc'
+      'null perAlloc',
     );
   });
 
@@ -38,7 +38,7 @@ module('Unit | Helper | formatVolumeName', function () {
         volumeExtension: '[1]',
       }),
       expectation,
-      expectation
+      expectation,
     );
   });
 });

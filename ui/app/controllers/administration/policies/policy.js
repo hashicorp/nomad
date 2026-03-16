@@ -58,7 +58,7 @@ export default class AccessControlPoliciesPolicyController extends Controller {
     this.tokens = this.store
       .peekAll('token')
       .filter((token) =>
-        token.policyNames?.includes(decodeURIComponent(this.policy.name))
+        token.policyNames?.includes(decodeURIComponent(this.policy.name)),
       );
   }
 

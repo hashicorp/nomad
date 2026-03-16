@@ -134,7 +134,8 @@
             Drain Complete
           </h3>
           <p data-test-message>
-            Allocations have been drained and the node has been set to ineligible.
+            Allocations have been drained and the node has been set to
+            ineligible.
           </p>
         </div>
         <div class="column is-centered is-minimum">
@@ -157,7 +158,10 @@
           data-test-node-status="{{this.model.compositeStatus}}"
           class="node-status-light {{this.model.compositeStatus}}"
         >
-          <Hds::Icon @name={{this.model.compositeStatusIcon}} @isInline={{true}} />
+          <Hds::Icon
+            @name={{this.model.compositeStatusIcon}}
+            @isInline={{true}}
+          />
         </span>
       </span>
     </div>
@@ -175,7 +179,9 @@
               this.model.isDraining
               (cannot "write client")
             }}
-            @onToggle={{perform this.setEligibility (not this.model.isEligible)
+            @onToggle={{perform
+              this.setEligibility
+              (not this.model.isEligible)
             }}
           >
             Eligible
@@ -193,7 +199,11 @@
           class="tag is-hollow is-small no-text-transform"
         >
           {{this.model.id}}
-          <CopyButton @clipboardText={{this.model.id}} @compact={{true}} @inset={{true}} />
+          <CopyButton
+            @clipboardText={{this.model.id}}
+            @compact={{true}}
+            @inset={{true}}
+          />
         </span>
       </p>
     </div>
@@ -263,7 +273,11 @@
           Drivers
         </span>
         {{#if this.model.unhealthyDrivers.length}}
-          <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />
+          <Hds::Icon
+            @name="alert-triangle-fill"
+            @color="warning"
+            @isInline={{true}}
+          />
           {{this.model.unhealthyDrivers.length}}
           of
           {{this.model.detectedDrivers.length}}
@@ -325,7 +339,8 @@
                 <span
                   data-test-deadline
                   class="tooltip"
-                  aria-label={{format-ts this.model.drainStrategy.forceDeadline
+                  aria-label={{format-ts
+                    this.model.drainStrategy.forceDeadline
                   }}
                 >
                   {{moment-from-now
@@ -341,7 +356,11 @@
                 Force Drain
               </span>
               {{#if this.model.drainStrategy.isForced}}
-                <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />Yes
+                <Hds::Icon
+                  @name="alert-triangle-fill"
+                  @color="warning"
+                  @isInline={{true}}
+                />Yes
               {{else}}
                 No
               {{/if}}
@@ -524,22 +543,25 @@
     </div>
     <div
       class="boxed-section-body
-        {{if this.sortedAllocations.length "is-full-bleed"}}"
+        {{if this.sortedAllocations.length 'is-full-bleed'}}"
     >
       {{#if this.sortedAllocations.length}}
         <ListPagination
           @source={{this.sortedAllocations}}
           @size={{this.pageSize}}
-          @page={{this.currentPage}} as |p|
+          @page={{this.currentPage}}
+          as |p|
         >
           <ListTable
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+            @class="with-foot {{if this.showSubTasks 'with-collapsed-borders'}}"
+            as |t|
           >
             <t.head>
-              <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
               <t.sort-by @prop="shortId">
                 ID
               </t.sort-by>
@@ -582,7 +604,16 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{true}} />
+                  <TaskSubRow
+                    @namespan="8"
+                    @taskState={{task}}
+                    @active={{eq
+                      this.activeTask
+                      (concat task.allocation.id "-" task.name)
+                    }}
+                    @onSetActiveTask={{action "setActiveTaskQueryParam"}}
+                    @jobHasActions={{true}}
+                  />
                 {{/each}}
               {{/if}}
             </t.body>
@@ -698,7 +729,8 @@
       <div class="boxed-section-body is-full-bleed">
         <ListTable
           @source={{this.sortedHostVolumes}}
-          @class="is-striped" as |t|
+          @class="is-striped"
+          as |t|
         >
           <t.head>
             <th>
@@ -743,7 +775,7 @@
         >
           <div
             class="columns inline-definitions
-              {{unless a.item.detected "is-faded"}}"
+              {{unless a.item.detected 'is-faded'}}"
           >
             <div class="column is-1">
               <span data-test-name>
@@ -864,25 +896,36 @@
           >
             <button
               data-test-new-metadata-button
-              disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
+              disabled={{or
+                (not this.newMetaData.key)
+                (not this.newMetaData.value)
+              }}
               type="submit"
               class="button is-primary"
-              {{on "click" (queue
-                (action this.addDynamicMetaData this.newMetaData)
-                this.resetNewMetaData
-                (action (mut this.editingMetadata) false)
-              )}}
+              {{on
+                "click"
+                (queue
+                  (action this.addDynamicMetaData this.newMetaData)
+                  this.resetNewMetaData
+                  (action (mut this.editingMetadata) false)
+                )
+              }}
             >
-              Add {{this.newMetaData.key}} to node metadata
+              Add
+              {{this.newMetaData.key}}
+              to node metadata
             </button>
 
             <button
               type="button"
               class="button is-secondary"
-              {{on "click" (queue
-                this.resetNewMetaData
-                (action (mut this.editingMetadata) false)
-              )}}
+              {{on
+                "click"
+                (queue
+                  this.resetNewMetaData
+                  (action (mut this.editingMetadata) false)
+                )
+              }}
             >
               Cancel
             </button>

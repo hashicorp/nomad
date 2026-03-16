@@ -51,7 +51,7 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
       .then((job) => {
         if (!job) {
           const error = new Error(
-            `Job ${name} not found in namespace ${namespace}`
+            `Job ${name} not found in namespace ${namespace}`,
           );
           error.code = '404';
           throw error;

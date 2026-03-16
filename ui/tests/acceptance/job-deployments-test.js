@@ -60,7 +60,7 @@ module('Acceptance | job deployments', function (hooks) {
     assert.equal(
       Deployments.deployments.length,
       deployments.length,
-      'Each deployment gets a row in the timeline'
+      'Each deployment gets a row in the timeline',
     );
     assert.equal(getPageTitle(), `Job ${job.name} deployments - Nomad`);
   });
@@ -77,22 +77,22 @@ module('Acceptance | job deployments', function (hooks) {
 
     assert.ok(
       deploymentRow.text.includes(deployment.id.split('-')[0]),
-      'Short ID'
+      'Short ID',
     );
     assert.equal(deploymentRow.status, deployment.status, 'Status');
     assert.ok(
       deploymentRow.statusClass.includes(classForStatus(deployment.status)),
-      'Status Class'
+      'Status Class',
     );
     assert.ok(
       deploymentRow.version.includes(deployment.versionNumber),
-      'Version #'
+      'Version #',
     );
     assert.ok(
       deploymentRow.submitTime.includes(
-        moment(version.submitTime / 1000000).fromNow()
+        moment(version.submitTime / 1000000).fromNow(),
       ),
-      'Submit time ago'
+      'Submit time ago',
     );
   });
 
@@ -100,7 +100,7 @@ module('Acceptance | job deployments', function (hooks) {
     // Ensure the deployment needs deployment
     const deployment = sortedDeployments.models[0];
     const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.schema.deploymentTaskGroupSummaries.find(id)
+      (id) => server.schema.deploymentTaskGroupSummaries.find(id),
     )[0];
 
     deployment.update('status', 'running');
@@ -119,7 +119,7 @@ module('Acceptance | job deployments', function (hooks) {
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.ok(
       deploymentRow.promotionIsRequired,
-      'Requires Promotion badge found'
+      'Requires Promotion badge found',
     );
   });
 
@@ -139,7 +139,7 @@ module('Acceptance | job deployments', function (hooks) {
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.db.deploymentTaskGroupSummaries.find(id)
+      (id) => server.db.deploymentTaskGroupSummaries.find(id),
     );
 
     await deploymentRow.toggle();
@@ -148,39 +148,39 @@ module('Acceptance | job deployments', function (hooks) {
       deploymentRow.metricFor('canaries').text,
       `${sum(taskGroupSummaries, 'placedCanaries', (a) => a.length)} / ${sum(
         taskGroupSummaries,
-        'desiredCanaries'
+        'desiredCanaries',
       )}`,
-      'Canaries, both places and desired, are in the metrics'
+      'Canaries, both places and desired, are in the metrics',
     );
 
     assert.equal(
       deploymentRow.metricFor('placed').text,
       sum(taskGroupSummaries, 'placedAllocs'),
-      'Placed allocs aggregates across task groups'
+      'Placed allocs aggregates across task groups',
     );
 
     assert.equal(
       deploymentRow.metricFor('desired').text,
       sum(taskGroupSummaries, 'desiredTotal'),
-      'Desired allocs aggregates across task groups'
+      'Desired allocs aggregates across task groups',
     );
 
     assert.equal(
       deploymentRow.metricFor('healthy').text,
       sum(taskGroupSummaries, 'healthyAllocs'),
-      'Healthy allocs aggregates across task groups'
+      'Healthy allocs aggregates across task groups',
     );
 
     assert.equal(
       deploymentRow.metricFor('unhealthy').text,
       sum(taskGroupSummaries, 'unhealthyAllocs'),
-      'Unhealthy allocs aggregates across task groups'
+      'Unhealthy allocs aggregates across task groups',
     );
 
     assert.equal(
       deploymentRow.notification,
       deployment.statusDescription,
-      'Status description is in the metrics block'
+      'Status description is in the metrics block',
     );
   });
 
@@ -190,7 +190,7 @@ module('Acceptance | job deployments', function (hooks) {
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.db.deploymentTaskGroupSummaries.find(id)
+      (id) => server.db.deploymentTaskGroupSummaries.find(id),
     );
 
     await deploymentRow.toggle();
@@ -200,50 +200,50 @@ module('Acceptance | job deployments', function (hooks) {
     assert.equal(
       deploymentRow.taskGroups.length,
       taskGroupSummaries.length,
-      'One row per task group'
+      'One row per task group',
     );
 
     const taskGroup = taskGroupSummaries[0];
     const taskGroupRow = deploymentRow.taskGroups.findOneBy(
       'name',
-      taskGroup.name
+      taskGroup.name,
     );
 
     assert.equal(taskGroupRow.name, taskGroup.name, 'Name');
     assert.equal(
       taskGroupRow.promotion,
       promotionTestForTaskGroup(taskGroup),
-      'Needs Promotion'
+      'Needs Promotion',
     );
     assert.equal(
       taskGroupRow.autoRevert,
       taskGroup.autoRevert ? 'Yes' : 'No',
-      'Auto Revert'
+      'Auto Revert',
     );
     assert.equal(
       taskGroupRow.canaries,
       `${taskGroup.placedCanaries.length} / ${taskGroup.desiredCanaries}`,
-      'Canaries'
+      'Canaries',
     );
     assert.equal(
       taskGroupRow.allocs,
       `${taskGroup.placedAllocs} / ${taskGroup.desiredTotal}`,
-      'Allocs'
+      'Allocs',
     );
     assert.equal(
       taskGroupRow.healthy,
       taskGroup.healthyAllocs,
-      'Healthy Allocs'
+      'Healthy Allocs',
     );
     assert.equal(
       taskGroupRow.unhealthy,
       taskGroup.unhealthyAllocs,
-      'Unhealthy Allocs'
+      'Unhealthy Allocs',
     );
     assert.equal(
       taskGroupRow.progress,
       moment(taskGroup.requireProgressBy).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Progress By'
+      'Progress By',
     );
   });
 
@@ -264,7 +264,7 @@ module('Acceptance | job deployments', function (hooks) {
     assert.equal(
       deploymentRow.allocations.length,
       allocations.length,
-      'One row per allocation'
+      'One row per allocation',
     );
 
     const allocation = allocations[0];
@@ -273,7 +273,7 @@ module('Acceptance | job deployments', function (hooks) {
     assert.equal(
       allocationRow.shortId,
       allocation.id.split('-')[0],
-      'Allocation is as expected'
+      'Allocation is as expected',
     );
   });
 
@@ -285,18 +285,18 @@ module('Acceptance | job deployments', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/deployments',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Deployments.error.isPresent, 'Error message is shown');
     assert.equal(
       Deployments.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 

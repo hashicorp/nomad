@@ -61,7 +61,7 @@ module('Integration | Component | task-sub-row', function (hooks) {
     await render(hbs`<TaskSubRow @taskState={{this.task}} />`);
     assert.ok(
       this.element.textContent.includes(`${mockTask.name}`),
-      'Task name is rendered'
+      'Task name is rendered',
     );
     assert.dom('.task-sub-row').doesNotHaveClass('is-active');
 
@@ -69,12 +69,12 @@ module('Integration | Component | task-sub-row', function (hooks) {
     assert.dom('.task-sub-row').hasClass('is-active');
 
     await render(
-      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{5}} />`
+      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{5}} />`,
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '5');
 
     await render(
-      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />`
+      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />`,
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '9');
 

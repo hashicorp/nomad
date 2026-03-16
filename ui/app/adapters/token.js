@@ -85,7 +85,7 @@ export default class TokenAdapter extends ApplicationAdapter {
 
         return store.peekRecord(
           'token',
-          store.normalize('token', token).data.id
+          store.normalize('token', token).data.id,
         );
       })
       .catch(() => {

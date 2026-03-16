@@ -47,12 +47,12 @@ module('Integration | Component | toggle', function (hooks) {
     assert.equal(
       find('[data-test-input]').tagName.toLowerCase(),
       'input',
-      'The input is a real HTML input'
+      'The input is a real HTML input',
     );
     assert.equal(
       find('[data-test-input]').getAttribute('type'),
       'checkbox',
-      'The input type is checkbox'
+      'The input type is checkbox',
     );
 
     await componentA11yAudit(this.element, assert);

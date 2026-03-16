@@ -14,7 +14,7 @@ module('Unit | Util | RollingArray', function () {
     assert.deepEqual(
       array,
       ['a', 'b', 'c'],
-      'additional arguments to the constructor become elements'
+      'additional arguments to the constructor become elements',
     );
   });
 
@@ -24,19 +24,19 @@ module('Unit | Util | RollingArray', function () {
     assert.equal(
       pushReturn,
       array.length,
-      'the return value from push is equal to the return value of Array#push'
+      'the return value from push is equal to the return value of Array#push',
     );
     assert.equal(
       array[0],
       'a',
-      'the arguments passed to push are appended to the array'
+      'the arguments passed to push are appended to the array',
     );
 
     array.push('b', 'c', 'd');
     assert.deepEqual(
       array,
       ['a', 'b', 'c', 'd'],
-      'the elements already in the array are left in tact and new elements are appended'
+      'the elements already in the array are left in tact and new elements are appended',
     );
   });
 
@@ -46,12 +46,12 @@ module('Unit | Util | RollingArray', function () {
     assert.deepEqual(
       array,
       [2, 3, 4],
-      'The first argument to push is not in the array, but the following three are'
+      'The first argument to push is not in the array, but the following three are',
     );
     assert.equal(
       pushReturn,
       array.length,
-      'The return value of push is still the array length despite more arguments than possible were provided to push'
+      'The return value of push is still the array length despite more arguments than possible were provided to push',
     );
   });
 
@@ -62,21 +62,21 @@ module('Unit | Util | RollingArray', function () {
     assert.deepEqual(
       array,
       ['z', 'b', 'c'],
-      'The new element is inserted as the second element in the array and the first element is removed due to maxLength restrictions'
+      'The new element is inserted as the second element in the array and the first element is removed due to maxLength restrictions',
     );
 
     array.splice(0, 0, 'pickme');
     assert.deepEqual(
       array,
       ['z', 'b', 'c'],
-      'The new element never makes it into the array since it was added at the head of the array and immediately removed'
+      'The new element never makes it into the array since it was added at the head of the array and immediately removed',
     );
 
     array.splice(0, 1, 'pickme');
     assert.deepEqual(
       array,
       ['pickme', 'b', 'c'],
-      'The new element makes it into the array since the previous element at the head of the array is first removed due to the second argument to splice'
+      'The new element makes it into the array since the previous element at the head of the array is first removed due to the second argument to splice',
     );
   });
 
@@ -88,7 +88,7 @@ module('Unit | Util | RollingArray', function () {
         array.unshift(1);
       },
       /Cannot unshift/,
-      'unshift is not supported, but is not undefined'
+      'unshift is not supported, but is not undefined',
     );
   });
 

@@ -81,7 +81,7 @@ export default Mixin.create({
           return undefined;
         },
       });
-    }
+    },
   ),
 
   listSearched: computed(
@@ -109,8 +109,8 @@ export default Mixin.create({
           ...exactMatchSearch(
             searchTerm,
             this.listToSearch,
-            this.exactMatchSearchProps
-          )
+            this.exactMatchSearchProps,
+          ),
         );
       }
 
@@ -138,12 +138,12 @@ export default Mixin.create({
 
       if (this.regexEnabled) {
         results.push(
-          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps)
+          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps),
         );
       }
 
       return results.filter((item) => !isDestroyedRecord(item)).uniq();
-    }
+    },
   ),
 });
 
@@ -166,7 +166,7 @@ function regexSearch(term, list, keys) {
       // Test the value of each key for each object against the regex
       // All that match are returned.
       return list.filter((item) =>
-        keys.some((key) => regex.test(get(item, key)))
+        keys.some((key) => regex.test(get(item, key))),
       );
     } catch (e) {
       // Swallow the error; most likely due to an eager search of an incomplete regex

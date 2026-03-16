@@ -12,7 +12,7 @@ import { hash } from 'rsvp';
 
 export default class AccessControlTokensTokenRoute extends Route.extend(
   withForbiddenState,
-  WithModelErrorHandling
+  WithModelErrorHandling,
 ) {
   @service store;
   @service token;
@@ -32,7 +32,7 @@ export default class AccessControlTokensTokenRoute extends Route.extend(
       decodeURIComponent(params.id),
       {
         reload: true,
-      }
+      },
     );
 
     let policies = this.store.peekAll('policy');

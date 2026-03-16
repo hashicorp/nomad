@@ -27,7 +27,7 @@ export default class SocketsService extends Service {
             this.messageDisplayed = true;
             this.onmessage({
               data: `{"stdout":{"data":"${btoa(
-                'unsupported in Mirage\n\r'
+                'unsupported in Mirage\n\r',
               )}"}}`,
             });
           } else {
@@ -47,7 +47,7 @@ export default class SocketsService extends Service {
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
           `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
           (region ? `&region=${region}` : '') +
-          `&command=${encodeURIComponent(`["${command}"]`)}`
+          `&command=${encodeURIComponent(`["${command}"]`)}`,
       );
     }
   }

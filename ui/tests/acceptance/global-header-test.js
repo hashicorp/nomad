@@ -78,7 +78,7 @@ module('Acceptance | global header', function (hooks) {
     assert.equal(
       currentURL(),
       '/settings/tokens',
-      'Authroization link takes you to the tokens page'
+      'Authroization link takes you to the tokens page',
     );
 
     await Layout.navbar.end.profileDropdown.open();

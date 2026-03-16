@@ -15,7 +15,7 @@ export default Factory.extend({
 
   tasks() {
     var hash = {};
-    this._taskNames.forEach(task => {
+    this._taskNames.forEach((task) => {
       hash[task] = {
         Pids: null,
         ResourceUsage: generateResources(),

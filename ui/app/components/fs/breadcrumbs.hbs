@@ -11,7 +11,11 @@
   </li>
   {{#each this.breadcrumbs as |breadcrumb|}}
     <li class={{if breadcrumb.isLast "is-active"}}>
-      <Fs::Link @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{breadcrumb.path}}>
+      <Fs::Link
+        @allocation={{this.allocation}}
+        @taskState={{this.taskState}}
+        @path={{breadcrumb.path}}
+      >
         {{breadcrumb.name}}
       </Fs::Link>
     </li>

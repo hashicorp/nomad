@@ -49,7 +49,7 @@ export default create({
       memory: text('[data-test-memory]'),
       aggregateCpu: text('[data-test-aggregate-cpu]'),
       aggregateMemory: text('[data-test-aggregate-memory]'),
-    }
+    },
   ),
 
   empty: {

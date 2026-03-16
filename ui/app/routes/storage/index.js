@@ -17,7 +17,7 @@ import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
-  WithForbiddenState
+  WithForbiddenState,
 ) {
   @service store;
 
@@ -58,7 +58,7 @@ export default class IndexRoute extends Route.extend(
           type: 'csi',
           namespace: controller.qpNamespace,
         },
-      }
+      },
     );
   }
 

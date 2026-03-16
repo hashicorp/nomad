@@ -59,7 +59,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
       const job = await this.store.findRecord(
         'job',
-        JSON.stringify(['job-1', props.namespace || 'default'])
+        JSON.stringify(['job-1', props.namespace || 'default']),
       );
       this.server.pretender.handledRequests.length = 0;
       return job;
@@ -193,7 +193,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[0].url,
       '/v1/jobs?index=1',
-      'Second request is a blocking request for jobs'
+      'Second request is a blocking request for jobs',
     );
 
     await settled();
@@ -201,7 +201,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/jobs?index=2',
-      'Third request is a blocking request with an incremented index param'
+      'Third request is a blocking request with an incremented index param',
     );
 
     await settled();
@@ -223,7 +223,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[0].url,
       '/v1/job/job-1?index=1',
-      'Second request is a blocking request for job-1'
+      'Second request is a blocking request for job-1',
     );
 
     await settled();
@@ -231,7 +231,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1?index=2',
-      'Third request is a blocking request with an incremented index param'
+      'Third request is a blocking request with an incremented index param',
     );
 
     await settled();
@@ -249,7 +249,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[0].url,
       `/v1/job/${plainId}/summary`,
-      'Relationship was reloaded'
+      'Relationship was reloaded',
     );
   });
 
@@ -264,7 +264,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[0].url,
       '/v1/job/job-1/summary?index=1',
-      'First request is a blocking request for job-1 summary relationship'
+      'First request is a blocking request for job-1 summary relationship',
     );
 
     await settled();
@@ -274,7 +274,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
-      'Second request is a blocking request with an incremented index param'
+      'Second request is a blocking request with an incremented index param',
     );
   });
 
@@ -383,7 +383,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       pretender.requestReferences.length,
       2,
-      'Two findRecord requests were made'
+      'Two findRecord requests were made',
     );
     assert.equal(
       pretender.requestReferences
@@ -537,7 +537,7 @@ module('Unit | Adapter | Job', function (hooks) {
       assert.equal(
         e.message,
         'Version 999 not found',
-        'Throws appropriate error'
+        'Throws appropriate error',
       );
     }
 
@@ -551,12 +551,12 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(
       ajaxStub.lastCall.args[0],
       '/v1/job/job-id',
-      'URL has no version query param'
+      'URL has no version query param',
     );
     assert.equal(
       currentResult.Version,
       2,
-      'Returns current version when no version specified'
+      'Returns current version when no version specified',
     );
   });
 
@@ -570,7 +570,7 @@ module('Unit | Adapter | Job', function (hooks) {
     const request = this.server.pretender.handledRequests[0];
     assert.equal(
       request.url,
-      `/v1/job/${job.plainId}/periodic/force?region=${region}`
+      `/v1/job/${job.plainId}/periodic/force?region=${region}`,
     );
     assert.equal(request.method, 'POST');
   });
@@ -595,7 +595,7 @@ module('Unit | Adapter | Job', function (hooks) {
     const request = this.server.pretender.handledRequests[0];
     assert.equal(
       request.url,
-      `/v1/job/${job.plainId}?purge=true&region=${region}`
+      `/v1/job/${job.plainId}?purge=true&region=${region}`,
     );
     assert.equal(request.method, 'DELETE');
   });
@@ -672,7 +672,7 @@ module('Unit | Adapter | Job', function (hooks) {
     const request = this.server.pretender.handledRequests[0];
     assert.equal(
       request.url,
-      `/v1/job/${job.plainId}/dispatch?region=${region}`
+      `/v1/job/${job.plainId}/dispatch?region=${region}`,
     );
     assert.equal(request.method, 'POST');
   });
@@ -690,7 +690,7 @@ module('Unit | Adapter | Job', function (hooks) {
       const expectedURL = addToPath(
         adapter.urlForFindRecord('["job-id"]', 'job', null, 'submission'),
         '',
-        'version=' + job.get('version')
+        'version=' + job.get('version'),
       );
 
       // Stub the ajax method to avoid making real API calls
@@ -703,7 +703,7 @@ module('Unit | Adapter | Job', function (hooks) {
       assert.equal(
         expectedURL,
         '/v1/job/job-id/submission?version=job-version',
-        'it formats the URL correctly'
+        'it formats the URL correctly',
       );
     });
 
@@ -722,10 +722,10 @@ module('Unit | Adapter | Job', function (hooks) {
           '["job-id", "zoey"]',
           'job',
           null,
-          'submission'
+          'submission',
         ),
         '',
-        'version=' + job.get('version')
+        'version=' + job.get('version'),
       );
 
       // Stub the ajax method to avoid making real API calls
@@ -737,7 +737,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
       assert.equal(
         expectedURL,
-        '/v1/job/job-id/submission?namespace=zoey&version=job-version'
+        '/v1/job/job-id/submission?namespace=zoey&version=job-version',
       );
     });
     test('Requests for specific versions include the queryParam', async function (assert) {
@@ -757,7 +757,7 @@ module('Unit | Adapter | Job', function (hooks) {
       assert.equal(
         adapter.ajax.args[0][0],
         '/v1/job/job-id/submission?version=99',
-        'it includes the version query param'
+        'it includes the version query param',
       );
       assert.equal(adapter.ajax.args[0][1], 'GET');
     });

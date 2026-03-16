@@ -32,7 +32,7 @@ module('Unit | Util | formatDuration', function () {
     assert.equal(
       formatDuration(0, 'year'),
       '0 years',
-      'formatDuration(0, "year") -> 0 years'
+      'formatDuration(0, "year") -> 0 years',
     );
   });
 
@@ -43,7 +43,7 @@ module('Unit | Util | formatDuration', function () {
     assert.equal(
       formatDuration(60 * 5 + 59, 'm', true),
       expectation2,
-      expectation2
+      expectation2,
     );
   });
 });

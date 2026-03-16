@@ -45,11 +45,11 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     assert.ok(
       find('[data-test-children-status-bar]'),
-      'Children status bar found'
+      'Children status bar found',
     );
     assert.notOk(
       find('[data-test-allocation-status-bar]'),
-      'Allocation status bar not found'
+      'Allocation status bar not found',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -72,11 +72,11 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     assert.ok(
       find('[data-test-allocation-status-bar]'),
-      'Allocation status bar found'
+      'Allocation status bar found',
     );
     assert.notOk(
       find('[data-test-children-status-bar]'),
-      'Children status bar not found'
+      'Children status bar not found',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -98,37 +98,37 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
     assert.equal(
       find('[data-test-legend-value="queued"]').textContent,
       this.get('job.queuedAllocs'),
-      `${this.get('job.queuedAllocs')} are queued`
+      `${this.get('job.queuedAllocs')} are queued`,
     );
 
     assert.equal(
       find('[data-test-legend-value="starting"]').textContent,
       this.get('job.startingAllocs'),
-      `${this.get('job.startingAllocs')} are starting`
+      `${this.get('job.startingAllocs')} are starting`,
     );
 
     assert.equal(
       find('[data-test-legend-value="running"]').textContent,
       this.get('job.runningAllocs'),
-      `${this.get('job.runningAllocs')} are running`
+      `${this.get('job.runningAllocs')} are running`,
     );
 
     assert.equal(
       find('[data-test-legend-value="complete"]').textContent,
       this.get('job.completeAllocs'),
-      `${this.get('job.completeAllocs')} are complete`
+      `${this.get('job.completeAllocs')} are complete`,
     );
 
     assert.equal(
       find('[data-test-legend-value="failed"]').textContent,
       this.get('job.failedAllocs'),
-      `${this.get('job.failedAllocs')} are failed`
+      `${this.get('job.failedAllocs')} are failed`,
     );
 
     assert.equal(
       find('[data-test-legend-value="lost"]').textContent,
       this.get('job.lostAllocs'),
-      `${this.get('job.lostAllocs')} are lost`
+      `${this.get('job.lostAllocs')} are lost`,
     );
   });
 
@@ -148,19 +148,19 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
     assert.equal(
       find('[data-test-legend-value="queued"]').textContent,
       this.get('job.pendingChildren'),
-      `${this.get('job.pendingChildren')} are pending`
+      `${this.get('job.pendingChildren')} are pending`,
     );
 
     assert.equal(
       find('[data-test-legend-value="running"]').textContent,
       this.get('job.runningChildren'),
-      `${this.get('job.runningChildren')} are running`
+      `${this.get('job.runningChildren')} are running`,
     );
 
     assert.equal(
       find('[data-test-legend-value="complete"]').textContent,
       this.get('job.deadChildren'),
-      `${this.get('job.deadChildren')} are dead`
+      `${this.get('job.deadChildren')} are dead`,
     );
   });
 
@@ -202,11 +202,11 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     assert.ok(
       find('[data-test-allocation-status-bar]'),
-      'Allocation bar still existed'
+      'Allocation bar still existed',
     );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
-      'Allocation bar is rendered in an inline-chart container'
+      'Allocation bar is rendered in an inline-chart container',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -227,14 +227,14 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     assert.notOk(
       window.localStorage.nomadExpandJobSummary,
-      'No value in localStorage yet'
+      'No value in localStorage yet',
     );
     await click('[data-test-accordion-toggle]');
 
     assert.equal(
       window.localStorage.nomadExpandJobSummary,
       'false',
-      'Value is stored for the collapsed state'
+      'Value is stored for the collapsed state',
     );
   });
 
@@ -255,11 +255,11 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     assert.ok(
       find('[data-test-allocation-status-bar]'),
-      'Allocation bar still existed'
+      'Allocation bar still existed',
     );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
-      'Allocation bar is rendered in an inline-chart container'
+      'Allocation bar is rendered in an inline-chart container',
     );
 
     await click('[data-test-accordion-toggle]');
@@ -267,7 +267,7 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
     assert.equal(
       window.localStorage.nomadExpandJobSummary,
       'true',
-      'localStorage value still toggles'
+      'localStorage value still toggles',
     );
     assert.ok(find('[data-test-accordion-body]'), 'Summary still expands');
   });

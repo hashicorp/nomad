@@ -37,7 +37,7 @@ export default create({
 
   recommendations: collection(
     '[data-test-recommendation-accordion]',
-    recommendationAccordion
+    recommendationAccordion,
   ),
 
   stop: twoStepButton('[data-test-stop]'),
@@ -99,10 +99,10 @@ export default create({
   },
 
   childrenSummary: jobClientStatusBar(
-    '[data-test-children-status-bar]:not(.is-narrow)'
+    '[data-test-children-status-bar]:not(.is-narrow)',
   ),
   allocationsSummary: jobClientStatusBar(
-    '[data-test-allocation-status-bar]:not(.is-narrow)'
+    '[data-test-allocation-status-bar]:not(.is-narrow)',
   ),
   ...taskGroups(),
   ...allocations(),

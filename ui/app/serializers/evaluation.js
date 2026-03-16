@@ -45,7 +45,7 @@ export default class Evaluation extends ApplicationSerializer {
     const included = relatedEvals.reduce((acc, evaluationStub) => {
       const jsonDocument = this.normalize(
         this.store.modelFor('evaluation-stub'),
-        evaluationStub
+        evaluationStub,
       );
 
       return [...acc, jsonDocument.data];

@@ -3,7 +3,11 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="field is-horizontal" data-test-page-size-select-parent ...attributes>
+<div
+  class="field is-horizontal"
+  data-test-page-size-select-parent
+  ...attributes
+>
   <span class="field-label is-small">
     Per page
   </span>
@@ -15,8 +19,10 @@
     @ariaLabelledBy="label-page-size-select"
     @options={{this.pageSizeOptions}}
     @selected={{this.userSettings.pageSize}}
-    @onChange={{action (queue (action (mut this.userSettings.pageSize)) (action this.onChange))
-    }} as |option|
+    @onChange={{action
+      (queue (action (mut this.userSettings.pageSize)) (action this.onChange))
+    }}
+    as |option|
   >
     {{option}}
   </PowerSelect>

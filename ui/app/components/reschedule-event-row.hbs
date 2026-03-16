@@ -19,7 +19,10 @@
     <div class="boxed-section-body inline-definitions">
       <div class="columns">
         <div class="column is-centered is-minimum">
-          <span data-test-allocation-status class="tag {{this.allocation.statusClass}}">
+          <span
+            data-test-allocation-status
+            class="tag {{this.allocation.statusClass}}"
+          >
             {{this.allocation.clientStatus}}
           </span>
         </div>
@@ -28,17 +31,28 @@
             <span class="pair">
               <span class="term">Allocation</span>
               {{#if this.linkToAllocation}}
-                <LinkTo @route="allocations.allocation" @model={{this.allocation.id}}>
-                  <code data-test-allocation-link>{{this.allocation.shortId}}</code>
+                <LinkTo
+                  @route="allocations.allocation"
+                  @model={{this.allocation.id}}
+                >
+                  <code
+                    data-test-allocation-link
+                  >{{this.allocation.shortId}}</code>
                 </LinkTo>
               {{else}}
-                <code data-test-allocation-link>{{this.allocation.shortId}}</code>
+                <code
+                  data-test-allocation-link
+                >{{this.allocation.shortId}}</code>
               {{/if}}
             </span>
             <span class="pair">
               <span class="term">Client</span>
               <span>
-                <LinkTo @route="clients.client" @model={{this.allocation.node.id}} data-test-node-link>
+                <LinkTo
+                  @route="clients.client"
+                  @model={{this.allocation.node.id}}
+                  data-test-node-link
+                >
                   <code>{{this.allocation.node.id}}</code>
                 </LinkTo>
               </span>

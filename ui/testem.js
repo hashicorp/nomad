@@ -13,7 +13,7 @@ const JsonReporter = require('./test-reporter');
  */
 const getReportPath = () => {
   const jsonReportArg = process.argv.find((arg) =>
-    arg.startsWith('--json-report=')
+    arg.startsWith('--json-report='),
   );
   if (jsonReportArg) {
     return jsonReportArg.split('=')[1];

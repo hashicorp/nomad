@@ -160,7 +160,7 @@ module('Unit | Ability | job', function (hooks) {
 
     tokenService.set(
       'selfTokenPolicies',
-      makePolicies('aNamespace', 'scale-job')
+      makePolicies('aNamespace', 'scale-job'),
     );
     assert.ok(
       this.abilities.can('scale job', null, { namespace: 'aNamespace' }),
@@ -168,7 +168,7 @@ module('Unit | Ability | job', function (hooks) {
 
     tokenService.set(
       'selfTokenPolicies',
-      makePolicies('aNamespace', 'submit-job')
+      makePolicies('aNamespace', 'submit-job'),
     );
     assert.ok(
       this.abilities.can('scale job', null, { namespace: 'aNamespace' }),
@@ -176,7 +176,7 @@ module('Unit | Ability | job', function (hooks) {
 
     tokenService.set(
       'selfTokenPolicies',
-      makePolicies('bNamespace', 'scale-job')
+      makePolicies('bNamespace', 'scale-job'),
     );
     assert.ok(
       this.abilities.cannot('scale job', null, { namespace: 'aNamespace' }),
@@ -217,7 +217,7 @@ module('Unit | Ability | job', function (hooks) {
 
     tokenService.set(
       'selfTokenPolicies',
-      makePolicies('aNamespace', 'dispatch-job')
+      makePolicies('aNamespace', 'dispatch-job'),
     );
     assert.ok(
       this.abilities.can('dispatch job', null, { namespace: 'aNamespace' }),

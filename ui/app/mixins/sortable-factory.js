@@ -25,7 +25,7 @@ import ENV from 'nomad-ui/config/environment';
 */
 export default function sortableFactory(properties, fromSortableMixin) {
   const eachProperties = properties.map(
-    (property) => `listToSort.@each.${property}`
+    (property) => `listToSort.@each.${property}`,
   );
 
   // eslint-disable-next-line ember/no-new-mixins
@@ -70,7 +70,7 @@ export default function sortableFactory(properties, fromSortableMixin) {
           return sorted.reverse();
         }
         return sorted;
-      }
+      },
     ),
   });
 }

@@ -89,18 +89,18 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       Layout.breadcrumbFor('clients.index').text,
       'Clients',
-      'First breadcrumb says clients'
+      'First breadcrumb says clients',
     );
     assert.equal(
       Layout.breadcrumbFor('clients.client').text,
       `Client ${node.id.split('-')[0]}`,
-      'Second breadcrumb is a titled breadcrumb saying the node short id'
+      'Second breadcrumb is a titled breadcrumb saying the node short id',
     );
     await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(
       currentURL(),
       '/clients',
-      'First breadcrumb links back to clients'
+      'First breadcrumb links back to clients',
     );
   });
 
@@ -117,7 +117,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.statusLight.objectAt(0).id,
       node.status,
-      'Title includes status light'
+      'Title includes status light',
     );
   });
 
@@ -126,19 +126,19 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(
       ClientDetail.statusDefinition.includes(node.status),
-      'Status is in additional details'
+      'Status is in additional details',
     );
     assert.ok(
       ClientDetail.statusDecorationClass.includes(`node-${node.status}`),
-      'Status is decorated with a status class'
+      'Status is decorated with a status class',
     );
     assert.ok(
       ClientDetail.addressDefinition.includes(node.httpAddr),
-      'Address is in additional details'
+      'Address is in additional details',
     );
     assert.ok(
       ClientDetail.datacenterDefinition.includes(node.datacenter),
-      'Datacenter is in additional details'
+      'Datacenter is in additional details',
     );
   });
 
@@ -148,17 +148,17 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.resourceCharts.length,
       2,
-      'Two resource utilization graphs'
+      'Two resource utilization graphs',
     );
     assert.equal(
       ClientDetail.resourceCharts.objectAt(0).name,
       'CPU',
-      'First chart is CPU'
+      'First chart is CPU',
     );
     assert.equal(
       ClientDetail.resourceCharts.objectAt(1).name,
       'Memory',
-      'Second chart is Memory'
+      'Second chart is Memory',
     );
   });
 
@@ -172,7 +172,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocations.length,
       allocationsCount,
-      `Allocations table lists all ${allocationsCount} associated allocations`
+      `Allocations table lists all ${allocationsCount} associated allocations`,
     );
   });
 
@@ -183,7 +183,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.true(
       ClientDetail.emptyAllocations.isVisible,
-      'Empty message is visible'
+      'Empty message is visible',
     );
     assert.equal(ClientDetail.emptyAllocations.headline, 'No Allocations');
   });
@@ -204,7 +204,7 @@ module('Acceptance | client detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     await ClientDetail.visit({ id: node.id });
@@ -214,27 +214,27 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       allocationRow.shortId,
       allocation.id.split('-')[0],
-      'Allocation short ID'
+      'Allocation short ID',
     );
     assert.equal(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-      'Allocation create time'
+      'Allocation create time',
     );
     assert.equal(
       allocationRow.modifyTime,
       moment(allocation.modifyTime / 1000000).fromNow(),
-      'Allocation modify time'
+      'Allocation modify time',
     );
     assert.equal(
       allocationRow.status,
       allocation.clientStatus,
-      'Client status'
+      'Client status',
     );
     assert.equal(
       allocationRow.job,
       server.db.jobs.find(allocation.jobId).name,
-      'Job name'
+      'Job name',
     );
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
@@ -242,28 +242,28 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-      'CPU %'
+      'CPU %',
     );
     const roundedTicks = Math.floor(
-      allocStats.resourceUsage.CpuStats.TotalTicks
+      allocStats.resourceUsage.CpuStats.TotalTicks,
     );
     assert.equal(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-      'Detailed CPU information is in a tooltip'
+      'Detailed CPU information is in a tooltip',
     );
     assert.equal(
       allocationRow.mem,
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-      'Memory used'
+      'Memory used',
     );
     assert.equal(
       allocationRow.memTooltip,
       `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
         memoryUsed,
-        'MiB'
+        'MiB',
       )}`,
-      'Detailed memory information is in a tooltip'
+      'Detailed memory information is in a tooltip',
     );
   });
 
@@ -293,11 +293,11 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       allocationRow.job,
       server.db.jobs.find(allocation.jobId).name,
-      'Job name'
+      'Job name',
     );
     assert.ok(
       allocationRow.taskGroup.includes(allocation.taskGroup),
-      'Task group name'
+      'Task group name',
     );
   });
 
@@ -313,7 +313,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Allocation rows link to allocation detail pages'
+      'Allocation rows link to allocation detail pages',
     );
   });
 
@@ -328,7 +328,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default`,
-      'Allocation rows link to the job detail page for the allocation'
+      'Allocation rows link to the job detail page for the allocation',
     );
   });
 
@@ -340,13 +340,13 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocationFilter.allCount,
       allocations.length,
-      'All filter/badge shows all allocations count'
+      'All filter/badge shows all allocations count',
     );
     assert.ok(
       ClientDetail.allocationFilter.preemptionsCount.startsWith(
-        allocations.filter(wasPreemptedFilter).length
+        allocations.filter(wasPreemptedFilter).length,
       ),
-      'Preemptions filter/badge shows preempted allocations count'
+      'Preemptions filter/badge shows preempted allocations count',
     );
   });
 
@@ -359,12 +359,12 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocations.length,
       allocations.filter(wasPreemptedFilter).length,
-      'Only preempted allocations are shown'
+      'Only preempted allocations are shown',
     );
     assert.equal(
       currentURL(),
       `/clients/${node.id}?preemptions=true`,
-      'Filter is persisted in the URL'
+      'Filter is persisted in the URL',
     );
   });
 
@@ -378,12 +378,12 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocations.length,
       allocations.length,
-      'All allocations are shown'
+      'All allocations are shown',
     );
     assert.equal(
       currentURL(),
       `/clients/${node.id}`,
-      'Filter is persisted in the URL'
+      'Filter is persisted in the URL',
     );
   });
 
@@ -395,7 +395,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocations.length,
       allocations.filter(wasPreemptedFilter).length,
-      'Only preempted allocations are shown'
+      'Only preempted allocations are shown',
     );
   });
 
@@ -418,12 +418,12 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       firstMetaAttribute.key,
       firstMetaKey,
-      'Meta attributes for the node are bound to the attributes table'
+      'Meta attributes for the node are bound to the attributes table',
     );
     assert.equal(
       firstMetaAttribute.value,
       node.meta[firstMetaKey],
-      'Meta attributes for the node are bound to the attributes table'
+      'Meta attributes for the node are bound to the attributes table',
     );
   });
 
@@ -473,13 +473,13 @@ module('Acceptance | client detail', function (hooks) {
       .dom('.edit-existing-metadata-button')
       .exists(
         { count: numberOfExistingMetaKeys + 1 },
-        'newly added item appears'
+        'newly added item appears',
       );
 
     // find the newly added one and edit it
     assert.dom('.metadata-editor').doesNotExist();
     const newMetaRow = [...findAll('[data-test-attributes-section]')].filter(
-      (a) => a.textContent.includes('newKey')
+      (a) => a.textContent.includes('newKey'),
     )[0];
 
     await click(newMetaRow.querySelector('.edit-existing-metadata-button'));
@@ -508,7 +508,7 @@ module('Acceptance | client detail', function (hooks) {
         },
       },
       'forceIPv4',
-      'withMeta'
+      'withMeta',
     );
     await ClientDetail.visit({ id: node.id });
 
@@ -522,7 +522,7 @@ module('Acceptance | client detail', function (hooks) {
     ].filter((a) => a.textContent.includes('existingKey'))[0];
 
     await click(
-      topLevelMetaRow.querySelector('.edit-existing-metadata-button')
+      topLevelMetaRow.querySelector('.edit-existing-metadata-button'),
     );
     assert.dom('.metadata-editor').exists();
     assert.dom('.constant-key').exists('existing key shown but uneditable');
@@ -532,7 +532,7 @@ module('Acceptance | client detail', function (hooks) {
     await waitUntil(() => !findAll('.metadata-editor').length);
     assert.dom('.metadata-editor').doesNotExist();
     const editedRow = [...findAll('[data-test-attributes-section]')].filter(
-      (a) => a.textContent.includes('existingKey')
+      (a) => a.textContent.includes('existingKey'),
     )[0];
     assert.dom(editedRow).containsText('newValue', 'value updated');
 
@@ -556,7 +556,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.notOk(
       ClientDetail.metaTable,
-      'Meta attributes table is not on the page'
+      'Meta attributes table is not on the page',
     );
     assert.ok(ClientDetail.emptyMetaMessage, 'Meta attributes is empty');
   });
@@ -569,14 +569,14 @@ module('Acceptance | client detail', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/node/not-a-real-node',
-      'A request to the nonexistent node is made'
+      'A request to the nonexistent node is made',
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(ClientDetail.error.isShown, 'Error message is shown');
     assert.equal(
       ClientDetail.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -598,7 +598,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       eventRow.time,
       moment(event.time).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Event timestamp'
+      'Event timestamp',
     );
     assert.equal(eventRow.subsystem, event.subsystem, 'Event subsystem');
     assert.equal(eventRow.message, event.message, 'Event message');
@@ -632,35 +632,35 @@ module('Acceptance | client detail', function (hooks) {
       assert.equal(
         driverHead.name,
         driver.Name,
-        `${driver.Name}: Name is correct`
+        `${driver.Name}: Name is correct`,
       );
       assert.equal(
         driverHead.detected,
         driver.Detected ? 'Yes' : 'No',
-        `${driver.Name}: Detection is correct`
+        `${driver.Name}: Detection is correct`,
       );
       assert.equal(
         driverHead.lastUpdated,
         moment(driver.UpdateTime).fromNow(),
-        `${driver.Name}: Last updated shows time since now`
+        `${driver.Name}: Last updated shows time since now`,
       );
 
       if (driver.Name === undetectedDriver) {
         assert.notOk(
           driverHead.healthIsShown,
-          `${driver.Name}: No health for the undetected driver`
+          `${driver.Name}: No health for the undetected driver`,
         );
       } else {
         assert.equal(
           driverHead.health,
           driver.Healthy ? 'Healthy' : 'Unhealthy',
-          `${driver.Name}: Health is correct`
+          `${driver.Name}: Health is correct`,
         );
         assert.ok(
           driverHead.healthClass.includes(
-            driver.Healthy ? 'running' : 'failed'
+            driver.Healthy ? 'running' : 'failed',
           ),
-          `${driver.Name}: Swatch with correct class is shown`
+          `${driver.Name}: Swatch with correct class is shown`,
         );
       }
     });
@@ -686,22 +686,22 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.notOk(
       driverBody.descriptionIsShown,
-      'Driver health description is not shown'
+      'Driver health description is not shown',
     );
     assert.notOk(
       driverBody.attributesAreShown,
-      'Driver attributes section is not shown'
+      'Driver attributes section is not shown',
     );
 
     await driverHead.toggle();
     assert.equal(
       driverBody.description,
       driver.HealthDescription,
-      'Driver health description is now shown'
+      'Driver health description is now shown',
     );
     assert.ok(
       driverBody.attributesAreShown,
-      'Driver attributes section is now shown'
+      'Driver attributes section is now shown',
     );
   });
 
@@ -717,7 +717,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.statusLight.objectAt(0).id,
       'ineligible',
-      'Title status light is in the ineligible state'
+      'Title status light is in the ineligible state',
     );
   });
 
@@ -739,18 +739,18 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(
       ClientDetail.drainDetails.deadline.includes(forceDeadline.fromNow(true)),
-      'Deadline is shown in a human formatted way'
+      'Deadline is shown in a human formatted way',
     );
 
     assert.equal(
       ClientDetail.drainDetails.deadlineTooltip,
       forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'The tooltip for deadline shows the force deadline as an absolute date'
+      'The tooltip for deadline shows the force deadline as an absolute date',
     );
 
     assert.ok(
       ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
-      'Drain System Jobs state is shown'
+      'Drain System Jobs state is shown',
     );
   });
 
@@ -771,17 +771,17 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.notOk(
       ClientDetail.drainDetails.durationIsShown,
-      'Duration is omitted'
+      'Duration is omitted',
     );
 
     assert.ok(
       ClientDetail.drainDetails.deadline.includes('No deadline'),
-      'The value for Deadline is "no deadline"'
+      'The value for Deadline is "no deadline"',
     );
 
     assert.ok(
       ClientDetail.drainDetails.drainSystemJobsText.endsWith('No'),
-      'Drain System Jobs state is shown'
+      'Drain System Jobs state is shown',
     );
   });
 
@@ -802,22 +802,22 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(
       ClientDetail.drainDetails.forceDrainText.endsWith('Yes'),
-      'Forced Drain is described'
+      'Forced Drain is described',
     );
 
     assert.ok(
       ClientDetail.drainDetails.duration.includes('--'),
-      'Duration is shown but unset'
+      'Duration is shown but unset',
     );
 
     assert.ok(
       ClientDetail.drainDetails.deadline.includes('--'),
-      'Deadline is shown but unset'
+      'Deadline is shown but unset',
     );
 
     assert.ok(
       ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
-      'Drain System Jobs state is shown'
+      'Drain System Jobs state is shown',
     );
   });
 
@@ -892,7 +892,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: false,
         },
       },
-      'Drain with default settings'
+      'Drain with default settings',
     );
 
     await ClientDetail.drainPopover.toggle();
@@ -910,7 +910,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: false,
         },
       },
-      'Drain with deadline toggled'
+      'Drain with deadline toggled',
     );
 
     await ClientDetail.drainPopover.toggle();
@@ -929,7 +929,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: false,
         },
       },
-      'Drain with non-default preset deadline set'
+      'Drain with non-default preset deadline set',
     );
 
     await ClientDetail.drainPopover.toggle();
@@ -953,7 +953,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: false,
         },
       },
-      'Drain with custom deadline set'
+      'Drain with custom deadline set',
     );
 
     await ClientDetail.drainPopover.toggle();
@@ -972,7 +972,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: false,
         },
       },
-      'Drain with force set'
+      'Drain with force set',
     );
 
     await ClientDetail.drainPopover.toggle();
@@ -990,7 +990,7 @@ module('Acceptance | client detail', function (hooks) {
           IgnoreSystemJobs: true,
         },
       },
-      'Drain system jobs unset'
+      'Drain system jobs unset',
     );
   });
 
@@ -1192,7 +1192,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(ClientDetail.eligibilityError.isPresent);
     assert.ok(
-      ClientDetail.eligibilityError.title.includes('Eligibility Error')
+      ClientDetail.eligibilityError.title.includes('Eligibility Error'),
     );
 
     await ClientDetail.eligibilityError.dismiss();
@@ -1215,7 +1215,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(ClientDetail.eligibilityError.isPresent);
     assert.ok(
-      ClientDetail.eligibilityError.title.includes('Eligibility Error')
+      ClientDetail.eligibilityError.title.includes('Eligibility Error'),
     );
 
     await ClientDetail.visit({ id: node2.id });
@@ -1241,7 +1241,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.ok(ClientDetail.hasHostVolumes);
     assert.equal(
       ClientDetail.hostVolumes.length,
-      Object.keys(node.hostVolumes).length
+      Object.keys(node.hostVolumes).length,
     );
 
     ClientDetail.hostVolumes.forEach((volume, index) => {
@@ -1262,7 +1262,7 @@ module('Acceptance | client detail', function (hooks) {
       assert.equal(volume.path, volumeRow.Path);
       assert.equal(
         volume.permissions,
-        volumeRow.ReadOnly ? 'Read' : 'Read/Write'
+        volumeRow.ReadOnly ? 'Read' : 'Read/Write',
       );
     });
   });
@@ -1306,7 +1306,7 @@ module('Acceptance | client detail', function (hooks) {
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
           server.createList('allocation', 5, { clientStatus: s });
-        }
+        },
       );
 
       await ClientDetail.visit({ id: node.id });
@@ -1375,7 +1375,7 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
     assert.equal(
       ClientDetail.allocations.length,
       server.db.allocations.length,
-      'All allocations are scheduled on this node'
+      'All allocations are scheduled on this node',
     );
     assert.ok(
       server.pretender.handledRequests.find((r) => r.url === '/v1/job/job-1'),
@@ -1415,7 +1415,7 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
 
     assert.deepEqual(
       jobFacet.options.map((option) => option.label.trim()),
-      ['job-1', 'job-2']
+      ['job-1', 'job-2'],
     );
 
     // Select juse one namespace.
@@ -1425,14 +1425,14 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
 
     assert.deepEqual(
       jobFacet.options.map((option) => option.label.trim()),
-      ['job-1']
+      ['job-1'],
     );
   });
 });
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
+  { facet, paramName, beforeEach, filter, expectedOptions },
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
@@ -1448,7 +1448,7 @@ function testFacet(
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   });
 
@@ -1471,7 +1471,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -1498,7 +1498,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -1519,9 +1519,9 @@ function testFacet(
     assert.equal(
       currentURL(),
       `/clients/${node.id}?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`,
-      'URL has the correct query param key and value'
+      'URL has the correct query param key and value',
     );
   });
 }

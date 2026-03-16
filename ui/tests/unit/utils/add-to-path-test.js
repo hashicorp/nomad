@@ -30,7 +30,7 @@ module('Unit | Util | addToPath', function () {
       assert.equal(
         addToPath.apply(null, testCase.in),
         testCase.out,
-        `[${testCase.in.join(', ')}] => ${testCase.out}`
+        `[${testCase.in.join(', ')}] => ${testCase.out}`,
       );
     });
   });

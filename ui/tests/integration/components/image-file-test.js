@@ -36,7 +36,7 @@ module('Integration | Component | image file', function (hooks) {
     assert.equal(
       find('img').getAttribute('src'),
       commonProperties.src,
-      `src is ${commonProperties.src}`
+      `src is ${commonProperties.src}`,
     );
 
     await componentA11yAudit(this.element, assert);
@@ -52,17 +52,17 @@ module('Integration | Component | image file', function (hooks) {
     assert.equal(
       find('a').getAttribute('href'),
       commonProperties.src,
-      `href is ${commonProperties.src}`
+      `href is ${commonProperties.src}`,
     );
     assert.equal(
       find('a').getAttribute('target'),
       '_blank',
-      'Anchor opens to a new tab'
+      'Anchor opens to a new tab',
     );
     assert.equal(
       find('a').getAttribute('rel'),
       'noopener noreferrer',
-      'Anchor rel correctly bars openers and referrers'
+      'Anchor rel correctly bars openers and referrers',
     );
   });
 
@@ -88,13 +88,13 @@ module('Integration | Component | image file', function (hooks) {
     const statsEl = find('[data-test-file-stats]');
     assert.ok(
       /\d+px \u00d7 \d+px/.test(statsEl.textContent),
-      'Width and height are formatted correctly'
+      'Width and height are formatted correctly',
     );
     assert.ok(
       statsEl.textContent
         .trim()
         .endsWith(formatBytes(commonProperties.size) + ')'),
-      'Human-formatted size is included'
+      'Human-formatted size is included',
     );
   });
 });

@@ -11,7 +11,7 @@ import { inject as service } from '@ember/service';
 
 export default class AccessControlNamespacesAclNamespaceRoute extends Route.extend(
   withForbiddenState,
-  WithModelErrorHandling
+  WithModelErrorHandling,
 ) {
   @service store;
 
@@ -21,7 +21,7 @@ export default class AccessControlNamespacesAclNamespaceRoute extends Route.exte
       decodeURIComponent(params.name),
       {
         reload: true,
-      }
+      },
     );
   }
 }

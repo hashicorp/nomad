@@ -18,7 +18,7 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
  */
 @classic
 export default class DefinitionController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @alias('model.definition') definition;
   @alias('model.format') format;

@@ -74,7 +74,7 @@ const pluralizeUnits = (amount, unit, longForm) => {
 export default function formatDuration(
   duration = 0,
   units = 'ns',
-  longForm = false
+  longForm = false,
 ) {
   const durationParts = {};
 

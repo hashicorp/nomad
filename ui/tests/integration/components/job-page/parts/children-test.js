@@ -65,7 +65,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
     assert.equal(
       findAll('[data-test-job-name]').length,
       parent.get('children.length'),
-      'A row for each child'
+      'A row for each child',
     );
   });
 
@@ -101,12 +101,12 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
     const childrenCount = parent.get('children.length');
     assert.ok(
       childrenCount > pageSize,
-      'Parent has more children than one page size'
+      'Parent has more children than one page size',
     );
     assert.equal(
       findAll('[data-test-job-name]').length,
       pageSize,
-      'Table length maxes out at 10'
+      'Table length maxes out at 10',
     );
     assert.ok(find('.pagination-next'), 'Next button is rendered');
 
@@ -114,7 +114,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       .dom('.pagination-numbers')
       .includesText(
         '1 – 10 of 11',
-        'Formats pagination to follow formula `startingIdx - endingIdx of totalTableCount'
+        'Formats pagination to follow formula `startingIdx - endingIdx of totalTableCount',
       );
 
     await componentA11yAudit(this.element, assert);
@@ -153,7 +153,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       assert.equal(
         childRows[index].textContent.trim(),
         child.get('name'),
-        `Child ${index} is ${child.get('name')}`
+        `Child ${index} is ${child.get('name')}`,
       );
     });
 
@@ -163,7 +163,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       assert.equal(
         childRows[index].textContent.trim(),
         child.get('name'),
-        `Child ${index} is ${child.get('name')}`
+        `Child ${index} is ${child.get('name')}`,
       );
     });
   });

@@ -31,7 +31,7 @@ module('Acceptance | task detail', function (hooks) {
     });
     server.db.taskStates.update(
       { allocationId: allocation.id },
-      { state: 'running' }
+      { state: 'running' },
     );
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
@@ -50,9 +50,9 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.ok(
       Task.startedAt.includes(
-        moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ")
+        moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ"),
       ),
-      'Task started at'
+      'Task started at',
     );
 
     const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
@@ -83,29 +83,29 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       Layout.breadcrumbFor('jobs.index').text,
       'Jobs',
-      'Jobs is the first breadcrumb'
+      'Jobs is the first breadcrumb',
     );
 
     await waitFor('[data-test-job-breadcrumb]');
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
       `Job ${job.name}`,
-      'Job is the second breadcrumb'
+      'Job is the second breadcrumb',
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.task-group').text,
       `Task Group ${taskGroup}`,
-      'Task Group is the third breadcrumb'
+      'Task Group is the third breadcrumb',
     );
     assert.equal(
       Layout.breadcrumbFor('allocations.allocation').text,
       `Allocation ${shortId}`,
-      'Allocation short id is the fourth breadcrumb'
+      'Allocation short id is the fourth breadcrumb',
     );
     assert.equal(
       Layout.breadcrumbFor('allocations.allocation.task').text,
       `Task ${task.name}`,
-      'Task name is the fifth breadcrumb'
+      'Task name is the fifth breadcrumb',
     );
 
     await Layout.breadcrumbFor('jobs.index').visit();
@@ -116,7 +116,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default`,
-      'Job breadcrumb links correctly'
+      'Job breadcrumb links correctly',
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -124,7 +124,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default/${taskGroup}`,
-      'Task Group breadcrumb links correctly'
+      'Task Group breadcrumb links correctly',
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -132,7 +132,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Allocations breadcrumb links correctly'
+      'Allocations breadcrumb links correctly',
     );
   });
 
@@ -140,17 +140,17 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       Task.resourceCharts.length,
       2,
-      'Two resource utilization graphs'
+      'Two resource utilization graphs',
     );
     assert.equal(
       Task.resourceCharts.objectAt(0).name,
       'CPU',
-      'First chart is CPU'
+      'First chart is CPU',
     );
     assert.equal(
       Task.resourceCharts.objectAt(1).name,
       'Memory',
-      'Second chart is Memory'
+      'Second chart is Memory',
     );
   });
 
@@ -160,7 +160,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       Task.events.length,
       events.length,
-      `Lists ${events.length} events`
+      `Lists ${events.length} events`,
     );
   });
 
@@ -205,11 +205,11 @@ module('Acceptance | task detail', function (hooks) {
       assert.equal(volumeRow.destination, volume.Destination);
       assert.equal(
         volumeRow.permissions,
-        volume.ReadOnly ? 'Read' : 'Read/Write'
+        volume.ReadOnly ? 'Read' : 'Read/Write',
       );
       assert.equal(
         volumeRow.clientSource,
-        taskGroup.volumes[volume.Volume].Source
+        taskGroup.volumes[volume.Volume].Source,
       );
     });
   });
@@ -229,7 +229,7 @@ module('Acceptance | task detail', function (hooks) {
     allocation = server.db.allocations[1];
     server.db.taskStates.update(
       { allocationId: allocation.id },
-      { state: 'running' }
+      { state: 'running' },
     );
     const jobTask = taskGroup.tasks.models[0];
     task = jobTask;
@@ -244,7 +244,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       recentEvent.time,
       moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Event timestamp'
+      'Event timestamp',
     );
     assert.equal(recentEvent.type, event.type, 'Event type');
     assert.equal(recentEvent.message, event.displayMessage, 'Event message');
@@ -258,12 +258,12 @@ module('Acceptance | task detail', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the nonexistent allocation is made'
+      'A request to the nonexistent allocation is made',
     );
     assert.equal(
       currentURL(),
       `/allocations/not-a-real-allocation/${task.name}`,
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Task.error.isPresent, 'Error message is shown');
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
@@ -277,12 +277,12 @@ module('Acceptance | task detail', function (hooks) {
         .filterBy('status', 200)
         .mapBy('url')
         .includes(`/v1/allocation/${allocation.id}`),
-      'A request to the allocation is made successfully'
+      'A request to the allocation is made successfully',
     );
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}/not-a-real-task-name`,
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Task.error.isPresent, 'Error message is shown');
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
@@ -293,18 +293,18 @@ module('Acceptance | task detail', function (hooks) {
     await Task.restart.confirm();
 
     const request = server.pretender.handledRequests.find(
-      (r) => r.method === 'PUT'
+      (r) => r.method === 'PUT',
     );
     assert.equal(
       request.url,
       `/v1/client/allocation/${allocation.id}/restart`,
-      'Restart request is made for the allocation'
+      'Restart request is made for the allocation',
     );
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
       { TaskName: task.name },
-      'Restart request is made for the correct task'
+      'Restart request is made for the correct task',
     );
   });
 
@@ -322,11 +322,11 @@ module('Acceptance | task detail', function (hooks) {
     assert.ok(Task.inlineError.isShown, 'Inline error is shown');
     assert.ok(
       Task.inlineError.title.includes('Could Not Restart Task'),
-      'Title is descriptive'
+      'Title is descriptive',
     );
     assert.ok(
       /ACL token.+?allocation lifecycle/.test(Task.inlineError.message),
-      'Message mentions ACLs and the appropriate permission'
+      'Message mentions ACLs and the appropriate permission',
     );
 
     await Task.inlineError.dismiss();
@@ -412,7 +412,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@other-namespace`,
-      'Job breadcrumb links correctly'
+      'Job breadcrumb links correctly',
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -420,7 +420,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@other-namespace/${taskGroup}`,
-      'Task Group breadcrumb links correctly'
+      'Task Group breadcrumb links correctly',
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -428,7 +428,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Allocations breadcrumb links correctly'
+      'Allocations breadcrumb links correctly',
     );
   });
 });
@@ -460,7 +460,7 @@ module('Acceptance | task detail (not running)', function (hooks) {
     assert.equal(
       Task.resourceEmptyMessage,
       "Task isn't running",
-      'Empty message is appropriate'
+      'Empty message is appropriate',
     );
   });
 

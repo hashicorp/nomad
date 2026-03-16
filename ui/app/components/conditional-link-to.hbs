@@ -5,13 +5,24 @@
 
 {{#if @condition}}
   {{#if @tooltip}}
-    <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}
+    <LinkTo
+      @route={{@route}}
+      @model={{@model}}
+      @query={{this.query}}
+      class={{@class}}
+      aria-label={{@label}}
       {{hds-tooltip @tooltip.text options=@tooltip.extraTippyOptions}}
     >
       {{yield}}
     </LinkTo>
   {{else}}
-    <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}>
+    <LinkTo
+      @route={{@route}}
+      @model={{@model}}
+      @query={{this.query}}
+      class={{@class}}
+      aria-label={{@label}}
+    >
       {{yield}}
     </LinkTo>
   {{/if}}

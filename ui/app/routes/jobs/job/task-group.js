@@ -32,7 +32,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         const taskGroup = job.get('taskGroups').findBy('name', name);
         if (!taskGroup) {
           const err = new Error(
-            `Task group ${name} for job ${job.get('name')} not found`
+            `Task group ${name} for job ${job.get('name')} not found`,
           );
           err.code = '404';
           throw err;
@@ -73,7 +73,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
     'watchSummary',
     'watchScale',
     'watchAllocations',
-    'watchLatestDeployment'
+    'watchLatestDeployment',
   )
   watchers;
 }

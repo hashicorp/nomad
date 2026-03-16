@@ -4,6 +4,10 @@
 ~}}
 
 <Breadcrumb
-  @crumb={{hash title="Server" label=this.server.name args=(array "servers.server" this.server.id)}}
+  @crumb={{hash
+    title="Server"
+    label=this.server.name
+    args=(array "servers.server" this.server.id)
+  }}
 />
 {{outlet}}

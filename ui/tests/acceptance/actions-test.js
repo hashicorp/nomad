@@ -110,7 +110,7 @@ module('Acceptance | actions', function (hooks) {
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
-      'Management token sees actions dropdown'
+      'Management token sees actions dropdown',
     );
     assert.ok(Actions.taskRowActions.length, 'Task row has actions dropdowns');
 
@@ -123,11 +123,11 @@ module('Acceptance | actions', function (hooks) {
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.notOk(
       Actions.hasTitleActions,
-      'Basic client token does not see actions dropdown'
+      'Basic client token does not see actions dropdown',
     );
     assert.notOk(
       Actions.taskRowActions.length,
-      'Basic client token does not see task row actions dropdowns'
+      'Basic client token does not see task row actions dropdowns',
     );
 
     // Sign out and sign back in as a token with alloc exec
@@ -137,11 +137,11 @@ module('Acceptance | actions', function (hooks) {
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
-      'Alloc exec token sees actions dropdown'
+      'Alloc exec token sees actions dropdown',
     );
     assert.ok(
       Actions.taskRowActions.length,
-      'Alloc exec token sees task row actions dropdowns'
+      'Alloc exec token sees task row actions dropdowns',
     );
   });
 
@@ -159,7 +159,7 @@ module('Acceptance | actions', function (hooks) {
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
-      'Management token sees actions dropdown'
+      'Management token sees actions dropdown',
     );
 
     // Open the dropdown
@@ -168,39 +168,39 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.titleActions.actions.length,
       5,
-      '5 actions show up in the dropdown'
+      '5 actions show up in the dropdown',
     );
 
     assert.equal(
       Actions.titleActions.multiAllocActions.length,
       4,
-      '4 actions in the dropdown have multiple allocs to run against'
+      '4 actions in the dropdown have multiple allocs to run against',
     );
     assert.equal(
       Actions.titleActions.singleAllocActions.length,
       1,
-      '1 action in the dropdown has a single alloc to run against'
+      '1 action in the dropdown has a single alloc to run against',
     );
 
     assert.equal(
       Actions.titleActions.multiAllocActions[0].button[0].expanded,
       'false',
-      "The first action's dropdown is not expanded"
+      "The first action's dropdown is not expanded",
     );
     assert.notOk(
       Actions.titleActions.multiAllocActions[0].showsDisclosureContent,
-      "The first action's dropdown subcontent does not yet exist"
+      "The first action's dropdown subcontent does not yet exist",
     );
 
     await Actions.titleActions.actions[0].click();
     assert.equal(
       Actions.titleActions.multiAllocActions[0].button[0].expanded,
       'true',
-      "The first action's dropdown is expanded"
+      "The first action's dropdown is expanded",
     );
     assert.ok(
       Actions.titleActions.multiAllocActions[0].showsDisclosureContent,
-      "The first action's dropdown subcontent exists"
+      "The first action's dropdown subcontent exists",
     );
 
     await percySnapshot(assert, {
@@ -216,16 +216,16 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.flyout.instances.length,
       1,
-      'A sidebar instance pops up upon running an action'
+      'A sidebar instance pops up upon running an action',
     );
 
     assert.ok(
       Actions.flyout.instances[0].code.includes('Message Received'),
-      'The instance contains the message from the action'
+      'The instance contains the message from the action',
     );
     assert.ok(
       Actions.flyout.instances[0].statusBadge.includes('Complete'),
-      'The instance contains the status of the action'
+      'The instance contains the status of the action',
     );
 
     await Actions.flyout.close();
@@ -248,16 +248,16 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.flyout.instances.length,
       2,
-      'Running on all allocs in the group (1) results in 2 total instances'
+      'Running on all allocs in the group (1) results in 2 total instances',
     );
 
     assert.ok(
       Actions.flyout.instances[0].hasPeers,
-      'The first instance has peers'
+      'The first instance has peers',
     );
     assert.notOk(
       Actions.flyout.instances[1].hasPeers,
-      'The second instance does not have peers'
+      'The second instance does not have peers',
     );
 
     await Actions.flyout.close();
@@ -273,7 +273,7 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.flyout.instances.length,
       3,
-      'Running on an orphan alloc results in 1 further action instance'
+      'Running on an orphan alloc results in 1 further action instance',
     );
 
     await percySnapshot('Actions flyout with multiple instances');
@@ -301,14 +301,14 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.taskRowActions.length,
       numberOfTaskRows,
-      'Each task row has an actions dropdown'
+      'Each task row has an actions dropdown',
     );
     await Actions.taskRowActions[0].click();
 
     assert.equal(
       Actions.taskRowActions[0].actions.length,
       1,
-      'Actions within a task row actions dropdown are shown'
+      'Actions within a task row actions dropdown are shown',
     );
 
     await Actions.taskRowActions[0].actions[0].click();
@@ -316,11 +316,11 @@ module('Acceptance | actions', function (hooks) {
     assert.equal(
       Actions.flyout.instances.length,
       1,
-      'A sidebar instance pops up upon running an action'
+      'A sidebar instance pops up upon running an action',
     );
     assert.ok(
       Actions.flyout.instances[0].code.includes('Message Received'),
-      'The instance contains the message from the action'
+      'The instance contains the message from the action',
     );
   });
 
@@ -361,7 +361,7 @@ module('Acceptance | actions', function (hooks) {
     // it shouldn't have a dropdown in it
     assert.notOk(
       Actions.flyout.actions.isPresent,
-      'Flyout has no actions dropdown'
+      'Flyout has no actions dropdown',
     );
     await Actions.flyout.close();
 
@@ -374,7 +374,7 @@ module('Acceptance | actions', function (hooks) {
     // Dropdown present
     assert.ok(
       Actions.flyout.actions.isPresent,
-      'Flyout has actions dropdown on task page'
+      'Flyout has actions dropdown on task page',
     );
     await percySnapshot(assert, {
       percyCSS: `
@@ -403,7 +403,7 @@ module('Acceptance | actions', function (hooks) {
     await Actions.flyout.close();
     assert.notOk(
       Actions.globalButton.isPresent,
-      'Global button is not present after flyout close'
+      'Global button is not present after flyout close',
     );
   });
 });

@@ -108,7 +108,7 @@ function moduleForJobDispatch(title, jobFactory) {
       assert.equal(
         JobDispatch.metaFields.length,
         job.parameterizedJob.MetaOptional.length +
-          job.parameterizedJob.MetaRequired.length
+          job.parameterizedJob.MetaRequired.length,
       );
     });
 
@@ -118,7 +118,7 @@ function moduleForJobDispatch(title, jobFactory) {
       JobDispatch.metaFields.forEach((f) => {
         const hasIndicator = f.label.includes(REQUIRED_INDICATOR);
         const isRequired = job.parameterizedJob.MetaRequired.includes(
-          f.field.id
+          f.field.id,
         );
 
         if (isRequired) {
@@ -126,7 +126,7 @@ function moduleForJobDispatch(title, jobFactory) {
         } else {
           assert.notOk(
             hasIndicator,
-            `${f.label} doesn't contain required indicator.`
+            `${f.label} doesn't contain required indicator.`,
           );
         }
       });
@@ -179,7 +179,7 @@ function moduleForJobDispatch(title, jobFactory) {
       let payloadTitle = JobDispatch.payload.title;
       assert.ok(
         payloadTitle.includes(REQUIRED_INDICATOR),
-        `${payloadTitle} contains required indicator.`
+        `${payloadTitle} contains required indicator.`,
       );
 
       await JobDispatch.visit({
@@ -189,15 +189,14 @@ function moduleForJobDispatch(title, jobFactory) {
       payloadTitle = JobDispatch.payload.title;
       assert.notOk(
         payloadTitle.includes(REQUIRED_INDICATOR),
-        `${payloadTitle} doesn't contain required indicator.`
+        `${payloadTitle} doesn't contain required indicator.`,
       );
     });
 
     test('dispatch a job', async function (assert) {
       function countDispatchChildren() {
-        return server.db.jobs.where((j) =>
-          j.id.startsWith(`${job.id}/`)
-        ).length;
+        return server.db.jobs.where((j) => j.id.startsWith(`${job.id}/`))
+          .length;
       }
 
       await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });

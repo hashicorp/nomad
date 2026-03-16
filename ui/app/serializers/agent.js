@@ -40,7 +40,7 @@ export default class AgentSerializer extends ApplicationSerializer {
       store,
       typeClass,
       hash.Members || [],
-      ...args
+      ...args,
     );
   }
 
@@ -50,7 +50,7 @@ export default class AgentSerializer extends ApplicationSerializer {
       typeClass,
       hash.findBy('Name', id),
       id,
-      ...args
+      ...args,
     );
   }
 }

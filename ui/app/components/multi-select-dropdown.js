@@ -69,7 +69,7 @@ export default class MultiSelectDropdown extends Component {
         .querySelector('.dropdown-trigger')
         .getAttribute('aria-owns');
       const firstElement = document.querySelector(
-        `#${optionsId} .dropdown-option`
+        `#${optionsId} .dropdown-option`,
       );
 
       if (firstElement) {

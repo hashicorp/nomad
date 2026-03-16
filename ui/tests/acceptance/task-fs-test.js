@@ -66,7 +66,7 @@ module('Acceptance | task fs', function (hooks) {
         name: 'something.txt',
         fileType: 'txt',
         parent: nestedDirectory,
-      })
+      }),
     );
 
     files.push(
@@ -74,19 +74,19 @@ module('Acceptance | task fs', function (hooks) {
         isDir: true,
         name: 'empty-directory',
         parent: taskDirectory,
-      })
+      }),
     );
     files.push(
       server.create('allocFile', 'file', {
         fileType: 'txt',
         parent: taskDirectory,
-      })
+      }),
     );
     files.push(
       server.create('allocFile', 'file', {
         fileType: 'txt',
         parent: taskDirectory,
-      })
+      }),
     );
 
     this.files = files;

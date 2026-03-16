@@ -46,11 +46,11 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     `);
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+      (req) => req.url.startsWith('/v1/allocation'),
     );
     assert.equal(
       allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
+      `/v1/allocation/${storageController.allocID}`,
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -76,7 +76,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
 
     assert.equal(
       statsRequest.url,
-      `/v1/client/allocation/${storageController.allocID}/stats`
+      `/v1/client/allocation/${storageController.allocID}/stats`,
     );
   });
 
@@ -101,12 +101,12 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     `);
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+      (req) => req.url.startsWith('/v1/allocation'),
     );
 
     assert.equal(
       allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
+      `/v1/allocation/${storageController.allocID}`,
     );
 
     this.set('plugin', pluginRecord.get('controllers').toArray()[1]);
@@ -118,7 +118,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
 
     assert.equal(
       latestAllocationRequest.url,
-      `/v1/allocation/${storageController2.allocID}`
+      `/v1/allocation/${storageController2.allocID}`,
     );
   });
 });

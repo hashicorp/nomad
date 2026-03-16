@@ -7,9 +7,13 @@
 <ServerSubnav @server={{this.model}} />
 <section class="section">
   <h1 data-test-title class="title">
-    Server {{this.model.name}}
+    Server
+    {{this.model.name}}
     {{#if this.model.isLeader}}
-      <span data-test-leader-badge class="bumper-left tag is-primary">Leader</span>
+      <span
+        data-test-leader-badge
+        class="bumper-left tag is-primary"
+      >Leader</span>
     {{/if}}
   </h1>
   <div class="boxed-section is-small">
@@ -21,7 +25,9 @@
       <span data-test-address class="pair"><span class="term">Address</span>
         {{this.model.rpcAddr}}
       </span>
-      <span data-test-datacenter class="pair"><span class="term">Datacenter</span>
+      <span data-test-datacenter class="pair"><span
+          class="term"
+        >Datacenter</span>
         {{this.model.datacenter}}
       </span>
     </div>

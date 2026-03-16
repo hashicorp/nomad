@@ -27,7 +27,7 @@ export default function setupGlimmerComponentFactory(hooks, componentKey) {
   hooks.beforeEach(function () {
     this.createComponent = glimmerComponentInstantiator(
       this.owner,
-      componentKey
+      componentKey,
     );
   });
 

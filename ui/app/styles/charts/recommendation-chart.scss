@@ -24,12 +24,18 @@
   }
 
   .delta {
-    transition: width 1s, x 1s, transform 1s, color 0.5s;
+    transition:
+      width 1s,
+      x 1s,
+      transform 1s,
+      color 0.5s;
   }
 
   rect.stat,
   line.stat {
-    transition: fill 0.5s, stroke 0.5s;
+    transition:
+      fill 0.5s,
+      stroke 0.5s;
   }
 
   rect.delta {

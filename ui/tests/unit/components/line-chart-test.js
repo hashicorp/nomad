@@ -30,12 +30,12 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       xDomainLow,
       Math.min(...data.mapBy('foo')),
-      'Domain lower bound is the lowest foo value'
+      'Domain lower bound is the lowest foo value',
     );
     assert.equal(
       xDomainHigh,
       Math.max(...data.mapBy('foo')),
-      'Domain upper bound is the highest foo value'
+      'Domain upper bound is the highest foo value',
     );
 
     chart.args.data = [...data, { foo: 12, bar: 600 }];
@@ -44,7 +44,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       xDomainHigh,
       12,
-      'When the data changes, the xScale is recalculated'
+      'When the data changes, the xScale is recalculated',
     );
   });
 
@@ -59,7 +59,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       yDomainHigh,
       Math.max(...data.mapBy('bar')),
-      'Domain upper bound is the highest bar value'
+      'Domain upper bound is the highest bar value',
     );
 
     chart.args.data = [...data, { foo: 12, bar: 600 }];
@@ -68,7 +68,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       yDomainHigh,
       600,
-      'When the data changes, the yScale is recalculated'
+      'When the data changes, the yScale is recalculated',
     );
   });
 
@@ -132,7 +132,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       chart.activeDatumLabel,
       d3Format.format(',')(data[1].foo),
-      'activeDatumLabel correctly formats the correct prop of the correct datum'
+      'activeDatumLabel correctly formats the correct prop of the correct datum',
     );
   });
 
@@ -148,7 +148,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(
       chart.activeDatumValue,
       d3Format.format(',.2~r')(data[1].bar),
-      'activeDatumValue correctly formats the correct prop of the correct datum'
+      'activeDatumValue correctly formats the correct prop of the correct datum',
     );
   });
 });

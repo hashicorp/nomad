@@ -55,7 +55,7 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     assert.equal(chart.data.length, annotationOutside.length + 1);
     assert.deepEqual(
       chart.data.slice(1, annotationOutside.length),
-      annotationOutside.filterBy('hasCount')
+      annotationOutside.filterBy('hasCount'),
     );
 
     const appendedDatum = chart.data[0];
@@ -67,7 +67,7 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     assert.equal(chart.data.length, annotationOutside.length);
     assert.deepEqual(
       chart.data.slice(0, annotationOutside.length - 1),
-      annotationOutside.filterBy('hasCount')
+      annotationOutside.filterBy('hasCount'),
     );
   });
 });

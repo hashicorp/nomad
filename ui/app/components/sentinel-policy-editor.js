@@ -42,12 +42,12 @@ export default class SentinelPolicyEditorComponent extends Component {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.policy.name?.match(nameRegex)) {
         throw new Error(
-          `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
+          `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`,
         );
       }
       if (this.policy.description?.length > 256) {
         throw new Error(
-          `Policy description must be under 256 characters long.`
+          `Policy description must be under 256 characters long.`,
         );
       }
 
@@ -63,7 +63,7 @@ export default class SentinelPolicyEditorComponent extends Component {
           .findBy('name', this.policy.name)
       ) {
         throw new Error(
-          `A sentinel policy with name ${this.policy.name} already exists.`
+          `A sentinel policy with name ${this.policy.name} already exists.`,
         );
       }
       this.policy.set('id', this.policy.name);
@@ -77,7 +77,7 @@ export default class SentinelPolicyEditorComponent extends Component {
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
           'administration.sentinel-policies.policy',
-          this.policy.name
+          this.policy.name,
         );
       }
     } catch (err) {

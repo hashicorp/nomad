@@ -25,7 +25,7 @@ module('Acceptance | roles', function (hooks) {
     allScenarios.rolesTestCluster(server);
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -102,7 +102,7 @@ module('Acceptance | roles', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/roles/${role.name}`,
-      'remain on page after save'
+      'remain on page after save',
     );
     await percySnapshot(assert);
 
@@ -114,7 +114,7 @@ module('Acceptance | roles', function (hooks) {
       readerRoleRow
         .querySelector('[data-test-role-description]')
         .textContent.trim(),
-      'edited description'
+      'edited description',
     );
   });
 
@@ -131,7 +131,7 @@ module('Acceptance | roles', function (hooks) {
     assert.deepEqual(
       nameCellText,
       sortedNameCellText,
-      'Policy names are sorted alphabetically'
+      'Policy names are sorted alphabetically',
     );
 
     // Click on the second thead tr th to reverse
@@ -147,14 +147,14 @@ module('Acceptance | roles', function (hooks) {
 
     const reversedNameCells = findAll('[data-test-policy-name]');
     const reversedNameCellText = reversedNameCells.map((cell) =>
-      cell.textContent.trim()
+      cell.textContent.trim(),
     );
     const reversedSortedNameCellText = nameCellText.slice().sort().reverse();
 
     assert.deepEqual(
       reversedNameCellText,
       reversedSortedNameCellText,
-      'Names are reversed alphabetically after click'
+      'Names are reversed alphabetically after click',
     );
 
     // Make sure the correct policies are checked
@@ -164,30 +164,30 @@ module('Acceptance | roles', function (hooks) {
     assert.equal(
       findAll('[data-test-role-policies] tbody tr').length,
       allPolicies.length,
-      'all policies are shown'
+      'all policies are shown',
     );
 
     const checkedPolicyRows = findAll(
-      '[data-test-role-policies] tbody tr input:checked'
+      '[data-test-role-policies] tbody tr input:checked',
     );
 
     assert.equal(
       checkedPolicyRows.length,
       rolePolicies.length,
-      'correct number of policies are checked'
+      'correct number of policies are checked',
     );
 
     const checkedPolicyNames = checkedPolicyRows.map((row) =>
       row
         .closest('tr')
         .querySelector('[data-test-policy-name]')
-        .textContent.trim()
+        .textContent.trim(),
     );
 
     assert.deepEqual(
       checkedPolicyNames.sort(),
       rolePolicies.sort(),
-      'All policies belonging to this role are checked'
+      'All policies belonging to this role are checked',
     );
 
     // Try de-selecting all policies and saving
@@ -199,7 +199,7 @@ module('Acceptance | roles', function (hooks) {
 
     // Check all policies
     findAll('[data-test-role-policies] tbody tr input').forEach((row) =>
-      row.click()
+      row.click(),
     );
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
@@ -212,7 +212,7 @@ module('Acceptance | roles', function (hooks) {
     assert.equal(
       readerRolePolicies.length,
       allPolicies.length,
-      'all policies are attached to the role at index level'
+      'all policies are attached to the role at index level',
     );
   });
 
@@ -250,7 +250,7 @@ module('Acceptance | roles', function (hooks) {
       .dom('[data-test-token-name="Example Token for reader"]')
       .exists(
         { count: 2 },
-        'The two newly-created tokens are listed on the tokens index page'
+        'The two newly-created tokens are listed on the tokens index page',
       );
   });
   test('Edit Role: Deletion', async function (assert) {

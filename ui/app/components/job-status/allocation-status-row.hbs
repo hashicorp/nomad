@@ -3,9 +3,10 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="allocation-status-row  {{if @compact "compact"}}">
+<div class="allocation-status-row {{if @compact 'compact'}}">
   {{#if this.showSummaries}}
-    <div class="alloc-status-summaries"
+    <div
+      class="alloc-status-summaries"
       {{did-insert this.captureElement}}
       {{window-resize this.reflow}}
     >
@@ -16,22 +17,21 @@
               <JobStatus::AllocationStatusBlock
                 @status={{status}}
                 @health={{health}}
-
                 @canary={{canary}}
                 @steady={{@steady}}
                 @count={{allocsByCanary.length}}
-                @width={{compute
-                  (action this.calcPerc) allocsByCanary.length
-                }}
+                @width={{compute (action this.calcPerc) allocsByCanary.length}}
                 @compact={{@compact}}
-                @allocs={{allocsByCanary}} />
+                @allocs={{allocsByCanary}}
+              />
             {{/if}}
           {{/each-in}}
         {{/each-in}}
       {{/each-in}}
     </div>
   {{else}}
-    <div class="ungrouped-allocs"
+    <div
+      class="ungrouped-allocs"
       {{did-insert this.captureElement}}
       {{window-resize this.reflow}}
     >
@@ -40,13 +40,13 @@
           {{#each-in allocsByHealth as |canary allocsByCanary|}}
             {{#if (gt allocsByCanary.length 0)}}
               {{#each (range 0 allocsByCanary.length) as |i|}}
-                    <JobStatus::IndividualAllocation
-                      @allocation={{get allocsByCanary i}}
-                      @status={{status}}
-                      @health={{health}}
-                      @canary={{canary}}
-                      @steady={{@steady}}
-                    />
+                <JobStatus::IndividualAllocation
+                  @allocation={{get allocsByCanary i}}
+                  @status={{status}}
+                  @health={{health}}
+                  @canary={{canary}}
+                  @steady={{@steady}}
+                />
               {{/each}}
             {{/if}}
           {{/each-in}}
@@ -62,4 +62,3 @@
     {{/if}}
   {{/if}}
 </div>
-       

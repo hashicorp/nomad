@@ -11,7 +11,7 @@
     <div
       data-test-eval-detail
       data-test-eval-detail-is-open={{this.isSideBarOpen}}
-      class="sidebar {{if this.isSideBarOpen "open"}} evaluations-sidebar"
+      class="sidebar {{if this.isSideBarOpen 'open'}} evaluations-sidebar"
       {{on-click-outside
         this.closeSidebar
         capture=true
@@ -42,7 +42,9 @@
               Not Found
             </h1>
             <p data-test-error-message class="subtitle">
-              The requested evaluation could not be found. You may not be authorized to view this evaluation, it may have been garbage collected, or the ID is invalid.
+              The requested evaluation could not be found. You may not be
+              authorized to view this evaluation, it may have been garbage
+              collected, or the ID is invalid.
             </p>
           </div>
         </div>
@@ -81,7 +83,10 @@
                 </span>
                 <LinkTo
                   data-test-evaluation-job
-                  @model={{concat evaluation.plainJobId "@" evaluation.namespace
+                  @model={{concat
+                    evaluation.plainJobId
+                    "@"
+                    evaluation.namespace
                   }}
                   @route="jobs.job"
                 >

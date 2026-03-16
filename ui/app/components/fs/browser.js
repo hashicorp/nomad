@@ -49,7 +49,7 @@ export default class Browser extends Component {
     'directoryEntries.[]',
     'files',
     'sortDescending',
-    'sortProperty'
+    'sortProperty',
   )
   get sortedDirectoryEntries() {
     const sortProperty = this.sortProperty;

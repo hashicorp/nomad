@@ -20,7 +20,7 @@ export default class VersionTagAdapter extends ApplicationAdapter {
   async deleteTag(namespace, jobName, tagName) {
     let deletion = this.ajax(
       this.urlForDeleteRecord(namespace, jobName, tagName),
-      'DELETE'
+      'DELETE',
     );
     return deletion;
   }

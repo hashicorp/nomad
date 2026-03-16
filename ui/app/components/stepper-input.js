@@ -18,7 +18,7 @@ const ESC = 27;
   'class',
   'disabled:is-disabled',
   'disabled:tooltip',
-  'disabled:multiline'
+  'disabled:multiline',
 )
 export default class StepperInput extends Component {
   min = 0;
@@ -52,7 +52,7 @@ export default class StepperInput extends Component {
   setValue(e) {
     if (e.target.value !== '') {
       const newValue = Math.floor(
-        Math.min(this.max, Math.max(this.min, e.target.value))
+        Math.min(this.max, Math.max(this.min, e.target.value)),
       );
       this.set('internalValue', newValue);
       this.update(this.internalValue);

@@ -88,7 +88,7 @@ module('Unit | Serializer | Scale Event', function (hooks) {
     test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(
         this.subject().normalize(ScaleEventModel, testCase.in),
-        testCase.out
+        testCase.out,
       );
     });
   });

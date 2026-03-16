@@ -42,7 +42,7 @@ module('Unit | Service | Token', function (hooks) {
     assert.equal(
       [...this.server.handledRequests].pop().url,
       `/path?region=${this.system.get('activeRegion')}`,
-      'The region param is included when the system service shouldIncludeRegion property is true'
+      'The region param is included when the system service shouldIncludeRegion property is true',
     );
 
     this.system.set('shouldIncludeRegion', false);
@@ -51,7 +51,7 @@ module('Unit | Service | Token', function (hooks) {
     assert.equal(
       [...this.server.handledRequests].pop().url,
       '/path',
-      'The region param is not included when the system service shouldIncludeRegion property is false'
+      'The region param is not included when the system service shouldIncludeRegion property is false',
     );
   });
 
@@ -62,7 +62,7 @@ module('Unit | Service | Token', function (hooks) {
     assert.equal(
       [...this.server.handledRequests].pop().url,
       '/path?query=param&region=already-here',
-      'The region param that is already in the URL takes precedence over the region in the service'
+      'The region param that is already in the URL takes precedence over the region in the service',
     );
   });
 
@@ -73,7 +73,7 @@ module('Unit | Service | Token', function (hooks) {
     assert.equal(
       [...this.server.handledRequests].pop().url,
       '/path',
-      'The region param is ommitted when making a raw request'
+      'The region param is ommitted when making a raw request',
     );
   });
 });

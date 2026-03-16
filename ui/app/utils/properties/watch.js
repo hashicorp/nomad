@@ -28,7 +28,7 @@ export function watchRecord(modelName, { shouldSurfaceErrors = false } = {}) {
   return task(function* (id, throttle = 2000) {
     assert(
       'To watch a record, the record adapter MUST extend Watchable',
-      this.store.adapterFor(modelName) instanceof Watchable
+      this.store.adapterFor(modelName) instanceof Watchable,
     );
     if (typeof id === 'object') {
       id = get(id, 'id');
@@ -60,7 +60,7 @@ export function watchRelationship(relationshipName, replace = false) {
   return task(function* (model, throttle = 2000) {
     assert(
       'To watch a relationship, the adapter of the model provided to the watchRelationship task MUST extend Watchable',
-      this.store.adapterFor(model.constructor.modelName) instanceof Watchable
+      this.store.adapterFor(model.constructor.modelName) instanceof Watchable,
     );
     while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
@@ -89,7 +89,7 @@ export function watchNonStoreRecords(modelName) {
   return task(function* (model, asyncCallbackName, throttle = 5000) {
     assert(
       'To watch a non-store records, the adapter of the model provided to the watchNonStoreRecords task MUST extend Watchable',
-      this.store.adapterFor(modelName) instanceof Watchable
+      this.store.adapterFor(modelName) instanceof Watchable,
     );
     while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
@@ -110,7 +110,7 @@ export function watchAll(modelName) {
   return task(function* (throttle = 2000) {
     assert(
       'To watch all, the respective adapter MUST extend Watchable',
-      this.store.adapterFor(modelName) instanceof Watchable
+      this.store.adapterFor(modelName) instanceof Watchable,
     );
     while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
@@ -136,7 +136,7 @@ export function watchQuery(modelName) {
   return task(function* (params, throttle = 2000 /*options = {}*/) {
     assert(
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
-      this.store.adapterFor(modelName) instanceof Watchable
+      this.store.adapterFor(modelName) instanceof Watchable,
     );
     while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();

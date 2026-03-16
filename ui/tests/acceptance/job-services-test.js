@@ -36,26 +36,26 @@ module('Acceptance | job services', function (hooks) {
 
   test('Digging into a service', async function (assert) {
     const expectedNumAllocs = find(
-      '[data-test-service-level="group"]'
+      '[data-test-service-level="group"]',
     ).getAttribute('data-test-num-allocs');
     const serviceName = find(
-      '[data-test-service-level="group"][data-test-service-provider="nomad"]'
+      '[data-test-service-level="group"][data-test-service-provider="nomad"]',
     ).getAttribute('data-test-service-name');
 
     await find(
-      '[data-test-service-level="group"][data-test-service-provider="nomad"] a'
+      '[data-test-service-level="group"][data-test-service-provider="nomad"] a',
     ).click();
     await settled();
 
     assert.ok(
       currentURL().includes(`services/${serviceName}?level=group`),
-      'correctly traverses to a service instance list'
+      'correctly traverses to a service instance list',
     );
 
     assert.equal(
       findAll('tr[data-test-service-row]').length,
       expectedNumAllocs,
-      'Same number of alloc rows as the index shows'
+      'Same number of alloc rows as the index shows',
     );
   });
 });
