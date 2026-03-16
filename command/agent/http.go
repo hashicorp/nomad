@@ -205,8 +205,12 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		ticker := time.NewTicker(config.Telemetry.collectionInterval)
 		defer ticker.Stop()
 		for {
-			<-ticker.C
-			metrics.SetGauge([]string{"nomad", "agent", "http", "connections"}, float32(connCount.Load()))
+			select {
+			case <-agent.shutdownCh:
+				return
+			case <-ticker.C:
+				metrics.SetGauge([]string{"nomad", "agent", "http", "connections"}, float32(connCount.Load()))
+			}
 		}
 	}()
 
