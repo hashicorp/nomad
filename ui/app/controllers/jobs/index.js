@@ -309,15 +309,18 @@ export default class JobsIndexController extends Controller {
     throttle = macroCondition(isTesting()) ? 0 : JOB_LIST_THROTTLE,
   ) {
     while (true) {
-      let currentParams = params;
+      let currentParams = params || {};
       currentParams.index = this.jobQueryIndex;
       const newJobs = yield this.jobQuery(currentParams, {});
       if (newJobs) {
-        if (newJobs.meta.index) {
-          this.jobQueryIndex = newJobs.meta.index;
+        const meta = newJobs.meta;
+
+        if (meta?.index) {
+          this.jobQueryIndex = meta.index;
         }
-        if (newJobs.meta.nextToken) {
-          this.nextToken = newJobs.meta.nextToken;
+
+        if (meta?.nextToken) {
+          this.nextToken = meta.nextToken;
         } else {
           this.nextToken = null;
         }

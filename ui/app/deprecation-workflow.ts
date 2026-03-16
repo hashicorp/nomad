@@ -39,5 +39,25 @@ setupDeprecationWorkflow({
       handler: 'silence',
       matchId: 'ember-basic-dropdown.config-environment',
     },
+    {
+      handler: 'silence',
+      matchId: 'ember-data:deprecate-promise-many-array-behaviors',
+    },
+    {
+      handler: 'silence',
+      matchId: 'deprecate-array-prototype-extensions',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-data:deprecate-model-reopenclass',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-data:deprecate-early-static',
+    },
+    {
+      handler: 'silence',
+      matchId: 'ember-data:deprecate-array-like',
+    },
   ],
 });

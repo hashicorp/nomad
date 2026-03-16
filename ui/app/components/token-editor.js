@@ -9,6 +9,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
+import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class TokenEditorComponent extends Component {
@@ -43,21 +44,39 @@ export default class TokenEditorComponent extends Component {
     this.tokenRegion = this.system.activeRegion;
   }
 
+  policyKey(policy) {
+    return policy?.name;
+  }
+
+  roleKey(role) {
+    return role?.id || role?.name;
+  }
+
   @action updateTokenPolicies(policy, event) {
     let { checked } = event.target;
+    const key = this.policyKey(policy);
+
     if (checked) {
-      this.tokenPolicies.push(policy);
+      if (!this.tokenPolicies.some((p) => this.policyKey(p) === key)) {
+        this.tokenPolicies = [...this.tokenPolicies, policy];
+      }
     } else {
-      this.tokenPolicies = this.tokenPolicies.filter((p) => p !== policy);
+      this.tokenPolicies = this.tokenPolicies.filter(
+        (p) => this.policyKey(p) !== key,
+      );
     }
   }
 
   @action updateTokenRoles(role, event) {
     let { checked } = event.target;
+    const key = this.roleKey(role);
+
     if (checked) {
-      this.tokenRoles.push(role);
+      if (!this.tokenRoles.some((r) => this.roleKey(r) === key)) {
+        this.tokenRoles = [...this.tokenRoles, role];
+      }
     } else {
-      this.tokenRoles = this.tokenRoles.filter((p) => p !== role);
+      this.tokenRoles = this.tokenRoles.filter((r) => this.roleKey(r) !== key);
     }
   }
 
@@ -67,9 +86,24 @@ export default class TokenEditorComponent extends Component {
   }
 
   @action updateTokenExpirationTime(event) {
-    // Override expirationTTL if user selects a time
+    const rawValue = event?.target?.value;
+    if (!rawValue) {
+      return;
+    }
+
+    // datetime-local values can include seconds/fractions; normalize before parsing.
+    const normalizedValue = rawValue.includes('.')
+      ? rawValue.split('.')[0]
+      : rawValue;
+    const parsed = new Date(normalizedValue);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return;
+    }
+
+    // Override expirationTTL if user selects a valid time.
     this.activeToken.expirationTTL = null;
-    this.activeToken.expirationTime = new Date(event.target.value);
+    this.activeToken.expirationTime = parsed;
   }
   @action updateTokenExpirationTTL(event) {
     // Override expirationTime if user selects a TTL
@@ -87,17 +121,30 @@ export default class TokenEditorComponent extends Component {
     this.tokenRegion = event.target.id;
   }
 
-  @action async save() {
+  save = task({ drop: true }, async (event) => {
+    event?.preventDefault?.();
+
     try {
       const shouldRedirectAfterSave = this.activeToken.isNew;
 
+      const policyIDs = this.tokenPolicies
+        .map((policy) => policy?.id || policy?.name)
+        .filter(Boolean);
+      const roleIDs = this.tokenRoles
+        .map((role) => role?.id || role?.name)
+        .filter(Boolean);
+
       this.activeToken.policies = this.tokenPolicies;
       this.activeToken.roles = this.tokenRoles;
+      this.activeToken.policyIDs = policyIDs;
+      this.activeToken.policyNames = policyIDs;
+      this.activeToken.roleIDs = roleIDs;
 
       if (this.activeToken.type === 'management') {
         // Management tokens cannot have policies or roles
         this.activeToken.policyIDs = [];
         this.activeToken.policyNames = [];
+        this.activeToken.roleIDs = [];
         this.activeToken.policies = [];
         this.activeToken.roles = [];
       }
@@ -132,7 +179,7 @@ export default class TokenEditorComponent extends Component {
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
           'administration.tokens.token',
-          this.activeToken.id
+          this.activeToken.id,
         );
       }
     } catch (err) {
@@ -147,5 +194,5 @@ export default class TokenEditorComponent extends Component {
         sticky: true,
       });
     }
-  }
+  });
 }

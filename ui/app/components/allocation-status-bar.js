@@ -21,11 +21,26 @@ export default class AllocationStatusBar extends DistributionBar {
   generateLegendLink(job, status) {
     if (!job || status === 'queued') return null;
 
+    const namespace = job.namespaceId || job.namespace;
+    const queryParams = {
+      status: JSON.stringify([status]),
+      page: 1,
+      search: '',
+      sort: 'modifyIndex',
+      desc: true,
+      client: '',
+      taskGroup: '',
+      version: '',
+      scheduling: '',
+      activeTask: null,
+    };
+
+    if (namespace && namespace !== 'default') {
+      queryParams.namespace = namespace;
+    }
+
     return {
-      queryParams: {
-        status: JSON.stringify([status]),
-        namespace: job.belongsTo('namespace').id(),
-      },
+      queryParams,
     };
   }
 

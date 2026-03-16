@@ -904,7 +904,15 @@ export default function (config) {
 
       this.post('/acl/token/:id', function (schema, request) {
         // If both Policies and Roles arrays are empty, return an error
-        const { Policies, Roles } = JSON.parse(request.requestBody);
+        const {
+          Name,
+          Policies,
+          Roles,
+          Type,
+          ExpirationTTL,
+          ExpirationTime,
+          Global,
+        } = JSON.parse(request.requestBody);
         if (!Policies.length && !Roles.length) {
           return new Response(
             500,
@@ -912,15 +920,27 @@ export default function (config) {
             'Either Policies or Roles must be specified'
           );
         }
-        return new Response(
-          200,
-          {},
-          {
-            id: request.params.id,
-            Policies,
-            Roles,
-          }
-        );
+
+        const token = schema.tokens.find(request.params.id);
+        const roleIds = (Roles || [])
+          .map((role) => (typeof role === 'string' ? role : role?.ID))
+          .filter(Boolean);
+
+        if (token) {
+          token.update({
+            name: Name,
+            policyIds: Policies || [],
+            roleIds,
+            type: Type,
+            expirationTTL: ExpirationTTL,
+            expirationTime: ExpirationTime ? new Date(ExpirationTime) : null,
+            global: Global,
+          });
+
+          return this.serialize(token);
+        }
+
+        return new Response(404, {}, null);
       });
 
       this.get('/acl/token/self', function ({ tokens }, req) {
@@ -1043,18 +1063,23 @@ export default function (config) {
       });
 
       this.put('/acl/role/:id', function (schema, request) {
-        const { Policies } = JSON.parse(request.requestBody);
+        const { Name, Description, Policies } = JSON.parse(request.requestBody);
         if (!Policies.length) {
           return new Response(500, {}, 'Policies must be specified');
         }
-        return new Response(
-          200,
-          {},
-          {
-            id: request.params.id,
-            Policies,
-          }
-        );
+
+        const role = schema.roles.find(request.params.id);
+        if (!role) {
+          return new Response(404, {}, null);
+        }
+
+        role.update({
+          name: Name,
+          description: Description,
+          policyIds: Policies.map((policy) => policy.Name),
+        });
+
+        return this.serialize(role);
       });
 
       this.delete('/acl/role/:id', function (schema, request) {
@@ -1105,7 +1130,23 @@ export default function (config) {
       });
 
       this.put('/sentinel/policy/:id', function (schema, req) {
-        return new Response(200, {}, {});
+        const { Name, Description, EnforcementLevel, Policy, Scope } =
+          JSON.parse(req.requestBody);
+
+        const policy = schema.sentinelPolicies.find(req.params.id);
+        if (!policy) {
+          return new Response(404, {}, null);
+        }
+
+        policy.update({
+          name: Name,
+          description: Description,
+          enforcementLevel: EnforcementLevel,
+          policy: Policy,
+          scope: Scope,
+        });
+
+        return this.serialize(policy);
       });
 
       this.delete('/acl/policy/:id', function (schema, request) {
@@ -1138,7 +1179,20 @@ export default function (config) {
       });
 
       this.put('/acl/policy/:id', function (schema, request) {
-        return new Response(200, {}, {});
+        const { Name, Description, Rules } = JSON.parse(request.requestBody);
+
+        const policy = schema.policies.find(request.params.id);
+        if (!policy) {
+          return new Response(404, {}, null);
+        }
+
+        policy.update({
+          name: Name,
+          description: Description,
+          rules: Rules,
+        });
+
+        return this.serialize(policy);
       });
 
       this.post('/acl/policy/:id', function (schema, request) {
@@ -1188,7 +1242,31 @@ export default function (config) {
       });
 
       this.put('/namespace/:id', function () {
-        return new Response(200, {}, {});
+        const {
+          Name,
+          Description,
+          Meta,
+          Capabilities,
+          NodePoolConfiguration,
+          Quota,
+        } = JSON.parse(arguments[1].requestBody);
+
+        const namespace = arguments[0].namespaces.find(arguments[1].params.id);
+        if (!namespace) {
+          return new Response(404, {}, null);
+        }
+
+        namespace.update({
+          id: Name,
+          name: Name,
+          description: Description,
+          meta: Meta,
+          capabilities: Capabilities,
+          nodePoolConfiguration: NodePoolConfiguration,
+          quota: Quota,
+        });
+
+        return this.serialize(namespace);
       });
 
       this.delete('/namespace/:id', function (schema, request) {
