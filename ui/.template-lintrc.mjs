@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-'use strict';
-
-module.exports = {
+export default {
   extends: 'recommended',
   rules: {
+    'no-at-ember-render-modifiers': 'off',
     'link-href-attributes': 'off',
     'no-action': 'off',
     'no-invalid-interactive': 'off',
