@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 export default {
   plugins: ['prettier-plugin-ember-template-tag'],
   overrides: [
