@@ -14,16 +14,14 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   deactivate() {
     const startTime = performance.now();
-    console.log('🔴 [CLIENTS] Route deactivating at', new Date().toISOString());
+    console.log('Route deactivating at', new Date().toISOString());
 
     this.cancelAllWatchers();
 
     super.deactivate(...arguments);
 
     const duration = performance.now() - startTime;
-    console.log(
-      `🔴 [CLIENTS] Deactivate completed in ${duration.toFixed(2)}ms`
-    );
+    console.log(`Deactivate completed in ${duration.toFixed(2)}ms`);
   }
 
   startWatchers(controller) {
