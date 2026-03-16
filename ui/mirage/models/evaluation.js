@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Model, hasMany, belongsTo } from 'miragejs';
+import { Model, hasMany } from 'miragejs';
 
 export default Model.extend({
   relatedEvals: hasMany('evaluation-stub'),

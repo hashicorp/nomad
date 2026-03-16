@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/no-commented-tests */
 import { setOwner } from '@ember/owner';
 // We comment test to show an example of how to use the factory function
 
@@ -19,7 +18,7 @@ import { setOwner } from '@ember/owner';
 
   test('testing my component', function(assert) {
     const component = this.createComponent({ hello: 'world' });
-    assert.equal(component.args.hello, 'world');
+    assert.deepEqual(component.args.hello, 'world');
   });
 */
 

@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
 import { dasherize } from '@ember/string';
-import { pickOne } from '../utils';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 

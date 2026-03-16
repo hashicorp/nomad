@@ -9,7 +9,7 @@
 
   &.is-pending {
     background: $grey-blue;
-    color: findColorInvert(darken($grey-blue, 10%));
+    color: findcolorinvert(darken($grey-blue, 10%));
     border-color: $grey-blue;
   }
 

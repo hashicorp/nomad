@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import globals from 'globals';
 import js from '@eslint/js';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 import ts from 'typescript-eslint';
 
@@ -49,7 +50,8 @@ const parserOptions = {
   },
 };
 
-export default ts.config(
+export default defineConfig([
+  globalIgnores(['dist/', 'coverage/', '!**/.*']),
   js.configs.recommended,
   ember.configs.base,
   ember.configs.gjs,
@@ -84,6 +86,17 @@ export default ts.config(
         ...globals.browser,
       },
     },
+    rules: {
+      'ember/no-runloop': 'off',
+      'ember/no-mixins': 'off',
+      'ember/avoid-leaking-state-in-ember-objects': 'off',
+      'ember/no-computed-properties-in-native-classes': 'off',
+      'ember/no-get': 'off',
+      'ember/no-classic-classes': 'off',
+      'ember/no-classic-components': 'off',
+      'ember/require-tagless-components': 'off',
+      'ember/no-component-lifecycle-hooks': 'off',
+    },
   },
   {
     files: ['**/*.{ts,gts}'],
@@ -92,12 +105,18 @@ export default ts.config(
       parserOptions: parserOptions.esm.ts,
     },
     extends: [...ts.configs.recommendedTypeChecked, ember.configs.gts],
+    rules: {
+      'ember/no-runloop': 'off',
+    },
   },
   {
     ...qunit.configs.recommended,
     files: ['tests/**/*-test.{js,gjs,ts,gts}'],
     plugins: {
       qunit,
+    },
+    rules: {
+      'ember/no-classic-classes': 'off',
     },
   },
   /**
@@ -111,11 +130,13 @@ export default ts.config(
       'tests/dummy/config/**/*.js',
       'testem.js',
       'testem*.js',
+      'test-reporter.js',
       'index.js',
       '.prettierrc.js',
       '.stylelintrc.js',
       '.template-lintrc.js',
       'ember-cli-build.js',
+      'server/**/*.js',
     ],
     plugins: {
       n,
@@ -148,4 +169,4 @@ export default ts.config(
       },
     },
   },
-);
+]);

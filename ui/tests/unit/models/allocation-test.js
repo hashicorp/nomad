@@ -41,7 +41,7 @@ module('Unit | Model | allocation', function (hooks) {
       }),
     );
 
-    assert.equal(allocation.get('taskGroup.name'), 'from-job');
+    assert.deepEqual(allocation.get('taskGroup.name'), 'from-job');
   });
 
   test("When the allocation's job version does not match the job's version, the task group comes from the alloc.", function (assert) {
@@ -72,7 +72,7 @@ module('Unit | Model | allocation', function (hooks) {
       }),
     );
 
-    assert.equal(allocation.get('taskGroup.name'), 'from-allocation');
+    assert.deepEqual(allocation.get('taskGroup.name'), 'from-allocation');
   });
 
   test("When the allocation's job version does not match the job's version and the allocation has no task group, then task group is null", async function (assert) {
@@ -98,6 +98,10 @@ module('Unit | Model | allocation', function (hooks) {
       }),
     );
 
-    assert.equal(allocation.get('taskGroup.name'), null);
+    assert.strictEqual(
+      allocation.get('taskGroup')?.name ?? null,
+      null,
+      'taskGroup.name is null when no allocation task group is present',
+    );
   });
 });

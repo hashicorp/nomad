@@ -22,8 +22,6 @@ module('Integration | Component | job diff', function (hooks) {
   `;
 
   test('job field diffs', async function (assert) {
-    assert.expect(5);
-
     this.set('diff', {
       ID: 'test-case-1',
       Type: 'Edited',
@@ -37,12 +35,12 @@ module('Integration | Component | job diff', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-diff-section-label]').length,
       5,
       'A section label for each line, plus one for the group',
     );
-    assert.equal(
+    assert.deepEqual(
       cleanWhitespace(
         find(
           '[data-test-diff-section-label="field"][data-test-diff-field="added"]',
@@ -51,7 +49,7 @@ module('Integration | Component | job diff', function (hooks) {
       '+ Added Field: "Foobar"',
       'Added field is rendered correctly',
     );
-    assert.equal(
+    assert.deepEqual(
       cleanWhitespace(
         find(
           '[data-test-diff-section-label="field"][data-test-diff-field="edited"]',
@@ -60,7 +58,7 @@ module('Integration | Component | job diff', function (hooks) {
       '+/- Edited Field: "256" => "512"',
       'Edited field is rendered correctly',
     );
-    assert.equal(
+    assert.deepEqual(
       cleanWhitespace(
         find(
           '[data-test-diff-section-label="field"][data-test-diff-field="deleted"]',
@@ -74,8 +72,6 @@ module('Integration | Component | job diff', function (hooks) {
   });
 
   test('job object diffs', async function (assert) {
-    assert.expect(9);
-
     this.set('diff', {
       ID: 'test-case-2',
       Type: 'Edited',
@@ -171,7 +167,7 @@ module('Integration | Component | job diff', function (hooks) {
       'Removed object ends the JSON block',
     );
 
-    assert.equal(
+    assert.deepEqual(
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] > [data-test-diff-section-label]',
       ).length,
@@ -179,7 +175,7 @@ module('Integration | Component | job diff', function (hooks) {
       'Edited block contains each nested field and object',
     );
 
-    assert.equal(
+    assert.deepEqual(
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] [data-test-diff-section-label="object"] [data-test-diff-section-label="field"]',
       ).length,

@@ -14,7 +14,7 @@ export const serialize = (val) => {
 export const deserialize = (str) => {
   try {
     return JSON.parse(str).compact().without('');
-  } catch (e) {
+  } catch {
     return [];
   }
 };

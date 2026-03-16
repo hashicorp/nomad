@@ -49,8 +49,6 @@ module(
     });
 
     test('the latest deployment section shows up for the currently running deployment: Ungrouped Allocations (small cluster)', async function (assert) {
-      assert.expect(24);
-
       this.server.create('node');
 
       const NUMBER_OF_GROUPS = 2;
@@ -96,7 +94,7 @@ module(
       });
 
       this.set('job', jobRecord);
-      await this.get('job.allocations');
+      await this.job.allocations;
 
       await render(hbs`
         <JobStatus::Panel @job={{this.job}} />
@@ -108,7 +106,7 @@ module(
         'Does not show an active deployment when latest is failed',
       );
 
-      const deployment = await this.get('job.latestDeployment');
+      const deployment = await this.job.latestDeployment;
 
       await this.set('job.latestDeployment.status', 'running');
 
@@ -219,7 +217,7 @@ module(
       let NUMBER_OF_PENDING_CANARIES = 1;
 
       // Set some allocs to canary, and to healthy
-      this.get('job.allocations')
+      this.job.allocations
         .filter((a) => a.clientStatus === 'running')
         .slice(0, NUMBER_OF_RUNNING_CANARIES)
         .forEach((alloc) =>
@@ -228,7 +226,7 @@ module(
             Healthy: alloc.deploymentStatus?.Healthy,
           }),
         );
-      this.get('job.allocations')
+      this.job.allocations
         .filter((a) => a.clientStatus === 'running')
         .slice(0, NUMBER_OF_RUNNING_HEALTHY)
         .forEach((alloc) =>
@@ -237,7 +235,7 @@ module(
             Healthy: true,
           }),
         );
-      this.get('job.allocations')
+      this.job.allocations
         .filter((a) => a.clientStatus === 'failed')
         .slice(0, NUMBER_OF_FAILED_CANARIES)
         .forEach((alloc) =>
@@ -246,7 +244,7 @@ module(
             Healthy: alloc.deploymentStatus?.Healthy,
           }),
         );
-      this.get('job.allocations')
+      this.job.allocations
         .filter((a) => a.clientStatus === 'pending')
         .slice(0, NUMBER_OF_PENDING_CANARIES)
         .forEach((alloc) =>
@@ -319,7 +317,7 @@ module(
           'Old Alloc Summary text shows accurate numbers',
         );
 
-      assert.equal(
+      assert.deepEqual(
         find('[data-test-previous-allocations-legend]')
           .textContent.trim()
           .replace(/\s\s+/g, ' '),
@@ -332,7 +330,7 @@ module(
 
       // Try setting a few of the old allocs to complete and make sure number ticks down
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filter(
             (a) =>
               a.clientStatus === 'running' &&
@@ -373,7 +371,7 @@ module(
           'Old Alloc Summary text shows accurate numbers after some are marked complete',
         );
 
-      assert.equal(
+      assert.deepEqual(
         find('[data-test-previous-allocations-legend]')
           .textContent.trim()
           .replace(/\s\s+/g, ' '),
@@ -427,7 +425,7 @@ module(
         status: 'failed',
       });
 
-      let activelyDeployingJobAllocs = server.schema.allocations
+      let activelyDeployingJobAllocs = this.server.schema.allocations
         .all()
         .filter((a) => a.jobId === job.id);
 
@@ -440,10 +438,10 @@ module(
 
       this.set('job', jobRecord);
 
-      await this.get('job.latestDeployment');
+      await this.job.latestDeployment;
       await this.set('job.latestDeployment.status', 'running');
 
-      await this.get('job.allocations');
+      await this.job.allocations;
 
       await render(hbs`
         <JobStatus::Panel @job={{this.job}} />
@@ -457,7 +455,7 @@ module(
         .hasClass('rest', 'Failed block is a summary block');
 
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filterBy('clientStatus', 'failed')
           .slice(0, 3)
           .map(async (a) => {
@@ -524,7 +522,7 @@ module(
       });
 
       // All allocations set to Healthy and non-canary
-      let activelyDeployingJobAllocs = server.schema.allocations
+      let activelyDeployingJobAllocs = this.server.schema.allocations
         .all()
         .filter((a) => a.jobId === job.id);
 
@@ -534,10 +532,10 @@ module(
 
       this.set('job', jobRecord);
 
-      await this.get('job.latestDeployment');
+      await this.job.latestDeployment;
       await this.set('job.latestDeployment.status', 'running');
 
-      await this.get('job.allocations');
+      await this.job.allocations;
 
       await render(hbs`
         <JobStatus::Panel @job={{this.job}} />
@@ -556,7 +554,7 @@ module(
 
       // Set 3 allocations to health-pending canaries
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filterBy('clientStatus', 'running')
           .slice(0, 3)
           .map(async (a) => {
@@ -566,7 +564,7 @@ module(
 
       // Set the deployment's requiresPromotion to true
       await Promise.all(
-        this.get('job.latestDeployment.taskGroupSummaries').map(async (a) => {
+        this.job.latestDeployment.get('taskGroupSummaries').map(async (a) => {
           await a.set('desiredCanaries', 3);
         }),
       );
@@ -583,7 +581,7 @@ module(
 
       // Fail the health check on 1 canary
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filterBy('clientStatus', 'running')
           .slice(0, 1)
           .map(async (a) => {
@@ -597,7 +595,7 @@ module(
 
       // That 1 passes its health checks, but two peers remain pending
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filterBy('clientStatus', 'running')
           .slice(0, 1)
           .map(async (a) => {
@@ -611,7 +609,7 @@ module(
 
       // Fail one of the running canaries, but dont specifically touch its deploymentStatus.health
       await Promise.all(
-        this.get('job.allocations')
+        this.job.allocations
           .filterBy('clientStatus', 'running')
           .slice(0, 1)
           .map(async (a) => {
@@ -625,14 +623,12 @@ module(
 
       // Canaries all running and healthy
       await Promise.all(
-        this.get('job.allocations')
-          .slice(0, 3)
-          .map(async (a) => {
-            await a.setProperties({
-              deploymentStatus: { Healthy: true, Canary: true },
-              clientStatus: 'running',
-            });
-          }),
+        this.job.allocations.slice(0, 3).map(async (a) => {
+          await a.setProperties({
+            deploymentStatus: { Healthy: true, Canary: true },
+            clientStatus: 'running',
+          });
+        }),
       );
 
       await settled();

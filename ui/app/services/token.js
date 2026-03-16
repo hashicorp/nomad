@@ -6,7 +6,7 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias, reads } from '@ember/object/computed';
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
 import { wrappedFetch } from 'nomad-ui/utils/wrapped-fetch';
@@ -114,7 +114,7 @@ export default class TokenService extends Service {
         let policy = yield this.store.findRecord('policy', 'anonymous');
         return [policy];
       }
-    } catch (e) {
+    } catch {
       return [];
     }
   })
@@ -149,8 +149,8 @@ export default class TokenService extends Service {
   }
 
   authorizedRequest(url, options) {
-    if (this.get('system.shouldIncludeRegion')) {
-      const region = this.get('system.activeRegion');
+    if (this.system.shouldIncludeRegion) {
+      const region = this.system.activeRegion;
       if (region && url.indexOf('region=') === -1) {
         url = addParams(url, { region });
       }

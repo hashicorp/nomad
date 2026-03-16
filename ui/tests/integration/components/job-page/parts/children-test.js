@@ -62,7 +62,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
         @jobs={{this.children}} />
     `);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-job-name]').length,
       parent.get('children.length'),
       'A row for each child',
@@ -70,8 +70,6 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
   });
 
   test('eventually paginates', async function (assert) {
-    assert.expect(5);
-
     const pageSize = 10;
     window.localStorage.nomadPageSize = pageSize;
 
@@ -103,7 +101,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       childrenCount > pageSize,
       'Parent has more children than one page size',
     );
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-job-name]').length,
       pageSize,
       'Table length maxes out at 10',
@@ -121,8 +119,6 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
   });
 
   test('is sorted based on the sortProperty and sortDescending properties', async function (assert) {
-    assert.expect(6);
-
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,
@@ -150,7 +146,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
     const childRows = findAll('[data-test-job-name]');
 
     sortedChildren.reverse().forEach((child, index) => {
-      assert.equal(
+      assert.deepEqual(
         childRows[index].textContent.trim(),
         child.get('name'),
         `Child ${index} is ${child.get('name')}`,
@@ -160,7 +156,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
     await this.set('sortDescending', false);
 
     sortedChildren.forEach((child, index) => {
-      assert.equal(
+      assert.deepEqual(
         childRows[index].textContent.trim(),
         child.get('name'),
         `Child ${index} is ${child.get('name')}`,

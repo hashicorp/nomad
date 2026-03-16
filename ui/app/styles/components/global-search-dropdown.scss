@@ -22,7 +22,7 @@
 
   // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
   input[type='search'] {
-    -webkit-appearance: textfield;
+    appearance: textfield;
   }
 
   input::-webkit-search-decoration,

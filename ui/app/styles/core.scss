@@ -4,7 +4,7 @@
  */
 
 // Utils
-@import './utils/reset.scss';
+@import './utils/reset';
 @import './utils/z-indices';
 @import './utils/product-colors';
 @import './utils/bumper';
@@ -14,11 +14,10 @@
 @import 'sass/utilities/initial-variables';
 
 // Override variables where appropriate
-@import './core/variables.scss';
+@import './core/variables';
 
 // Bring in the rest of Bulma
 @import 'bulma';
-
 @import './utils/structure-colors';
 
 // Override Bulma details where appropriate

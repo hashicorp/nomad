@@ -70,8 +70,6 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
   `;
 
   test('presents as a div with a label and an svg with CPU and memory rows', async function (assert) {
-    assert.expect(4);
-
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -89,7 +87,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizNode.isPresent);
-    assert.equal(
+    assert.deepEqual(
       TopoVizNode.memoryRects.length,
       this.node.allocations.filterBy('allocation.isScheduled').length,
     );
@@ -149,7 +147,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('clock'));
-    assert.equal(TopoVizNode.statusIconLabel, 'Client is draining');
+    assert.deepEqual(TopoVizNode.statusIconLabel, 'Client is draining');
   });
 
   test('the status icon indicates when the node is ineligible for scheduling', async function (assert) {
@@ -166,7 +164,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('lock'));
-    assert.equal(TopoVizNode.statusIconLabel, 'Client is ineligible');
+    assert.deepEqual(TopoVizNode.statusIconLabel, 'Client is ineligible');
   });
 
   test('when isDense is false, clicking the node does nothing', async function (assert) {
@@ -246,7 +244,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
 
     assert.ok(heightSpy.called);
     assert.ok(heightSpy.calledWith(this.node.memory));
-    assert.equal(TopoVizNode.memoryRects[0].height, `${height}px`);
+    assert.deepEqual(TopoVizNode.memoryRects[0].height, `${height}px`);
   });
 
   test('each allocation gets a memory rect and a cpu rect', async function (assert) {
@@ -262,13 +260,14 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(TopoVizNode.memoryRects.length, this.node.allocations.length);
-    assert.equal(TopoVizNode.cpuRects.length, this.node.allocations.length);
+    assert.deepEqual(
+      TopoVizNode.memoryRects.length,
+      this.node.allocations.length,
+    );
+    assert.deepEqual(TopoVizNode.cpuRects.length, this.node.allocations.length);
   });
 
   test('each allocation is sized according to its percentage of utilization', async function (assert) {
-    assert.expect(4);
-
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -295,8 +294,8 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     this.node.allocations.forEach((alloc, index) => {
       const memWidth = alloc.memoryPercent * width - (index === 0 ? 0.5 : 1);
       const cpuWidth = alloc.cpuPercent * width - (index === 0 ? 0.5 : 1);
-      assert.equal(TopoVizNode.memoryRects[index].width, `${memWidth}px`);
-      assert.equal(TopoVizNode.cpuRects[index].width, `${cpuWidth}px`);
+      assert.deepEqual(TopoVizNode.memoryRects[index].width, `${memWidth}px`);
+      assert.deepEqual(TopoVizNode.cpuRects[index].width, `${cpuWidth}px`);
     });
   });
 
@@ -314,18 +313,18 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].select();
-    assert.equal(this.onAllocationSelect.callCount, 1);
+    assert.deepEqual(this.onAllocationSelect.callCount, 1);
     assert.ok(this.onAllocationSelect.calledWith(this.node.allocations[0]));
 
     await TopoVizNode.cpuRects[0].select();
-    assert.equal(this.onAllocationSelect.callCount, 2);
+    assert.deepEqual(this.onAllocationSelect.callCount, 2);
 
     await TopoVizNode.cpuRects[1].select();
-    assert.equal(this.onAllocationSelect.callCount, 3);
+    assert.deepEqual(this.onAllocationSelect.callCount, 3);
     assert.ok(this.onAllocationSelect.calledWith(this.node.allocations[1]));
 
     await TopoVizNode.memoryRects[1].select();
-    assert.equal(this.onAllocationSelect.callCount, 4);
+    assert.deepEqual(this.onAllocationSelect.callCount, 4);
   });
 
   test('hovering over a memory or cpu rect for an allocation will call onAllocationFocus', async function (assert) {
@@ -342,23 +341,23 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].hover();
-    assert.equal(this.onAllocationFocus.callCount, 1);
-    assert.equal(
+    assert.deepEqual(this.onAllocationFocus.callCount, 1);
+    assert.deepEqual(
       this.onAllocationFocus.getCall(0).args[0].allocation,
       this.node.allocations[0].allocation,
     );
-    assert.equal(
+    assert.deepEqual(
       this.onAllocationFocus.getCall(0).args[1],
       findAll('[data-test-memory-rect]')[0],
     );
 
     await TopoVizNode.cpuRects[1].hover();
-    assert.equal(this.onAllocationFocus.callCount, 2);
-    assert.equal(
+    assert.deepEqual(this.onAllocationFocus.callCount, 2);
+    assert.deepEqual(
       this.onAllocationFocus.getCall(1).args[0].allocation,
       this.node.allocations[1].allocation,
     );
-    assert.equal(
+    assert.deepEqual(
       this.onAllocationFocus.getCall(1).args[1],
       findAll('[data-test-cpu-rect]')[1],
     );
@@ -378,19 +377,17 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].hover();
-    assert.equal(this.onAllocationFocus.callCount, 1);
-    assert.equal(this.onAllocationBlur.callCount, 0);
+    assert.deepEqual(this.onAllocationFocus.callCount, 1);
+    assert.deepEqual(this.onAllocationBlur.callCount, 0);
 
     await TopoVizNode.memoryRects[0].mouseleave();
-    assert.equal(this.onAllocationBlur.callCount, 0);
+    assert.deepEqual(this.onAllocationBlur.callCount, 0);
 
     await TopoVizNode.mouseout();
-    assert.equal(this.onAllocationBlur.callCount, 1);
+    assert.deepEqual(this.onAllocationBlur.callCount, 1);
   });
 
   test('allocations are sorted by smallest to largest delta of memory to cpu percent utilizations', async function (assert) {
-    assert.expect(10);
-
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
 
     const evenAlloc = allocGen(node, 100, 100);
@@ -424,8 +421,8 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       largeMemoryAlloc,
     ];
     expectedOrder.forEach((alloc, index) => {
-      assert.equal(TopoVizNode.memoryRects[index].id, alloc.allocation.id);
-      assert.equal(TopoVizNode.cpuRects[index].id, alloc.allocation.id);
+      assert.deepEqual(TopoVizNode.memoryRects[index].id, alloc.allocation.id);
+      assert.deepEqual(TopoVizNode.cpuRects[index].id, alloc.allocation.id);
     });
   });
 
@@ -441,6 +438,6 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     );
 
     await render(commonTemplate);
-    assert.equal(TopoVizNode.emptyMessage, 'Empty Client');
+    assert.deepEqual(TopoVizNode.emptyMessage, 'Empty Client');
   });
 });

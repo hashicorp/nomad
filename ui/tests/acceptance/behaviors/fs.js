@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, visit } from '@ember/test-helpers';
@@ -58,7 +57,7 @@ export default function browseFilesystem({
     });
     const pathBaseWithoutTrailingSlash = pathBaseWithTrailingSlash.slice(0, -1);
 
-    assert.equal(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
+    assert.deepEqual(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
   });
 
   test('visiting filesystem paths', async function (assert) {
@@ -80,7 +79,7 @@ export default function browseFilesystem({
         ...visitSegments({ allocation: this.allocation, task: this.task }),
         path: filePath,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `${getExpectedPathBase({
           allocation: this.allocation,
@@ -96,7 +95,7 @@ export default function browseFilesystem({
           })}`,
         ),
       );
-      assert.equal(
+      assert.deepEqual(
         FS.breadcrumbsText,
         `${getBreadcrumbComponent({
           allocation: this.allocation,
@@ -126,24 +125,24 @@ export default function browseFilesystem({
 
     assert.ok(FS.fileViewer.isHidden);
 
-    assert.equal(FS.directoryEntries.length, 4);
+    assert.deepEqual(FS.directoryEntries.length, 4);
 
-    assert.equal(FS.breadcrumbsText, getBreadcrumbComponent(objects));
+    assert.deepEqual(FS.breadcrumbsText, getBreadcrumbComponent(objects));
 
-    assert.equal(FS.breadcrumbs.length, 1);
+    assert.deepEqual(FS.breadcrumbs.length, 1);
     assert.ok(FS.breadcrumbs[0].isActive);
-    assert.equal(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
+    assert.deepEqual(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
 
     FS.directoryEntries[0].as((directory) => {
       const fileRecord = sortedFiles[0];
-      assert.equal(
+      assert.deepEqual(
         directory.name,
         fileRecord.name,
         'directories should come first',
       );
       assert.ok(directory.isDirectory);
-      assert.equal(directory.size, '', 'directory sizes are hidden');
-      assert.equal(
+      assert.deepEqual(directory.size, '', 'directory sizes are hidden');
+      assert.deepEqual(
         directory.lastModified,
         moment(fileRecord.modTime).fromNow(),
       );
@@ -155,43 +154,43 @@ export default function browseFilesystem({
 
     FS.directoryEntries[2].as((file) => {
       const fileRecord = sortedFiles[2];
-      assert.equal(file.name, fileRecord.name);
+      assert.deepEqual(file.name, fileRecord.name);
       assert.ok(file.isFile);
-      assert.equal(file.size, formatBytes(fileRecord.size));
-      assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
+      assert.deepEqual(file.size, formatBytes(fileRecord.size));
+      assert.deepEqual(file.lastModified, moment(fileRecord.modTime).fromNow());
     });
 
     await FS.directoryEntries[0].visit();
 
-    assert.equal(FS.directoryEntries.length, 1);
+    assert.deepEqual(FS.directoryEntries.length, 1);
 
-    assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(
+    assert.deepEqual(FS.breadcrumbs.length, 2);
+    assert.deepEqual(
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
-    assert.equal(FS.breadcrumbs[1].text, this.directory.name);
+    assert.deepEqual(FS.breadcrumbs[1].text, this.directory.name);
     assert.ok(FS.breadcrumbs[1].isActive);
 
     await FS.directoryEntries[0].visit();
 
-    assert.equal(FS.directoryEntries.length, 1);
+    assert.deepEqual(FS.directoryEntries.length, 1);
     assert.notOk(
       FS.directoryEntries[0].path.includes('//'),
       'paths shouldn’t have redundant separators',
     );
 
-    assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(
+    assert.deepEqual(FS.breadcrumbs.length, 3);
+    assert.deepEqual(
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${this.directory.name} ${
         this.nestedDirectory.name
       }`,
     );
-    assert.equal(FS.breadcrumbs[2].text, this.nestedDirectory.name);
+    assert.deepEqual(FS.breadcrumbs[2].text, this.nestedDirectory.name);
 
     assert.notOk(
       FS.breadcrumbs[0].path.includes('//'),
@@ -203,11 +202,11 @@ export default function browseFilesystem({
     );
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(
+    assert.deepEqual(
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
-    assert.equal(FS.breadcrumbs.length, 2);
+    assert.deepEqual(FS.breadcrumbs.length, 2);
   });
 
   test('sorting allocation filesystem directory', async function (assert) {
@@ -332,9 +331,9 @@ export default function browseFilesystem({
 
   test('viewing a file', async function (assert) {
     const objects = { allocation: this.allocation, task: this.task };
-    const node = server.db.nodes.find(this.allocation.nodeId);
+    const node = this.server.db.nodes.find(this.allocation.nodeId);
 
-    server.get(
+    this.server.get(
       `http://${node.httpAddr}/v1/client/fs/readat/:allocation_id`,
       function () {
         return new Response(500);
@@ -356,7 +355,7 @@ export default function browseFilesystem({
 
     await FS.directoryEntries[fileIndex].visit();
 
-    assert.equal(
+    assert.deepEqual(
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${fileRecord.name}`,
     );
@@ -369,15 +368,15 @@ export default function browseFilesystem({
     const firstAttempt = readAtRequests[0];
     const secondAttempt = readAtRequests[1];
 
-    assert.equal(readAtRequests.length, 2, 'Two readat attempts were made');
+    assert.deepEqual(readAtRequests.length, 2, 'Two readat attempts were made');
 
-    assert.equal(
+    assert.deepEqual(
       firstAttempt.url.split('?')[0],
       `//${node.httpAddr}/v1/client/fs/readat/${this.allocation.id}`,
       'Client is hit first',
     );
-    assert.equal(firstAttempt.status, 500, 'Client request fails');
-    assert.equal(
+    assert.deepEqual(firstAttempt.status, 500, 'Client request fails');
+    assert.deepEqual(
       secondAttempt.url.split('?')[0],
       `/v1/client/fs/readat/${this.allocation.id}`,
       'Server is hit second',
@@ -407,7 +406,7 @@ export default function browseFilesystem({
       'Not Found',
       '500 is not interpreted as 404',
     );
-    assert.equal(
+    assert.deepEqual(
       FS.error.title,
       'Server Error',
       '500 is not interpreted as 500',
@@ -423,7 +422,11 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: '/what-is-this',
     });
-    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+    assert.deepEqual(
+      FS.error.title,
+      'Error',
+      'other statuses are passed through',
+    );
   });
 
   test('viewing paths that produce ls API errors', async function (assert) {
@@ -440,7 +443,7 @@ export default function browseFilesystem({
       'Not Found',
       '500 is not interpreted as 404',
     );
-    assert.equal(
+    assert.deepEqual(
       FS.error.title,
       'Server Error',
       '500 is not interpreted as 404',
@@ -456,6 +459,10 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: this.directory.name,
     });
-    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+    assert.deepEqual(
+      FS.error.title,
+      'Error',
+      'other statuses are passed through',
+    );
   });
 }

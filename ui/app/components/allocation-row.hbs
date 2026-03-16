@@ -118,7 +118,7 @@
     {{this.allocation.jobVersion}}
   </td>
 {{/if}}
-{{#if (not (eq this.context "volume"))}}
+{{#if (not-eq this.context "volume")}}
   <td data-test-volume>
     {{if this.allocation.taskGroup.volumes.length "Yes"}}
   </td>

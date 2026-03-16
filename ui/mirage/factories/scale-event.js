@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'miragejs';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 const REF_TIME = new Date();

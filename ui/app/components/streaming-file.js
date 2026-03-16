@@ -39,7 +39,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     }
 
     // Defer task start/stop so task state doesn't mutate during render.
-    scheduleOnce('actions', () => this.performTask());
+    scheduleOnce('actions', this, this.performTask);
   }
 
   performTask() {

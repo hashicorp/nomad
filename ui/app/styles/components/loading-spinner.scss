@@ -4,10 +4,8 @@
  */
 
 $duration: 5s;
-
 $side-length: 50px;
 $cube-length: $side-length * 5;
-
 $lighter-side: $grey-blue;
 $darker-side: darken($lighter-side, 15%);
 
@@ -27,7 +25,6 @@ $darker-side: darken($lighter-side, 15%);
     height: $cube-length;
     top: 0;
     left: 0;
-
     display: flex;
     justify-content: center;
     align-items: center;

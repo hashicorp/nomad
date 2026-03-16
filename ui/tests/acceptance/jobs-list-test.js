@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { getPageTitle } from 'ember-page-title/test-support';
 import {
   currentURL,
@@ -30,11 +29,11 @@ module('Acceptance | jobs list', function (hooks) {
 
   hooks.beforeEach(function () {
     // Required for placing allocations (a result of creating jobs)
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    managementToken = server.create('token');
-    clientToken = server.create('token');
+    managementToken = this.server.create('token');
+    clientToken = this.server.create('token');
 
     window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
@@ -48,32 +47,32 @@ module('Acceptance | jobs list', function (hooks) {
   test('visiting /jobs', async function (assert) {
     await JobsList.visit();
 
-    assert.equal(currentURL(), '/jobs');
-    assert.equal(getPageTitle(), 'Jobs - Nomad');
+    assert.deepEqual(currentURL(), '/jobs');
+    assert.deepEqual(getPageTitle(), 'Jobs - Nomad');
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
     faker.seed(2);
     const jobsCount = JobsList.pageSize + 1;
-    server.createList('job', jobsCount, { createAllocations: true });
+    this.server.createList('job', jobsCount, { createAllocations: true });
 
     await JobsList.visit();
 
     await percySnapshot(assert);
 
-    const sortedJobs = server.db.jobs
+    const sortedJobs = this.server.db.jobs
       .sortBy('id')
       .sortBy('modifyIndex')
       .reverse();
-    assert.equal(JobsList.jobs.length, JobsList.pageSize);
+    assert.deepEqual(JobsList.jobs.length, JobsList.pageSize);
     JobsList.jobs.forEach((job, index) => {
-      assert.equal(job.name, sortedJobs[index].name, 'Jobs are ordered');
+      assert.deepEqual(job.name, sortedJobs[index].name, 'Jobs are ordered');
     });
   });
 
   test('each job row should contain information about the job', async function (assert) {
-    server.createList('job', 2);
-    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+    this.server.createList('job', 2);
+    const job = this.server.db.jobs.sortBy('modifyIndex').reverse()[0];
 
     await JobsList.visit();
 
@@ -85,33 +84,33 @@ module('Acceptance | jobs list', function (hooks) {
 
     const jobRow = JobsList.jobs.objectAt(0);
 
-    assert.equal(jobRow.name, job.name, 'Name');
+    assert.deepEqual(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
-    assert.equal(jobRow.nodePool, job.nodePool, 'Node Pool');
-    assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
-    assert.equal(
+    assert.deepEqual(jobRow.nodePool, job.nodePool, 'Node Pool');
+    assert.deepEqual(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
+    assert.deepEqual(
       jobRow.status,
       jobInStore.aggregateAllocStatus.label,
       'Status',
     );
-    assert.equal(jobRow.type, typeForJob(job), 'Type');
+    assert.deepEqual(jobRow.type, typeForJob(job), 'Type');
   });
 
   test('each job row should link to the corresponding job', async function (assert) {
-    server.create('job');
-    const job = server.db.jobs[0];
+    this.server.create('job');
+    const job = this.server.db.jobs[0];
 
     await JobsList.visit();
     await JobsList.jobs.objectAt(0).clickName();
 
-    assert.equal(currentURL(), `/jobs/${job.id}@default`);
+    assert.deepEqual(currentURL(), `/jobs/${job.id}@default`);
   });
 
   test('the new job button transitions to the new job page', async function (assert) {
     await JobsList.visit();
     await JobsList.runJobButton.click();
 
-    assert.equal(currentURL(), '/jobs/run');
+    assert.deepEqual(currentURL(), '/jobs/run');
   });
 
   test('the job run button is disabled when the token lacks permission', async function (assert) {
@@ -125,7 +124,7 @@ module('Acceptance | jobs list', function (hooks) {
   test('the anonymous policy is fetched to check whether to show the job run button', async function (assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
-    server.create('policy', {
+    this.server.create('policy', {
       id: 'anonymous',
       name: 'anonymous',
       rulesJSON: {
@@ -149,7 +148,7 @@ module('Acceptance | jobs list', function (hooks) {
     await percySnapshot(assert);
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
-    assert.equal(
+    assert.deepEqual(
       JobsList.emptyState.headline,
       'No Jobs',
       'The message is appropriate',
@@ -157,15 +156,15 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when there are jobs, but no matches for a search result, there is an empty message', async function (assert) {
-    server.create('job', { name: 'cat 1' });
-    server.create('job', { name: 'cat 2' });
+    this.server.create('job', { name: 'cat 1' });
+    this.server.create('job', { name: 'cat 2' });
 
     await JobsList.visit();
 
     await JobsList.search.fillIn('dog');
 
     assert.ok(JobsList.isEmpty, 'The empty message is shown');
-    assert.equal(
+    assert.deepEqual(
       JobsList.emptyState.headline,
       'No Matches',
       'The message is appropriate',
@@ -173,7 +172,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('searching resets the current page', async function (assert) {
-    server.createList('job', JobsList.pageSize + 1, {
+    this.server.createList('job', JobsList.pageSize + 1, {
       createAllocations: false,
     });
 
@@ -187,7 +186,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.search.fillIn('foobar');
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs?filter=Name%20matches%20%22(%3Fi)foobar%22',
       'No page query param',
@@ -195,46 +194,50 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when a cluster has namespaces, each job row includes the job namespace', async function (assert) {
-    server.createList('namespace', 2);
-    server.createList('job', 2);
-    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+    this.server.createList('namespace', 2);
+    this.server.createList('job', 2);
+    const job = this.server.db.jobs.sortBy('modifyIndex').reverse()[0];
 
     await JobsList.visit({ namespace: '*' });
 
     const jobRow = JobsList.jobs.objectAt(0);
-    assert.equal(jobRow.namespace, job.namespaceId);
+    assert.deepEqual(jobRow.namespace, job.namespaceId);
   });
 
   test('when the namespace query param is set, only matching jobs are shown', async function (assert) {
-    server.createList('namespace', 2);
-    const job1 = server.create('job', {
-      namespaceId: server.db.namespaces[0].id,
+    this.server.createList('namespace', 2);
+    const job1 = this.server.create('job', {
+      namespaceId: this.server.db.namespaces[0].id,
     });
-    const job2 = server.create('job', {
-      namespaceId: server.db.namespaces[1].id,
+    const job2 = this.server.create('job', {
+      namespaceId: this.server.db.namespaces[1].id,
     });
 
     await JobsList.visit();
-    assert.equal(JobsList.jobs.length, 2, 'All jobs by default');
+    assert.deepEqual(JobsList.jobs.length, 2, 'All jobs by default');
 
-    const firstNamespace = server.db.namespaces[0];
+    const firstNamespace = this.server.db.namespaces[0];
     await JobsList.visit({ filter: `Namespace == ${firstNamespace.id}` });
-    assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
-    assert.equal(
+    assert.deepEqual(
+      JobsList.jobs.length,
+      1,
+      'One job in the default namespace',
+    );
+    assert.deepEqual(
       JobsList.jobs.objectAt(0).name,
       job1.name,
       'The correct job is shown',
     );
 
-    const secondNamespace = server.db.namespaces[1];
+    const secondNamespace = this.server.db.namespaces[1];
     await JobsList.visit({ filter: `Namespace == ${secondNamespace.id}` });
 
-    assert.equal(
+    assert.deepEqual(
       JobsList.jobs.length,
       1,
       `One job in the ${secondNamespace.name} namespace`,
     );
-    assert.equal(
+    assert.deepEqual(
       JobsList.jobs.objectAt(0).name,
       job2.name,
       'The correct job is shown',
@@ -242,14 +245,14 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when accessing jobs is forbidden, show a message with a link to the tokens page', async function (assert) {
-    server.pretender.get('/v1/jobs/statuses', () => [403, {}, null]);
+    this.server.pretender.get('/v1/jobs/statuses', () => [403, {}, null]);
 
     await JobsList.visit();
-    assert.equal(JobsList.error.title, 'Not Authorized');
+    assert.deepEqual(JobsList.error.title, 'Not Authorized');
     await percySnapshot(assert);
 
     await JobsList.error.seekHelp();
-    assert.equal(currentURL(), '/settings/tokens');
+    assert.deepEqual(currentURL(), '/settings/tokens');
   });
 
   test('when a gateway timeout error occurs, appropriate options are shown', async function (assert) {
@@ -258,7 +261,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.dom('#jobs-list-cache-warning').doesNotExist();
 
-    server.pretender.get('/v1/jobs/statuses', () => [
+    this.server.pretender.get('/v1/jobs/statuses', () => [
       504,
       {
         errors: [
@@ -294,7 +297,7 @@ module('Acceptance | jobs list', function (hooks) {
       .doesNotExist('Error message removed when fetrching is paused');
     assert.dom('#jobs-list-cache-warning').exists('Cache warning remains');
 
-    server.pretender.get('/v1/jobs/statuses', () => [200, {}, null]);
+    this.server.pretender.get('/v1/jobs/statuses', () => [200, {}, null]);
     await click('[data-test-restart-fetching]');
     assert
       .dom('#jobs-list-cache-warning')
@@ -331,10 +334,10 @@ module('Acceptance | jobs list', function (hooks) {
     expectedOptions: ['default', 'namespace-2'],
     dynamicStrings: true,
     async beforeEach() {
-      server.create('namespace', { id: 'default' });
-      server.create('namespace', { id: 'namespace-2' });
-      server.createList('job', 2, { namespaceId: 'default' });
-      server.createList('job', 2, { namespaceId: 'namespace-2' });
+      this.server.create('namespace', { id: 'default' });
+      this.server.create('namespace', { id: 'namespace-2' });
+      this.server.createList('job', 2, { namespaceId: 'default' });
+      this.server.createList('job', 2, { namespaceId: 'namespace-2' });
       await JobsList.visit();
     },
     filter(job, selection) {
@@ -347,20 +350,23 @@ module('Acceptance | jobs list', function (hooks) {
     paramName: 'type',
     expectedOptions: ['batch', 'service', 'system', 'sysbatch'],
     async beforeEach() {
-      server.createList('job', 2, { createAllocations: false, type: 'batch' });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
+        createAllocations: false,
+        type: 'batch',
+      });
+      this.server.createList('job', 2, {
         createAllocations: false,
         type: 'batch',
         periodic: true,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         createAllocations: false,
         type: 'batch',
         parameterized: true,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         createAllocations: false,
         type: 'service',
       });
@@ -377,17 +383,17 @@ module('Acceptance | jobs list', function (hooks) {
     paramName: 'status',
     expectedOptions: ['pending', 'running', 'dead'],
     async beforeEach() {
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'pending',
         createAllocations: false,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'running',
         createAllocations: false,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'dead',
         createAllocations: false,
         childrenCount: 0,
@@ -398,7 +404,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when the facet selections result in no matches, the empty state states why', async function (assert) {
-    server.createList('job', 2, {
+    this.server.createList('job', 2, {
       status: 'pending',
       createAllocations: false,
       childrenCount: 0,
@@ -409,7 +415,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.facets.status.toggle();
     await JobsList.facets.status.options.objectAt(1).toggle();
     assert.ok(JobsList.isEmpty, 'There is an empty message');
-    assert.equal(
+    assert.deepEqual(
       JobsList.emptyState.headline,
       'No Matches',
       'The message is appropriate',
@@ -417,12 +423,12 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('the jobs list is immediately filtered based on query params', async function (assert) {
-    server.create('job', { type: 'batch', createAllocations: false });
-    server.create('job', { type: 'service', createAllocations: false });
+    this.server.create('job', { type: 'batch', createAllocations: false });
+    this.server.create('job', { type: 'service', createAllocations: false });
 
     await JobsList.visit({ filter: 'Type == batch' });
 
-    assert.equal(
+    assert.deepEqual(
       JobsList.jobs.length,
       1,
       'Only one job shown due to query param',
@@ -433,10 +439,10 @@ module('Acceptance | jobs list', function (hooks) {
     const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
 
-    server.create('namespace', { id: READ_AND_WRITE_NAMESPACE });
-    server.create('namespace', { id: READ_ONLY_NAMESPACE });
+    this.server.create('namespace', { id: READ_AND_WRITE_NAMESPACE });
+    this.server.create('namespace', { id: READ_ONLY_NAMESPACE });
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'something',
       name: 'something',
       rulesJSON: {
@@ -469,9 +475,9 @@ module('Acceptance | jobs list', function (hooks) {
     const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
 
-    server.create('namespace', { id: READ_ONLY_NAMESPACE });
+    this.server.create('namespace', { id: READ_ONLY_NAMESPACE });
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'something',
       name: 'something',
       rulesJSON: {
@@ -501,7 +507,7 @@ module('Acceptance | jobs list', function (hooks) {
     pageObject: JobsList,
     pageObjectList: JobsList.jobs,
     async setup() {
-      server.createList('job', JobsList.pageSize, {
+      this.server.createList('job', JobsList.pageSize, {
         shallow: true,
         createAllocations: false,
       });
@@ -510,14 +516,14 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('the run job button works when filters are set', async function (assert) {
-    server.create('job', {
+    this.server.create('job', {
       name: 'un',
       createAllocations: false,
       childrenCount: 0,
       type: 'batch',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'deux',
       createAllocations: false,
       childrenCount: 0,
@@ -530,22 +536,22 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.facets.type.options[0].toggle();
 
     await JobsList.runJobButton.click();
-    assert.equal(currentURL(), '/jobs/run');
+    assert.deepEqual(currentURL(), '/jobs/run');
   });
 
   test('Parent/child jobs are displayed correctly', async function (assert) {
     localStorage.setItem('nomadPageSize', '10');
-    createJobs(server, 5);
+    createJobs(this.server, 5);
 
-    let periodicJob = server.create('job', 'periodic', {
+    let periodicJob = this.server.create('job', 'periodic', {
       name: 'periodic',
       id: 'periodic',
       childrenCount: 10,
     });
 
     // Set all children of that job to have a status of "running"
-    server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
-      server.db.jobs.update(job.id, { status: 'running' });
+    this.server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
+      this.server.db.jobs.update(job.id, { status: 'running' });
     });
 
     await JobsList.visit();
@@ -567,8 +573,8 @@ module('Acceptance | jobs list', function (hooks) {
       .dom('[data-test-job-row="periodic"] [data-test-job-status]')
       .hasText('10 running jobs', 'Parent job status indicates running jobs');
 
-    server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
-      server.db.jobs.update(job.id, { status: 'dead' });
+    this.server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
+      this.server.db.jobs.update(job.id, { status: 'dead' });
     });
 
     const controller = this.owner.lookup('controller:jobs.index');
@@ -617,7 +623,7 @@ module('Acceptance | jobs list', function (hooks) {
       type: 'service',
     };
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'healthy-job',
       allocStatusDistribution: {
@@ -625,7 +631,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'degraded-job',
       allocStatusDistribution: {
@@ -634,7 +640,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'recovering-job',
       allocStatusDistribution: {
@@ -643,7 +649,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'completed-job',
       allocStatusDistribution: {
@@ -652,7 +658,7 @@ module('Acceptance | jobs list', function (hooks) {
       type: 'batch',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'running-job',
       allocStatusDistribution: {
@@ -661,7 +667,7 @@ module('Acceptance | jobs list', function (hooks) {
       type: 'batch',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'failed-job',
       allocStatusDistribution: {
@@ -669,7 +675,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'failed-garbage-collected-job',
       type: 'service',
@@ -679,7 +685,7 @@ module('Acceptance | jobs list', function (hooks) {
       status: 'running',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'stopped-job',
       type: 'service',
@@ -690,7 +696,7 @@ module('Acceptance | jobs list', function (hooks) {
       stopped: true,
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'deploying-job',
       allocStatusDistribution: {
@@ -701,14 +707,14 @@ module('Acceptance | jobs list', function (hooks) {
       activeDeployment: true,
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'scaled-down-job',
       groupAllocCount: 0,
       status: 'dead',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       ...defaultJobParams,
       id: 'ancient-system-job',
       status: 'dead',
@@ -759,15 +765,15 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('Jobs with schedule blocks indicate when a task is paused', async function (assert) {
-    server.create('job', {
+    this.server.create('job', {
       name: 'regular-job-1',
       createAllocations: true,
     });
-    server.create('job', {
+    this.server.create('job', {
       name: 'regular-job-2',
       createAllocations: true,
     });
-    server.create('job', {
+    this.server.create('job', {
       name: 'time-based-job',
       id: 'time-based-job',
       createAllocations: true,
@@ -786,11 +792,13 @@ module('Acceptance | jobs list', function (hooks) {
       noFailedPlacements: true,
     });
 
-    const allocID = server.db.allocations.findBy({
+    const allocID = this.server.db.allocations.findBy({
       jobId: 'time-based-job',
     }).id;
-    const groupID = server.db.taskGroups.findBy({ jobId: 'time-based-job' }).id;
-    const task = server.db.tasks.findBy({ taskGroupID: groupID });
+    const groupID = this.server.db.taskGroups.findBy({
+      jobId: 'time-based-job',
+    }).id;
+    const task = this.server.db.tasks.findBy({ taskGroupID: groupID });
 
     await JobsList.visit();
 
@@ -818,7 +826,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
       test('when there are fewer jobs than your page size setting', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 5);
+        createJobs(this.server, 5);
         await JobsList.visit();
         assert.dom('[data-test-pager="first"]').isDisabled();
         assert.dom('[data-test-pager="previous"]').isDisabled();
@@ -829,7 +837,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
       test('when you have plenty of jobs', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 25);
+        createJobs(this.server, 25);
         await JobsList.visit();
         assert.dom('.job-row').exists({ count: 10 });
         assert.dom('[data-test-pager="first"]').isDisabled();
@@ -858,7 +866,7 @@ module('Acceptance | jobs list', function (hooks) {
       test('on a single long page', async function (assert) {
         const jobsToCreate = 25;
         localStorage.setItem('nomadPageSize', '25');
-        createJobs(server, jobsToCreate);
+        createJobs(this.server, jobsToCreate);
         await JobsList.visit();
         assert.dom('.job-row').exists({ count: 25 });
         // Check the data-test-modify-index attribute on each row
@@ -880,7 +888,7 @@ module('Acceptance | jobs list', function (hooks) {
         const jobsToCreate = 90;
         const pageSize = 25;
         localStorage.setItem('nomadPageSize', pageSize.toString());
-        createJobs(server, jobsToCreate);
+        createJobs(this.server, jobsToCreate);
         await JobsList.visit();
         let rows = document.querySelectorAll('.job-row');
         let modifyIndexes = Array.from(rows).map((row) =>
@@ -960,7 +968,7 @@ module('Acceptance | jobs list', function (hooks) {
             .slice(pageSize * 3),
           'Fourth page is sorted by modify index',
         );
-        assert.equal(
+        assert.deepEqual(
           rows.length,
           jobsToCreate - pageSize * 3,
           'Last page has fewer jobs',
@@ -997,7 +1005,7 @@ module('Acceptance | jobs list', function (hooks) {
             .slice(-pageSize),
           'Last page is sorted by modify index',
         );
-        assert.equal(
+        assert.deepEqual(
           rows.length,
           pageSize,
           'Last page has the correct number of jobs',
@@ -1043,11 +1051,11 @@ module('Acceptance | jobs list', function (hooks) {
     module('Live updates are reflected in the list', function () {
       test('When you have live updates enabled, the list updates when new jobs are created', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 10);
+        createJobs(this.server, 10);
         await JobsList.visit();
         assert.dom('.job-row').exists({ count: 10 });
         let rows = document.querySelectorAll('.job-row');
-        assert.equal(rows.length, 10, 'List is still 10 rows');
+        assert.deepEqual(rows.length, 10, 'List is still 10 rows');
         let modifyIndexes = Array.from(rows).map((row) =>
           parseInt(row.getAttribute('data-test-modify-index')),
         );
@@ -1062,7 +1070,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert.dom('[data-test-pager="next"]').isDisabled();
 
         // Create a new job
-        server.create('job', {
+        this.server.create('job', {
           namespaceId: 'default',
           resourceSpec: Array(1).fill('M: 256, C: 500'),
           groupAllocCount: 1,
@@ -1104,10 +1112,12 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
-          let existingJobToUpdate = server.db.jobs.findBy(
+          let existingJobToUpdate = this.server.db.jobs.findBy(
             (job) => job.modifyIndex === 5,
           );
-          server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
+          this.server.db.jobs.update(existingJobToUpdate.id, {
+            modifyIndex: 12,
+          });
           await controller.watchJobIDs.perform(currentParams, 0);
           let updatedOnPageJob = assert.async();
 
@@ -1128,8 +1138,8 @@ module('Acceptance | jobs list', function (hooks) {
             await click('[data-test-pager="next"]');
 
             rows = document.querySelectorAll('.job-row');
-            assert.equal(rows.length, 1, 'List is now 1 row');
-            assert.equal(
+            assert.deepEqual(rows.length, 1, 'List is now 1 row');
+            assert.deepEqual(
               rows[0].getAttribute('data-test-modify-index'),
               '1',
               'Job is the first job, now pushed to the second page',
@@ -1143,12 +1153,12 @@ module('Acceptance | jobs list', function (hooks) {
       test('When you have live updates disabled, the list does not update, but prompts you to refresh', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
         localStorage.setItem('nomadLiveUpdateJobsIndex', 'false');
-        createJobs(server, 10);
+        createJobs(this.server, 10);
         await JobsList.visit();
         assert.dom('[data-test-updates-pending-button]').doesNotExist();
 
         let rows = document.querySelectorAll('.job-row');
-        assert.equal(rows.length, 10, 'List is still 10 rows');
+        assert.deepEqual(rows.length, 10, 'List is still 10 rows');
         let modifyIndexes = Array.from(rows).map((row) =>
           parseInt(row.getAttribute('data-test-modify-index')),
         );
@@ -1162,7 +1172,7 @@ module('Acceptance | jobs list', function (hooks) {
         );
 
         // Create a new job
-        server.create('job', {
+        this.server.create('job', {
           namespaceId: 'default',
           resourceSpec: Array(1).fill('M: 256, C: 500'),
           groupAllocCount: 1,
@@ -1212,10 +1222,12 @@ module('Acceptance | jobs list', function (hooks) {
             );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
-          let existingJobToUpdate = server.db.jobs.findBy(
+          let existingJobToUpdate = this.server.db.jobs.findBy(
             (job) => job.modifyIndex === 5,
           );
-          server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
+          this.server.db.jobs.update(existingJobToUpdate.id, {
+            modifyIndex: 12,
+          });
           await controller.watchJobIDs.perform(currentParams, 0);
           let updatedShownJob = assert.async();
 
@@ -1265,13 +1277,13 @@ module('Acceptance | jobs list', function (hooks) {
     module('Search', function () {
       test('Searching reasons about whether you intended a job name or a filter expression', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 10);
+        createJobs(this.server, 10);
         await JobsList.visit();
 
         await JobsList.search.fillIn('something-that-surely-doesnt-exist');
         // check to see that we fired off a request; check handledRequests to find one with a ?filter in it
         assert.ok(
-          server.pretender.handledRequests.find((req) =>
+          this.server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes(
               '?filter=Name matches "(?i)something-that-surely-doesnt-exist"',
             ),
@@ -1282,7 +1294,7 @@ module('Acceptance | jobs list', function (hooks) {
         await JobsList.search.fillIn('Namespace == ns-2');
 
         assert.ok(
-          server.pretender.handledRequests.find((req) =>
+          this.server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes('?filter=Namespace == ns-2'),
           ),
           'A request was made with a filter query param for a filter expression as typed',
@@ -1293,13 +1305,13 @@ module('Acceptance | jobs list', function (hooks) {
 
       test('Searching by name filters the list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 10);
-        server.create('job', {
+        createJobs(this.server, 10);
+        this.server.create('job', {
           name: 'hashi-one',
           id: 'hashi-one',
           modifyIndex: 0,
         });
-        server.create('job', {
+        this.server.create('job', {
           name: 'hashi-two',
           id: 'hashi-two',
           modifyIndex: 0,
@@ -1390,13 +1402,13 @@ module('Acceptance | jobs list', function (hooks) {
 
       test('Searching by name filters the list case-insensitively', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 10);
-        server.create('job', {
+        createJobs(this.server, 10);
+        this.server.create('job', {
           name: 'hashi-one',
           id: 'hashi-one',
           modifyIndex: 0,
         });
-        server.create('job', {
+        this.server.create('job', {
           name: 'Hashi-two',
           id: 'hashi-two',
           modifyIndex: 0,
@@ -1412,31 +1424,31 @@ module('Acceptance | jobs list', function (hooks) {
 
       test('Searching by type filters the list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        server.createList('job', 10, {
+        this.server.createList('job', 10, {
           createAllocations: false,
           type: 'service',
           modifyIndex: 10,
         });
 
-        server.create('job', {
+        this.server.create('job', {
           id: 'batch-job',
           type: 'batch',
           createAllocations: false,
           modifyIndex: 9,
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'system-job',
           type: 'system',
           createAllocations: false,
           modifyIndex: 9,
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'sysbatch-job',
           type: 'sysbatch',
           createAllocations: false,
           modifyIndex: 9,
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'sysbatch-job-2',
           type: 'sysbatch',
           createAllocations: false,
@@ -1568,7 +1580,7 @@ module('Acceptance | jobs list', function (hooks) {
 
       test('Searching with a bad filter expression gives hints', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        createJobs(server, 10);
+        createJobs(this.server, 10);
         await JobsList.visit();
 
         // Try with "type" instead of "Type"
@@ -1604,23 +1616,23 @@ module('Acceptance | jobs list', function (hooks) {
       test('Filtering by namespace filters the list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
 
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'default',
           name: 'default',
         });
 
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'ns-2',
           name: 'ns-2',
         });
 
-        server.createList('job', 10, {
+        this.server.createList('job', 10, {
           createAllocations: false,
           namespaceId: 'default',
           modifyIndex: 10,
         });
 
-        server.create('job', {
+        this.server.create('job', {
           id: 'ns-2-job',
           namespaceId: 'ns-2',
           createAllocations: false,
@@ -1710,46 +1722,46 @@ module('Acceptance | jobs list', function (hooks) {
       });
       test('Namespace filter options can be filtered', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'default',
           name: 'default',
         });
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Bonderman',
           name: 'Bonderman',
         });
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Robertson',
           name: 'Robertson',
         });
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Rogers',
           name: 'Rogers',
         });
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Verlander',
           name: 'Verlander',
         });
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Miner',
           name: 'Miner',
         });
-        server.createList('job', 3, {
+        this.server.createList('job', 3, {
           createAllocations: false,
           namespaceId: 'default',
           modifyIndex: 10,
         });
-        server.createList('job', 3, {
+        this.server.createList('job', 3, {
           createAllocations: false,
           namespaceId: 'Bonderman',
           modifyIndex: 10,
         });
-        server.createList('job', 2, {
+        this.server.createList('job', 2, {
           createAllocations: false,
           namespaceId: 'Verlander',
           modifyIndex: 10,
         });
-        server.createList('job', 2, {
+        this.server.createList('job', 2, {
           createAllocations: false,
           namespaceId: 'Rogers',
           modifyIndex: 10,
@@ -1773,12 +1785,12 @@ module('Acceptance | jobs list', function (hooks) {
       test('Namespace filter only shows up if the server has more than one namespace', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
 
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'default',
           name: 'default',
         });
 
-        server.createList('job', 10, {
+        this.server.createList('job', 10, {
           createAllocations: false,
           namespaceId: 'default',
           modifyIndex: 10,
@@ -1791,7 +1803,7 @@ module('Acceptance | jobs list', function (hooks) {
             'Namespace filter should not appear with only one namespace.',
           );
 
-        server.create('namespace', {
+        this.server.create('namespace', {
           id: 'Bonderman',
           name: 'Bonderman',
         });
@@ -1809,20 +1821,20 @@ module('Acceptance | jobs list', function (hooks) {
       });
       test('Filtering by status filters the list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
-        server.createList('job', 10, {
+        this.server.createList('job', 10, {
           createAllocations: false,
           status: 'running',
           modifyIndex: 10,
         });
 
-        server.create('job', {
+        this.server.create('job', {
           id: 'pending-job',
           status: 'pending',
           createAllocations: false,
           modifyIndex: 9,
         });
 
-        server.create('job', {
+        this.server.create('job', {
           id: 'dead-job',
           status: 'dead',
           createAllocations: false,
@@ -1888,22 +1900,22 @@ module('Acceptance | jobs list', function (hooks) {
       test('Filtering by a dynamically-generated facet: data-test-facet="Node Pool"', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
 
-        server.create('node-pool', {
+        this.server.create('node-pool', {
           id: 'pool-1',
           name: 'pool-1',
         });
-        server.create('node-pool', {
+        this.server.create('node-pool', {
           id: 'pool-2',
           name: 'pool-2',
         });
 
-        server.createList('job', 10, {
+        this.server.createList('job', 10, {
           createAllocations: false,
           nodePool: 'pool-1',
           modifyIndex: 10,
         });
 
-        server.create('job', {
+        this.server.create('job', {
           id: 'pool-2-job',
           nodePool: 'pool-2',
           createAllocations: false,
@@ -1944,31 +1956,31 @@ module('Acceptance | jobs list', function (hooks) {
         localStorage.setItem('nomadPageSize', '10');
         // 2 service, 1 batch, 1 system, 1 sysbatch
         // 3 running, 1 dead, 1 pending
-        server.create('job', {
+        this.server.create('job', {
           id: 'job1',
           name: 'Alpha Processing',
           type: 'batch',
           status: 'running',
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'job2',
           name: 'Beta Calculation',
           type: 'service',
           status: 'dead',
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'job3',
           name: 'Gamma Analysis',
           type: 'sysbatch',
           status: 'pending',
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'job4',
           name: 'Delta Research',
           type: 'system',
           status: 'running',
         });
-        server.create('job', {
+        this.server.create('job', {
           id: 'job5',
           name: 'Epsilon Development',
           type: 'service',
@@ -2039,12 +2051,12 @@ function createJobs(server, jobsToCreate) {
 }
 
 async function facetOptions(assert, beforeEach, facet, expectedOptions) {
-  await beforeEach();
+  await beforeEach.call(this);
   await facet.toggle();
 
   let expectation;
   if (typeof expectedOptions === 'function') {
-    expectation = expectedOptions(server.db.jobs);
+    expectation = expectedOptions.call(this, this.server.db.jobs);
   } else {
     expectation = expectedOptions;
   }
@@ -2061,26 +2073,26 @@ function testFacet(
   { facet, paramName, beforeEach, filter, expectedOptions, dynamicStrings },
 ) {
   test(`the ${label} facet has the correct options`, async function (assert) {
-    await facetOptions(assert, beforeEach, facet, expectedOptions);
+    await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
   });
 
   test(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
     let option;
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     option = facet.options.objectAt(0);
     await option.toggle();
 
     const selection = [option.label];
-    const expectedJobs = server.db.jobs
+    const expectedJobs = this.server.db.jobs
       .filter((job) => filter(job, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     JobsList.jobs.forEach((job, index) => {
-      assert.equal(
+      assert.deepEqual(
         job.id,
         expectedJobs[index].id,
         `Job at ${index} is ${expectedJobs[index].id}`,
@@ -2092,7 +2104,7 @@ function testFacet(
     faker.seed(2);
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);
@@ -2102,13 +2114,13 @@ function testFacet(
     await option2.toggle();
     selection.push(option2.label);
 
-    const expectedJobs = server.db.jobs
+    const expectedJobs = this.server.db.jobs
       .filter((job) => filter(job, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     JobsList.jobs.forEach((job, index) => {
-      assert.equal(
+      assert.deepEqual(
         job.id,
         expectedJobs[index].id,
         `Job at ${index} is ${expectedJobs[index].id}`,
@@ -2119,7 +2131,7 @@ function testFacet(
   test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);

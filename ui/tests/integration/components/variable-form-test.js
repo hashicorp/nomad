@@ -22,10 +22,9 @@ module('Integration | Component | variable-form', function (hooks) {
   setupCodeMirror(hooks);
 
   test('passes an accessibility audit', async function (assert) {
-    assert.expect(1);
     this.set(
       'mockedModel',
-      server.create('variable', {
+      this.server.create('variable', {
         keyValues: [{ key: '', value: '' }],
       }),
     );
@@ -36,14 +35,13 @@ module('Integration | Component | variable-form', function (hooks) {
   test('shows a single row by default and modifies on "Add More" and "Delete"', async function (assert) {
     this.set(
       'mockedModel',
-      server.create('variable', {
+      this.server.create('variable', {
         keyValues: [{ key: '', value: '' }],
       }),
     );
-    assert.expect(7);
 
     await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-    assert.equal(
+    assert.deepEqual(
       findAll('div.key-value').length,
       1,
       'A single KV row exists by default',
@@ -73,7 +71,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
     await click('[data-test-add-kv]');
 
-    assert.equal(
+    assert.deepEqual(
       findAll('div.key-value').length,
       2,
       'A second KV row exists after adding a new one',
@@ -83,7 +81,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value:last-of-type [data-test-var-value]', 'bar');
     await click('[data-test-add-kv]');
 
-    assert.equal(
+    assert.deepEqual(
       findAll('div.key-value').length,
       3,
       'A third KV row exists after adding a new one',
@@ -91,7 +89,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
     await click('.delete-entry-button');
 
-    assert.equal(
+    assert.deepEqual(
       findAll('div.key-value').length,
       2,
       'Back down to two rows after hitting delete',
@@ -103,12 +101,10 @@ module('Integration | Component | variable-form', function (hooks) {
       faker.seed(1);
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           keyValues: [{ key: 'foo', value: 'bar' }],
         }),
       );
-
-      assert.expect(6);
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
       await click('[data-test-add-kv]'); // add a second variable
@@ -147,7 +143,6 @@ module('Integration | Component | variable-form', function (hooks) {
   });
 
   test('Existing variable shows properties by default', async function (assert) {
-    assert.expect(13);
     const keyValues = [
       { key: 'my-completely-normal-key', value: 'never' },
       { key: 'another key, but with spaces', value: 'gonna' },
@@ -158,36 +153,36 @@ module('Integration | Component | variable-form', function (hooks) {
 
     this.set(
       'mockedModel',
-      server.create('variable', {
+      this.server.create('variable', {
         path: 'my/path/to',
         keyValues,
       }),
     );
     await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-    assert.equal(
+    assert.deepEqual(
       findAll('div.key-value').length,
       5,
       'Shows 5 existing key values',
     );
-    assert.equal(
+    assert.deepEqual(
       findAll('.delete-entry-button').length,
       5,
       'Shows "delete" for all five rows',
     );
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-add-kv]').length,
       1,
       'Shows "add more" only on the last row',
     );
 
     findAll('div.key-value').forEach((row, idx) => {
-      assert.equal(
+      assert.deepEqual(
         row.querySelector(`[data-test-var-key]`).value,
         keyValues[idx].key,
         `Key ${idx + 1} is correct`,
       );
 
-      assert.equal(
+      assert.deepEqual(
         row.querySelector(`[data-test-var-value]`).value,
         keyValues[idx].value,
         keyValues[idx].value,
@@ -196,8 +191,6 @@ module('Integration | Component | variable-form', function (hooks) {
   });
 
   test('Prevent editing path input on existing variables', async function (assert) {
-    assert.expect(3);
-
     const variable = await this.server.create('variable', {
       name: 'foo',
       namespace: 'bar',
@@ -227,21 +220,21 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           path: '',
           keyValues: [{ key: '', value: '' }],
         }),
       );
 
-      server.create('variable', {
+      this.server.create('variable', {
         path: 'baz/bat',
       });
-      server.create('variable', {
+      this.server.create('variable', {
         path: 'baz/bat/qux',
-        namespace: server.db.namespaces[2].id,
+        namespace: this.server.db.namespaces[2].id,
       });
 
-      this.set('existingVariables', server.db.variables.toArray());
+      this.set('existingVariables', this.server.db.variables.toArray());
 
       await render(
         hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`,
@@ -264,7 +257,7 @@ module('Integration | Component | variable-form', function (hooks) {
       await clickToggle('[data-test-variable-namespace-filter]');
       await clickOption(
         '[data-test-variable-namespace-filter]',
-        server.db.namespaces[2].id,
+        this.server.db.namespaces[2].id,
       );
       assert.dom('[data-test-duplicate-variable-error]').doesNotExist();
       assert
@@ -284,7 +277,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           path: '',
           keyValues: [{ key: '', value: '' }],
         }),
@@ -323,7 +316,7 @@ module('Integration | Component | variable-form', function (hooks) {
     test('warns you when you set a key with . in it', async function (assert) {
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           keyValues: [{ key: '', value: '' }],
         }),
       );
@@ -379,7 +372,7 @@ module('Integration | Component | variable-form', function (hooks) {
     test('warns you when you create a duplicate key', async function (assert) {
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           keyValues: [{ key: 'myKey', value: 'myVal' }],
         }),
       );
@@ -403,7 +396,7 @@ module('Integration | Component | variable-form', function (hooks) {
     test('Allows you to swap between JSON and Key/Value Views', async function (assert) {
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           path: '',
           keyValues: [{ key: '', value: '' }],
         }),
@@ -411,7 +404,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set(
         'existingVariables',
-        server.createList('variable', 1, {
+        this.server.createList('variable', 1, {
           path: 'baz/bat',
         }),
       );
@@ -431,14 +424,13 @@ module('Integration | Component | variable-form', function (hooks) {
 
     test('Persists Key/Values table data to JSON', async function (assert) {
       faker.seed(1);
-      assert.expect(2);
       const keyValues = [
         { key: 'foo', value: '123' },
         { key: 'bar', value: '456' },
       ];
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           path: '',
           keyValues,
         }),
@@ -457,7 +449,7 @@ module('Integration | Component | variable-form', function (hooks) {
         return acc;
       }, {});
 
-      assert.equal(
+      assert.deepEqual(
         code('.editor-wrapper').get(),
         JSON.stringify(keyValuesAsJSON, null, 2),
         'JSON editor contains the key values, stringified, by default',
@@ -482,7 +474,7 @@ module('Integration | Component | variable-form', function (hooks) {
       const keyValues = [{ key: '', value: '' }];
       this.set(
         'mockedModel',
-        server.create('variable', {
+        this.server.create('variable', {
           path: '',
           keyValues,
         }),
@@ -498,13 +490,13 @@ module('Integration | Component | variable-form', function (hooks) {
         JSON.stringify({ golden: 'gate' }, null, 2),
       );
       this.set('view', 'table');
-      assert.equal(
+      assert.deepEqual(
         find(`.key-value:last-of-type [data-test-var-key]`).value,
         'golden',
         'Key persists from JSON to Table',
       );
 
-      assert.equal(
+      assert.deepEqual(
         find(`.key-value:last-of-type [data-test-var-value]`).value,
         'gate',
         'Value persists from JSON to Table',

@@ -29,8 +29,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('jobs with children use the children diagram', async function (assert) {
-    assert.expect(3);
-
     this.server.create('job', 'periodic', {
       createAllocations: false,
     });
@@ -56,8 +54,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('jobs without children use the allocations diagram', async function (assert) {
-    assert.expect(3);
-
     this.server.create('job', {
       createAllocations: false,
     });
@@ -95,40 +91,40 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{this.job}} />
     `);
 
-    assert.equal(
-      find('[data-test-legend-value="queued"]').textContent,
-      this.get('job.queuedAllocs'),
-      `${this.get('job.queuedAllocs')} are queued`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="queued"]').textContent.trim()),
+      this.job.queuedAllocs,
+      `${this.job.queuedAllocs} are queued`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="starting"]').textContent,
-      this.get('job.startingAllocs'),
-      `${this.get('job.startingAllocs')} are starting`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="starting"]').textContent.trim()),
+      this.job.startingAllocs,
+      `${this.job.startingAllocs} are starting`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="running"]').textContent,
-      this.get('job.runningAllocs'),
-      `${this.get('job.runningAllocs')} are running`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="running"]').textContent.trim()),
+      this.job.runningAllocs,
+      `${this.job.runningAllocs} are running`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="complete"]').textContent,
-      this.get('job.completeAllocs'),
-      `${this.get('job.completeAllocs')} are complete`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="complete"]').textContent.trim()),
+      this.job.completeAllocs,
+      `${this.job.completeAllocs} are complete`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="failed"]').textContent,
-      this.get('job.failedAllocs'),
-      `${this.get('job.failedAllocs')} are failed`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="failed"]').textContent.trim()),
+      this.job.failedAllocs,
+      `${this.job.failedAllocs} are failed`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="lost"]').textContent,
-      this.get('job.lostAllocs'),
-      `${this.get('job.lostAllocs')} are lost`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="lost"]').textContent.trim()),
+      this.job.lostAllocs,
+      `${this.job.lostAllocs} are lost`,
     );
   });
 
@@ -145,22 +141,22 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{this.job}} />
     `);
 
-    assert.equal(
-      find('[data-test-legend-value="queued"]').textContent,
-      this.get('job.pendingChildren'),
-      `${this.get('job.pendingChildren')} are pending`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="queued"]').textContent.trim()),
+      this.job.pendingChildren,
+      `${this.job.pendingChildren} are pending`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="running"]').textContent,
-      this.get('job.runningChildren'),
-      `${this.get('job.runningChildren')} are running`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="running"]').textContent.trim()),
+      this.job.runningChildren,
+      `${this.job.runningChildren} are running`,
     );
 
-    assert.equal(
-      find('[data-test-legend-value="complete"]').textContent,
-      this.get('job.deadChildren'),
-      `${this.get('job.deadChildren')} are dead`,
+    assert.strictEqual(
+      Number(find('[data-test-legend-value="complete"]').textContent.trim()),
+      this.job.deadChildren,
+      `${this.job.deadChildren} are dead`,
     );
   });
 
@@ -184,8 +180,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('when collapsed, the summary block includes an inline version of the chart', async function (assert) {
-    assert.expect(3);
-
     this.server.create('job', {
       createAllocations: false,
     });
@@ -231,7 +225,7 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
     );
     await click('[data-test-accordion-toggle]');
 
-    assert.equal(
+    assert.deepEqual(
       window.localStorage.nomadExpandJobSummary,
       'false',
       'Value is stored for the collapsed state',
@@ -264,7 +258,7 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     await click('[data-test-accordion-toggle]');
 
-    assert.equal(
+    assert.deepEqual(
       window.localStorage.nomadExpandJobSummary,
       'true',
       'localStorage value still toggles',

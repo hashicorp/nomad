@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 /**
@@ -58,7 +57,7 @@ export default class DefinitionRoute extends Route {
       variableFlags = specificationResponse?.VariableFlags ?? null;
       variableLiteral = specificationResponse?.Variables ?? null;
       format = specificationResponse?.Format ?? 'json';
-    } catch (e) {
+    } catch {
       // Swallow the error because Nomad job pre-1.6 will not have a specification
     }
 

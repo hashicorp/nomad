@@ -13,7 +13,7 @@ export function codeFillable(selector) {
 
     get() {
       return function (code) {
-        const cm = getCodeMirrorInstance(selector);
+        const cm = window.getCodeMirrorInstance(selector);
         cm.setValue(code);
         return this;
       };
@@ -30,7 +30,7 @@ export function code(selector) {
     isDescriptor: true,
 
     get() {
-      const cm = getCodeMirrorInstance(selector);
+      const cm = window.getCodeMirrorInstance(selector);
       return cm.getValue();
     },
   };

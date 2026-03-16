@@ -63,8 +63,6 @@ module('Unit | Component | TopoViz', function (hooks) {
   });
 
   test('the topology object contains an allocation index keyed by jobId+taskGroupName', async function (assert) {
-    assert.expect(7);
-
     const allocations = [
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
@@ -202,11 +200,11 @@ module('Unit | Component | TopoViz', function (hooks) {
     const topoViz = this.createComponent({ nodes, allocations });
     topoViz.buildTopology();
 
-    assert.equal(
+    assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent,
       0.5,
     );
-    assert.equal(
+    assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent,
       0.1,
     );

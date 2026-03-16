@@ -22,8 +22,6 @@ module('Integration | Component | page layout', function (hooks) {
   });
 
   test('the global-header hamburger menu opens the gutter menu', async function (assert) {
-    assert.expect(3);
-
     await render(hbs`<PageLayout />`);
 
     assert.notOk(

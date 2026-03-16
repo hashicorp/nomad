@@ -9,7 +9,7 @@ import { formatVolumeName } from 'nomad-ui/helpers/format-volume-name';
 module('Unit | Helper | formatVolumeName', function () {
   test('Returns source as string when isPerAlloc is false', function (assert) {
     const expectation = 'my-volume-source';
-    assert.equal(
+    assert.deepEqual(
       formatVolumeName(null, {
         source: 'my-volume-source',
         isPerAlloc: false,
@@ -18,7 +18,7 @@ module('Unit | Helper | formatVolumeName', function () {
       expectation,
       'false perAlloc',
     );
-    assert.equal(
+    assert.deepEqual(
       formatVolumeName(null, {
         source: 'my-volume-source',
         isPerAlloc: null,
@@ -31,7 +31,7 @@ module('Unit | Helper | formatVolumeName', function () {
 
   test('Returns concatonated name when isPerAlloc is true', function (assert) {
     const expectation = 'my-volume-source[1]';
-    assert.equal(
+    assert.deepEqual(
       formatVolumeName(null, {
         source: 'my-volume-source',
         isPerAlloc: true,

@@ -16,9 +16,8 @@
     border: 1px solid $grey-blue;
     background: $white-ter;
     display: flex;
-    flex-direction: row;
+    flex-flow: row wrap;
     align-items: baseline;
-    flex-wrap: wrap;
 
     .pull-right {
       margin-left: auto;
@@ -29,8 +28,9 @@
       align-items: baseline;
 
       .is-padded {
-        padding: 0em 0em 0em 1em;
+        padding: 0 0 0 1em;
       }
+
       .is-one-line {
         white-space: nowrap;
       }

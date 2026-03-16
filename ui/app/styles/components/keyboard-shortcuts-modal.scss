@@ -11,7 +11,7 @@
   width: 40vw;
   left: 30vw;
   z-index: 499;
-  box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0.8);
+  box-shadow: 2px 2px 12px 3000px rgb(0 0 0 / 80%);
   animation-name: slideIn;
   animation-duration: 0.2s;
   animation-fill-mode: both;
@@ -21,6 +21,7 @@
 
   header {
     margin-bottom: 2rem;
+
     h2 {
       font-size: $size-3;
       font-weight: $weight-semibold;
@@ -37,23 +38,29 @@
     overflow: auto;
     margin: 0 -2rem;
     padding: 0 2rem;
+
     li {
       list-style-type: none;
       padding: 0.5rem 0;
       display: grid;
       grid-template-columns: auto 1fr;
+
       &:not(:last-of-type) {
         border-bottom: 1px solid #ccc;
       }
+
       strong {
         padding: 0.25rem 0;
       }
+
       .keys {
         text-align: right;
+
         & > span.recording {
           color: $red;
           font-size: 0.75rem;
         }
+
         button {
           border: none;
           background: #eee;
@@ -69,6 +76,7 @@
             color: black;
             cursor: not-allowed;
           }
+
           span {
             margin: 0.25rem;
             display: inline-block;
@@ -113,6 +121,7 @@
   color: black;
   font-weight: 300;
   z-index: $z-popover;
+
   &.menu-level {
     z-index: $z-tooltip;
   }
@@ -123,8 +132,9 @@
     opacity: 0;
     top: 40px;
   }
+
   to {
     opacity: 1;
-    top: 0px;
+    top: 0;
   }
 }

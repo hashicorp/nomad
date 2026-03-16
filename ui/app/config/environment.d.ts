@@ -9,6 +9,10 @@ declare const config: {
   locationType: 'history' | 'hash' | 'none';
   rootURL: string;
   APP: Record<string, unknown>;
+  'ember-cli-mirage'?: {
+    enabled: boolean;
+    excludeFilesFromBuild: boolean;
+  };
 };
 
 export default config;

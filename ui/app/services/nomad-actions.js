@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
@@ -271,6 +270,7 @@ export default class NomadActionsService extends Service {
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
         const message = base64DecodeString(jsonData.stdout.data).replace(
+          // eslint-disable-next-line no-control-regex
           /\x1b\[[0-9;]*[a-zA-Z]/g,
           '',
         );

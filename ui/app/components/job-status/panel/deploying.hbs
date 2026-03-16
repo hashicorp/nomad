@@ -212,7 +212,7 @@
       <legend>
         {{#each-in this.newAllocsByStatus as |status count|}}
           <ConditionalLinkTo
-            @condition={{and (not (eq status "unplaced")) (gt count 0)}}
+            @condition={{and (not-eq status "unplaced") (gt count 0)}}
             @route="jobs.job.allocations"
             @model={{@job}}
             @query={{hash

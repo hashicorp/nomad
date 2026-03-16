@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { getPageTitle } from 'ember-page-title/test-support';
 import {
   click,
@@ -30,16 +29,16 @@ module.skip('Acceptance | task logs', function (hooks) {
 
   hooks.beforeEach(async function () {
     faker.seed(1);
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node', 'forceIPv4');
-    job = server.create('job', { createAllocations: false });
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4');
+    job = this.server.create('job', { createAllocations: false });
 
-    allocation = server.create('allocation', {
+    allocation = this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     later(cancelTimers, 1000);
   });
@@ -52,7 +51,7 @@ module.skip('Acceptance | task logs', function (hooks) {
 
   test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}/logs`,
       'No redirect',
@@ -65,7 +64,7 @@ module.skip('Acceptance | task logs', function (hooks) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
     const logUrlRegex = new RegExp(`/v1/client/fs/logs/${allocation.id}`);
     assert.ok(
-      server.pretender.handledRequests.filter((req) =>
+      this.server.pretender.handledRequests.filter((req) =>
         logUrlRegex.test(req.url),
       ).length,
       'Log requests were made',

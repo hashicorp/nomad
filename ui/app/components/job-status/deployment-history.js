@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import { tracked } from '@glimmer/tracking';
@@ -16,6 +15,7 @@ const MAX_NUMBER_OF_EVENTS = 500;
 export default class JobStatusDeploymentHistoryComponent extends Component {
   @service notifications;
 
+  // eslint-disable-next-line ember/no-tracked-properties-from-args
   @tracked isHidden = this.args.isHidden;
 
   /**
@@ -87,6 +87,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
   }
 
   @action triggerError(error) {
+    // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
     scheduleOnce('actions', this, () => {
       if (this.errorState === error) {
         return;

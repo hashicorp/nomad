@@ -61,7 +61,7 @@
           autocomplete="off"
           {{on "submit" (action "saveTag")}}
         >
-          {{! template-lint-disable no-down-event-binding }}
+          {{! template-lint-disable no-autofocus-attribute }}
           <Hds::Form::TextInput::Field
             data-test-tag-name-input
             @label="Tag Name"
@@ -86,7 +86,7 @@
             }}
             {{on "keydown" (action this.handleKeydown)}}
           />
-          {{! template-lint-enable no-down-event-binding }}
+
           <Hds::Button
             data-test-tag-save-button
             type="submit"

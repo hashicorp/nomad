@@ -52,7 +52,7 @@ export default class IndexController extends Controller {
         message: 'Task has been force paused',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not Force Pause Task',
       });
@@ -68,7 +68,7 @@ export default class IndexController extends Controller {
         message: 'Task has been force run',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not Force Run Task',
       });
@@ -84,7 +84,7 @@ export default class IndexController extends Controller {
         message: 'Task has been put back on its configured schedule',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not put back on schedule',
       });

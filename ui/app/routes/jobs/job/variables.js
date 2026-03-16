@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 // eslint-disable-next-line no-unused-vars
