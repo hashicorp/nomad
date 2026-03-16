@@ -16,23 +16,4 @@ setApplication(Application.create(config.APP));
 setup(QUnit.assert);
 setupEmberOnerrorValidation();
 
-// Ignore benign ResizeObserver loop errors triggered by HDS components during
-// tests by filtering them before QUnit records them as failures.
-QUnit.begin(function () {
-  const originalOnError = window.onerror;
-
-  window.onerror = function (message, ...args) {
-    if (
-      typeof message === 'string' &&
-      message.includes('ResizeObserver loop')
-    ) {
-      return true;
-    }
-
-    if (originalOnError) {
-      return originalOnError.apply(this, [message, ...args]);
-    }
-  };
-});
-
 start();

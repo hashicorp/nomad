@@ -13,9 +13,16 @@ const isTest = environment === 'test';
 
 module.exports = function (defaults) {
   const app = new EmberApp(defaults, {
-    codemirror: {
-      modes: ['javascript', 'ruby'],
+    emberData: {
+      deprecations: {
+        // New projects can safely leave this deprecation disabled.
+        // If upgrading, to opt-into the deprecated behavior, set this to true and then follow:
+        // https://deprecations.emberjs.com/id/ember-data-deprecate-store-extends-ember-object
+        // before upgrading to Ember Data 6.0
+        DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false,
+      },
     },
+
     'ember-cli-babel': {
       includePolyfill: isProd,
       enableTypeScriptTransform: true,
@@ -26,6 +33,7 @@ module.exports = function (defaults) {
         require.resolve('ember-concurrency/async-arrow-task-transform'),
       ],
     },
+
     hinting: isTest,
     tests: isTest,
     sassOptions: {
@@ -36,6 +44,10 @@ module.exports = function (defaults) {
         './node_modules/ember-basic-dropdown/dist/vendor',
         './node_modules/ember-power-select/dist/vendor',
       ],
+    },
+
+    codemirror: {
+      modes: ['javascript', 'ruby'],
     },
     // Add options here
   });
