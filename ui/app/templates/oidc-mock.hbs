@@ -13,6 +13,7 @@
       <button
         type="button"
         class="button"
+        data-test-oidc-account={{fakeAccount.name}}
         {{on "click" (fn this.signIn fakeAccount)}}
       >
         Sign In as

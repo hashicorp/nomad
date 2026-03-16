@@ -59,8 +59,10 @@ export default class ClientRoute extends Route {
     };
   }
 
-  model() {
-    return super.model(...arguments).catch(notifyError(this));
+  model({ node_id }) {
+    return this.store
+      .findRecord('node', node_id, { reload: true })
+      .catch(notifyError(this));
   }
 
   afterModel(model) {

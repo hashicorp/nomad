@@ -383,6 +383,7 @@ module('Acceptance | tokens', function (hooks) {
   test('SSO Sign-in flow: Manager', async function (assert) {
     server.create('auth-method', { name: 'vault' });
     server.create('auth-method', { name: 'cognito' });
+    server.create('token', { name: 'Manager' });
     server.create('token', { name: 'Thelonious' });
 
     await Tokens.visit();
@@ -390,12 +391,8 @@ module('Acceptance | tokens', function (hooks) {
     await click('button[data-test-auth-method]');
     await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
-    let managerButton = [...findAll('button')].filter((btn) =>
-      btn.textContent.includes('Sign In as Manager'),
-    )[0];
-
-    assert.dom(managerButton).exists();
-    await click(managerButton);
+    await waitUntil(() => !!find('[data-test-oidc-account="Manager"]'));
+    await click('[data-test-oidc-account="Manager"]');
     await waitUntil(() => currentURL().startsWith('/settings/tokens'));
     await waitUntil(() => !!find('[data-test-token-name]'));
 
@@ -414,11 +411,8 @@ module('Acceptance | tokens', function (hooks) {
     await click('button[data-test-auth-method]');
     await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
-    let newTokenButton = [...findAll('button')].filter((btn) =>
-      btn.textContent.includes('Sign In as Thelonious'),
-    )[0];
-    assert.dom(newTokenButton).exists();
-    await click(newTokenButton);
+    await waitUntil(() => !!find('[data-test-oidc-account="Thelonious"]'));
+    await click('[data-test-oidc-account="Thelonious"]');
     await waitUntil(() => currentURL().startsWith('/settings/tokens'));
     await waitUntil(() => !!find('[data-test-token-name]'));
 
@@ -435,11 +429,8 @@ module('Acceptance | tokens', function (hooks) {
     await click('button[data-test-auth-method]');
     await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
-    let newTokenButton = [...findAll('button')].filter((btn) =>
-      btn.textContent.includes('Sign In as Thelonious'),
-    )[0];
-    assert.dom(newTokenButton).exists();
-    await click(newTokenButton);
+    await waitUntil(() => !!find('[data-test-oidc-account="Thelonious"]'));
+    await click('[data-test-oidc-account="Thelonious"]');
     await waitUntil(() => currentURL().startsWith('/settings/tokens'));
     await waitUntil(() => !!find('[data-test-token-name]'));
 

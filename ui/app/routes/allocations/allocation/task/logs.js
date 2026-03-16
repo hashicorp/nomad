@@ -7,6 +7,6 @@ import Route from '@ember/routing/route';
 
 export default class LogsRoute extends Route {
   model() {
-    return super.model(...arguments);
+    return this.modelFor('allocations.allocation.task');
   }
 }

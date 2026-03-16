@@ -87,7 +87,7 @@ module('Integration | Component | image file', function (hooks) {
 
     const statsEl = find('[data-test-file-stats]');
     assert.ok(
-      /\d+px \u00d7 \d+px/.test(statsEl.textContent),
+      /\d+px\s*\u00d7\s*\d+px/.test(statsEl.textContent),
       'Width and height are formatted correctly',
     );
     assert.ok(

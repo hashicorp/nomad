@@ -200,17 +200,18 @@ module(
           'Correct number of unplaced allocations are shown',
         );
 
-      assert.equal(
-        find('[data-test-new-allocation-tally] > span').textContent.trim(),
-        `New allocations: ${
-          this.job.allocations.filter(
-            (a) =>
-              a.clientStatus === 'running' &&
-              a.deploymentStatus?.Healthy === true,
-          ).length
-        }/${deployment.get('desiredTotal')} running and healthy`,
-        'Summary text shows accurate numbers when 0 are running/healthy',
-      );
+      assert
+        .dom('[data-test-new-allocation-tally] > span')
+        .hasText(
+          `New allocations: ${
+            this.job.allocations.filter(
+              (a) =>
+                a.clientStatus === 'running' &&
+                a.deploymentStatus?.Healthy === true,
+            ).length
+          }/${deployment.get('desiredTotal')} running and healthy`,
+          'Summary text shows accurate numbers when 0 are running/healthy',
+        );
 
       let NUMBER_OF_RUNNING_CANARIES = 2;
       let NUMBER_OF_RUNNING_HEALTHY = 5;
@@ -291,29 +292,32 @@ module(
           'Pending Canaries shown when deployment info dictates',
         );
 
-      assert.equal(
-        find('[data-test-new-allocation-tally] > span').textContent.trim(),
-        `New allocations: ${
-          this.job.allocations.filter(
-            (a) =>
-              a.clientStatus === 'running' &&
-              a.deploymentStatus?.Healthy === true,
-          ).length
-        }/${deployment.get('desiredTotal')} running and healthy`,
-        'Summary text shows accurate numbers when some are running/healthy',
-      );
+      assert
+        .dom('[data-test-new-allocation-tally] > span')
+        .hasText(
+          `New allocations: ${
+            this.job.allocations.filter(
+              (a) =>
+                a.clientStatus === 'running' &&
+                a.deploymentStatus?.Healthy === true,
+            ).length
+          }/${deployment.get('desiredTotal')} running and healthy`,
+          'Summary text shows accurate numbers when some are running/healthy',
+        );
 
-      assert.equal(
-        find('[data-test-old-allocation-tally] > span').textContent.trim(),
-        `Previous allocations: ${
-          this.job.allocations.filter(
-            (a) =>
-              (a.clientStatus === 'running' || a.clientStatus === 'complete') &&
-              a.jobVersion !== deployment.versionNumber,
-          ).length
-        } running`,
-        'Old Alloc Summary text shows accurate numbers',
-      );
+      assert
+        .dom('[data-test-old-allocation-tally] > span')
+        .hasText(
+          `Previous allocations: ${
+            this.job.allocations.filter(
+              (a) =>
+                (a.clientStatus === 'running' ||
+                  a.clientStatus === 'complete') &&
+                a.jobVersion !== deployment.versionNumber,
+            ).length
+          } running`,
+          'Old Alloc Summary text shows accurate numbers',
+        );
 
       assert.equal(
         find('[data-test-previous-allocations-legend]')
@@ -355,17 +359,19 @@ module(
           'Correct number of old allocations are in completed state',
         );
 
-      assert.equal(
-        find('[data-test-old-allocation-tally] > span').textContent.trim(),
-        `Previous allocations: ${
-          this.job.allocations.filter(
-            (a) =>
-              (a.clientStatus === 'running' || a.clientStatus === 'complete') &&
-              a.jobVersion !== deployment.versionNumber,
-          ).length - OLD_ALLOCATIONS_TO_COMPLETE
-        } running`,
-        'Old Alloc Summary text shows accurate numbers after some are marked complete',
-      );
+      assert
+        .dom('[data-test-old-allocation-tally] > span')
+        .hasText(
+          `Previous allocations: ${
+            this.job.allocations.filter(
+              (a) =>
+                (a.clientStatus === 'running' ||
+                  a.clientStatus === 'complete') &&
+                a.jobVersion !== deployment.versionNumber,
+            ).length - OLD_ALLOCATIONS_TO_COMPLETE
+          } running`,
+          'Old Alloc Summary text shows accurate numbers after some are marked complete',
+        );
 
       assert.equal(
         find('[data-test-previous-allocations-legend]')
