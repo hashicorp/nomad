@@ -122,18 +122,17 @@
             @type="password"
             placeholder="{{if this.hasJWTAuthMethods "36-character token secret or JWT" "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"}}"
             {{autofocus}}
-            {{on "input" (action (mut this.secret) value="target.value")}}
+            {{on "input" this.handleSecretInput}}
             @enter={{this.verifyToken}}
             data-test-token-secret />
 
           {{#if this.currentSecretIsJWT}}
-            {{did-insert (action this.setCurrentAuthMethod)}}
             {{#if (gt this.JWTAuthMethods.length 1)}}
               <SingleSelectDropdown
                 data-test-select-jwt
                 @label="Sign-in method"
                 @options={{this.JWTAuthMethodOptions}}
-                @selection={{this.jwtAuthMethod}}
+                @selection={{this.selectedJWTAuthMethod}}
                 @onSelect={{fn (mut this.jwtAuthMethod)}}
               />
             {{/if}}

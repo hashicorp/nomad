@@ -7,7 +7,7 @@
 import { module } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 
 import browseFilesystem from './behaviors/fs';
 

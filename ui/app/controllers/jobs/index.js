@@ -11,7 +11,7 @@ import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 // eslint-disable-next-line no-unused-vars
 import JobModel from '../../models/job';
@@ -118,9 +118,10 @@ export default class JobsIndexController extends Controller {
       } else {
         // cursorAt should be the highest modifyIndex from the previous query.
         // This will immediately fire the route model hook with the new cursorAt
+        const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
         this.cursorAt = prevPageToken
-          .sortBy('modifyIndex')
-          .get('lastObject').modifyIndex;
+          ? sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex
+          : undefined;
       }
     } else if (page === 'next') {
       if (!this.nextToken) {
@@ -131,9 +132,8 @@ export default class JobsIndexController extends Controller {
       this.cursorAt = undefined;
     } else if (page === 'last') {
       let prevPageToken = await this.loadPreviousPageToken({ last: true });
-      this.cursorAt = prevPageToken
-        .sortBy('modifyIndex')
-        .get('lastObject').modifyIndex;
+      const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
+      this.cursorAt = sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex;
     }
   }
 
@@ -145,7 +145,7 @@ export default class JobsIndexController extends Controller {
     return (
       this.pendingJobIDs &&
       JSON.stringify(
-        this.pendingJobIDs.map((j) => `${j.namespace}.${j.id}`)
+        this.pendingJobIDs.map((j) => `${j.namespace}.${j.id}`),
       ) !== JSON.stringify(this.jobIDs.map((j) => `${j.namespace}.${j.id}`))
     );
   }
@@ -161,7 +161,7 @@ export default class JobsIndexController extends Controller {
     this.pendingJobIDs = null;
     yield this.watchJobs.perform(
       this.jobIDs,
-      Ember.testing ? 0 : JOB_DETAILS_THROTTLE
+      macroCondition(isTesting()) ? 0 : JOB_DETAILS_THROTTLE,
     );
   }
 
@@ -170,7 +170,7 @@ export default class JobsIndexController extends Controller {
    */
   @action pauseJobFetching() {
     let notification = this.notifications.queue.find(
-      (n) => n.title === 'Error fetching jobs'
+      (n) => n.title === 'Error fetching jobs',
     );
     if (notification) {
       notification.destroyMessage();
@@ -184,7 +184,7 @@ export default class JobsIndexController extends Controller {
   @action restartJobList() {
     this.showingCachedJobs = false;
     let notification = this.notifications.queue.find(
-      (n) => n.title === 'Error fetching jobs'
+      (n) => n.title === 'Error fetching jobs',
     );
     if (notification) {
       notification.destroyMessage();
@@ -210,7 +210,9 @@ export default class JobsIndexController extends Controller {
    * @param {Error} e
    */
   notifyFetchError(e) {
-    const firstError = e.errors?.objectAt(0);
+    const errorDetails = /** @type {any} */ (e).errors;
+    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    const firstError = errors[0] || {};
     this.notifications.add({
       title: 'Error fetching jobs',
       message: `The backend returned an error with status ${firstError.status} while fetching jobs`,
@@ -297,25 +299,28 @@ export default class JobsIndexController extends Controller {
         adapterOptions: {
           method: 'GET',
         },
-      }
+      },
     );
     return prevPageToken;
   }
 
   @restartableTask *watchJobIDs(
     params,
-    throttle = Ember.testing ? 0 : JOB_LIST_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : JOB_LIST_THROTTLE,
   ) {
     while (true) {
-      let currentParams = params;
+      let currentParams = params || {};
       currentParams.index = this.jobQueryIndex;
       const newJobs = yield this.jobQuery(currentParams, {});
       if (newJobs) {
-        if (newJobs.meta.index) {
-          this.jobQueryIndex = newJobs.meta.index;
+        const meta = newJobs.meta;
+
+        if (meta?.index) {
+          this.jobQueryIndex = meta.index;
         }
-        if (newJobs.meta.nextToken) {
-          this.nextToken = newJobs.meta.nextToken;
+
+        if (meta?.nextToken) {
+          this.nextToken = meta.nextToken;
         } else {
           this.nextToken = null;
         }
@@ -336,12 +341,12 @@ export default class JobsIndexController extends Controller {
           this.pendingJobIDs = jobIDs;
           this.pendingJobs = newJobs;
         }
-        if (Ember.testing) {
+        if (macroCondition(isTesting())) {
           break;
         }
         yield timeout(throttle);
       } else {
-        if (Ember.testing) {
+        if (macroCondition(isTesting())) {
           break;
         }
         // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
@@ -349,7 +354,7 @@ export default class JobsIndexController extends Controller {
         this.watchJobs.perform(this.jobIDs, throttle);
         continue;
       }
-      if (Ember.testing) {
+      if (macroCondition(isTesting())) {
         break;
       }
     }
@@ -362,7 +367,7 @@ export default class JobsIndexController extends Controller {
   // 3. via the user manually clicking to updateJobList()
   @restartableTask *watchJobs(
     jobIDs,
-    throttle = Ember.testing ? 0 : JOB_DETAILS_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : JOB_DETAILS_THROTTLE,
   ) {
     while (true) {
       if (jobIDs && jobIDs.length > 0) {
@@ -381,7 +386,7 @@ export default class JobsIndexController extends Controller {
         this.jobs = [];
       }
       yield timeout(throttle);
-      if (Ember.testing) {
+      if (macroCondition(isTesting())) {
         break;
       }
     }
@@ -464,14 +469,14 @@ export default class JobsIndexController extends Controller {
   @computed('namespaceFacet.{filter,options}')
   get filteredNamespaceOptions() {
     return this.namespaceFacet.options.filter((ns) =>
-      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase())
+      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase()),
     );
   }
 
   @computed('nodePoolFacet.{filter,options}')
   get filteredNodePoolOptions() {
     return this.nodePoolFacet.options.filter((np) =>
-      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase())
+      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase()),
     );
   }
 
@@ -479,7 +484,7 @@ export default class JobsIndexController extends Controller {
 
   get shownNamespaces() {
     return this.namespaceFacet.options.filter((option) =>
-      option.label.toLowerCase().includes(this.namespaceFilter)
+      option.label.toLowerCase().includes(this.namespaceFilter),
     );
   }
 
@@ -535,10 +540,10 @@ export default class JobsIndexController extends Controller {
           // Split along "or" and check that all parts have the same propName
           let facetParts = part.split(' or ');
           let allMatch = facetParts.every((facetPart) =>
-            facetPart.startsWith(propName)
+            facetPart.startsWith(propName),
           );
           let allEqualityOperators = facetParts.every((facetPart) =>
-            facetPart.includes('==')
+            facetPart.includes('=='),
           );
           if (allMatch && allEqualityOperators) {
             // Set all the options in the dropdown to checked
@@ -569,7 +574,7 @@ export default class JobsIndexController extends Controller {
     'searchText',
     'statusFacet.options.@each.checked',
     'typeFacet.options.@each.checked',
-    'namespaceFacet.options.@each.checked'
+    'namespaceFacet.options.@each.checked',
   )
   get computedFilter() {
     let parts = this.searchText ? [this.searchText] : [];
@@ -647,7 +652,7 @@ export default class JobsIndexController extends Controller {
 
     // Check for any operator surrounded by spaces
     let isFilterExpression = operators.some((op) =>
-      newFilter.includes(` ${op}`)
+      newFilter.includes(` ${op}`),
     );
 
     if (isFilterExpression) {
@@ -693,7 +698,7 @@ export default class JobsIndexController extends Controller {
     ];
     // In test/Percy environments, pick deterministically so snapshots are stable.
     // In production, keep it random so users discover different filter syntax.
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       const filter = this.filter || '';
       let hash = 0;
       for (let i = 0; i < filter.length; i++) {

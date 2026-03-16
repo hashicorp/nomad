@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { getPageTitle } from 'ember-page-title/test-support';
 import {
   currentURL,
   settled,
@@ -48,7 +49,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
 
     assert.equal(currentURL(), '/jobs');
-    assert.equal(document.title, 'Jobs - Nomad');
+    assert.equal(getPageTitle(), 'Jobs - Nomad');
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {

@@ -51,6 +51,12 @@ export default class TaskState extends Fragment {
   @fragment('resources') resources;
   @fragmentArray('task-event') events;
 
+  @computed('events.@each.type')
+  get hasRestartingEvent() {
+    const events = this.events?.toArray?.() || this.events || [];
+    return events.some((event) => event?.type === 'Restarting');
+  }
+
   @computed('state')
   get stateClass() {
     const classMap = {

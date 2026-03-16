@@ -122,7 +122,7 @@
         <Tooltip @text={{this.model.node.name}}>
           <LinkTo
             @route="clients.client"
-            @model={{this.model.node}}
+            @model={{this.model.node.id}}
             data-test-client-link
           >
             {{this.model.node.shortId}}
@@ -279,7 +279,7 @@
       </div>
     </div>
   {{/if}}
-  {{#if this.services.length}}
+  {{#if this.servicesWithHealthChecks.length}}
     <div class="boxed-section">
       <div class="boxed-section-head">
         Services
@@ -304,7 +304,7 @@
           <t.body as |row|>
             <tr data-test-service class="is-interactive {{if (eq this.activeService row.model) "is-active"}}"
               {{on "click" (fn this.handleServiceClick row.model)}}
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(fn this.handleServiceClick row.model)
               }}

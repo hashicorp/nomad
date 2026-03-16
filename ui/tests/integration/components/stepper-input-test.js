@@ -12,17 +12,16 @@ import {
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
 import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
 
 const StepperInput = create(stepperInput());
-const valueChange = () => {
-  const initial = StepperInput.input.value;
-  return () => StepperInput.input.value !== initial;
-};
+
+const waitForStepperValue = (expectedValue) =>
+  waitUntil(() => StepperInput.input.value === String(expectedValue));
 
 module('Integration | Component | stepper input', function (hooks) {
   setupRenderingTest(hooks);
@@ -39,14 +38,14 @@ module('Integration | Component | stepper input', function (hooks) {
 
   const commonTemplate = hbs`
     <StepperInput
-      @debounce=50
-      @min={{min}}
-      @max={{max}}
-      @value={{value}}
-      @class={{classVariant}}
-      @disabled={{disabled}}
-      @onChange={{onChange}}>
-      {{label}}
+      @debounce="50"
+      @min={{this.min}}
+      @max={{this.max}}
+      @value={{this.value}}
+      @class={{this.classVariant}}
+      @disabled={{this.disabled}}
+      @onChange={{this.onChange}}>
+      {{this.label}}
     </StepperInput>
   `;
 
@@ -79,17 +78,17 @@ module('Integration | Component | stepper input', function (hooks) {
     await render(commonTemplate);
 
     StepperInput.increment.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue + 1);
     assert.equal(StepperInput.input.value, baseValue + 1);
     assert.notOk(this.onChange.called);
 
     StepperInput.decrement.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue);
     assert.equal(StepperInput.input.value, baseValue);
     assert.notOk(this.onChange.called);
 
     StepperInput.decrement.click();
-    await waitUntil(valueChange());
+    await waitForStepperValue(baseValue - 1);
     assert.equal(StepperInput.input.value, baseValue - 1);
     assert.notOk(this.onChange.called);
 

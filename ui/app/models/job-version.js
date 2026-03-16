@@ -8,7 +8,7 @@ import { fragment } from 'ember-data-model-fragments/attributes';
 import { attr, belongsTo } from '@ember-data/model';
 
 export default class JobVersion extends Model {
-  @belongsTo('job') job;
+  @belongsTo('job', { async: true, inverse: 'versions' }) job;
   @attr('boolean') stable;
   @attr('date') submitTime;
   @attr('number') number;

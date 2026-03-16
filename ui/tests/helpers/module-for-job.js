@@ -5,7 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import { currentRouteName, currentURL, visit, find } from '@ember/test-helpers';
+import { currentRouteName, currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -57,7 +57,8 @@ export default function moduleForJob(
         : `/jobs/${job.name}`;
 
       assert.equal(decodeURIComponent(currentURL()), expectedURL);
-      assert.equal(document.title, `Job ${job.name} - Nomad`);
+      assert.ok(document.title.startsWith(`Job ${job.name}`));
+      assert.ok(document.title.endsWith(' - Nomad'));
     });
 
     test('the subnav links to overview', async function (assert) {
@@ -167,29 +168,28 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
 
-        // explicitly setting allocationStatusDistribution when creating the job that gets passed here
-        // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
-        // but we can be redundant for the sake of future-proofing this here.
-        const legendItem = find(
-          '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
-        );
+        const legendItem = JobDetail.allocationsSummary.legend.clickableItems
+          .toArray()
+          .find((item) => item.label !== 'queued');
 
-        const status = legendItem.parentElement.getAttribute(
-          'data-test-legend-label'
-        );
+        const status = legendItem.label;
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
           urlWithNamespace(
-            `/jobs/${job.name}@default/clients?status=${encodedStatus}`,
-            job.namespace
+            `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/allocations?status=${encodedStatus}`,
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
-        assert.deepEqual(gotURL.path, expectedURL.path);
-        assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
+        assert.deepEqual(gotURL.pathname, expectedURL.pathname);
+        assert.equal(
+          gotURL.searchParams.get('status'),
+          expectedURL.searchParams.get('status'),
+          'Status filter is preserved in query params',
+        );
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {

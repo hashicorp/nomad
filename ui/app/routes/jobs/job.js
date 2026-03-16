@@ -14,7 +14,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 @classic
 export default class JobRoute extends Route.extend(WithWatchers) {
-  @service can;
+  @service abilities;
   @service store;
   @service token;
   @service router;
@@ -47,12 +47,16 @@ export default class JobRoute extends Route.extend(WithWatchers) {
           this.store.findAll('namespace'),
         ];
 
-        if (this.can.can('accept recommendation')) {
+        if (this.abilities.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
         }
 
+        if (this.abilities.can('list variables')) {
+          relatedModelsQueries.push(job.get('variables'));
+        }
+
         // Optimizing future node look ups by preemptively loading everything
-        if (job.get('hasClientStatus') && this.can.can('read client')) {
+        if (job.get('hasClientStatus') && this.abilities.can('read client')) {
           relatedModelsQueries.push(this.store.findAll('node'));
         }
 

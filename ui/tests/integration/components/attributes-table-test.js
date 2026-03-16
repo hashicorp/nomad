@@ -6,7 +6,7 @@
 import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import PathTree from 'nomad-ui/utils/path-tree';
 
@@ -48,7 +48,7 @@ module('Integration | Component | attributes table', function (hooks) {
     assert.expect(2);
 
     this.set('attributes', commonAttributesTree.root);
-    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
+    await render(hbs`<AttributesTable @attributePairs={{this.attributes}} />`);
 
     const rowsCount = commonAttributes.length;
     assert.equal(
@@ -64,7 +64,7 @@ module('Integration | Component | attributes table', function (hooks) {
 
   test('should render the full path of key/value pair from the root of the object', async function (assert) {
     this.set('attributes', commonAttributesTree.root);
-    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
+    await render(hbs`<AttributesTable @attributePairs={{this.attributes}} />`);
 
     assert.equal(
       find('[data-test-key]').textContent.trim(),

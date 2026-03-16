@@ -31,17 +31,24 @@ export default class JobVersion extends Component {
 
   constructor() {
     super(...arguments);
-    this.initializeEditableTag();
-    this.versionsDidUpdate();
+    this.isOpen = Boolean(this.args.diffsExpanded && this.diff);
   }
 
-  @action versionsDidUpdate() {
+  @action
+  versionsDidUpdate() {
     if (this.args.diffsExpanded && this.diff) {
       this.isOpen = true;
     }
   }
 
   initializeEditableTag() {
+    const job = this.version.get('job');
+    const namespaceId =
+      this.version.get('job.namespaceId') ||
+      job.belongsTo('namespace').id() ||
+      'default';
+    const jobName = this.version.get('job.plainId');
+
     if (this.version.versionTag) {
       this.editableTag = this.store.createRecord('versionTag', {
         name: this.version.versionTag.name,
@@ -51,8 +58,8 @@ export default class JobVersion extends Component {
       this.editableTag = this.store.createRecord('versionTag');
     }
     this.editableTag.versionNumber = this.version.number;
-    this.editableTag.jobNamespace = this.version.get('job.namespace.name');
-    this.editableTag.jobName = this.version.get('job.plainId');
+    this.editableTag.jobNamespace = namespaceId;
+    this.editableTag.jobName = jobName;
   }
 
   @computed('diff')
@@ -177,6 +184,10 @@ export default class JobVersion extends Component {
 
   @action
   toggleEditTag() {
+    if (!this.isEditing) {
+      this.initializeEditableTag();
+    }
+
     this.isEditing = !this.isEditing;
   }
 
@@ -193,10 +204,23 @@ export default class JobVersion extends Component {
         return;
       }
       const savedTag = await this.editableTag.save();
-      this.version.versionTag = savedTag;
-      this.version.versionTag.setProperties({
-        ...savedTag.toJSON(),
-      });
+      const effectiveTag = savedTag || this.editableTag;
+      const tagData =
+        typeof effectiveTag.toJSON === 'function'
+          ? effectiveTag.toJSON()
+          : {
+              name: this.editableTag.name,
+              description: this.editableTag.description,
+              versionNumber: this.editableTag.versionNumber,
+            };
+
+      this.version.versionTag = effectiveTag;
+      if (typeof this.version.versionTag?.setProperties === 'function') {
+        this.version.versionTag.setProperties({
+          ...tagData,
+        });
+      }
+
       this.initializeEditableTag();
       this.isEditing = false;
 

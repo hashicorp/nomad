@@ -17,6 +17,10 @@ export default class VersionsRoute extends Route.extend(WithWatchers) {
 
   async model() {
     const job = this.modelFor('jobs.job');
+
+    // In test mode relationship watchers do not run, so load versions eagerly.
+    await job.get('versions');
+
     return job;
   }
 

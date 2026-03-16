@@ -20,7 +20,7 @@ module('Unit | Ability | allocation', function (hooks) {
 
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.can('exec allocation'));
+    assert.ok(this.abilities.can('exec allocation'));
   });
 
   test('it permits alloc exec for management tokens', function (assert) {
@@ -31,7 +31,7 @@ module('Unit | Ability | allocation', function (hooks) {
 
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.can('exec allocation'));
+    assert.ok(this.abilities.can('exec allocation'));
   });
 
   test('it permits alloc exec for client tokens with a policy that has namespace alloc-exec', function (assert) {
@@ -60,7 +60,7 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'aNamespace' })
+      this.abilities.can('exec allocation', null, { namespace: 'aNamespace' }),
     );
   });
 
@@ -94,7 +94,9 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'anotherNamespace' })
+      this.abilities.can('exec allocation', null, {
+        namespace: 'anotherNamespace',
+      }),
     );
   });
 
@@ -124,7 +126,9 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.ok(
-      this.can.cannot('exec allocation', null, { namespace: 'aNamespace' })
+      this.abilities.cannot('exec allocation', null, {
+        namespace: 'aNamespace',
+      }),
     );
   });
 
@@ -174,26 +178,34 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.ok(
-      this.can.cannot('exec allocation', null, { namespace: 'production-web' })
+      this.abilities.cannot('exec allocation', null, {
+        namespace: 'production-web',
+      }),
     );
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'production-api' })
+      this.abilities.can('exec allocation', null, {
+        namespace: 'production-api',
+      }),
     );
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'production-other' })
+      this.abilities.can('exec allocation', null, {
+        namespace: 'production-other',
+      }),
     );
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'something-suffixed' })
+      this.abilities.can('exec allocation', null, {
+        namespace: 'something-suffixed',
+      }),
     );
     assert.ok(
-      this.can.cannot('exec allocation', null, {
+      this.abilities.cannot('exec allocation', null, {
         namespace: 'something-more-suffixed',
       }),
-      'expected the namespace with the greatest number of matched characters to be chosen'
+      'expected the namespace with the greatest number of matched characters to be chosen',
     );
     assert.ok(
-      this.can.can('exec allocation', null, { namespace: '000-abc-999' }),
-      'expected to be able to match against more than one wildcard'
+      this.abilities.can('exec allocation', null, { namespace: '000-abc-999' }),
+      'expected to be able to match against more than one wildcard',
     );
   });
 });

@@ -5,6 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -71,7 +72,7 @@ module('Acceptance | servers list', function (hooks) {
       );
     });
 
-    assert.ok(document.title.includes('Servers'));
+    assert.ok(getPageTitle().includes('Servers'));
   });
 
   test('each server should show high-level info of the server', async function (assert) {

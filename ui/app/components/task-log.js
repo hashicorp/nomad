@@ -14,18 +14,12 @@ import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-class MockAbortController {
-  abort() {
-    /* noop */
-  }
-}
-
 @classic
 @classNames('boxed-section', 'task-log')
 export default class TaskLog extends Component {
   @service token;
   @service userSettings;
-  @service can;
+  @service abilities;
   allocation = null;
   task = null;
 
@@ -52,7 +46,7 @@ export default class TaskLog extends Component {
   get logUrl() {
     let address;
     const allocation = this.get('allocation.id');
-    if (this.can.can('read client')) {
+    if (this.abilities.can('read client')) {
       address = this.get('allocation.node.httpAddr');
     }
     const url = `/v1/client/fs/logs/${allocation}`;
@@ -71,9 +65,7 @@ export default class TaskLog extends Component {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
 
-    const aborter = window.AbortController
-      ? new AbortController()
-      : new MockAbortController();
+    const aborter = new AbortController();
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
 
     // Capture the state of useServer at logger create time to avoid a race
@@ -100,7 +92,7 @@ export default class TaskLog extends Component {
             this.send('failoverToServer');
           }
           throw error;
-        }
+        },
       );
   })
   logger;

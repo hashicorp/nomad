@@ -4,7 +4,7 @@
 ~}}
 
 <Trigger @onError={{this.onError}} @do={{this.fetchParent}} as |trigger|>
-  {{did-insert trigger.fns.do}}
+  {{did-insert-helper trigger.fns.do}}
   {{#if trigger.data.isBusy}}
     <li>
       <a href="#" aria-label="loading" data-test-breadcrumb="loading">

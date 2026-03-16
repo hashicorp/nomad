@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { render, waitUntil } from '@ember/test-helpers';
+import { hbs } from 'ember-cli-htmlbars';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
@@ -44,7 +43,7 @@ module('Integration | Component | job-editor', function (hooks) {
   const newJobTaskGroupName = 'redis';
   const jsonJob = (overrides) => {
     return JSON.stringify(
-      assign(
+      Object.assign(
         {},
         {
           Name: newJobName,
@@ -63,10 +62,10 @@ module('Integration | Component | job-editor', function (hooks) {
             },
           ],
         },
-        overrides
+        overrides,
       ),
       null,
-      2
+      2,
     );
   };
 
@@ -83,10 +82,10 @@ module('Integration | Component | job-editor', function (hooks) {
 
   const commonTemplate = hbs`
     <JobEditor
-      @job={{job}}
-      @context={{context}}
-      @onSubmit={{onSubmit}}
-      @handleSaveAsTemplate={{handleSaveAsTemplate}}
+      @job={{this.job}}
+      @context={{this.context}}
+      @onSubmit={{this.onSubmit}}
+      @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
     />
   `;
 
@@ -104,6 +103,10 @@ module('Integration | Component | job-editor', function (hooks) {
     const cm = getCodeMirrorInstance(['data-test-editor']);
     cm.setValue(spec);
     await Editor.plan();
+  };
+
+  const waitForReviewStage = async () => {
+    await waitUntil(() => Editor.runIsPresent);
   };
 
   test('the default state is an editor with an explanation popup', async function (assert) {
@@ -170,6 +173,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(Editor.planOutput, 'The plan is outputted');
     assert.notOk(
       Editor.editor.isPresent,
@@ -189,6 +193,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.cancel();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
     assert.equal(
@@ -243,6 +248,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitUntil(() => Editor.planError.isPresent);
     assert
       .dom('[data-test-error="parse"]')
       .doesNotExist('Parse error is not shown');
@@ -272,7 +278,9 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
+    await waitUntil(() => !!Editor.runError.isPresent);
 
     assert
       .dom('[data-test-error="plan"]')
@@ -300,6 +308,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.errored,
       'The scheduler dry-run message is in the warning state'
@@ -329,6 +338,7 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
     await renderNewJob(this, job);
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.warningMessage.isPresent,
       'The scheduler dry-run warning block is shown to the user'
@@ -345,6 +355,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.succeeded,
       'The scheduler dry-run message is in the success state'
@@ -380,6 +391,7 @@ module('Integration | Component | job-editor', function (hooks) {
     `);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
@@ -401,6 +413,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
@@ -422,7 +435,9 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
+    await waitUntil(() => this.onSubmit.called);
     assert.ok(
       this.onSubmit.calledWith(newJobName, 'default'),
       'The onSubmit hook was called with the correct arguments'

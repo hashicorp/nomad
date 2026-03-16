@@ -8,8 +8,11 @@ import { attr, belongsTo } from '@ember-data/model';
 import { get } from '@ember/object';
 
 export default class Recommendation extends Model {
-  @belongsTo('job') job;
-  @belongsTo('recommendation-summary', { inverse: 'recommendations' })
+  @belongsTo('job', { async: true, inverse: null }) job;
+  @belongsTo('recommendation-summary', {
+    async: true,
+    inverse: 'recommendations',
+  })
   recommendationSummary;
 
   @attr('date') submitTime;

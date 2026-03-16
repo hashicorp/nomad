@@ -24,9 +24,10 @@ import { inject as service } from '@ember/service';
 export default class ClientsController extends Controller.extend(
   SortableFactory(['id', 'name', 'jobStatus']),
   Searchable,
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @service store;
+  @service router;
 
   queryParams = [
     {
@@ -94,7 +95,7 @@ export default class ClientsController extends Controller.extend(
     'jobClientStatus.byNode',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionClientClass'
+    'selectionClientClass',
   )
   get filteredNodes() {
     const {
@@ -122,7 +123,7 @@ export default class ClientsController extends Controller.extend(
       })
       .map((node) => {
         const allocations = this.job.allocations.filter(
-          (alloc) => alloc.get('node.id') == node.id
+          (alloc) => alloc.get('node.id') == node.id,
         );
 
         return {
@@ -153,15 +154,15 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionDatacenter', 'nodes')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter'))
+      new Set(this.nodes.mapBy('datacenter')),
     ).compact();
 
     // Update query param when the list of datacenters changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
+        serialize(intersection(datacenters, this.selectionDatacenter)),
       );
     });
 
@@ -171,15 +172,15 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionClientClass', 'nodes')
   get optionsClientClass() {
     const clientClasses = Array.from(
-      new Set(this.nodes.mapBy('nodeClass'))
+      new Set(this.nodes.mapBy('nodeClass')),
     ).compact();
 
     // Update query param when the list of datacenters changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClientClass',
-        serialize(intersection(clientClasses, this.selectionClientClass))
+        serialize(intersection(clientClasses, this.selectionClientClass)),
       );
     });
 
@@ -190,7 +191,11 @@ export default class ClientsController extends Controller.extend(
 
   @action
   gotoClient(client) {
-    this.transitionToRoute('clients.client', client);
+    const clientId = client?.get?.('id') ?? client?.id;
+
+    if (clientId) {
+      this.router.transitionTo('clients.client', clientId);
+    }
   }
 
   setFacetQueryParam(queryParam, selection) {

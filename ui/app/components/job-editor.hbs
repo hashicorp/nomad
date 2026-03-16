@@ -37,7 +37,6 @@
         </Hds::ButtonSet>
       </header>
     {{/if}}
-    {{did-update this.setDefinitionOnModel this.definition}}
     {{#if (eq this.stage "review")}}
       <JobEditor::Review @data={{this.data}} @fns={{this.fns}} />
     {{else if (eq this.stage "edit")}}

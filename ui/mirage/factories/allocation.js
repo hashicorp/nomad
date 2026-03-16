@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
+import { assert } from '@ember/debug';
 import moment from 'moment';
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { generateResources } from '../common';
@@ -179,11 +179,11 @@ export default Factory.extend({
   }),
 
   afterCreate(allocation, server) {
-    Ember.assert(
+    assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
       server.db.jobs.length
     );
-    Ember.assert(
+    assert(
       '[Mirage] No nodes! make sure nodes are created before allocations',
       server.db.nodes.length
     );

@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { getPageTitle } from 'ember-page-title/test-support';
 import {
   currentURL,
   find,
@@ -11,6 +12,7 @@ import {
   visit,
   click,
   fillIn,
+  waitUntil,
 } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -25,7 +27,7 @@ import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
-import { run } from '@ember/runloop';
+import { _cancelTimers as cancelTimers } from '@ember/runloop';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
@@ -77,7 +79,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.ok(document.title.includes('Sign In'));
+    assert.ok(getPageTitle().includes('Sign In'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -227,7 +229,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.clear();
 
     // https://ember-concurrency.com/docs/testing-debugging/
-    setTimeout(() => run.cancelTimers(), 500);
+    setTimeout(() => cancelTimers(), 500);
 
     // Token with TTL
     await Tokens.secret(expiringToken.secretId).submit();
@@ -353,7 +355,7 @@ module('Acceptance | tokens', function (hooks) {
           .dom('.flash-message.alert-warning')
           .exists('Notification is rendered at the 10m mark');
         notificationRendered();
-        run.cancelTimers();
+        cancelTimers();
       }, 5000);
     }, 500);
     await Tokens.secret(nearlyExpiringToken.secretId).submit();
@@ -386,6 +388,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 2 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let managerButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Manager')
@@ -393,6 +396,8 @@ module('Acceptance | tokens', function (hooks) {
 
     assert.dom(managerButton).exists();
     await click(managerButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     await percySnapshot(assert);
 
@@ -407,12 +412,15 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 1 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let newTokenButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Thelonious')
     )[0];
     assert.dom(newTokenButton).exists();
     await click(newTokenButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
@@ -425,12 +433,15 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     assert.dom('[data-test-auth-method]').exists({ count: 1 });
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
     let newTokenButton = [...findAll('button')].filter((btn) =>
       btn.textContent.includes('Sign In as Thelonious')
     )[0];
     assert.dom(newTokenButton).exists();
     await click(newTokenButton);
+    await waitUntil(() => currentURL().startsWith('/settings/tokens'));
+    await waitUntil(() => !!find('[data-test-token-name]'));
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
@@ -439,17 +450,21 @@ module('Acceptance | tokens', function (hooks) {
   test('It shows an error on failed SSO', async function (assert) {
     server.create('auth-method', { name: 'vault' });
     await visit('/settings/tokens?state=failure');
+    await waitUntil(() => Tokens.ssoErrorMessage);
     assert.ok(Tokens.ssoErrorMessage);
     await Tokens.clearSSOError();
+    await waitUntil(() => !Tokens.ssoErrorMessage);
     assert.equal(currentURL(), '/settings/tokens', 'State query param cleared');
     assert.notOk(Tokens.ssoErrorMessage);
 
     await click('button[data-test-auth-method]');
+    await waitUntil(() => currentURL().startsWith('/oidc-mock'));
     assert.ok(currentURL().startsWith('/oidc-mock'));
 
     let failureButton = find('.button.error');
     assert.dom(failureButton).exists();
     await click(failureButton);
+    await waitUntil(() => currentURL() === '/settings/tokens?state=failure');
     assert.equal(
       currentURL(),
       '/settings/tokens?state=failure',
@@ -476,6 +491,8 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('JWT Sign-in flow: JWT method', async function (assert) {
+    const tokenService = this.owner.lookup('service:token');
+
     server.create('auth-method', { name: 'Vault', type: 'OIDC' });
     server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
     server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
@@ -494,6 +511,9 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
     ).submit();
+    await waitUntil(() => !!find('[data-test-token-name]'));
+    await waitUntil(() => !!find('[data-test-token-clear]'));
+    await waitUntil(() => !tokenService.fetchSelfTokenAndPolicies.isRunning);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
     await Tokens.clear();
@@ -502,6 +522,9 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
     ).submit();
+    await waitUntil(() => !!find('[data-test-token-name]'));
+    await waitUntil(() => !!find('[data-test-token-clear]'));
+    await waitUntil(() => !tokenService.fetchSelfTokenAndPolicies.isRunning);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText(
       `Token: ${
@@ -917,6 +940,10 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'High Level Role Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(
+        () => findAll('[data-test-role-policies] li').length === 1,
+      );
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 1);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('high-level');
@@ -933,6 +960,10 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'Policy And Role Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(
+        () => findAll('[data-test-role-policies] li').length === 2,
+      );
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 3);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('reader');
@@ -956,6 +987,8 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.name === 'Multi Role And Policy Token'
       );
       await Tokens.secret(token.secretId).submit();
+      await waitUntil(() => findAll('[data-test-token-role]').length === 2);
+      await waitUntil(() => findAll('[data-test-token-policy]').length === 2);
 
       assert.equal(token.roleIds.length, 2);
       assert.equal(token.policyIds.length, 1);

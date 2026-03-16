@@ -6,7 +6,7 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -16,7 +16,7 @@ module('Integration | Component | job diff', function (hooks) {
   const commonTemplate = hbs`
     <div class="boxed-section">
       <div class="boxed-section-body is-dark">
-        <JobDiff @diff={{diff}} />
+        <JobDiff @diff={{this.diff}} />
       </div>
     </div>
   `;

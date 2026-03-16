@@ -5,12 +5,10 @@
 
 // @ts-check
 
-import Ember from 'ember';
 import { get } from '@ember/object';
 import { assert } from '@ember/debug';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
-import { AbortController } from 'fetch';
 import wait from 'nomad-ui/utils/wait';
 import Watchable from 'nomad-ui/adapters/watchable';
 import config from 'nomad-ui/config/environment';
@@ -35,7 +33,7 @@ export function watchRecord(modelName, { shouldSurfaceErrors = false } = {}) {
     if (typeof id === 'object') {
       id = get(id, 'id');
     }
-    while (isEnabled && !Ember.testing) {
+    while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
       try {
         yield RSVP.all([
@@ -64,7 +62,7 @@ export function watchRelationship(relationshipName, replace = false) {
       'To watch a relationship, the adapter of the model provided to the watchRelationship task MUST extend Watchable',
       this.store.adapterFor(model.constructor.modelName) instanceof Watchable
     );
-    while (isEnabled && !Ember.testing) {
+    while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
       try {
         yield RSVP.all([
@@ -93,7 +91,7 @@ export function watchNonStoreRecords(modelName) {
       'To watch a non-store records, the adapter of the model provided to the watchNonStoreRecords task MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    while (isEnabled && !Ember.testing) {
+    while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
       try {
         yield model[asyncCallbackName]();
@@ -114,7 +112,7 @@ export function watchAll(modelName) {
       'To watch all, the respective adapter MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    while (isEnabled && !Ember.testing) {
+    while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
       try {
         yield RSVP.all([
@@ -140,7 +138,7 @@ export function watchQuery(modelName) {
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    while (isEnabled && !Ember.testing) {
+    while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();
       try {
         yield RSVP.all([

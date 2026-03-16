@@ -17,6 +17,23 @@ export default class JobClientStatusBar extends DistributionBar {
   job = null;
   jobClientStatus = null;
 
+  legendQueryParamsForStatus(status) {
+    const namespace = this.job?.namespaceId || this.job?.namespace?.get?.('id');
+    const queryParams = {
+      status: JSON.stringify([status]),
+      page: 1,
+      search: '',
+      dc: '',
+      clientclass: '',
+    };
+
+    if (namespace && namespace !== 'default') {
+      queryParams.namespace = namespace;
+    }
+
+    return queryParams;
+  }
+
   @computed('job.namespace', 'jobClientStatus.byStatus')
   get data() {
     const {
@@ -37,10 +54,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: queued.length,
         className: 'queued',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['queued']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('queued'),
         },
       },
       {
@@ -48,10 +62,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: starting.length,
         className: 'starting',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['starting']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('starting'),
         },
         layers: 2,
       },
@@ -60,10 +71,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: running.length,
         className: 'running',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['running']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('running'),
         },
       },
       {
@@ -71,10 +79,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: complete.length,
         className: 'complete',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['complete']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('complete'),
         },
       },
       {
@@ -82,10 +87,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: unknown.length,
         className: 'unknown',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['unknown']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('unknown'),
         },
         help: 'Some allocations for this job were degraded or lost connectivity.',
       },
@@ -94,10 +96,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: degraded.length,
         className: 'degraded',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['degraded']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('degraded'),
         },
         help: 'Some allocations for this job were not successfull or did not run.',
       },
@@ -106,10 +105,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: failed.length,
         className: 'failed',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['failed']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('failed'),
         },
       },
       {
@@ -117,10 +113,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: lost.length,
         className: 'lost',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['lost']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('lost'),
         },
       },
       {
@@ -128,10 +121,7 @@ export default class JobClientStatusBar extends DistributionBar {
         value: notScheduled.length,
         className: 'not-scheduled',
         legendLink: {
-          queryParams: {
-            status: JSON.stringify(['notScheduled']),
-            namespace: this.job.namespace.get('id'),
-          },
+          queryParams: this.legendQueryParamsForStatus('notScheduled'),
         },
         help: 'No allocations for this job were scheduled into these clients.',
       },

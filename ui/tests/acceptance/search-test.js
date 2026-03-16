@@ -12,7 +12,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import { selectSearch } from 'ember-power-select/test-support';
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 
 module('Acceptance | search', function (hooks) {
   setupApplicationTest(hooks);
@@ -136,9 +136,8 @@ module('Acceptance | search', function (hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/storage/plugins/xyz-plugin');
 
-    const fuzzySearchQueries = server.pretender.handledRequests.filterBy(
-      'url',
-      '/v1/search/fuzzy'
+    const fuzzySearchQueries = server.pretender.handledRequests.filter(
+      (r) => r.url === '/v1/search/fuzzy'
     );
 
     const featureDetectionQueries = fuzzySearchQueries.filter((request) =>
@@ -167,8 +166,9 @@ module('Acceptance | search', function (hooks) {
 
     assert.ok(Layout.navbar.search.noOptionsShown);
     assert.equal(
-      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy')
-        .length,
+      server.pretender.handledRequests.filter(
+        (r) => r.url === '/v1/search/fuzzy'
+      ).length,
       1,
       'expect the feature detection query'
     );

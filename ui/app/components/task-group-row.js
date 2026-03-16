@@ -21,7 +21,7 @@ import { lazyClick } from '../helpers/lazy-click';
 @classNames('task-group-row', 'is-interactive')
 @attributeBindings('data-test-task-group')
 export default class TaskGroupRow extends Component {
-  @service can;
+  @service abilities;
 
   taskGroup = null;
   debounce = 500;
@@ -30,12 +30,36 @@ export default class TaskGroupRow extends Component {
   @alias('taskGroup.job.runningDeployment') runningDeployment;
 
   get namespace() {
-    return this.get('taskGroup.job.namespace.name');
+    const job = this.taskGroup?.job;
+
+    const namespaceId =
+      (typeof job?.get === 'function' ? job.get('namespaceId') : undefined) ||
+      job?.namespaceId;
+    if (namespaceId) {
+      return namespaceId;
+    }
+
+    const jobId =
+      (typeof job?.get === 'function' ? job.get('id') : undefined) || job?.id;
+    if (jobId) {
+      try {
+        const [, parsedNamespace] = JSON.parse(jobId);
+        return parsedNamespace || 'default';
+      } catch {
+        // Fall through to final default.
+      }
+    }
+
+    if (typeof job?.namespace === 'string') {
+      return job.namespace;
+    }
+
+    return 'default';
   }
 
   @computed('runningDeployment', 'namespace')
   get tooltipText() {
-    if (this.can.cannot('scale job', null, { namespace: this.namespace }))
+    if (this.abilities.cannot('scale job', null, { namespace: this.namespace }))
       return "You aren't allowed to scale task groups";
     if (this.runningDeployment)
       return 'You cannot scale task groups during a deployment';

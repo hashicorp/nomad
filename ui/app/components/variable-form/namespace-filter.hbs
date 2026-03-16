@@ -4,7 +4,7 @@
 ~}}
 
 <Trigger @do={{this.fetchNamespaces}} @onSuccess={{this.formatAndSetNamespaces}} as |trigger|>
-  {{did-insert trigger.fns.do}}
+  {{did-insert-helper trigger.fns.do}}
   {{! No-op on Error}}
   {{! No Loading Behavior }}
   {{#if trigger.data.isSuccess}}

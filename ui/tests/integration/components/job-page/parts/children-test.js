@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/children', function (hooks) {
@@ -28,7 +27,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
   });
 
   const props = (job, children, options = {}) =>
-    assign(
+    Object.assign(
       {
         job,
         sortProperty: 'name',
@@ -36,7 +35,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
         currentPage: 1,
         children,
       },
-      options
+      options,
     );
 
   test('lists each child', async function (assert) {
@@ -55,12 +54,12 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await render(hbs`
       <JobPage::Parts::Children
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @currentPage={{currentPage}}
-        @gotoJob={{gotoJob}}
-        @jobs={{children}} />
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @currentPage={{this.currentPage}}
+        @gotoJob={{this.gotoJob}}
+        @jobs={{this.children}} />
     `);
 
     assert.equal(
@@ -91,11 +90,11 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await render(hbs`
       <JobPage::Parts::Children
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @currentPage={{currentPage}}
-        @jobs={{children}}
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @currentPage={{this.currentPage}}
+        @jobs={{this.children}}
       />
     `);
 
@@ -139,12 +138,12 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await render(hbs`
       <JobPage::Parts::Children
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @currentPage={{currentPage}}
-        @gotoJob={{gotoJob}}
-        @jobs={{children}} />
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @currentPage={{this.currentPage}}
+        @gotoJob={{this.gotoJob}}
+        @jobs={{this.children}} />
     `);
 
     const sortedChildren = parent.get('children').sortBy('name');

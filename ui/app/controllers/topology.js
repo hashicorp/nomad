@@ -85,11 +85,11 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
       .without('');
 
     // Remove any invalid node classes from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClass',
-        serialize(intersection(classes, this.selectionClass))
+        serialize(intersection(classes, this.selectionClass)),
       );
     });
 
@@ -99,15 +99,15 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes', 'nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.model.nodes.mapBy('datacenter'))
+      new Set(this.model.nodes.mapBy('datacenter')),
     ).compact();
 
     // Remove any invalid datacenters from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
+        serialize(intersection(datacenters, this.selectionDatacenter)),
       );
     });
 
@@ -118,16 +118,16 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   get optionsNodePool() {
     const availableNodePools = this.model.nodePools;
 
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpNodePool',
         serialize(
           intersection(
             availableNodePools.map(({ name }) => name),
-            this.selectionNodePool
-          )
-        )
+            this.selectionNodePool,
+          ),
+        ),
       );
     });
 
@@ -140,15 +140,15 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes', 'nodes.[]', 'selectionVersion')
   get optionsVersion() {
     const versions = Array.from(
-      new Set(this.model.nodes.mapBy('version'))
+      new Set(this.model.nodes.mapBy('version')),
     ).compact();
 
     // Remove any invalid versions from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVersion',
-        serialize(intersection(versions, this.selectionVersion))
+        serialize(intersection(versions, this.selectionVersion)),
       );
     });
 
@@ -270,26 +270,42 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed(
     'activeAllocation.taskGroupName',
-    'scheduledAllocations.@each.{job,taskGroupName}'
+    'scheduledAllocations.@each.{job,taskGroupName}',
   )
   get siblingAllocations() {
     if (!this.activeAllocation) return [];
     const taskGroup = this.activeAllocation.taskGroupName;
-    const jobId = this.activeAllocation.belongsTo('job').id();
+    const jobId = this.jobIdForAllocation(this.activeAllocation);
 
     return this.scheduledAllocations.filter((allocation) => {
+      const allocationJobId = this.jobIdForAllocation(allocation);
+
       return (
         allocation.taskGroupName === taskGroup &&
-        allocation.belongsTo('job').id() === jobId
+        allocationJobId &&
+        allocationJobId === jobId
       );
     });
+  }
+
+  jobIdForAllocation(allocation) {
+    try {
+      if (allocation?.belongsTo) {
+        return allocation.belongsTo('job').id();
+      }
+    } catch {
+      // Some relationship placeholders are not fully materialized records.
+      // Ignore those when computing sibling allocations.
+    }
+
+    return allocation?.job?.id || allocation?.jobId || null;
   }
 
   @computed('activeNode')
   get nodeUtilization() {
     const node = this.activeNode;
     const [formattedMemory, memoryUnits] = reduceBytes(
-      node.memory * 1024 * 1024
+      node.memory * 1024 * 1024,
     );
     const totalReservedMemory = node.allocations
       .mapBy('memory')

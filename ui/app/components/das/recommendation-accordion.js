@@ -8,7 +8,7 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { task, timeout } from 'ember-concurrency';
 import { htmlSafe } from '@ember/template';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 
 export default class DasRecommendationAccordionComponent extends Component {
@@ -27,7 +27,7 @@ export default class DasRecommendationAccordionComponent extends Component {
     this.animationContainerStyle = htmlSafe('height: 0px');
 
     // The 450ms for the animation to complete, set in CSS as $timing-slow
-    yield timeout(Ember.testing ? 0 : 450);
+    yield timeout(macroCondition(isTesting()) ? 0 : 450);
 
     this.waitingToProceed = false;
   }).drop())

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-env node */
+'use strict';
 
 let USE_MIRAGE = true;
 
@@ -18,19 +18,16 @@ if (process.env.USE_PERCY) {
 }
 
 module.exports = function (environment) {
-  let ENV = {
+  const ENV = {
     modulePrefix: 'nomad-ui',
-    environment: environment,
+    environment,
     rootURL: '/ui/',
-    locationType: 'auto',
+    locationType: 'history',
     EmberENV: {
+      EXTEND_PROTOTYPES: true,
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
         // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
-      },
-      EXTEND_PROTOTYPES: {
-        // Prevent Ember Data from overriding Date.parse.
-        Date: false,
       },
     },
     emberFlightIcons: {
@@ -77,13 +74,12 @@ module.exports = function (environment) {
       tests: true,
     };
 
-    ENV['ember-cli-mirage'] = {
-      trackRequests: true,
-    };
+    ENV['ember-cli-mirage'] = {};
   }
 
-  // if (environment === 'production') {
-  // }
+  if (environment === 'production') {
+    // here you can enable a production-specific feature
+  }
 
   return ENV;
 };

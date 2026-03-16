@@ -153,11 +153,12 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
+      const errors = error.errors?.toArray?.() || error.errors || [];
       if (
-        error.errors?.any(
+        errors.some(
           (e) =>
             e.detail === 'ACL token expired' ||
-            e.detail === 'ACL token not found'
+            e.detail === 'ACL token not found',
         )
       ) {
         this.token.postExpiryPath = this.router.currentURL;

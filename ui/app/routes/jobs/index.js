@@ -14,7 +14,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { action } from '@ember/object';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 const DEFAULT_THROTTLE = 2000;
 
@@ -213,7 +213,9 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    let err = error.errors?.objectAt(0);
+    const errorDetails = /** @type {any} */ (error).errors;
+    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    let err = errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
@@ -286,29 +288,33 @@ export default class IndexRoute extends Route.extend(
       return;
     }
 
-    controller.set('nextToken', model.jobs.meta.nextToken);
-    controller.set('jobQueryIndex', model.jobs.meta.index);
-    controller.set('jobAllocsQueryIndex', model.jobs.meta.allocsIndex); // Assuming allocsIndex is your meta key for job allocations.
+    const jobs = model.jobs;
+    const meta = jobs?.meta || {};
+    const jobsList = jobs?.toArray?.() || jobs;
+
+    controller.set('nextToken', meta.nextToken || null);
+    controller.set('jobQueryIndex', meta.index || 0);
+    controller.set('jobAllocsQueryIndex', meta.allocsIndex || 0); // Assuming allocsIndex is your meta key for job allocations.
     controller.set(
       'jobIDs',
-      model.jobs.map((job) => {
+      jobsList.map((job) => {
         return {
           id: job.plainId,
-          namespace: job.belongsTo('namespace').id(),
+          namespace: job.namespaceId || job.belongsTo('namespace').id(),
         };
-      })
+      }),
     );
 
     // Now that we've set the jobIDs, immediately start watching them
     controller.watchJobs.perform(
       controller.jobIDs,
-      Ember.testing ? 0 : DEFAULT_THROTTLE,
-      'update'
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
+      'update',
     );
     // And also watch for any changes to the jobIDs list
     controller.watchJobIDs.perform(
       this.getCurrentParams(),
-      Ember.testing ? 0 : DEFAULT_THROTTLE
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
     );
   }
 

@@ -5,10 +5,12 @@
 
 /* eslint-disable qunit/require-expect */
 import { currentURL, visit } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import StorageList from 'nomad-ui/tests/pages/storage/list';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
@@ -28,6 +30,7 @@ const assignReadAlloc = (volume, alloc) => {
 module('Acceptance | storage list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   hooks.beforeEach(function () {
     faker.seed(1);
@@ -52,7 +55,9 @@ module('Acceptance | storage list', function (hooks) {
     await StorageList.visit();
 
     assert.equal(currentURL(), '/storage');
-    assert.equal(document.title, 'Storage - Nomad');
+    const pageTitle = getPageTitle();
+    assert.ok(pageTitle.startsWith('Storage'));
+    assert.ok(pageTitle.endsWith(' - Nomad'));
   });
 
   test('/storage/volumes should list the first page of volumes sorted by name', async function (assert) {

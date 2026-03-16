@@ -6,8 +6,7 @@
 import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { assign } from '@ember/polyfills';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -15,7 +14,7 @@ module('Integration | Component | placement failures', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
-      <PlacementFailure @taskGroup={{taskGroup}} />
+      <PlacementFailure @taskGroup={{this.taskGroup}} />
   `;
 
   test('should render the placement failure (basic render)', async function (assert) {
@@ -128,7 +127,7 @@ module('Integration | Component | placement failures', function (hooks) {
   function createFixture(obj = {}, name = 'Placement Failure') {
     return {
       name: name,
-      placementFailures: assign(
+      placementFailures: Object.assign(
         {
           name: name,
           coalescedFailures: 10,
@@ -156,7 +155,7 @@ module('Integration | Component | placement failures', function (hooks) {
             name: 3,
           },
         },
-        obj
+        obj,
       ),
     };
   }

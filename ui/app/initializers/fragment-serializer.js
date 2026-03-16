@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import FragmentSerializer from '../serializers/fragment';
+import FragmentSerializer from 'nomad-ui/serializers/fragment';
 
 export function initialize(application) {
   application.register('serializer:-fragment', FragmentSerializer);

@@ -11,6 +11,18 @@ import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
+  get allocations() {
+    const relationship = this.job?.hasMany?.('allocations');
+    const ids = relationship?.ids?.() || [];
+    const store = this.job?.store;
+
+    if (!store || !ids.length) {
+      return [];
+    }
+
+    return ids.map((id) => store.peekRecord('allocation', id)).filter(Boolean);
+  }
+
   get allocTypes() {
     return this.args.job.allocTypes;
   }
@@ -58,12 +70,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
         accumulator[type.label] = { healthy: { nonCanary: [] } };
         return accumulator;
       },
-      {}
+      {},
     );
 
     // First accumulate the Running/Pending allocations
-    for (const alloc of this.job.allocations.filter(
-      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending'
+    for (const alloc of this.allocations.filter(
+      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending',
     )) {
       if (availableSlotsToFill === 0) {
         break;
@@ -75,9 +87,9 @@ export default class JobStatusPanelSteadyComponent extends Component {
     }
 
     // Sort all allocs by jobVersion in descending order
-    const sortedAllocs = this.args.job.allocations
+    const sortedAllocs = this.allocations
       .filter(
-        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
+        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending',
       )
       .sort((a, b) => {
         // First sort by jobVersion
@@ -139,8 +151,8 @@ export default class JobStatusPanelSteadyComponent extends Component {
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
-      return this.args.job.allocations.filterBy('nodeID').uniqBy('nodeID')
-        .length;
+      return new Set(this.allocations.map((a) => a?.nodeID).filter(Boolean))
+        .size;
     } else {
       return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
     }
@@ -178,20 +190,20 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get rescheduledAllocs() {
-    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
+    return this.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
   }
 
   get restartedAllocs() {
-    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
+    return this.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
   }
 
   get runningAllocs() {
-    return this.job.allocations.filter((a) => a.clientStatus === 'running');
+    return this.allocations.filter((a) => a.clientStatus === 'running');
   }
 
   get completedAllocs() {
-    return this.job.allocations.filter(
-      (a) => !a.isOld && a.clientStatus === 'complete'
+    return this.allocations.filter(
+      (a) => !a.isOld && a.clientStatus === 'complete',
     );
   }
 
@@ -200,7 +212,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get latestVersionAllocations() {
-    return this.job.allocations.filter((a) => !a.isOld);
+    return this.allocations.filter((a) => !a.isOld);
   }
 
   /**

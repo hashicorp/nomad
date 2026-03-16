@@ -16,13 +16,13 @@ export default class NamespaceEditorComponent extends Component {
   @service notifications;
   @service router;
   @service store;
-  @service can;
+  @service abilities;
 
   @alias('args.namespace') namespace;
 
   @tracked JSONError = null;
   @tracked definitionString = this.definitionStringFromNamespace(
-    this.args.namespace
+    this.args.namespace,
   );
 
   @action updateNamespaceName({ target: { value } }) {
@@ -50,7 +50,7 @@ export default class NamespaceEditorComponent extends Component {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.namespace.name?.match(nameRegex)) {
         throw new Error(
-          `Namespace name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
+          `Namespace name must be 1-128 characters long and can only contain letters, numbers, and dashes.`,
         );
       }
 
@@ -64,7 +64,7 @@ export default class NamespaceEditorComponent extends Component {
           .findBy('name', this.namespace.name)
       ) {
         throw new Error(
-          `A namespace with name ${this.namespace.name} already exists.`
+          `A namespace with name ${this.namespace.name} already exists.`,
         );
       }
 
@@ -79,7 +79,7 @@ export default class NamespaceEditorComponent extends Component {
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
           'administration.namespaces.acl-namespace',
-          this.namespace.name
+          this.namespace.name,
         );
       }
     } catch (err) {
@@ -101,16 +101,43 @@ export default class NamespaceEditorComponent extends Component {
   }
 
   definitionStringFromNamespace(namespace) {
+    const capabilities = namespace.capabilities
+      ? {
+          DisabledTaskDrivers:
+            namespace.capabilities.DisabledTaskDrivers?.toArray?.() ||
+            namespace.capabilities.DisabledTaskDrivers ||
+            [],
+          EnabledTaskDrivers:
+            namespace.capabilities.EnabledTaskDrivers?.toArray?.() ||
+            namespace.capabilities.EnabledTaskDrivers ||
+            [],
+        }
+      : undefined;
+
+    const nodePoolConfiguration = namespace.nodePoolConfiguration
+      ? {
+          Default: namespace.nodePoolConfiguration.Default,
+          Allowed:
+            namespace.nodePoolConfiguration.Allowed?.toArray?.() ||
+            namespace.nodePoolConfiguration.Allowed ||
+            null,
+          Disallowed:
+            namespace.nodePoolConfiguration.Disallowed?.toArray?.() ||
+            namespace.nodePoolConfiguration.Disallowed ||
+            null,
+        }
+      : null;
+
     let definitionHash = {};
     definitionHash['Description'] = namespace.description;
-    definitionHash['Capabilities'] = namespace.capabilities;
+    definitionHash['Capabilities'] = capabilities;
     definitionHash['Meta'] = namespace.meta;
 
-    if (this.can.can('configure-in-namespace node-pool')) {
-      definitionHash['NodePoolConfiguration'] = namespace.nodePoolConfiguration;
+    if (this.abilities.can('configure-in-namespace node-pool')) {
+      definitionHash['NodePoolConfiguration'] = nodePoolConfiguration;
     }
 
-    if (this.can.can('configure-in-namespace quota')) {
+    if (this.abilities.can('configure-in-namespace quota')) {
       definitionHash['Quota'] = namespace.quota;
     }
 
@@ -123,11 +150,11 @@ export default class NamespaceEditorComponent extends Component {
 
     let capabilities = this.store.createFragment(
       'ns-capabilities',
-      definitionHash['Capabilities']
+      definitionHash['Capabilities'],
     );
     this.namespace.set('capabilities', capabilities);
 
-    if (this.can.can('configure-in-namespace node-pool')) {
+    if (this.abilities.can('configure-in-namespace node-pool')) {
       let npConfig = definitionHash['NodePoolConfiguration'] || {};
       this.store.create;
 
@@ -144,13 +171,13 @@ export default class NamespaceEditorComponent extends Component {
       // Create node pool config fragment
       let nodePoolConfiguration = this.store.createFragment(
         'ns-node-pool-configuration',
-        npConfig
+        npConfig,
       );
 
       this.namespace.set('nodePoolConfiguration', nodePoolConfiguration);
     }
 
-    if (this.can.can('configure-in-namespace quota')) {
+    if (this.abilities.can('configure-in-namespace quota')) {
       this.namespace.set('quota', definitionHash['Quota']);
     }
   }

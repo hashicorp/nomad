@@ -6,7 +6,6 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
-import { alias, mapBy, sort, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
@@ -20,29 +19,120 @@ const ANSI_WHITE = '\x1b[0m';
 export default class ExecController extends Controller {
   @service sockets;
   @service system;
+  @service store;
   @service token;
 
   queryParams = ['allocation', 'namespace'];
+  fallbackAllocations = null;
 
   @localStorageProperty('nomadExecCommand', '/bin/bash') command;
   socketOpen = false;
 
-  @computed('model.allocations.@each.clientStatus')
   get pendingAndRunningAllocations() {
-    return this.model.allocations.filter(
-      (allocation) =>
-        allocation.clientStatus === 'pending' ||
-        allocation.clientStatus === 'running'
+    return this.allocations.filter((allocation) => {
+      const status = allocation.clientStatus || allocation.ClientStatus;
+      return status === 'pending' || status === 'running';
+    });
+  }
+
+  get allocations() {
+    const relationshipAllocations = this.model?.allocations?.toArray?.() || [];
+    if (relationshipAllocations.length) {
+      return relationshipAllocations;
+    }
+
+    const jobCompositeId = this.model?.id;
+    const jobPlainId = this.model?.plainId;
+    const jobNamespace =
+      this.model?.get?.('namespace.id') || this.namespace || 'default';
+    const taskGroupNames = (this.model?.taskGroups || []).mapBy('name');
+
+    const allocations =
+      this.fallbackAllocations || this.store.peekAll('allocation');
+
+    const byJob = allocations.filter((allocation) => {
+      const allocationCompositeJobId = allocation.belongsTo('job').id();
+      let allocPlainJobId = null;
+      let allocNamespace = allocation.namespace || 'default';
+
+      if (allocationCompositeJobId) {
+        try {
+          const [plainId, namespace] = JSON.parse(allocationCompositeJobId);
+          allocPlainJobId = plainId;
+          allocNamespace = namespace || allocNamespace;
+        } catch {
+          allocPlainJobId = null;
+        }
+      }
+
+      const sameJob =
+        (jobCompositeId && allocationCompositeJobId === jobCompositeId) ||
+        (jobPlainId && allocPlainJobId === jobPlainId);
+
+      return allocNamespace === jobNamespace && sameJob;
+    });
+
+    if (byJob.length) {
+      return byJob;
+    }
+
+    const byTaskGroup = allocations.filter((allocation) => {
+      const allocNamespace = allocation.namespace || 'default';
+      return (
+        allocNamespace === jobNamespace &&
+        taskGroupNames.includes(allocation.taskGroupName)
+      );
+    });
+
+    if (byTaskGroup.length) {
+      return byTaskGroup;
+    }
+
+    // Last-resort fallback: preserve page usability when relationships are
+    // missing by using in-namespace allocations.
+    return allocations.filter(
+      (allocation) => (allocation.namespace || 'default') === jobNamespace,
     );
   }
 
-  @mapBy('pendingAndRunningAllocations', 'taskGroup')
-  pendingAndRunningTaskGroups;
-  @uniq('pendingAndRunningTaskGroups') uniquePendingAndRunningTaskGroups;
+  get pendingAndRunningTaskGroups() {
+    const allocations = this.pendingAndRunningAllocations || [];
+    const taskGroups = this.model?.taskGroups || [];
+    const names = [...new Set(allocations.map((alloc) => alloc.taskGroupName))]
+      .filter(Boolean)
+      .sort();
 
-  taskGroupSorting = ['name'];
-  @sort('uniquePendingAndRunningTaskGroups', 'taskGroupSorting')
-  sortedTaskGroups;
+    return names
+      .map((name) => {
+        const hydratedTaskGroup = taskGroups.findBy('name', name);
+        if (hydratedTaskGroup) {
+          return hydratedTaskGroup;
+        }
+
+        const groupedAllocations = allocations.filterBy('taskGroupName', name);
+        const groupedStates = groupedAllocations.flatMap(
+          (allocation) =>
+            allocation.states?.toArray?.() || allocation.states || [],
+        );
+        const taskNames = [
+          ...new Set(groupedStates.map((state) => state?.name).filter(Boolean)),
+        ];
+
+        return {
+          name,
+          job: this.model,
+          allocations: groupedAllocations,
+          tasks: taskNames.map((taskName) => ({ name: taskName })),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  get sortedTaskGroups() {
+    return [...(this.pendingAndRunningTaskGroups || [])].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }
 
   setUpTerminal(Terminal) {
     this.terminal = new Terminal({
@@ -60,15 +150,13 @@ export default class ExecController extends Controller {
     }
   }
 
-  @alias('model.allocations') allocations;
-
   @computed(
     'allocations.{[],@each.isActive}',
     'allocationShortId',
     'taskName',
     'taskGroupName',
     'allocation',
-    'allocation.states.@each.{name,isRunning}'
+    'allocation.states.@each.{name,isRunning}',
   )
   get taskState() {
     if (!this.allocations) {
@@ -87,7 +175,7 @@ export default class ExecController extends Controller {
         allocation.states
           .filterBy('isActive')
           .mapBy('name')
-          .includes(this.taskName)
+          .includes(this.taskName),
       );
     }
 
@@ -112,13 +200,13 @@ export default class ExecController extends Controller {
 
       if (!allocationShortId) {
         this.terminal.writeln(
-          'Multiple instances of this task are running. The allocation below was selected by random draw.'
+          'Multiple instances of this task are running. The allocation below was selected by random draw.',
         );
         this.terminal.writeln('');
       }
 
       this.terminal.writeln(
-        'Customize your command, then hit ‘return’ to run.'
+        'Customize your command, then hit ‘return’ to run.',
       );
       this.terminal.writeln('');
 
@@ -129,8 +217,8 @@ export default class ExecController extends Controller {
 
       this.terminal.write(
         `$ nomad alloc exec -i -t ${namespaceCommandString}-task ${escapeTaskName(
-          taskName
-        )} ${this.taskState.allocation.shortId} `
+          taskName,
+        )} ${this.taskState.allocation.shortId} `,
       );
 
       this.terminal.write(ANSI_WHITE);
@@ -144,7 +232,7 @@ export default class ExecController extends Controller {
       this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
         this.terminal,
         this.openAndConnectSocket.bind(this),
-        this.command
+        this.command,
       );
     }
   }
@@ -158,7 +246,7 @@ export default class ExecController extends Controller {
       new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);
     } else {
       this.terminal.writeln(
-        `Failed to open a socket because task ${this.taskName} is not active.`
+        `Failed to open a socket because task ${this.taskName} is not active.`,
       );
     }
   }

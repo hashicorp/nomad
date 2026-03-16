@@ -10,7 +10,7 @@ import { inject as service } from '@ember/service';
 import compactPath from '../utils/compact-path';
 export default class VariablePathsComponent extends Component {
   @service router;
-  @service can;
+  @service abilities;
 
   /**
    * @returns {Array<Object.<string, Object>>}
@@ -39,7 +39,7 @@ export default class VariablePathsComponent extends Component {
 
   @action
   async handleFileClick({ path, variable: { id, namespace } }, trigger) {
-    if (this.can.can('read variable', null, { path, namespace })) {
+    if (this.abilities.can('read variable', null, { path, namespace })) {
       // Don't navigate if the user clicked on a link; this will happen with modifier keys like cmd/ctrl on the link itself
       if (
         trigger instanceof PointerEvent &&

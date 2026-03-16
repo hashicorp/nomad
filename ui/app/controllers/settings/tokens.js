@@ -11,7 +11,7 @@ import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 /**
  * @type {RegExp}
@@ -62,7 +62,18 @@ export default class Tokens extends Controller {
   }
 
   get hasJWTAuthMethods() {
-    return this.authMethods.any((method) => method.type === 'JWT');
+    const methods = this.authMethods;
+
+    if (typeof methods?.some === 'function') {
+      return methods.some((method) => method.type === 'JWT');
+    }
+
+    if (typeof methods?.any === 'function') {
+      return methods.any((method) => method.type === 'JWT');
+    }
+
+    const methodList = methods?.toArray?.() || [];
+    return methodList.some((method) => method.type === 'JWT');
   }
 
   get nonTokenAuthMethods() {
@@ -86,17 +97,27 @@ export default class Tokens extends Controller {
     );
   }
 
-  @action
-  setCurrentAuthMethod() {
-    if (!this.jwtAuthMethod) {
-      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
-    }
-  }
-
   /**
    * @type {string}
    */
   @tracked jwtAuthMethod;
+
+  get selectedJWTAuthMethod() {
+    return this.jwtAuthMethod || this.defaultJWTAuthMethod?.name;
+  }
+
+  @action
+  handleSecretInput(event) {
+    const nextSecret = event?.target?.value;
+    this.secret = nextSecret;
+
+    const isJWT =
+      nextSecret?.length > 36 && nextSecret.match(JWT_MATCH_EXPRESSION);
+
+    if (isJWT && !this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
+  }
 
   /**
    * @type {boolean}
@@ -119,7 +140,7 @@ export default class Tokens extends Controller {
     const isJWT = secret.length > 36 && secret.match(JWT_MATCH_EXPRESSION);
 
     if (isJWT) {
-      const methodName = this.jwtAuthMethod;
+      const methodName = this.selectedJWTAuthMethod;
 
       // If user passes a JWT token, but there is no JWT auth method, throw an error
       if (!methodName) {
@@ -151,7 +172,7 @@ export default class Tokens extends Controller {
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
-        }
+        },
       );
     } else {
       this.clearTokenProperties();
@@ -181,7 +202,7 @@ export default class Tokens extends Controller {
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
-        }
+        },
       );
     }
   }
@@ -191,9 +212,16 @@ export default class Tokens extends Controller {
    * redirect them back to the page they were on.
    */
   optionallyRedirectPathAfterSignIn() {
-    if (this.token.postExpiryPath) {
-      this.router.transitionTo(this.token.postExpiryPath);
+    const redirectPath =
+      this.token.postExpiryPath &&
+      this.token.postExpiryPath !== '/settings/tokens'
+        ? this.token.postExpiryPath
+        : this.token.forbiddenReturnPath;
+
+    if (redirectPath && redirectPath !== '/settings/tokens') {
+      this.router.transitionTo(redirectPath);
       this.token.postExpiryPath = null;
+      this.token.forbiddenReturnPath = null;
 
       // Because they won't be on the page to see "Successfully signed in", use a toast.
       this.notifications.add({
@@ -222,7 +250,7 @@ export default class Tokens extends Controller {
     window.localStorage.setItem('nomadOIDCAuthMethod', provider);
 
     let redirectURL;
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       redirectURL = this.router.currentURL;
     } else {
       redirectURL = new URL(window.location.toString());
@@ -237,7 +265,7 @@ export default class Tokens extends Controller {
         RedirectUri: redirectURL,
       })
       .then(({ AuthURL }) => {
-        if (Ember.testing) {
+        if (macroCondition(isTesting())) {
           this.router.transitionTo(AuthURL.split('/ui')[1]);
         } else {
           window.location = AuthURL;
@@ -260,7 +288,7 @@ export default class Tokens extends Controller {
 
   async validateSSO() {
     let redirectURL;
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       redirectURL = this.router.currentURL;
     } else {
       redirectURL = new URL(window.location.toString());
@@ -280,7 +308,7 @@ export default class Tokens extends Controller {
           RedirectURI: redirectURL,
           Iss: this.iss,
         }),
-      }
+      },
     );
 
     if (res.ok) {

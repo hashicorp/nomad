@@ -4,7 +4,7 @@
  */
 
 import { camelize, capitalize } from '@ember/string';
-import { RestSerializer } from 'ember-cli-mirage';
+import { RestSerializer } from 'miragejs';
 
 const keyCase = (str) =>
   str === 'id' ? 'ID' : capitalize(camelize(str)).replace(/Id/g, 'ID');

@@ -10,12 +10,12 @@ import { inject as service } from '@ember/service';
 export default class AccessControlNamespacesIndexController extends Controller {
   @service router;
   @service notifications;
-  @service can;
+  @service abilities;
 
   @action openNamespace(namespace) {
     this.router.transitionTo(
       'administration.namespaces.acl-namespace',
-      namespace.name
+      namespace.name,
     );
   }
 

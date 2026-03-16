@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 import Mixin from '@ember/object/mixin';
 import { assert } from '@ember/debug';
 import { on } from '@ember/object/evented';
@@ -15,14 +15,14 @@ export default Mixin.create({
   },
 
   setupDocumentVisibility: on('init', function () {
-    if (!Ember.testing) {
+    if (!macroCondition(isTesting())) {
       this.set('_visibilityHandler', this.visibilityHandler.bind(this));
       document.addEventListener('visibilitychange', this._visibilityHandler);
     }
   }),
 
   removeDocumentVisibility: on('init', function () {
-    if (!Ember.testing) {
+    if (!macroCondition(isTesting())) {
       document.removeEventListener('visibilitychange', this._visibilityHandler);
     }
   }),

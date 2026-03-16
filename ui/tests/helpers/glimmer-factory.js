@@ -4,9 +4,10 @@
  */
 
 /* eslint-disable qunit/no-commented-tests */
+import { setOwner } from '@ember/owner';
 // We comment test to show an example of how to use the factory function
 
-/* 
+/*
   Used in glimmer component unit tests. Glimmer components should typically
   be tested with integration tests, but occasionally individual methods or
   properties have logic that isn't coupled to rendering or the DOM and can
@@ -35,12 +36,12 @@ export default function setupGlimmerComponentFactory(hooks, componentKey) {
   });
 }
 
-// Look up the component class in the glimmer component manager and return a
-// function to construct components as if they were functions.
+// Look up the component class and construct an instance for unit tests.
 function glimmerComponentInstantiator(owner, componentKey) {
   return (args = {}) => {
-    const componentManager = owner.lookup('component-manager:glimmer');
     const componentClass = owner.factoryFor(`component:${componentKey}`).class;
-    return componentManager.createComponent(componentClass, { named: args });
+    const component = new componentClass(owner, args);
+    setOwner(component, owner);
+    return component;
   };
 }

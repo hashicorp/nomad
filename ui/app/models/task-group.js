@@ -56,7 +56,7 @@ export default class TaskGroup extends Fragment {
 
   @fragmentArray('task') tasks;
 
-  @fragmentArray('service-fragment') services;
+  @fragmentArray('service-fragment', { defaultValue: () => [] }) services;
 
   @fragmentArray('volume-definition') volumes;
 

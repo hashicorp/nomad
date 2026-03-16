@@ -7,6 +7,7 @@
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
+import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
@@ -33,15 +34,35 @@ export default class JobEditor extends Component {
   constructor() {
     super(...arguments);
 
-    if (this.definition) {
-      this.setDefinitionOnModel();
+    const isEmberDataModel = typeof this.args.job?.belongsTo === 'function';
+    const shouldInitializeDefinition =
+      this.isEditing || this.args.job?._newDefinition === undefined;
+    const shouldInitializeVariables =
+      this.isEditing || this.args.job?._newDefinitionVariables === undefined;
+
+    if (shouldInitializeDefinition && this.definition) {
+      if (isEmberDataModel) {
+        scheduleOnce('afterRender', this, this.setDefinitionOnModel);
+      } else {
+        this.setDefinitionOnModel();
+      }
     }
 
-    if (this.args.variables) {
-      this.args.job.set(
-        '_newDefinitionVariables',
-        jsonToHcl(this.args.variables.flags).concat(this.args.variables.literal)
+    if (shouldInitializeVariables && this.args.variables) {
+      const variables = jsonToHcl(this.args.variables.flags).concat(
+        this.args.variables.literal,
       );
+
+      if (isEmberDataModel) {
+        scheduleOnce(
+          'afterRender',
+          this,
+          this.setDefinitionVariablesOnModel,
+          variables,
+        );
+      } else {
+        this.setDefinitionVariablesOnModel(variables);
+      }
     }
   }
 
@@ -56,7 +77,33 @@ export default class JobEditor extends Component {
 
   @action
   setDefinitionOnModel() {
-    this.args.job.set('_newDefinition', this.definition);
+    if (
+      !this.args.job ||
+      this.args.job.isDestroying ||
+      this.args.job.isDestroyed
+    ) {
+      return;
+    }
+
+    const definition = this.definition;
+
+    if (this.args.job._newDefinition !== definition) {
+      this.args.job.set('_newDefinition', definition);
+    }
+  }
+
+  setDefinitionVariablesOnModel(variables) {
+    if (
+      !this.args.job ||
+      this.args.job.isDestroying ||
+      this.args.job.isDestroyed
+    ) {
+      return;
+    }
+
+    if (this.args.job._newDefinitionVariables !== variables) {
+      this.args.job.set('_newDefinitionVariables', variables);
+    }
   }
 
   /**
@@ -257,10 +304,21 @@ export default class JobEditor extends Component {
     }
   }
 
+  get definitionVariables() {
+    if (!this.args.variables) {
+      return '';
+    }
+
+    return jsonToHcl(this.args.variables.flags).concat(
+      this.args.variables.literal,
+    );
+  }
+
   get data() {
     return {
       cancelable: this.args.cancelable,
       definition: this.definition,
+      definitionVariables: this.definitionVariables,
       format: this.args.format,
       hasSpecification: !!this.args.specification,
       hasVariables:

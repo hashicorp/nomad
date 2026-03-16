@@ -5,7 +5,6 @@
 
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
-import EmberError from '@ember/error';
 import { resolve, all } from 'rsvp';
 import {
   watchRecord,
@@ -32,7 +31,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
       .then(() => {
         const taskGroup = job.get('taskGroups').findBy('name', name);
         if (!taskGroup) {
-          const err = new EmberError(
+          const err = new Error(
             `Task group ${name} for job ${job.get('name')} not found`
           );
           err.code = '404';

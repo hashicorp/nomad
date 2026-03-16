@@ -36,8 +36,10 @@ export default class TaskGroupParent extends Component {
 
   @computed('taskGroup.allocations.@each.clientStatus')
   get hasPendingAllocations() {
-    return this.taskGroup.allocations.any(
-      (allocation) => allocation.clientStatus === 'pending'
+    const allocations =
+      this.taskGroup.allocations?.toArray?.() || this.taskGroup.allocations;
+    return (allocations || []).some(
+      (allocation) => allocation.clientStatus === 'pending',
     );
   }
 
@@ -45,7 +47,7 @@ export default class TaskGroupParent extends Component {
   @computed('allocationTaskStatesRecordArrays.[]')
   get allocationTaskStates() {
     const flattenRecordArrays = (accumulator, recordArray) =>
-      accumulator.concat(recordArray.toArray());
+      accumulator.concat(recordArray?.toArray?.() || recordArray || []);
     return this.allocationTaskStatesRecordArrays.reduce(
       flattenRecordArrays,
       []
