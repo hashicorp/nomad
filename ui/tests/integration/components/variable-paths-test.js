@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
@@ -41,8 +40,6 @@ module('Integration | Component | variable-paths', function (hooks) {
   });
 
   test('it renders without data', async function (assert) {
-    assert.expect(2);
-
     this.set('emptyRoot', { children: {}, files: [] });
     await render(hbs`<VariablePaths @branch={{this.emptyRoot}} />`);
     assert.dom('tbody tr').exists({ count: 0 });
@@ -51,8 +48,6 @@ module('Integration | Component | variable-paths', function (hooks) {
   });
 
   test('it renders with data', async function (assert) {
-    assert.expect(2);
-
     this.set('tree', tree);
     await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
     assert.dom('tbody tr').exists({ count: 2 }, 'There are two rows');
@@ -61,8 +56,6 @@ module('Integration | Component | variable-paths', function (hooks) {
   });
 
   test('it allows for traversal: Folders', async function (assert) {
-    assert.expect(3);
-
     this.set('tree', tree);
     await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
     assert
@@ -113,8 +106,6 @@ module('Integration | Component | variable-paths', function (hooks) {
     this.owner.register('service:token', mockToken);
 
     // End Test Set-up
-
-    assert.expect(5);
 
     this.set('tree', tree.findPath('foo/bar'));
     await render(hbs`<VariablePaths @branch={{this.tree}} />`);

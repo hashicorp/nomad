@@ -10,7 +10,11 @@ import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 module('Unit | Util | RollingArray', function () {
   test('has a maxLength property that gets set in the constructor', function (assert) {
     const array = RollingArray(10, 'a', 'b', 'c');
-    assert.equal(array.maxLength, 10, 'maxLength is set in the constructor');
+    assert.deepEqual(
+      array.maxLength,
+      10,
+      'maxLength is set in the constructor',
+    );
     assert.deepEqual(
       array,
       ['a', 'b', 'c'],
@@ -21,12 +25,12 @@ module('Unit | Util | RollingArray', function () {
   test('push works like Array#push', function (assert) {
     const array = RollingArray(10);
     const pushReturn = array.push('a');
-    assert.equal(
+    assert.deepEqual(
       pushReturn,
       array.length,
       'the return value from push is equal to the return value of Array#push',
     );
-    assert.equal(
+    assert.deepEqual(
       array[0],
       'a',
       'the arguments passed to push are appended to the array',
@@ -48,7 +52,7 @@ module('Unit | Util | RollingArray', function () {
       [2, 3, 4],
       'The first argument to push is not in the array, but the following three are',
     );
-    assert.equal(
+    assert.deepEqual(
       pushReturn,
       array.length,
       'The return value of push is still the array length despite more arguments than possible were provided to push',

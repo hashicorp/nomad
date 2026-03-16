@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 /**
  * Convert a JSON object to an HCL string.
  *

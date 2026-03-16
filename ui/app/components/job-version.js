@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -135,7 +133,7 @@ export default class JobVersion extends Component {
           },
         },
       );
-    } catch (e) {
+    } catch {
       this.args.handleError({
         level: 'danger',
         title: 'Could Not Edit from Version',
@@ -155,7 +153,7 @@ export default class JobVersion extends Component {
         },
       });
       return;
-    } catch (specError) {
+    } catch {
       try {
         // If submission info is not available, try to fetch the raw definition
         const definition = await job.fetchRawDefinition(this.version.number);

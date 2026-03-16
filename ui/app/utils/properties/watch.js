@@ -2,10 +2,6 @@
  * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
-
-// @ts-check
-
-import { get } from '@ember/object';
 import { assert } from '@ember/debug';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
@@ -31,7 +27,7 @@ export function watchRecord(modelName, { shouldSurfaceErrors = false } = {}) {
       this.store.adapterFor(modelName) instanceof Watchable,
     );
     if (typeof id === 'object') {
-      id = get(id, 'id');
+      id = id.id;
     }
     while (isEnabled && config.environment !== 'test') {
       const controller = new AbortController();

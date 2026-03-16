@@ -64,7 +64,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     const registry = this.subject();
     const id = 'id';
 
-    assert.equal(
+    assert.deepEqual(
       registry.get('registryRef').size,
       0,
       'Nothing in the registry yet',
@@ -75,7 +75,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
       tracker instanceof NodeStatsTracker,
       'The correct type of tracker is made',
     );
-    assert.equal(
+    assert.deepEqual(
       registry.get('registryRef').size,
       1,
       'The tracker was added to the registry',
@@ -94,12 +94,12 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     const tracker1 = registry.getTracker(node);
     const tracker2 = registry.getTracker(node);
 
-    assert.equal(
+    assert.deepEqual(
       tracker1,
       tracker2,
       'Returns an existing tracker for the same resource',
     );
-    assert.equal(
+    assert.deepEqual(
       registry.get('registryRef').size,
       1,
       'Only one tracker in the registry',
@@ -114,19 +114,19 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     const node2 = mockNode.create({ id });
 
     assert.notEqual(node1, node2, 'Two different resources');
-    assert.equal(node1.get('id'), node2.get('id'), 'With the same IDs');
-    assert.equal(
+    assert.deepEqual(node1.get('id'), node2.get('id'), 'With the same IDs');
+    assert.deepEqual(
       node1.constructor.modelName,
       node2.constructor.modelName,
       'And the same className',
     );
 
-    assert.equal(
+    assert.deepEqual(
       registry.getTracker(node1),
       registry.getTracker(node2),
       'Return the same tracker',
     );
-    assert.equal(
+    assert.deepEqual(
       registry.get('registryRef').size,
       1,
       'Only one tracker in the registry',
@@ -155,7 +155,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.notOk(tracker.get('node'), 'The tracker does not have a node');
 
     tracker = registry.getTracker(node1);
-    assert.equal(
+    assert.deepEqual(
       tracker.get('node'),
       node1,
       'The node was re-attached to the tracker after calling getTracker again',
@@ -178,7 +178,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
 
     const node2 = mockNode.create({ id });
     tracker = registry.getTracker(node2);
-    assert.equal(
+    assert.deepEqual(
       tracker.get('node'),
       node2,
       'Since node1 was destroyed but it matches the tracker of node2, node2 is attached to the tracker',
@@ -205,7 +205,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     }
 
     const ref = registry.get('registryRef');
-    assert.equal(ref.size, ref.limit, 'The limit was reached');
+    assert.deepEqual(ref.size, ref.limit, 'The limit was reached');
 
     assert.ok(
       ref.get('node:active'),

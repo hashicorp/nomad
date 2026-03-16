@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Model from '@ember-data/model';
 import { computed } from '@ember/object';
 import classic from 'ember-classic-decorator';

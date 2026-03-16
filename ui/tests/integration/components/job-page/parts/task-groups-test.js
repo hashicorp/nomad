@@ -42,8 +42,6 @@ module(
       );
 
     test('the job detail page should list all task groups', async function (assert) {
-      assert.expect(2);
-
       this.server.create('job', {
         createAllocations: false,
       });
@@ -63,7 +61,7 @@ module(
       />
     `);
 
-      assert.equal(
+      assert.deepEqual(
         findAll('[data-test-task-group]').length,
         job.get('taskGroups.length'),
         'One row per task group',
@@ -96,42 +94,44 @@ module(
 
       const taskGroupRow = find('[data-test-task-group]');
 
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-name]')
           .textContent.trim(),
         taskGroup.get('name'),
         'Name',
       );
-      assert.equal(
-        taskGroupRow
-          .querySelector('[data-test-task-group-count]')
-          .textContent.trim(),
+      assert.strictEqual(
+        Number(
+          taskGroupRow
+            .querySelector('[data-test-task-group-count]')
+            .textContent.trim(),
+        ),
         taskGroup.get('count'),
         'Count',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-volume]')
           .textContent.trim(),
         taskGroup.get('volumes.length') ? 'Yes' : '',
         'Volumes',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-cpu]')
           .textContent.trim(),
         `${formatScheduledHertz(taskGroup.get('reservedCPU'), 'MHz')}`,
         'Reserved CPU',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-mem]')
           .textContent.trim(),
         `${formatScheduledBytes(taskGroup.get('reservedMemory'), 'MiB')}`,
         'Reserved Memory',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-disk]')
           .textContent.trim(),

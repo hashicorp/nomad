@@ -15,21 +15,21 @@ const objectToStringify = {
 module('Unit | Helper | stringify-object', function () {
   test('Contains the correct number of whitespace', function (assert) {
     // assertions with whitespace > 0 are whitespace + 3, to account for quote, newline and \ characters
-    assert.equal(
+    assert.deepEqual(
       stringifyObject([objectToStringify], {
         whitespace: 10,
       }).indexOf('dog'),
       13,
       'Ten spaces',
     );
-    assert.equal(
+    assert.deepEqual(
       stringifyObject([objectToStringify], {
         whitespace: 5,
       }).indexOf('dog'),
       8,
       'Five spaces',
     );
-    assert.equal(
+    assert.deepEqual(
       stringifyObject([objectToStringify], {
         whitespace: 0,
       }).indexOf('dog'),
@@ -44,7 +44,7 @@ module('Unit | Helper | stringify-object', function () {
       }).indexOf('dogDegreesHeld'),
       'Unreplaced value is present',
     );
-    assert.equal(
+    assert.deepEqual(
       stringifyObject([objectToStringify], {
         replacer: ['dog', 'dogDegreesHeld'],
       }).indexOf('dogAge'),
@@ -59,7 +59,7 @@ module('Unit | Helper | stringify-object', function () {
       }).indexOf('dogAge'),
       'Unreplaced value is present',
     );
-    assert.equal(
+    assert.deepEqual(
       stringifyObject([objectToStringify], {
         replacer: (k, v) => (v ? v : undefined),
       }).indexOf('dogDegreesHeld'),

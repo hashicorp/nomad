@@ -10,10 +10,9 @@ import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 export default class VariablesVariableIndexController extends Controller {
-  queryParams = ['view'];
-
   @service router;
-  queryParams = ['sortProperty', 'sortDescending'];
+
+  queryParams = ['view', 'sortProperty', 'sortDescending'];
 
   @tracked sortProperty = 'key';
   @tracked sortDescending = true;

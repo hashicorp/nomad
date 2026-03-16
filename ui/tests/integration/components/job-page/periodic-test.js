@@ -84,9 +84,9 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    const currentJobCount = server.db.jobs.length;
+    const currentJobCount = this.server.db.jobs.length;
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-job-row] [data-test-job-name]').length,
       childrenCount,
       'The new periodic job launch is in the children list',
@@ -103,8 +103,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       'POST URL was correct',
     );
 
-    assert.equal(
-      server.db.jobs.length,
+    assert.deepEqual(
+      this.server.db.jobs.length,
       currentJobCount + 1,
       'POST request was made',
     );
@@ -139,8 +139,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
-    assert.expect(1);
-
     this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -163,8 +161,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Stopping a job without proper permissions results in a disabled button', async function (assert) {
-    assert.expect(2);
-
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -188,8 +184,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(1);
-
     this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -212,8 +206,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Starting a job without proper permissions disables the button', async function (assert) {
-    assert.expect(1);
-
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -238,8 +230,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Purging a job sends a purge request for the job', async function (assert) {
-    assert.expect(1);
-
     this.token.fetchSelfTokenAndPolicies.perform();
     const router = this.owner.lookup('service:router');
     const transitionTo = router.transitionTo;
@@ -282,7 +272,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-job-submit-time]').textContent.trim(),
       moment(job.get('children.firstObject.submitTime')).format(
         'MMM DD HH:mm:ss ZZ',

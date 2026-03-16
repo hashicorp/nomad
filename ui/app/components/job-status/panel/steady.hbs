@@ -74,7 +74,7 @@
           {{#each this.allocTypes as |type|}}
             <ConditionalLinkTo
               @condition={{and
-                (not (eq type.label "unplaced"))
+                (not-eq type.label "unplaced")
                 (get
                   (get
                     (get (get this.allocBlocks type.label) "healthy")

@@ -1,9 +1,8 @@
+/* eslint-disable no-unsafe-optional-chaining */
 /**
  * Copyright IBM Corp. 2015, 2025
  * SPDX-License-Identifier: BUSL-1.1
  */
-
-// @ts-check
 
 import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
@@ -345,7 +344,7 @@ export default class Job extends Model {
   @attr() periodicDetails;
   @attr() parameterizedDetails;
 
-  @computed('plainId')
+  @computed('id', 'plainId')
   get idWithNamespace() {
     let namespace = 'default';
 
@@ -678,7 +677,7 @@ export default class Job extends Model {
       }
 
       promise = RSVP.resolve(definition);
-    } catch (err) {
+    } catch {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
 

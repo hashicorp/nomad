@@ -5,7 +5,7 @@
 
 import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import { macroCondition, isTesting } from '@embroider/macros';
 import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';

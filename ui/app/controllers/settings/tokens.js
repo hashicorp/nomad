@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';

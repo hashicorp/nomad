@@ -88,7 +88,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   }
 
   // prettier-ignore
-  /* eslint-disable */
+
   renderChart() {
     const { chart, _data, isNarrow } = this;
     const width = this.element.querySelector('svg').clientWidth;

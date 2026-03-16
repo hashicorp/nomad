@@ -21,10 +21,10 @@ module.skip('Acceptance | server monitor', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    agent = server.create('agent');
+    agent = this.server.create('agent');
 
-    managementToken = server.create('token');
-    clientToken = server.create('token');
+    managementToken = this.server.create('token');
+    clientToken = this.server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
@@ -32,32 +32,30 @@ module.skip('Acceptance | server monitor', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(1);
-
     await ServerMonitor.visit({ name: agent.name });
     await a11yAudit(assert);
   });
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('servers.index').text,
       'Servers',
       'The page should read the breadcrumb Servers',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('servers.server').text,
       `Server ${agent.name}`,
     );
 
     await Layout.breadcrumbFor('servers.index').visit();
-    assert.equal(currentURL(), '/servers');
+    assert.deepEqual(currentURL(), '/servers');
   });
 
   test('the monitor page immediately streams agent monitor output at the info level', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
 
-    const logRequest = server.pretender.handledRequests.find((req) =>
+    const logRequest = this.server.pretender.handledRequests.find((req) =>
       req.url.startsWith('/v1/agent/monitor'),
     );
     assert.ok(ServerMonitor.logsArePresent);
@@ -68,7 +66,10 @@ module.skip('Acceptance | server monitor', function (hooks) {
   test('switching the log level persists the new log level as a query param', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
     await ServerMonitor.selectLogLevel('Debug');
-    assert.equal(currentURL(), `/servers/${agent.name}/monitor?level=debug`);
+    assert.deepEqual(
+      currentURL(),
+      `/servers/${agent.name}/monitor?level=debug`,
+    );
   });
 
   test('when the current access token does not include the agent:read rule, a descriptive error message is shown', async function (assert) {
@@ -77,10 +78,10 @@ module.skip('Acceptance | server monitor', function (hooks) {
     await ServerMonitor.visit({ name: agent.name });
     assert.notOk(ServerMonitor.logsArePresent);
     assert.ok(ServerMonitor.error.isShown);
-    assert.equal(ServerMonitor.error.title, 'Not Authorized');
+    assert.deepEqual(ServerMonitor.error.title, 'Not Authorized');
     assert.ok(ServerMonitor.error.message.includes('agent:read'));
 
     await ServerMonitor.error.seekHelp();
-    assert.equal(currentURL(), '/settings/tokens');
+    assert.deepEqual(currentURL(), '/settings/tokens');
   });
 });

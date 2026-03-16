@@ -48,8 +48,6 @@ module('Integration | Component | streaming file', function (hooks) {
   `;
 
   test('when mode is `head`, the logger signals head', async function (assert) {
-    assert.expect(5);
-
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
     this.setProperties({
@@ -65,14 +63,14 @@ module('Integration | Component | streaming file', function (hooks) {
     );
 
     const request = this.server.handledRequests[0];
-    assert.equal(this.server.handledRequests.length, 1, 'One request made');
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(this.server.handledRequests.length, 1, 'One request made');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
     assert.deepEqual(
       request.queryParams,
       stringifyValues(assign({ origin: 'start' }, params)),
       'Query params are correct',
     );
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
     await componentA11yAudit(this.element, assert);
   });
 
@@ -92,14 +90,14 @@ module('Integration | Component | streaming file', function (hooks) {
     );
 
     const request = this.server.handledRequests[0];
-    assert.equal(this.server.handledRequests.length, 1, 'One request made');
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(this.server.handledRequests.length, 1, 'One request made');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
     assert.deepEqual(
       request.queryParams,
       stringifyValues(assign({ origin: 'end', offset: 50000 }, params)),
       'Query params are correct',
     );
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
   });
 
   test('when mode is `streaming` and `isStreaming` is true, streaming starts', async function (assert) {
@@ -118,8 +116,8 @@ module('Integration | Component | streaming file', function (hooks) {
     );
 
     const request = this.server.handledRequests[0];
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
   });
 
   test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function (assert) {
@@ -141,7 +139,7 @@ module('Integration | Component | streaming file', function (hooks) {
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       ctrlKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim(),
     );
@@ -152,7 +150,7 @@ module('Integration | Component | streaming file', function (hooks) {
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       metaKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim(),
     );

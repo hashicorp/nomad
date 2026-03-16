@@ -74,8 +74,6 @@ module('Integration | Component | task group row', function (hooks) {
   `;
 
   test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function (assert) {
-    assert.expect(3);
-
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -103,31 +101,38 @@ module('Integration | Component | task group row', function (hooks) {
     this.set('group', job.taskGroups.findBy('name', 'scaling'));
 
     await render(commonTemplate);
-    assert.equal(find('[data-test-task-group-count]').textContent, 2);
+    assert.strictEqual(
+      Number(find('[data-test-task-group-count]').textContent.trim()),
+      2,
+    );
 
     find('[data-test-scale="increment"]').click();
-    assert.equal(find('[data-test-task-group-count]').textContent, 3);
+    assert.strictEqual(
+      Number(find('[data-test-task-group-count]').textContent.trim()),
+      3,
+    );
 
     find('[data-test-scale="increment"]').click();
-    assert.equal(find('[data-test-task-group-count]').textContent, 4);
+    assert.strictEqual(
+      Number(find('[data-test-task-group-count]').textContent.trim()),
+      4,
+    );
 
     assert.notOk(
-      server.pretender.handledRequests.find(
+      this.server.pretender.handledRequests.find(
         (req) => req.method === 'POST' && req.url.endsWith('/scale'),
       ),
     );
 
     await settled();
-    const scaleRequests = server.pretender.handledRequests.filter(
+    const scaleRequests = this.server.pretender.handledRequests.filter(
       (req) => req.method === 'POST' && req.url.endsWith('/scale'),
     );
-    assert.equal(scaleRequests.length, 1);
-    assert.equal(JSON.parse(scaleRequests[0].requestBody).Count, 4);
+    assert.strictEqual(scaleRequests.length, 1);
+    assert.strictEqual(JSON.parse(scaleRequests[0].requestBody).Count, 4);
   });
 
   test('When the current count is equal to the max count, the increment count button is disabled', async function (assert) {
-    assert.expect(2);
-
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -144,8 +149,6 @@ module('Integration | Component | task group row', function (hooks) {
   });
 
   test('When the current count is equal to the min count, the decrement count button is disabled', async function (assert) {
-    assert.expect(2);
-
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -162,8 +165,6 @@ module('Integration | Component | task group row', function (hooks) {
   });
 
   test('When there is an active deployment, both scale buttons are disabled', async function (assert) {
-    assert.expect(3);
-
     makeJob(this.server, { activeDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();

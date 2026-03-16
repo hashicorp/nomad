@@ -45,13 +45,11 @@ module('Integration | Component | attributes table', function (hooks) {
   });
 
   test('should render a row for each key/value pair in a deep object', async function (assert) {
-    assert.expect(2);
-
     this.set('attributes', commonAttributesTree.root);
     await render(hbs`<AttributesTable @attributePairs={{this.attributes}} />`);
 
     const rowsCount = commonAttributes.length;
-    assert.equal(
+    assert.deepEqual(
       this.element.querySelectorAll(
         '[data-test-attributes-section] [data-test-value]',
       ).length,
@@ -66,28 +64,28 @@ module('Integration | Component | attributes table', function (hooks) {
     this.set('attributes', commonAttributesTree.root);
     await render(hbs`<AttributesTable @attributePairs={{this.attributes}} />`);
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-key]').textContent.trim(),
       'key',
       'Row renders the key',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-value]').textContent.trim(),
       'value',
       'Row renders the value',
     );
     const deepRow = findAll('[data-test-attributes-section]')[4];
-    assert.equal(
+    assert.deepEqual(
       deepRow.querySelector('[data-test-key]').textContent.trim(),
       'so.are.deeply.nested',
       'Complex row renders the full path to the key',
     );
-    assert.equal(
+    assert.deepEqual(
       deepRow.querySelector('[data-test-prefix]').textContent.trim(),
       'so.are.deeply.',
       'The prefix is faded to put emphasis on the attribute',
     );
-    assert.equal(
+    assert.deepEqual(
       deepRow.querySelector('[data-test-value]').textContent.trim(),
       'properties',
     );

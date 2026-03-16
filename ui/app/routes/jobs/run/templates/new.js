@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';

@@ -9,6 +9,7 @@ import * as QUnit from 'qunit';
 import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
 import { setupEmberOnerrorValidation } from 'ember-qunit';
+// @ts-expect-error: no types for ember-exam
 import { start } from 'ember-exam/test-support';
 
 setApplication(Application.create(config.APP));
@@ -16,4 +17,5 @@ setApplication(Application.create(config.APP));
 setup(QUnit.assert);
 setupEmberOnerrorValidation();
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 start();

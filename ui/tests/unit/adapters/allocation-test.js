@@ -90,7 +90,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().ls(allocation, testCase.path);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.ls);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.ls);
     });
 
     test(`stat makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -101,7 +101,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().stat(allocation, testCase.path);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.stat);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.stat);
     });
 
     test(`stop makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -112,7 +112,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().stop(allocation);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.stop);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.stop);
     });
 
     test(`restart makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -123,7 +123,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().restart(allocation);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.restart);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.restart);
     });
 
     test(`restart with optional task name makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -134,7 +134,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().restart(allocation, testCase.task);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.restart);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.restart);
       assert.deepEqual(JSON.parse(req.requestBody), {
         TaskName: testCase.task,
       });

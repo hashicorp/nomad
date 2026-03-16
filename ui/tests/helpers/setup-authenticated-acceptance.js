@@ -8,11 +8,11 @@ export default function setupAuthenticatedAcceptance(
   { withAgent = true } = {},
 ) {
   hooks.beforeEach(function () {
-    if (withAgent && server.db.agents.length === 0) {
-      server.create('agent');
+    if (withAgent && this.server.db.agents.length === 0) {
+      this.server.create('agent');
     }
 
-    const token = server.create('token');
+    const token = this.server.create('token');
     window.localStorage.nomadTokenSecret = token.secretId;
   });
 }

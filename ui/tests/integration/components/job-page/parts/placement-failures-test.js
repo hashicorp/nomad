@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
@@ -48,7 +47,7 @@ module(
       <JobPage::Parts::PlacementFailures @job={{this.job}} />)
     `);
 
-      const failedEvaluation = this.get('job.evaluations')
+      const failedEvaluation = this.job.evaluations
         .filterBy('hasPlacementFailures')
         .sortBy('modifyIndex')
         .reverse()

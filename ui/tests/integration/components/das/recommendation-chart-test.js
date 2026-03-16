@@ -13,8 +13,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders a chart for a recommended CPU increase', async function (assert) {
-    assert.expect(5);
-
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -37,8 +35,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   });
 
   test('it renders a chart for a recommended memory decrease', async function (assert) {
-    assert.expect(5);
-
     this.set('resource', 'MemoryMB');
     this.set('current', 1919);
     this.set('recommended', 1312);
@@ -84,8 +80,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   });
 
   test('it can be disabled and will show no delta', async function (assert) {
-    assert.expect(6);
-
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);

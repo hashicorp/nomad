@@ -31,13 +31,13 @@ module('Unit | Serializer | Node', function (hooks) {
     );
     pushPayloadToStore(this.store, payload, NodeModel.modelName);
 
-    assert.equal(
+    assert.deepEqual(
       payload.data.length,
       findAllResponse.length,
       'Each original record is returned in the response',
     );
 
-    assert.equal(
+    assert.deepEqual(
       this.store.peekAll('node').filterBy('id').get('length'),
       findAllResponse.length,
       'Each original record is now in the store',
@@ -60,13 +60,13 @@ module('Unit | Serializer | Node', function (hooks) {
     pushPayloadToStore(this.store, newPayload, NodeModel.modelName);
 
     await settled();
-    assert.equal(
+    assert.deepEqual(
       newPayload.data.length,
       newFindAllResponse.length,
       'Each new record is returned in the response',
     );
 
-    assert.equal(
+    assert.deepEqual(
       this.store.peekAll('node').filterBy('id').get('length'),
       newFindAllResponse.length,
       'The node length in the store reflects the new response',

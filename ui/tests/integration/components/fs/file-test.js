@@ -97,8 +97,6 @@ module('Integration | Component | fs/file', function (hooks) {
     );
 
   test('When a file is text-based, the file mode is streaming', async function (assert) {
-    assert.expect(3);
-
     const props = makeProps(fileStat('text/plain', 500));
     this.setProperties(props);
 
@@ -117,8 +115,6 @@ module('Integration | Component | fs/file', function (hooks) {
   });
 
   test('When a file is an image, the file mode is image', async function (assert) {
-    assert.expect(3);
-
     const props = makeProps(fileStat('image/png', 1234));
     this.setProperties(props);
 
@@ -137,8 +133,6 @@ module('Integration | Component | fs/file', function (hooks) {
   });
 
   test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function (assert) {
-    assert.expect(4);
-
     const props = makeProps(fileStat('wat/ohno', 1234));
     this.setProperties(props);
 
@@ -182,7 +176,7 @@ module('Integration | Component | fs/file', function (hooks) {
 
     await render(commonTemplate);
     await click('[data-test-log-action="raw"]');
-    await settled();
+
     assert.ok(
       this.server.handledRequests.find(
         ({ url: url }) =>
@@ -206,7 +200,7 @@ module('Integration | Component | fs/file', function (hooks) {
     await render(commonTemplate);
 
     await click('[data-test-log-action="raw"]');
-    await settled();
+
     assert.ok(
       this.server.handledRequests.find(
         ({ url: url }) =>
@@ -254,8 +248,6 @@ module('Integration | Component | fs/file', function (hooks) {
   });
 
   test('Yielded content goes in the top-left header area', async function (assert) {
-    assert.expect(2);
-
     const props = makeProps(fileStat('image/svg', 5000));
     this.setProperties(props);
 

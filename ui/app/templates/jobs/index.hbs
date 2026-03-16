@@ -48,7 +48,7 @@
         <JobSearchBox
           @searchText={{this.rawSearchText}}
           @onSearchTextChange={{queue this.updateSearchText this.updateFilter}}
-          @S={{S}}
+          @s={{S}}
         />
 
         {{#each this.filterFacets as |group|}}
@@ -205,7 +205,7 @@
           {{/if}}
           <B.Td data-test-job-status>
             <div class="status-cell">
-              {{#if (not (eq B.data.childStatuses null))}}
+              {{#if (not-eq B.data.childStatuses null)}}
                 {{#if B.data.childStatusBreakdown.running}}
                   <Hds::Badge
                     @icon="corner-down-right"
@@ -277,7 +277,7 @@
           <B.Td>
             <div class="job-status-panel compact">
               {{#unless B.data.assumeGC}}
-                {{#if (not (eq B.data.childStatuses null))}}
+                {{#if (not-eq B.data.childStatuses null)}}
                   {{#if B.data.childStatuses.length}}
                     <Hds::Link::Standalone
                       @icon="chevron-right"

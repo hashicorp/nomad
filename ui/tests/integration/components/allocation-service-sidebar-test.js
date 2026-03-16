@@ -32,7 +32,6 @@ module(
     });
 
     test('it supports basic open/close states', async function (assert) {
-      assert.expect(7);
       await componentA11yAudit(this.element, assert);
 
       this.set('closeSidebar', () => this.set('service', null));

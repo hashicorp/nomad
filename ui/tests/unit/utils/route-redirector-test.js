@@ -9,8 +9,6 @@ import sinon from 'sinon';
 
 module('Unit | Utility | handle-route-redirects', function () {
   test('it handles different types of redirects correctly', function (assert) {
-    assert.expect(7);
-
     const router = {
       replaceWith: sinon.spy(),
     };

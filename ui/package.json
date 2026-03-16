@@ -14,7 +14,7 @@
     "exam:parallel": "percy exec --parallel -- ember exam",
     "format": "prettier . --cache --write",
     "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
-    "lint:css": "stylelint \"**/*.css\"",
+    "lint:css": "stylelint \"**/*.scss\"",
     "lint:css:fix": "concurrently \"pnpm:lint:css -- --fix\"",
     "lint:fix": "concurrently \"pnpm:lint:*:fix\" --names \"fix:\" --prefixColors auto && pnpm format",
     "lint:format": "prettier . --cache --check",

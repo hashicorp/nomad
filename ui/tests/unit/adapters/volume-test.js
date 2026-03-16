@@ -110,14 +110,14 @@ module('Unit | Adapter | Volume', function (hooks) {
       );
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
       '/v1/volumes?type=csi&index=2',
     );
@@ -141,7 +141,7 @@ module('Unit | Adapter | Volume', function (hooks) {
       .catch(() => {});
 
     const { request: xhr } = pretender.requestReferences[0];
-    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     next(() => {
@@ -176,20 +176,20 @@ module('Unit | Adapter | Volume', function (hooks) {
       });
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
       '/v1/volumes?type=csi&index=2',
     );
 
     await settled();
     findAllRequest();
-    assert.equal(pretender.handledRequests[2].url, '/v1/volumes?index=1');
+    assert.deepEqual(pretender.handledRequests[2].url, '/v1/volumes?index=1');
   });
 });

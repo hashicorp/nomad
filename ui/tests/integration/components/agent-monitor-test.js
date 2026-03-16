@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember/no-string-prototype-extensions */
 import { later, cancelTimers } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -59,8 +58,6 @@ module('Integration | Component | agent-monitor', function (hooks) {
   `;
 
   test('basic appearance', async function (assert) {
-    assert.expect(5);
-
     this.setProperties({
       level: 'info',
       isStreaming: false,
@@ -155,7 +152,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       `[INFO] ${LOG_MESSAGE}\n`,
     );
@@ -165,7 +162,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     await selectOpenChoose(contentId, capitalize(newLevel));
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       `[INFO] ${LOG_MESSAGE}\n\n...changing log level to ${newLevel}...\n\n[TRACE] ${LOG_MESSAGE}\n`,
     );
@@ -201,14 +198,14 @@ module('Integration | Component | agent-monitor', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(find('[data-test-log-cli]').textContent, '');
+    assert.deepEqual(find('[data-test-log-cli]').textContent, '');
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     later(cancelTimers, INTERVAL);
     await selectOpenChoose(contentId, capitalize(newLevel));
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       `[TRACE] ${LOG_MESSAGE}\n`,
     );

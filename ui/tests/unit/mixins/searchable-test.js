@@ -307,12 +307,16 @@ module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
   test('the resetPagination method sets the currentPage to 1', function (assert) {
     const subject = this.subject();
     subject.set('currentPage', 5);
-    assert.equal(
+    assert.deepEqual(
       subject.get('currentPage'),
       5,
       'Current page is something other than 1',
     );
     subject.resetPagination();
-    assert.equal(subject.get('currentPage'), 1, 'Current page gets reset to 1');
+    assert.deepEqual(
+      subject.get('currentPage'),
+      1,
+      'Current page gets reset to 1',
+    );
   });
 });

@@ -100,7 +100,7 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   const planJob = async (spec) => {
-    const cm = getCodeMirrorInstance(['data-test-editor']);
+    const cm = this.getCodeMirrorInstance(['data-test-editor']);
     cm.setValue(spec);
     await Editor.plan();
   };
@@ -110,8 +110,6 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   test('the default state is an editor with an explanation popup', async function (assert) {
-    assert.expect(2);
-
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
@@ -126,7 +124,7 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
 
-    const cm = getCodeMirrorInstance(['data-test-editor']);
+    const cm = this.getCodeMirrorInstance(['data-test-editor']);
     cm.setValue(spec);
     await Editor.plan();
 
@@ -165,8 +163,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when a job is successfully parsed and planned, the plan is shown to the user', async function (assert) {
-    assert.expect(4);
-
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
@@ -196,7 +192,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     await Editor.cancel();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
-    assert.equal(
+    assert.deepEqual(
       Editor.editor.contents,
       spec,
       'The spec that was planned is still in the editor',
@@ -204,8 +200,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when parse fails, the parse error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Parse Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -223,7 +217,7 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Run error is not shown');
 
     assert.ok(Editor.parseError.isPresent, 'Parse error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.parseError.message,
       errorMessage,
       'The error message from the server is shown in the error in the UI',
@@ -233,8 +227,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when plan fails, the plan error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Plan Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -257,7 +249,7 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Run error is not shown');
 
     assert.ok(Editor.planError.isPresent, 'Plan error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.planError.message,
       errorMessage,
       'The error message from the server is shown in the error in the UI',
@@ -267,8 +259,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when run fails, the run error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Run Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -290,7 +280,7 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Parse error is not shown');
 
     assert.dom('[data-test-error="run"]').exists('Run error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.runError.message,
       errorMessage,
       'The error message from the server is shown in the error in the UI',
@@ -300,8 +290,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the scheduler dry-run has errors, the errors are shown to the user', async function (assert) {
-    assert.expect(5);
-
     const spec = jsonJob({ Unschedulable: true });
     const job = await this.store.createRecord('job');
 
@@ -333,7 +321,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
-    assert.expect(1);
     const spec = jsonJob({ WithWarnings: true });
     const job = await this.store.createRecord('job');
     await renderNewJob(this, job);
@@ -347,8 +334,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function (assert) {
-    assert.expect(3);
-
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
@@ -452,8 +437,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the job-editor cancelable flag is true, there is a cancel button in the header', async function (assert) {
-    assert.expect(2);
-
     const job = await this.store.createRecord('job');
 
     this.set('job', job);
@@ -507,7 +490,11 @@ module('Integration | Component | job-editor', function (hooks) {
       @onSelect={{this.onSelect}} />`);
 
     // Check if the definition is set on the model
-    assert.equal(job._newDefinition, 'pablo', 'Definition is set on the model');
+    assert.deepEqual(
+      job._newDefinition,
+      'pablo',
+      'Definition is set on the model',
+    );
 
     // Check if the newDefinitionVariables are set on the model
     function jsonToHcl(obj) {

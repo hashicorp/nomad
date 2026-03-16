@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
 import { task } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';

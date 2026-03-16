@@ -148,7 +148,7 @@ module('Unit | Ability | abstract', function (hooks) {
         },
       ];
 
-      assert.equal(
+      assert.deepEqual(
         this.ability._findMatchingNamespace(policyNamespaces, 'pablo'),
         '*',
       );
@@ -278,7 +278,7 @@ module('Unit | Ability | abstract', function (hooks) {
         },
       ];
 
-      assert.equal(
+      assert.deepEqual(
         this.ability._findMatchingNamespace(policyNamespaces, 'pablo'),
         'pablo',
       );
@@ -408,7 +408,7 @@ module('Unit | Ability | abstract', function (hooks) {
         },
       ];
 
-      assert.equal(
+      assert.deepEqual(
         this.ability._findMatchingNamespace(
           policyNamespaces,
           'pablo/picasso/rothkos/rilkes',
@@ -541,7 +541,7 @@ module('Unit | Ability | abstract', function (hooks) {
         },
       ];
 
-      assert.equal(
+      assert.deepEqual(
         this.ability._findMatchingNamespace(
           policyNamespaces,
           'pablo/picasso/rothkos/rilkes',
@@ -634,7 +634,7 @@ module('Unit | Ability | abstract', function (hooks) {
         },
       ];
 
-      assert.equal(
+      assert.deepEqual(
         this.ability._findMatchingNamespace(policyNamespaces, 'carter'),
         'default',
       );

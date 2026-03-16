@@ -190,7 +190,7 @@ module('Unit | Adapter | Job', function (hooks) {
       });
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       '/v1/jobs?index=1',
       'Second request is a blocking request for jobs',
@@ -198,7 +198,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
       '/v1/jobs?index=2',
       'Third request is a blocking request with an incremented index param',
@@ -220,7 +220,7 @@ module('Unit | Adapter | Job', function (hooks) {
       });
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       '/v1/job/job-1?index=1',
       'Second request is a blocking request for job-1',
@@ -228,7 +228,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
       '/v1/job/job-1?index=2',
       'Third request is a blocking request with an incremented index param',
@@ -246,7 +246,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     this.subject().reloadRelationship(mockModel, 'summary');
     await settled();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       `/v1/job/${plainId}/summary`,
       'Relationship was reloaded',
@@ -261,7 +261,7 @@ module('Unit | Adapter | Job', function (hooks) {
     const mockModel = makeMockModel(plainId);
 
     this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
       '/v1/job/job-1/summary?index=1',
       'First request is a blocking request for job-1 summary relationship',
@@ -271,7 +271,7 @@ module('Unit | Adapter | Job', function (hooks) {
     this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
       'Second request is a blocking request with an incremented index param',
@@ -294,7 +294,7 @@ module('Unit | Adapter | Job', function (hooks) {
       .catch(() => {});
 
     const { request: xhr } = pretender.requestReferences[0];
-    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     next(() => {
@@ -320,7 +320,7 @@ module('Unit | Adapter | Job', function (hooks) {
     });
 
     const { request: xhr } = pretender.requestReferences[0];
-    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     next(() => {
@@ -346,7 +346,7 @@ module('Unit | Adapter | Job', function (hooks) {
     });
 
     const { request: xhr } = pretender.requestReferences[0];
-    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     next(() => {
@@ -379,13 +379,13 @@ module('Unit | Adapter | Job', function (hooks) {
 
     const { request: xhr } = pretender.requestReferences[0];
     const { request: xhr2 } = pretender.requestReferences[1];
-    assert.equal(xhr.status, 0, 'Request is still pending');
-    assert.equal(
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(
       pretender.requestReferences.length,
       2,
       'Two findRecord requests were made',
     );
-    assert.equal(
+    assert.deepEqual(
       pretender.requestReferences
         .map((r) => r.url)
         .filter((v, i, a) => a.indexOf(v) === i).length,
@@ -417,8 +417,8 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().dispatch(job, {}, payload);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(request.url, `/v1/job/${job.plainId}/dispatch`);
+    assert.deepEqual(request.method, 'POST');
     assert.deepEqual(JSON.parse(request.requestBody), {
       Payload: encodedPayload,
       Meta: {},
@@ -497,13 +497,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().fetchRawDefinition(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
-    assert.equal(request.method, 'GET');
+    assert.deepEqual(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.deepEqual(request.method, 'GET');
   });
 
   test('fetchRawDefinition handles version requests', async function (assert) {
-    assert.expect(5);
-
     const adapter = this.owner.lookup('adapter:job');
     const job = {
       get: sinon.stub(),
@@ -526,15 +524,15 @@ module('Unit | Adapter | Job', function (hooks) {
 
     // Test fetching specific version
     const result = await adapter.fetchRawDefinition(job, 2);
-    assert.equal(result.Version, 2, 'Returns correct version');
-    assert.equal(result.JobModifyIndex, 200, 'Returns full version info');
+    assert.deepEqual(result.Version, 2, 'Returns correct version');
+    assert.deepEqual(result.JobModifyIndex, 200, 'Returns full version info');
 
     // Test version not found
     try {
       await adapter.fetchRawDefinition(job, 999);
       assert.ok(false, 'Should have thrown error');
     } catch (e) {
-      assert.equal(
+      assert.deepEqual(
         e.message,
         'Version 999 not found',
         'Throws appropriate error',
@@ -548,12 +546,12 @@ module('Unit | Adapter | Job', function (hooks) {
 
     const currentResult = await adapter.fetchRawDefinition(job);
 
-    assert.equal(
+    assert.deepEqual(
       ajaxStub.lastCall.args[0],
       '/v1/job/job-id',
       'URL has no version query param',
     );
-    assert.equal(
+    assert.deepEqual(
       currentResult.Version,
       2,
       'Returns current version when no version specified',
@@ -568,11 +566,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().forcePeriodic(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(
+    assert.deepEqual(
       request.url,
       `/v1/job/${job.plainId}/periodic/force?region=${region}`,
     );
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(request.method, 'POST');
   });
 
   test('stop requests include the activeRegion', async function (assert) {
@@ -582,8 +580,8 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().stop(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
-    assert.equal(request.method, 'DELETE');
+    assert.deepEqual(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.deepEqual(request.method, 'DELETE');
   });
 
   test('purge requests include the activeRegion', async function (assert) {
@@ -593,11 +591,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().purge(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(
+    assert.deepEqual(
       request.url,
       `/v1/job/${job.plainId}?purge=true&region=${region}`,
     );
-    assert.equal(request.method, 'DELETE');
+    assert.deepEqual(request.method, 'DELETE');
   });
 
   test('parse requests include the activeRegion', async function (assert) {
@@ -607,8 +605,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().parse('job "name-goes-here" {');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/jobs/parse?namespace=*&region=${region}`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(
+      request.url,
+      `/v1/jobs/parse?namespace=*&region=${region}`,
+    );
+    assert.deepEqual(request.method, 'POST');
     assert.deepEqual(JSON.parse(request.requestBody), {
       JobHCL: 'job "name-goes-here" {',
       Canonicalize: true,
@@ -623,8 +624,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().plan(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}/plan?region=${region}`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(
+      request.url,
+      `/v1/job/${job.plainId}/plan?region=${region}`,
+    );
+    assert.deepEqual(request.method, 'POST');
   });
 
   test('run requests include the activeRegion', async function (assert) {
@@ -635,8 +639,8 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().run(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/jobs?region=${region}`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(request.url, `/v1/jobs?region=${region}`);
+    assert.deepEqual(request.method, 'POST');
   });
 
   test('update requests include the activeRegion', async function (assert) {
@@ -647,8 +651,8 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().update(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.deepEqual(request.method, 'POST');
   });
 
   test('scale requests include the activeRegion', async function (assert) {
@@ -658,8 +662,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().scale(job, 'group-1', 5, 'Reason: a test');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(
+      request.url,
+      `/v1/job/${job.plainId}/scale?region=${region}`,
+    );
+    assert.deepEqual(request.method, 'POST');
   });
 
   test('dispatch requests include the activeRegion', async function (assert) {
@@ -670,11 +677,11 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().dispatch(job, {}, '');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(
+    assert.deepEqual(
       request.url,
       `/v1/job/${job.plainId}/dispatch?region=${region}`,
     );
-    assert.equal(request.method, 'POST');
+    assert.deepEqual(request.method, 'POST');
   });
 
   module('#fetchRawSpecification', function () {
@@ -700,7 +707,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
       assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
 
-      assert.equal(
+      assert.deepEqual(
         expectedURL,
         '/v1/job/job-id/submission?version=job-version',
         'it formats the URL correctly',
@@ -735,7 +742,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
       assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
 
-      assert.equal(
+      assert.deepEqual(
         expectedURL,
         '/v1/job/job-id/submission?namespace=zoey&version=job-version',
       );
@@ -754,12 +761,12 @@ module('Unit | Adapter | Job', function (hooks) {
       await adapter.fetchRawSpecification(job, 99);
 
       assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
-      assert.equal(
+      assert.deepEqual(
         adapter.ajax.args[0][0],
         '/v1/job/job-id/submission?version=99',
         'it includes the version query param',
       );
-      assert.equal(adapter.ajax.args[0][1], 'GET');
+      assert.deepEqual(adapter.ajax.args[0][1], 'GET');
     });
   });
 });

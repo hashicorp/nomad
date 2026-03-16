@@ -34,22 +34,24 @@ module('Integration | Component | toggle', function (hooks) {
   `;
 
   test('presents as a label with an inner checkbox and display span, and text', async function (assert) {
-    assert.expect(7);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
-    assert.equal(Toggle.label, props.label, `Label should be ${props.label}`);
+    assert.deepEqual(
+      Toggle.label,
+      props.label,
+      `Label should be ${props.label}`,
+    );
     assert.ok(Toggle.isPresent);
     assert.notOk(Toggle.isActive);
     assert.ok(find('[data-test-toggler]'));
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-input]').tagName.toLowerCase(),
       'input',
       'The input is a real HTML input',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-input]').getAttribute('type'),
       'checkbox',
       'The input type is checkbox',
@@ -59,8 +61,6 @@ module('Integration | Component | toggle', function (hooks) {
   });
 
   test('the isActive property dictates the active state and class', async function (assert) {
-    assert.expect(5);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -78,8 +78,6 @@ module('Integration | Component | toggle', function (hooks) {
   });
 
   test('the isDisabled property dictates the disabled state and class', async function (assert) {
-    assert.expect(5);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -102,6 +100,6 @@ module('Integration | Component | toggle', function (hooks) {
     await render(commonTemplate);
 
     await Toggle.toggle();
-    assert.equal(props.onToggle.callCount, 1);
+    assert.deepEqual(props.onToggle.callCount, 1);
   });
 });

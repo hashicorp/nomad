@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
@@ -28,14 +27,13 @@ module('Acceptance | job status panel', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
   });
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
-    assert.expect(5);
     faker.seed(1);
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -70,8 +68,7 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status panel observes query parameters for current/historical', async function (assert) {
-    assert.expect(2);
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -88,13 +85,11 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel shows accurate number and types of ungrouped allocation blocks', async function (assert) {
-    assert.expect(7);
-
     faker.seed(1);
 
     let groupAllocCount = 10;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -113,11 +108,11 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let jobAllocCount = server.db.allocations.where({
+    let jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
-    assert.equal(
+    assert.deepEqual(
       jobAllocCount,
       groupAllocCount * job.taskGroups.length,
       'Correect number of allocs generated (metatest)',
@@ -131,7 +126,7 @@ module('Acceptance | job status panel', function (hooks) {
 
     groupAllocCount = 20;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -151,17 +146,17 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let runningAllocCount = server.db.allocations.where({
+    let runningAllocCount = this.server.db.allocations.where({
       jobId: job.id,
       clientStatus: 'running',
     }).length;
 
-    let failedAllocCount = server.db.allocations.where({
+    let failedAllocCount = this.server.db.allocations.where({
       jobId: job.id,
       clientStatus: 'failed',
     }).length;
 
-    assert.equal(
+    assert.deepEqual(
       runningAllocCount + failedAllocCount,
       groupAllocCount * job.taskGroups.length,
       'Correect number of allocs generated (metatest)',
@@ -186,9 +181,8 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
-    assert.expect(9);
     faker.seed(1);
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -199,27 +193,27 @@ module('Acceptance | job status panel', function (hooks) {
       version: 5,
     });
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'pending',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 3,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'failed',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'lost',
       jobVersion: 5,
@@ -265,9 +259,8 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
-    assert.expect(7);
     faker.seed(1);
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'batch',
@@ -286,32 +279,32 @@ module('Acceptance | job status panel', function (hooks) {
       noActiveDeployment: true,
     });
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'pending',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 3,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'failed',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'complete',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'lost',
       jobVersion: 5,
@@ -353,13 +346,11 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
-    assert.expect(6);
-
     faker.seed(1);
 
     let groupAllocCount = 20;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -378,7 +369,7 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let jobAllocCount = server.db.allocations.where({
+    let jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
@@ -391,7 +382,7 @@ module('Acceptance | job status panel', function (hooks) {
 
     groupAllocCount = 40;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -410,7 +401,7 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    jobAllocCount = server.db.allocations.where({
+    jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
@@ -444,7 +435,7 @@ module('Acceptance | job status panel', function (hooks) {
     faker.seed(1);
     let groupAllocCount = 50;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -635,7 +626,7 @@ module('Acceptance | job status panel', function (hooks) {
 
     let groupAllocCount = 10;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -653,9 +644,11 @@ module('Acceptance | job status panel', function (hooks) {
       version: 0,
     });
 
-    let state = server.create('task-state');
-    state.events = server.schema.taskEvents.where({ taskStateId: state.id });
-    server.schema.allocations.where({ jobId: job.id }).update({
+    let state = this.server.create('task-state');
+    state.events = this.server.schema.taskEvents.where({
+      taskStateId: state.id,
+    });
+    this.server.schema.allocations.where({ jobId: job.id }).update({
       taskStateIds: [state.id],
       jobVersion: 0,
     });
@@ -756,7 +749,7 @@ module('Acceptance | job status panel', function (hooks) {
 
       let groupAllocCount = 10;
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'service',
@@ -774,10 +767,12 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      let state = server.create('task-state');
-      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+      let state = this.server.create('task-state');
+      state.events = this.server.schema.taskEvents.where({
+        taskStateId: state.id,
+      });
 
-      server.schema.allocations.where({ jobId: job.id }).update({
+      this.server.schema.allocations.where({ jobId: job.id }).update({
         taskStateIds: [state.id],
         jobVersion: 0,
       });
@@ -785,12 +780,14 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();
 
-      const serverEvents = server.schema.taskEvents.where({
+      const serverEvents = this.server.schema.taskEvents.where({
         taskStateId: state.id,
       });
       const shownEvents = findAll('.timeline-object');
-      const jobAllocations = server.db.allocations.where({ jobId: job.id });
-      assert.equal(
+      const jobAllocations = this.server.db.allocations.where({
+        jobId: job.id,
+      });
+      assert.deepEqual(
         shownEvents.length,
         serverEvents.length * jobAllocations.length,
         'All events are shown',
@@ -800,7 +797,7 @@ module('Acceptance | job status panel', function (hooks) {
         '[data-test-history-search] input',
         serverEvents.models[0].displayMessage,
       );
-      assert.equal(
+      assert.deepEqual(
         findAll('.timeline-object').length,
         jobAllocations.length,
         'Only events matching the search are shown',
@@ -817,7 +814,7 @@ module('Acceptance | job status panel', function (hooks) {
     test('Batch jobs have a valid Completed status', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      let batchJob = server.create('job', {
+      let batchJob = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'batch',
@@ -836,7 +833,7 @@ module('Acceptance | job status panel', function (hooks) {
         version: 1,
       });
 
-      let serviceJob = server.create('job', {
+      let serviceJob = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'service',
@@ -894,7 +891,7 @@ module('Acceptance | job status panel', function (hooks) {
     test('System jobs show restarted but not rescheduled allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
@@ -910,9 +907,11 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      let state = server.create('task-state');
-      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
-      server.schema.allocations.where({ jobId: job.id }).update({
+      let state = this.server.create('task-state');
+      state.events = this.server.schema.taskEvents.where({
+        taskStateId: state.id,
+      });
+      this.server.schema.allocations.where({ jobId: job.id }).update({
         taskStateIds: [state.id],
         jobVersion: 0,
       });
@@ -950,15 +949,15 @@ module('Acceptance | job status panel', function (hooks) {
     test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      server.db.nodes.remove();
+      this.server.db.nodes.remove();
 
-      server.createList('node', 3, {
+      this.server.createList('node', 3, {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
@@ -969,8 +968,8 @@ module('Acceptance | job status panel', function (hooks) {
       });
 
       // Create an allocation on this job for each node
-      server.schema.nodes.all().models.forEach((node) => {
-        server.create('allocation', {
+      this.server.schema.nodes.all().models.forEach((node) => {
+        this.server.create('allocation', {
           jobId: job.id,
           jobVersion: 0,
           clientStatus: 'running',
@@ -989,7 +988,7 @@ module('Acceptance | job status panel', function (hooks) {
       assert.dom('.job-status-panel').exists();
       assert.dom('.running-allocs-title').hasText(
         `${
-          server.schema.allocations.where({
+          this.server.schema.allocations.where({
             jobId: job.id,
             clientStatus: 'running',
           }).length
@@ -997,14 +996,14 @@ module('Acceptance | job status panel', function (hooks) {
       );
 
       // Let's bring another node online!
-      let newNode = server.create('node', {
+      let newNode = this.server.create('node', {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
       // Let's expect our scheduler to have therefore added an alloc to it
-      server.create('allocation', {
+      this.server.create('allocation', {
         jobId: job.id,
         jobVersion: 0,
         clientStatus: 'running',
@@ -1021,15 +1020,15 @@ module('Acceptance | job status panel', function (hooks) {
     test('System jobs display deployments', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      server.db.nodes.remove();
+      this.server.db.nodes.remove();
 
-      server.createList('node', 3, {
+      this.server.createList('node', 3, {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
@@ -1052,7 +1051,7 @@ module('Acceptance | job status panel', function (hooks) {
 
       assert.dom('.job-status-panel h2').hasTextContaining('Status: Deploying');
 
-      const allocCount = server.schema.allocations.where({
+      const allocCount = this.server.schema.allocations.where({
         jobId: job.id,
         clientStatus: 'running',
       }).length;
@@ -1070,22 +1069,22 @@ module('Acceptance | job status panel', function (hooks) {
 
     test('Fail/Promote Deployment buttons are present if permissions allow', async function (assert) {
       this.store = this.owner.lookup('service:store');
-      server.create('token');
+      this.server.create('token');
 
-      server.createList('namespace', 3);
-      server.db.nodes.remove();
+      this.server.createList('namespace', 3);
+      this.server.db.nodes.remove();
 
-      server.createList('node', 3, {
+      this.server.createList('node', 3, {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
-      const job1 = server.create('job', {
+      const job1 = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
-        namespace: server.db.namespaces[0].id,
+        namespace: this.server.db.namespaces[0].id,
         activeDeployment: true,
         createAllocations: true,
         allocStatusDistribution: {
@@ -1098,27 +1097,10 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      const job2 = server.create('job', {
+      const job2 = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
-        namespace: server.db.namespaces[1].id,
-        type: 'system',
-        activeDeployment: true,
-        createAllocations: true,
-        allocStatusDistribution: {
-          running: 0.5,
-          failed: 0.5,
-          unknown: 0,
-          lost: 0,
-        },
-        shallow: true,
-        version: 0,
-      });
-
-      const job3 = server.create('job', {
-        status: 'running',
-        datacenters: ['*'],
-        namespace: server.db.namespaces[2].id,
+        namespace: this.server.db.namespaces[1].id,
         type: 'system',
         activeDeployment: true,
         createAllocations: true,
@@ -1132,7 +1114,24 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      server.db.allocations.update({
+      const job3 = this.server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        namespace: this.server.db.namespaces[2].id,
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      this.server.db.allocations.update({
         jobVersion: 0,
         clientStatus: 'running',
         deploymentStatus: {
@@ -1141,7 +1140,7 @@ module('Acceptance | job status panel', function (hooks) {
         },
       });
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'deployment-policy',
         name: 'deployment-policy',
         rulesJSON: {
@@ -1162,7 +1161,7 @@ module('Acceptance | job status panel', function (hooks) {
         },
       });
 
-      const clientToken = server.create('token');
+      const clientToken = this.server.create('token');
       clientToken.policyIds = [policy.id];
       clientToken.save();
 

@@ -52,7 +52,7 @@ export async function expectStartRequest(assert, server, job) {
 export async function expectError(assert, title) {
   await waitFor('[data-test-job-error-title]');
 
-  assert.equal(
+  assert.deepEqual(
     find('[data-test-job-error-title]').textContent,
     title,
     'Appropriate error is shown',

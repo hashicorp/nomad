@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
 

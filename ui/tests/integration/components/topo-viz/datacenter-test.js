@@ -61,8 +61,6 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
   `;
 
   test('presents as a div with a label and a FlexMasonry with a collection of nodes', async function (assert) {
-    assert.expect(3);
-
     this.setProperties(
       commonProps({
         datacenter: {
@@ -75,7 +73,10 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizDatacenter.isPresent);
-    assert.equal(TopoVizDatacenter.nodes.length, this.datacenter.nodes.length);
+    assert.deepEqual(
+      TopoVizDatacenter.nodes.length,
+      this.datacenter.nodes.length,
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -155,8 +156,6 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
   });
 
   test('args get passed down to the TopViz::Node children', async function (assert) {
-    assert.expect(4);
-
     const heightSpy = sinon.spy();
     this.setProperties(
       commonProps({

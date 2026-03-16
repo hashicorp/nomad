@@ -5,20 +5,22 @@
 
 .flex-masonry {
   display: flex;
-  flex-direction: column;
-  flex-wrap: wrap;
+  flex-flow: column wrap;
   align-content: space-between;
   margin-top: -0.75em;
 
   &.flex-masonry-columns-1 > .flex-masonry-item {
     width: 100%;
   }
+
   &.flex-masonry-columns-2 > .flex-masonry-item {
     width: 50%;
   }
+
   &.flex-masonry-columns-3 > .flex-masonry-item {
     width: 33%;
   }
+
   &.flex-masonry-columns-4 > .flex-masonry-item {
     width: 25%;
   }
@@ -32,9 +34,11 @@
     &.flex-masonry-columns-2 > .flex-masonry-item {
       width: calc(50% - 0.75em);
     }
+
     &.flex-masonry-columns-3 > .flex-masonry-item {
       width: calc(33% - 0.75em);
     }
+
     &.flex-masonry-columns-4 > .flex-masonry-item {
       width: calc(25% - 0.75em);
     }

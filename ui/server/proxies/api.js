@@ -25,7 +25,6 @@ module.exports = function (app, options) {
   });
 
   proxy.on('error', function (err, req) {
-    // eslint-disable-next-line
     console.error(err, req.url);
   });
 

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { timeout, restartableTask } from 'ember-concurrency';

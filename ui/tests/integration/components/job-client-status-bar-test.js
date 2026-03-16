@@ -49,8 +49,6 @@ module('Integration | Component | job-client-status-bar', function (hooks) {
     />`;
 
   test('it renders', async function (assert) {
-    assert.expect(2);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

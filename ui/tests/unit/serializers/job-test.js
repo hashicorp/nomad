@@ -21,7 +21,10 @@ module('Unit | Serializer | Job', function (hooks) {
     };
 
     const { data } = this.subject().normalize(JobModel, original);
-    assert.equal(data.id, JSON.stringify([data.attributes.name, 'default']));
+    assert.deepEqual(
+      data.id,
+      JSON.stringify([data.attributes.name, 'default']),
+    );
   });
 
   test('The ID of the record is a composite of both the name and the namespace', async function (assert) {
@@ -32,7 +35,7 @@ module('Unit | Serializer | Job', function (hooks) {
     };
 
     const { data } = this.subject().normalize(JobModel, original);
-    assert.equal(
+    assert.deepEqual(
       data.id,
       JSON.stringify([
         data.attributes.name,
