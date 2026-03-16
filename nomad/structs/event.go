@@ -222,4 +222,5 @@ type CSIPluginEvent struct {
 
 type VariableEvent struct {
 	Metadata *VariableMetadata
+	Deleted  bool
 }

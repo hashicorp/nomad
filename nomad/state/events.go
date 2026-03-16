@@ -253,6 +253,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Namespace: before.Namespace,
 				Payload: &structs.VariableEvent{
 					Metadata: &before.VariableMetadata,
+					Deleted:  true,
 				},
 			}, true
 		default:

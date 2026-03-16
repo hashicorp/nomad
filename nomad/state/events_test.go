@@ -1361,6 +1361,7 @@ func TestEvents_Variables(t *testing.T) {
 
 	eventPayload := receivedChange.Events[0].Payload.(*structs.VariableEvent)
 	must.Eq(t, variable.VariableMetadata, *eventPayload.Metadata)
+	must.False(t, eventPayload.Deleted)
 
 	// Delete the variable.
 	deleteTxn := store.db.WriteTxn(20)
@@ -1378,6 +1379,10 @@ func TestEvents_Variables(t *testing.T) {
 	must.Eq(t, variable.Path, receivedDeleteChange.Events[0].Key)
 	must.Eq(t, structs.TypeVariableUpdated, receivedDeleteChange.Events[0].Type)
 	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	deletedEventPayload := receivedDeleteChange.Events[0].Payload.(*structs.VariableEvent)
+	must.Eq(t, variable.VariableMetadata, *deletedEventPayload.Metadata)
+	must.True(t, deletedEventPayload.Deleted)
 }
 
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
