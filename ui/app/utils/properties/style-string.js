@@ -21,7 +21,7 @@ export default function styleStringProperty(prop) {
         .reduce(function (arr, key) {
           const val = styles[key];
           arr.push(
-            key + ':' + (typeof val === 'number' ? val.toFixed(2) + 'px' : val)
+            key + ':' + (typeof val === 'number' ? val.toFixed(2) + 'px' : val),
           );
           return arr;
         }, [])

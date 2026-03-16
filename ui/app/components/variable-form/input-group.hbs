@@ -4,15 +4,16 @@
 ~}}
 
 <label class="value-label">
-<Hds::Form::MaskedInput::Field
-  @isMultiline={{true}}
-  @value={{@entry.value}}
-  rows="1"
-  class="hds-typography-code-200"
-  {{! prevent auto-fill }}
-  autocomplete="new-password"
-  data-test-var-value
-as |F|>
-  <F.Label>Value</F.Label>
-</Hds::Form::MaskedInput::Field>
+  <Hds::Form::MaskedInput::Field
+    @isMultiline={{true}}
+    @value={{@entry.value}}
+    rows="1"
+    class="hds-typography-code-200"
+    {{! prevent auto-fill }}
+    autocomplete="new-password"
+    data-test-var-value
+    as |F|
+  >
+    <F.Label>Value</F.Label>
+  </Hds::Form::MaskedInput::Field>
 </label>

@@ -25,7 +25,7 @@ module('Unit | Model | allocation', function (hooks) {
             task: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -38,7 +38,7 @@ module('Unit | Model | allocation', function (hooks) {
           count: 1,
           task: [],
         },
-      })
+      }),
     );
 
     assert.equal(allocation.get('taskGroup.name'), 'from-job');
@@ -56,7 +56,7 @@ module('Unit | Model | allocation', function (hooks) {
             task: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -69,7 +69,7 @@ module('Unit | Model | allocation', function (hooks) {
           count: 1,
           task: [],
         },
-      })
+      }),
     );
 
     assert.equal(allocation.get('taskGroup.name'), 'from-allocation');
@@ -87,7 +87,7 @@ module('Unit | Model | allocation', function (hooks) {
             task: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -95,7 +95,7 @@ module('Unit | Model | allocation', function (hooks) {
         job,
         jobVersion: 2,
         taskGroupName: 'from-job',
-      })
+      }),
     );
 
     assert.equal(allocation.get('taskGroup.name'), null);

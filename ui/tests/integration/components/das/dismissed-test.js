@@ -33,7 +33,7 @@ module('Integration | Component | das/dismissed', function (hooks) {
     assert.ok(proceedSpy.calledWith({ manuallyDismissed: true }));
     assert.equal(
       window.localStorage.getItem('nomadRecommendationDismssalUnderstood'),
-      'true'
+      'true',
     );
   });
 

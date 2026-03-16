@@ -45,7 +45,7 @@ module('Acceptance | exec', function (hooks) {
       });
       server.db.taskStates.update(
         { allocationId: alloc.id },
-        { state: 'running' }
+        { state: 'running' },
       );
     });
   });
@@ -117,7 +117,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(0).translateToString().trim(),
-      'Select a task to start your session.'
+      'Select a task to start your session.',
     );
   });
 
@@ -125,7 +125,7 @@ module('Acceptance | exec', function (hooks) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: taskGroup.name },
-      { clientStatus: 'pending' }
+      { clientStatus: 'pending' },
     );
 
     await Exec.visitJob({ job: this.job.id });
@@ -136,7 +136,7 @@ module('Acceptance | exec', function (hooks) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: taskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     await Exec.visitJob({ job: this.job.id });
@@ -147,7 +147,7 @@ module('Acceptance | exec', function (hooks) {
     let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
@@ -169,7 +169,7 @@ module('Acceptance | exec', function (hooks) {
     let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
@@ -198,7 +198,7 @@ module('Acceptance | exec', function (hooks) {
       .forEach((allocation) => {
         const changingTaskState = allocation.states.findBy(
           'name',
-          changingTaskStateName
+          changingTaskStateName,
         );
 
         if (changingTaskState) {
@@ -230,7 +230,7 @@ module('Acceptance | exec', function (hooks) {
     assert.ok(Exec.jobDead.isPresent);
     assert.equal(
       Exec.jobDead.message,
-      `Job ${this.job.name} is dead and cannot host an exec session.`
+      `Job ${this.job.name} is dead and cannot host an exec session.`,
     );
   });
 
@@ -283,25 +283,25 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       currentURL(),
-      `/exec/${this.job.id}/${taskGroup.name}/${task.name}?namespace=${this.job.namespaceId}`
+      `/exec/${this.job.id}/${taskGroup.name}/${task.name}?namespace=${this.job.namespaceId}`,
     );
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(2).translateToString().trim(),
-      'Multiple instances of this task are running. The allocation below was selected by random draw.'
+      'Multiple instances of this task are running. The allocation below was selected by random draw.',
     );
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
-      'Customize your command, then hit ‘return’ to run.'
+      'Customize your command, then hit ‘return’ to run.',
     );
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocationId.split('-')[0]
-      } /bin/bash`
+      } /bin/bash`,
     );
 
     const terminalTextRendered = assert.async();
@@ -322,7 +322,7 @@ module('Acceptance | exec', function (hooks) {
 
     this.server.db.taskStates.update(
       { name: task.name },
-      { name: 'spaced name!' }
+      { name: 'spaced name!' },
     );
 
     task.name = 'spaced name!';
@@ -342,7 +342,7 @@ module('Acceptance | exec', function (hooks) {
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -task spaced\\ name\\! ${
         allocation.id.split('-')[0]
-      } /bin/bash`
+      } /bin/bash`,
     );
   });
 
@@ -379,7 +379,7 @@ module('Acceptance | exec', function (hooks) {
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -namespace should-show-in-example-string -task ${
         task.name
-      } ${allocation.id.split('-')[0]} /bin/bash`
+      } ${allocation.id.split('-')[0]} /bin/bash`,
     );
   });
 
@@ -431,7 +431,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(5).translateToString().trim(),
-      'sh-3.2 🥳$'
+      'sh-3.2 🥳$',
     );
 
     await Exec.terminal.pressEnter();
@@ -448,7 +448,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
-      'The connection has closed.'
+      'The connection has closed.',
     );
   });
 
@@ -489,7 +489,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       mockSocket.sent[0],
-      `{"version":1,"auth_token":"${secretId}"}`
+      `{"version":1,"auth_token":"${secretId}"}`,
     );
   });
 
@@ -569,7 +569,7 @@ module('Acceptance | exec', function (hooks) {
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocation.id.split('-')[0]
-      }`
+      }`,
     );
 
     await window.execTerminal.simulateCommandDataEvent('/sh');
@@ -605,7 +605,7 @@ module('Acceptance | exec', function (hooks) {
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocation.id.split('-')[0]
-      } /bin/sh`
+      } /bin/sh`,
     );
   });
 
@@ -630,7 +630,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(7).translateToString().trim(),
-      `Failed to open a socket because task ${task.name} is not active.`
+      `Failed to open a socket because task ${task.name} is not active.`,
     );
   });
 });

@@ -66,7 +66,7 @@ module('Acceptance | job clients', function (hooks) {
       server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
-      })
+      }),
     );
   });
 
@@ -98,7 +98,7 @@ module('Acceptance | job clients', function (hooks) {
           assert.equal(
             clientRow[col].text,
             '-',
-            `row ${index} doesn't have ${col} tooltip`
+            `row ${index} doesn't have ${col} tooltip`,
           );
           /* eslint-disable-next-line qunit/no-early-return */
           return;
@@ -109,7 +109,7 @@ module('Acceptance | job clients', function (hooks) {
         assert.true(hasTooltip, `row ${index} has ${col} tooltip`);
         assert.ok(
           tooltipText,
-          `row ${index} has ${col} tooltip content ${tooltipText}`
+          `row ${index} has ${col} tooltip content ${tooltipText}`,
         );
       });
     });
@@ -122,7 +122,7 @@ module('Acceptance | job clients', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/clients?desc=true&sort=node.name`,
-      'the URL persists the sort parameter'
+      'the URL persists the sort parameter',
     );
 
     const sortedClients = clients.sortBy('name').reverse();
@@ -131,7 +131,7 @@ module('Acceptance | job clients', function (hooks) {
       assert.equal(
         client.shortId,
         shortId,
-        `Client ${index} is ${shortId} with name ${sortedClients[index].name}`
+        `Client ${index} is ${shortId} with name ${sortedClients[index].name}`,
       );
     });
   });
@@ -154,7 +154,7 @@ module('Acceptance | job clients', function (hooks) {
     assert.equal(
       Clients.emptyState.headline,
       'No Matches',
-      'List is empty and the empty state is about search'
+      'List is empty and the empty state is about search',
     );
 
     assert.ok(Clients.hasSearchBox, 'Search box is still shown');
@@ -168,12 +168,12 @@ module('Acceptance | job clients', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/clients',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Clients.error.isPresent, 'Error message is shown');
     assert.equal(Clients.error.title, 'Not Found', 'Error message is for 404');
@@ -229,7 +229,7 @@ module('Acceptance | job clients', function (hooks) {
       assert.deepEqual(
         facet.options.map((option) => option.label.trim()),
         expectation,
-        `Options for facet ${paramName} are as expected`
+        `Options for facet ${paramName} are as expected`,
       );
     });
 

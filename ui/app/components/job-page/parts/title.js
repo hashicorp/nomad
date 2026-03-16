@@ -145,7 +145,7 @@ export default class Title extends Component {
     if (typeof rawDescription !== 'string') {
       console.error(
         'Expected a string from marked.parse(), received:',
-        typeof rawDescription
+        typeof rawDescription,
       );
       return null;
     }

@@ -12,7 +12,7 @@ export default Mixin.create({
   windowResizeHandler() {
     assert(
       'windowResizeHandler needs to be overridden in the Component',
-      false
+      false,
     );
   },
 

@@ -28,7 +28,7 @@ export default class ChartPrimitiveArea extends Component {
     };
     assert(
       `Provided curve "${this.curve}" is not an allowed curve type`,
-      mappings[this.args.curve]
+      mappings[this.args.curve],
     );
     return mappings[this.args.curve];
   }

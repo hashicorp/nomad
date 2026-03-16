@@ -58,16 +58,16 @@ module('Acceptance | topology', function (hooks) {
 
     assert.equal(
       Topology.clusterInfoPanel.nodeCount,
-      `${server.schema.nodes.all().length} Clients`
+      `${server.schema.nodes.all().length} Clients`,
     );
 
     const allocs = server.schema.allocations.all().models;
     const scheduledAllocs = allocs.filter((alloc) =>
-      ['pending', 'running'].includes(alloc.clientStatus)
+      ['pending', 'running'].includes(alloc.clientStatus),
     );
     assert.equal(
       Topology.clusterInfoPanel.allocCount,
-      `${scheduledAllocs.length} Allocations`
+      `${scheduledAllocs.length} Allocations`,
     );
 
     // Node pool count ignores 'all'.
@@ -76,7 +76,7 @@ module('Acceptance | topology', function (hooks) {
       .models.filter((p) => p.name !== 'all');
     assert.equal(
       Topology.clusterInfoPanel.nodePoolCount,
-      `${nodePools.length} Node Pools`
+      `${nodePools.length} Node Pools`,
     );
 
     const nodeResources = server.schema.nodes
@@ -94,26 +94,26 @@ module('Acceptance | topology', function (hooks) {
 
     assert.equal(
       Topology.clusterInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
+      reservedMem / totalMem,
     );
     assert.equal(
       Topology.clusterInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
+      reservedCPU / totalCPU,
     );
 
     assert.equal(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
       `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(
-        totalMem * 1024 * 1024
-      )} reserved`
+        totalMem * 1024 * 1024,
+      )} reserved`,
     );
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
       `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(
         totalCPU,
-        'MHz'
-      )} reserved`
+        'MHz',
+      )} reserved`,
     );
   });
 
@@ -126,12 +126,12 @@ module('Acceptance | topology', function (hooks) {
     assert.ok(requests.findBy('url', '/v1/nodes?resources=true'));
 
     const allocationsRequest = requests.find((req) =>
-      req.url.startsWith('/v1/allocations')
+      req.url.startsWith('/v1/allocations'),
     );
     assert.ok(allocationsRequest);
 
     const allocationRequestParams = queryString.parse(
-      allocationsRequest.url.split('?')[1]
+      allocationsRequest.url.split('?')[1],
     );
     assert.deepEqual(allocationRequestParams, {
       namespace: '*',
@@ -185,11 +185,11 @@ module('Acceptance | topology', function (hooks) {
     const uniqueClients = allocs.mapBy('nodeId').uniq();
     assert.equal(
       Topology.allocInfoPanel.siblingAllocs,
-      `Sibling Allocations: ${allocs.length}`
+      `Sibling Allocations: ${allocs.length}`,
     );
     assert.equal(
       Topology.allocInfoPanel.uniquePlacements,
-      `Unique Client Placements: ${uniqueClients.length}`
+      `Unique Client Placements: ${uniqueClients.length}`,
     );
 
     assert.equal(Topology.allocInfoPanel.job, job.name);
@@ -215,7 +215,7 @@ module('Acceptance | topology', function (hooks) {
     const job1 = server.create('job', { createAllocations: false });
     const taskGroup1 = server.schema.find(
       'taskGroup',
-      job1.taskGroupIds[0]
+      job1.taskGroupIds[0],
     ).name;
     server.create('allocation', {
       forceRunningClientStatus: true,
@@ -226,7 +226,7 @@ module('Acceptance | topology', function (hooks) {
     const job2 = server.create('job', { createAllocations: false });
     const taskGroup2 = server.schema.find(
       'taskGroup',
-      job2.taskGroupIds[0]
+      job2.taskGroupIds[0],
     ).name;
     server.create('allocation', {
       forceRunningClientStatus: true,
@@ -266,17 +266,17 @@ module('Acceptance | topology', function (hooks) {
 
     assert.equal(
       Topology.nodeInfoPanel.drainingLabel,
-      node.drain ? 'Yes' : 'No'
+      node.drain ? 'Yes' : 'No',
     );
     assert.equal(
       Topology.nodeInfoPanel.eligibleLabel,
-      node.schedulingEligibility === 'eligible' ? 'Yes' : 'No'
+      node.schedulingEligibility === 'eligible' ? 'Yes' : 'No',
     );
 
     assert.equal(Topology.nodeInfoPanel.drainingIsAccented, node.drain);
     assert.equal(
       Topology.nodeInfoPanel.eligibleIsAccented,
-      node.schedulingEligibility !== 'eligible'
+      node.schedulingEligibility !== 'eligible',
     );
 
     const taskResources = allocs
@@ -291,26 +291,26 @@ module('Acceptance | topology', function (hooks) {
 
     assert.equal(
       Topology.nodeInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
+      reservedMem / totalMem,
     );
     assert.equal(
       Topology.nodeInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
+      reservedCPU / totalCPU,
     );
 
     assert.equal(
       Topology.nodeInfoPanel.memoryAbsoluteValue,
       `${formatScheduledBytes(
-        reservedMem * 1024 * 1024
-      )} / ${formatScheduledBytes(totalMem, 'MiB')} reserved`
+        reservedMem * 1024 * 1024,
+      )} / ${formatScheduledBytes(totalMem, 'MiB')} reserved`,
     );
 
     assert.equal(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
       `${formatScheduledHertz(reservedCPU, 'MHz')} / ${formatScheduledHertz(
         totalCPU,
-        'MHz'
-      )} reserved`
+        'MHz',
+      )} reserved`,
     );
 
     await Topology.nodeInfoPanel.visitNode();

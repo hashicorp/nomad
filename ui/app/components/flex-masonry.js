@@ -24,7 +24,7 @@ export default class FlexMasonry extends Component {
       if (!this.element) return;
 
       const items = this.element.querySelectorAll(
-        ':scope > .flex-masonry-item'
+        ':scope > .flex-masonry-item',
       );
 
       // Clear out specified order and flex-basis values in case this was once a multi-column layout

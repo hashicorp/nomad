@@ -53,20 +53,20 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
     `);
 
     const subnavLabels = findAll('[data-test-tab]').map((anchor) =>
-      anchor.textContent.trim()
+      anchor.textContent.trim(),
     );
     assert.ok(
       subnavLabels.some((label) => label === 'Definition'),
-      'Definition link'
+      'Definition link',
     );
     assert.ok(
       subnavLabels.some((label) => label === 'Versions'),
-      'Versions link'
+      'Versions link',
     );
 
     assert.ok(
       subnavLabels.some((label) => label === 'Deployments'),
-      'Deployments link'
+      'Deployments link',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -88,19 +88,19 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
     `);
 
     const subnavLabels = findAll('[data-test-tab]').map((anchor) =>
-      anchor.textContent.trim()
+      anchor.textContent.trim(),
     );
     assert.ok(
       subnavLabels.some((label) => label === 'Definition'),
-      'Definition link'
+      'Definition link',
     );
     assert.ok(
       subnavLabels.some((label) => label === 'Versions'),
-      'Versions link'
+      'Versions link',
     );
     assert.notOk(
       subnavLabels.some((label) => label === 'Deployments'),
-      'Deployments link'
+      'Deployments link',
     );
   });
 
@@ -115,7 +115,7 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
 
     assert.ok(
       find('[data-test-subnav="job"] + .section > .inner-content'),
-      'Content is rendered immediately after the subnav'
+      'Content is rendered immediately after the subnav',
     );
   });
 });

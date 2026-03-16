@@ -222,7 +222,7 @@ export default Factory.extend({
           taskGroupId: group.id,
           taskGroup: group,
           provider: 'consul',
-        })
+        }),
       );
 
       services.forEach((fragment) => {
@@ -312,7 +312,7 @@ function roulette(total, divisions, variance = 0.8) {
     roulette.splice(
       i,
       2,
-      ...rngDistribute(roulette[i], roulette[i + 1], variance)
+      ...rngDistribute(roulette[i], roulette[i + 1], variance),
     );
   });
   return roulette;

@@ -38,7 +38,7 @@ module('Acceptance | job evaluations', function (hooks) {
     assert.equal(
       Evaluations.evaluations.length,
       evaluations.length,
-      'All evaluations are listed'
+      'All evaluations are listed',
     );
 
     const sortedEvaluations = evaluations.sortBy('modifyIndex').reverse();
@@ -57,7 +57,7 @@ module('Acceptance | job evaluations', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/evaluations?sort=priority`,
-      'the URL persists the sort parameter'
+      'the URL persists the sort parameter',
     );
     const sortedEvaluations = evaluations.sortBy('priority').reverse();
     Evaluations.evaluations.forEach((evaluation, index) => {
@@ -65,7 +65,7 @@ module('Acceptance | job evaluations', function (hooks) {
       assert.equal(
         evaluation.id,
         shortId,
-        `Evaluation ${index} is ${shortId} with priority ${sortedEvaluations[index].priority}`
+        `Evaluation ${index} is ${shortId} with priority ${sortedEvaluations[index].priority}`,
       );
     });
   });
@@ -78,18 +78,18 @@ module('Acceptance | job evaluations', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/evaluations',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Evaluations.error.isPresent, 'Error message is shown');
     assert.equal(
       Evaluations.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 });

@@ -133,11 +133,11 @@ module('Integration | Component | job-editor', function (hooks) {
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
-      'JSON job spec is not parsed'
+      'JSON job spec is not parsed',
     );
     assert.ok(
       requests.includes(`/v1/job/${newJobName}/plan`),
-      'JSON job spec is still planned'
+      'JSON job spec is still planned',
     );
   });
 
@@ -151,16 +151,16 @@ module('Integration | Component | job-editor', function (hooks) {
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.ok(
       requests.includes('/v1/jobs/parse?namespace=*'),
-      'HCL job spec is parsed first'
+      'HCL job spec is parsed first',
     );
     assert.ok(
       requests.includes(`/v1/job/${newJobName}/plan`),
-      'HCL job spec is planned'
+      'HCL job spec is planned',
     );
     assert.ok(
       requests.indexOf('/v1/jobs/parse') <
         requests.indexOf(`/v1/job/${newJobName}/plan`),
-      'Parse comes before Plan'
+      'Parse comes before Plan',
     );
   });
 
@@ -177,7 +177,7 @@ module('Integration | Component | job-editor', function (hooks) {
     assert.ok(Editor.planOutput, 'The plan is outputted');
     assert.notOk(
       Editor.editor.isPresent,
-      'The editor is replaced with the plan output'
+      'The editor is replaced with the plan output',
     );
     assert
       .dom('[data-test-plan-help-title]')
@@ -199,7 +199,7 @@ module('Integration | Component | job-editor', function (hooks) {
     assert.equal(
       Editor.editor.contents,
       spec,
-      'The spec that was planned is still in the editor'
+      'The spec that was planned is still in the editor',
     );
   });
 
@@ -226,7 +226,7 @@ module('Integration | Component | job-editor', function (hooks) {
     assert.equal(
       Editor.parseError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -260,7 +260,7 @@ module('Integration | Component | job-editor', function (hooks) {
     assert.equal(
       Editor.planError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -293,7 +293,7 @@ module('Integration | Component | job-editor', function (hooks) {
     assert.equal(
       Editor.runError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -311,20 +311,20 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.errored,
-      'The scheduler dry-run message is in the warning state'
+      'The scheduler dry-run message is in the warning state',
     );
     assert.notOk(
       Editor.dryRunMessage.succeeded,
-      'The success message is not shown in addition to the warning message'
+      'The success message is not shown in addition to the warning message',
     );
     assert.ok(
       Editor.dryRunMessage.body.includes(newJobTaskGroupName),
-      'The scheduler dry-run message includes the warning from send back by the API'
+      'The scheduler dry-run message includes the warning from send back by the API',
     );
 
     assert.notOk(
       Editor.warningMessage.isPresent,
-      'The scheduler dry-run warning block is not present when there is an error but no warnings'
+      'The scheduler dry-run warning block is not present when there is an error but no warnings',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -341,7 +341,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     assert.ok(
       Editor.warningMessage.isPresent,
-      'The scheduler dry-run warning block is shown to the user'
+      'The scheduler dry-run warning block is shown to the user',
     );
     await percySnapshot(assert);
   });
@@ -358,11 +358,11 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.succeeded,
-      'The scheduler dry-run message is in the success state'
+      'The scheduler dry-run message is in the success state',
     );
     assert.notOk(
       Editor.dryRunMessage.errored,
-      'The warning message is not shown in addition to the success message'
+      'The warning message is not shown in addition to the success message',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -398,11 +398,11 @@ module('Integration | Component | job-editor', function (hooks) {
       .mapBy('url');
     assert.ok(
       requests.includes(`/v1/job/${newJobName}`),
-      'A request was made to job update'
+      'A request was made to job update',
     );
     assert.notOk(
       requests.includes('/v1/jobs'),
-      'A request was not made to job create'
+      'A request was not made to job create',
     );
   });
 
@@ -420,11 +420,11 @@ module('Integration | Component | job-editor', function (hooks) {
       .mapBy('url');
     assert.ok(
       requests.includes('/v1/jobs'),
-      'A request was made to job create'
+      'A request was made to job create',
     );
     assert.notOk(
       requests.includes(`/v1/job/${newJobName}`),
-      'A request was not made to job update'
+      'A request was not made to job update',
     );
   });
 
@@ -440,7 +440,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitUntil(() => this.onSubmit.called);
     assert.ok(
       this.onSubmit.calledWith(newJobName, 'default'),
-      'The onSubmit hook was called with the correct arguments'
+      'The onSubmit hook was called with the correct arguments',
     );
   });
 
@@ -522,12 +522,12 @@ module('Integration | Component | job-editor', function (hooks) {
       return hclLines.join('\n');
     }
     const expectedVariables = jsonToHcl(this.variables.flags).concat(
-      this.variables.literal
+      this.variables.literal,
     );
     assert.deepEqual(
       job._newDefinitionVariables,
       expectedVariables,
-      'Variables are set on the model'
+      'Variables are set on the model',
     );
   });
 });

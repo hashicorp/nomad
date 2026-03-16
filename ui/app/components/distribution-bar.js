@@ -50,7 +50,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
         percent: value / sum,
         offset:
           data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
-      })
+      }),
     );
   }
 

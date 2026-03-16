@@ -102,7 +102,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       TaskGroup.cpu,
       `Reserved CPU ${formatScheduledHertz(totalCPU, 'MHz')}`,
-      'Aggregated CPU reservation for all tasks'
+      'Aggregated CPU reservation for all tasks',
     );
 
     let totalMemoryMaxAddendum = '';
@@ -110,7 +110,7 @@ module('Acceptance | task group detail', function (hooks) {
     if (totalMemoryMax > totalMemory) {
       totalMemoryMaxAddendum = ` (${formatScheduledBytes(
         totalMemoryMax,
-        'MiB'
+        'MiB',
       )}Max)`;
     }
 
@@ -118,18 +118,18 @@ module('Acceptance | task group detail', function (hooks) {
       TaskGroup.mem,
       `Reserved Memory ${formatScheduledBytes(
         totalMemory,
-        'MiB'
+        'MiB',
       )}${totalMemoryMaxAddendum}`,
-      'Aggregated Memory reservation for all tasks'
+      'Aggregated Memory reservation for all tasks',
     );
     assert.equal(
       TaskGroup.disk,
       `Reserved Disk ${formatScheduledBytes(totalDisk, 'MiB')}`,
-      'Aggregated Disk reservation for all tasks'
+      'Aggregated Disk reservation for all tasks',
     );
 
     assert.ok(
-      getPageTitle().includes(`Task group ${taskGroup.name} - Job ${job.name}`)
+      getPageTitle().includes(`Task group ${taskGroup.name} - Job ${job.name}`),
     );
   });
 
@@ -139,17 +139,17 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       Layout.breadcrumbFor('jobs.index').text,
       'Jobs',
-      'First breadcrumb says jobs'
+      'First breadcrumb says jobs',
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
       `Job ${job.name}`,
-      'Second breadcrumb says the job name'
+      'Second breadcrumb says the job name',
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.task-group').text,
       `Task Group ${taskGroup.name}`,
-      'Third breadcrumb says the job name'
+      'Third breadcrumb says the job name',
     );
   });
 
@@ -167,7 +167,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}`,
-      'Second breadcrumb links back to the job for the task group'
+      'Second breadcrumb links back to the job for the task group',
     );
   });
 
@@ -244,7 +244,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.equal(
       decodeURIComponent(currentURL()),
-      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`
+      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`,
     );
     assert.notOk(TaskGroup.countStepper.increment.isDisabled);
 
@@ -254,7 +254,7 @@ module('Acceptance | task group detail', function (hooks) {
     });
     assert.equal(
       decodeURIComponent(currentURL()),
-      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`
+      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`,
     );
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
@@ -271,13 +271,13 @@ module('Acceptance | task group detail', function (hooks) {
     assert.ok(
       server.db.allocations.where({ jobId: job.id }).length >
         TaskGroup.pageSize,
-      'There are enough allocations to invoke pagination'
+      'There are enough allocations to invoke pagination',
     );
 
     assert.equal(
       TaskGroup.allocations.length,
       TaskGroup.pageSize,
-      'All allocations for the task group'
+      'All allocations for the task group',
     );
   });
 
@@ -290,37 +290,37 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       allocationRow.shortId,
       allocation.id.split('-')[0],
-      'Allocation short id'
+      'Allocation short id',
     );
     assert.equal(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-      'Allocation create time'
+      'Allocation create time',
     );
     assert.equal(
       allocationRow.modifyTime,
       moment(allocation.modifyTime / 1000000).fromNow(),
-      'Allocation modify time'
+      'Allocation modify time',
     );
     assert.equal(
       allocationRow.status,
       allocation.clientStatus,
-      'Client status'
+      'Client status',
     );
     assert.equal(
       allocationRow.jobVersion,
       allocation.jobVersion,
-      'Job Version'
+      'Job Version',
     );
     assert.equal(
       allocationRow.client,
       server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-      'Node ID'
+      'Node ID',
     );
     assert.equal(
       allocationRow.volume,
       Object.keys(taskGroup.volumes).length ? 'Yes' : '',
-      'Volumes'
+      'Volumes',
     );
 
     await allocationRow.visitClient();
@@ -328,7 +328,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/clients/${allocation.nodeId}`,
-      'Node links to node page'
+      'Node links to node page',
     );
   });
 
@@ -344,37 +344,37 @@ module('Acceptance | task group detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     assert.equal(
       allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-      'CPU %'
+      'CPU %',
     );
 
     const roundedTicks = Math.floor(
-      allocStats.resourceUsage.CpuStats.TotalTicks
+      allocStats.resourceUsage.CpuStats.TotalTicks,
     );
     assert.equal(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-      'Detailed CPU information is in a tooltip'
+      'Detailed CPU information is in a tooltip',
     );
 
     assert.equal(
       allocationRow.mem,
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-      'Memory used'
+      'Memory used',
     );
 
     assert.equal(
       allocationRow.memTooltip,
       `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
         memoryUsed,
-        'MiB'
+        'MiB',
       )}`,
-      'Detailed memory information is in a tooltip'
+      'Detailed memory information is in a tooltip',
     );
   });
 
@@ -387,7 +387,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       TaskGroup.emptyState.headline,
       'No Matches',
-      'Empty state has an appropriate message'
+      'Empty state has an appropriate message',
     );
   });
 
@@ -399,7 +399,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.ok(
       rescheduleRow.rescheduled,
-      'Reschedule row has a reschedule icon'
+      'Reschedule row has a reschedule icon',
     );
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
@@ -418,7 +418,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.ok(TaskGroup.lifecycleChart.isPresent);
     assert.equal(
       TaskGroup.lifecycleChart.title,
-      'Task Lifecycle Configuration'
+      'Task Lifecycle Configuration',
     );
 
     tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
@@ -441,7 +441,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.ok(TaskGroup.hasVolumes);
     assert.equal(
       TaskGroup.volumes.length,
-      Object.keys(taskGroup.volumes).length
+      Object.keys(taskGroup.volumes).length,
     );
   });
 
@@ -477,7 +477,7 @@ module('Acceptance | task group detail', function (hooks) {
       assert.equal(volumeRow.source, volume.Source);
       assert.equal(
         volumeRow.permissions,
-        volume.ReadOnly ? 'Read' : 'Read/Write'
+        volume.ReadOnly ? 'Read' : 'Read/Write',
       );
     });
   });
@@ -505,7 +505,7 @@ module('Acceptance | task group detail', function (hooks) {
     await settled();
 
     const scaleRequest = server.pretender.handledRequests.find(
-      (req) => req.method === 'POST' && req.url.endsWith('/scale')
+      (req) => req.method === 'POST' && req.url.endsWith('/scale'),
     );
     const requestBody = JSON.parse(scaleRequest.requestBody);
     assert.equal(requestBody.Target.Group, scalingGroup.name);
@@ -548,18 +548,18 @@ module('Acceptance | task group detail', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/not-a-real-task-group',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
     assert.equal(
       TaskGroup.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -571,18 +571,18 @@ module('Acceptance | task group detail', function (hooks) {
         .filterBy('status', 200)
         .mapBy('url')
         .includes(`/v1/job/${job.id}`),
-      'A request to the job is made and succeeds'
+      'A request to the job is made and succeeds',
     );
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/not-a-real-task-group`,
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
     assert.equal(
       TaskGroup.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -603,7 +603,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('when a task group has no scaling events, there is no recent scaling events section', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({ events: [] });
 
@@ -614,7 +614,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('the recent scaling events section shows all recent scaling events in reverse chronological order', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({
       events: [
@@ -636,7 +636,7 @@ module('Acceptance | task group detail', function (hooks) {
       const ScaleEvent = TaskGroup.scaleEvents[idx];
       assert.equal(
         ScaleEvent.time,
-        moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ')
+        moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ'),
       );
       assert.equal(ScaleEvent.message, scaleEvent.message);
 
@@ -658,7 +658,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown in addition to the accordion', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({
       events: [
@@ -681,7 +681,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.equal(
       TaskGroup.scalingAnnotations.length,
-      scaleEvents.filter((ev) => ev.count == null).length
+      scaleEvents.filter((ev) => ev.count == null).length,
     );
   });
 
@@ -704,7 +704,7 @@ module('Acceptance | task group detail', function (hooks) {
             taskGroup: taskGroup.name,
             clientStatus: s,
           });
-        }
+        },
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
@@ -723,11 +723,11 @@ module('Acceptance | task group detail', function (hooks) {
           allocs
             .filter(
               (alloc) =>
-                alloc.jobId == job.id && alloc.taskGroup == taskGroup.name
+                alloc.jobId == job.id && alloc.taskGroup == taskGroup.name,
             )
             .mapBy('nodeId')
-            .map((id) => id.split('-')[0])
-        )
+            .map((id) => id.split('-')[0]),
+        ),
       ).sort();
     },
     async beforeEach() {
@@ -737,7 +737,7 @@ module('Acceptance | task group detail', function (hooks) {
           nodeId: node.id,
           jobId: job.id,
           taskGroup: taskGroup.name,
-        })
+        }),
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
@@ -750,7 +750,7 @@ module('Acceptance | task group detail', function (hooks) {
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
+  { facet, paramName, beforeEach, filter, expectedOptions },
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
@@ -766,7 +766,7 @@ function testFacet(
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   });
 
@@ -787,7 +787,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -814,7 +814,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -835,9 +835,9 @@ function testFacet(
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup.name}?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`,
-      'URL has the correct query param key and value'
+      'URL has the correct query param key and value',
     );
   });
 }

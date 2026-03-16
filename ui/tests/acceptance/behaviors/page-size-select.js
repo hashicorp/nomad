@@ -14,7 +14,7 @@ export default function pageSizeSelect({
   setup,
 }) {
   test(`the number of ${pluralize(
-    resourceName
+    resourceName,
   )} is equal to the localStorage user setting for page size`, async function (assert) {
     const storedPageSize = 10;
     window.localStorage.nomadPageSize = storedPageSize;
@@ -33,7 +33,7 @@ export default function pageSizeSelect({
   });
 
   test(`changing the page size updates the ${pluralize(
-    resourceName
+    resourceName,
   )} list and also updates the user setting in localStorage`, async function (assert) {
     const desiredPageSize = 10;
 

@@ -59,7 +59,7 @@ export default class TaskPrimaryMetric extends Component {
   start() {
     this.taskState = this.args.taskState;
     this.tracker = this.statsTrackersRegistry.getTracker(
-      this.args.taskState.allocation
+      this.args.taskState.allocation,
     );
     this.poller.perform();
   }

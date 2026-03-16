@@ -18,35 +18,44 @@
         {{/if}}
       </PH.Title>
       <PH.Actions>
-      {{#if this.shouldShowPolicies}}
-        {{#unless this.tokenRecord.isExpired}}
-          <Hds::Button
-            data-test-token-clear
-            @size="medium"
-            @text="Sign Out"
-            @color="critical"
-            {{on "click" this.clearTokenProperties}}
-          />
+        {{#if this.shouldShowPolicies}}
+          {{#unless this.tokenRecord.isExpired}}
+            <Hds::Button
+              data-test-token-clear
+              @size="medium"
+              @text="Sign Out"
+              @color="critical"
+              {{on "click" this.clearTokenProperties}}
+            />
 
-        {{/unless}}
-      {{/if}}
+          {{/unless}}
+        {{/if}}
       </PH.Actions>
     </Hds::PageHeader>
 
     <div class="status-notifications">
       {{#if (eq this.signInStatus "failure")}}
-        <Hds::Alert data-test-token-error @type="inline" @color="critical"
+        <Hds::Alert
+          data-test-token-error
+          @type="inline"
+          @color="critical"
           @onDismiss={{action (mut this.signInStatus) null}}
-        as |A|>
+          as |A|
+        >
           <A.Title>Token Failed to Authenticate</A.Title>
-          <A.Description>The token secret you have provided does not match an existing token, or has expired.</A.Description>
+          <A.Description>The token secret you have provided does not match an
+            existing token, or has expired.</A.Description>
         </Hds::Alert>
       {{/if}}
 
       {{#if (eq this.signInStatus "jwtFailure")}}
-        <Hds::Alert data-test-token-error @type="inline" @color="critical"
+        <Hds::Alert
+          data-test-token-error
+          @type="inline"
+          @color="critical"
           @onDismiss={{action (mut this.signInStatus) null}}
-        as |A|>
+          as |A|
+        >
           <A.Title>JWT Failed to Authenticate</A.Title>
           <A.Description>You passed in a JWT, but no JWT auth methods were found</A.Description>
         </Hds::Alert>
@@ -58,23 +67,37 @@
           @type="inline"
           @color="critical"
           @onDismiss={{action "clearTokenProperties"}}
-        as |A|>
+          as |A|
+        >
           <A.Title>Your authentication has expired</A.Title>
-          <A.Description>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</A.Description>
+          <A.Description>Expired
+            {{moment-from-now this.tokenRecord.expirationTime interval=1000}}
+            ({{this.tokenRecord.expirationTime}})</A.Description>
         </Hds::Alert>
       {{else}}
         {{#if (eq this.signInStatus "success")}}
-          <Hds::Alert @onDismiss={{action (mut this.signInStatus) null}} data-test-token-success @type="inline" @color="success" as |A|>
+          <Hds::Alert
+            @onDismiss={{action (mut this.signInStatus) null}}
+            data-test-token-success
+            @type="inline"
+            @color="success"
+            as |A|
+          >
             <A.Title>Token Authenticated!</A.Title>
-            <A.Description>Your token is valid and authorized for the following policies.</A.Description>
+            <A.Description>Your token is valid and authorized for the following
+              policies.</A.Description>
           </Hds::Alert>
         {{/if}}
       {{/if}}
 
       {{#if this.token.tokenNotFound}}
-        <Hds::Alert data-test-token-not-found @type="inline" @color="critical"
+        <Hds::Alert
+          data-test-token-not-found
+          @type="inline"
+          @color="critical"
           @onDismiss={{action (mut this.token.tokenNotFound) false}}
-        as |A|>
+          as |A|
+        >
           <A.Title>Token not found</A.Title>
           <A.Description>It may have expired, or been entered incorrectly.</A.Description>
         </Hds::Alert>
@@ -86,9 +109,11 @@
           @type="inline"
           @color="critical"
           @onDismiss={{action (mut this.state) null}}
-        as |A|>
+          as |A|
+        >
           <A.Title>Failed to sign in with SSO</A.Title>
-          <A.Description>Your OIDC provider has failed on sign in; please try again or contact your SSO administrator.</A.Description>
+          <A.Description>Your OIDC provider has failed on sign in; please try
+            again or contact your SSO administrator.</A.Description>
         </Hds::Alert>
       {{/if}}
     </div>
@@ -97,7 +122,8 @@
       <div class="sign-in-methods">
         {{#if this.nonTokenAuthMethods.length}}
           <h3 class="title is-4">Sign in with SSO</h3>
-          <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
+          <p>Sign in to Nomad using the configured authorization provider. After
+            logging in, the policies and rules for the token will be listed.</p>
           <div class="sso-auth-methods">
             {{#each this.nonTokenAuthMethods as |method|}}
               <Hds::Button
@@ -113,18 +139,41 @@
         {{/if}}
 
         <h3 class="title is-4">Sign in with token</h3>
-        <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID{{#if this.hasJWTAuthMethods}} or <a href="https://jwt.io/" target="_blank" rel="noopener noreferrer">JWT</a>{{/if}}, each future request will be authenticated, potentially authorizing read access to additional information.</p>
-        <label class="label" for="token-input">Secret ID{{#if this.hasJWTAuthMethods}} or JWT{{/if}}</label>
-        <div class="control {{if (and this.currentSecretIsJWT (gt this.JWTAuthMethods.length 1)) "with-jwt-selector"}}">
+        <p>Clusters that use Access Control Lists require tokens to perform
+          certain tasks. By providing a token Secret ID{{#if
+            this.hasJWTAuthMethods
+          }}
+            or
+            <a
+              href="https://jwt.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >JWT</a>{{/if}}, each future request will be authenticated,
+          potentially authorizing read access to additional information.</p>
+        <label class="label" for="token-input">Secret ID{{#if
+            this.hasJWTAuthMethods
+          }} or JWT{{/if}}</label>
+        <div
+          class="control
+            {{if
+              (and this.currentSecretIsJWT (gt this.JWTAuthMethods.length 1))
+              'with-jwt-selector'
+            }}"
+        >
           <Input
             id="token-input"
             class="input"
             @type="password"
-            placeholder="{{if this.hasJWTAuthMethods "36-character token secret or JWT" "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"}}"
+            placeholder="{{if
+              this.hasJWTAuthMethods
+              '36-character token secret or JWT'
+              'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
+            }}"
             {{autofocus}}
             {{on "input" this.handleSecretInput}}
             @enter={{this.verifyToken}}
-            data-test-token-secret />
+            data-test-token-secret
+          />
 
           {{#if this.currentSecretIsJWT}}
             {{#if (gt this.JWTAuthMethods.length 1)}}
@@ -143,7 +192,11 @@
           disabled={{not this.secret}}
           data-test-token-submit
           @size="medium"
-          @text={{if this.currentSecretIsJWT "Sign in with JWT" "Sign in with secret"}}
+          @text={{if
+            this.currentSecretIsJWT
+            "Sign in with JWT"
+            "Sign in with secret"
+          }}
           @color="primary"
           {{on "click" this.verifyToken}}
         />
@@ -153,18 +206,34 @@
     {{#if this.shouldShowPolicies}}
       <div class="token-details">
         {{#unless this.tokenRecord.isExpired}}
-          <h3 data-test-token-name class="title is-4">Token: {{this.tokenRecord.name}}</h3>
-          <Hds::Form::MaskedInput::Field readonly @isContentMasked={{false}} @hasCopyButton={{true}} @value={{this.tokenRecord.accessor}} as |F|>
+          <h3 data-test-token-name class="title is-4">Token:
+            {{this.tokenRecord.name}}</h3>
+          <Hds::Form::MaskedInput::Field
+            readonly
+            @isContentMasked={{false}}
+            @hasCopyButton={{true}}
+            @value={{this.tokenRecord.accessor}}
+            as |F|
+          >
             <F.Label>Accessor ID</F.Label>
           </Hds::Form::MaskedInput::Field>
-          <Hds::Form::MaskedInput::Field readonly @hasCopyButton={{true}} @value={{this.tokenRecord.secret}} as |F|>
+          <Hds::Form::MaskedInput::Field
+            readonly
+            @hasCopyButton={{true}}
+            @value={{this.tokenRecord.secret}}
+            as |F|
+          >
             <F.Label>Secret ID</F.Label>
           </Hds::Form::MaskedInput::Field>
           {{#if this.tokenRecord.expirationTime}}
-            <div data-test-token-expiry>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} <span data-test-expiration-timestamp>({{this.tokenRecord.expirationTime}})</span></div>
+            <div data-test-token-expiry>Expires:
+              {{moment-from-now this.tokenRecord.expirationTime interval=1000}}
+              <span
+                data-test-expiration-timestamp
+              >({{this.tokenRecord.expirationTime}})</span></div>
           {{/if}}
           {{#if this.tokenRecord.roles.length}}
-            <Hds::Separator/>
+            <Hds::Separator />
             <div>
               <h3 class="title is-4">Roles</h3>
               {{#each this.tokenRecord.roles as |role|}}
@@ -173,11 +242,11 @@
                     {{role.name}}
                   </div>
                   <div class="boxed-section-body">
-                      {{#if role.description}}
-                        <p class="content">
-                          {{role.description}}
-                        </p>
-                      {{/if}}
+                    {{#if role.description}}
+                      <p class="content">
+                        {{role.description}}
+                      </p>
+                    {{/if}}
                     <div data-test-role-policies>
                       <h4 class="title is-5">Policies</h4>
                       {{#each role.policies as |policy|}}
@@ -189,7 +258,7 @@
               {{/each}}
             </div>
           {{/if}}
-          <Hds::Separator/>
+          <Hds::Separator />
           <div>
             <h3 class="title is-4">Policies</h3>
             {{#if (eq this.tokenRecord.type "management")}}
@@ -200,7 +269,11 @@
               </div>
             {{else}}
               {{#each this.tokenRecord.combinedPolicies as |policy|}}
-                <div id="{{policy.name}}" data-test-token-policy class="boxed-section">
+                <div
+                  id="{{policy.name}}"
+                  data-test-token-policy
+                  class="boxed-section"
+                >
                   <div data-test-policy-name class="boxed-section-head">
                     {{policy.name}}
                   </div>
@@ -212,7 +285,9 @@
                         <em>No description</em>
                       {{/if}}
                     </p>
-                    <pre><code data-test-policy-rules>{{policy.rules}}</code></pre>
+                    <pre><code
+                        data-test-policy-rules
+                      >{{policy.rules}}</code></pre>
                   </div>
                 </div>
               {{/each}}
@@ -224,4 +299,3 @@
 
   {{/if}}
 </section>
-

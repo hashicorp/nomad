@@ -78,7 +78,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       if (!taskFrame) continue;
 
       const frameTimestamp = new Date(
-        Math.floor(taskFrame.Timestamp / 1000000)
+        Math.floor(taskFrame.Timestamp / 1000000),
       );
 
       const taskCpuUsed =
@@ -95,7 +95,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       const taskMemoryUsed = memoryUsed(taskFrame);
       const percentMemoryTotal = percent(
         taskMemoryUsed / 1024 / 1024,
-        this.reservedMemory
+        this.reservedMemory,
       );
       stats.memory.pushObject({
         timestamp: frameTimestamp,

@@ -22,7 +22,7 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
       .reduce(
         (totalSlots, allocsByCanary) =>
           totalSlots + (allocsByCanary ? allocsByCanary.length : 0),
-        0
+        0,
       );
   }
 

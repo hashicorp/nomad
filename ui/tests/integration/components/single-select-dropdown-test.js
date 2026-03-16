@@ -45,12 +45,12 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('.ember-power-select-trigger').textContent.includes(props.label)
+      find('.ember-power-select-trigger').textContent.includes(props.label),
     );
     assert.ok(
       find('.ember-power-select-trigger').textContent.includes(
-        props.options.findBy('key', props.selection).label
-      )
+        props.options.findBy('key', props.selection).label,
+      ),
     );
     assert.notOk(find('[data-test-dropdown-options]'));
 
@@ -69,12 +69,12 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     assert.equal(
       findAll('.ember-power-select-option').length,
       props.options.length,
-      'All options are shown'
+      'All options are shown',
     );
     findAll('.ember-power-select-option').forEach((optionEl, index) => {
       assert.equal(
         optionEl.querySelector('.dropdown-label').textContent.trim(),
-        props.options[index].label
+        props.options[index].label,
       );
     });
   });

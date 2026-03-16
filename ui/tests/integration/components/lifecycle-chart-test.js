@@ -123,7 +123,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       'taskStates',
       tasks.map((task) => {
         return { task };
-      })
+      }),
     );
 
     await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
@@ -147,7 +147,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     assert.ok(Chart.phases[1].isActive);
     assert.notOk(
       Chart.phases[2].isActive,
-      'the poststart phase is nested within main and should never have the active class'
+      'the poststart phase is nested within main and should never have the active class',
     );
 
     this.set('taskStates.4.finishedAt', new Date());
@@ -184,14 +184,14 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
 
       this.set(
         'taskStates',
-        tasks.map((task) => ({ task }))
+        tasks.map((task) => ({ task })),
       );
 
       await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
 
       runningTaskNames.forEach((taskName) => {
         const taskState = this.taskStates.find((taskState) =>
-          taskState.task.name.includes(taskName)
+          taskState.task.name.includes(taskName),
         );
         set(taskState, 'state', 'running');
       });
@@ -204,7 +204,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
         } else {
           assert.notOk(
             Phase.isActive,
-            `expected ${Phase.name} phase not to be active`
+            `expected ${Phase.name} phase not to be active`,
           );
         }
       });

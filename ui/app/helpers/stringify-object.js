@@ -31,7 +31,7 @@ function circularSafeReplacer(replacer) {
  */
 export function stringifyObject(
   [obj],
-  { replacer = null, whitespace = 2 } = {}
+  { replacer = null, whitespace = 2 } = {},
 ) {
   try {
     return JSON.stringify(obj, replacer, whitespace);

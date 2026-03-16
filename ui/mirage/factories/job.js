@@ -24,7 +24,7 @@ export default Factory.extend({
     }
 
     return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
-      faker.hacker.noun()
+      faker.hacker.noun(),
     )}-${i}`.toLowerCase();
   },
 
@@ -268,7 +268,7 @@ export default Factory.extend({
             job.resourceSpec &&
             job.resourceSpec.length &&
             job.resourceSpec[idx],
-        })
+        }),
       );
     } else {
       groups = provide(job.groupsCount, (_, idx) =>
@@ -278,7 +278,7 @@ export default Factory.extend({
             job.resourceSpec &&
             job.resourceSpec.length &&
             job.resourceSpec[idx],
-        })
+        }),
       );
     }
 
@@ -294,7 +294,7 @@ export default Factory.extend({
         jobId: job.id,
         groupNames: groups.mapBy('name'),
         namespace: job.namespace,
-      }
+      },
     );
 
     job.update({
@@ -358,14 +358,14 @@ export default Factory.extend({
       server.createList(
         'evaluation',
         faker.random.number({ min: 1, max: 5 }),
-        knownEvaluationProperties
+        knownEvaluationProperties,
       );
       if (!job.noFailedPlacements) {
         server.createList(
           'evaluation',
           faker.random.number(3),
           'withPlacementFailures',
-          knownEvaluationProperties
+          knownEvaluationProperties,
         );
       }
 

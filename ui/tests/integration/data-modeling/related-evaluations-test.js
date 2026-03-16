@@ -19,7 +19,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
       assert.equal(
         fakeRes.queryParams.related,
         'true',
-        'it should append the related query parameter when making the API request for related evaluations'
+        'it should append the related query parameter when making the API request for related evaluations',
       );
       return {
         ID: 'tomster',
@@ -56,7 +56,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
     server.get('/evaluation/:id', function (_, fakeRes) {
       assert.notOk(
         fakeRes.queryParams.related,
-        'it should not append the related query parameter when making the API request for related evaluations'
+        'it should not append the related query parameter when making the API request for related evaluations',
       );
       return {
         ID: 'tomster',
@@ -136,7 +136,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
     assert.deepEqual(
       mappedResult,
       ['a', 'b'],
-      'related evals data is accessible'
+      'related evals data is accessible',
     );
   });
 });

@@ -22,7 +22,7 @@ module('Integration | Component | popover-menu', function (hooks) {
         triggerClass: '',
         label: 'Trigger Label',
       },
-      overrides
+      overrides,
     );
 
   const commonTemplate = hbs`

@@ -32,7 +32,8 @@ export default class JobsRunTemplatesNewController extends Controller {
     return !!templates
       .without(this.model)
       .find(
-        (v) => v.path === templateName && v.namespace === this.templateNamespace
+        (v) =>
+          v.path === templateName && v.namespace === this.templateNamespace,
       );
   }
 

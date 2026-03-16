@@ -19,7 +19,9 @@ export default Factory.extend({
       ? {
           'nomad_autoscaler.count.capped': true,
           'nomad_autoscaler.count.original': 0,
-          'nomad_autoscaler.reason_history': ['scaling down because factor is 0.000000'],
+          'nomad_autoscaler.reason_history': [
+            'scaling down because factor is 0.000000',
+          ],
         }
       : {},
 

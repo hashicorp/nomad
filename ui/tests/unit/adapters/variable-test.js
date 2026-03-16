@@ -22,12 +22,12 @@ module('Unit | Adapter | Variable', function (hooks) {
     assert.equal(
       this.subject().urlForFindAll('variable'),
       '/v1/vars',
-      'pluralizes findAll lookup'
+      'pluralizes findAll lookup',
     );
     assert.equal(
       this.subject().urlForFindRecord('foo/bar', 'variable', newVariable),
       `/v1/var/${encodeURIComponent('foo/bar')}?namespace=default`,
-      'singularizes findRecord lookup'
+      'singularizes findRecord lookup',
     );
   });
 });

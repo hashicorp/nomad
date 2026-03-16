@@ -15,7 +15,8 @@
   @xScale={{bind this.xScale this}}
   @yScale={{bind this.yScale this}}
   @xFormat={{this.xFormat}}
-  @yFormat={{this.yFormat}}>
+  @yFormat={{this.yFormat}}
+>
   <:svg as |c|>
     {{#if this.useDefaults}}
       <c.Area @data={{@data}} @colorClass={{@chartClass}} />
@@ -26,7 +27,9 @@
     {{#if this.useDefaults}}
       <c.Tooltip class="is-snappy" as |series datum|>
         <li>
-          <span class="label"><span class="color-swatch {{@chartClass}}" />{{datum.formattedX}}</span>
+          <span class="label"><span
+              class="color-swatch {{@chartClass}}"
+            />{{datum.formattedX}}</span>
           <span class="value">{{datum.formattedY}}</span>
         </li>
       </c.Tooltip>

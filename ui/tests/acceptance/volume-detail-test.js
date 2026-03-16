@@ -53,7 +53,7 @@ module('Acceptance | volume detail', function (hooks) {
     assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
     assert.equal(
       Layout.breadcrumbFor('storage.volumes.volume').text,
-      volume.name
+      volume.name,
     );
   });
 
@@ -71,14 +71,14 @@ module('Acceptance | volume detail', function (hooks) {
 
     assert.ok(
       VolumeDetail.health.includes(
-        volume.schedulable ? 'Schedulable' : 'Unschedulable'
-      )
+        volume.schedulable ? 'Schedulable' : 'Unschedulable',
+      ),
     );
     assert.ok(VolumeDetail.provider.includes(volume.provider));
     assert.ok(VolumeDetail.externalId.includes(volume.externalId));
     assert.notOk(
       VolumeDetail.hasNamespace,
-      'Namespace is omitted when there is only one namespace'
+      'Namespace is omitted when there is only one namespace',
     );
   });
 
@@ -97,7 +97,7 @@ module('Acceptance | volume detail', function (hooks) {
       .forEach((allocation, idx) => {
         assert.equal(
           allocation.id,
-          VolumeDetail.writeAllocations.objectAt(idx).id
+          VolumeDetail.writeAllocations.objectAt(idx).id,
         );
       });
   });
@@ -117,7 +117,7 @@ module('Acceptance | volume detail', function (hooks) {
       .forEach((allocation, idx) => {
         assert.equal(
           allocation.id,
-          VolumeDetail.readAllocations.objectAt(idx).id
+          VolumeDetail.readAllocations.objectAt(idx).id,
         );
       });
   });
@@ -136,7 +136,7 @@ module('Acceptance | volume detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
@@ -145,64 +145,64 @@ module('Acceptance | volume detail', function (hooks) {
       assert.equal(
         allocationRow.shortId,
         allocation.id.split('-')[0],
-        'Allocation short ID'
+        'Allocation short ID',
       );
       assert.equal(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-        'Allocation create time'
+        'Allocation create time',
       );
       assert.equal(
         allocationRow.modifyTime,
         moment(allocation.modifyTime / 1000000).fromNow(),
-        'Allocation modify time'
+        'Allocation modify time',
       );
       assert.equal(
         allocationRow.status,
         allocation.clientStatus,
-        'Client status'
+        'Client status',
       );
       assert.equal(
         allocationRow.job,
         server.db.jobs.find(allocation.jobId).name,
-        'Job name'
+        'Job name',
       );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
       assert.equal(
         allocationRow.client,
         server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-        'Node ID'
+        'Node ID',
       );
       assert.equal(
         allocationRow.clientTooltip.substr(0, 15),
         server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
-        'Node Name'
+        'Node Name',
       );
       assert.equal(
         allocationRow.cpu,
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-        'CPU %'
+        'CPU %',
       );
       const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks
+        allocStats.resourceUsage.CpuStats.TotalTicks,
       );
       assert.equal(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-        'Detailed CPU information is in a tooltip'
+        'Detailed CPU information is in a tooltip',
       );
       assert.equal(
         allocationRow.mem,
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-        'Memory used'
+        'Memory used',
       );
       assert.equal(
         allocationRow.memTooltip,
         `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS
+          allocStats.resourceUsage.MemoryStats.RSS,
         )} / ${formatBytes(memoryUsed, 'MiB')}`,
-        'Detailed memory information is in a tooltip'
+        'Detailed memory information is in a tooltip',
       );
     });
   });
@@ -237,7 +237,7 @@ module('Acceptance | volume detail', function (hooks) {
     assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
     assert.equal(
       VolumeDetail.constraints.attachmentMode,
-      volume.attachmentMode
+      volume.attachmentMode,
     );
   });
 });

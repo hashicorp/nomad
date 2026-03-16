@@ -53,12 +53,12 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     assert.equal(
       findAll('[data-test-allocation]').length,
       attempts + 1,
-      'Total allocations equals current allocation plus all past allocations'
+      'Total allocations equals current allocation plus all past allocations',
     );
     assert.equal(
       find('[data-test-allocation]'),
       find(`[data-test-allocation="${allocation.id}"]`),
-      'First allocation is the current allocation'
+      'First allocation is the current allocation',
     );
 
     assert.notOk(find('[data-test-stop-warning]'), 'No stop warning');
@@ -66,17 +66,17 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     assert.equal(
       find(
-        `[data-test-allocation="${allocation.id}"] [data-test-allocation-link]`
+        `[data-test-allocation="${allocation.id}"] [data-test-allocation-link]`,
       ).textContent.trim(),
       allocation.get('shortId'),
-      'The "this" allocation is correct'
+      'The "this" allocation is correct',
     );
     assert.equal(
       find(
-        `[data-test-allocation="${allocation.id}"] [data-test-allocation-status]`
+        `[data-test-allocation="${allocation.id}"] [data-test-allocation-status]`,
       ).textContent.trim(),
       allocation.get('clientStatus'),
-      'Allocation shows the status'
+      'Allocation shows the status',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -103,11 +103,11 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     assert.ok(
       find('[data-test-stop-warning]'),
-      'Stop warning is shown since the last allocation failed'
+      'Stop warning is shown since the last allocation failed',
     );
     assert.notOk(
       find('[data-test-attempt-notice]'),
-      'Reschdule attempt notice is not shown'
+      'Reschdule attempt notice is not shown',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -143,7 +143,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     assert.ok(
       find('[data-test-attempt-notice]'),
-      'Reschedule notice is shown since the follow up eval says so'
+      'Reschedule notice is shown since the follow up eval says so',
     );
     assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
 
@@ -170,21 +170,21 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     assert.equal(
       find('[data-test-reschedule-label]').textContent.trim(),
       'Next Allocation',
-      'The first allocation is the next allocation and labeled as such'
+      'The first allocation is the next allocation and labeled as such',
     );
 
     assert.equal(
       find(
-        '[data-test-allocation] [data-test-allocation-link]'
+        '[data-test-allocation] [data-test-allocation-link]',
       ).textContent.trim(),
       allocation.get('nextAllocation.shortId'),
-      'The next allocation item is for the correct allocation'
+      'The next allocation item is for the correct allocation',
     );
 
     assert.equal(
       findAll('[data-test-allocation]')[1],
       find(`[data-test-allocation="${allocation.id}"]`),
-      'Second allocation is the current allocation'
+      'Second allocation is the current allocation',
     );
 
     assert.notOk(find('[data-test-stop-warning]'), 'No stop warning');

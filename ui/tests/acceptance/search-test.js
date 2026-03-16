@@ -111,7 +111,7 @@ module('Acceptance | search', function (hooks) {
     await selectSearch(Layout.navbar.search.scope, firstAllocation.name);
     assert.equal(
       Layout.navbar.search.groups[2].options[0].text,
-      `${firstAllocation.namespace} > ${firstAllocation.name}`
+      `${firstAllocation.namespace} > ${firstAllocation.name}`,
     );
     await Layout.navbar.search.groups[2].options[0].click();
     assert.equal(currentURL(), `/allocations/${firstAllocation.id}`);
@@ -119,7 +119,7 @@ module('Acceptance | search', function (hooks) {
     await selectSearch(Layout.navbar.search.scope, firstTaskGroup.name);
     assert.equal(
       Layout.navbar.search.groups[3].options[0].text,
-      `default > vwxyz > ${firstTaskGroup.name}`
+      `default > vwxyz > ${firstTaskGroup.name}`,
     );
     await Layout.navbar.search.groups[3].options[0].click();
     assert.equal(currentURL(), `/jobs/vwxyz@default/${firstTaskGroup.name}`);
@@ -127,7 +127,7 @@ module('Acceptance | search', function (hooks) {
     await selectSearch(Layout.navbar.search.scope, namespacedTaskGroup.name);
     assert.equal(
       Layout.navbar.search.groups[3].options[0].text,
-      `dev > xyzw > ${namespacedTaskGroup.name}`
+      `dev > xyzw > ${namespacedTaskGroup.name}`,
     );
     await Layout.navbar.search.groups[3].options[0].click();
     assert.equal(currentURL(), `/jobs/xyzw@dev/${namespacedTaskGroup.name}`);
@@ -137,17 +137,17 @@ module('Acceptance | search', function (hooks) {
     assert.equal(currentURL(), '/storage/plugins/xyz-plugin');
 
     const fuzzySearchQueries = server.pretender.handledRequests.filter(
-      (r) => r.url === '/v1/search/fuzzy'
+      (r) => r.url === '/v1/search/fuzzy',
     );
 
     const featureDetectionQueries = fuzzySearchQueries.filter((request) =>
-      request.requestBody.includes('feature-detection-query')
+      request.requestBody.includes('feature-detection-query'),
     );
 
     assert.equal(
       featureDetectionQueries.length,
       1,
-      'expect the feature detection query to only run once'
+      'expect the feature detection query to only run once',
     );
 
     const realFuzzySearchQuery = fuzzySearchQueries[1];
@@ -167,10 +167,10 @@ module('Acceptance | search', function (hooks) {
     assert.ok(Layout.navbar.search.noOptionsShown);
     assert.equal(
       server.pretender.handledRequests.filter(
-        (r) => r.url === '/v1/search/fuzzy'
+        (r) => r.url === '/v1/search/fuzzy',
       ).length,
       1,
-      'expect the feature detection query'
+      'expect the feature detection query',
     );
   });
 

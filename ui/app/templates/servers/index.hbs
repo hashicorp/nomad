@@ -11,17 +11,24 @@
     <ListPagination
       @source={{this.sortedAgents}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}} as |p|>
+      @page={{this.currentPage}}
+      as |p|
+    >
       <ListTable
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|>
+        @class="with-foot"
+        as |t|
+      >
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
           <t.sort-by @prop="status">Status</t.sort-by>
           <t.sort-by @prop="isLeader">Leader</t.sort-by>
-          <t.sort-by @class="is-200px is-truncatable" @prop="address">Address</t.sort-by>
+          <t.sort-by
+            @class="is-200px is-truncatable"
+            @prop="address"
+          >Address</t.sort-by>
           <t.sort-by @prop="serfPort">port</t.sort-by>
           <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
           <t.sort-by @prop="version">Version</t.sort-by>
@@ -33,7 +40,9 @@
       <div class="table-foot">
         <nav class="pagination">
           <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAgents.length}}
+            {{p.startsAt}}&ndash;{{p.endsAt}}
+            of
+            {{this.sortedAgents.length}}
           </div>
           <p.prev @class="pagination-previous"> &lt; </p.prev>
           <p.next @class="pagination-next"> &gt; </p.next>

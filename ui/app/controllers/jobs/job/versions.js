@@ -23,7 +23,7 @@ const errorLevelToAlertClass = {
 
 @classic
 export default class VersionsController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   error = null;
 

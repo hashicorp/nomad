@@ -17,7 +17,7 @@ export default ApplicationSerializer.extend({
     }
     return ApplicationSerializer.prototype.keyForRelationshipIds.apply(
       this,
-      arguments
+      arguments,
     );
   },
 

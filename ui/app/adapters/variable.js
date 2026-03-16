@@ -41,7 +41,7 @@ export default class VariableAdapter extends ApplicationAdapter {
 
     // Ensure we run a findRecord on each to get its keyValues
     await Promise.all(
-      jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id))
+      jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id)),
     );
 
     const defaultTemplates = this.store
@@ -61,7 +61,7 @@ export default class VariableAdapter extends ApplicationAdapter {
           return this.store.createRecord('variable', normalized);
         }
         return null;
-      })
+      }),
     );
   }
 

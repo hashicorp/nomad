@@ -64,7 +64,7 @@ module('Integration | Component | scale-events-chart', function (hooks) {
 
     assert.equal(
       findAll('[data-test-annotation]').length,
-      events.filter((ev) => ev.count == null).length
+      events.filter((ev) => ev.count == null).length,
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -83,12 +83,12 @@ module('Integration | Component | scale-events-chart', function (hooks) {
     assert.ok(find('[data-test-event-details]'));
     assert.equal(
       find('[data-test-timestamp]').textContent,
-      moment(annotation.time).format('MMM DD HH:mm:ss ZZ')
+      moment(annotation.time).format('MMM DD HH:mm:ss ZZ'),
     );
     assert.equal(find('[data-test-message]').textContent, annotation.message);
     assert.equal(
       getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(annotation.meta, null, 2)
+      JSON.stringify(annotation.meta, null, 2),
     );
 
     await componentA11yAudit(this.element, assert);

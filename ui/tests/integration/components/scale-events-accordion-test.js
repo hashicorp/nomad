@@ -31,7 +31,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
       const jobModel = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
       await jobModel.get('scaleState');
       return jobModel.taskGroups.findBy('name', group.name);
@@ -49,7 +49,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
     const eventCount = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', eventCount)
+      server.createList('scale-event', eventCount),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -57,7 +57,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
     assert.equal(
       findAll('[data-test-scale-events] [data-test-accordion-head]').length,
-      eventCount
+      eventCount,
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -66,7 +66,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     assert.expect(2);
 
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { error: true })
+      server.createList('scale-event', 1, { error: true }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -85,7 +85,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         count,
         previousCount: count - 1,
         error: false,
-      })
+      }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -103,7 +103,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         count,
         previousCount: count + 1,
         error: false,
-      })
+      }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -115,7 +115,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
   test('when an event has no count, the count is omitted', async function (assert) {
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { count: null })
+      server.createList('scale-event', 1, { count: null }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -129,14 +129,14 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     assert.expect(2);
 
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { meta: {} })
+      server.createList('scale-event', 1, { meta: {} }),
     );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-accordion-toggle]').classList.contains('is-invisible')
+      find('[data-test-accordion-toggle]').classList.contains('is-invisible'),
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -153,7 +153,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
       },
     };
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { meta })
+      server.createList('scale-event', 1, { meta }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -165,7 +165,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
     assert.equal(
       getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(meta, null, 2)
+      JSON.stringify(meta, null, 2),
     );
     await componentA11yAudit(this.element, assert);
   });

@@ -16,7 +16,7 @@ export default class SentinelPoliciesIndexController extends Controller {
   @action openPolicy(policy) {
     this.router.transitionTo(
       'administration.sentinel-policies.policy',
-      policy.name
+      policy.name,
     );
   }
 

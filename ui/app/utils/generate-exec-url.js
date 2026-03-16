@@ -7,7 +7,7 @@ import { get } from '@ember/object';
 
 export default function generateExecUrl(
   router,
-  { job, taskGroup, task, allocation }
+  { job, taskGroup, task, allocation },
 ) {
   const queryParams = {};
 
@@ -38,7 +38,7 @@ export default function generateExecUrl(
       get(task, 'name'),
       {
         queryParams: queryParamsOptions,
-      }
+      },
     );
   } else if (taskGroup) {
     return router.urlFor(
@@ -47,7 +47,7 @@ export default function generateExecUrl(
       get(taskGroup, 'name'),
       {
         queryParams,
-      }
+      },
     );
   } else if (allocation) {
     if (get(allocation, 'taskGroup.tasks.length') === 1) {
@@ -74,7 +74,7 @@ export default function generateExecUrl(
             allocation: get(allocation, 'shortId'),
             ...queryParams,
           },
-        }
+        },
       );
     }
   } else {

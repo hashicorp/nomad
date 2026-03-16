@@ -59,7 +59,7 @@ export default class GlobalSearchControl extends Component {
           Context: 'all',
           Namespace: '*',
         }),
-      }
+      },
     );
 
     const results = yield searchResponse.json();
@@ -127,7 +127,7 @@ export default class GlobalSearchControl extends Component {
           'Jobs',
           jobResults,
           allJobResults,
-          jobsTruncated
+          jobsTruncated,
         ),
         options: jobResults,
       },
@@ -136,7 +136,7 @@ export default class GlobalSearchControl extends Component {
           'Clients',
           nodeResults,
           allNodeResults,
-          nodesTruncated
+          nodesTruncated,
         ),
         options: nodeResults,
       },
@@ -145,7 +145,7 @@ export default class GlobalSearchControl extends Component {
           'Allocations',
           allocationResults,
           allAllocationResults,
-          allocationsTruncated
+          allocationsTruncated,
         ),
         options: allocationResults,
       },
@@ -154,7 +154,7 @@ export default class GlobalSearchControl extends Component {
           'Task Groups',
           taskGroupResults,
           allTaskGroupResults,
-          taskGroupsTruncated
+          taskGroupsTruncated,
         ),
         options: taskGroupResults,
       },
@@ -163,7 +163,7 @@ export default class GlobalSearchControl extends Component {
           'CSI Plugins',
           csiPluginResults,
           allCSIPluginResults,
-          csiPluginsTruncated
+          csiPluginsTruncated,
         ),
         options: csiPluginResults,
       },
@@ -198,7 +198,7 @@ export default class GlobalSearchControl extends Component {
         this.router.transitionTo(
           'jobs.job.task-group',
           job.idWithNamespace,
-          model.id
+          model.id,
         );
       });
     } else if (model.type === 'plugin') {
@@ -220,12 +220,12 @@ export default class GlobalSearchControl extends Component {
     // Bypass having to press enter to access search after clicking/tabbing
     const targetClassList = target.classList;
     const targetIsTrigger = targetClassList.contains(
-      'ember-power-select-trigger'
+      'ember-power-select-trigger',
     );
 
     // Allow tabbing out of search
     const triggerIsNotActive = !targetClassList.contains(
-      'ember-power-select-trigger--active'
+      'ember-power-select-trigger--active',
     );
 
     if (targetIsTrigger && triggerIsNotActive) {

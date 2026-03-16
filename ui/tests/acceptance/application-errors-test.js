@@ -44,7 +44,7 @@ module('Acceptance | application errors ', function (hooks) {
     await JobsList.visit();
     assert.notOk(
       JobsList.error.isPresent,
-      'Application is no longer in an error state'
+      'Application is no longer in an error state',
     );
   });
 
@@ -64,7 +64,7 @@ module('Acceptance | application errors ', function (hooks) {
     assert.equal(
       currentURL(),
       '/settings/tokens',
-      'Error message contains a link to the tokens page'
+      'Error message contains a link to the tokens page',
     );
   });
 
@@ -82,7 +82,7 @@ module('Acceptance | application errors ', function (hooks) {
     assert.equal(
       JobsList.error.title,
       'No Cluster Leader',
-      'The error is specifically for the lack of a cluster leader'
+      'The error is specifically for the lack of a cluster leader',
     );
     await percySnapshot(assert);
   });

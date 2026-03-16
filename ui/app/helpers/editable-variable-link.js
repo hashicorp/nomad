@@ -27,7 +27,7 @@ import Helper from '@ember/component/helper';
  */
 export function editableVariableLink(
   [path],
-  { existingPaths, namespace = 'default' }
+  { existingPaths, namespace = 'default' },
 ) {
   if (existingPaths.findBy('path', path)) {
     return {

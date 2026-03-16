@@ -16,7 +16,7 @@ export default class ResourcesDiffs {
     this.multiplier = multiplier;
     this.recommendations = recommendations;
     this.excludedRecommendations = excludedRecommendations.filter((r) =>
-      recommendations.includes(r)
+      recommendations.includes(r),
     );
   }
 
@@ -30,18 +30,18 @@ export default class ResourcesDiffs {
       'MHz',
       this.multiplier,
       included,
-      excluded
+      excluded,
     );
   }
 
   get memory() {
     const included = this.includedRecommendations.filterBy(
       'resource',
-      'MemoryMB'
+      'MemoryMB',
     );
     const excluded = this.excludedRecommendations.filterBy(
       'resource',
-      'MemoryMB'
+      'MemoryMB',
     );
 
     return new ResourceDiffs(
@@ -50,13 +50,13 @@ export default class ResourcesDiffs {
       'MiB',
       this.multiplier,
       included,
-      excluded
+      excluded,
     );
   }
 
   get includedRecommendations() {
     return this.recommendations.reject((r) =>
-      this.excludedRecommendations.includes(r)
+      this.excludedRecommendations.includes(r),
     );
   }
 }
@@ -68,7 +68,7 @@ class ResourceDiffs {
     units,
     multiplier,
     includedRecommendations,
-    excludedRecommendations
+    excludedRecommendations,
   ) {
     this.base = base;
     this.baseTaskPropertyName = baseTaskPropertyName;

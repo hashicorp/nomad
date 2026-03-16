@@ -20,7 +20,7 @@ class JsonReporter {
 
     if (this.generateReport) {
       console.log(
-        `[Reporter] Initializing with output file: ${this.outputFile}`
+        `[Reporter] Initializing with output file: ${this.outputFile}`,
       );
 
       try {
@@ -36,8 +36,8 @@ class JsonReporter {
               tests: [],
             },
             null,
-            2
-          )
+            2,
+          ),
         );
         console.log('[Reporter] Initialized results file');
       } catch (err) {

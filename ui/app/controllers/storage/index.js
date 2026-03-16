@@ -174,7 +174,7 @@ export default class IndexController extends Controller {
   get paginatedCSIVolumes() {
     return this.sortedCSIVolumes.slice(
       (this.csiPage - 1) * this.userSettings.pageSize,
-      this.csiPage * this.userSettings.pageSize
+      this.csiPage * this.userSettings.pageSize,
     );
   }
 
@@ -203,7 +203,7 @@ export default class IndexController extends Controller {
   get paginatedDynamicHostVolumes() {
     return this.sortedDynamicHostVolumes.slice(
       (this.dhvPage - 1) * this.userSettings.pageSize,
-      this.dhvPage * this.userSettings.pageSize
+      this.dhvPage * this.userSettings.pageSize,
     );
   }
 
@@ -242,13 +242,13 @@ export default class IndexController extends Controller {
   @action openDHV(dhv) {
     this.router.transitionTo(
       'storage.volumes.dynamic-host-volume',
-      dhv.idWithNamespace
+      dhv.idWithNamespace,
     );
   }
 
   @restartableTask *watchDHV(
     params,
-    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE,
   ) {
     while (true) {
       const abortController = new AbortController();
@@ -279,7 +279,7 @@ export default class IndexController extends Controller {
 
   @restartableTask *watchCSI(
     params,
-    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE
+    throttle = macroCondition(isTesting()) ? 0 : TASK_THROTTLE,
   ) {
     while (true) {
       const abortController = new AbortController();

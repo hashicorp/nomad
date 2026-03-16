@@ -11,7 +11,8 @@
     <ListTable
       @source={{this.sortedTaskGroups}}
       @sortProperty={{this.sortProperty}}
-      @sortDescending={{this.sortDescending}} as |t|
+      @sortDescending={{this.sortDescending}}
+      as |t|
     >
       <t.head>
         <t.sort-by @prop="name">
@@ -41,7 +42,7 @@
           @data-test-task-group={{row.model.name}}
           @taskGroup={{row.model}}
           @onClick={{fn this.gotoTaskGroup row.model}}
-          {{keyboard-shortcut 
+          {{keyboard-shortcut
             enumerated=true
             action=(fn this.gotoTaskGroup row.model)
           }}

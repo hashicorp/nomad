@@ -74,11 +74,11 @@ module('Acceptance | namespaces', function (hooks) {
     assert.equal(
       currentURL(),
       '/administration/namespaces/My-New-Namespace',
-      'redirected to the now-created namespace'
+      'redirected to the now-created namespace',
     );
     await visit('/administration/namespaces');
     const newNs = [...findAll('[data-test-namespace-name]')].filter((a) =>
-      a.textContent.includes('My-New-Namespace')
+      a.textContent.includes('My-New-Namespace'),
     )[0];
     assert.ok(newNs, 'Namespace is in the list');
     await click(newNs);
@@ -97,18 +97,18 @@ module('Acceptance | namespaces', function (hooks) {
 
     // Get the dom node text for the description
     const descriptionText = document.querySelector(
-      '[data-test-namespace-editor]'
+      '[data-test-namespace-editor]',
     ).textContent;
 
     assert.ok(
       descriptionText.includes('Quota'),
-      'Includes Quotas in namespace description'
+      'Includes Quotas in namespace description',
     );
     assert.ok(
       descriptionText.includes(
         'NodePoolConfiguration',
-        'Includes NodePoolConfiguration in namespace description'
-      )
+        'Includes NodePoolConfiguration in namespace description',
+      ),
     );
 
     // Reset Token
@@ -124,7 +124,7 @@ module('Acceptance | namespaces', function (hooks) {
 
     // Get the dom node text for the description
     const descriptionText = document.querySelector(
-      '[data-test-namespace-editor]'
+      '[data-test-namespace-editor]',
     ).textContent;
 
     assert.notOk(descriptionText.includes('Quotas'));
@@ -145,7 +145,7 @@ module('Acceptance | namespaces', function (hooks) {
     })[0];
     assert.equal(
       currentURL(),
-      `/administration/namespaces/${firstNamespace.name}`
+      `/administration/namespaces/${firstNamespace.name}`,
     );
     assert.dom('[data-test-namespace-editor]').exists();
     assert.dom('[data-test-title]').includesText(firstNamespace.name);
@@ -154,7 +154,7 @@ module('Acceptance | namespaces', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/namespaces/${firstNamespace.name}`,
-      'remain on page after save'
+      'remain on page after save',
     );
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
@@ -182,15 +182,15 @@ module('Acceptance | namespaces', function (hooks) {
     await visit('/administration/namespaces');
 
     let nonDefaultNamespace = server.db.namespaces.findBy(
-      (ns) => ns.name != 'default'
+      (ns) => ns.name != 'default',
     );
     const nonDefaultNsLink = [...findAll('[data-test-namespace-name]')].filter(
-      (row) => row.textContent.includes(nonDefaultNamespace.name)
+      (row) => row.textContent.includes(nonDefaultNamespace.name),
     )[0];
     await click(nonDefaultNsLink);
     assert.equal(
       currentURL(),
-      `/administration/namespaces/${nonDefaultNamespace.name}`
+      `/administration/namespaces/${nonDefaultNamespace.name}`,
     );
     deleteButton = find('[data-test-delete-namespace] button');
     assert.dom(deleteButton).exists('delete button is present for non-default');
@@ -248,7 +248,7 @@ module('Acceptance | namespaces', function (hooks) {
 
     // Default namespace hides delete button
     const notDeletedNSLink = [...findAll('[data-test-namespace-name]')].filter(
-      (row) => row.textContent.includes('with-variables')
+      (row) => row.textContent.includes('with-variables'),
     )[0];
     await click(notDeletedNSLink);
 

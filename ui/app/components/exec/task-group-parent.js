@@ -50,7 +50,7 @@ export default class TaskGroupParent extends Component {
       accumulator.concat(recordArray?.toArray?.() || recordArray || []);
     return this.allocationTaskStatesRecordArrays.reduce(
       flattenRecordArrays,
-      []
+      [],
     );
   }
 
@@ -63,7 +63,7 @@ export default class TaskGroupParent extends Component {
     'activeTaskGroups.@each.name',
     'activeTaskStates.@each.name',
     'activeTasks.@each.name',
-    'taskGroup.{name,tasks}'
+    'taskGroup.{name,tasks}',
   )
   get tasksWithRunningStates() {
     const activeTaskStateNames = this.activeTaskStates
@@ -76,7 +76,7 @@ export default class TaskGroupParent extends Component {
       .mapBy('name');
 
     return this.taskGroup.tasks.filter((task) =>
-      activeTaskStateNames.includes(task.name)
+      activeTaskStateNames.includes(task.name),
     );
   }
 

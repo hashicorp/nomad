@@ -53,7 +53,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
     assert.equal(
       Layout.breadcrumbFor('storage.volumes.dynamic-host-volume').text,
-      volume.name
+      volume.name,
     );
   });
 
@@ -77,7 +77,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assert.ok(VolumeDetail.plugin.includes(volume.pluginID));
     assert.notOk(
       VolumeDetail.hasNamespace,
-      'Namespace is omitted when there is only one namespace'
+      'Namespace is omitted when there is only one namespace',
     );
     assert.equal(VolumeDetail.capacity, 'Capacity 9.54 MiB');
   });
@@ -119,7 +119,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
         .forEach((allocation, idx) => {
           assert.equal(
             allocation.id,
-            VolumeDetail.allocations.objectAt(idx).id
+            VolumeDetail.allocations.objectAt(idx).id,
           );
         });
       await percySnapshot(assert);
@@ -142,7 +142,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
@@ -150,64 +150,64 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
       assert.equal(
         allocationRow.shortId,
         allocation.id.split('-')[0],
-        'Allocation short ID'
+        'Allocation short ID',
       );
       assert.equal(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-        'Allocation create time'
+        'Allocation create time',
       );
       assert.equal(
         allocationRow.modifyTime,
         moment(allocation.modifyTime / 1000000).fromNow(),
-        'Allocation modify time'
+        'Allocation modify time',
       );
       assert.equal(
         allocationRow.status,
         allocation.clientStatus,
-        'Client status'
+        'Client status',
       );
       assert.equal(
         allocationRow.job,
         server.db.jobs.find(allocation.jobId).name,
-        'Job name'
+        'Job name',
       );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
       assert.equal(
         allocationRow.client,
         server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-        'Node ID'
+        'Node ID',
       );
       assert.equal(
         allocationRow.clientTooltip.substr(0, 15),
         server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
-        'Node Name'
+        'Node Name',
       );
       assert.equal(
         allocationRow.cpu,
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-        'CPU %'
+        'CPU %',
       );
       const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks
+        allocStats.resourceUsage.CpuStats.TotalTicks,
       );
       assert.equal(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-        'Detailed CPU information is in a tooltip'
+        'Detailed CPU information is in a tooltip',
       );
       assert.equal(
         allocationRow.mem,
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-        'Memory used'
+        'Memory used',
       );
       assert.equal(
         allocationRow.memTooltip,
         `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS
+          allocStats.resourceUsage.MemoryStats.RSS,
         )} / ${formatBytes(memoryUsed, 'MiB')}`,
-        'Detailed memory information is in a tooltip'
+        'Detailed memory information is in a tooltip',
       );
     });
   });
@@ -233,19 +233,19 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     assert.equal(
       VolumeDetail.capabilities.objectAt(0).accessMode,
-      'single-node-writer'
+      'single-node-writer',
     );
     assert.equal(
       VolumeDetail.capabilities.objectAt(0).attachmentMode,
-      'file-system'
+      'file-system',
     );
     assert.equal(
       VolumeDetail.capabilities.objectAt(1).accessMode,
-      'single-node-reader-only'
+      'single-node-reader-only',
     );
     assert.equal(
       VolumeDetail.capabilities.objectAt(1).attachmentMode,
-      'block-device'
+      'block-device',
     );
   });
 });
@@ -272,8 +272,8 @@ module(
 
       assert.ok(VolumeDetail.hasNamespace);
       assert.ok(
-        VolumeDetail.namespace.includes(volume.namespaceId || 'default')
+        VolumeDetail.namespace.includes(volume.namespaceId || 'default'),
       );
     });
-  }
+  },
 );

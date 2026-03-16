@@ -20,21 +20,21 @@ module('Unit | Helper | stringify-object', function () {
         whitespace: 10,
       }).indexOf('dog'),
       13,
-      'Ten spaces'
+      'Ten spaces',
     );
     assert.equal(
       stringifyObject([objectToStringify], {
         whitespace: 5,
       }).indexOf('dog'),
       8,
-      'Five spaces'
+      'Five spaces',
     );
     assert.equal(
       stringifyObject([objectToStringify], {
         whitespace: 0,
       }).indexOf('dog'),
       2,
-      'Zero spaces'
+      'Zero spaces',
     );
   });
   test('Observes replacer array', function (assert) {
@@ -42,14 +42,14 @@ module('Unit | Helper | stringify-object', function () {
       stringifyObject([objectToStringify], {
         replacer: ['dog', 'dogDegreesHeld'],
       }).indexOf('dogDegreesHeld'),
-      'Unreplaced value is present'
+      'Unreplaced value is present',
     );
     assert.equal(
       stringifyObject([objectToStringify], {
         replacer: ['dog', 'dogDegreesHeld'],
       }).indexOf('dogAge'),
       -1,
-      'Replaced value is missing'
+      'Replaced value is missing',
     );
   });
   test('Observes replacer function', function (assert) {
@@ -57,14 +57,14 @@ module('Unit | Helper | stringify-object', function () {
       stringifyObject([objectToStringify], {
         replacer: (k, v) => (v ? v : undefined),
       }).indexOf('dogAge'),
-      'Unreplaced value is present'
+      'Unreplaced value is present',
     );
     assert.equal(
       stringifyObject([objectToStringify], {
         replacer: (k, v) => (v ? v : undefined),
       }).indexOf('dogDegreesHeld'),
       -1,
-      'Replaced value is missing'
+      'Replaced value is missing',
     );
   });
 });

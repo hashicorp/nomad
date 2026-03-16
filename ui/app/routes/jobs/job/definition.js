@@ -99,8 +99,8 @@ export default class DefinitionRoute extends Route {
     const view = controller.view
       ? controller.view
       : model?.specification
-      ? 'job-spec'
-      : 'full-definition';
+        ? 'job-spec'
+        : 'full-definition';
     controller.view = view;
   }
 }

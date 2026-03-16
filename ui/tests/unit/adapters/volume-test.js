@@ -65,7 +65,7 @@ module('Unit | Adapter | Volume', function (hooks) {
       { modelName: 'volume' },
       { type: 'csi' },
       null,
-      {}
+      {},
     );
     await settled();
 
@@ -106,20 +106,20 @@ module('Unit | Adapter | Volume', function (hooks) {
         {
           reload: true,
           adapterOptions: { watch: true },
-        }
+        },
       );
 
     request();
     assert.equal(
       pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
+      '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
     assert.equal(
       pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
+      '/v1/volumes?type=csi&index=2',
     );
 
     await settled();
@@ -166,7 +166,7 @@ module('Unit | Adapter | Volume', function (hooks) {
         {
           reload: true,
           adapterOptions: { watch: true },
-        }
+        },
       );
 
     const findAllRequest = () =>
@@ -178,14 +178,14 @@ module('Unit | Adapter | Volume', function (hooks) {
     request();
     assert.equal(
       pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
+      '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
     assert.equal(
       pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
+      '/v1/volumes?type=csi&index=2',
     );
 
     await settled();

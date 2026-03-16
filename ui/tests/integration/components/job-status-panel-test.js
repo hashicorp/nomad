@@ -77,7 +77,7 @@ module(
 
       const jobRecord = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
       await this.server.create('deployment', false, 'active', {
         jobId: job.id,
@@ -105,7 +105,7 @@ module(
       // Initially no active deployment
       assert.notOk(
         find('.active-deployment'),
-        'Does not show an active deployment when latest is failed'
+        'Does not show an active deployment when latest is failed',
       );
 
       const deployment = await this.get('job.latestDeployment');
@@ -114,7 +114,7 @@ module(
 
       assert.ok(
         find('.active-deployment'),
-        'Shows an active deployment if latest status is Running'
+        'Shows an active deployment if latest status is Running',
       );
 
       // Half the shown allocations are running, 1 is pending, 1 is failed; none are canaries or healthy.
@@ -123,11 +123,11 @@ module(
         .dom('.new-allocations .allocation-status-row .represented-allocation')
         .exists(
           { count: NUMBER_OF_GROUPS * ALLOCS_PER_GROUP },
-          'All allocations are shown (ungrouped)'
+          'All allocations are shown (ungrouped)',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.running'
+          '.new-allocations .allocation-status-row .represented-allocation.running',
         )
         .exists(
           {
@@ -136,21 +136,21 @@ module(
               ALLOCS_PER_GROUP *
               allocStatusDistribution.running,
           },
-          'Correct number of running allocations are shown'
+          'Correct number of running allocations are shown',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.running.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.running.canary',
         )
         .exists({ count: 0 }, 'No running canaries shown by default');
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.running.healthy'
+          '.new-allocations .allocation-status-row .represented-allocation.running.healthy',
         )
         .exists({ count: 0 }, 'No running healthy shown by default');
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.failed'
+          '.new-allocations .allocation-status-row .represented-allocation.failed',
         )
         .exists(
           {
@@ -159,16 +159,16 @@ module(
               ALLOCS_PER_GROUP *
               allocStatusDistribution.failed,
           },
-          'Correct number of failed allocations are shown'
+          'Correct number of failed allocations are shown',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.failed.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.failed.canary',
         )
         .exists({ count: 0 }, 'No failed canaries shown by default');
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.pending'
+          '.new-allocations .allocation-status-row .represented-allocation.pending',
         )
         .exists(
           {
@@ -177,16 +177,16 @@ module(
               ALLOCS_PER_GROUP *
               allocStatusDistribution.pending,
           },
-          'Correct number of pending allocations are shown'
+          'Correct number of pending allocations are shown',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.pending.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.pending.canary',
         )
         .exists({ count: 0 }, 'No pending canaries shown by default');
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.unplaced'
+          '.new-allocations .allocation-status-row .represented-allocation.unplaced',
         )
         .exists(
           {
@@ -197,7 +197,7 @@ module(
                 allocStatusDistribution.unknown +
                 allocStatusDistribution.complete),
           },
-          'Correct number of unplaced allocations are shown'
+          'Correct number of unplaced allocations are shown',
         );
 
       assert.equal(
@@ -206,10 +206,10 @@ module(
           this.job.allocations.filter(
             (a) =>
               a.clientStatus === 'running' &&
-              a.deploymentStatus?.Healthy === true
+              a.deploymentStatus?.Healthy === true,
           ).length
         }/${deployment.get('desiredTotal')} running and healthy`,
-        'Summary text shows accurate numbers when 0 are running/healthy'
+        'Summary text shows accurate numbers when 0 are running/healthy',
       );
 
       let NUMBER_OF_RUNNING_CANARIES = 2;
@@ -225,7 +225,7 @@ module(
           alloc.set('deploymentStatus', {
             Canary: true,
             Healthy: alloc.deploymentStatus?.Healthy,
-          })
+          }),
         );
       this.get('job.allocations')
         .filter((a) => a.clientStatus === 'running')
@@ -234,7 +234,7 @@ module(
           alloc.set('deploymentStatus', {
             Canary: alloc.deploymentStatus?.Canary,
             Healthy: true,
-          })
+          }),
         );
       this.get('job.allocations')
         .filter((a) => a.clientStatus === 'failed')
@@ -243,7 +243,7 @@ module(
           alloc.set('deploymentStatus', {
             Canary: true,
             Healthy: alloc.deploymentStatus?.Healthy,
-          })
+          }),
         );
       this.get('job.allocations')
         .filter((a) => a.clientStatus === 'pending')
@@ -252,7 +252,7 @@ module(
           alloc.set('deploymentStatus', {
             Canary: true,
             Healthy: alloc.deploymentStatus?.Healthy,
-          })
+          }),
         );
 
       await render(hbs`
@@ -260,35 +260,35 @@ module(
       `);
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.running.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.running.canary',
         )
         .exists(
           { count: NUMBER_OF_RUNNING_CANARIES },
-          'Running Canaries shown when deployment info dictates'
+          'Running Canaries shown when deployment info dictates',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.running.healthy'
+          '.new-allocations .allocation-status-row .represented-allocation.running.healthy',
         )
         .exists(
           { count: NUMBER_OF_RUNNING_HEALTHY },
-          'Running Healthy allocs shown when deployment info dictates'
+          'Running Healthy allocs shown when deployment info dictates',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.failed.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.failed.canary',
         )
         .exists(
           { count: NUMBER_OF_FAILED_CANARIES },
-          'Failed Canaries shown when deployment info dictates'
+          'Failed Canaries shown when deployment info dictates',
         );
       assert
         .dom(
-          '.new-allocations .allocation-status-row .represented-allocation.pending.canary'
+          '.new-allocations .allocation-status-row .represented-allocation.pending.canary',
         )
         .exists(
           { count: NUMBER_OF_PENDING_CANARIES },
-          'Pending Canaries shown when deployment info dictates'
+          'Pending Canaries shown when deployment info dictates',
         );
 
       assert.equal(
@@ -297,10 +297,10 @@ module(
           this.job.allocations.filter(
             (a) =>
               a.clientStatus === 'running' &&
-              a.deploymentStatus?.Healthy === true
+              a.deploymentStatus?.Healthy === true,
           ).length
         }/${deployment.get('desiredTotal')} running and healthy`,
-        'Summary text shows accurate numbers when some are running/healthy'
+        'Summary text shows accurate numbers when some are running/healthy',
       );
 
       assert.equal(
@@ -309,21 +309,21 @@ module(
           this.job.allocations.filter(
             (a) =>
               (a.clientStatus === 'running' || a.clientStatus === 'complete') &&
-              a.jobVersion !== deployment.versionNumber
+              a.jobVersion !== deployment.versionNumber,
           ).length
         } running`,
-        'Old Alloc Summary text shows accurate numbers'
+        'Old Alloc Summary text shows accurate numbers',
       );
 
       assert.equal(
         find('[data-test-previous-allocations-legend]')
           .textContent.trim()
           .replace(/\s\s+/g, ' '),
-        '25 Running 0 Complete'
+        '25 Running 0 Complete',
       );
 
       await percySnapshot(
-        "Job Status Panel: 'New' and 'Previous' allocations, initial deploying state"
+        "Job Status Panel: 'New' and 'Previous' allocations, initial deploying state",
       );
 
       // Try setting a few of the old allocs to complete and make sure number ticks down
@@ -332,27 +332,27 @@ module(
           .filter(
             (a) =>
               a.clientStatus === 'running' &&
-              a.jobVersion !== deployment.versionNumber
+              a.jobVersion !== deployment.versionNumber,
           )
           .slice(0, OLD_ALLOCATIONS_TO_COMPLETE)
-          .map(async (a) => await a.set('clientStatus', 'complete'))
+          .map(async (a) => await a.set('clientStatus', 'complete')),
       );
 
       assert
         .dom(
-          '.previous-allocations .allocation-status-row .represented-allocation'
+          '.previous-allocations .allocation-status-row .represented-allocation',
         )
         .exists(
           { count: OLD_ALLOCATIONS_TO_SHOW },
-          'All old allocations are shown'
+          'All old allocations are shown',
         );
       assert
         .dom(
-          '.previous-allocations .allocation-status-row .represented-allocation.complete'
+          '.previous-allocations .allocation-status-row .represented-allocation.complete',
         )
         .exists(
           { count: OLD_ALLOCATIONS_TO_COMPLETE },
-          'Correct number of old allocations are in completed state'
+          'Correct number of old allocations are in completed state',
         );
 
       assert.equal(
@@ -361,27 +361,27 @@ module(
           this.job.allocations.filter(
             (a) =>
               (a.clientStatus === 'running' || a.clientStatus === 'complete') &&
-              a.jobVersion !== deployment.versionNumber
+              a.jobVersion !== deployment.versionNumber,
           ).length - OLD_ALLOCATIONS_TO_COMPLETE
         } running`,
-        'Old Alloc Summary text shows accurate numbers after some are marked complete'
+        'Old Alloc Summary text shows accurate numbers after some are marked complete',
       );
 
       assert.equal(
         find('[data-test-previous-allocations-legend]')
           .textContent.trim()
           .replace(/\s\s+/g, ' '),
-        '20 Running 5 Complete'
+        '20 Running 5 Complete',
       );
 
       await percySnapshot(
-        "Job Status Panel: 'New' and 'Previous' allocations, some old marked complete"
+        "Job Status Panel: 'New' and 'Previous' allocations, some old marked complete",
       );
 
       await componentA11yAudit(
         this.element,
         assert,
-        'scrollable-region-focusable'
+        'scrollable-region-focusable',
       ); //keyframe animation fades from opacity 0
     });
 
@@ -412,7 +412,7 @@ module(
 
       const jobRecord = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
       await this.server.create('deployment', false, 'active', {
         jobId: job.id,
@@ -429,7 +429,7 @@ module(
         .filter((a) => a.clientStatus === 'failed')
         .slice(0, 10)
         .forEach((a) =>
-          a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+          a.update({ deploymentStatus: { Healthy: true, Canary: false } }),
         );
 
       this.set('job', jobRecord);
@@ -456,14 +456,14 @@ module(
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
-          })
+          }),
       );
 
       assert
         .dom('.represented-allocation.failed.rest')
         .exists(
           { count: 2 },
-          'Now that some are canaries, they still make up two blocks'
+          'Now that some are canaries, they still make up two blocks',
         );
     });
 
@@ -494,7 +494,7 @@ module(
 
       const jobRecord = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
       const deployment = await this.server.create(
         'deployment',
@@ -506,7 +506,7 @@ module(
           versionNumber: 1,
           status: 'failed',
           // requiresPromotion: false,
-        }
+        },
       );
 
       // requiresPromotion goes to false
@@ -555,14 +555,14 @@ module(
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: null, Canary: true });
-          })
+          }),
       );
 
       // Set the deployment's requiresPromotion to true
       await Promise.all(
         this.get('job.latestDeployment.taskGroupSummaries').map(async (a) => {
           await a.set('desiredCanaries', 3);
-        })
+        }),
       );
 
       await settled();
@@ -582,7 +582,7 @@ module(
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
-          })
+          }),
       );
 
       assert
@@ -596,7 +596,7 @@ module(
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: true, Canary: true });
-          })
+          }),
       );
       await settled();
       assert
@@ -610,7 +610,7 @@ module(
           .slice(0, 1)
           .map(async (a) => {
             await a.set('clientStatus', 'failed');
-          })
+          }),
       );
 
       assert
@@ -626,7 +626,7 @@ module(
               deploymentStatus: { Healthy: true, Canary: true },
               clientStatus: 'running',
             });
-          })
+          }),
       );
 
       await settled();
@@ -653,8 +653,8 @@ module(
       assert.notOk(find('.active-deployment'), 'No active deployment');
       assert.ok(
         find('.running-allocs-title'),
-        'Steady-state mode shown instead'
+        'Steady-state mode shown instead',
       );
     });
-  }
+  },
 );

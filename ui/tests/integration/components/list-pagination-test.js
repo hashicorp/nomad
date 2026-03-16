@@ -46,48 +46,48 @@ module('Integration | Component | list pagination', function (hooks) {
 
     assert.notOk(
       findAll('.first').length,
-      'On the first page, there is no first link'
+      'On the first page, there is no first link',
     );
     assert.notOk(
       findAll('.prev').length,
-      'On the first page, there is no prev link'
+      'On the first page, there is no prev link',
     );
     await componentA11yAudit(this.element, assert);
 
     assert.equal(
       findAll('.link').length,
       defaults.spread + 1,
-      'Pages links spread to the right by the spread amount'
+      'Pages links spread to the right by the spread amount',
     );
 
     for (var pageNumber = 1; pageNumber <= defaults.spread + 1; pageNumber++) {
       assert.ok(
         findAll(`.link.page-${pageNumber}`).length,
-        `Page link includes ${pageNumber}`
+        `Page link includes ${pageNumber}`,
       );
     }
 
     assert.ok(
       findAll('.next').length,
-      'While not on the last page, there is a next link'
+      'While not on the last page, there is a next link',
     );
     assert.ok(
       findAll('.last').length,
-      'While not on the last page, there is a last link'
+      'While not on the last page, there is a last link',
     );
     await componentA11yAudit(this.element, assert);
 
     assert.equal(
       findAll('.item').length,
       defaults.size,
-      `Only ${defaults.size} (the default) number of items are rendered`
+      `Only ${defaults.size} (the default) number of items are rendered`,
     );
 
     for (var item = 0; item < defaults.size; item++) {
       assert.equal(
         findAll('.item')[item].textContent,
         item,
-        'Rendered items are in the current page'
+        'Rendered items are in the current page',
       );
     }
   });
@@ -107,7 +107,7 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.equal(
       find('.page-info').textContent,
       `1 of ${totalPages}`,
-      `${totalPages} total pages`
+      `${totalPages} total pages`,
     );
   });
 
@@ -189,7 +189,7 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.equal(
       findAll('.item').length,
       this.get('source.length'),
-      'Number of items equals length of source'
+      'Number of items equals length of source',
     );
   });
 
@@ -226,12 +226,12 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.equal(
       findAll('.link').length,
       totalPages,
-      'Every page gets a page link'
+      'Every page gets a page link',
     );
     for (var pageNumber = 1; pageNumber < totalPages; pageNumber++) {
       assert.ok(
         findAll(`.link.page-${pageNumber}`).length,
-        `Page link for ${pageNumber} exists`
+        `Page link for ${pageNumber} exists`,
       );
     }
   });
@@ -245,7 +245,7 @@ module('Integration | Component | list pagination', function (hooks) {
     ) {
       assert.ok(
         findAll(`.link.page-${pageNumber}`).length,
-        `Page links for currentPage (${currentPage}) +/- spread of ${spread} (${pageNumber})`
+        `Page links for currentPage (${currentPage}) +/- spread of ${spread} (${pageNumber})`,
       );
     }
   }
@@ -258,7 +258,7 @@ module('Integration | Component | list pagination', function (hooks) {
         item + (currentPage - 1) * size,
         `Rendered items are in the current page, ${currentPage} (${
           item + (currentPage - 1) * size
-        })`
+        })`,
       );
     }
   }

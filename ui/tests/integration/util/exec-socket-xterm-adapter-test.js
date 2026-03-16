@@ -35,7 +35,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
           firstMessage = false;
           assert.deepEqual(
             message,
-            JSON.stringify({ version: 1, auth_token: 'mysecrettoken' })
+            JSON.stringify({ version: 1, auth_token: 'mysecrettoken' }),
           );
           mockSocket.onclose();
           done();
@@ -69,7 +69,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
           firstMessage = false;
           assert.deepEqual(
             message,
-            JSON.stringify({ version: 1, auth_token: '' })
+            JSON.stringify({ version: 1, auth_token: '' }),
           );
           mockSocket.onclose();
           done();
@@ -136,7 +136,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
           message,
           JSON.stringify({
             tty_size: { width: terminal.cols, height: terminal.rows },
-          })
+          }),
         );
         mockSocket.onclose();
         done();
@@ -200,7 +200,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
 
     assert.equal(
       terminal.buffer.active.getLine(0).translateToString().trim(),
-      'sh-3.2 🥳$'
+      'sh-3.2 🥳$',
     );
 
     mockSocket.onclose();

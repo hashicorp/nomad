@@ -114,7 +114,7 @@ module('Unit | Serializer | NodePool', function (hooks) {
       assert.deepEqual(
         got,
         tc.expected,
-        `${tc.name} failed, got ${JSON.stringify(got)}`
+        `${tc.name} failed, got ${JSON.stringify(got)}`,
       );
     }
   });

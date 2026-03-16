@@ -70,7 +70,7 @@ module('Acceptance | variables', function (hooks) {
     server.db.variables.update({ namespace: 'default' });
     const policy = server.db.policies.find('Variable-Maker');
     policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-      (path) => path.PathSpec === '*'
+      (path) => path.PathSpec === '*',
     ).Capabilities = ['list', 'read', 'destroy'];
 
     await Variables.visit();
@@ -78,7 +78,7 @@ module('Acceptance | variables', function (hooks) {
     assert.ok(Layout.gutter.variables.isVisible);
 
     let abcLink = [...findAll('[data-test-folder-row]')].filter((a) =>
-      a.textContent.includes('a/b/c')
+      a.textContent.includes('a/b/c'),
     )[0];
 
     await click(abcLink);
@@ -86,20 +86,20 @@ module('Acceptance | variables', function (hooks) {
     assert.equal(
       currentURL(),
       '/variables/path/a/b/c',
-      'correctly traverses to a deeply nested path'
+      'correctly traverses to a deeply nested path',
     );
     assert.equal(
       findAll('[data-test-folder-row]').length,
       2,
-      'correctly shows 2 sub-folders'
+      'correctly shows 2 sub-folders',
     );
     assert.equal(
       findAll('[data-test-file-row]').length,
       2,
-      'correctly shows 2 files'
+      'correctly shows 2 files',
     );
     let fooLink = [...findAll('[data-test-file-row]')].filter((a) =>
-      a.textContent.includes('foo0')
+      a.textContent.includes('foo0'),
     )[0];
 
     assert.ok(fooLink, 'foo0 file is present');
@@ -109,7 +109,7 @@ module('Acceptance | variables', function (hooks) {
     await click(fooLink);
     assert.ok(
       currentURL().includes('/variables/var/a/b/c/foo0'),
-      'correctly traverses to a deeply nested variable file'
+      'correctly traverses to a deeply nested variable file',
     );
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
@@ -125,22 +125,22 @@ module('Acceptance | variables', function (hooks) {
     assert.equal(
       currentURL(),
       '/variables/path/a/b/c',
-      'correctly returns to the parent path page after deletion'
+      'correctly returns to the parent path page after deletion',
     );
 
     assert.equal(
       findAll('[data-test-folder-row]').length,
       2,
-      'still correctly shows 2 sub-folders'
+      'still correctly shows 2 sub-folders',
     );
     assert.equal(
       findAll('[data-test-file-row]').length,
       1,
-      'now correctly shows 1 file'
+      'now correctly shows 1 file',
     );
 
     fooLink = [...findAll('[data-test-file-row]')].filter((a) =>
-      a.textContent.includes('foo0')
+      a.textContent.includes('foo0'),
     )[0];
 
     assert.notOk(fooLink, 'foo0 file is no longer present');
@@ -170,7 +170,7 @@ module('Acceptance | variables', function (hooks) {
     assert.ok(Layout.gutter.variables.isVisible);
 
     let nonJobLink = [...findAll('[data-test-file-row]')].filter((a) =>
-      a.textContent.includes('just some arbitrary file')
+      a.textContent.includes('just some arbitrary file'),
     )[0];
 
     assert.ok(nonJobLink, 'non-job file is present');
@@ -178,7 +178,7 @@ module('Acceptance | variables', function (hooks) {
     await click(nonJobLink);
     assert.ok(
       currentURL().includes('/variables/var/just some arbitrary file'),
-      'correctly traverses to a non-job file'
+      'correctly traverses to a non-job file',
     );
     let relatedEntitiesBox = find('.related-entities');
     assert
@@ -188,7 +188,7 @@ module('Acceptance | variables', function (hooks) {
     // Job variable
     await Variables.visit();
     let jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
-      a.textContent.includes('jobs')
+      a.textContent.includes('jobs'),
     )[0];
 
     await click(jobsDirectoryLink);
@@ -196,7 +196,7 @@ module('Acceptance | variables', function (hooks) {
     assert.equal(
       currentURL(),
       '/variables/path/nomad/jobs',
-      'correctly traverses to the jobs directory'
+      'correctly traverses to the jobs directory',
     );
     let jobFileLink = find('[data-test-file-row]');
 
@@ -205,15 +205,15 @@ module('Acceptance | variables', function (hooks) {
     await click(jobFileLink);
     assert.ok(
       currentURL().startsWith('/variables/var/nomad/jobs/'),
-      'correctly traverses to a job file'
+      'correctly traverses to a job file',
     );
     relatedEntitiesBox = find('.related-entities');
     assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
     assert.ok(
       cleanWhitespace(relatedEntitiesBox.textContent).includes(
-        'This variable is accessible by job'
+        'This variable is accessible by job',
       ),
-      'Related Entities box is job-oriented'
+      'Related Entities box is job-oriented',
     );
 
     await percySnapshot('related entities box for job variable');
@@ -227,15 +227,15 @@ module('Acceptance | variables', function (hooks) {
     await click(jobVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/nomad/jobs/${variableLinkedJob.id}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}`,
       ),
-      'correctly traverses from job to variable'
+      'correctly traverses from job to variable',
     );
 
     // Group Variable
     await Variables.visit();
     jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
-      a.textContent.includes('jobs')
+      a.textContent.includes('jobs'),
     )[0];
     await click(jobsDirectoryLink);
     let groupDirectoryLink = [...findAll('[data-test-folder-row]')][0];
@@ -247,9 +247,9 @@ module('Acceptance | variables', function (hooks) {
     assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
     assert.ok(
       cleanWhitespace(relatedEntitiesBox.textContent).includes(
-        'This variable is accessible by group'
+        'This variable is accessible by group',
       ),
-      'Related Entities box is group-oriented'
+      'Related Entities box is group-oriented',
     );
 
     await percySnapshot('related entities box for group variable');
@@ -263,15 +263,15 @@ module('Acceptance | variables', function (hooks) {
     await click(groupVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}`,
       ),
-      'correctly traverses from group to variable'
+      'correctly traverses from group to variable',
     );
 
     // Task Variable
     await Variables.visit();
     jobsDirectoryLink = [...findAll('[data-test-folder-row]')].filter((a) =>
-      a.textContent.includes('jobs')
+      a.textContent.includes('jobs'),
     )[0];
     await click(jobsDirectoryLink);
     groupDirectoryLink = [...findAll('[data-test-folder-row]')][0];
@@ -285,9 +285,9 @@ module('Acceptance | variables', function (hooks) {
     assert.dom(relatedEntitiesBox).exists('Related Entities box is present');
     assert.ok(
       cleanWhitespace(relatedEntitiesBox.textContent).includes(
-        'This variable is accessible by task'
+        'This variable is accessible by task',
       ),
-      'Related Entities box is task-oriented'
+      'Related Entities box is task-oriented',
     );
 
     await percySnapshot('related entities box for task variable');
@@ -296,7 +296,7 @@ module('Acceptance | variables', function (hooks) {
     await click(relatedTaskLink);
     // Gotta go the long way and click into the alloc/then task from here; but we know this one by virtue of stable test env.
     await visit(
-      `/allocations/${variableLinkedTaskAlloc.id}/${variableLinkedTask.name}`
+      `/allocations/${variableLinkedTaskAlloc.id}/${variableLinkedTask.name}`,
     );
     assert
       .dom('[data-test-task-stat="variables"]')
@@ -305,9 +305,9 @@ module('Acceptance | variables', function (hooks) {
     await click(taskVariableLink);
     assert.ok(
       currentURL().startsWith(
-        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`
+        `/variables/var/nomad/jobs/${variableLinkedJob.id}/${variableLinkedGroup.name}/${variableLinkedTask.name}`,
       ),
-      'correctly traverses from task to variable'
+      'correctly traverses from task to variable',
     );
 
     // A non-variable-having job
@@ -325,34 +325,34 @@ module('Acceptance | variables', function (hooks) {
     assert
       .dom('.related-entities.notification')
       .doesNotExist(
-        'Related Entities notification is not present when path is generic'
+        'Related Entities notification is not present when path is generic',
       );
     document.querySelector('[data-test-path-input]').value = ''; // clear path input
     await typeIn('[data-test-path-input]', 'nomad/jobs/abc');
     assert
       .dom('.related-entities.notification')
       .exists(
-        'Related Entities notification is present when path is job-oriented'
+        'Related Entities notification is present when path is job-oriented',
       );
     assert
       .dom('.related-entities.notification')
       .containsText(
         'This variable will be accessible by job',
-        'Related Entities notification is job-oriented'
+        'Related Entities notification is job-oriented',
       );
     await typeIn('[data-test-path-input]', '/def');
     assert
       .dom('.related-entities.notification')
       .containsText(
         'This variable will be accessible by group',
-        'Related Entities notification is group-oriented'
+        'Related Entities notification is group-oriented',
       );
     await typeIn('[data-test-path-input]', '/ghi');
     assert
       .dom('.related-entities.notification')
       .containsText(
         'This variable will be accessible by task',
-        'Related Entities notification is task-oriented'
+        'Related Entities notification is task-oriented',
       );
   });
 
@@ -377,7 +377,7 @@ module('Acceptance | variables', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert.ok(
       currentURL().includes('/variables/var/foo'),
-      'drops you back off to the parent page'
+      'drops you back off to the parent page',
     );
   });
 
@@ -416,7 +416,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-variable-namespace-filter]')
         .containsText(
           'default',
-          'The first alphabetically sorted namespace should be selected as the default option.'
+          'The first alphabetically sorted namespace should be selected as the default option.',
         );
 
       await clickOption('[data-test-variable-namespace-filter]', 'namespace-1');
@@ -427,7 +427,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentRouteName(),
         'variables.variable.index',
-        'Navigates user back to variables list page after creating variable.'
+        'Navigates user back to variables list page after creating variable.',
       );
       assert
         .dom('.flash-message.alert.alert-success')
@@ -448,7 +448,7 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-        (path) => path.PathSpec === '*'
+        (path) => path.PathSpec === '*',
       ).Capabilities = ['list'];
       await Variables.visit();
       // End Test Set-up
@@ -456,7 +456,7 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('[data-test-disabled-create-var]')
         .exists(
-          'It should display an disabled button to create a variable on the main listings page'
+          'It should display an disabled button to create a variable on the main listings page',
         );
 
       // Reset Token
@@ -480,7 +480,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentRouteName(),
         'variables.variable.index',
-        'Navigates user back to variables list page after creating variable.'
+        'Navigates user back to variables list page after creating variable.',
       );
       assert
         .dom('.flash-message.alert.alert-success')
@@ -505,7 +505,7 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('[data-test-submit-var]')
         .isDisabled(
-          'Cannot submit a variable that begins with nomad/<not-jobs>/'
+          'Cannot submit a variable that begins with nomad/<not-jobs>/',
         );
 
       document.querySelector('[data-test-path-input]').value = ''; // clear current input
@@ -525,7 +525,7 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('[data-test-submit-var]')
         .isNotDisabled(
-          'Can submit a variable that begins with nomad/job-templates/'
+          'Can submit a variable that begins with nomad/job-templates/',
         );
 
       // Reset Token
@@ -576,7 +576,7 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-        (path) => path.PathSpec === '*'
+        (path) => path.PathSpec === '*',
       ).Capabilities = ['list', 'read', 'write'];
       server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
@@ -591,7 +591,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentRouteName(),
         'variables.variable.edit',
-        'Clicking the button navigates you to editing view.'
+        'Clicking the button navigates you to editing view.',
       );
 
       await percySnapshot(assert);
@@ -605,7 +605,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentRouteName(),
         'variables.variable.index',
-        'Navigates user back to variables list page after creating variable.'
+        'Navigates user back to variables list page after creating variable.',
       );
       assert
         .dom('.flash-message.alert.alert-success')
@@ -626,7 +626,7 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-        (path) => path.PathSpec === '*'
+        (path) => path.PathSpec === '*',
       ).Capabilities = ['list', 'read'];
       await Variables.visit();
       await click('[data-test-file-row]');
@@ -663,7 +663,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentURL(),
         '/variables/var/Auto-conflicting Variable@default',
-        'Selecting overwrite forces a save and redirects'
+        'Selecting overwrite forces a save and redirects',
       );
 
       assert
@@ -702,7 +702,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentURL(),
         '/jobs',
-        'Opted to leave, ended up on desired page'
+        'Opted to leave, ended up on desired page',
       );
 
       // Reset checks
@@ -718,7 +718,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentURL(),
         '/variables/var/Auto-conflicting%20Variable@default/edit',
-        'Opted to stay, did not leave page'
+        'Opted to stay, did not leave page',
       );
 
       // Reset checks
@@ -731,12 +731,12 @@ module('Acceptance | variables', function (hooks) {
       await click('[data-test-json-toggle]');
       assert.notOk(
         confirmFired,
-        'Confirm did not fire when only transitioning queryParams'
+        'Confirm did not fire when only transitioning queryParams',
       );
       assert.equal(
         currentURL(),
         '/variables/var/Auto-conflicting%20Variable@default/edit?view=json',
-        'Stayed on page, queryParams changed'
+        'Stayed on page, queryParams changed',
       );
 
       // Reset Token
@@ -755,7 +755,7 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-        (path) => path.PathSpec === '*'
+        (path) => path.PathSpec === '*',
       ).Capabilities = ['list', 'read', 'destroy'];
       server.db.variables.update({ namespace: 'default' });
       await Variables.visit();
@@ -776,7 +776,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         currentRouteName(),
         'variables.index',
-        'Navigates user back to variables list page after destroying a variable.'
+        'Navigates user back to variables list page after destroying a variable.',
       );
 
       // Reset Token
@@ -791,7 +791,7 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
-        (path) => path.PathSpec === '*'
+        (path) => path.PathSpec === '*',
       ).Capabilities = ['list', 'read'];
       await Variables.visit();
       await click('[data-test-file-row]');
@@ -818,7 +818,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-file-row]:not(.inaccessible)')
         .exists(
           { count: 4 },
-          'Shows 4 variable files, none of which are inaccessible'
+          'Shows 4 variable files, none of which are inaccessible',
         );
 
       await click('[data-test-file-row]');
@@ -838,7 +838,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-file-row].inaccessible')
         .exists(
           { count: 4 },
-          'Shows 4 variable files, all of which are inaccessible'
+          'Shows 4 variable files, all of which are inaccessible',
         );
 
       // Reset Token
@@ -868,7 +868,7 @@ module('Acceptance | variables', function (hooks) {
           {
             namespace: 'default',
           },
-          'It makes another server request using the options selected by the user'
+          'It makes another server request using the options selected by the user',
         );
         return [];
       });
@@ -894,7 +894,7 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(
         server.db.namespaces.length,
         1,
-        'There should only be one namespace.'
+        'There should only be one namespace.',
       );
       assert
         .dom('[data-test-variable-namespace-filter]')
@@ -916,7 +916,7 @@ module('Acceptance | variables', function (hooks) {
         assert.equal(
           currentRouteName(),
           'variables.path',
-          'It navigates a user to the path subroute'
+          'It navigates a user to the path subroute',
         );
 
         assert
@@ -930,7 +930,7 @@ module('Acceptance | variables', function (hooks) {
             {
               namespace: 'default',
             },
-            'It makes another server request using the options selected by the user'
+            'It makes another server request using the options selected by the user',
           );
           return [];
         });
@@ -956,7 +956,7 @@ module('Acceptance | variables', function (hooks) {
         assert.equal(
           server.db.namespaces.length,
           1,
-          'There should only be one namespace.'
+          'There should only be one namespace.',
         );
 
         await click('[data-test-folder-row]');
@@ -964,7 +964,7 @@ module('Acceptance | variables', function (hooks) {
         assert.equal(
           currentRouteName(),
           'variables.path',
-          'It navigates a user to the path subroute'
+          'It navigates a user to the path subroute',
         );
 
         assert
@@ -980,14 +980,14 @@ module('Acceptance | variables', function (hooks) {
       const variablesToken = server.db.tokens.find('n0-v4r5-4cc355');
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
-        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`,
       );
       // Variables tab isn't in subnav
       assert.dom('[data-test-tab="variables"]').doesNotExist();
 
       // Attempting to access it directly will boot you to /jobs
       await visit(
-        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`,
       );
       assert.equal(currentURL(), '/jobs');
 
@@ -999,13 +999,13 @@ module('Acceptance | variables', function (hooks) {
       const variablesToken = server.db.tokens.find(LIMITED_VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`,
       );
       assert.dom('[data-test-tab="variables"]').exists();
       await click('[data-test-tab="variables"] a');
       assert.equal(
         currentURL(),
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`,
       );
       assert.dom('[data-test-no-auto-vars-message]').exists();
       assert.dom('[data-test-create-variable-button]').doesNotExist();
@@ -1019,13 +1019,13 @@ module('Acceptance | variables', function (hooks) {
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`,
       );
       assert.dom('[data-test-tab="variables"]').exists();
       await click('[data-test-tab="variables"] a');
       assert.equal(
         currentURL(),
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`,
       );
       assert.dom('[data-test-no-auto-vars-message]').exists();
       assert.dom('[data-test-create-variable-button]').exists();
@@ -1041,13 +1041,13 @@ module('Acceptance | variables', function (hooks) {
 
       // in variablesTestCluster, job0 has path-linked variables, others do not.
       await visit(
-        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`,
       );
       assert.dom('[data-test-tab="variables"]').exists();
       await click('[data-test-tab="variables"] a');
       assert.equal(
         currentURL(),
-        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`,
       );
       assert.dom('[data-test-file-row]').exists({ count: 3 });
       window.localStorage.nomadTokenSecret = null; // Reset Token
@@ -1065,13 +1065,13 @@ module('Acceptance | variables', function (hooks) {
 
       // in variablesTestCluster, job0 has path-linked variables, others do not.
       await visit(
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`,
       );
       assert.dom('[data-test-tab="variables"]').exists();
       await click('[data-test-tab="variables"] a');
       assert.equal(
         currentURL(),
-        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`,
       );
       assert.dom('[data-test-file-row]').exists({ count: 1 });
       assert.dom('[data-test-file-row="nomad/jobs"]').exists();
@@ -1106,7 +1106,7 @@ module('Acceptance | variables', function (hooks) {
 
       server.db.tasks.forEach((task) => {
         let groupName = server.db.taskGroups.findBy(
-          (group) => group.id === task.taskGroupId
+          (group) => group.id === task.taskGroupId,
         ).name;
         server.create('variable', {
           id: `nomad/jobs/test-job/${groupName}/${task.name}`,
@@ -1124,7 +1124,7 @@ module('Acceptance | variables', function (hooks) {
       let requests = server.pretender.handledRequests.filter(
         (request) =>
           request.url === '/v1/vars?path=nomad%2Fjobs' ||
-          request.url === `/v1/vars?prefix=nomad%2Fjobs%2F${job.name}`
+          request.url === `/v1/vars?prefix=nomad%2Fjobs%2F${job.name}`,
       );
       assert.equal(requests.length, 2);
 
@@ -1189,7 +1189,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-variables-intro-job] a')
         .hasAttribute(
           'href',
-          `/ui/variables/var/nomad/jobs/${job.id}@${job.namespace}/edit`
+          `/ui/variables/var/nomad/jobs/${job.id}@${job.namespace}/edit`,
         );
 
       // Group reminder is there, and since the variable exists, link is to edit it
@@ -1202,7 +1202,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-variables-intro-groups] a')
         .hasAttribute(
           'href',
-          `/ui/variables/var/nomad/jobs/${job.id}/${server.db.taskGroups[0].name}@${job.namespace}/edit`
+          `/ui/variables/var/nomad/jobs/${job.id}/${server.db.taskGroups[0].name}@${job.namespace}/edit`,
         );
 
       // Task reminder is there, and variables don't exist, so link is to create them, plus etc. reminder text
@@ -1213,13 +1213,13 @@ module('Acceptance | variables', function (hooks) {
         .dom('[data-test-variables-intro-tasks] code:nth-of-type(1) a')
         .hasAttribute(
           'href',
-          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[0].name}`
+          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[0].name}`,
         );
       assert
         .dom('[data-test-variables-intro-tasks] code:nth-of-type(2) a')
         .hasAttribute(
           'href',
-          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[1].name}`
+          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[1].name}`,
         );
     });
   });

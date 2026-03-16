@@ -45,7 +45,7 @@ module('Unit | Util | NodeStatsTracker', function () {
         tracker.fetch();
       },
       /StatsTrackers need a fetch method/,
-      'Polling does not work without a fetch method provided'
+      'Polling does not work without a fetch method provided',
     );
   });
 
@@ -56,7 +56,7 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.equal(
       tracker.get('url'),
       `/v1/client/stats?node_id=${node.id}`,
-      'Url is derived from the node id'
+      'Url is derived from the node id',
     );
   });
 
@@ -67,12 +67,12 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.equal(
       tracker.get('reservedCPU'),
       node.resources.cpu,
-      'reservedCPU comes from the node'
+      'reservedCPU comes from the node',
     );
     assert.equal(
       tracker.get('reservedMemory'),
       node.resources.memory,
-      'reservedMemory comes from the node'
+      'reservedMemory comes from the node',
     );
   });
 
@@ -100,12 +100,12 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.equal(
       server.handledRequests[0].url,
       `/v1/client/stats?node_id=${node.id}`,
-      'The correct URL was requested'
+      'The correct URL was requested',
     );
 
     assert.ok(
       tracker.append.calledWith(mockFrame),
-      'The JSON response was passed into append as a POJO'
+      'The JSON response was passed into append as a POJO',
     );
 
     server.shutdown();
@@ -123,7 +123,7 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.deepEqual(
       tracker.get('cpu'),
       [{ timestamp: makeDate(refDate + 1), used: 1001, percent: 1001 / 2000 }],
-      'One frame of cpu'
+      'One frame of cpu',
     );
 
     assert.deepEqual(
@@ -135,7 +135,7 @@ module('Unit | Util | NodeStatsTracker', function () {
           percent: 2049 / 4096,
         },
       ],
-      'One frame of memory'
+      'One frame of memory',
     );
 
     tracker.append(mockFrame(2));
@@ -146,7 +146,7 @@ module('Unit | Util | NodeStatsTracker', function () {
         { timestamp: makeDate(refDate + 1), used: 1001, percent: 1001 / 2000 },
         { timestamp: makeDate(refDate + 2), used: 1002, percent: 1002 / 2000 },
       ],
-      'Two frames of cpu'
+      'Two frames of cpu',
     );
 
     assert.deepEqual(
@@ -163,7 +163,7 @@ module('Unit | Util | NodeStatsTracker', function () {
           percent: 2050 / 4096,
         },
       ],
-      'Two frames of memory'
+      'Two frames of memory',
     );
   });
 
@@ -179,23 +179,23 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.equal(
       tracker.get('cpu.length'),
       bufferSize,
-      `20 calls to append, only ${bufferSize} frames in the stats array`
+      `20 calls to append, only ${bufferSize} frames in the stats array`,
     );
     assert.equal(
       tracker.get('memory.length'),
       bufferSize,
-      `20 calls to append, only ${bufferSize} frames in the stats array`
+      `20 calls to append, only ${bufferSize} frames in the stats array`,
     );
 
     assert.equal(
       +tracker.get('cpu')[0].timestamp,
       +makeDate(refDate + 11),
-      'Old frames are removed in favor of newer ones'
+      'Old frames are removed in favor of newer ones',
     );
     assert.equal(
       +tracker.get('memory')[0].timestamp,
       +makeDate(refDate + 11),
-      'Old frames are removed in favor of newer ones'
+      'Old frames are removed in favor of newer ones',
     );
   });
 
@@ -215,14 +215,14 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.equal(
       someObject.get('stats.url'),
       `/v1/client/stats?node_id=${node.id}`,
-      'stats computed property macro creates a NodeStatsTracker'
+      'stats computed property macro creates a NodeStatsTracker',
     );
 
     someObject.get('stats').fetch();
 
     assert.ok(
       fetchSpy.calledWith(someObject),
-      'the fetch factory passed into the macro gets called to assign a bound version of fetch to the NodeStatsTracker instance'
+      'the fetch factory passed into the macro gets called to assign a bound version of fetch to the NodeStatsTracker instance',
     );
   });
 
@@ -245,7 +245,7 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.notStrictEqual(
       stats1,
       stats2,
-      'Changing the value of the node results in creating a new NodeStatsTracker instance'
+      'Changing the value of the node results in creating a new NodeStatsTracker instance',
     );
   });
 

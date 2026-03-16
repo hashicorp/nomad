@@ -72,13 +72,13 @@ export default Factory.extend({
 
       if (faker.random.number(10) >= 1) {
         recommendations.push(
-          server.create('recommendation', { task, resource: 'CPU' })
+          server.create('recommendation', { task, resource: 'CPU' }),
         );
       }
 
       if (faker.random.number(10) >= 1) {
         recommendations.push(
-          server.create('recommendation', { task, resource: 'MemoryMB' })
+          server.create('recommendation', { task, resource: 'MemoryMB' }),
         );
       }
 
@@ -95,7 +95,7 @@ export default Factory.extend({
         server.create('service-fragment', {
           provider: 'consul',
           taskName: task.name,
-        })
+        }),
       );
       services.forEach((fragment) => {
         server.createList('service', 5, {

@@ -64,7 +64,7 @@ module('Unit | Ability | recommendation', function (hooks) {
 
         assert.ok(this.ability.canAccept);
       });
-    }
+    },
   );
 
   module(
@@ -87,6 +87,6 @@ module('Unit | Ability | recommendation', function (hooks) {
 
         assert.notOk(this.ability.canAccept);
       });
-    }
+    },
   );
 });

@@ -28,7 +28,7 @@ export function filesForPath(allocFiles, filterPath) {
     (file) =>
       (!filterPath || file.path.startsWith(filterPath)) &&
       file.path.length > filterPath.length &&
-      !file.path.substr(filterPath.length + 1).includes('/')
+      !file.path.substr(filterPath.length + 1).includes('/'),
   );
 }
 
@@ -68,7 +68,7 @@ export default function (config) {
       const nomadIndices = {}; // used for tracking blocking queries
       const withBlockingSupport = function (
         fn,
-        { pagination = false, tokenProperty = 'ModifyIndex' } = {}
+        { pagination = false, tokenProperty = 'ModifyIndex' } = {},
       ) {
         return function (schema, request) {
           let handler = fn;
@@ -109,7 +109,7 @@ export default function (config) {
 
           let paginatedItems = response.slice(
             (page - 1) * perPage,
-            page * perPage
+            page * perPage,
           );
 
           let nextToken = null;
@@ -121,7 +121,7 @@ export default function (config) {
             return new Response(
               200,
               { 'x-nomad-nexttoken': nextToken },
-              paginatedItems
+              paginatedItems,
             );
           } else {
             return new Response(200, {}, paginatedItems);
@@ -142,7 +142,7 @@ export default function (config) {
                 : job.NamespaceID === namespace;
             })
             .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
-        })
+        }),
       );
 
       this.get(
@@ -231,7 +231,7 @@ export default function (config) {
               // Simulate a failure if a filterCondition's field is not among the allowed
               if (
                 !filterConditions.every((condition) =>
-                  allowedFields.includes(condition.field)
+                  allowedFields.includes(condition.field),
                 )
               ) {
                 return new Response(
@@ -239,7 +239,7 @@ export default function (config) {
                   {},
                   'couldn\'t find key: struct field with name "' +
                     filterConditions[0].field +
-                    '" in type (...extraneous)'
+                    '" in type (...extraneous)',
                 );
               }
 
@@ -277,7 +277,7 @@ export default function (config) {
               .sort((a, b) =>
                 reverse
                   ? a.ModifyIndex - b.ModifyIndex
-                  : b.ModifyIndex - a.ModifyIndex
+                  : b.ModifyIndex - a.ModifyIndex,
               )
               .filter((job) => {
                 if (namespace === '*') return true;
@@ -290,13 +290,13 @@ export default function (config) {
               sortedJson = sortedJson.filter((job) =>
                 reverse
                   ? job.ModifyIndex >= nextToken
-                  : job.ModifyIndex <= nextToken
+                  : job.ModifyIndex <= nextToken,
               );
             }
             return sortedJson;
           },
-          { pagination: true, tokenProperty: 'ModifyIndex' }
-        )
+          { pagination: true, tokenProperty: 'ModifyIndex' },
+        ),
       );
 
       this.post(
@@ -353,7 +353,7 @@ export default function (config) {
               job.LatestDeployment = j.LatestDeployment;
               job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
                 (a, b) => a + b,
-                0
+                0,
               );
               job.Namespace = j.NamespaceID;
               job.NodePool = j.NodePool;
@@ -368,7 +368,7 @@ export default function (config) {
             .sort((a, b) => b.ModifyIndex - a.ModifyIndex);
 
           return returnedJobs;
-        })
+        }),
       );
 
       this.post('/jobs', function (schema, req) {
@@ -378,7 +378,7 @@ export default function (config) {
           return new Response(
             400,
             {},
-            'Job is a required field on the request payload'
+            'Job is a required field on the request payload',
           );
 
         return okEmpty();
@@ -391,7 +391,7 @@ export default function (config) {
           return new Response(
             400,
             {},
-            'JobHCL is a required field on the request payload'
+            'JobHCL is a required field on the request payload',
           );
         if (!body.Canonicalize)
           return new Response(400, {}, 'Expected Canonicalize to be true');
@@ -418,7 +418,7 @@ export default function (config) {
             Format: 'hcl2',
             VariableFlags: { X: 'x', Y: '42', Z: 'true' },
             Variables: 'var file content',
-          })
+          }),
         );
       });
 
@@ -429,7 +429,7 @@ export default function (config) {
           return new Response(
             400,
             {},
-            'Job is a required field on the request payload'
+            'Job is a required field on the request payload',
           );
         if (!body.Diff)
           return new Response(400, {}, 'Expected Diff to be true');
@@ -446,7 +446,7 @@ export default function (config) {
             FailedTGAllocs,
             Warnings: jobPlanWarnings,
             Diff: generateDiff(req.params.id),
-          })
+          }),
         );
       });
 
@@ -455,13 +455,12 @@ export default function (config) {
         withBlockingSupport(function ({ jobs }, { params, queryParams }) {
           const { jobId, jobNamespace } = parseCompositeJobParam(
             params.id,
-            queryParams.namespace
+            queryParams.namespace,
           );
           const job = jobs.all().models.find((job) => {
             const jobIsDefault =
               !job.namespaceId || job.namespaceId === 'default';
-            const qpIsDefault =
-              !jobNamespace || jobNamespace === 'default';
+            const qpIsDefault = !jobNamespace || jobNamespace === 'default';
             return (
               job.id === jobId &&
               (job.namespaceId === jobNamespace ||
@@ -470,7 +469,7 @@ export default function (config) {
           });
 
           return job ? this.serialize(job) : new Response(404, {}, null);
-        })
+        }),
       );
 
       this.post('/job/:id', function (schema, req) {
@@ -480,7 +479,7 @@ export default function (config) {
           return new Response(
             400,
             {},
-            'Job is a required field on the request payload'
+            'Job is a required field on the request payload',
           );
 
         return okEmpty();
@@ -488,30 +487,37 @@ export default function (config) {
 
       this.get(
         '/job/:id/summary',
-        withBlockingSupport(function ({ jobSummaries }, { params, queryParams }) {
+        withBlockingSupport(function (
+          { jobSummaries },
+          { params, queryParams },
+        ) {
           const { jobId } = parseCompositeJobParam(
             params.id,
-            queryParams.namespace
+            queryParams.namespace,
           );
           return this.serialize(jobSummaries.findBy({ jobId }));
-        })
+        }),
       );
 
-      this.get('/job/:id/allocations', function ({ allocations }, { params, queryParams }) {
-        const { jobId, jobNamespace } = parseCompositeJobParam(
-          params.id,
-          queryParams.namespace
-        );
+      this.get(
+        '/job/:id/allocations',
+        function ({ allocations }, { params, queryParams }) {
+          const { jobId, jobNamespace } = parseCompositeJobParam(
+            params.id,
+            queryParams.namespace,
+          );
 
-        return this.serialize(
-          allocations.where((allocation) => {
-            const allocationNamespace = allocation.namespace || 'default';
-            return (
-              allocation.jobId === jobId && allocationNamespace === jobNamespace
-            );
-          })
-        );
-      });
+          return this.serialize(
+            allocations.where((allocation) => {
+              const allocationNamespace = allocation.namespace || 'default';
+              return (
+                allocation.jobId === jobId &&
+                allocationNamespace === jobNamespace
+              );
+            }),
+          );
+        },
+      );
 
       this.get('/job/:id/versions', function ({ jobVersions }, { params }) {
         return this.serialize(jobVersions.where({ jobId: params.id }));
@@ -523,7 +529,8 @@ export default function (config) {
           const payload = JSON.parse(requestBody || '{}');
           const Name = payload.Name || payload.name;
           const Description = payload.Description || payload.description;
-          const Version = payload.Version || payload.version || payload.VersionNumber;
+          const Version =
+            payload.Version || payload.version || payload.VersionNumber;
 
           return {
             ID: `${Version || 'unknown'}-${Name || 'tag'}`,
@@ -532,16 +539,16 @@ export default function (config) {
             Version,
             TaggedTime: new Date().toISOString(),
           };
-        }
+        },
       );
 
       this.delete(
         '/job/:id/versions/:version/tag',
         function ({ jobVersions }, { params }) {
           return this.serialize(
-            jobVersions.findBy({ jobId: params.id, version: params.version })
+            jobVersions.findBy({ jobId: params.id, version: params.version }),
           );
-        }
+        },
       );
 
       this.get('/job/:id/deployments', function ({ deployments }, { params }) {
@@ -560,7 +567,7 @@ export default function (config) {
         withBlockingSupport(function ({ jobScales }, { params }) {
           const obj = jobScales.findBy({ jobId: params.id });
           return this.serialize(jobScales.findBy({ jobId: params.id }));
-        })
+        }),
       );
 
       this.post('/job/:id/periodic/force', function (schema, { params }) {
@@ -595,7 +602,7 @@ export default function (config) {
           {},
           JSON.stringify({
             DispatchedJobID: dispatched.id,
-          })
+          }),
         );
       });
 
@@ -664,7 +671,7 @@ export default function (config) {
           const hasReadPolicy = policies.find(
             (p) =>
               p.rulesJSON.Node?.Policy === 'read' ||
-              p.rulesJSON.Node?.Policy === 'write'
+              p.rulesJSON.Node?.Policy === 'write',
           );
           if (hasReadPolicy) {
             const json = this.serialize(nodes.all());
@@ -691,7 +698,7 @@ export default function (config) {
 
           node.update({ schedulingEligibility: body.Elibility === 'eligible' });
           return this.serialize(node);
-        }
+        },
       );
 
       this.post('/node/:id/drain', function ({ nodes }, { params }) {
@@ -714,7 +721,7 @@ export default function (config) {
         '/volumes',
         withBlockingSupport(function (
           { csiVolumes, dynamicHostVolumes },
-          { queryParams }
+          { queryParams },
         ) {
           if (queryParams.type !== 'csi' && queryParams.type !== 'host') {
             return new Response(200, {}, '[]');
@@ -739,7 +746,7 @@ export default function (config) {
                 : volume.NamespaceID === namespace;
             });
           }
-        })
+        }),
       );
 
       this.get(
@@ -759,14 +766,14 @@ export default function (config) {
           });
 
           return volume ? this.serialize(volume) : new Response(404, {}, null);
-        })
+        }),
       );
 
       this.get(
         '/volume/host/:id',
         withBlockingSupport(function (
           { dynamicHostVolumes },
-          { params, queryParams }
+          { params, queryParams },
         ) {
           const { id } = params;
           const volume = dynamicHostVolumes.all().models.find((volume) => {
@@ -782,7 +789,7 @@ export default function (config) {
           });
 
           return volume ? this.serialize(volume) : new Response(404, {}, null);
-        })
+        }),
       );
 
       this.get('/plugins', function ({ csiPlugins }, { queryParams }) {
@@ -825,7 +832,7 @@ export default function (config) {
           return new Response(
             400,
             {},
-            'specify a client or a server, not both'
+            'specify a client or a server, not both',
           );
         if (serverId && !agents.findBy({ name: serverId }))
           return new Response(400, {}, 'specified server does not exist');
@@ -844,7 +851,7 @@ export default function (config) {
         function (schema, { queryParams: { region } }) {
           let leader = JSON.stringify(findLeader(schema, region));
           return leader;
-        }
+        },
       );
 
       this.get('/acl/tokens', function ({ tokens }, req) {
@@ -883,8 +890,8 @@ export default function (config) {
         const expirationTime = ExpirationTime
           ? new Date(ExpirationTime)
           : ExpirationTTL
-          ? new Date(Date.now() + parseDuration(ExpirationTTL))
-          : null;
+            ? new Date(Date.now() + parseDuration(ExpirationTTL))
+            : null;
 
         const roleIds = (Roles || [])
           .map((role) => (typeof role === 'string' ? role : role?.ID))
@@ -917,7 +924,7 @@ export default function (config) {
           return new Response(
             500,
             {},
-            'Either Policies or Roles must be specified'
+            'Either Policies or Roles must be specified',
           );
         }
 
@@ -1009,7 +1016,7 @@ export default function (config) {
 
           // Forbidden error if it doesn't
           return new Response(403, {}, null);
-        }
+        },
       );
 
       this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
@@ -1155,7 +1162,7 @@ export default function (config) {
         // Also update any tokens whose policyIDs include this policy
         const tokens =
           server.schema.tokens.where((token) =>
-            token.policyIds?.includes(id)
+            token.policyIds?.includes(id),
           ) || [];
         tokens.models.forEach((token) => {
           token.update({
@@ -1303,7 +1310,7 @@ export default function (config) {
 
       const clientAllocationStatsHandler = function (
         { clientAllocationStats },
-        { params }
+        { params },
       ) {
         return this.serialize(clientAllocationStats.find(params.id));
       };
@@ -1311,7 +1318,7 @@ export default function (config) {
       const clientAllocationLog = function (server, { params, queryParams }) {
         const allocation = server.allocations.find(params.allocation_id);
         const tasks = allocation.taskStateIds.map((id) =>
-          server.taskStates.find(id)
+          server.taskStates.find(id),
         );
 
         if (!tasks.mapBy('name').includes(queryParams.task)) {
@@ -1327,7 +1334,7 @@ export default function (config) {
 
       const clientAllocationFSLsHandler = function (
         { allocFiles },
-        { queryParams: { path } }
+        { queryParams: { path } },
       ) {
         const filterPath = path.endsWith('/')
           ? path.substr(0, path.length - 1)
@@ -1338,7 +1345,7 @@ export default function (config) {
 
       const clientAllocationFSStatHandler = function (
         { allocFiles },
-        { queryParams: { path } }
+        { queryParams: { path } },
       ) {
         const filterPath = path.endsWith('/')
           ? path.substr(0, path.length - 1)
@@ -1359,7 +1366,7 @@ export default function (config) {
 
       const clientAllocationCatHandler = function (
         { allocFiles },
-        { queryParams }
+        { queryParams },
       ) {
         const [file, err] = fileOrError(allocFiles, queryParams.path);
 
@@ -1369,7 +1376,7 @@ export default function (config) {
 
       const clientAllocationStreamHandler = function (
         { allocFiles },
-        { queryParams }
+        { queryParams },
       ) {
         const [file, err] = fileOrError(allocFiles, queryParams.path);
 
@@ -1381,7 +1388,7 @@ export default function (config) {
 
       const clientAllocationReadAtHandler = function (
         { allocFiles },
-        { queryParams }
+        { queryParams },
       ) {
         const [file, err] = fileOrError(allocFiles, queryParams.path);
 
@@ -1392,7 +1399,7 @@ export default function (config) {
       const fileOrError = function (
         allocFiles,
         path,
-        message = 'Operation not allowed on a directory'
+        message = 'Operation not allowed on a directory',
       ) {
         // Root path
         if (path === '/') {
@@ -1420,11 +1427,11 @@ export default function (config) {
       this.get('/client/fs/cat/:allocation_id', clientAllocationCatHandler);
       this.get(
         '/client/fs/stream/:allocation_id',
-        clientAllocationStreamHandler
+        clientAllocationStreamHandler,
       );
       this.get(
         '/client/fs/readat/:allocation_id',
-        clientAllocationReadAtHandler
+        clientAllocationReadAtHandler,
       );
 
       this.get('/client/stats', function ({ clientStats }, { queryParams }) {
@@ -1456,7 +1463,7 @@ export default function (config) {
             }
           });
           return { Meta: { ...node.meta, ...attrs.Meta } };
-        }
+        },
       );
 
       // TODO: in the future, this hack may be replaceable with dynamic host name
@@ -1464,32 +1471,32 @@ export default function (config) {
       HOSTS.forEach((host) => {
         this.get(
           `http://${host}/v1/client/allocation/:id/stats`,
-          clientAllocationStatsHandler
+          clientAllocationStatsHandler,
         );
         this.get(
           `http://${host}/v1/client/fs/logs/:allocation_id`,
-          clientAllocationLog
+          clientAllocationLog,
         );
 
         this.get(
           `http://${host}/v1/client/fs/ls/:allocation_id`,
-          clientAllocationFSLsHandler
+          clientAllocationFSLsHandler,
         );
         this.get(
           `http://${host}/v1/client/stat/ls/:allocation_id`,
-          clientAllocationFSStatHandler
+          clientAllocationFSStatHandler,
         );
         this.get(
           `http://${host}/v1/client/fs/cat/:allocation_id`,
-          clientAllocationCatHandler
+          clientAllocationCatHandler,
         );
         this.get(
           `http://${host}/v1/client/fs/stream/:allocation_id`,
-          clientAllocationStreamHandler
+          clientAllocationStreamHandler,
         );
         this.get(
           `http://${host}/v1/client/fs/readat/:allocation_id`,
-          clientAllocationReadAtHandler
+          clientAllocationReadAtHandler,
         );
 
         this.get(`http://${host}/v1/client/stats`, function ({ clientStats }) {
@@ -1501,20 +1508,20 @@ export default function (config) {
         '/search/fuzzy',
         function (
           { allocations, jobs, nodes, taskGroups, csiPlugins },
-          { requestBody }
+          { requestBody },
         ) {
           const { Text } = JSON.parse(requestBody);
 
           const matchedAllocs = allocations.where((allocation) =>
-            allocation.name.includes(Text)
+            allocation.name.includes(Text),
           );
           const matchedGroups = taskGroups.where((taskGroup) =>
-            taskGroup.name.includes(Text)
+            taskGroup.name.includes(Text),
           );
           const matchedJobs = jobs.where((job) => job.name.includes(Text));
           const matchedNodes = nodes.where((node) => node.name.includes(Text));
           const matchedPlugins = csiPlugins.where((plugin) =>
-            plugin.id.includes(Text)
+            plugin.id.includes(Text),
           );
 
           const transformedAllocs = matchedAllocs.models.map((alloc) => ({
@@ -1563,14 +1570,14 @@ export default function (config) {
               plugins: truncatedPlugins.length < transformedPlugins.length,
             },
           };
-        }
+        },
       );
 
       this.get(
         '/recommendations',
         function (
           { jobs, namespaces, recommendations },
-          { queryParams: { job: id, namespace } }
+          { queryParams: { job: id, namespace } },
         ) {
           if (id) {
             if (!namespaces.all().length) {
@@ -1592,17 +1599,17 @@ export default function (config) {
             const recommendationIds = tasks.reduce(
               (recommendationIds, task) => {
                 return recommendationIds.concat(
-                  task.recommendations.models.mapBy('id')
+                  task.recommendations.models.mapBy('id'),
                 );
               },
-              []
+              [],
             );
 
             return recommendations.find(recommendationIds);
           } else {
             return recommendations.all();
           }
-        }
+        },
       );
 
       this.post(
@@ -1622,7 +1629,7 @@ export default function (config) {
           });
 
           return {};
-        }
+        },
       );
 
       //#region Variables
@@ -1642,7 +1649,7 @@ export default function (config) {
           } else {
             return schema.variables.all();
           }
-        }
+        },
       );
 
       this.get('/var/:id', function ({ variables }, { params }) {
@@ -1670,7 +1677,7 @@ export default function (config) {
               ModifyTime: faker.date.recent(0.01) * 1000000, // a few minutes ago
               Namespace: Namespace,
               Path: Path,
-            }
+            },
           );
         } else {
           return server.create('variable', {
@@ -1737,7 +1744,7 @@ export default function (config) {
       });
       this.post('/acl/oidc/auth-url', (schema, req) => {
         const { AuthMethodName, ClientNonce, RedirectUri, Meta } = JSON.parse(
-          req.requestBody
+          req.requestBody,
         );
 
         const authMethod = schema.authMethods.findBy({
@@ -1755,7 +1762,7 @@ export default function (config) {
           {},
           {
             AuthURL: authUrl,
-          }
+          },
         );
       });
 
@@ -1776,7 +1783,7 @@ export default function (config) {
             return new Response(
               500,
               {},
-              'Issuer (iss) is required but missing'
+              'Issuer (iss) is required but missing',
             );
           }
           const token = schema.tokens.findBy({
@@ -1788,10 +1795,10 @@ export default function (config) {
             {},
             {
               SecretID: token.secretId,
-            }
+            },
           );
         },
-        { timing: 1000 }
+        { timing: 1000 },
       );
 
       //#endregion SSO

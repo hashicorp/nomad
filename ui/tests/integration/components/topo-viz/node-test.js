@@ -83,7 +83,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
             allocGen(node, 300, 300, false),
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -91,7 +91,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.ok(TopoVizNode.isPresent);
     assert.equal(
       TopoVizNode.memoryRects.length,
-      this.node.allocations.filterBy('allocation.isScheduled').length
+      this.node.allocations.filterBy('allocation.isScheduled').length,
     );
     assert.ok(TopoVizNode.cpuRects.length);
 
@@ -110,7 +110,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
             allocGen(node, 300, 300, false),
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -120,18 +120,18 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       TopoVizNode.label.includes(
         `${
           this.node.allocations.filterBy('allocation.isScheduled').length
-        } Allocs`
-      )
+        } Allocs`,
+      ),
     );
     assert.ok(
       TopoVizNode.label.includes(
-        `${formatScheduledBytes(this.node.memory, 'MiB')}`
-      )
+        `${formatScheduledBytes(this.node.memory, 'MiB')}`,
+      ),
     );
     assert.ok(
       TopoVizNode.label.includes(
-        `${formatScheduledHertz(this.node.cpu, 'MHz')}`
-      )
+        `${formatScheduledHertz(this.node.cpu, 'MHz')}`,
+      ),
     );
   });
 
@@ -143,7 +143,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -160,7 +160,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -178,7 +178,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -197,7 +197,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -217,7 +217,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -239,7 +239,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -257,7 +257,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -276,7 +276,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(hbs`
@@ -308,7 +308,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -336,7 +336,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -345,22 +345,22 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.equal(this.onAllocationFocus.callCount, 1);
     assert.equal(
       this.onAllocationFocus.getCall(0).args[0].allocation,
-      this.node.allocations[0].allocation
+      this.node.allocations[0].allocation,
     );
     assert.equal(
       this.onAllocationFocus.getCall(0).args[1],
-      findAll('[data-test-memory-rect]')[0]
+      findAll('[data-test-memory-rect]')[0],
     );
 
     await TopoVizNode.cpuRects[1].hover();
     assert.equal(this.onAllocationFocus.callCount, 2);
     assert.equal(
       this.onAllocationFocus.getCall(1).args[0].allocation,
-      this.node.allocations[1].allocation
+      this.node.allocations[1].allocation,
     );
     assert.equal(
       this.onAllocationFocus.getCall(1).args[1],
-      findAll('[data-test-cpu-rect]')[1]
+      findAll('[data-test-cpu-rect]')[1],
     );
   });
 
@@ -372,7 +372,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -411,7 +411,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
             largeMemoryAlloc,
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -437,7 +437,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);

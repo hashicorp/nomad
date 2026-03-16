@@ -28,7 +28,7 @@ export default Factory.extend({
 
   notActive: trait({
     status: faker.helpers.randomize(
-      DEPLOYMENT_STATUSES.filter((s) => s !== 'running')
+      DEPLOYMENT_STATUSES.filter((s) => s !== 'running'),
     ),
   }),
 

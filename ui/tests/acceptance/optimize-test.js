@@ -28,7 +28,7 @@ function getLatestRecommendationSubmitTimeForJob(job) {
   const recommendations = tasks.reduce(
     (recommendations, task) =>
       recommendations.concat(task.recommendations.models),
-    []
+    [],
   );
   return Math.max(...recommendations.mapBy('submitTime'));
 }
@@ -111,39 +111,39 @@ module('Acceptance | optimize', function (hooks) {
 
     assert.equal(
       Optimize.recommendationSummaries[0].slug,
-      `${this.job1.name} / ${currentTaskGroup.name}`
+      `${this.job1.name} / ${currentTaskGroup.name}`,
     );
 
     assert.equal(
       Layout.breadcrumbFor('optimize.summary').text,
-      `${this.job1.name} / ${currentTaskGroup.name}`
+      `${this.job1.name} / ${currentTaskGroup.name}`,
     );
 
     assert.equal(
       Optimize.recommendationSummaries[0].namespace,
-      this.job1.namespace
+      this.job1.namespace,
     );
 
     assert.equal(
       Optimize.recommendationSummaries[1].slug,
-      `${this.job2.name} / ${nextTaskGroup.name}`
+      `${this.job2.name} / ${nextTaskGroup.name}`,
     );
 
     const currentRecommendations = currentTaskGroup.tasks.models.reduce(
       (recommendations, task) =>
         recommendations.concat(task.recommendations.models),
-      []
+      [],
     );
     const latestSubmitTime = Math.max(
-      ...currentRecommendations.mapBy('submitTime')
+      ...currentRecommendations.mapBy('submitTime'),
     );
 
     Optimize.recommendationSummaries[0].as((summary) => {
       assert.equal(
         summary.date,
         moment(new Date(latestSubmitTime / 1000000)).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
 
       const currentTaskGroupAllocations = server.schema.allocations.where({
@@ -158,7 +158,7 @@ module('Acceptance | optimize', function (hooks) {
           currentResources.currMem += task.resources.MemoryMB;
           return currentResources;
         },
-        { currCpu: 0, currMem: 0 }
+        { currCpu: 0, currMem: 0 },
       );
 
       const { recCpu, recMem } = currentRecommendations.reduce(
@@ -171,7 +171,7 @@ module('Acceptance | optimize', function (hooks) {
 
           return recommendedResources;
         },
-        { recCpu: 0, recMem: 0 }
+        { recCpu: 0, recMem: 0 },
       );
 
       const cpuDiff = recCpu > 0 ? recCpu - currCpu : 0;
@@ -188,17 +188,17 @@ module('Acceptance | optimize', function (hooks) {
         cpuDiff
           ? `${cpuSign}${formatHertz(
               cpuDiff,
-              'MHz'
+              'MHz',
             )} ${cpuSign}${cpuDiffPercent}%`
-          : ''
+          : '',
       );
       assert.equal(
         replaceMinus(summary.memory),
         memDiff
           ? `${memSign}${formattedMemDiff(
-              memDiff
+              memDiff,
             )} ${memSign}${memDiffPercent}%`
-          : ''
+          : '',
       );
 
       assert.equal(
@@ -206,18 +206,18 @@ module('Acceptance | optimize', function (hooks) {
         cpuDiff
           ? `${cpuSign}${formatHertz(
               cpuDiff * currentTaskGroupAllocations.length,
-              'MHz'
+              'MHz',
             )}`
-          : ''
+          : '',
       );
 
       assert.equal(
         replaceMinus(summary.aggregateMemory),
         memDiff
           ? `${memSign}${formattedMemDiff(
-              memDiff * currentTaskGroupAllocations.length
+              memDiff * currentTaskGroupAllocations.length,
             )}`
-          : ''
+          : '',
       );
     });
 
@@ -246,7 +246,7 @@ module('Acceptance | optimize', function (hooks) {
     assert.equal(
       Optimize.recommendationSummaries[0].memory,
       summaryMemoryBefore,
-      'toggling recommendations doesn’t affect the summary table diffs'
+      'toggling recommendations doesn’t affect the summary table diffs',
     );
 
     const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
@@ -305,7 +305,7 @@ module('Acceptance | optimize', function (hooks) {
 
     assert.equal(
       `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
-      Optimize.recommendationSummaries[1].slug
+      Optimize.recommendationSummaries[1].slug,
     );
     assert.ok(Optimize.recommendationSummaries[1].isActive);
   });
@@ -328,17 +328,17 @@ module('Acceptance | optimize', function (hooks) {
 
     // preferable to use page object’s visitable but it encodes the slash
     await visit(
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
+      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`,
     );
 
     assert.equal(
       `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
-      lastSummary.slug
+      lastSummary.slug,
     );
     assert.ok(lastSummary.isActive);
     assert.equal(
       currentURL(),
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
+      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`,
     );
   });
 
@@ -347,7 +347,7 @@ module('Acceptance | optimize', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/optimize/nonexistent/summary?namespace=anamespace'
+      '/optimize/nonexistent/summary?namespace=anamespace',
     );
     assert.ok(Optimize.applicationError.isPresent);
     assert.equal(Optimize.applicationError.title, 'Not Found');
@@ -406,7 +406,7 @@ module('Acceptance | optimize', function (hooks) {
     assert.equal(Optimize.error.headline, 'Recommendation error');
     assert.equal(
       Optimize.error.errors,
-      'Error: Ember Data Request POST /v1/recommendations/apply returned a 500 Payload (application/json)'
+      'Error: Ember Data Request POST /v1/recommendations/apply returned a 500 Payload (application/json)',
     );
 
     await Optimize.error.dismiss();
@@ -496,7 +496,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
     assert.equal(
       collapseWhitespace(Optimize.search.placeholder),
-      `Search ${Optimize.recommendationSummaries.length} recommendations...`
+      `Search ${Optimize.recommendationSummaries.length} recommendations...`,
     );
 
     await Optimize.search.fillIn('ooo');
@@ -679,7 +679,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'dc',
     expectedOptions(jobs) {
       const allDatacenters = new Set(
-        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), [])
+        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), []),
       );
       return Array.from(allDatacenters).sort();
     },
@@ -769,13 +769,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   }
 
   function testSingleSelectFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
@@ -815,14 +815,14 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       assert.ok(
         currentURL().includes(`${paramName}=${selection}`),
-        'URL has the correct query param key and value'
+        'URL has the correct query param key and value',
       );
     });
   }
 
   function testFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
+    { facet, paramName, beforeEach, filter, expectedOptions },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
@@ -918,7 +918,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       selection.push(option2Key);
 
       assert.ok(
-        currentURL().includes(encodeURIComponent(JSON.stringify(selection)))
+        currentURL().includes(encodeURIComponent(JSON.stringify(selection))),
       );
     });
   }

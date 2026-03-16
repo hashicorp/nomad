@@ -23,7 +23,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
 
       const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filterBy(
         'provider',
-        'nomad'
+        'nomad',
       ).length;
 
       const anyTaskServicesAreNomad = model.states
@@ -37,7 +37,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       if (anyGroupServicesAreNomad || anyTaskServicesAreNomad) {
         controller.set(
           'watchHealthChecks',
-          this.watchHealthChecks.perform(model, 'getServiceHealth', 2000)
+          this.watchHealthChecks.perform(model, 'getServiceHealth', 2000),
         );
       }
     }

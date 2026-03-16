@@ -80,7 +80,7 @@ module('Acceptance | jobs list', function (hooks) {
     const store = this.owner.lookup('service:store');
     const jobInStore = await store.peekRecord(
       'job',
-      `["${job.id}","${job.namespace}"]`
+      `["${job.id}","${job.namespace}"]`,
     );
 
     const jobRow = JobsList.jobs.objectAt(0);
@@ -92,7 +92,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       jobRow.status,
       jobInStore.aggregateAllocStatus.label,
-      'Status'
+      'Status',
     );
     assert.equal(jobRow.type, typeForJob(job), 'Type');
   });
@@ -152,7 +152,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.emptyState.headline,
       'No Jobs',
-      'The message is appropriate'
+      'The message is appropriate',
     );
   });
 
@@ -168,7 +168,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.emptyState.headline,
       'No Matches',
-      'The message is appropriate'
+      'The message is appropriate',
     );
   });
 
@@ -182,7 +182,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.ok(
       currentURL().includes('cursorAt'),
-      'Page query param contains cursorAt'
+      'Page query param contains cursorAt',
     );
 
     await JobsList.search.fillIn('foobar');
@@ -190,7 +190,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       currentURL(),
       '/jobs?filter=Name%20matches%20%22(%3Fi)foobar%22',
-      'No page query param'
+      'No page query param',
     );
   });
 
@@ -223,7 +223,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.jobs.objectAt(0).name,
       job1.name,
-      'The correct job is shown'
+      'The correct job is shown',
     );
 
     const secondNamespace = server.db.namespaces[1];
@@ -232,12 +232,12 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.jobs.length,
       1,
-      `One job in the ${secondNamespace.name} namespace`
+      `One job in the ${secondNamespace.name} namespace`,
     );
     assert.equal(
       JobsList.jobs.objectAt(0).name,
       job2.name,
-      'The correct job is shown'
+      'The correct job is shown',
     );
   });
 
@@ -305,8 +305,8 @@ module('Acceptance | jobs list', function (hooks) {
     return job.periodic
       ? 'periodic'
       : job.parameterized
-      ? 'parameterized'
-      : job.type;
+        ? 'parameterized'
+        : job.type;
   }
 
   test('the jobs list page has appropriate faceted search options', async function (assert) {
@@ -314,14 +314,14 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.ok(
       JobsList.facets.namespace.isHidden,
-      'Namespace facet not found (no namespaces)'
+      'Namespace facet not found (no namespaces)',
     );
     assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
     assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
     assert.ok(JobsList.facets.nodePool.isPresent, 'Node Pools facet found');
     assert.notOk(
       JobsList.facets.namespace.isPresent,
-      'Namespace facet not found by default'
+      'Namespace facet not found by default',
     );
   });
 
@@ -412,7 +412,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.emptyState.headline,
       'No Matches',
-      'The message is appropriate'
+      'The message is appropriate',
     );
   });
 
@@ -425,7 +425,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(
       JobsList.jobs.length,
       1,
-      'Only one job shown due to query param'
+      'Only one job shown due to query param',
     );
   });
 
@@ -555,7 +555,7 @@ module('Acceptance | jobs list', function (hooks) {
       .dom('.job-row')
       .exists(
         { count: 6 },
-        'Even though a periodic job has 10 children, only the parent is shown'
+        'Even though a periodic job has 10 children, only the parent is shown',
       );
 
     assert.dom('.allocation-status-row').exists({ count: 5 });
@@ -591,7 +591,7 @@ module('Acceptance | jobs list', function (hooks) {
         .dom('[data-test-job-row="periodic"] [data-test-job-status]')
         .hasText(
           '10 completed jobs',
-          'Parent job status indicates complete jobs'
+          'Parent job status indicates complete jobs',
         );
       parentStatusUpdated();
 
@@ -739,7 +739,7 @@ module('Acceptance | jobs list', function (hooks) {
       .hasText('Failed', 'Failed job is failed');
     assert
       .dom(
-        '[data-test-job-row="failed-garbage-collected-job"] [data-test-job-status]'
+        '[data-test-job-row="failed-garbage-collected-job"] [data-test-job-status]',
       )
       .hasText('Failed', 'Failed garbage collected job is failed');
     assert
@@ -864,7 +864,7 @@ module('Acceptance | jobs list', function (hooks) {
         // Check the data-test-modify-index attribute on each row
         let rows = document.querySelectorAll('.job-row');
         let modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -872,7 +872,7 @@ module('Acceptance | jobs list', function (hooks) {
             .fill()
             .map((_, i) => i + 1)
             .reverse(),
-          'Jobs are sorted by modify index'
+          'Jobs are sorted by modify index',
         );
         localStorage.removeItem('nomadPageSize');
       });
@@ -884,7 +884,7 @@ module('Acceptance | jobs list', function (hooks) {
         await JobsList.visit();
         let rows = document.querySelectorAll('.job-row');
         let modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -893,13 +893,13 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(0, pageSize),
-          'First page is sorted by modify index'
+          'First page is sorted by modify index',
         );
         // Click next
         await click('[data-test-pager="next"]');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -908,14 +908,14 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(pageSize, pageSize * 2),
-          'Second page is sorted by modify index'
+          'Second page is sorted by modify index',
         );
 
         // Click next again
         await click('[data-test-pager="next"]');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -924,14 +924,14 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(pageSize * 2, pageSize * 3),
-          'Third page is sorted by modify index'
+          'Third page is sorted by modify index',
         );
 
         // Click previous
         await click('[data-test-pager="previous"]');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -940,7 +940,7 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(pageSize, pageSize * 2),
-          'Second page is sorted by modify index'
+          'Second page is sorted by modify index',
         );
 
         // Click next twice, should be the last page, and therefore fewer than pageSize jobs
@@ -949,7 +949,7 @@ module('Acceptance | jobs list', function (hooks) {
 
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -958,19 +958,19 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(pageSize * 3),
-          'Fourth page is sorted by modify index'
+          'Fourth page is sorted by modify index',
         );
         assert.equal(
           rows.length,
           jobsToCreate - pageSize * 3,
-          'Last page has fewer jobs'
+          'Last page has fewer jobs',
         );
 
         // Go back to the first page
         await click('[data-test-pager="first"]');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -979,14 +979,14 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(0, pageSize),
-          'First page is sorted by modify index'
+          'First page is sorted by modify index',
         );
 
         // Click "last" to get an even number of jobs at the end of the list
         await click('[data-test-pager="last"]');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -995,12 +995,12 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(-pageSize),
-          'Last page is sorted by modify index'
+          'Last page is sorted by modify index',
         );
         assert.equal(
           rows.length,
           pageSize,
-          'Last page has the correct number of jobs'
+          'Last page has the correct number of jobs',
         );
 
         // type "{{" to go to the beginning
@@ -1008,7 +1008,7 @@ module('Acceptance | jobs list', function (hooks) {
         await triggerKeyEvent('.page-layout', 'keydown', '{');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -1017,7 +1017,7 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(0, pageSize),
-          'Keynav takes me back to the starting page'
+          'Keynav takes me back to the starting page',
         );
 
         // type "]]" to go forward a page
@@ -1025,7 +1025,7 @@ module('Acceptance | jobs list', function (hooks) {
         await triggerKeyEvent('.page-layout', 'keydown', ']');
         rows = document.querySelectorAll('.job-row');
         modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -1034,7 +1034,7 @@ module('Acceptance | jobs list', function (hooks) {
             .map((_, i) => i + 1)
             .reverse()
             .slice(pageSize, pageSize * 2),
-          'Keynav takes me forward a page'
+          'Keynav takes me forward a page',
         );
 
         localStorage.removeItem('nomadPageSize');
@@ -1049,7 +1049,7 @@ module('Acceptance | jobs list', function (hooks) {
         let rows = document.querySelectorAll('.job-row');
         assert.equal(rows.length, 10, 'List is still 10 rows');
         let modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -1057,7 +1057,7 @@ module('Acceptance | jobs list', function (hooks) {
             .fill()
             .map((_, i) => i + 1)
             .reverse(),
-          'Jobs are sorted by modify index'
+          'Jobs are sorted by modify index',
         );
         assert.dom('[data-test-pager="next"]').isDisabled();
 
@@ -1092,7 +1092,7 @@ module('Acceptance | jobs list', function (hooks) {
           // Order should now be 11-2
           rows = document.querySelectorAll('.job-row');
           modifyIndexes = Array.from(rows).map((row) =>
-            parseInt(row.getAttribute('data-test-modify-index'))
+            parseInt(row.getAttribute('data-test-modify-index')),
           );
           assert.deepEqual(
             modifyIndexes,
@@ -1100,12 +1100,12 @@ module('Acceptance | jobs list', function (hooks) {
               .fill()
               .map((_, i) => i + 2)
               .reverse(),
-            'Jobs are sorted by modify index'
+            'Jobs are sorted by modify index',
           );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
           let existingJobToUpdate = server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5
+            (job) => job.modifyIndex === 5,
           );
           server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
           await controller.watchJobIDs.perform(currentParams, 0);
@@ -1114,12 +1114,12 @@ module('Acceptance | jobs list', function (hooks) {
           setTimeout(async () => {
             rows = document.querySelectorAll('.job-row');
             modifyIndexes = Array.from(rows).map((row) =>
-              parseInt(row.getAttribute('data-test-modify-index'))
+              parseInt(row.getAttribute('data-test-modify-index')),
             );
             assert.deepEqual(
               modifyIndexes,
               [12, 11, 10, 9, 8, 7, 6, 4, 3, 2],
-              'Jobs are sorted by modify index, on-page job moves up to the top, and off-page pending'
+              'Jobs are sorted by modify index, on-page job moves up to the top, and off-page pending',
             );
             updatedOnPageJob();
 
@@ -1132,7 +1132,7 @@ module('Acceptance | jobs list', function (hooks) {
             assert.equal(
               rows[0].getAttribute('data-test-modify-index'),
               '1',
-              'Job is the first job, now pushed to the second page'
+              'Job is the first job, now pushed to the second page',
             );
           }, duelingQueryUpdateTime);
           updatedJob();
@@ -1150,7 +1150,7 @@ module('Acceptance | jobs list', function (hooks) {
         let rows = document.querySelectorAll('.job-row');
         assert.equal(rows.length, 10, 'List is still 10 rows');
         let modifyIndexes = Array.from(rows).map((row) =>
-          parseInt(row.getAttribute('data-test-modify-index'))
+          parseInt(row.getAttribute('data-test-modify-index')),
         );
         assert.deepEqual(
           modifyIndexes,
@@ -1158,7 +1158,7 @@ module('Acceptance | jobs list', function (hooks) {
             .fill()
             .map((_, i) => i + 1)
             .reverse(),
-          'Jobs are sorted by modify index'
+          'Jobs are sorted by modify index',
         );
 
         // Create a new job
@@ -1192,7 +1192,7 @@ module('Acceptance | jobs list', function (hooks) {
           // Order should still be be 10-1
           rows = document.querySelectorAll('.job-row');
           modifyIndexes = Array.from(rows).map((row) =>
-            parseInt(row.getAttribute('data-test-modify-index'))
+            parseInt(row.getAttribute('data-test-modify-index')),
           );
           assert.deepEqual(
             modifyIndexes,
@@ -1200,7 +1200,7 @@ module('Acceptance | jobs list', function (hooks) {
               .fill()
               .map((_, i) => i + 1)
               .reverse(),
-            'Jobs are sorted by modify index, off-page job not showing up yet'
+            'Jobs are sorted by modify index, off-page job not showing up yet',
           );
           assert
             .dom('[data-test-updates-pending-button]')
@@ -1208,12 +1208,12 @@ module('Acceptance | jobs list', function (hooks) {
           assert
             .dom('[data-test-pager="next"]')
             .isNotDisabled(
-              'Next button is enabled in spite of the new job not showing up yet'
+              'Next button is enabled in spite of the new job not showing up yet',
             );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
           let existingJobToUpdate = server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5
+            (job) => job.modifyIndex === 5,
           );
           server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
           await controller.watchJobIDs.perform(currentParams, 0);
@@ -1222,12 +1222,12 @@ module('Acceptance | jobs list', function (hooks) {
           setTimeout(async () => {
             rows = document.querySelectorAll('.job-row');
             modifyIndexes = Array.from(rows).map((row) =>
-              parseInt(row.getAttribute('data-test-modify-index'))
+              parseInt(row.getAttribute('data-test-modify-index')),
             );
             assert.deepEqual(
               modifyIndexes,
               [10, 9, 8, 7, 6, 12, 4, 3, 2, 1],
-              'Jobs are sorted by modify index, on-page job remains in-place, and off-page pending'
+              'Jobs are sorted by modify index, on-page job remains in-place, and off-page pending',
             );
             assert
               .dom('[data-test-updates-pending-button]')
@@ -1240,12 +1240,12 @@ module('Acceptance | jobs list', function (hooks) {
             await click('[data-test-updates-pending-button]');
             rows = document.querySelectorAll('.job-row');
             modifyIndexes = Array.from(rows).map((row) =>
-              parseInt(row.getAttribute('data-test-modify-index'))
+              parseInt(row.getAttribute('data-test-modify-index')),
             );
             assert.deepEqual(
               modifyIndexes,
               [12, 11, 10, 9, 8, 7, 6, 4, 3, 2],
-              'Jobs are sorted by modify index, after refresh'
+              'Jobs are sorted by modify index, after refresh',
             );
             assert
               .dom('[data-test-updates-pending-button]')
@@ -1273,19 +1273,19 @@ module('Acceptance | jobs list', function (hooks) {
         assert.ok(
           server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes(
-              '?filter=Name matches "(?i)something-that-surely-doesnt-exist"'
-            )
+              '?filter=Name matches "(?i)something-that-surely-doesnt-exist"',
+            ),
           ),
-          'A request was made with a filter query param that assumed job name'
+          'A request was made with a filter query param that assumed job name',
         );
 
         await JobsList.search.fillIn('Namespace == ns-2');
 
         assert.ok(
           server.pretender.handledRequests.find((req) =>
-            decodeURIComponent(req.url).includes('?filter=Namespace == ns-2')
+            decodeURIComponent(req.url).includes('?filter=Namespace == ns-2'),
           ),
-          'A request was made with a filter query param for a filter expression as typed'
+          'A request was made with a filter query param for a filter expression as typed',
         );
 
         localStorage.removeItem('nomadPageSize');
@@ -1310,17 +1310,17 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Initially, 10 jobs are listed without any filters.'
+            'Initially, 10 jobs are listed without any filters.',
           );
         assert
           .dom('[data-test-job-row="hashi-one"]')
           .doesNotExist(
-            'The specific job hashi-one should not appear without filtering.'
+            'The specific job hashi-one should not appear without filtering.',
           );
         assert
           .dom('[data-test-job-row="hashi-two"]')
           .doesNotExist(
-            'The specific job hashi-two should also not appear without filtering.'
+            'The specific job hashi-two should also not appear without filtering.',
           );
 
         await JobsList.search.fillIn('hashi-one');
@@ -1328,17 +1328,17 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Only one job should be visible when filtering by the name "hashi-one".'
+            'Only one job should be visible when filtering by the name "hashi-one".',
           );
         assert
           .dom('[data-test-job-row="hashi-one"]')
           .exists(
-            'The job hashi-one appears as expected when filtered by name.'
+            'The job hashi-one appears as expected when filtered by name.',
           );
         assert
           .dom('[data-test-job-row="hashi-two"]')
           .doesNotExist(
-            'The job hashi-two should not appear when filtering by "hashi-one".'
+            'The job hashi-two should not appear when filtering by "hashi-one".',
           );
 
         await JobsList.search.fillIn('hashi');
@@ -1346,17 +1346,17 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 2 },
-            'Two jobs should appear when the filter "hashi" matches both job names.'
+            'Two jobs should appear when the filter "hashi" matches both job names.',
           );
         assert
           .dom('[data-test-job-row="hashi-one"]')
           .exists(
-            'Job hashi-one is correctly displayed under the "hashi" filter.'
+            'Job hashi-one is correctly displayed under the "hashi" filter.',
           );
         assert
           .dom('[data-test-job-row="hashi-two"]')
           .exists(
-            'Job hashi-two is correctly displayed under the "hashi" filter.'
+            'Job hashi-two is correctly displayed under the "hashi" filter.',
           );
 
         await JobsList.search.fillIn('Name == hashi');
@@ -1364,7 +1364,7 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 0 },
-            'No jobs should appear when an incorrect filter format "Name == hashi" is used.'
+            'No jobs should appear when an incorrect filter format "Name == hashi" is used.',
           );
 
         await JobsList.search.fillIn('');
@@ -1372,17 +1372,17 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'All jobs reappear when the search filter is cleared.'
+            'All jobs reappear when the search filter is cleared.',
           );
         assert
           .dom('[data-test-job-row="hashi-one"]')
           .doesNotExist(
-            'The job hashi-one should disappear again when the filter is cleared.'
+            'The job hashi-one should disappear again when the filter is cleared.',
           );
         assert
           .dom('[data-test-job-row="hashi-two"]')
           .doesNotExist(
-            'The job hashi-two should disappear again when the filter is cleared.'
+            'The job hashi-two should disappear again when the filter is cleared.',
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1448,13 +1448,13 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Initial setup should show 10 jobs of type "service".'
+            'Initial setup should show 10 jobs of type "service".',
           );
         assert
           .dom('[data-test-job-type="service"]')
           .exists(
             { count: 10 },
-            'All initial jobs are confirmed to be of type "service".'
+            'All initial jobs are confirmed to be of type "service".',
           );
 
         await JobsList.search.fillIn('Type == batch');
@@ -1462,13 +1462,13 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Filtering by "Type == batch" should show exactly one job.'
+            'Filtering by "Type == batch" should show exactly one job.',
           );
         assert
           .dom('[data-test-job-type="batch"]')
           .exists(
             { count: 1 },
-            'The single job of type "batch" is displayed as expected.'
+            'The single job of type "batch" is displayed as expected.',
           );
 
         await JobsList.search.fillIn('Type == system');
@@ -1476,13 +1476,13 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Only one job should be displayed when filtering by "Type == system".'
+            'Only one job should be displayed when filtering by "Type == system".',
           );
         assert
           .dom('[data-test-job-type="system"]')
           .exists(
             { count: 1 },
-            'The job of type "system" appears as expected.'
+            'The job of type "system" appears as expected.',
           );
 
         await JobsList.search.fillIn('Type == sysbatch');
@@ -1490,13 +1490,13 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 2 },
-            'Two jobs should be visible under the filter "Type == sysbatch".'
+            'Two jobs should be visible under the filter "Type == sysbatch".',
           );
         assert
           .dom('[data-test-job-type="sysbatch"]')
           .exists(
             { count: 2 },
-            'Both jobs of type "sysbatch" are correctly displayed.'
+            'Both jobs of type "sysbatch" are correctly displayed.',
           );
 
         await JobsList.search.fillIn('Type contains sys');
@@ -1504,19 +1504,19 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 3 },
-            'Filter "Type contains sys" should show three jobs.'
+            'Filter "Type contains sys" should show three jobs.',
           );
         assert
           .dom('[data-test-job-type="sysbatch"]')
           .exists(
             { count: 2 },
-            'Two jobs of type "sysbatch" match the "sys" substring.'
+            'Two jobs of type "sysbatch" match the "sys" substring.',
           );
         assert
           .dom('[data-test-job-type="system"]')
           .exists(
             { count: 1 },
-            'One job of type "system" matches the "sys" substring.'
+            'One job of type "system" matches the "sys" substring.',
           );
 
         await JobsList.search.fillIn('Type != service');
@@ -1524,7 +1524,7 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 4 },
-            'Four jobs should be visible when excluding type "service".'
+            'Four jobs should be visible when excluding type "service".',
           );
         assert
           .dom('[data-test-job-type="batch"]')
@@ -1543,12 +1543,12 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-pager="next"]')
           .isDisabled(
-            'The next page button should be disabled when all jobs fit on one page.'
+            'The next page button should be disabled when all jobs fit on one page.',
           );
         assert
           .dom('[data-test-pager="last"]')
           .isDisabled(
-            'The last page button should also be disabled under the same conditions.'
+            'The last page button should also be disabled under the same conditions.',
           );
 
         // But if we disinclude sysbatch we'll have 12, so next/last should be clickable
@@ -1557,7 +1557,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-pager="next"]')
           .isNotDisabled(
-            'The next page button should be enabled when not all jobs are shown on one page.'
+            'The next page button should be enabled when not all jobs are shown on one page.',
           );
         assert
           .dom('[data-test-pager="last"]')
@@ -1576,7 +1576,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-empty-jobs-list]')
           .includesText(
-            'No jobs match your current filter selection: type == foo'
+            'No jobs match your current filter selection: type == foo',
           );
         assert.dom('[data-test-filter-correction]').exists();
         await percySnapshot(assert);
@@ -1592,7 +1592,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-empty-jobs-list]')
           .includesText(
-            'No jobs match your current filter selection: Name == surelyDoesntExist'
+            'No jobs match your current filter selection: Name == surelyDoesntExist',
           );
         assert.dom('[data-test-filter-random-suggestion]').exists();
         await percySnapshot('Filter no results with random suggestion');
@@ -1633,18 +1633,18 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Initial setup should show 10 jobs in the default namespace.'
+            'Initial setup should show 10 jobs in the default namespace.',
           );
         assert
           .dom('[data-test-job-row="ns-2-job"]')
           .doesNotExist(
-            'The job in the ns-2 namespace should not appear without filtering.'
+            'The job in the ns-2 namespace should not appear without filtering.',
           );
 
         assert
           .dom('[data-test-pager="next"]')
           .isNotDisabled(
-            '11 jobs on "All" namespace, so second page is available'
+            '11 jobs on "All" namespace, so second page is available',
           );
 
         // Toggle ns-2 namespace
@@ -1655,12 +1655,12 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Only one job should be visible when filtering by the ns-2 namespace.'
+            'Only one job should be visible when filtering by the ns-2 namespace.',
           );
         assert
           .dom('[data-test-job-row="ns-2-job"]')
           .exists(
-            'The job in the ns-2 namespace appears as expected when filtered.'
+            'The job in the ns-2 namespace appears as expected when filtered.',
           );
 
         // Switch to default namespace
@@ -1671,18 +1671,18 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'All jobs reappear when the search filter is cleared.'
+            'All jobs reappear when the search filter is cleared.',
           );
         assert
           .dom('[data-test-job-row="ns-2-job"]')
           .doesNotExist(
-            'The job in the ns-2 namespace should disappear when the filter is cleared.'
+            'The job in the ns-2 namespace should disappear when the filter is cleared.',
           );
 
         assert
           .dom('[data-test-pager="next"]')
           .isDisabled(
-            '10 jobs in "Default" namespace, so second page is not available'
+            '10 jobs in "Default" namespace, so second page is not available',
           );
 
         // Turn both on
@@ -1692,18 +1692,18 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Both-on should show 10 jobs in the default namespace.'
+            'Both-on should show 10 jobs in the default namespace.',
           );
         assert
           .dom('[data-test-job-row="ns-2-job"]')
           .doesNotExist(
-            'The job in the ns-2 namespace should not appear on the first page.'
+            'The job in the ns-2 namespace should not appear on the first page.',
           );
 
         assert
           .dom('[data-test-pager="next"]')
           .isNotDisabled(
-            '11 jobs with both namespaces filtered, so second page is available'
+            '11 jobs with both namespaces filtered, so second page is available',
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1788,7 +1788,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-facet="Namespace"]')
           .doesNotExist(
-            'Namespace filter should not appear with only one namespace.'
+            'Namespace filter should not appear with only one namespace.',
           );
 
         server.create('namespace', {
@@ -1802,7 +1802,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-facet="Namespace"]')
           .exists(
-            'Namespace filter should appear with more than one namespace.'
+            'Namespace filter should appear with more than one namespace.',
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1834,17 +1834,17 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Initial setup should show 10 jobs in the "running" status.'
+            'Initial setup should show 10 jobs in the "running" status.',
           );
         assert
           .dom('[data-test-job-row="pending-job"]')
           .doesNotExist(
-            'The job in the "pending" status should not appear without filtering.'
+            'The job in the "pending" status should not appear without filtering.',
           );
         assert
           .dom('[data-test-pager="next"]')
           .isNotDisabled(
-            '10 jobs in "running" status, so second page is available'
+            '10 jobs in "running" status, so second page is available',
           );
 
         await JobsList.facets.status.toggle();
@@ -1854,18 +1854,18 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Only one job should be visible when filtering by the "pending" status.'
+            'Only one job should be visible when filtering by the "pending" status.',
           );
         assert
           .dom('[data-test-job-row="pending-job"]')
           .exists(
-            'The job in the "pending" status appears as expected when filtered.'
+            'The job in the "pending" status appears as expected when filtered.',
           );
 
         assert
           .dom('[data-test-pager="next"]')
           .isDisabled(
-            '1 job in "pending" status, so second page is not available'
+            '1 job in "pending" status, so second page is not available',
           );
 
         await JobsList.facets.status.options[2].toggle(); // dead
@@ -1873,13 +1873,13 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 2 },
-            'Two jobs should be visible when the "dead" filter is added'
+            'Two jobs should be visible when the "dead" filter is added',
           );
         assert
           .dom('[data-test-job-row="dead-job"]')
           .exists(
             { count: 1 },
-            'The job in the "dead" status appears as expected when filtered.'
+            'The job in the "dead" status appears as expected when filtered.',
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1915,12 +1915,12 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 10 },
-            'Initial setup should show 10 jobs in the "pool-1" node pool.'
+            'Initial setup should show 10 jobs in the "pool-1" node pool.',
           );
         assert
           .dom('[data-test-job-row="pool-2-job"]')
           .doesNotExist(
-            'The job in the "pool-2" node pool should not appear without filtering.'
+            'The job in the "pool-2" node pool should not appear without filtering.',
           );
         await JobsList.facets.nodePool.toggle();
 
@@ -1929,12 +1929,12 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 1 },
-            'Only one job should be visible when filtering by the "pool-2" node pool.'
+            'Only one job should be visible when filtering by the "pool-2" node pool.',
           );
         assert
           .dom('[data-test-job-row="pool-2-job"]')
           .exists(
-            'The job in the "pool-2" node pool appears as expected when filtered.'
+            'The job in the "pool-2" node pool appears as expected when filtered.',
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1992,7 +1992,7 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('.job-row')
           .exists(
             { count: 3 },
-            'Three jobs are visible with service and batch types'
+            'Three jobs are visible with service and batch types',
           );
         assert.dom('[data-test-job-row="job1"]').exists();
         assert.dom('[data-test-job-row="job2"]').exists();
@@ -2052,13 +2052,13 @@ async function facetOptions(assert, beforeEach, facet, expectedOptions) {
   assert.deepEqual(
     facet.options.map((option) => option.label.trim()),
     expectation,
-    'Options for facet are as expected'
+    'Options for facet are as expected',
   );
 }
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions, dynamicStrings }
+  { facet, paramName, beforeEach, filter, expectedOptions, dynamicStrings },
 ) {
   test(`the ${label} facet has the correct options`, async function (assert) {
     await facetOptions(assert, beforeEach, facet, expectedOptions);
@@ -2083,7 +2083,7 @@ function testFacet(
       assert.equal(
         job.id,
         expectedJobs[index].id,
-        `Job at ${index} is ${expectedJobs[index].id}`
+        `Job at ${index} is ${expectedJobs[index].id}`,
       );
     });
   });
@@ -2111,7 +2111,7 @@ function testFacet(
       assert.equal(
         job.id,
         expectedJobs[index].id,
-        `Job at ${index} is ${expectedJobs[index].id}`
+        `Job at ${index} is ${expectedJobs[index].id}`,
       );
     });
   });
@@ -2137,9 +2137,9 @@ function testFacet(
         currentURL().includes(
           dynamicStrings
             ? encodeURIComponent(`${capitalizedParamName} == "${selection}"`)
-            : encodeURIComponent(`${capitalizedParamName} == ${selection}`)
+            : encodeURIComponent(`${capitalizedParamName} == ${selection}`),
         ),
-        `URL has the correct query param key and value for ${selection}`
+        `URL has the correct query param key and value for ${selection}`,
       );
     });
   });

@@ -26,7 +26,7 @@ const testCases = [
     in: [
       new ServerError(
         [{ detail: 'DB Max Connections' }, { detail: 'Service timeout' }],
-        'Server Error'
+        'Server Error',
       ),
       'run tests',
     ],
@@ -45,7 +45,7 @@ module('Unit | Util | messageFromAdapterError', function () {
       assert.equal(
         messageFromAdapterError.apply(null, testCase.in),
         testCase.out,
-        `[${testCase.in.join(', ')}] => ${testCase.out}`
+        `[${testCase.in.join(', ')}] => ${testCase.out}`,
       );
     });
   });

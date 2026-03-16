@@ -10,7 +10,7 @@
   <PH.Actions>
     <Hds::Form::Toggle::Field
       @value="enable"
-      {{keyboard-shortcut 
+      {{keyboard-shortcut
         label="Toggle View (JSON/List)"
         pattern=(array "j")
         action=(action this.toggleView)
@@ -18,13 +18,18 @@
       checked={{eq this.view "json"}}
       data-test-json-toggle
       {{on "change" (action this.toggleView)}}
-    as |F|>
+      as |F|
+    >
       <F.Label>JSON</F.Label>
     </Hds::Form::Toggle::Field>
   </PH.Actions>
   <PH.Breadcrumb>
     <Hds::Breadcrumb>
-      <Hds::Breadcrumb::Item @text="Back" @route="variables.variable.index" @icon="chevron-left" />
+      <Hds::Breadcrumb::Item
+        @text="Back"
+        @route="variables.variable.index"
+        @icon="chevron-left"
+      />
     </Hds::Breadcrumb>
   </PH.Breadcrumb>
 </Hds::PageHeader>

@@ -70,17 +70,17 @@ module('Acceptance | allocation detail', function (hooks) {
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function (assert) {
     assert.ok(
       Allocation.title.includes(allocation.name),
-      'Allocation name is in the heading'
+      'Allocation name is in the heading',
     );
     assert.equal(
       Allocation.details.job,
       job.name,
-      'Job name is in the subheading'
+      'Job name is in the subheading',
     );
     assert.equal(
       Allocation.details.client,
       node.id.split('-')[0],
-      'Node short id is in the subheading'
+      'Node short id is in the subheading',
     );
     assert.ok(Allocation.execButton.isPresent);
 
@@ -90,7 +90,7 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default`,
-      'Job link navigates to the job'
+      'Job link navigates to the job',
     );
 
     await Allocation.visit({ id: allocation.id });
@@ -99,7 +99,7 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/clients/${node.id}`,
-      'Client link navigates to the client'
+      'Client link navigates to the client',
     );
   });
 
@@ -107,17 +107,17 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       Allocation.resourceCharts.length,
       2,
-      'Two resource utilization graphs'
+      'Two resource utilization graphs',
     );
     assert.equal(
       Allocation.resourceCharts.objectAt(0).name,
       'CPU',
-      'First chart is CPU'
+      'First chart is CPU',
     );
     assert.equal(
       Allocation.resourceCharts.objectAt(1).name,
       'Memory',
-      'Second chart is Memory'
+      'Second chart is Memory',
     );
   });
 
@@ -157,7 +157,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.equal(
       currentURL(),
-      `/allocations/${allocation.id}/${prestartEphemeralTask.name}`
+      `/allocations/${allocation.id}/${prestartEphemeralTask.name}`,
     );
   });
 
@@ -165,7 +165,7 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       Allocation.tasks.length,
       server.db.taskStates.where({ allocationId: allocation.id }).length,
-      'Table lists all tasks'
+      'Table lists all tasks',
     );
     assert.notOk(Allocation.isEmpty, 'Task table empty state is not shown');
   });
@@ -218,7 +218,7 @@ module('Acceptance | allocation detail', function (hooks) {
       assert.equal(
         taskRow.time,
         moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
-        'Event Time'
+        'Event Time',
       );
 
       const expectStats = task.state === 'running';
@@ -229,11 +229,11 @@ module('Acceptance | allocation detail', function (hooks) {
       volumes.forEach((volume) => {
         assert.ok(
           volumesText.includes(volume.name),
-          `Found label ${volume.name}`
+          `Found label ${volume.name}`,
         );
         assert.ok(
           volumesText.includes(volume.source),
-          `Found value ${volume.source}`
+          `Found value ${volume.source}`,
         );
       });
     });
@@ -250,7 +250,7 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}`,
-      'Task name in task row links to task detail'
+      'Task name in task row links to task detail',
     );
 
     await Allocation.visit({ id: allocation.id });
@@ -259,14 +259,14 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}`,
-      'Task row links to task detail'
+      'Task row links to task detail',
     );
   });
 
   test('tasks with an unhealthy driver have a warning icon', async function (assert) {
     assert.ok(
       Allocation.firstUnhealthyTask().hasUnhealthyDriver,
-      'Warning is shown'
+      'Warning is shown',
     );
   });
 
@@ -307,7 +307,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('when the allocation has not been rescheduled, the reschedule events section is not rendered', async function (assert) {
     assert.notOk(
       Allocation.hasRescheduleEvents,
-      'Reschedule Events section exists'
+      'Reschedule Events section exists',
     );
   });
 
@@ -321,7 +321,7 @@ module('Acceptance | allocation detail', function (hooks) {
       assert.equal(renderedPort.to, serverPort.To);
       assert.equal(
         renderedPort.address,
-        formatHost(serverPort.HostIP, serverPort.Value)
+        formatHost(serverPort.HostIP, serverPort.Value),
       );
     });
   });
@@ -350,18 +350,18 @@ module('Acceptance | allocation detail', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .find((request) => request.status === 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the nonexistent allocation is made'
+      'A request to the nonexistent allocation is made',
     );
     assert.equal(
       currentURL(),
       '/allocations/not-a-real-allocation',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Allocation.error.isShown, 'Error message is shown');
     assert.equal(
       Allocation.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -374,7 +374,7 @@ module('Acceptance | allocation detail', function (hooks) {
         .filter((request) => !request.url.includes('fuzzy'))
         .find((request) => request.method === 'POST').url,
       `/v1/allocation/${allocation.id}/stop`,
-      'Stop request is made for the allocation'
+      'Stop request is made for the allocation',
     );
   });
 
@@ -387,10 +387,10 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests.find(
-        (request) => request.method === 'PUT'
+        (request) => request.method === 'PUT',
       ).url,
       `/v1/client/allocation/${allocation.id}/restart`,
-      'Restart request is made for the allocation'
+      'Restart request is made for the allocation',
     );
 
     await waitUntil(() => !Allocation.restart.isDisabled);
@@ -401,9 +401,9 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.ok(
       server.pretender.handledRequests.filter(
-        (request) => request.requestBody === JSON.stringify({ AllTasks: true })
+        (request) => request.requestBody === JSON.stringify({ AllTasks: true }),
       ).length,
-      'Restart all tasks request is made for the allocation'
+      'Restart all tasks request is made for the allocation',
     );
   });
 
@@ -438,18 +438,18 @@ module('Acceptance | allocation detail', function (hooks) {
     assert.ok(Allocation.inlineError.isShown, 'Inline error is shown');
     assert.ok(
       Allocation.inlineError.title.includes('Could Not Stop Allocation'),
-      'Title is descriptive'
+      'Title is descriptive',
     );
     assert.ok(
       /ACL token.+?allocation lifecycle/.test(Allocation.inlineError.message),
-      'Message mentions ACLs and the appropriate permission'
+      'Message mentions ACLs and the appropriate permission',
     );
 
     await Allocation.inlineError.dismiss();
 
     assert.notOk(
       Allocation.inlineError.isShown,
-      'Inline error is no longer shown'
+      'Inline error is no longer shown',
     );
   });
 
@@ -510,7 +510,7 @@ module('Acceptance | allocation detail (rescheduled)', function (hooks) {
   test('when the allocation has been rescheduled, the reschedule events section is rendered', async function (assert) {
     assert.ok(
       Allocation.hasRescheduleEvents,
-      'Reschedule Events section exists'
+      'Reschedule Events section exists',
     );
   });
 });
@@ -535,7 +535,7 @@ module('Acceptance | allocation detail (not running)', function (hooks) {
     assert.equal(
       Allocation.resourceEmptyMessage,
       "Allocation isn't running",
-      'Empty message is appropriate'
+      'Empty message is appropriate',
     );
   });
 
@@ -562,7 +562,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     allocation = server.create('allocation', 'preempted');
     const preempter = server.schema.find(
       'allocation',
-      allocation.preemptedByAllocation
+      allocation.preemptedByAllocation,
     );
     const preempterJob = server.schema.find('job', preempter.jobId);
     const preempterClient = server.schema.find('node', preempter.nodeId);
@@ -572,24 +572,24 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     assert.equal(
       Allocation.preempter.status,
       preempter.clientStatus,
-      'Preempter status matches'
+      'Preempter status matches',
     );
     assert.equal(
       Allocation.preempter.name,
       preempter.name,
-      'Preempter name matches'
+      'Preempter name matches',
     );
     assert.equal(
       Allocation.preempter.priority,
       preempterJob.priority,
-      'Preempter priority matches'
+      'Preempter priority matches',
     );
 
     await Allocation.preempter.visit();
     assert.equal(
       currentURL(),
       `/allocations/${preempter.id}`,
-      'Clicking the preempter id navigates to the preempter allocation detail page'
+      'Clicking the preempter id navigates to the preempter allocation detail page',
     );
 
     await Allocation.visit({ id: allocation.id });
@@ -598,7 +598,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${preempterJob.id}@default`,
-      'Clicking the preempter job link navigates to the preempter job page'
+      'Clicking the preempter job link navigates to the preempter job page',
     );
 
     await Allocation.visit({ id: allocation.id });
@@ -606,7 +606,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     assert.equal(
       currentURL(),
       `/clients/${preempterClient.id}`,
-      'Clicking the preempter client link navigates to the preempter client page'
+      'Clicking the preempter client link navigates to the preempter client page',
     );
   });
 
@@ -615,7 +615,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     await Allocation.visit({ id: allocation.id });
     assert.ok(
       Allocation.preempted,
-      'The allocations this allocation preempted are shown'
+      'The allocations this allocation preempted are shown',
     );
   });
 
@@ -632,45 +632,45 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     assert.equal(
       Allocation.preemptions.length,
       allocation.preemptedAllocations.length,
-      'The preemptions table has a row for each preempted allocation'
+      'The preemptions table has a row for each preempted allocation',
     );
 
     assert.equal(
       preemptionRow.shortId,
       preemption.id.split('-')[0],
-      'Preemption short id'
+      'Preemption short id',
     );
     assert.equal(
       preemptionRow.createTime,
       moment(preemption.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-      'Preemption create time'
+      'Preemption create time',
     );
     assert.equal(
       preemptionRow.modifyTime,
       moment(preemption.modifyTime / 1000000).fromNow(),
-      'Preemption modify time'
+      'Preemption modify time',
     );
     assert.equal(
       preemptionRow.status,
       preemption.clientStatus,
-      'Client status'
+      'Client status',
     );
     assert.equal(
       preemptionRow.jobVersion,
       preemption.jobVersion,
-      'Job Version'
+      'Job Version',
     );
     assert.equal(
       preemptionRow.client,
       server.db.nodes.find(preemption.nodeId).id.split('-')[0],
-      'Node ID'
+      'Node ID',
     );
 
     await preemptionRow.visitClient();
     assert.equal(
       currentURL(),
       `/clients/${preemption.nodeId}`,
-      'Node links to node page'
+      'Node links to node page',
     );
   });
 
@@ -679,7 +679,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     await Allocation.visit({ id: allocation.id });
     assert.ok(
       Allocation.preempted,
-      'The allocations this allocation preempted are shown'
+      'The allocations this allocation preempted are shown',
     );
     assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
   });
@@ -779,7 +779,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       .exists({ count: 1 }, 'One failing health check');
     assert
       .dom(
-        'table.health-checks tr[data-service-health="failure"] td.service-output'
+        'table.health-checks tr[data-service-health="failure"] td.service-output',
       )
       .containsText('Oh no!');
 

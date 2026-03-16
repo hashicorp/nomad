@@ -25,7 +25,7 @@ module('Integration | Component | job-search-box', function (hooks) {
     });
 
     await render(
-      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @S={{S}} /></Hds::SegmentedGroup>`
+      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @S={{S}} /></Hds::SegmentedGroup>`,
     );
     await componentA11yAudit(this.element, assert);
 
@@ -37,7 +37,7 @@ module('Integration | Component | job-search-box', function (hooks) {
     assert.equal(
       message,
       'test1',
-      'Typing has happened within debounce window'
+      'Typing has happened within debounce window',
     );
     element.value += 'seen ';
     triggerEvent('input', 'input');
@@ -45,7 +45,7 @@ module('Integration | Component | job-search-box', function (hooks) {
     assert.equal(
       message,
       'test1',
-      'Typing has happened within debounce window, albeit a little slower'
+      'Typing has happened within debounce window, albeit a little slower',
     );
     element.value += 'until now.';
     triggerEvent('input', 'input');
@@ -53,7 +53,7 @@ module('Integration | Component | job-search-box', function (hooks) {
     assert.equal(
       message,
       'test1 wont be seen until now.',
-      'debounce window has closed'
+      'debounce window has closed',
     );
   });
 });

@@ -54,7 +54,7 @@ module('Acceptance | job definition', function (hooks) {
     assert.strictEqual(
       jobRequests.length,
       2,
-      'Two requests for the job were made'
+      'Two requests for the job were made',
     );
   });
 
@@ -67,7 +67,7 @@ module('Acceptance | job definition', function (hooks) {
 
     assert.ok(
       Definition.editor.isPresent,
-      'Editor is shown after clicking edit'
+      'Editor is shown after clicking edit',
     );
     assert.notOk(Definition.jsonViewer, 'Editor replaces the JSON viewer');
   });
@@ -86,7 +86,7 @@ module('Acceptance | job definition', function (hooks) {
     const requests = server.pretender.handledRequests;
     const jobSubmission = requests.findBy(
       'url',
-      `/v1/job/${job.id}/submission?version=1`
+      `/v1/job/${job.id}/submission?version=1`,
     ).responseText;
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
@@ -96,7 +96,7 @@ module('Acceptance | job definition', function (hooks) {
     assert.equal(
       Definition.editor.editor.contents,
       formattedJobDefinition,
-      'The editor already has the job definition in it'
+      'The editor already has the job definition in it',
     );
   });
 
@@ -113,7 +113,7 @@ module('Acceptance | job definition', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}@default`,
-      'Now on the job overview page'
+      'Now on the job overview page',
     );
   });
 
@@ -127,18 +127,18 @@ module('Acceptance | job definition', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/definition',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Definition.error.isPresent, 'Error message is shown');
     assert.equal(
       Definition.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 });
@@ -182,7 +182,7 @@ module('Acceptance | job definition | full specification', function (hooks) {
     assert.equal(
       codeMirror.getValue(),
       specification_response.Source,
-      'Shows the full definition as written by the user'
+      'Shows the full definition as written by the user',
     );
 
     await click('[data-test-select-full]');

@@ -38,7 +38,7 @@ module('Integration | Component | list table', function (hooks) {
     assert.equal(
       find('.head').tagName.toLowerCase(),
       'thead',
-      'Table head is a thead element'
+      'Table head is a thead element',
     );
   });
 
@@ -68,13 +68,13 @@ module('Integration | Component | list table', function (hooks) {
     assert.equal(
       find('.body').tagName.toLowerCase(),
       'tbody',
-      'Table body is a tbody element'
+      'Table body is a tbody element',
     );
 
     assert.equal(
       findAll('.item').length,
       this.get('source.length'),
-      'Each item gets its own row'
+      'Each item gets its own row',
     );
 
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
@@ -84,22 +84,22 @@ module('Integration | Component | list table', function (hooks) {
       assert.equal(
         $item.querySelectorAll('td')[0].innerHTML.trim(),
         item.firstName,
-        'First name'
+        'First name',
       );
       assert.equal(
         $item.querySelectorAll('td')[1].innerHTML.trim(),
         item.lastName,
-        'Last name'
+        'Last name',
       );
       assert.equal(
         $item.querySelectorAll('td')[2].innerHTML.trim(),
         item.age,
-        'Age'
+        'Age',
       );
       assert.equal(
         $item.querySelectorAll('td')[3].innerHTML.trim(),
         index,
-        'Index'
+        'Index',
       );
     });
 

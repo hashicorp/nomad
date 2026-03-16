@@ -150,7 +150,7 @@ module('Unit | Ability | abstract', function (hooks) {
 
       assert.equal(
         this.ability._findMatchingNamespace(policyNamespaces, 'pablo'),
-        '*'
+        '*',
       );
     });
 
@@ -280,7 +280,7 @@ module('Unit | Ability | abstract', function (hooks) {
 
       assert.equal(
         this.ability._findMatchingNamespace(policyNamespaces, 'pablo'),
-        'pablo'
+        'pablo',
       );
     });
 
@@ -411,9 +411,9 @@ module('Unit | Ability | abstract', function (hooks) {
       assert.equal(
         this.ability._findMatchingNamespace(
           policyNamespaces,
-          'pablo/picasso/rothkos/rilkes'
+          'pablo/picasso/rothkos/rilkes',
         ),
-        'pablo/*'
+        'pablo/*',
       );
     });
 
@@ -544,9 +544,9 @@ module('Unit | Ability | abstract', function (hooks) {
       assert.equal(
         this.ability._findMatchingNamespace(
           policyNamespaces,
-          'pablo/picasso/rothkos/rilkes'
+          'pablo/picasso/rothkos/rilkes',
         ),
-        '*/rilkes'
+        '*/rilkes',
       );
     });
 
@@ -636,7 +636,7 @@ module('Unit | Ability | abstract', function (hooks) {
 
       assert.equal(
         this.ability._findMatchingNamespace(policyNamespaces, 'carter'),
-        'default'
+        'default',
       );
     });
   });

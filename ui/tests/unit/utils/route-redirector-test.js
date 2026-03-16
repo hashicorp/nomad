@@ -61,13 +61,13 @@ module('Unit | Utility | handle-route-redirects', function () {
         handleRouteRedirects(testCase.transition, router);
         assert.ok(
           router.replaceWith.calledOnce,
-          `${testCase.name}: redirect occurred`
+          `${testCase.name}: redirect occurred`,
         );
         assert.ok(
           router.replaceWith.calledWith(testCase.expectedPath, {
             queryParams: testCase.expectedQueryParams,
           }),
-          `${testCase.name}: redirected to correct path with query params`
+          `${testCase.name}: redirected to correct path with query params`,
         );
       });
 
@@ -79,7 +79,7 @@ module('Unit | Utility | handle-route-redirects', function () {
         handleRouteRedirects(testCase.transition, router);
         assert.notOk(
           router.replaceWith.called,
-          `${testCase.name}: no redirect occurred`
+          `${testCase.name}: no redirect occurred`,
         );
       });
   });
@@ -110,7 +110,7 @@ module('Unit | Utility | handle-route-redirects', function () {
           foo: 'bar',
         },
       }),
-      'All query parameters were preserved in the redirect'
+      'All query parameters were preserved in the redirect',
     );
   });
 });

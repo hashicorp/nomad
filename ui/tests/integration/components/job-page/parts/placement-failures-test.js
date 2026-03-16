@@ -57,24 +57,24 @@ module(
 
       assert.ok(
         find('[data-test-placement-failures]'),
-        'Placement failures section found'
+        'Placement failures section found',
       );
 
       const taskGroupLabels = findAll(
-        '[data-test-placement-failure-task-group]'
+        '[data-test-placement-failure-task-group]',
       ).map((title) => title.textContent.trim());
 
       failedTGAllocs.forEach((alloc) => {
         const name = alloc.get('name');
         assert.ok(
           taskGroupLabels.find((label) => label.includes(name)),
-          `${name} included in placement failures list`
+          `${name} included in placement failures list`,
         );
         assert.ok(
           taskGroupLabels.find((label) =>
-            label.includes(alloc.get('coalescedFailures') + 1)
+            label.includes(alloc.get('coalescedFailures') + 1),
           ),
-          'The number of unplaced allocs = CoalescedFailures + 1'
+          'The number of unplaced allocs = CoalescedFailures + 1',
         );
       });
 
@@ -99,8 +99,8 @@ module(
 
       assert.notOk(
         find('[data-test-placement-failures]'),
-        'Placement failures section not found'
+        'Placement failures section not found',
       );
     });
-  }
+  },
 );
