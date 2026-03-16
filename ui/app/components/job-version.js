@@ -31,14 +31,7 @@ export default class JobVersion extends Component {
 
   constructor() {
     super(...arguments);
-    this.initializeEditableTag();
-    this.versionsDidUpdate();
-  }
-
-  @action versionsDidUpdate() {
-    if (this.args.diffsExpanded && this.diff) {
-      this.isOpen = true;
-    }
+    this.isOpen = Boolean(this.args.diffsExpanded && this.diff);
   }
 
   initializeEditableTag() {
@@ -184,6 +177,10 @@ export default class JobVersion extends Component {
 
   @action
   toggleEditTag() {
+    if (!this.isEditing) {
+      this.initializeEditableTag();
+    }
+
     this.isEditing = !this.isEditing;
   }
 

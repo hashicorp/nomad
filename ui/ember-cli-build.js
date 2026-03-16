@@ -20,6 +20,12 @@ module.exports = function (defaults) {
       includePolyfill: isProd,
       enableTypeScriptTransform: true,
     },
+
+    babel: {
+      plugins: [
+        require.resolve('ember-concurrency/async-arrow-task-transform'),
+      ],
+    },
     hinting: isTest,
     tests: isTest,
     sassOptions: {

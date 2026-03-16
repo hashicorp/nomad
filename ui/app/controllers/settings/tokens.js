@@ -212,9 +212,22 @@ export default class Tokens extends Controller {
    * redirect them back to the page they were on.
    */
   optionallyRedirectPathAfterSignIn() {
-    if (this.token.postExpiryPath) {
-      this.router.transitionTo(this.token.postExpiryPath);
+    const redirectPath =
+      this.token.postExpiryPath &&
+      this.token.postExpiryPath !== '/settings/tokens'
+        ? this.token.postExpiryPath
+        : this.token.forbiddenReturnPath;
+
+    if (redirectPath && redirectPath !== '/settings/tokens') {
+      if (redirectPath.startsWith('/jobs')) {
+        this.router.transitionTo('jobs');
+      } else if (redirectPath.startsWith('/evaluations')) {
+        this.router.transitionTo('evaluations');
+      } else {
+        this.router.transitionTo(redirectPath);
+      }
       this.token.postExpiryPath = null;
+      this.token.forbiddenReturnPath = null;
 
       // Because they won't be on the page to see "Successfully signed in", use a toast.
       this.notifications.add({

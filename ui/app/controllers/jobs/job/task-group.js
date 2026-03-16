@@ -92,7 +92,7 @@ export default class TaskGroupController extends Controller.extend(
       }
       if (
         selectionClient.length &&
-        !selectionClient.includes(alloc.get('node.shortId'))
+        !selectionClient.includes(this.clientKeyForAllocation(alloc))
       ) {
         return false;
       }
@@ -101,6 +101,9 @@ export default class TaskGroupController extends Controller.extend(
     });
   }
 
+  clientKeyForAllocation(allocation) {
+    return allocation?.nodeID?.split('-')?.[0] || null;
+  }
   @alias('filteredAllocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
@@ -163,7 +166,11 @@ export default class TaskGroupController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
     const clients = Array.from(
-      new Set(this.model.allocations.mapBy('node.shortId')),
+      new Set(
+        this.model.allocations
+          .map((allocation) => this.clientKeyForAllocation(allocation))
+          .filter(Boolean),
+      ),
     ).compact();
 
     // Update query param when the list of clients changes.

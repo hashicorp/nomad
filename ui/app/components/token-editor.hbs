@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+<form class="acl-form" autocomplete="off" {{on "submit" this.save.perform}}>
 	<label>
     <Hds::Form::Label>
       Token Name
@@ -59,12 +59,14 @@
     </Hds::Form::Radio::Group>
 
     {{#if @token.expirationTime}}
-      <Hds::Form::TextInput::Field
+      <input
         data-test-token-expiration-time-input
-        @type="datetime-local"
-        @id="token-expiration-time"
-        {{on "change" this.updateTokenExpirationTime}}>
-      </Hds::Form::TextInput::Field>
+        type="datetime-local"
+        id="token-expiration-time"
+        step="any"
+        class="input token-expiration-datetime-input"
+        {{on "change" this.updateTokenExpirationTime}}
+      />
     {{/if}}
 
   {{else}}
@@ -266,8 +268,8 @@
 	<footer>
 		{{#if (can "update token")}}
       <Hds::Button @text="Save Token" @color="primary"
+        type="submit"
         data-test-token-save
-        {{on "click" this.save}}
       />
 		{{/if}}
 	</footer>

@@ -108,7 +108,7 @@ export default class AllocationsController extends Controller.extend(
       }
       if (
         selectionClient.length &&
-        !selectionClient.includes(alloc.get('node.shortId'))
+        !selectionClient.includes(this.clientKeyForAllocation(alloc))
       ) {
         return false;
       }
@@ -167,6 +167,10 @@ export default class AllocationsController extends Controller.extend(
   @selection('qpVersion') selectionVersion;
   @selection('qpScheduling') selectionScheduling;
 
+  clientKeyForAllocation(allocation) {
+    return allocation?.nodeID?.split('-')?.[0] || null;
+  }
+
   @action
   gotoAllocation(allocation) {
     this.router.transitionTo('allocations.allocation', allocation.id);
@@ -186,7 +190,11 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
     const clients = Array.from(
-      new Set(this.model.allocations.mapBy('node.shortId')),
+      new Set(
+        this.model.allocations
+          .map((allocation) => this.clientKeyForAllocation(allocation))
+          .filter(Boolean),
+      ),
     ).compact();
 
     // Update query param when the list of clients changes.

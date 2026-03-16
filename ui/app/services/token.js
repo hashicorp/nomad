@@ -27,6 +27,26 @@ export default class TokenService extends Service {
 
   tokenNotFound = false;
 
+  _postExpiryPath = null;
+
+  get postExpiryPath() {
+    return this._postExpiryPath;
+  }
+
+  set postExpiryPath(value) {
+    // Keep the original source route when it is already known.
+    // A later transition into settings.tokens should not replace it.
+    if (
+      value === '/settings/tokens' &&
+      this._postExpiryPath &&
+      this._postExpiryPath !== '/settings/tokens'
+    ) {
+      return;
+    }
+
+    this._postExpiryPath = value;
+  }
+
   @computed
   get secret() {
     return window.localStorage.nomadTokenSecret;
@@ -80,7 +100,7 @@ export default class TokenService extends Service {
           yield Promise.all(
             roles.map((role) => {
               return role.policies;
-            })
+            }),
           );
           rolePolicies = roles
             .map((role) => {
@@ -159,7 +179,7 @@ export default class TokenService extends Service {
       // or any time they refresh with under 10 minutes left
       if (diff < 1000 * 60 * MINUTES_LEFT_AT_WARNING) {
         const existingNotification = this.notifications.queue?.find(
-          (m) => m.title === EXPIRY_NOTIFICATION_TITLE
+          (m) => m.title === EXPIRY_NOTIFICATION_TITLE,
         );
         // For the sake of updating the "time left" message, we keep running the task down to the moment of expiration
         if (diff > 0) {
@@ -174,7 +194,7 @@ export default class TokenService extends Service {
               this.notifications.add({
                 title: EXPIRY_NOTIFICATION_TITLE,
                 message: `Your token access expires ${moment(
-                  this.selfToken.expirationTime
+                  this.selfToken.expirationTime,
                 ).fromNow()}`,
                 color: 'warning',
                 sticky: true,

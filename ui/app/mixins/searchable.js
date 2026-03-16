@@ -96,7 +96,7 @@ export default Mixin.create({
     'regexSearchProps.[]',
     'searchTerm',
     function () {
-      const searchTerm = this.searchTerm.trim();
+      const searchTerm = String(this.searchTerm || '').trim();
 
       if (!searchTerm || !searchTerm.length) {
         return this.listToSearch;
