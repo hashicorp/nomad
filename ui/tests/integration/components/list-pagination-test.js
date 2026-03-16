@@ -24,8 +24,6 @@ module('Integration | Component | list pagination', function (hooks) {
     .map((_, i) => i);
 
   test('the source property', async function (assert) {
-    assert.expect(36);
-
     this.set('source', list100);
     await render(hbs`
       <ListPagination @source={{this.source}} as |p|>
@@ -54,7 +52,7 @@ module('Integration | Component | list pagination', function (hooks) {
     );
     await componentA11yAudit(this.element, assert);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('.link').length,
       defaults.spread + 1,
       'Pages links spread to the right by the spread amount',
@@ -77,16 +75,16 @@ module('Integration | Component | list pagination', function (hooks) {
     );
     await componentA11yAudit(this.element, assert);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('.item').length,
       defaults.size,
       `Only ${defaults.size} (the default) number of items are rendered`,
     );
 
     for (var item = 0; item < defaults.size; item++) {
-      assert.equal(
+      assert.deepEqual(
         findAll('.item')[item].textContent,
-        item,
+        String(item),
         'Rendered items are in the current page',
       );
     }
@@ -104,7 +102,7 @@ module('Integration | Component | list pagination', function (hooks) {
     `);
 
     const totalPages = Math.ceil(this.source.length / this.size);
-    assert.equal(
+    assert.deepEqual(
       find('.page-info').textContent,
       `1 of ${totalPages}`,
       `${totalPages} total pages`,
@@ -112,8 +110,6 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   test('the spread property', async function (assert) {
-    assert.expect(12);
-
     this.setProperties({
       source: list100,
       spread: 1,
@@ -135,8 +131,6 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   test('page property', async function (assert) {
-    assert.expect(10);
-
     this.setProperties({
       source: list100,
       size: 5,
@@ -185,18 +179,16 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.notOk(findAll('.next').length, 'No next link');
     assert.notOk(findAll('.last').length, 'No last link');
 
-    assert.equal(find('.page-info').textContent, '1 of 1', 'Only one page');
-    assert.equal(
+    assert.deepEqual(find('.page-info').textContent, '1 of 1', 'Only one page');
+    assert.deepEqual(
       findAll('.item').length,
-      this.get('source.length'),
+      this.source.length,
       'Number of items equals length of source',
     );
   });
 
   // when there is less pages than the total spread amount
   test('when there is less pages than the total spread amount', async function (assert) {
-    assert.expect(9);
-
     this.setProperties({
       source: list100,
       spread: 4,
@@ -204,7 +196,7 @@ module('Integration | Component | list pagination', function (hooks) {
       page: 3,
     });
 
-    const totalPages = Math.ceil(this.get('source.length') / this.size);
+    const totalPages = Math.ceil(this.source.length / this.size);
 
     await render(hbs`
       <ListPagination @source={{this.source}} @page={{this.page}} @spread={{this.spread}} @size={{this.size}} as |p|>
@@ -223,7 +215,7 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.ok(findAll('.prev').length, 'Prev page still exists');
     assert.ok(findAll('.next').length, 'Next page still exists');
     assert.ok(findAll('.last').length, 'Last page still exists');
-    assert.equal(
+    assert.deepEqual(
       findAll('.link').length,
       totalPages,
       'Every page gets a page link',
@@ -237,7 +229,7 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   function testSpread(assert) {
-    const { spread, currentPage } = this.getProperties('spread', 'currentPage');
+    const { spread, currentPage } = this;
     for (
       var pageNumber = currentPage - spread;
       pageNumber <= currentPage + spread;
@@ -251,11 +243,11 @@ module('Integration | Component | list pagination', function (hooks) {
   }
 
   function testItems(assert) {
-    const { currentPage, size } = this.getProperties('currentPage', 'size');
+    const { currentPage, size } = this;
     for (var item = 0; item < size; item++) {
-      assert.equal(
+      assert.deepEqual(
         findAll('.item')[item].textContent,
-        item + (currentPage - 1) * size,
+        String(item + (currentPage - 1) * size),
         `Rendered items are in the current page, ${currentPage} (${
           item + (currentPage - 1) * size
         })`,

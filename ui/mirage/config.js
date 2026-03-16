@@ -53,6 +53,23 @@ function parseCompositeJobParam(rawId, namespace = 'default') {
   };
 }
 
+function getRequestHeader(headers, name) {
+  if (!headers) return undefined;
+
+  if (typeof headers.get === 'function') {
+    return headers.get(name) || headers.get(name.toLowerCase());
+  }
+
+  const direct =
+    headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()];
+  if (direct) return direct;
+
+  const matchingKey = Object.keys(headers).find(
+    (key) => key.toLowerCase() === name.toLowerCase(),
+  );
+  return matchingKey ? headers[matchingKey] : undefined;
+}
+
 export default function (config) {
   return createServer({
     ...config,
@@ -565,7 +582,7 @@ export default function (config) {
       this.get(
         '/job/:id/scale',
         withBlockingSupport(function ({ jobScales }, { params }) {
-          const obj = jobScales.findBy({ jobId: params.id });
+          // const obj = jobScales.findBy({ jobId: params.id });
           return this.serialize(jobScales.findBy({ jobId: params.id }));
         }),
       );
@@ -654,7 +671,7 @@ export default function (config) {
       this.get('/nodes', function ({ nodes }, req) {
         // authorize user permissions
         const token = server.db.tokens.findBy({
-          secretId: req.requestHeaders['X-Nomad-Token'],
+          secretId: getRequestHeader(req.requestHeaders, 'X-Nomad-Token'),
         });
 
         if (token) {
@@ -854,7 +871,7 @@ export default function (config) {
         },
       );
 
-      this.get('/acl/tokens', function ({ tokens }, req) {
+      this.get('/acl/tokens', function ({ tokens }) {
         return this.serialize(tokens.all());
       });
 
@@ -876,6 +893,7 @@ export default function (config) {
         } = JSON.parse(request.requestBody);
 
         function parseDuration(duration) {
+          // eslint-disable-next-line no-unused-vars
           const [_, value, unit] = duration.match(/(\d+)(\w)/);
           const unitMap = {
             s: 1000,
@@ -951,7 +969,7 @@ export default function (config) {
       });
 
       this.get('/acl/token/self', function ({ tokens }, req) {
-        const secret = req.requestHeaders['X-Nomad-Token'];
+        const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
         const tokenForSecret = tokens.findBy({ secretId: secret });
 
         // Return the token if it exists
@@ -982,7 +1000,7 @@ export default function (config) {
 
       this.get('/acl/token/:id', function ({ tokens }, req) {
         const token = tokens.find(req.params.id);
-        const secret = req.requestHeaders['X-Nomad-Token'];
+        const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
         const tokenForSecret = tokens.findBy({ secretId: secret });
 
         // Return the token only if the request header matches the token
@@ -1021,7 +1039,7 @@ export default function (config) {
 
       this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
         const policy = policies.findBy({ name: req.params.id });
-        const secret = req.requestHeaders['X-Nomad-Token'];
+        const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
         const tokenForSecret = tokens.findBy({ secretId: secret });
         if (req.params.id === 'anonymous') {
           if (policy) {
@@ -1052,7 +1070,7 @@ export default function (config) {
         return new Response(403, {}, null);
       });
 
-      this.get('/acl/roles', function ({ roles }, req) {
+      this.get('/acl/roles', function ({ roles }) {
         return this.serialize(roles.all());
       });
 
@@ -1106,11 +1124,11 @@ export default function (config) {
         return '';
       });
 
-      this.get('/acl/policies', function ({ policies }, req) {
+      this.get('/acl/policies', function ({ policies }) {
         return this.serialize(policies.all());
       });
 
-      this.get('/sentinel/policies', function (schema, req) {
+      this.get('/sentinel/policies', function (schema) {
         return this.serialize(schema.sentinelPolicies.all());
       });
 
@@ -1739,7 +1757,7 @@ export default function (config) {
       //#endregion Services
 
       //#region SSO
-      this.get('/acl/auth-methods', function (schema, request) {
+      this.get('/acl/auth-methods', function (schema) {
         return schema.authMethods.all();
       });
       this.post('/acl/oidc/auth-url', (schema, req) => {

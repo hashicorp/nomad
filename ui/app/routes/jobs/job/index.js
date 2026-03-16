@@ -79,9 +79,8 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   @action
   willTransition() {
-    // eslint-disable-next-line
     this.controller.childJobsController.abort();
-    // eslint-disable-next-line
+
     this.controller.watchChildJobs.cancelAll();
     this.cancelAllWatchers();
     return true;

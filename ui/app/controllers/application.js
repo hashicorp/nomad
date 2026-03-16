@@ -95,7 +95,6 @@ export default class ApplicationController extends Controller {
       });
     } else if (!macroCondition(isTesting())) {
       next(() => {
-        // eslint-disable-next-line
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });
     }

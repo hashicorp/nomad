@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { set } from '@ember/object';
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -129,7 +130,7 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('namespaces.[]')
+  @computed('_shouldShowNamespacesOverride', 'namespaces.[]')
   get shouldShowNamespaces() {
     if (this._shouldShowNamespacesOverride !== undefined) {
       return this._shouldShowNamespacesOverride;
@@ -143,8 +144,7 @@ export default class SystemService extends Service {
   }
 
   set shouldShowNamespaces(value) {
-    this._shouldShowNamespacesOverride = value;
-    return value;
+    set(this, '_shouldShowNamespacesOverride', value);
   }
 
   get shouldShowNodepools() {
@@ -158,7 +158,7 @@ export default class SystemService extends Service {
       return yield this.token
         .authorizedRawRequest(`/${namespace}/operator/license`)
         .then(jsonWithDefault(emptyLicense));
-    } catch (e) {
+    } catch {
       return emptyLicense;
     }
   })
@@ -175,7 +175,7 @@ export default class SystemService extends Service {
       });
 
       return request.ok;
-    } catch (e) {
+    } catch {
       return false;
     }
   })

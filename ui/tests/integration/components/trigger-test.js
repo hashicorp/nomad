@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, click, waitFor } from '@ember/test-helpers';
@@ -43,7 +42,7 @@ module('Integration | Component | trigger', function (hooks) {
         {{#if trigger.data.result}}
           <h2 data-test-name>{{trigger.data.result}}</h2>
         {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Generate</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Generate</button>
       </Trigger>
       `);
       assert
@@ -81,7 +80,7 @@ module('Integration | Component | trigger', function (hooks) {
         {{#if trigger.data.isSuccess}}
           <div data-test-div>Success!</div>
         {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 
@@ -153,7 +152,7 @@ module('Integration | Component | trigger', function (hooks) {
           {{#if trigger.data.isSuccess}}
             <span data-test-div>Success!</span>
           {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 
@@ -188,7 +187,7 @@ module('Integration | Component | trigger', function (hooks) {
           {{#if trigger.data.isError}}
             <span data-test-span>Error!</span>
           {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 

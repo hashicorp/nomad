@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -22,25 +21,23 @@ module('Acceptance | task detail', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
-    server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('job', { createAllocations: false });
+    allocation = this.server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
-    server.db.taskStates.update(
+    this.server.db.taskStates.update(
       { allocationId: allocation.id },
       { state: 'running' },
     );
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(1);
-
     await a11yAudit(assert);
   });
 
@@ -55,7 +52,8 @@ module('Acceptance | task detail', function (hooks) {
       'Task started at',
     );
 
-    const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
+    const lifecycle = this.server.db.tasks.where({ name: task.name })[0]
+      .Lifecycle;
 
     let lifecycleName = 'main';
     if (
@@ -70,50 +68,50 @@ module('Acceptance | task detail', function (hooks) {
       lifecycleName = 'poststop';
     }
 
-    assert.equal(Task.lifecycle, lifecycleName);
+    assert.deepEqual(Task.lifecycle, lifecycleName);
 
     assert.ok(getPageTitle().includes(`Task ${task.name}`));
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
-    const job = server.db.jobs.find(jobId);
+    const job = this.server.db.jobs.find(jobId);
 
     const shortId = allocation.id.split('-')[0];
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.index').text,
       'Jobs',
       'Jobs is the first breadcrumb',
     );
 
     await waitFor('[data-test-job-breadcrumb]');
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.job.index').text,
       `Job ${job.name}`,
       'Job is the second breadcrumb',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.job.task-group').text,
       `Task Group ${taskGroup}`,
       'Task Group is the third breadcrumb',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('allocations.allocation').text,
       `Allocation ${shortId}`,
       'Allocation short id is the fourth breadcrumb',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('allocations.allocation.task').text,
       `Task ${task.name}`,
       'Task name is the fifth breadcrumb',
     );
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
+    assert.deepEqual(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@default`,
       'Job breadcrumb links correctly',
@@ -121,7 +119,7 @@ module('Acceptance | task detail', function (hooks) {
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@default/${taskGroup}`,
       'Task Group breadcrumb links correctly',
@@ -129,7 +127,7 @@ module('Acceptance | task detail', function (hooks) {
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('allocations.allocation').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}`,
       'Allocations breadcrumb links correctly',
@@ -137,17 +135,17 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('/allocation/:id/:task_name should include resource utilization graphs', async function (assert) {
-    assert.equal(
+    assert.deepEqual(
       Task.resourceCharts.length,
       2,
       'Two resource utilization graphs',
     );
-    assert.equal(
+    assert.deepEqual(
       Task.resourceCharts.objectAt(0).name,
       'CPU',
       'First chart is CPU',
     );
-    assert.equal(
+    assert.deepEqual(
       Task.resourceCharts.objectAt(1).name,
       'Memory',
       'Second chart is Memory',
@@ -155,9 +153,9 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('the events table lists all recent events', async function (assert) {
-    const events = server.db.taskEvents.where({ taskStateId: task.id });
+    const events = this.server.db.taskEvents.where({ taskStateId: task.id });
 
-    assert.equal(
+    assert.deepEqual(
       Task.events.length,
       events.length,
       `Lists ${events.length} events`,
@@ -165,7 +163,7 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('when a task has volumes, the volumes table is shown', async function (assert) {
-    const taskGroup = server.schema.taskGroups.where({
+    const taskGroup = this.server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
     }).models[0];
@@ -173,26 +171,26 @@ module('Acceptance | task detail', function (hooks) {
     const jobTask = taskGroup.tasks.models.find((m) => m.name === task.name);
 
     assert.ok(Task.hasVolumes);
-    assert.equal(Task.volumes.length, jobTask.volumeMounts.length);
+    assert.deepEqual(Task.volumes.length, jobTask.volumeMounts.length);
   });
 
   test('when a task does not have volumes, the volumes table is not shown', async function (assert) {
-    const job = server.create('job', {
+    const job = this.server.create('job', {
       createAllocations: false,
       noHostVolumes: true,
     });
-    allocation = server.create('allocation', {
+    allocation = this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
     assert.notOk(Task.hasVolumes);
   });
 
   test('each volume in the volumes table shows information about the volume', async function (assert) {
-    const taskGroup = server.schema.taskGroups.where({
+    const taskGroup = this.server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
     }).models[0];
@@ -201,13 +199,13 @@ module('Acceptance | task detail', function (hooks) {
     const volume = jobTask.volumeMounts[0];
 
     Task.volumes[0].as((volumeRow) => {
-      assert.equal(volumeRow.name, volume.Volume);
-      assert.equal(volumeRow.destination, volume.Destination);
-      assert.equal(
+      assert.deepEqual(volumeRow.name, volume.Volume);
+      assert.deepEqual(volumeRow.destination, volume.Destination);
+      assert.deepEqual(
         volumeRow.permissions,
         volume.ReadOnly ? 'Read' : 'Read/Write',
       );
-      assert.equal(
+      assert.deepEqual(
         volumeRow.clientSource,
         taskGroup.volumes[volume.Volume].Source,
       );
@@ -216,18 +214,18 @@ module('Acceptance | task detail', function (hooks) {
 
   test('when a task group has metadata, the metadata table is shown', async function (assert) {
     faker.seed(2);
-    const job = server.create('job', {
+    const job = this.server.create('job', {
       createAllocations: false,
     });
-    const taskGroup = server.create('task-group', {
+    const taskGroup = this.server.create('task-group', {
       job,
       name: 'scaling',
       count: 1,
       withTaskMeta: true,
     });
     job.update({ taskGroupIds: [taskGroup.id] });
-    allocation = server.db.allocations[1];
-    server.db.taskStates.update(
+    allocation = this.server.db.allocations[1];
+    this.server.db.taskStates.update(
       { allocationId: allocation.id },
       { state: 'running' },
     );
@@ -238,64 +236,68 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('each recent event should list the time, type, and description of the event', async function (assert) {
-    const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
+    const event = this.server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
 
-    assert.equal(
+    assert.deepEqual(
       recentEvent.time,
       moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
       'Event timestamp',
     );
-    assert.equal(recentEvent.type, event.type, 'Event type');
-    assert.equal(recentEvent.message, event.displayMessage, 'Event message');
+    assert.deepEqual(recentEvent.type, event.type, 'Event type');
+    assert.deepEqual(
+      recentEvent.message,
+      event.displayMessage,
+      'Event message',
+    );
   });
 
   test('when the allocation is not found, the application errors', async function (assert) {
     await Task.visit({ id: 'not-a-real-allocation', name: task.name });
 
-    assert.equal(
-      server.pretender.handledRequests
+    assert.deepEqual(
+      this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/not-a-real-allocation/${task.name}`,
       'The URL persists',
     );
     assert.ok(Task.error.isPresent, 'Error message is shown');
-    assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
+    assert.deepEqual(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
   test('when the allocation is found but the task is not, the application errors', async function (assert) {
     await Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
 
     assert.ok(
-      server.pretender.handledRequests
+      this.server.pretender.handledRequests
         .filterBy('status', 200)
         .mapBy('url')
         .includes(`/v1/allocation/${allocation.id}`),
       'A request to the allocation is made successfully',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}/not-a-real-task-name`,
       'The URL persists',
     );
     assert.ok(Task.error.isPresent, 'Error message is shown');
-    assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
+    assert.deepEqual(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
   test('task can be restarted', async function (assert) {
     await Task.restart.idle();
     await Task.restart.confirm();
 
-    const request = server.pretender.handledRequests.find(
+    const request = this.server.pretender.handledRequests.find(
       (r) => r.method === 'PUT',
     );
-    assert.equal(
+    assert.deepEqual(
       request.url,
       `/v1/client/allocation/${allocation.id}/restart`,
       'Restart request is made for the allocation',
@@ -309,7 +311,7 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('when task restart fails (403), an ACL permissions error message is shown', async function (assert) {
-    server.pretender.put('/v1/client/allocation/:id/restart', () => [
+    this.server.pretender.put('/v1/client/allocation/:id/restart', () => [
       403,
       {},
       '',
@@ -336,7 +338,7 @@ module('Acceptance | task detail', function (hooks) {
 
   test('when task restart fails (500), the error message from the API is piped through to the alert', async function (assert) {
     const message = 'A plaintext error message';
-    server.pretender.put('/v1/client/allocation/:id/restart', () => [
+    this.server.pretender.put('/v1/client/allocation/:id/restart', () => [
       500,
       {},
       message,
@@ -348,7 +350,7 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.ok(Task.inlineError.isShown);
     assert.ok(Task.inlineError.title.includes('Could Not Restart Task'));
-    assert.equal(Task.inlineError.message, message);
+    assert.deepEqual(Task.inlineError.message, message);
 
     await Task.inlineError.dismiss();
 
@@ -365,14 +367,14 @@ module('Acceptance | task detail (no addresses)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
-    server.create('job');
-    allocation = server.create('allocation', 'withoutTaskWithPorts', {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('job');
+    allocation = this.server.create('allocation', 'withoutTaskWithPorts', {
       clientStatus: 'running',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
   });
@@ -383,33 +385,33 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
-    server.create('namespace');
-    server.create('namespace', { id: 'other-namespace' });
-    server.create('job', {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('namespace');
+    this.server.create('namespace', { id: 'other-namespace' });
+    this.server.create('job', {
       createAllocations: false,
       namespaceId: 'other-namespace',
     });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
+    allocation = this.server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
-    const job = server.db.jobs.find(jobId);
+    const job = this.server.db.jobs.find(jobId);
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
+    assert.deepEqual(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@other-namespace`,
       'Job breadcrumb links correctly',
@@ -417,7 +419,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@other-namespace/${taskGroup}`,
       'Task Group breadcrumb links correctly',
@@ -425,7 +427,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('allocations.allocation').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}`,
       'Allocations breadcrumb links correctly',
@@ -438,26 +440,26 @@ module('Acceptance | task detail (not running)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
-    server.create('namespace');
-    server.create('namespace', { id: 'other-namespace' });
-    server.create('job', {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('namespace');
+    this.server.create('namespace', { id: 'other-namespace' });
+    this.server.create('job', {
       createAllocations: false,
       namespaceId: 'other-namespace',
     });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
+    allocation = this.server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'complete',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
   test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function (assert) {
-    assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
-    assert.equal(
+    assert.deepEqual(Task.resourceCharts.length, 0, 'No resource charts');
+    assert.deepEqual(
       Task.resourceEmptyMessage,
       "Task isn't running",
       'Empty message is appropriate',
@@ -474,16 +476,16 @@ module('Acceptance | proxy task detail', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
-    server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('job', { createAllocations: false });
+    allocation = this.server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
 
     const taskState = allocation.taskStates.models[0];
-    const task = server.schema.tasks.findBy({ name: taskState.name });
+    const task = this.server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();
 

@@ -30,7 +30,7 @@ module('Unit | Utility | path-tree', function () {
       'Tree has a paths object that begins with a root',
     );
     assert.ok('children' in tree.paths.root, 'Root has children');
-    assert.equal(
+    assert.deepEqual(
       Object.keys(tree.paths.root.children).length,
       2,
       'Root has 2 children (a[...] and foo[...])',
@@ -57,23 +57,23 @@ module('Unit | Utility | path-tree', function () {
       'Finds a path at the concatenated folder path with multiple subdirectories',
     );
 
-    assert.equal(
+    assert.deepEqual(
       Object.keys(tree.findPath('a/b/c').children).length,
       3,
       'Multiple subdirectories are listed at a found compacted path with many child paths',
     );
 
-    assert.equal(
+    assert.deepEqual(
       Object.keys(tree.findPath('a/b').files).length,
       4,
       'Multiple files are listed at a found non-terminal compacted path with many variables',
     );
-    assert.equal(
+    assert.deepEqual(
       Object.keys(tree.findPath('a/b/c/doberman').files).length,
       1,
       'One file listed at a found compacted path with a single variable',
     );
-    assert.equal(
+    assert.deepEqual(
       Object.keys(tree.findPath('a/b/c/dachshund').files).length,
       2,
       'Multiple files listed at a found terminal compacted path with many variables',

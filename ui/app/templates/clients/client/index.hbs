@@ -479,7 +479,6 @@
       <div>
         Allocations
         <button
-          role="button"
           class="badge is-white"
           onclick={{action "setPreemptionFilter" false}}
           data-test-filter-all
@@ -489,7 +488,6 @@
         </button>
         {{#if this.preemptions.length}}
           <button
-            role="button"
             class="badge is-warning"
             onclick={{action "setPreemptionFilter" true}}
             data-test-filter-preemptions
@@ -770,7 +768,7 @@
       <ListAccordion @source={{this.sortedDrivers}} @key="name" as |a|>
         <a.head
           @buttonLabel="details"
-          @buttonType={{"client-detail"}}
+          @buttonType="client-detail"
           @isExpandable={{a.item.detected}}
         >
           <div

@@ -17,8 +17,6 @@ module(
     setupRenderingTest(hooks);
 
     test('it can wrap to a previous line while backspacing', async function (assert) {
-      assert.expect(2);
-
       let done = assert.async();
 
       await render(hbs`
@@ -33,7 +31,7 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '/bin/long');
+          assert.deepEqual(command, '/bin/long');
           done();
         },
         '/bin/long-command',
@@ -50,7 +48,7 @@ module(
 
       await settled();
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
         '/bin/long',
       );
@@ -59,8 +57,6 @@ module(
     });
 
     test('it ignores arrow keys and unprintable characters other than ^U', async function (assert) {
-      assert.expect(4);
-
       let done = assert.async();
 
       await render(hbs`
@@ -75,7 +71,7 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '/bin/bash!');
+          assert.deepEqual(command, '/bin/bash!');
           done();
         },
         '/bin/bash',
@@ -92,10 +88,10 @@ module(
 
       await settled();
 
-      assert.equal(terminal.buffer.active.cursorY, 0);
-      assert.equal(terminal.buffer.active.cursorX, 10);
+      assert.deepEqual(terminal.buffer.active.cursorY, 0);
+      assert.deepEqual(terminal.buffer.active.cursorX, 10);
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
         '/bin/bash!',
       );
@@ -104,8 +100,6 @@ module(
     });
 
     test('it supports typing ^U to delete the entire command', async function (assert) {
-      assert.expect(2);
-
       let done = assert.async();
 
       await render(hbs`
@@ -120,7 +114,7 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '!');
+          assert.deepEqual(command, '!');
           done();
         },
         'to-delete',
@@ -130,7 +124,7 @@ module(
 
       await settled();
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
         '',
       );

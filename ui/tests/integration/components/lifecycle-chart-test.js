@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -50,17 +49,15 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders stateless phases and lifecycle- and name-sorted tasks', async function (assert) {
-    assert.expect(32);
-
     this.set('tasks', tasks);
 
     await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
     assert.ok(Chart.isPresent);
 
-    assert.equal(Chart.phases[0].name, 'Prestart');
-    assert.equal(Chart.phases[1].name, 'Main');
-    assert.equal(Chart.phases[2].name, 'Poststart');
-    assert.equal(Chart.phases[3].name, 'Poststop');
+    assert.deepEqual(Chart.phases[0].name, 'Prestart');
+    assert.deepEqual(Chart.phases[1].name, 'Main');
+    assert.deepEqual(Chart.phases[2].name, 'Poststart');
+    assert.deepEqual(Chart.phases[3].name, 'Poststop');
 
     Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
 
@@ -113,12 +110,10 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     this.set('tasks', [tasks[0], tasks[6]]);
 
     await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
-    assert.equal(Chart.phases.length, 4);
+    assert.deepEqual(Chart.phases.length, 4);
   });
 
   test('it reflects phase and task states when states are passed in', async function (assert) {
-    assert.expect(26);
-
     this.set(
       'taskStates',
       tasks.map((task) => {
@@ -180,8 +175,6 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     },
   ].forEach(async ({ testName, runningTaskNames, activePhaseNames }) => {
     test(testName, async function (assert) {
-      assert.expect(4);
-
       this.set(
         'taskStates',
         tasks.map((task) => ({ task })),

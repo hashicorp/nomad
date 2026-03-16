@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/no-conditional-assertions */
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
@@ -17,8 +16,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
   setupRenderingTest(hooks);
 
   test('initiating socket sends authentication handshake', async function (assert) {
-    assert.expect(1);
-
     let done = assert.async();
 
     let terminal = new Terminal();
@@ -51,8 +48,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
   });
 
   test('initiating socket sends authentication handshake even if unauthenticated', async function (assert) {
-    assert.expect(1);
-
     let done = assert.async();
 
     let terminal = new Terminal();
@@ -85,8 +80,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
   });
 
   test('a heartbeat is sent periodically', async function (assert) {
-    assert.expect(1);
-
     let done = assert.async();
 
     const clock = sinon.useFakeTimers({
@@ -119,8 +112,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
   });
 
   test('resizing the window passes a resize message through the socket', async function (assert) {
-    assert.expect(1);
-
     let done = assert.async();
 
     let terminal = new Terminal();
@@ -198,7 +189,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       terminal.buffer.active.getLine(0).translateToString().trim(),
       'sh-3.2 🥳$',
     );

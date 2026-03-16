@@ -20,16 +20,12 @@ module('Integration | Component | copy-button', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it shows the copy icon by default', async function (assert) {
-    assert.expect(2);
-
     await render(hbs`<CopyButton />`);
     assert.dom('.copy-button .hds-icon-clipboard-copy').exists();
     await componentA11yAudit(this.element, assert);
   });
 
   test('it shows the success icon on success and resets afterward', async function (assert) {
-    assert.expect(4);
-
     const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
     await render(hbs`<CopyButton @clipboardText="tomster" />`);
@@ -49,8 +45,6 @@ module('Integration | Component | copy-button', function (hooks) {
   });
 
   test('it shows the error icon on error', async function (assert) {
-    assert.expect(2);
-
     await render(hbs`<CopyButton @clipboardText="tomster" />`);
 
     await click('.copy-button button');

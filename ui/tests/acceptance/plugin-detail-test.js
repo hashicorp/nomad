@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
@@ -24,9 +23,9 @@ module('Acceptance | plugin detail', function (hooks) {
   let plugin;
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
-    server.create('node');
-    plugin = server.create('csi-plugin', { controllerRequired: true });
+    this.server.create('node-pool');
+    this.server.create('node');
+    plugin = this.server.create('csi-plugin', { controllerRequired: true });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -37,9 +36,9 @@ module('Acceptance | plugin detail', function (hooks) {
   test('/storage/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
-    assert.equal(Layout.breadcrumbFor('storage.plugins').text, 'Plugins');
-    assert.equal(
+    assert.deepEqual(Layout.breadcrumbFor('storage.index').text, 'Storage');
+    assert.deepEqual(Layout.breadcrumbFor('storage.plugins').text, 'Plugins');
+    assert.deepEqual(
       Layout.breadcrumbFor('storage.plugins.plugin').text,
       plugin.id,
     );
@@ -51,7 +50,7 @@ module('Acceptance | plugin detail', function (hooks) {
     const pageTitle = getPageTitle();
     assert.ok(pageTitle.startsWith(`CSI Plugin ${plugin.id}`));
     assert.ok(pageTitle.endsWith(' - Nomad'));
-    assert.equal(PluginDetail.title, plugin.id);
+    assert.deepEqual(PluginDetail.title, plugin.id);
   });
 
   test('/storage/plugins/:id should list additional details for the plugin below the title', async function (assert) {
@@ -85,7 +84,7 @@ module('Acceptance | plugin detail', function (hooks) {
   test('/storage/plugins/:id should list all the controller plugin allocations for the plugin', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(
+    assert.deepEqual(
       PluginDetail.controllerAllocations.length,
       plugin.controllers.length,
     );
@@ -93,7 +92,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .sortBy('updateTime')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
+        assert.deepEqual(
           PluginDetail.controllerAllocations.objectAt(idx).id,
           allocation.allocID,
         );
@@ -103,12 +102,12 @@ module('Acceptance | plugin detail', function (hooks) {
   test('/storage/plugins/:id should list all the node plugin allocations for the plugin', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(PluginDetail.nodeAllocations.length, plugin.nodes.length);
+    assert.deepEqual(PluginDetail.nodeAllocations.length, plugin.nodes.length);
     plugin.nodes.models
       .sortBy('updateTime')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
+        assert.deepEqual(
           PluginDetail.nodeAllocations.objectAt(idx).id,
           allocation.allocID,
         );
@@ -119,14 +118,14 @@ module('Acceptance | plugin detail', function (hooks) {
     const controller = plugin.controllers.models
       .sortBy('updateTime')
       .reverse()[0];
-    const allocation = server.db.allocations.find(controller.allocID);
-    const allocStats = server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = server.db.taskGroups.findBy({
+    const allocation = this.server.db.allocations.find(controller.allocID);
+    const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
+    const taskGroup = this.server.db.taskGroups.findBy({
       name: allocation.taskGroup,
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
@@ -136,63 +135,63 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: plugin.id });
 
     PluginDetail.controllerAllocations.objectAt(0).as((allocationRow) => {
-      assert.equal(
+      assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
         'Allocation short ID',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM D'),
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.createTooltip,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.modifyTime,
         moment(allocation.modifyTime / 1000000).fromNow(),
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.health,
         controller.healthy ? 'Healthy' : 'Unhealthy',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.client,
-        server.db.nodes.find(allocation.nodeId).id.split('-')[0],
+        this.server.db.nodes.find(allocation.nodeId).id.split('-')[0],
         'Node ID',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.clientTooltip.substr(0, 15),
-        server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
+        this.server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
         'Node Name',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.job,
-        server.db.jobs.find(allocation.jobId).name,
+        this.server.db.jobs.find(allocation.jobId).name,
         'Job name',
       );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
-      assert.equal(
-        allocationRow.cpu,
+      assert.strictEqual(
+        Number(allocationRow.cpu),
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %',
       );
       const roundedTicks = Math.floor(
         allocStats.resourceUsage.CpuStats.TotalTicks,
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
         'Detailed CPU information is in a tooltip',
       );
-      assert.equal(
-        allocationRow.mem,
+      assert.strictEqual(
+        Number(allocationRow.mem),
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
         'Memory used',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.memTooltip,
         `${formatBytes(
           allocStats.resourceUsage.MemoryStats.RSS,
@@ -210,11 +209,11 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: plugin.id });
     await PluginDetail.controllerAllocations.objectAt(0).visit();
 
-    assert.equal(currentURL(), `/allocations/${controller.allocID}`);
+    assert.deepEqual(currentURL(), `/allocations/${controller.allocID}`);
   });
 
   test('when there are no plugin allocations, the tables present empty states', async function (assert) {
-    const emptyPlugin = server.create('csi-plugin', {
+    const emptyPlugin = this.server.create('csi-plugin', {
       controllerRequired: true,
       controllersHealthy: 0,
       controllersExpected: 0,
@@ -225,20 +224,20 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: emptyPlugin.id });
 
     assert.ok(PluginDetail.controllerTableIsEmpty);
-    assert.equal(
+    assert.deepEqual(
       PluginDetail.controllerEmptyState.headline,
       'No Controller Plugin Allocations',
     );
 
     assert.ok(PluginDetail.nodeTableIsEmpty);
-    assert.equal(
+    assert.deepEqual(
       PluginDetail.nodeEmptyState.headline,
       'No Node Plugin Allocations',
     );
   });
 
   test('when the plugin is node-only, the controller information is omitted', async function (assert) {
-    const nodeOnlyPlugin = server.create('csi-plugin', {
+    const nodeOnlyPlugin = this.server.create('csi-plugin', {
       controllerRequired: false,
     });
 
@@ -252,7 +251,7 @@ module('Acceptance | plugin detail', function (hooks) {
   });
 
   test('when there are more than 10 controller or node allocations, only 10 are shown', async function (assert) {
-    const manyAllocationsPlugin = server.create('csi-plugin', {
+    const manyAllocationsPlugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: false,
       nodesExpected: 15,
@@ -260,7 +259,7 @@ module('Acceptance | plugin detail', function (hooks) {
 
     await PluginDetail.visit({ id: manyAllocationsPlugin.id });
 
-    assert.equal(PluginDetail.nodeAllocations.length, 10);
+    assert.deepEqual(PluginDetail.nodeAllocations.length, 10);
   });
 
   test('the View All links under each allocation table link to a filtered view of the plugins allocation list', async function (assert) {
@@ -273,7 +272,7 @@ module('Acceptance | plugin detail', function (hooks) {
       ),
     );
     await PluginDetail.goToControllerAllocations();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/storage/plugins/${plugin.id}/allocations?type=${serialize([
         'controller',
@@ -285,7 +284,7 @@ module('Acceptance | plugin detail', function (hooks) {
       PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length),
     );
     await PluginDetail.goToNodeAllocations();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/storage/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`,
     );

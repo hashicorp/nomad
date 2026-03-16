@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import { getPageTitle } from 'ember-page-title/test-support';
 import {
@@ -33,18 +31,10 @@ let clientToken;
 
 const wasPreemptedFilter = (allocation) => !!allocation.preemptedByAllocation;
 
-function nonSearchPOSTS() {
+function nonSearchPOSTS(server) {
   return server.pretender.handledRequests
     .filter((request) => !request.url.includes('fuzzy'))
     .filter((request) => request.method === 'POST');
-}
-
-function pendingEligibilityPOSTS() {
-  return server.pretender.requestReferences
-    .map((ref) => ref.request)
-    .filter((request) => request.method === 'POST')
-    .filter((request) => request.url.includes('/v1/node/'))
-    .filter((request) => request.url.includes('/eligibility'));
 }
 
 module('Acceptance | client detail', function (hooks) {
@@ -54,24 +44,26 @@ module('Acceptance | client detail', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
 
-    server.create('node-pool');
-    server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
-    node = server.db.nodes[0];
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4', {
+      schedulingEligibility: 'eligible',
+    });
+    node = this.server.db.nodes[0];
 
-    managementToken = server.create('token');
-    clientToken = server.create('token');
+    managementToken = this.server.create('token');
+    clientToken = this.server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     // Related models
-    server.create('agent');
-    server.create('job', { createAllocations: false });
-    server.createList('allocation', 3);
-    server.create('allocation', 'preempted');
+    this.server.create('agent');
+    this.server.create('job', { createAllocations: false });
+    this.server.createList('allocation', 3);
+    this.server.create('allocation', 'preempted');
 
     // Force all allocations into the running state so now allocation rows are missing
     // CPU/Mem runtime metrics
-    server.schema.allocations.all().models.forEach((allocation) => {
+    this.server.schema.allocations.all().models.forEach((allocation) => {
       allocation.update({ clientStatus: 'running' });
     });
   });
@@ -86,18 +78,18 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(getPageTitle().includes(`Client ${node.name}`));
 
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('clients.index').text,
       'Clients',
       'First breadcrumb says clients',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('clients.client').text,
       `Client ${node.id.split('-')[0]}`,
       'Second breadcrumb is a titled breadcrumb saying the node short id',
     );
     await Layout.breadcrumbFor('clients.index').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/clients',
       'First breadcrumb links back to clients',
@@ -105,7 +97,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('/clients/:id should list immediate details for the node in the title', async function (assert) {
-    node = server.create('node', 'forceIPv4', {
+    node = this.server.create('node', 'forceIPv4', {
       schedulingEligibility: 'eligible',
       drain: false,
     });
@@ -114,7 +106,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
     assert.ok(ClientDetail.clientId.includes(node.id), 'Title includes id');
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.statusLight.objectAt(0).id,
       node.status,
       'Title includes status light',
@@ -145,17 +137,17 @@ module('Acceptance | client detail', function (hooks) {
   test('/clients/:id should include resource utilization graphs', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.resourceCharts.length,
       2,
       'Two resource utilization graphs',
     );
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.resourceCharts.objectAt(0).name,
       'CPU',
       'First chart is CPU',
     );
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.resourceCharts.objectAt(1).name,
       'Memory',
       'Second chart is Memory',
@@ -163,13 +155,13 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('/clients/:id should list all allocations on the node', async function (assert) {
-    const allocationsCount = server.db.allocations.where({
+    const allocationsCount = this.server.db.allocations.where({
       nodeId: node.id,
     }).length;
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.allocations.length,
       allocationsCount,
       `Allocations table lists all ${allocationsCount} associated allocations`,
@@ -177,7 +169,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('/clients/:id should show empty message if there are no allocations on the node', async function (assert) {
-    const emptyNode = server.create('node');
+    const emptyNode = this.server.create('node');
 
     await ClientDetail.visit({ id: emptyNode.id });
 
@@ -185,22 +177,22 @@ module('Acceptance | client detail', function (hooks) {
       ClientDetail.emptyAllocations.isVisible,
       'Empty message is visible',
     );
-    assert.equal(ClientDetail.emptyAllocations.headline, 'No Allocations');
+    assert.deepEqual(ClientDetail.emptyAllocations.headline, 'No Allocations');
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {
-    const allocation = server.db.allocations
+    const allocation = this.server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
       .reverse()[0];
 
-    const allocStats = server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = server.db.taskGroups.findBy({
+    const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
+    const taskGroup = this.server.db.taskGroups.findBy({
       name: allocation.taskGroup,
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
@@ -211,53 +203,53 @@ module('Acceptance | client detail', function (hooks) {
 
     const allocationRow = ClientDetail.allocations.objectAt(0);
 
-    assert.equal(
+    assert.deepEqual(
       allocationRow.shortId,
       allocation.id.split('-')[0],
       'Allocation short ID',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
       'Allocation create time',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.modifyTime,
       moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.status,
       allocation.clientStatus,
       'Client status',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.job,
-      server.db.jobs.find(allocation.jobId).name,
+      this.server.db.jobs.find(allocation.jobId).name,
       'Job name',
     );
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
-    assert.equal(allocationRow.volume, 'Yes', 'Volume');
-    assert.equal(
-      allocationRow.cpu,
+    assert.deepEqual(allocationRow.volume, 'Yes', 'Volume');
+    assert.strictEqual(
+      Number(allocationRow.cpu),
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
       'CPU %',
     );
     const roundedTicks = Math.floor(
       allocStats.resourceUsage.CpuStats.TotalTicks,
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
       'Detailed CPU information is in a tooltip',
     );
-    assert.equal(
-      allocationRow.mem,
+    assert.strictEqual(
+      Number(allocationRow.mem),
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.memTooltip,
       `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
         memoryUsed,
@@ -285,14 +277,14 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
 
     const allocationRow = ClientDetail.allocations.objectAt(0);
-    const allocation = server.db.allocations
+    const allocation = this.server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
       .reverse()[0];
 
-    assert.equal(
+    assert.deepEqual(
       allocationRow.job,
-      server.db.jobs.find(allocation.jobId).name,
+      this.server.db.jobs.find(allocation.jobId).name,
       'Job name',
     );
     assert.ok(
@@ -302,7 +294,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('each allocation should link to the allocation detail page', async function (assert) {
-    const allocation = server.db.allocations
+    const allocation = this.server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
       .reverse()[0];
@@ -310,7 +302,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.allocations.objectAt(0).visit();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}`,
       'Allocation rows link to allocation detail pages',
@@ -320,12 +312,12 @@ module('Acceptance | client detail', function (hooks) {
   test('each allocation should link to the job the allocation belongs to', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    const allocation = server.db.allocations.where({ nodeId: node.id })[0];
-    const job = server.db.jobs.find(allocation.jobId);
+    const allocation = this.server.db.allocations.where({ nodeId: node.id })[0];
+    const job = this.server.db.jobs.find(allocation.jobId);
 
     await ClientDetail.allocations.objectAt(0).visitJob();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@default`,
       'Allocation rows link to the job detail page for the allocation',
@@ -333,12 +325,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('the allocation section should show the count of preempted allocations on the client', async function (assert) {
-    const allocations = server.db.allocations.where({ nodeId: node.id });
+    const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(
-      ClientDetail.allocationFilter.allCount,
+    assert.strictEqual(
+      Number(ClientDetail.allocationFilter.allCount),
       allocations.length,
       'All filter/badge shows all allocations count',
     );
@@ -351,17 +343,17 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('clicking the preemption badge filters the allocations table and sets a query param', async function (assert) {
-    const allocations = server.db.allocations.where({ nodeId: node.id });
+    const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.allocationFilter.preemptions();
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.allocations.length,
       allocations.filter(wasPreemptedFilter).length,
       'Only preempted allocations are shown',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/clients/${node.id}?preemptions=true`,
       'Filter is persisted in the URL',
@@ -369,18 +361,18 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('clicking the total allocations badge resets the filter and removes the query param', async function (assert) {
-    const allocations = server.db.allocations.where({ nodeId: node.id });
+    const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.allocationFilter.preemptions();
     await ClientDetail.allocationFilter.all();
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.allocations.length,
       allocations.length,
       'All allocations are shown',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/clients/${node.id}`,
       'Filter is persisted in the URL',
@@ -388,11 +380,11 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('navigating directly to the client detail page with the preemption query param set will filter the allocations table', async function (assert) {
-    const allocations = server.db.allocations.where({ nodeId: node.id });
+    const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id, preemptions: true });
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.allocations.length,
       allocations.filter(wasPreemptedFilter).length,
       'Only preempted allocations are shown',
@@ -406,7 +398,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('/clients/:id lists all meta attributes', async function (assert) {
-    node = server.create('node', 'forceIPv4', 'withMeta');
+    node = this.server.create('node', 'forceIPv4', 'withMeta');
 
     await ClientDetail.visit({ id: node.id });
 
@@ -415,12 +407,12 @@ module('Acceptance | client detail', function (hooks) {
 
     const firstMetaKey = Object.keys(node.meta)[0];
     const firstMetaAttribute = ClientDetail.metaAttributes.objectAt(0);
-    assert.equal(
+    assert.deepEqual(
       firstMetaAttribute.key,
       firstMetaKey,
       'Meta attributes for the node are bound to the attributes table',
     );
-    assert.equal(
+    assert.deepEqual(
       firstMetaAttribute.value,
       node.meta[firstMetaKey],
       'Meta attributes for the node are bound to the attributes table',
@@ -429,7 +421,7 @@ module('Acceptance | client detail', function (hooks) {
 
   test('node metadata is uneditable by default', async function (assert) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
+    node = this.server.create('node', 'forceIPv4', 'withMeta');
     await ClientDetail.visit({ id: node.id });
 
     assert.dom('.edit-existing-metadata-button').exists({ count: 0 });
@@ -438,7 +430,7 @@ module('Acceptance | client detail', function (hooks) {
 
   test('node metadata is editable by managers', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
+    node = this.server.create('node', 'forceIPv4', 'withMeta');
     await ClientDetail.visit({ id: node.id });
 
     const numberOfExistingMetaKeys = Object.keys(node.meta).length;
@@ -450,7 +442,7 @@ module('Acceptance | client detail', function (hooks) {
 
   test('metadata can be added and removed', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
+    node = this.server.create('node', 'forceIPv4', 'withMeta');
     await ClientDetail.visit({ id: node.id });
 
     const numberOfExistingMetaKeys = Object.keys(node.meta).length;
@@ -498,7 +490,7 @@ module('Acceptance | client detail', function (hooks) {
 
   test('metadata can be edited', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create(
+    node = this.server.create(
       'node',
       {
         meta: {
@@ -564,16 +556,20 @@ module('Acceptance | client detail', function (hooks) {
   test('when the node is not found, an error message is shown, but the URL persists', async function (assert) {
     await ClientDetail.visit({ id: 'not-a-real-node' });
 
-    assert.equal(
-      server.pretender.handledRequests
+    assert.deepEqual(
+      this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/node/not-a-real-node',
       'A request to the nonexistent node is made',
     );
-    assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
+    assert.deepEqual(
+      currentURL(),
+      '/clients/not-a-real-node',
+      'The URL persists',
+    );
     assert.ok(ClientDetail.error.isShown, 'Error message is shown');
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.error.title,
       'Not Found',
       'Error message is for 404',
@@ -587,7 +583,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('each node event shows basic node event information', async function (assert) {
-    const event = server.db.nodeEvents
+    const event = this.server.db.nodeEvents
       .where({ nodeId: node.id })
       .sortBy('time')
       .reverse()[0];
@@ -595,13 +591,13 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
 
     const eventRow = ClientDetail.events.objectAt(0);
-    assert.equal(
+    assert.deepEqual(
       eventRow.time,
       moment(event.time).format("MMM DD, 'YY HH:mm:ss ZZ"),
       'Event timestamp',
     );
-    assert.equal(eventRow.subsystem, event.subsystem, 'Event subsystem');
-    assert.equal(eventRow.message, event.message, 'Event message');
+    assert.deepEqual(eventRow.subsystem, event.subsystem, 'Event subsystem');
+    assert.deepEqual(eventRow.message, event.message, 'Event message');
   });
 
   test('/clients/:id shows the driver status of every driver for the node', async function (assert) {
@@ -629,17 +625,17 @@ module('Acceptance | client detail', function (hooks) {
     drivers.forEach((driver, index) => {
       const driverHead = ClientDetail.driverHeads.objectAt(index);
 
-      assert.equal(
+      assert.deepEqual(
         driverHead.name,
         driver.Name,
         `${driver.Name}: Name is correct`,
       );
-      assert.equal(
+      assert.deepEqual(
         driverHead.detected,
         driver.Detected ? 'Yes' : 'No',
         `${driver.Name}: Detection is correct`,
       );
-      assert.equal(
+      assert.deepEqual(
         driverHead.lastUpdated,
         moment(driver.UpdateTime).fromNow(),
         `${driver.Name}: Last updated shows time since now`,
@@ -651,7 +647,7 @@ module('Acceptance | client detail', function (hooks) {
           `${driver.Name}: No health for the undetected driver`,
         );
       } else {
-        assert.equal(
+        assert.deepEqual(
           driverHead.health,
           driver.Healthy ? 'Healthy' : 'Unhealthy',
           `${driver.Name}: Health is correct`,
@@ -694,7 +690,7 @@ module('Acceptance | client detail', function (hooks) {
     );
 
     await driverHead.toggle();
-    assert.equal(
+    assert.deepEqual(
       driverBody.description,
       driver.HealthDescription,
       'Driver health description is now shown',
@@ -706,7 +702,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('the status light indicates when the node is ineligible for scheduling', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'ineligible',
       status: 'ready',
@@ -714,7 +710,7 @@ module('Acceptance | client detail', function (hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.statusLight.objectAt(0).id,
       'ineligible',
       'Title status light is in the ineligible state',
@@ -725,7 +721,7 @@ module('Acceptance | client detail', function (hooks) {
     const deadline = 5400000000000; // 1.5 hours in nanoseconds
     const forceDeadline = moment().add(1, 'd');
 
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
       drainStrategy: {
@@ -742,7 +738,7 @@ module('Acceptance | client detail', function (hooks) {
       'Deadline is shown in a human formatted way',
     );
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.drainDetails.deadlineTooltip,
       forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ"),
       'The tooltip for deadline shows the force deadline as an absolute date',
@@ -757,7 +753,7 @@ module('Acceptance | client detail', function (hooks) {
   test('when the node has a drain stategy with no deadline, the drain stategy section mentions that and omits the force deadline', async function (assert) {
     const deadline = 0;
 
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
       drainStrategy: {
@@ -788,7 +784,7 @@ module('Acceptance | client detail', function (hooks) {
   test('when the node has a drain stategy with a negative deadline, the drain strategy section shows the force badge', async function (assert) {
     const deadline = -1;
 
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
       drainStrategy: {
@@ -822,12 +818,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test.skip('toggling node eligibility disables the toggle and sends the correct POST request', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
 
-    server.pretender.post(
+    this.server.pretender.post(
       '/v1/node/:id/eligibility',
       () => [200, {}, ''],
       true,
@@ -837,31 +833,35 @@ module('Acceptance | client detail', function (hooks) {
     assert.ok(ClientDetail.eligibilityToggle.isActive);
 
     ClientDetail.eligibilityToggle.toggle();
-    await waitUntil(() => nonSearchPOSTS());
+    await waitUntil(() => nonSearchPOSTS(this.server));
 
     assert.ok(ClientDetail.eligibilityToggle.isDisabled);
-    server.pretender.resolve(server.pretender.requestReferences[0].request);
+    this.server.pretender.resolve(
+      this.server.pretender.requestReferences[0].request,
+    );
 
     await settled();
 
     assert.notOk(ClientDetail.eligibilityToggle.isActive);
     assert.notOk(ClientDetail.eligibilityToggle.isDisabled);
 
-    const request = nonSearchPOSTS()[0];
-    assert.equal(request.url, `/v1/node/${node.id}/eligibility`);
+    const request = nonSearchPOSTS(this.server)[0];
+    assert.deepEqual(request.url, `/v1/node/${node.id}/eligibility`);
     assert.deepEqual(JSON.parse(request.requestBody), {
       NodeID: node.id,
       Eligibility: 'ineligible',
     });
 
     ClientDetail.eligibilityToggle.toggle();
-    await waitUntil(() => nonSearchPOSTS().length === 2);
-    server.pretender.resolve(server.pretender.requestReferences[0].request);
+    await waitUntil(() => nonSearchPOSTS(this.server).length === 2);
+    this.server.pretender.resolve(
+      this.server.pretender.requestReferences[0].request,
+    );
 
     assert.ok(ClientDetail.eligibilityToggle.isActive);
-    const request2 = nonSearchPOSTS()[1];
+    const request2 = nonSearchPOSTS(this.server)[1];
 
-    assert.equal(request2.url, `/v1/node/${node.id}/eligibility`);
+    assert.deepEqual(request2.url, `/v1/node/${node.id}/eligibility`);
     assert.deepEqual(JSON.parse(request2.requestBody), {
       NodeID: node.id,
       Eligibility: 'eligible',
@@ -871,7 +871,7 @@ module('Acceptance | client detail', function (hooks) {
   test('starting a drain sends the correct POST request', async function (assert) {
     let request;
 
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
@@ -880,9 +880,9 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.toggle();
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
-    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    assert.deepEqual(request.url, `/v1/node/${node.id}/drain`);
     assert.deepEqual(
       JSON.parse(request.requestBody),
       {
@@ -899,7 +899,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.deadlineToggle.toggle();
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
@@ -918,7 +918,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.deadlineOptions.options[1].choose();
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
@@ -942,7 +942,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
@@ -961,7 +961,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.forceDrainToggle.toggle();
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
@@ -979,7 +979,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.systemJobsToggle.toggle();
     await ClientDetail.drainPopover.submit();
 
-    request = nonSearchPOSTS().pop();
+    request = nonSearchPOSTS(this.server).pop();
 
     assert.deepEqual(
       JSON.parse(request.requestBody),
@@ -995,7 +995,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('starting a drain persists options to localstorage', async function (assert) {
-    const nodes = server.createList('node', 2, {
+    const nodes = this.server.createList('node', 2, {
       drain: false,
       schedulingEligibility: 'eligible',
     });
@@ -1031,13 +1031,13 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: nodes[1].id });
     await ClientDetail.drainPopover.toggle();
     assert.true(ClientDetail.drainPopover.deadlineToggle.isActive);
-    assert.equal(ClientDetail.drainPopover.customDeadline, '1h40m20s');
+    assert.deepEqual(ClientDetail.drainPopover.customDeadline, '1h40m20s');
     assert.true(ClientDetail.drainPopover.forceDrainToggle.isActive);
     assert.false(ClientDetail.drainPopover.systemJobsToggle.isActive);
   });
 
   test('the drain popover cancel button closes the popover', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
@@ -1050,11 +1050,11 @@ module('Acceptance | client detail', function (hooks) {
 
     await ClientDetail.drainPopover.cancel();
     assert.notOk(ClientDetail.drainPopover.isOpen);
-    assert.equal(nonSearchPOSTS(), 0);
+    assert.strictEqual(nonSearchPOSTS(this.server).length, 0);
   });
 
   test('toggling eligibility is disabled while a drain is active', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
     });
@@ -1064,7 +1064,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('stopping a drain sends the correct POST request', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
     });
@@ -1075,8 +1075,8 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.stopDrain.idle();
     await ClientDetail.stopDrain.confirm();
 
-    const request = nonSearchPOSTS()[0];
-    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    const request = nonSearchPOSTS(this.server)[0];
+    assert.deepEqual(request.url, `/v1/node/${node.id}/drain`);
     assert.deepEqual(JSON.parse(request.requestBody), {
       NodeID: node.id,
       DrainSpec: null,
@@ -1084,17 +1084,17 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when a drain is active, the "drain" popover is labeled as the "update" popover', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
     });
 
     await ClientDetail.visit({ id: node.id });
-    assert.equal(ClientDetail.drainPopover.label, 'Update Drain');
+    assert.deepEqual(ClientDetail.drainPopover.label, 'Update Drain');
   });
 
   test('forcing a drain sends the correct POST request', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
       drainStrategy: {
@@ -1107,8 +1107,8 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainDetails.force.idle();
     await ClientDetail.drainDetails.force.confirm();
 
-    const request = nonSearchPOSTS()[0];
-    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    const request = nonSearchPOSTS(this.server)[0];
+    assert.deepEqual(request.url, `/v1/node/${node.id}/drain`);
     assert.deepEqual(JSON.parse(request.requestBody), {
       NodeID: node.id,
       DrainSpec: {
@@ -1119,12 +1119,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when stopping a drain fails, an error is shown', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
     });
 
-    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+    this.server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.stopDrain.idle();
@@ -1139,12 +1139,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when starting a drain fails, an error message is shown', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
 
-    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+    this.server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.drainPopover.toggle();
@@ -1159,12 +1159,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when updating a drain fails, an error message is shown', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
     });
 
-    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+    this.server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.drainPopover.toggle();
@@ -1179,12 +1179,12 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when toggling eligibility fails, an error message is shown', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
 
-    server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
+    this.server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.eligibilityToggle.toggle();
@@ -1200,14 +1200,14 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('when navigating away from a client that has an error message to another client, the error is not shown', async function (assert) {
-    node = server.create('node', {
+    node = this.server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
 
-    const node2 = server.create('node');
+    const node2 = this.server.create('node');
 
-    server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
+    this.server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.eligibilityToggle.toggle();
@@ -1239,13 +1239,13 @@ module('Acceptance | client detail', function (hooks) {
       .sortBy('Name');
 
     assert.ok(ClientDetail.hasHostVolumes);
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.hostVolumes.length,
       Object.keys(node.hostVolumes).length,
     );
 
     ClientDetail.hostVolumes.forEach((volume, index) => {
-      assert.equal(volume.name, sortedHostVolumes[index].Name);
+      assert.deepEqual(volume.name, sortedHostVolumes[index].Name);
     });
   });
 
@@ -1258,9 +1258,9 @@ module('Acceptance | client detail', function (hooks) {
 
     ClientDetail.hostVolumes[0].as((volume) => {
       const volumeRow = sortedHostVolumes[0];
-      assert.equal(volume.name, volumeRow.Name);
-      assert.equal(volume.path, volumeRow.Path);
-      assert.equal(
+      assert.deepEqual(volume.name, volumeRow.Name);
+      assert.deepEqual(volume.path, volumeRow.Path);
+      assert.deepEqual(
         volume.permissions,
         volumeRow.ReadOnly ? 'Read' : 'Read/Write',
       );
@@ -1268,7 +1268,7 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('the host volumes table is not shown if the client has no host volumes', async function (assert) {
-    node = server.create('node', 'noHostVolumes');
+    node = this.server.create('node', 'noHostVolumes');
 
     await ClientDetail.visit({ id: node.id });
 
@@ -1282,8 +1282,8 @@ module('Acceptance | client detail', function (hooks) {
       return Array.from(new Set(allocs.mapBy('jobId'))).sort();
     },
     async beforeEach() {
-      server.create('node-pool');
-      server.createList('job', 5);
+      this.server.create('node-pool');
+      this.server.createList('job', 5);
       await ClientDetail.visit({ id: node.id });
     },
     filter: (alloc, selection) => selection.includes(alloc.jobId),
@@ -1301,11 +1301,11 @@ module('Acceptance | client detail', function (hooks) {
       'Unknown',
     ],
     async beforeEach() {
-      server.create('node-pool');
-      server.createList('job', 5, { createAllocations: false });
+      this.server.create('node-pool');
+      this.server.createList('job', 5, { createAllocations: false });
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
-          server.createList('allocation', 5, { clientStatus: s });
+          this.server.createList('allocation', 5, { clientStatus: s });
         },
       );
 
@@ -1315,8 +1315,11 @@ module('Acceptance | client detail', function (hooks) {
   });
 
   test('fiter results with no matches display empty message', async function (assert) {
-    const job = server.create('job', { createAllocations: false });
-    server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+    const job = this.server.create('job', { createAllocations: false });
+    this.server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+    });
 
     await ClientDetail.visit({ id: node.id });
     const statusFacet = ClientDetail.facets.status;
@@ -1324,7 +1327,7 @@ module('Acceptance | client detail', function (hooks) {
     await statusFacet.options.objectAt(0).toggle();
 
     assert.true(ClientDetail.emptyAllocations.isVisible);
-    assert.equal(ClientDetail.emptyAllocations.headline, 'No Matches');
+    assert.deepEqual(ClientDetail.emptyAllocations.headline, 'No Matches');
   });
 });
 
@@ -1333,34 +1336,36 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
-    server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
-    node = server.db.nodes[0];
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4', {
+      schedulingEligibility: 'eligible',
+    });
+    node = this.server.db.nodes[0];
 
     // Related models
-    server.create('namespace');
-    server.create('namespace', { id: 'other-namespace' });
+    this.server.create('namespace');
+    this.server.create('namespace', { id: 'other-namespace' });
 
-    server.create('agent');
+    this.server.create('agent');
 
     // Make a job for each namespace, but have both scheduled on the same node
-    server.create('job', {
+    this.server.create('job', {
       id: 'job-1',
       namespaceId: 'default',
       createAllocations: false,
     });
-    server.createList('allocation', 3, {
+    this.server.createList('allocation', 3, {
       nodeId: node.id,
       jobId: 'job-1',
       clientStatus: 'running',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       id: 'job-2',
       namespaceId: 'other-namespace',
       createAllocations: false,
     });
-    server.createList('allocation', 3, {
+    this.server.createList('allocation', 3, {
       nodeId: node.id,
       jobId: 'job-2',
       clientStatus: 'running',
@@ -1372,17 +1377,19 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(
+    assert.deepEqual(
       ClientDetail.allocations.length,
-      server.db.allocations.length,
+      this.server.db.allocations.length,
       'All allocations are scheduled on this node',
     );
     assert.ok(
-      server.pretender.handledRequests.find((r) => r.url === '/v1/job/job-1'),
+      this.server.pretender.handledRequests.find(
+        (r) => r.url === '/v1/job/job-1',
+      ),
       'Job One fetched correctly',
     );
     assert.ok(
-      server.pretender.handledRequests.find(
+      this.server.pretender.handledRequests.find(
         (r) => r.url === '/v1/job/job-2?namespace=other-namespace',
       ),
       'Job Two fetched correctly',
@@ -1435,12 +1442,12 @@ function testFacet(
   { facet, paramName, beforeEach, filter, expectedOptions },
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     let expectation;
     if (typeof expectedOptions === 'function') {
-      expectation = expectedOptions(server.db.allocations);
+      expectation = expectedOptions.call(this, this.server.db.allocations);
     } else {
       expectation = expectedOptions;
     }
@@ -1455,20 +1462,20 @@ function testFacet(
   test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
     let option;
 
-    await beforeEach();
+    await beforeEach.call(this);
 
     await facet.toggle();
     option = facet.options.objectAt(0);
     await option.toggle();
 
     const selection = [option.key];
-    const expectedAllocs = server.db.allocations
+    const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     ClientDetail.allocations.forEach((alloc, index) => {
-      assert.equal(
+      assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
         `Allocation at ${index} is ${expectedAllocs[index].id}`,
@@ -1479,7 +1486,7 @@ function testFacet(
   test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);
@@ -1489,13 +1496,13 @@ function testFacet(
     await option2.toggle();
     selection.push(option2.key);
 
-    const expectedAllocs = server.db.allocations
+    const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     ClientDetail.allocations.forEach((alloc, index) => {
-      assert.equal(
+      assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
         `Allocation at ${index} is ${expectedAllocs[index].id}`,
@@ -1506,7 +1513,7 @@ function testFacet(
   test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);
@@ -1516,7 +1523,7 @@ function testFacet(
     await option2.toggle();
     selection.push(option2.key);
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/clients/${node.id}?${paramName}=${encodeURIComponent(
         JSON.stringify(selection),

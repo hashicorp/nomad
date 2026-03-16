@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 /* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import { later, next } from '@ember/runloop';

@@ -39,7 +39,7 @@ module('Unit | Service | Token', function (hooks) {
     const token = this.subject();
 
     token.authorizedRequest('/path');
-    assert.equal(
+    assert.deepEqual(
       [...this.server.handledRequests].pop().url,
       `/path?region=${this.system.get('activeRegion')}`,
       'The region param is included when the system service shouldIncludeRegion property is true',
@@ -48,7 +48,7 @@ module('Unit | Service | Token', function (hooks) {
     this.system.set('shouldIncludeRegion', false);
 
     token.authorizedRequest('/path');
-    assert.equal(
+    assert.deepEqual(
       [...this.server.handledRequests].pop().url,
       '/path',
       'The region param is not included when the system service shouldIncludeRegion property is false',
@@ -59,7 +59,7 @@ module('Unit | Service | Token', function (hooks) {
     const token = this.subject();
 
     token.authorizedRequest('/path?query=param&region=already-here');
-    assert.equal(
+    assert.deepEqual(
       [...this.server.handledRequests].pop().url,
       '/path?query=param&region=already-here',
       'The region param that is already in the URL takes precedence over the region in the service',
@@ -70,7 +70,7 @@ module('Unit | Service | Token', function (hooks) {
     const token = this.subject();
 
     token.authorizedRawRequest('/path');
-    assert.equal(
+    assert.deepEqual(
       [...this.server.handledRequests].pop().url,
       '/path',
       'The region param is ommitted when making a raw request',

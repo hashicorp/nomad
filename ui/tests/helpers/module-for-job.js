@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 import { currentRouteName, currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -41,9 +39,9 @@ export default function moduleForJob(
     });
 
     hooks.beforeEach(async function () {
-      server.create('node-pool');
-      server.create('node');
-      job = jobFactory();
+      this.server.create('node-pool');
+      this.server.create('node');
+      job = jobFactory(this.server);
       if (!job.namespace) {
         await JobDetail.visit({ id: job.id });
       } else {
@@ -56,7 +54,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}`
         : `/jobs/${job.name}`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
       assert.ok(document.title.startsWith(`Job ${job.name}`));
       assert.ok(document.title.endsWith(' - Nomad'));
     });
@@ -68,7 +66,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}`
         : `/jobs/${job.name}`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the subnav links to definition', async function (assert) {
@@ -88,7 +86,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}/versions`
         : `/jobs/${job.name}/versions`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the title buttons are dependent on job status', async function (assert) {
@@ -110,13 +108,16 @@ export default function moduleForJob(
     });
 
     test('page header displays job information', async function (assert) {
-      assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
-      assert.equal(
+      assert.deepEqual(JobDetail.statFor('type').text, `Type ${job.type}`);
+      assert.deepEqual(
         JobDetail.statFor('priority').text,
         `Priority ${job.priority}`,
       );
-      assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
-      assert.equal(
+      assert.deepEqual(
+        JobDetail.statFor('version').text,
+        `Version ${job.version}`,
+      );
+      assert.deepEqual(
         JobDetail.statFor('node-pool').text,
         `Node Pool ${job.nodePool}`,
       );
@@ -143,7 +144,7 @@ export default function moduleForJob(
 
         await allocationRow.visitRow();
 
-        assert.equal(
+        assert.deepEqual(
           currentURL(),
           `/allocations/${allocationId}`,
           'Allocation row links to allocation detail',
@@ -160,7 +161,7 @@ export default function moduleForJob(
           ? `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/${tgName}`
           : `/jobs/${encodeURIComponent(job.name)}/${tgName}`;
 
-        assert.equal(currentURL(), expectedURL);
+        assert.deepEqual(currentURL(), expectedURL);
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
@@ -185,7 +186,7 @@ export default function moduleForJob(
         );
         const gotURL = new URL(currentURL(), window.location);
         assert.deepEqual(gotURL.pathname, expectedURL.pathname);
-        assert.equal(
+        assert.deepEqual(
           gotURL.searchParams.get('status'),
           expectedURL.searchParams.get('status'),
           'Status filter is preserved in query params',
@@ -216,7 +217,7 @@ export default function moduleForJob(
         // Sort and compare URL query params.
         gotURL.searchParams.sort();
         expectedURL.searchParams.sort();
-        assert.equal(
+        assert.deepEqual(
           gotURL.searchParams.toString(),
           expectedURL.searchParams.toString(),
         );
@@ -242,7 +243,7 @@ export default function moduleForJob(
           ? `/jobs/${job.name}@${job.namespace}/evaluations`
           : `/jobs/${job.name}/evaluations`;
 
-        assert.equal(decodeURIComponent(currentURL()), expectedURL);
+        assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
       });
     }
 
@@ -270,24 +271,27 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
-      server.createList('node-pool', 3);
-      const clients = server.createList('node', 3, {
+      this.server.createList('node-pool', 3);
+      const clients = this.server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
       });
 
       clients.push(
-        server.create('node', { datacenter: 'dc2', status: 'ready' }),
+        this.server.create('node', { datacenter: 'dc2', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'dc3', status: 'ready' }),
+        this.server.create('node', { datacenter: 'dc3', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'canada-west-1', status: 'ready' }),
+        this.server.create('node', {
+          datacenter: 'canada-west-1',
+          status: 'ready',
+        }),
       );
-      job = jobFactory();
+      job = jobFactory(this.server);
       clients.forEach((c) => {
-        server.create('allocation', {
+        this.server.create('allocation', {
           jobId: job.id,
           nodeId: c.id,
           clientStatus: 'running',
@@ -298,7 +302,7 @@ export function moduleForJobWithClientStatus(
     module('with node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Displaying the job status in client requires node:read permission.
-        setPolicy({
+        setPolicy.call(this, {
           id: 'node-read',
           name: 'node-read',
           rulesJSON: {
@@ -318,7 +322,7 @@ export function moduleForJobWithClientStatus(
           ? `/jobs/${job.id}@${job.namespace}/clients`
           : `/jobs/${job.id}/clients`;
 
-        assert.equal(currentURL(), expectedURL);
+        assert.deepEqual(currentURL(), expectedURL);
       });
 
       for (var testName in additionalTests) {
@@ -331,7 +335,7 @@ export function moduleForJobWithClientStatus(
     module('without node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Test blank Node policy to mock lack of permission.
-        setPolicy({
+        setPolicy.call(this, {
           id: 'node',
           name: 'node',
           rulesJSON: {},
@@ -351,7 +355,7 @@ export function moduleForJobWithClientStatus(
       test('/jobs/job/clients route is protected with authorization logic', async function (assert) {
         await visit(`/jobs/${job.id}/clients`);
 
-        assert.equal(
+        assert.deepEqual(
           currentRouteName(),
           'jobs.job.index',
           'The clients route cannot be visited unless you have node:read permissions',

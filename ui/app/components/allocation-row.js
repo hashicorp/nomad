@@ -90,7 +90,7 @@ export default class AllocationRow extends Component {
         try {
           yield this.get('stats.poll').linked().perform();
           this.set('statsError', false);
-        } catch (error) {
+        } catch {
           this.set('statsError', true);
         }
       }

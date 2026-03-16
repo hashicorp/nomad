@@ -755,7 +755,7 @@ function rolesTestCluster(server) {
   server.createList('node', 5);
   server.createList('job', 5);
 
-  // createTokens(server);
+  createTokens(server);
 
   // Create policies
   const clientReaderPolicy = server.create('policy', {
@@ -875,68 +875,68 @@ function rolesTestCluster(server) {
 
   // Create tokens
 
-  let managementToken = server.create('token', {
+  server.create('token', {
     type: 'management',
     name: 'Management Token',
   });
 
-  let clientReaderToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: "N. O'DeReader",
     policyIds: [clientReaderPolicy.id],
   });
 
-  let clientWriterToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: "N. O'DeWriter",
     policyIds: [clientWriterPolicy.id],
   });
 
-  let dualPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi-policy Token',
     policyIds: [clientReaderPolicy.id, clientWriterPolicy.id],
   });
 
-  let highLevelViaPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'High Level Policy Token',
     policyIds: [highLevelJobPolicy.id],
   });
 
-  let highLevelViaRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'High Level Role Token',
     roleIds: [highLevelRole.id],
   });
 
-  let policyAndRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Policy And Role Token',
     policyIds: [operatorPolicy.id],
     roleIds: [readerRole.id],
   });
 
-  let multiRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi Role Token',
     roleIds: [editorRole.id, highLevelRole.id],
   });
 
-  let multiRoleAndPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi Role And Policy Token',
     roleIds: [editorRole.id, highLevelRole.id],
     policyIds: [clientWriterPolicy.id], // also included within editorRole, so redundant here.
   });
 
-  let noClientsViaPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Clientless Policy Token',
     policyIds: [clientDenierPolicy.id],
   });
 
-  let noClientsViaRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Clientless Role Token',
     roleIds: [denierRole.id],
@@ -1230,7 +1230,6 @@ function createRegions(server) {
   );
 }
 
-/* eslint-disable */
 function logTokens(server) {
   console.log('TOKENS:');
   server.db.tokens.forEach((token) => {
@@ -1273,7 +1272,6 @@ function getScenarioQueryParameter() {
   }
   return mirageScenario;
 }
-/* eslint-enable */
 
 export function createRestartableJobs(server) {
   const restartableJob = server.create('job', {

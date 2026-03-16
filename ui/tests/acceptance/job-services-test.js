@@ -16,12 +16,11 @@ module('Acceptance | job services', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {
-    allScenarios.servicesTestCluster(server);
+    allScenarios.servicesTestCluster(this.server);
     await Services.visit({ id: 'service-haver@default' });
   });
 
   test('Visiting job services', async function (assert) {
-    assert.expect(3);
     assert.dom('.tabs.is-subnav a.is-active').hasText('Services');
     assert.dom('.service-list table').exists();
     await a11yAudit(assert);
@@ -52,9 +51,9 @@ module('Acceptance | job services', function (hooks) {
       'correctly traverses to a service instance list',
     );
 
-    assert.equal(
+    assert.strictEqual(
       findAll('tr[data-test-service-row]').length,
-      expectedNumAllocs,
+      Number(expectedNumAllocs),
       'Same number of alloc rows as the index shows',
     );
   });

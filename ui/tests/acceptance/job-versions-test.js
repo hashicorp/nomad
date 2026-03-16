@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 import {
   currentURL,
   click,
@@ -32,11 +30,11 @@ module('Acceptance | job versions', function (hooks) {
 
   hooks.beforeEach(async function () {
     faker.seed(1);
-    server.create('node-pool');
-    server.create('namespace');
-    namespace = server.create('namespace');
+    this.server.create('node-pool');
+    this.server.create('namespace');
+    namespace = this.server.create('namespace');
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       namespaceId: namespace.id,
       createAllocations: false,
       noDeployments: true,
@@ -44,11 +42,11 @@ module('Acceptance | job versions', function (hooks) {
     });
 
     // Create some versions
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job,
       version: 0,
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job,
       version: 1,
       versionTag: {
@@ -56,9 +54,9 @@ module('Acceptance | job versions', function (hooks) {
         Description: 'A tag with a brief description',
       },
     });
-    versions = server.db.jobVersions.where({ jobId: job.id });
+    versions = this.server.db.jobVersions.where({ jobId: job.id });
 
-    const managementToken = server.create('token');
+    const managementToken = this.server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     await Versions.visit({ id: `${job.id}@${namespace.id}` });
@@ -69,12 +67,12 @@ module('Acceptance | job versions', function (hooks) {
   });
 
   test('/jobs/:id/versions should list all job versions', async function (assert) {
-    assert.equal(
+    assert.deepEqual(
       Versions.versions.length,
       versions.length,
       'Each version gets a row in the timeline',
     );
-    assert.equal(getPageTitle(), `Job ${job.name} versions - Nomad`);
+    assert.deepEqual(getPageTitle(), `Job ${job.name} versions - Nomad`);
   });
 
   test('each version mentions the version number, the stability, and the submitted time', async function (assert) {
@@ -88,8 +86,12 @@ module('Acceptance | job versions', function (hooks) {
       versionRow.text.includes(`Version #${version.version}`),
       'Version #',
     );
-    assert.equal(versionRow.stability, version.stable.toString(), 'Stability');
-    assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
+    assert.deepEqual(
+      versionRow.stability,
+      version.stable.toString(),
+      'Stability',
+    );
+    assert.deepEqual(versionRow.submitTime, formattedSubmitTime, 'Submit time');
   });
 
   test('all versions but the current one have a button to revert to that version', async function (assert) {
@@ -114,7 +116,7 @@ module('Acceptance | job versions', function (hooks) {
         (request) => request.url.includes('revert'),
       );
 
-      assert.equal(
+      assert.deepEqual(
         revertRequest.url,
         `/v1/job/${job.id}/revert?namespace=${namespace.id}`,
       );
@@ -125,7 +127,7 @@ module('Acceptance | job versions', function (hooks) {
       });
 
       await waitUntil(() => currentURL() === `/jobs/${job.id}@${namespace.id}`);
-      assert.equal(currentURL(), `/jobs/${job.id}@${namespace.id}`);
+      assert.deepEqual(currentURL(), `/jobs/${job.id}@${namespace.id}`);
     }
   });
 
@@ -136,7 +138,11 @@ module('Acceptance | job versions', function (hooks) {
 
     if (versionRowToRevertTo) {
       const message = 'A plaintext error message';
-      server.pretender.post('/v1/job/:id/revert', () => [500, {}, message]);
+      this.server.pretender.post('/v1/job/:id/revert', () => [
+        500,
+        {},
+        message,
+      ]);
 
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
@@ -145,13 +151,11 @@ module('Acceptance | job versions', function (hooks) {
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isDanger);
       assert.ok(Layout.inlineError.title.includes('Could Not Revert'));
-      assert.equal(Layout.inlineError.message, message);
+      assert.deepEqual(Layout.inlineError.message, message);
 
       await Layout.inlineError.dismiss();
 
       assert.notOk(Layout.inlineError.isShown);
-    } else {
-      assert.expect(0);
     }
   });
 
@@ -162,7 +166,7 @@ module('Acceptance | job versions', function (hooks) {
 
     if (versionRowToRevertTo) {
       // The default Mirage implementation updates the job version as passed in, this does nothing
-      server.pretender.post('/v1/job/:id/revert', () => [200, {}, '{}']);
+      this.server.pretender.post('/v1/job/:id/revert', () => [200, {}, '{}']);
 
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
@@ -171,26 +175,24 @@ module('Acceptance | job versions', function (hooks) {
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isWarning);
       assert.ok(Layout.inlineError.title.includes('Reversion Had No Effect'));
-      assert.equal(
+      assert.deepEqual(
         Layout.inlineError.message,
         'Reverting to an identical older version doesn’t produce a new version',
       );
-    } else {
-      assert.expect(0);
     }
   });
 
   test('when the job for the versions is not found, an error message is shown, but the URL persists', async function (assert) {
     await Versions.visit({ id: 'not-a-real-job' });
 
-    assert.equal(
-      server.pretender.handledRequests
+    assert.deepEqual(
+      this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs/not-a-real-job/versions',
       'The URL persists',
@@ -342,25 +344,25 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('node-pool');
-    namespace = server.create('namespace');
+    this.server.create('node-pool');
+    namespace = this.server.create('namespace');
 
-    const managementToken = server.create('token');
+    const managementToken = this.server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       createAllocations: false,
       version: 99,
       namespaceId: namespace.id,
     });
     // remove auto-created versions and create 3 of them, one with a tag
-    server.db.jobVersions.remove();
-    server.create('job-version', {
+    this.server.db.jobVersions.remove();
+    this.server.create('job-version', {
       job,
       version: 99,
       submitTime: 1731101785761339000,
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job,
       version: 98,
       submitTime: 1731101685761339000,
@@ -369,7 +371,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
         Description: 'A tag with a brief description',
       },
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job,
       version: 0,
       submitTime: 1731101585761339000,
@@ -435,7 +437,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     await click(`${versionBlock} [data-test-clone-and-edit]`);
     await click(`${versionBlock} [data-test-clone-as-new-version]`);
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=job-spec`,
       'Taken to the definition page in edit mode',
@@ -449,7 +451,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     await click(`${versionBlock} [data-test-clone-and-edit]`);
     await click(`${versionBlock} [data-test-clone-as-new-version]`);
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=0&view=job-spec`,
       'Taken to the definition page in edit mode',
@@ -457,12 +459,12 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
   });
 
   test('Clone as a new version when no submission info is available', async function (assert) {
-    server.pretender.get('/v1/job/:id/submission', () => [500, {}, '']);
+    this.server.pretender.get('/v1/job/:id/submission', () => [500, {}, '']);
     const versionBlock = '[data-test-job-version="98"]';
     await click(`${versionBlock} [data-test-clone-and-edit]`);
     await click(`${versionBlock} [data-test-clone-as-new-version]`);
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=full-definition`,
       'Taken to the definition page in edit mode',
@@ -476,7 +478,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
   test('Clone as a new job', async function (assert) {
     const testString =
       'Test string that should appear in my sourceString url param';
-    server.pretender.get('/v1/job/:id/submission', () => [
+    this.server.pretender.get('/v1/job/:id/submission', () => [
       200,
       {},
       JSON.stringify({
@@ -492,7 +494,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
         `/jobs/run?sourceString=${encodeURIComponent(testString)}`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/run?sourceString=${encodeURIComponent(testString)}`,
       'Taken to the new job page',
@@ -510,12 +512,12 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   let job3;
 
   hooks.beforeEach(async function () {
-    server.create('node-pool');
-    server.create('namespace');
-    server.create('token');
-    namespace = server.create('namespace');
+    this.server.create('node-pool');
+    this.server.create('namespace');
+    this.server.create('token');
+    namespace = this.server.create('namespace');
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       namespaceId: namespace.id,
       createAllocations: false,
       noDeployments: true,
@@ -523,11 +525,11 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     });
 
     // Create some versions
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job,
       version: 0,
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job,
       version: 1,
       versionTag: {
@@ -536,8 +538,8 @@ module('Acceptance | job versions (with client token)', function (hooks) {
       },
     });
 
-    namespace2 = server.create('namespace');
-    job2 = server.create('job', {
+    namespace2 = this.server.create('namespace');
+    job2 = this.server.create('job', {
       namespaceId: namespace2.id,
       createAllocations: false,
       noDeployments: true,
@@ -545,11 +547,11 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     });
 
     // Create job2 versions
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job2,
       version: 0,
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job2,
       version: 1,
       versionTag: {
@@ -558,8 +560,8 @@ module('Acceptance | job versions (with client token)', function (hooks) {
       },
     });
 
-    namespace3 = server.create('namespace');
-    job3 = server.create('job', {
+    namespace3 = this.server.create('namespace');
+    job3 = this.server.create('job', {
       namespaceId: namespace3.id,
       createAllocations: false,
       noDeployments: true,
@@ -567,11 +569,11 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     });
 
     // Create job3 versions
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job3,
       version: 0,
     });
-    server.create('job-version', {
+    this.server.create('job-version', {
       job: job3,
       version: 1,
       versionTag: {
@@ -584,9 +586,9 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   test('Revert buttons are disabled when the token lacks permissions', async function (assert) {
     window.localStorage.clear();
 
-    const clientToken = server.create('token');
+    const clientToken = this.server.create('token');
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'revert-policy',
       name: 'revert-policy',
       rulesJSON: {
@@ -646,9 +648,9 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   test('Clone buttons are removed when the token lacks job-register permissions', async function (assert) {
     window.localStorage.clear();
 
-    const clientToken = server.create('token');
+    const clientToken = this.server.create('token');
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'clone-policy',
       name: 'clone-policy',
       rulesJSON: {
@@ -677,8 +679,8 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   test('Clone/Edit buttons are removed depending on client token permissions', async function (assert) {
     window.localStorage.clear();
 
-    const clientToken = server.create('token');
-    const policy = server.create('policy', {
+    const clientToken = this.server.create('token');
+    const policy = this.server.create('policy', {
       id: 'clone-policy',
       name: 'clone-policy',
       rulesJSON: {
@@ -765,8 +767,8 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   test('Tag Version buttons are removed depending on client token permissions', async function (assert) {
     window.localStorage.clear();
 
-    const clientToken = server.create('token');
-    const policy = server.create('policy', {
+    const clientToken = this.server.create('token');
+    const policy = this.server.create('policy', {
       id: 'clone-policy',
       name: 'clone-policy',
       rulesJSON: {

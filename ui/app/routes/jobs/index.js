@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
@@ -48,7 +46,6 @@ export default class IndexRoute extends Route.extend(
     queryParams.per_page = queryParams.pageSize;
     queryParams.namespace = '*';
 
-    /* eslint-disable ember/no-controller-access-in-routes */
     let filter = this.controllerFor('jobs.index').filter;
     if (filter) {
       queryParams.filter = filter;
@@ -77,7 +74,7 @@ export default class IndexRoute extends Route.extend(
     } catch (error) {
       try {
         notifyForbidden(this)(error);
-      } catch (secondaryError) {
+      } catch {
         return this.handleErrors(error);
       }
     }
@@ -224,13 +221,13 @@ export default class IndexRoute extends Route.extend(
     ) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').set('jobIDs', []);
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').set('jobs', []);
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').watchJobs.cancelAll();
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
       let humanized = err.detail || '';
@@ -327,9 +324,9 @@ export default class IndexRoute extends Route.extend(
     if (!transition.intent.name?.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
-      // eslint-disable-next-line
+
       this.controller.watchJobs.cancelAll();
-      // eslint-disable-next-line
+
       this.controller.watchJobIDs.cancelAll();
     }
     this.cancelAllWatchers();

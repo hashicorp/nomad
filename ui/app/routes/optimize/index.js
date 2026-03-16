@@ -13,6 +13,7 @@ export default class OptimizeIndexRoute extends Route {
 
   activate() {
     // This runs late in the loading lifecycle to ensure .filteredSummaries is populated.
+    // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
     scheduleOnce('actions', this, () => {
       const summaries = this.controllerFor('optimize').filteredSummaries;
 

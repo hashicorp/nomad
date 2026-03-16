@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import {
   click,
   currentRouteName,
@@ -114,11 +113,9 @@ module('Acceptance | evaluations list', function (hooks) {
   setupMirage(hooks);
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(2);
-
     await visit('/evaluations');
 
-    assert.equal(
+    assert.deepEqual(
       currentRouteName(),
       'evaluations.index',
       'The default route in evaluations is evaluations index',
@@ -131,7 +128,6 @@ module('Acceptance | evaluations list', function (hooks) {
     faker.seed(1);
 
     await visit('/evaluations');
-    assert.expect(2);
 
     await percySnapshot(assert);
 
@@ -145,8 +141,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders a list of evaluations', async function (assert) {
     faker.seed(1);
-    assert.expect(3);
-    server.get('/evaluations', function (_server, fakeRequest) {
+    this.server.get('/evaluations', function (_server, fakeRequest) {
       assert.deepEqual(
         fakeRequest.queryParams,
         {
@@ -175,13 +170,11 @@ module('Acceptance | evaluations list', function (hooks) {
 
   module('filters', function () {
     test('it should enable filtering by evaluation status', async function (assert) {
-      assert.expect(2);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -205,13 +198,11 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should enable filtering by namespace', async function (assert) {
-      assert.expect(2);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -235,13 +226,11 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should enable filtering by triggered by', async function (assert) {
-      assert.expect(2);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -268,13 +257,11 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should enable filtering by type', async function (assert) {
-      assert.expect(2);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -298,14 +285,12 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should enable filtering by search term', async function (assert) {
-      assert.expect(2);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
       const searchTerm = 'Lasso';
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -328,14 +313,12 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should enable combining filters and search', async function (assert) {
-      assert.expect(5);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
       const searchTerm = 'Lasso';
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -351,7 +334,7 @@ module('Acceptance | evaluations list', function (hooks) {
       });
       await typeIn('[data-test-evaluations-search] input', searchTerm);
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -368,7 +351,7 @@ module('Acceptance | evaluations list', function (hooks) {
       await clickTrigger('[data-test-evaluation-type-facet]');
       await selectChoose('[data-test-evaluation-type-facet]', 'Client');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -384,7 +367,7 @@ module('Acceptance | evaluations list', function (hooks) {
       });
       await click('[data-test-evaluations-search] button');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -415,13 +398,11 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it is possible to change page size', async function (assert) {
-      assert.expect(1);
-
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -443,9 +424,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
   module('pagination', function () {
     test('it should enable pagination by using next tokens', async function (assert) {
-      assert.expect(7);
-
-      server.get('/evaluations', function () {
+      this.server.get('/evaluations', function () {
         return new Response(
           200,
           { 'x-nomad-nexttoken': 'next-token-1' },
@@ -455,7 +434,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -481,7 +460,7 @@ module('Acceptance | evaluations list', function (hooks) {
         );
       await click('[data-test-eval-pagination-next]');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -507,7 +486,7 @@ module('Acceptance | evaluations list', function (hooks) {
           'After we transition to the next page, the previous page button is enabled.',
         );
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -528,7 +507,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await click('[data-test-eval-pagination-prev]');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -551,9 +530,7 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should clear all query parameters on refresh', async function (assert) {
-      assert.expect(1);
-
-      server.get('/evaluations', function () {
+      this.server.get('/evaluations', function () {
         return new Response(
           200,
           { 'x-nomad-nexttoken': 'next-token-1' },
@@ -563,7 +540,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function () {
+      this.server.get('/evaluations', function () {
         return getStandardRes();
       });
 
@@ -572,7 +549,7 @@ module('Acceptance | evaluations list', function (hooks) {
       await clickTrigger('[data-test-evaluation-status-facet]');
       await selectChoose('[data-test-evaluation-status-facet]', 'Pending');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -595,9 +572,7 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should reset pagination when filters are applied', async function (assert) {
-      assert.expect(1);
-
-      server.get('/evaluations', function () {
+      this.server.get('/evaluations', function () {
         return new Response(
           200,
           { 'x-nomad-nexttoken': 'next-token-1' },
@@ -607,7 +582,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await visit('/evaluations');
 
-      server.get('/evaluations', function () {
+      this.server.get('/evaluations', function () {
         return new Response(
           200,
           { 'x-nomad-nexttoken': 'next-token-2' },
@@ -617,10 +592,10 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await click('[data-test-eval-pagination-next]');
 
-      server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluations', getStandardRes);
       await click('[data-test-eval-pagination-next]');
 
-      server.get('/evaluations', function (_server, fakeRequest) {
+      this.server.get('/evaluations', function (_server, fakeRequest) {
         assert.deepEqual(
           fakeRequest.queryParams,
           {
@@ -641,10 +616,10 @@ module('Acceptance | evaluations list', function (hooks) {
 
   module('resource linking', function () {
     test('it should generate a link to the job resource', async function (assert) {
-      server.create('node-pool');
-      server.create('node');
-      const job = server.create('job', { id: 'example', shallow: true });
-      server.create('evaluation', { jobId: job.id });
+      this.server.create('node-pool');
+      this.server.create('node');
+      const job = this.server.create('job', { id: 'example', shallow: true });
+      this.server.create('evaluation', { jobId: job.id });
 
       await visit('/evaluations');
       assert
@@ -661,9 +636,9 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should generate a link to the node resource', async function (assert) {
-      server.create('node-pool');
-      const node = server.create('node');
-      server.create('evaluation', { nodeId: node.id });
+      this.server.create('node-pool');
+      const node = this.server.create('node');
+      this.server.create('evaluation', { nodeId: node.id });
       await visit('/evaluations');
 
       const shortNodeId = node.id.split('-')[0];
@@ -685,8 +660,8 @@ module('Acceptance | evaluations list', function (hooks) {
   module('evaluation detail', function () {
     test('clicking an evaluation opens the detail view', async function (assert) {
       faker.seed(1);
-      server.get('/evaluations', getStandardRes);
-      server.get('/evaluation/:id', function (_, { queryParams, params }) {
+      this.server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluation/:id', function (_, { queryParams, params }) {
         const expectedNamespaces = ['default', 'ted-lasso'];
         assert.notEqual(
           expectedNamespaces.indexOf(queryParams.namespace),
@@ -727,7 +702,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
       await waitFor('[data-test-eval-detail-header]');
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         '/evaluations?currentEval=fd1cd898-d655-c7e4-17f6-a1a2e98b18ef',
       );
@@ -736,7 +711,7 @@ module('Acceptance | evaluations list', function (hooks) {
         .includesText('fd1cd898', 'New evaluation hash appears in the title');
 
       await click(`[data-test-evaluation='66cb98a6']`);
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         '/evaluations?currentEval=66cb98a6-7740-d5ef-37e4-fa0f8b1de44b',
         'Clicking an evaluation in the table updates the sidebar',
@@ -749,7 +724,7 @@ module('Acceptance | evaluations list', function (hooks) {
         () => !document.querySelector('[data-test-eval-detail-is-open]'),
       );
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         '/evaluations',
         'When the user clicks the x button the sidebar closes',
@@ -757,8 +732,8 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should provide an error state when loading an invalid evaluation', async function (assert) {
-      server.get('/evaluations', getStandardRes);
-      server.get('/evaluation/:id', function () {
+      this.server.get('/evaluations', getStandardRes);
+      this.server.get('/evaluation/:id', function () {
         return new Response(404, {}, '');
       });
 
@@ -786,7 +761,7 @@ module('Acceptance | evaluations list', function (hooks) {
         () => !document.querySelector('[data-test-eval-detail-is-open]'),
       );
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         '/evaluations',
         'When the user clicks the x button the sidebar closes',

@@ -30,11 +30,8 @@ section.notifications {
       height: 200px;
       overflow: auto;
       position: relative;
-      margin-left: $codeDeMargin;
-      margin-right: $codeDeMargin;
+      margin: 1rem $codeDeMargin -$codeBottomMargin;
       width: 500px;
-      margin-top: 1rem;
-      margin-bottom: -$codeBottomMargin;
     }
 
     pre {
@@ -46,6 +43,7 @@ section.notifications {
       font-family: monospace;
       font-size: 14px;
     }
+
     .follows-code {
       margin-top: calc(1rem + $codeBottomMargin);
     }
@@ -74,8 +72,7 @@ section.notifications {
   .hds-code-block {
     grid-column: 2 / 3;
     grid-row: 1 / 3;
-    justify-self: end;
-    align-self: start;
+    place-self: start end;
   }
 
   .hds-code-block {

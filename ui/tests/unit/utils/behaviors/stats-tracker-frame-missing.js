@@ -61,7 +61,7 @@ export default function statsTrackerFrameMissing({
       [compiledMemory],
       'Still one frame of memory',
     );
-    assert.equal(tracker.get('frameMisses'), 1, 'Frame miss is tracked');
+    assert.deepEqual(tracker.get('frameMisses'), 1, 'Frame miss is tracked');
 
     shouldFail = false;
     tracker.get('poll').perform();
@@ -77,7 +77,7 @@ export default function statsTrackerFrameMissing({
       [compiledMemory, compiledMemory],
       'Still one frame of memory',
     );
-    assert.equal(tracker.get('frameMisses'), 0, 'Frame misses is reset');
+    assert.deepEqual(tracker.get('frameMisses'), 0, 'Frame misses is reset');
   });
 
   test('enough bad responses from fetch consecutively (as set by maxFrameMisses) results in a pause', async function (assert) {
@@ -96,19 +96,19 @@ export default function statsTrackerFrameMissing({
     tracker.get('poll').perform();
     await settled();
 
-    assert.equal(tracker.get('frameMisses'), 1, 'Tick misses');
+    assert.deepEqual(tracker.get('frameMisses'), 1, 'Tick misses');
     assert.notOk(tracker.pause.called, 'Pause not called yet');
 
     tracker.get('poll').perform();
     await settled();
 
-    assert.equal(tracker.get('frameMisses'), 2, 'Tick misses');
+    assert.deepEqual(tracker.get('frameMisses'), 2, 'Tick misses');
     assert.notOk(tracker.pause.called, 'Pause still not called yet');
 
     tracker.get('poll').perform();
     await settled();
 
-    assert.equal(tracker.get('frameMisses'), 0, 'Misses reset');
+    assert.deepEqual(tracker.get('frameMisses'), 0, 'Misses reset');
     assert.ok(
       tracker.pause.called,
       'Pause called now that frameMisses == maxFrameMisses',

@@ -3,9 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-env node */
-/* eslint-disable no-console */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -50,6 +47,7 @@ class JsonReporter {
     process.on('SIGINT', () => {
       console.log('[Reporter] Received SIGINT, finishing up...');
       this.finish();
+      // eslint-disable-next-line n/no-process-exit
       process.exit(0);
     });
 

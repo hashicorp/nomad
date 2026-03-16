@@ -28,7 +28,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
       this.server.create('node-pool');
       this.server.create('node');
       const job = this.server.create('job', { createAllocations: false });
-      const deploymentRecord = server.schema.deployments.where({
+      const deploymentRecord = this.server.schema.deployments.where({
         jobId: job.id,
       }).models[0];
 
@@ -71,7 +71,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
+      assert.deepEqual(
         `${request.method} ${request.url}`,
         testCase.promote(deployment.id),
       );
@@ -87,7 +87,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
+      assert.deepEqual(
         `${request.method} ${request.url}`,
         testCase.fail(deployment.id),
       );

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
@@ -35,7 +33,7 @@ export default class NamespaceEditorComponent extends Component {
 
     try {
       JSON.parse(this.definitionString);
-    } catch (error) {
+    } catch {
       this.JSONError = 'Invalid JSON';
     }
   }

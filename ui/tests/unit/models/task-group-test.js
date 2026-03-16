@@ -51,17 +51,17 @@ module('Unit | Model | task-group', function (hooks) {
       }),
     );
 
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedCPU'),
       sum(taskGroup.get('tasks'), 'reservedCPU'),
       'reservedCPU is an aggregate sum of task CPU reservations',
     );
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedMemory'),
       sum(taskGroup.get('tasks'), 'reservedMemory'),
       'reservedMemory is an aggregate sum of task memory reservations',
     );
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedDisk'),
       sum(taskGroup.get('tasks'), 'reservedDisk'),
       'reservedDisk is an aggregate sum of task disk reservations',
@@ -69,8 +69,6 @@ module('Unit | Model | task-group', function (hooks) {
   });
 
   test("should expose mergedMeta as merged with the job's meta", function (assert) {
-    assert.expect(8);
-
     const store = this.owner.lookup('service:store');
 
     const jobWithMeta = run(() =>

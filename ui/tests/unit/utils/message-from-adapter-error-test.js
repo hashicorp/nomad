@@ -42,7 +42,7 @@ const testCases = [
 module('Unit | Util | messageFromAdapterError', function () {
   testCases.forEach((testCase) => {
     test(testCase.name, function (assert) {
-      assert.equal(
+      assert.deepEqual(
         messageFromAdapterError.apply(null, testCase.in),
         testCase.out,
         `[${testCase.in.join(', ')}] => ${testCase.out}`,

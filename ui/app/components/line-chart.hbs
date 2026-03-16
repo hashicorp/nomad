@@ -23,10 +23,10 @@
         {{this.description}}
       {{else}}
         X-axis values range from
-        {{this.xRange.firstObject}}
+        {{get this.xRange "0"}}
         to
         {{this.xRange.lastObject}}, and Y-axis values range from
-        {{this.yRange.firstObject}}
+        {{get this.yRange "0"}}
         to
         {{this.yRange.lastObject}}.
       {{/if}}

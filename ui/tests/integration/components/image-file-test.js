@@ -26,14 +26,12 @@ module('Integration | Component | image file', function (hooks) {
   };
 
   test('component displays the image', async function (assert) {
-    assert.expect(3);
-
     this.setProperties(commonProperties);
 
     await render(commonTemplate);
 
     assert.ok(find('img'), 'Image is in the DOM');
-    assert.equal(
+    assert.deepEqual(
       find('img').getAttribute('src'),
       commonProperties.src,
       `src is ${commonProperties.src}`,
@@ -49,17 +47,17 @@ module('Integration | Component | image file', function (hooks) {
 
     assert.ok(find('a'), 'Anchor');
     assert.ok(find('a > img'), 'Image in anchor');
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('href'),
       commonProperties.src,
       `href is ${commonProperties.src}`,
     );
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('target'),
       '_blank',
       'Anchor opens to a new tab',
     );
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('rel'),
       'noopener noreferrer',
       'Anchor rel correctly bars openers and referrers',

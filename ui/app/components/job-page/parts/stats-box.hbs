@@ -27,7 +27,7 @@
         >Variables</LinkTo>
       </span>
     {{/if}}
-    {{yield to="before-namespace"}}
+    {{yield to="beforeNamespace"}}
     {{#if (and @job.namespaceId this.system.shouldShowNamespaces)}}
       <span class="pair" data-test-job-stat="namespace">
         <span class="term">Namespace</span>
@@ -38,7 +38,7 @@
       <span class="term">Node Pool</span>
       {{#if @job.nodePool}}{{@job.nodePool}}{{else}}-{{/if}}
     </span>
-    {{yield to="after-namespace"}}
+    {{yield to="afterNamespace"}}
   </div>
 
   {{#if this.packDetails.name}}

@@ -35,7 +35,7 @@ module('Integration | Component | list table', function (hooks) {
     `);
 
     assert.ok(findAll('.head').length, 'Table head is rendered');
-    assert.equal(
+    assert.deepEqual(
       find('.head').tagName.toLowerCase(),
       'thead',
       'Table head is a thead element',
@@ -44,8 +44,6 @@ module('Integration | Component | list table', function (hooks) {
 
   // tbody
   test('component exposes a tbody contextual component', async function (assert) {
-    assert.expect(44);
-
     this.setProperties({
       source: commonTable,
       sortProperty: 'firstName',
@@ -65,15 +63,15 @@ module('Integration | Component | list table', function (hooks) {
     `);
 
     assert.ok(findAll('.body').length, 'Table body is rendered');
-    assert.equal(
+    assert.deepEqual(
       find('.body').tagName.toLowerCase(),
       'tbody',
       'Table body is a tbody element',
     );
 
-    assert.equal(
+    assert.deepEqual(
       findAll('.item').length,
-      this.get('source.length'),
+      this.source.length,
       'Each item gets its own row',
     );
 
@@ -81,23 +79,23 @@ module('Integration | Component | list table', function (hooks) {
     // rendered in index-order.
     this.source.forEach((item, index) => {
       const $item = this.element.querySelectorAll('.item')[index];
-      assert.equal(
-        $item.querySelectorAll('td')[0].innerHTML.trim(),
+      assert.strictEqual(
+        $item.querySelectorAll('td')[0].textContent.trim(),
         item.firstName,
         'First name',
       );
-      assert.equal(
-        $item.querySelectorAll('td')[1].innerHTML.trim(),
+      assert.strictEqual(
+        $item.querySelectorAll('td')[1].textContent.trim(),
         item.lastName,
         'Last name',
       );
-      assert.equal(
-        $item.querySelectorAll('td')[2].innerHTML.trim(),
+      assert.strictEqual(
+        Number($item.querySelectorAll('td')[2].textContent.trim()),
         item.age,
         'Age',
       );
-      assert.equal(
-        $item.querySelectorAll('td')[3].innerHTML.trim(),
+      assert.strictEqual(
+        Number($item.querySelectorAll('td')[3].textContent.trim()),
         index,
         'Index',
       );

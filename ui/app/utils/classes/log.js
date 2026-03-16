@@ -19,7 +19,6 @@ import classic from 'ember-classic-decorator';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
-// eslint-disable-next-line
 export const fetchFailure = (url) => () =>
   console.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
@@ -67,7 +66,11 @@ class Log extends EmberObject.extend(Evented) {
   init() {
     super.init();
 
-    const args = this.getProperties('url', 'params', 'logFetch');
+    const args = {
+      url: this.url,
+      params: this.params,
+      logFetch: this.logFetch,
+    };
     args.write = (chunk) => {
       let newTail = this.tail + chunk;
       if (newTail.length > MAX_OUTPUT_LENGTH) {

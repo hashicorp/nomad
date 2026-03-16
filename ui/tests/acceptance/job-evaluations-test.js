@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -20,12 +19,12 @@ module('Acceptance | job evaluations', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('node-pool');
-    job = server.create('job', {
+    this.server.create('node-pool');
+    job = this.server.create('job', {
       noFailedPlacements: true,
       createAllocations: false,
     });
-    evaluations = server.db.evaluations.where({ jobId: job.id });
+    evaluations = this.server.db.evaluations.where({ jobId: job.id });
 
     await Evaluations.visit({ id: job.id });
   });
@@ -35,7 +34,7 @@ module('Acceptance | job evaluations', function (hooks) {
   });
 
   test('lists all evaluations for the job', async function (assert) {
-    assert.equal(
+    assert.deepEqual(
       Evaluations.evaluations.length,
       evaluations.length,
       'All evaluations are listed',
@@ -45,16 +44,20 @@ module('Acceptance | job evaluations', function (hooks) {
 
     Evaluations.evaluations.forEach((evaluation, index) => {
       const shortId = sortedEvaluations[index].id.split('-')[0];
-      assert.equal(evaluation.id, shortId, `Evaluation ${index} is ${shortId}`);
+      assert.deepEqual(
+        evaluation.id,
+        shortId,
+        `Evaluation ${index} is ${shortId}`,
+      );
     });
 
-    assert.equal(getPageTitle(), `Job ${job.name} evaluations - Nomad`);
+    assert.deepEqual(getPageTitle(), `Job ${job.name} evaluations - Nomad`);
   });
 
   test('evaluations table is sortable', async function (assert) {
     await Evaluations.sortBy('priority');
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/evaluations?sort=priority`,
       'the URL persists the sort parameter',
@@ -62,7 +65,7 @@ module('Acceptance | job evaluations', function (hooks) {
     const sortedEvaluations = evaluations.sortBy('priority').reverse();
     Evaluations.evaluations.forEach((evaluation, index) => {
       const shortId = sortedEvaluations[index].id.split('-')[0];
-      assert.equal(
+      assert.deepEqual(
         evaluation.id,
         shortId,
         `Evaluation ${index} is ${shortId} with priority ${sortedEvaluations[index].priority}`,
@@ -73,20 +76,20 @@ module('Acceptance | job evaluations', function (hooks) {
   test('when the job for the evaluations is not found, an error message is shown, but the URL persists', async function (assert) {
     await Evaluations.visit({ id: 'not-a-real-job' });
 
-    assert.equal(
-      server.pretender.handledRequests
+    assert.deepEqual(
+      this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs/not-a-real-job/evaluations',
       'The URL persists',
     );
     assert.ok(Evaluations.error.isPresent, 'Error message is shown');
-    assert.equal(
+    assert.deepEqual(
       Evaluations.error.title,
       'Not Found',
       'Error message is for 404',

@@ -13,7 +13,7 @@
 <section class="section">
   <Hds::PageHeader as |PH|>
     <PH.Title data-test-title>{{this.model.name}}</PH.Title>
-    {{#if (and (not (eq this.model.name "default")) (can "destroy namespace"))}}
+    {{#if (and (not-eq this.model.name "default") (can "destroy namespace"))}}
       <PH.Actions>
         <TwoStepButton
           data-test-delete-namespace

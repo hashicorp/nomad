@@ -168,7 +168,7 @@ function regexSearch(term, list, keys) {
       return list.filter((item) =>
         keys.some((key) => regex.test(get(item, key))),
       );
-    } catch (e) {
+    } catch {
       // Swallow the error; most likely due to an eager search of an incomplete regex
     }
     return [];

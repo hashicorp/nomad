@@ -23,7 +23,6 @@
 />
 <button
   data-test-stepper-decrement
-  role="button"
   aria-label="decrement"
   class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (lte this.internalValue this.min)}}
@@ -34,7 +33,6 @@
 </button>
 <button
   data-test-stepper-increment
-  role="button"
   aria-label="increment"
   class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (gte this.internalValue this.max)}}

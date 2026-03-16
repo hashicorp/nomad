@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -20,12 +19,12 @@ module('Acceptance | server detail', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.createList('agent', 3);
-    let managementToken = server.create('token');
+    this.server.createList('agent', 3);
+    let managementToken = this.server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
-    server.create('region', { id: 'global' });
-    agent = server.db.agents[0];
+    this.server.create('region', { id: 'global' });
+    agent = this.server.db.agents[0];
     await ServerDetail.visit({ name: agent.name });
   });
 
@@ -34,7 +33,10 @@ module('Acceptance | server detail', function (hooks) {
   });
 
   test('visiting /servers/:server_name', async function (assert) {
-    assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
+    assert.deepEqual(
+      currentURL(),
+      `/servers/${encodeURIComponent(agent.name)}`,
+    );
     assert.ok(getPageTitle().includes(`Server ${agent.name}`));
   });
 
@@ -58,28 +60,32 @@ module('Acceptance | server detail', function (hooks) {
       .map((name) => ({ name, value: agent.member.Tags[name] }))
       .sortBy('name');
 
-    assert.equal(ServerDetail.tags.length, tags.length, '# of tags');
+    assert.deepEqual(ServerDetail.tags.length, tags.length, '# of tags');
     ServerDetail.tags.forEach((tagRow, index) => {
       const tag = tags[index];
-      assert.equal(tagRow.name, tag.name, `Label: ${tag.name}`);
-      assert.equal(tagRow.value, tag.value, `Value: ${tag.value}`);
+      assert.deepEqual(tagRow.name, tag.name, `Label: ${tag.name}`);
+      assert.strictEqual(
+        tagRow.value,
+        String(tag.value),
+        `Value: ${tag.value}`,
+      );
     });
   });
 
   test('when the server is not the leader, there is no leader badge', async function (assert) {
-    await ServerDetail.visit({ name: server.db.agents[1].name });
+    await ServerDetail.visit({ name: this.server.db.agents[1].name });
     assert.notOk(ServerDetail.hasLeaderBadge);
   });
 
   test('when the server is not found, an error message is shown, but the URL persists', async function (assert) {
     await ServerDetail.visit({ name: 'not-a-real-server' });
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/servers/not-a-real-server',
       'The URL persists',
     );
-    assert.equal(
+    assert.deepEqual(
       ServerDetail.error.title,
       'Not Found',
       'Error message is for 404',

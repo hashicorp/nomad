@@ -94,8 +94,6 @@ module.skip('Integration | Component | task log', function (hooks) {
   });
 
   test('Basic appearance', async function (assert) {
-    assert.expect(8);
-
     later(cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -126,8 +124,6 @@ module.skip('Integration | Component | task log', function (hooks) {
   });
 
   test('Streaming starts on creation', async function (assert) {
-    assert.expect(3);
-
     later(cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -145,7 +141,7 @@ module.skip('Integration | Component | task log', function (hooks) {
     );
 
     await settled();
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       streamFrames[0],
       'First chunk of streaming log is shown',
@@ -172,7 +168,7 @@ module.skip('Integration | Component | task log', function (hooks) {
       ),
       'Log head request was made',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       logHead[0],
       'Head of the log is shown',
@@ -197,7 +193,7 @@ module.skip('Integration | Component | task log', function (hooks) {
       ),
       'Log tail request was made',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       logTail[0],
       'Tail of the log is shown',
@@ -205,8 +201,6 @@ module.skip('Integration | Component | task log', function (hooks) {
   });
 
   test('Clicking toggleStream starts and stops the log stream', async function (assert) {
-    assert.expect(3);
-
     later(cancelTimers, commonProps.interval);
 
     const { interval } = commonProps;
@@ -220,14 +214,14 @@ module.skip('Integration | Component | task log', function (hooks) {
     }, interval);
 
     await settled();
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       streamFrames[0],
       'First frame loaded',
     );
 
     later(() => {
-      assert.equal(
+      assert.deepEqual(
         find('[data-test-log-cli]').textContent,
         streamFrames[0],
         'Still only first frame',
@@ -237,7 +231,7 @@ module.skip('Integration | Component | task log', function (hooks) {
     }, interval * 2);
 
     await settled();
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       streamFrames[0] + streamFrames[0] + streamFrames[1],
       'Now includes second frame',
@@ -277,7 +271,7 @@ module.skip('Integration | Component | task log', function (hooks) {
       hbs`<TaskLog @allocation={{this.allocation}} @task={{this.taskState}} />`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-log-cli]').textContent,
       streamFrames[0] + streamFrames[0] + streamFrames[1],
       'Now includes second frame',
@@ -327,8 +321,6 @@ module.skip('Integration | Component | task log', function (hooks) {
   });
 
   test('When both the client and the server are inaccessible, an error message is shown', async function (assert) {
-    assert.expect(5);
-
     later(cancelTimers, allowedConnectionTime * 5);
 
     // override client and server responses to timeout
@@ -458,6 +450,9 @@ module.skip('Integration | Component | task log', function (hooks) {
         (req) => req.queryParams.type === 'stdout',
       ).length,
     );
-    assert.equal(window.localStorage.nomadLogMode, JSON.stringify('stdout'));
+    assert.deepEqual(
+      window.localStorage.nomadLogMode,
+      JSON.stringify('stdout'),
+    );
   });
 });

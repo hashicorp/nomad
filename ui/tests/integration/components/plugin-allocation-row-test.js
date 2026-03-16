@@ -27,8 +27,6 @@ module('Integration | Component | plugin allocation row', function (hooks) {
   });
 
   test('Plugin allocation row immediately fetches the plugin allocation', async function (assert) {
-    assert.expect(2);
-
     const plugin = this.server.create('csi-plugin', {
       id: 'plugin',
       controllerRequired: true,
@@ -48,7 +46,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     const allocationRequest = this.server.pretender.handledRequests.find(
       (req) => req.url.startsWith('/v1/allocation'),
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRequest.url,
       `/v1/allocation/${storageController.allocID}`,
     );
@@ -74,7 +72,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
 
     const [statsRequest] = this.server.pretender.handledRequests.slice(-1);
 
-    assert.equal(
+    assert.deepEqual(
       statsRequest.url,
       `/v1/client/allocation/${storageController.allocID}/stats`,
     );
@@ -104,7 +102,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       (req) => req.url.startsWith('/v1/allocation'),
     );
 
-    assert.equal(
+    assert.deepEqual(
       allocationRequest.url,
       `/v1/allocation/${storageController.allocID}`,
     );
@@ -116,7 +114,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       .filter((req) => req.url.startsWith('/v1/allocation'))
       .reverse()[0];
 
-    assert.equal(
+    assert.deepEqual(
       latestAllocationRequest.url,
       `/v1/allocation/${storageController2.allocID}`,
     );

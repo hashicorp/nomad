@@ -28,6 +28,7 @@ export default class ClientRoute extends Route {
       currentNodeId = undefined;
     }
 
+    // eslint-disable-next-line ember/no-controller-access-in-routes
     const controllerModel = this.controllerFor('clients.client')?.model;
     const controllerNodeId =
       (typeof controllerModel?.get === 'function'

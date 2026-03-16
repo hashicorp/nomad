@@ -12,8 +12,6 @@ import NodeStatsTracker, {
 } from 'nomad-ui/utils/classes/node-stats-tracker';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
-import { settled } from '@ember/test-helpers';
-
 module('Unit | Util | NodeStatsTracker', function () {
   const refDate = Date.now() * 1000000;
   const makeDate = (ts) => new Date(ts / 1000000);
@@ -53,7 +51,7 @@ module('Unit | Util | NodeStatsTracker', function () {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
-    assert.equal(
+    assert.deepEqual(
       tracker.get('url'),
       `/v1/client/stats?node_id=${node.id}`,
       'Url is derived from the node id',
@@ -64,12 +62,12 @@ module('Unit | Util | NodeStatsTracker', function () {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
-    assert.equal(
+    assert.deepEqual(
       tracker.get('reservedCPU'),
       node.resources.cpu,
       'reservedCPU comes from the node',
     );
-    assert.equal(
+    assert.deepEqual(
       tracker.get('reservedMemory'),
       node.resources.memory,
       'reservedMemory comes from the node',
@@ -90,15 +88,19 @@ module('Unit | Util | NodeStatsTracker', function () {
       },
     };
 
-    const server = new Pretender(function () {
+    this.server = new Pretender(function () {
       this.get('/v1/client/stats', () => [200, {}, JSON.stringify(mockFrame)]);
     });
 
     await tracker.get('poll').perform();
 
-    assert.equal(server.handledRequests.length, 1, 'Only one request was made');
-    assert.equal(
-      server.handledRequests[0].url,
+    assert.deepEqual(
+      this.server.handledRequests.length,
+      1,
+      'Only one request was made',
+    );
+    assert.deepEqual(
+      this.server.handledRequests[0].url,
       `/v1/client/stats?node_id=${node.id}`,
       'The correct URL was requested',
     );
@@ -108,7 +110,7 @@ module('Unit | Util | NodeStatsTracker', function () {
       'The JSON response was passed into append as a POJO',
     );
 
-    server.shutdown();
+    this.server.shutdown();
   });
 
   test('append appropriately maps a data frame to the tracked stats for cpu and memory for the node', async function (assert) {
@@ -176,23 +178,23 @@ module('Unit | Util | NodeStatsTracker', function () {
       tracker.append(mockFrame(i));
     }
 
-    assert.equal(
+    assert.deepEqual(
       tracker.get('cpu.length'),
       bufferSize,
       `20 calls to append, only ${bufferSize} frames in the stats array`,
     );
-    assert.equal(
+    assert.deepEqual(
       tracker.get('memory.length'),
       bufferSize,
       `20 calls to append, only ${bufferSize} frames in the stats array`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       +tracker.get('cpu')[0].timestamp,
       +makeDate(refDate + 11),
       'Old frames are removed in favor of newer ones',
     );
-    assert.equal(
+    assert.deepEqual(
       +tracker.get('memory')[0].timestamp,
       +makeDate(refDate + 11),
       'Old frames are removed in favor of newer ones',
@@ -212,7 +214,7 @@ module('Unit | Util | NodeStatsTracker', function () {
       theNode: node,
     });
 
-    assert.equal(
+    assert.deepEqual(
       someObject.get('stats.url'),
       `/v1/client/stats?node_id=${node.id}`,
       'stats computed property macro creates a NodeStatsTracker',
