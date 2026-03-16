@@ -5,16 +5,13 @@
     // layout, which is not resolvable with the Node resolution algorithm, to
     // work with TypeScript.
     "baseUrl": ".",
+    "allowJs": true,
     "paths": {
       "nomad-ui/tests/*": ["tests/*"],
       "nomad-ui/*": ["app/*"],
       "mirage/*": ["mirage/*"],
       "*": ["types/*"]
     },
-    "types": [
-      "ember-source/types",
-      "ember-data/unstable-preview-types",
-      "@glint/ember-tsc/types"
-    ]
+    "types": ["ember-source/types", "@glint/ember-tsc/types"]
   }
 }
