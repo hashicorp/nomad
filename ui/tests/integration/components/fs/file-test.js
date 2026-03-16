@@ -181,7 +181,7 @@ module('Integration | Component | fs/file', function (hooks) {
     this.setProperties(props);
 
     await render(commonTemplate);
-    click('[data-test-log-action="raw"]');
+    await click('[data-test-log-action="raw"]');
     await settled();
     assert.ok(
       this.server.handledRequests.find(
@@ -205,7 +205,7 @@ module('Integration | Component | fs/file', function (hooks) {
     await this.system.get('regions');
     await render(commonTemplate);
 
-    click('[data-test-log-action="raw"]');
+    await click('[data-test-log-action="raw"]');
     await settled();
     assert.ok(
       this.server.handledRequests.find(

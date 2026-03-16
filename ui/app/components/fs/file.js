@@ -71,8 +71,10 @@ export default class File extends Component {
   @computed('catUrlWithoutRegion', 'system.{activeRegion,shouldIncludeRegion}')
   get catUrl() {
     let apiPath = this.catUrlWithoutRegion;
-    if (this.system.shouldIncludeRegion) {
-      apiPath += `&region=${this.system.activeRegion}`;
+    const activeRegion = this.system.activeRegion;
+
+    if (this.system.shouldIncludeRegion && activeRegion) {
+      apiPath += `&region=${activeRegion}`;
     }
     return apiPath;
   }
@@ -189,7 +191,7 @@ export default class File extends Component {
 
     try {
       const response = await RSVP.race([
-        this.token.authorizedRequest(this.catUrlWithoutRegion),
+        this.token.authorizedRequest(this.catUrl),
         timeout(timing),
       ]);
 
