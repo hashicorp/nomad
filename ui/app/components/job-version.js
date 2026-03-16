@@ -34,6 +34,13 @@ export default class JobVersion extends Component {
     this.isOpen = Boolean(this.args.diffsExpanded && this.diff);
   }
 
+  @action
+  versionsDidUpdate() {
+    if (this.args.diffsExpanded && this.diff) {
+      this.isOpen = true;
+    }
+  }
+
   initializeEditableTag() {
     const job = this.version.get('job');
     const namespaceId =
