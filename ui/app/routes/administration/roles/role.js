@@ -12,7 +12,7 @@ import { hash } from 'rsvp';
 
 export default class AccessControlRolesRoleRoute extends Route.extend(
   withForbiddenState,
-  WithModelErrorHandling
+  WithModelErrorHandling,
 ) {
   @service store;
 
@@ -22,7 +22,7 @@ export default class AccessControlRolesRoleRoute extends Route.extend(
       decodeURIComponent(params.id),
       {
         reload: true,
-      }
+      },
     );
 
     let policies = this.store.peekAll('policy');

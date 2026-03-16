@@ -108,7 +108,7 @@ Router.map(function () {
       },
       function () {
         this.route('edit');
-      }
+      },
     );
 
     this.route('path', {

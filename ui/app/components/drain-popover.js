@@ -70,7 +70,7 @@ export default class DrainPopover extends Component {
     'deadlineEnabled',
     'durationIsCustom',
     'customDuration',
-    'selectedDurationQuickOption.value'
+    'selectedDurationQuickOption.value',
   )
   get deadline() {
     if (!this.deadlineEnabled) return 0;

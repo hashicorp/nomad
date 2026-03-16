@@ -60,7 +60,7 @@ module('Unit | Model | task', function (hooks) {
             ],
           },
         ],
-      })
+      }),
     );
 
     let tg = job.get('taskGroups').objectAt(0);
@@ -70,7 +70,7 @@ module('Unit | Model | task', function (hooks) {
       assert.deepEqual(
         tg.get('tasks').objectAt(i).get('mergedMeta'),
         exp,
-        'mergedMeta is merged with task meta'
+        'mergedMeta is merged with task meta',
       );
     });
 
@@ -81,7 +81,7 @@ module('Unit | Model | task', function (hooks) {
       assert.deepEqual(
         tg.get('tasks').objectAt(i).get('mergedMeta'),
         exp,
-        'mergedMeta is merged with job meta'
+        'mergedMeta is merged with job meta',
       );
     });
   });
@@ -93,61 +93,61 @@ module('Unit | Model | task', function (hooks) {
     const longTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
         displayMessage: 'Task restarting in 1h2m3.456s',
-      })
+      }),
     );
 
     assert.equal(
       longTaskEvent.get('message'),
       'Task restarting in 1h2m3s',
-      'hour-specific displayMessage is simplified'
+      'hour-specific displayMessage is simplified',
     );
 
     const mediumTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
         displayMessage: 'Task restarting in 1m2.345s',
-      })
+      }),
     );
 
     assert.equal(
       mediumTaskEvent.get('message'),
       'Task restarting in 1m2s',
-      'minute-specific displayMessage is simplified'
+      'minute-specific displayMessage is simplified',
     );
 
     const shortTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
         displayMessage: 'Task restarting in 1.234s',
-      })
+      }),
     );
 
     assert.equal(
       shortTaskEvent.get('message'),
       'Task restarting in 1s',
-      'second-specific displayMessage is simplified'
+      'second-specific displayMessage is simplified',
     );
 
     const roundedTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
         displayMessage: 'I bet I can knock this out in about 1.999s',
-      })
+      }),
     );
 
     assert.equal(
       roundedTaskEvent.get('message'),
       'I bet I can knock this out in about 2s',
-      'displayMessage is rounded'
+      'displayMessage is rounded',
     );
 
     const timelessTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
         displayMessage: 'All 3000 tasks look great, no notes.',
-      })
+      }),
     );
 
     assert.equal(
       timelessTaskEvent.get('message'),
       'All 3000 tasks look great, no notes.',
-      'displayMessage is unchanged'
+      'displayMessage is unchanged',
     );
   });
 });

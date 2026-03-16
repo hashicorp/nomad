@@ -113,13 +113,13 @@ module('Integration | Component | task group row', function (hooks) {
 
     assert.notOk(
       server.pretender.handledRequests.find(
-        (req) => req.method === 'POST' && req.url.endsWith('/scale')
-      )
+        (req) => req.method === 'POST' && req.url.endsWith('/scale'),
+      ),
     );
 
     await settled();
     const scaleRequests = server.pretender.handledRequests.filter(
-      (req) => req.method === 'POST' && req.url.endsWith('/scale')
+      (req) => req.method === 'POST' && req.url.endsWith('/scale'),
     );
     assert.equal(scaleRequests.length, 1);
     assert.equal(JSON.parse(scaleRequests[0].requestBody).Count, 4);
@@ -193,7 +193,7 @@ module('Integration | Component | task group row', function (hooks) {
     assert.ok(
       find('[data-test-scale-controls]')
         .getAttribute('aria-label')
-        .includes("You aren't allowed")
+        .includes("You aren't allowed"),
     );
   });
 });

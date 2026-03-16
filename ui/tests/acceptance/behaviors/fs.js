@@ -42,14 +42,14 @@ export default function browseFilesystem({
 }) {
   test('it passes an accessibility audit', async function (assert) {
     await FS[pageObjectVisitFunctionName](
-      visitSegments({ allocation: this.allocation, task: this.task })
+      visitSegments({ allocation: this.allocation, task: this.task }),
     );
     await a11yAudit(assert);
   });
 
   test('visiting filesystem root', async function (assert) {
     await FS[pageObjectVisitFunctionName](
-      visitSegments({ allocation: this.allocation, task: this.task })
+      visitSegments({ allocation: this.allocation, task: this.task }),
     );
 
     const pathBaseWithTrailingSlash = getExpectedPathBase({
@@ -86,22 +86,22 @@ export default function browseFilesystem({
           allocation: this.allocation,
           task: this.task,
         })}${encodeURIComponent(filePath)}`,
-        'No redirect'
+        'No redirect',
       );
       assert.ok(
         getPageTitle().includes(
           `${pathWithLeadingSlash} - ${getTitleComponent({
             allocation: this.allocation,
             task: this.task,
-          })}`
-        )
+          })}`,
+        ),
       );
       assert.equal(
         FS.breadcrumbsText,
         `${getBreadcrumbComponent({
           allocation: this.allocation,
           task: this.task,
-        })} ${filePath.replace(/\//g, ' ')}`.trim()
+        })} ${filePath.replace(/\//g, ' ')}`.trim(),
       );
     };
 
@@ -121,7 +121,7 @@ export default function browseFilesystem({
     const sortedFiles = fileSort(
       'name',
       filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects))
-        .models
+        .models,
     );
 
     assert.ok(FS.fileViewer.isHidden);
@@ -139,17 +139,17 @@ export default function browseFilesystem({
       assert.equal(
         directory.name,
         fileRecord.name,
-        'directories should come first'
+        'directories should come first',
       );
       assert.ok(directory.isDirectory);
       assert.equal(directory.size, '', 'directory sizes are hidden');
       assert.equal(
         directory.lastModified,
-        moment(fileRecord.modTime).fromNow()
+        moment(fileRecord.modTime).fromNow(),
       );
       assert.notOk(
         directory.path.includes('//'),
-        'paths shouldn’t have redundant separators'
+        'paths shouldn’t have redundant separators',
       );
     });
 
@@ -168,7 +168,7 @@ export default function browseFilesystem({
     assert.equal(FS.breadcrumbs.length, 2);
     assert.equal(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${this.directory.name}`
+      `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
 
     assert.notOk(FS.breadcrumbs[0].isActive);
@@ -181,7 +181,7 @@ export default function browseFilesystem({
     assert.equal(FS.directoryEntries.length, 1);
     assert.notOk(
       FS.directoryEntries[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
 
     assert.equal(FS.breadcrumbs.length, 3);
@@ -189,23 +189,23 @@ export default function browseFilesystem({
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${this.directory.name} ${
         this.nestedDirectory.name
-      }`
+      }`,
     );
     assert.equal(FS.breadcrumbs[2].text, this.nestedDirectory.name);
 
     assert.notOk(
       FS.breadcrumbs[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
     assert.notOk(
       FS.breadcrumbs[1].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
 
     await FS.breadcrumbs[1].visit();
     assert.equal(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${this.directory.name}`
+      `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
     assert.equal(FS.breadcrumbs.length, 2);
   });
@@ -311,7 +311,7 @@ export default function browseFilesystem({
         'mmm-small-mid-directory',
         'aaa-big-old-directory',
       ],
-      'expected files to be sorted by descending size and directories to be sorted by descending name'
+      'expected files to be sorted by descending size and directories to be sorted by descending name',
     );
 
     await FS.sortBy('Size');
@@ -326,7 +326,7 @@ export default function browseFilesystem({
         'zzz-med-new-file',
         'aaa-big-old-file',
       ],
-      'expected directories to be sorted by name and files to be sorted by ascending size'
+      'expected directories to be sorted by name and files to be sorted by ascending size',
     );
   });
 
@@ -338,7 +338,7 @@ export default function browseFilesystem({
       `http://${node.httpAddr}/v1/client/fs/readat/:allocation_id`,
       function () {
         return new Response(500);
-      }
+      },
     );
 
     await FS[pageObjectVisitPathFunctionName]({
@@ -349,7 +349,7 @@ export default function browseFilesystem({
     const sortedFiles = fileSort(
       'name',
       filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects))
-        .models
+        .models,
     );
     const fileRecord = sortedFiles.find((f) => !f.isDir);
     const fileIndex = sortedFiles.indexOf(fileRecord);
@@ -358,13 +358,13 @@ export default function browseFilesystem({
 
     assert.equal(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${fileRecord.name}`
+      `${getBreadcrumbComponent(objects)} ${fileRecord.name}`,
     );
 
     assert.ok(FS.fileViewer.isPresent);
 
     const readAtRequests = this.server.pretender.handledRequests.filter((req) =>
-      req.url.includes(`/v1/client/fs/readat/${this.allocation.id}`)
+      req.url.includes(`/v1/client/fs/readat/${this.allocation.id}`),
     );
     const firstAttempt = readAtRequests[0];
     const secondAttempt = readAtRequests[1];
@@ -374,13 +374,13 @@ export default function browseFilesystem({
     assert.equal(
       firstAttempt.url.split('?')[0],
       `//${node.httpAddr}/v1/client/fs/readat/${this.allocation.id}`,
-      'Client is hit first'
+      'Client is hit first',
     );
     assert.equal(firstAttempt.status, 500, 'Client request fails');
     assert.equal(
       secondAttempt.url.split('?')[0],
       `/v1/client/fs/readat/${this.allocation.id}`,
-      'Server is hit second'
+      'Server is hit second',
     );
   });
 
@@ -405,12 +405,12 @@ export default function browseFilesystem({
     assert.notEqual(
       FS.error.title,
       'Not Found',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
     assert.equal(
       FS.error.title,
       'Server Error',
-      '500 is not interpreted as 500'
+      '500 is not interpreted as 500',
     );
 
     await visit('/');
@@ -438,12 +438,12 @@ export default function browseFilesystem({
     assert.notEqual(
       FS.error.title,
       'Not Found',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
     assert.equal(
       FS.error.title,
       'Server Error',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
 
     await visit('/');

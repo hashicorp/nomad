@@ -65,7 +65,7 @@ module('Acceptance | reverse proxy', function (hooks) {
     assert.equal(
       window.localStorage.nomadTokenSecret,
       secretId,
-      'Token secret was set'
+      'Token secret was set',
     );
 
     // Make sure that server received the header
@@ -73,7 +73,7 @@ module('Acceptance | reverse proxy', function (hooks) {
       server.pretender.handledRequests
         .mapBy('requestHeaders')
         .every((headers) => headers['X-Nomad-Token'] === secretId),
-      'The token header is always present'
+      'The token header is always present',
     );
 
     assert.notOk(Jobs.runJobButton.isDisabled, 'Run job button is enabled');

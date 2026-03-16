@@ -46,7 +46,7 @@ export default class AllocationStatusBar extends DistributionBar {
 
   @computed(
     'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs,lostAllocs,unknownAllocs}',
-    'job.namespace'
+    'job.namespace',
   )
   get data() {
     if (!this.allocationContainer) {
@@ -60,7 +60,7 @@ export default class AllocationStatusBar extends DistributionBar {
       'runningAllocs',
       'startingAllocs',
       'lostAllocs',
-      'unknownAllocs'
+      'unknownAllocs',
     );
     return [
       {

@@ -54,7 +54,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
 
     assert.equal(
       findAll('[data-test-flex-masonry-item]').length,
-      this.items.length
+      this.items.length,
     );
   });
 
@@ -68,7 +68,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     `);
 
     assert.ok(
-      find('[data-test-flex-masonry]').classList.contains('with-spacing')
+      find('[data-test-flex-masonry]').classList.contains('with-spacing'),
     );
   });
 

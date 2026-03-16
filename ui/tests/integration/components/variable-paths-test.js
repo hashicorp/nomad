@@ -70,14 +70,14 @@ module('Integration | Component | variable-paths', function (hooks) {
       .hasAttribute(
         'href',
         '/ui/variables/path/foo/bar',
-        'Correctly links a folder'
+        'Correctly links a folder',
       );
     assert
       .dom('tbody tr:first-child svg')
       .hasAttribute(
         'data-test-icon',
         'folder',
-        'Correctly renders the folder icon'
+        'Correctly renders the folder icon',
       );
 
     await componentA11yAudit(this.element, assert);
@@ -123,28 +123,28 @@ module('Integration | Component | variable-paths', function (hooks) {
       .hasAttribute(
         'href',
         '/ui/variables/var/foo/bar/baz@default',
-        'Correctly links the first file'
+        'Correctly links the first file',
       );
     assert
       .dom('tbody tr:nth-child(2) td:first-child a')
       .hasAttribute(
         'href',
         '/ui/variables/var/foo/bar/bay@default',
-        'Correctly links the second file'
+        'Correctly links the second file',
       );
     assert
       .dom('tbody tr:nth-child(3) td:first-child a')
       .hasAttribute(
         'href',
         '/ui/variables/var/foo/bar/bax@default',
-        'Correctly links the third file'
+        'Correctly links the third file',
       );
     assert
       .dom('tbody tr:first-child svg')
       .hasAttribute(
         'data-test-icon',
         'file-text',
-        'Correctly renders the file icon'
+        'Correctly renders the file icon',
       );
     await componentA11yAudit(this.element, assert);
   });

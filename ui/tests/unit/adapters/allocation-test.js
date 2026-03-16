@@ -36,7 +36,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       const allocation = await this.store.findRecord(
         'allocation',
-        allocationId
+        allocationId,
       );
       this.server.pretender.handledRequests.length = 0;
 
@@ -56,10 +56,10 @@ module('Unit | Adapter | Allocation', function (hooks) {
       region: null,
       path: 'some/path',
       ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}`,
       stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}`,
       stop: 'POST /v1/allocation/alloc-1/stop',
       restart: 'PUT /v1/client/allocation/alloc-1/restart',
@@ -71,10 +71,10 @@ module('Unit | Adapter | Allocation', function (hooks) {
       region: 'region-2',
       path: 'some/path',
       ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}&region=region-2`,
       stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}&region=region-2`,
       stop: 'POST /v1/allocation/alloc-1/stop?region=region-2',
       restart: 'PUT /v1/client/allocation/alloc-1/restart?region=region-2',

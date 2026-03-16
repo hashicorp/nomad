@@ -28,9 +28,9 @@ const heliosFacet = (scope) => ({
       count: text('label .hds-dropdown-list-item__count'),
       key: attribute(
         'data-test-dropdown-option',
-        '[data-test-dropdown-option]'
+        '[data-test-dropdown-option]',
       ),
-    }
+    },
   ),
 });
 

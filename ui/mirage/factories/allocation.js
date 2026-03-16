@@ -113,7 +113,7 @@ export default Factory.extend({
         const lastEvent = previousEvents[previousEvents.length - 1];
         rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(
           5,
-          'minutes'
+          'minutes',
         );
       } else {
         rescheduleTime = faker.date.past(2 / 365, REF_TIME);
@@ -181,11 +181,11 @@ export default Factory.extend({
   afterCreate(allocation, server) {
     assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
-      server.db.jobs.length
+      server.db.jobs.length,
     );
     assert(
       '[Mirage] No nodes! make sure nodes are created before allocations',
-      server.db.nodes.length
+      server.db.nodes.length,
     );
 
     const job = allocation.jobId
@@ -216,7 +216,7 @@ export default Factory.extend({
           name: server.db.tasks.find(id).name,
           paused: allocation.withPausedTasks ? 'scheduled_pause' : null,
           state: allocation.clientStatus,
-        })
+        }),
       );
 
       const resources = taskGroup.taskIds.map((id) => {

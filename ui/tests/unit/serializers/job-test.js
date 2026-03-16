@@ -37,7 +37,7 @@ module('Unit | Serializer | Job', function (hooks) {
       JSON.stringify([
         data.attributes.name,
         data.relationships.namespace.data.id,
-      ])
+      ]),
     );
   });
 });

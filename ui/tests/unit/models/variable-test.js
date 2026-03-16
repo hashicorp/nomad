@@ -65,17 +65,17 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(
       model.pathLinkedEntities.job,
       'my-job-name',
-      'identifies the job name'
+      'identifies the job name',
     );
     assert.equal(
       model.pathLinkedEntities.group,
       'my-group-name',
-      'identifies the group name'
+      'identifies the group name',
     );
     assert.equal(
       model.pathLinkedEntities.task,
       'my-task-name',
-      'identifies the task name'
+      'identifies the task name',
     );
 
     model.setProperties({
@@ -84,17 +84,17 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(
       model.pathLinkedEntities.job,
       '',
-      'entities object lacks a job name if path goes beyond task'
+      'entities object lacks a job name if path goes beyond task',
     );
     assert.equal(
       model.pathLinkedEntities.group,
       '',
-      'entities object lacks a group name if path goes beyond task'
+      'entities object lacks a group name if path goes beyond task',
     );
     assert.equal(
       model.pathLinkedEntities.task,
       '',
-      'entities object lacks a task name if path goes beyond task'
+      'entities object lacks a task name if path goes beyond task',
     );
 
     model.setProperties({
@@ -104,17 +104,17 @@ module('Unit | Model | variable', function (hooks) {
     assert.equal(
       model.pathLinkedEntities.job,
       '',
-      'entities object lacks a job name if not prefixed with nomad/jobs/'
+      'entities object lacks a job name if not prefixed with nomad/jobs/',
     );
     assert.equal(
       model.pathLinkedEntities.group,
       '',
-      'entities object lacks a group name if not prefixed with nomad/jobs/'
+      'entities object lacks a group name if not prefixed with nomad/jobs/',
     );
     assert.equal(
       model.pathLinkedEntities.task,
       '',
-      'entities object lacks a task name if not prefixed with nomad/jobs/'
+      'entities object lacks a task name if not prefixed with nomad/jobs/',
     );
   });
 });

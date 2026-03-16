@@ -72,7 +72,7 @@ module('Unit | Model | job', function (hooks) {
             tasks: [],
           },
         ],
-      })
+      }),
     );
 
     assert.equal(
@@ -81,7 +81,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.totalAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'totalAllocs is the sum of all group totalAllocs'
+      'totalAllocs is the sum of all group totalAllocs',
     );
 
     assert.equal(
@@ -90,7 +90,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.queuedAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'queuedAllocs is the sum of all group queuedAllocs'
+      'queuedAllocs is the sum of all group queuedAllocs',
     );
 
     assert.equal(
@@ -99,7 +99,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.startingAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'startingAllocs is the sum of all group startingAllocs'
+      'startingAllocs is the sum of all group startingAllocs',
     );
 
     assert.equal(
@@ -108,7 +108,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.runningAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'runningAllocs is the sum of all group runningAllocs'
+      'runningAllocs is the sum of all group runningAllocs',
     );
 
     assert.equal(
@@ -117,7 +117,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.completeAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'completeAllocs is the sum of all group completeAllocs'
+      'completeAllocs is the sum of all group completeAllocs',
     );
 
     assert.equal(
@@ -126,7 +126,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.failedAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'failedAllocs is the sum of all group failedAllocs'
+      'failedAllocs is the sum of all group failedAllocs',
     );
 
     assert.equal(
@@ -135,7 +135,7 @@ module('Unit | Model | job', function (hooks) {
         .get('taskGroups')
         .mapBy('summary.lostAllocs')
         .reduce((sum, allocs) => sum + allocs, 0),
-      'lostAllocs is the sum of all group lostAllocs'
+      'lostAllocs is the sum of all group lostAllocs',
     );
   });
 
@@ -201,32 +201,32 @@ module('Unit | Model | job', function (hooks) {
             ],
           },
         ],
-      })
+      }),
     );
 
     assert.equal(
       job.get('actions.length'),
       4,
-      'Job draws actions from its task groups tasks'
+      'Job draws actions from its task groups tasks',
     );
 
     // Three actions named one, one named two
     assert.equal(
       job.get('actions').filterBy('name', 'one').length,
       3,
-      'Job has three actions named one'
+      'Job has three actions named one',
     );
     assert.equal(
       job.get('actions').filterBy('name', 'two').length,
       1,
-      'Job has one action named two'
+      'Job has one action named two',
     );
 
     // Job's actions mapped by task.name return 1.1, 1.1, 3.1, 3.2
     assert.equal(
       job.get('actions').mapBy('task.name').length,
       4,
-      'Job action fragments surface their task properties'
+      'Job action fragments surface their task properties',
     );
     assert.equal(
       job
@@ -234,7 +234,7 @@ module('Unit | Model | job', function (hooks) {
         .mapBy('task.name')
         .filter((name) => name === '1.1').length,
       2,
-      'Two of the job actions are from task 1.1'
+      'Two of the job actions are from task 1.1',
     );
     assert.equal(
       job
@@ -242,7 +242,7 @@ module('Unit | Model | job', function (hooks) {
         .mapBy('task.name')
         .filter((name) => name === '3.1').length,
       1,
-      'One of the job actions is from task 3.1'
+      'One of the job actions is from task 3.1',
     );
     assert.equal(
       job
@@ -250,7 +250,7 @@ module('Unit | Model | job', function (hooks) {
         .mapBy('task.name')
         .filter((name) => name === '3.2').length,
       1,
-      'One of the job actions is from task 3.2'
+      'One of the job actions is from task 3.2',
     );
   });
 
@@ -268,11 +268,11 @@ module('Unit | Model | job', function (hooks) {
       assert.deepEqual(
         model.get('_newDefinitionJSON'),
         { name: 'Tomster' },
-        'Sets _newDefinitionJSON correctly'
+        'Sets _newDefinitionJSON correctly',
       );
       assert.ok(
         setIdByPayloadSpy.calledWith({ name: 'Tomster' }),
-        'setIdByPayload is called with the parsed JSON'
+        'setIdByPayload is called with the parsed JSON',
       );
       assert.deepEqual(result, '{"name": "Tomster"}', 'Returns the JSON input');
     });
@@ -292,13 +292,13 @@ module('Unit | Model | job', function (hooks) {
 
       assert.ok(
         adapter.parse.calledWith('invalidJSON', undefined),
-        'adapter parse method should be called'
+        'adapter parse method should be called',
       );
 
       assert.deepEqual(
         model.get('_newDefinitionJSON'),
         'invalidJSON',
-        '_newDefinitionJSON is set'
+        '_newDefinitionJSON is set',
       );
     });
   });

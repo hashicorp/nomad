@@ -67,23 +67,23 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.equal(
       registry.get('registryRef').size,
       0,
-      'Nothing in the registry yet'
+      'Nothing in the registry yet',
     );
 
     const tracker = registry.getTracker(mockNode.create({ id }));
     assert.ok(
       tracker instanceof NodeStatsTracker,
-      'The correct type of tracker is made'
+      'The correct type of tracker is made',
     );
     assert.equal(
       registry.get('registryRef').size,
       1,
-      'The tracker was added to the registry'
+      'The tracker was added to the registry',
     );
     assert.deepEqual(
       Array.from(registry.get('registryRef').keys()),
       [`node:${id}`],
-      'The object in the registry has the correct key'
+      'The object in the registry has the correct key',
     );
   });
 
@@ -97,12 +97,12 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.equal(
       tracker1,
       tracker2,
-      'Returns an existing tracker for the same resource'
+      'Returns an existing tracker for the same resource',
     );
     assert.equal(
       registry.get('registryRef').size,
       1,
-      'Only one tracker in the registry'
+      'Only one tracker in the registry',
     );
   });
 
@@ -118,18 +118,18 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.equal(
       node1.constructor.modelName,
       node2.constructor.modelName,
-      'And the same className'
+      'And the same className',
     );
 
     assert.equal(
       registry.getTracker(node1),
       registry.getTracker(node2),
-      'Return the same tracker'
+      'Return the same tracker',
     );
     assert.equal(
       registry.get('registryRef').size,
       1,
-      'Only one tracker in the registry'
+      'Only one tracker in the registry',
     );
   });
 
@@ -158,7 +158,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.equal(
       tracker.get('node'),
       node1,
-      'The node was re-attached to the tracker after calling getTracker again'
+      'The node was re-attached to the tracker after calling getTracker again',
     );
   });
 
@@ -181,7 +181,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.equal(
       tracker.get('node'),
       node2,
-      'Since node1 was destroyed but it matches the tracker of node2, node2 is attached to the tracker'
+      'Since node1 was destroyed but it matches the tracker of node2, node2 is attached to the tracker',
     );
   });
 
@@ -209,11 +209,11 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
 
     assert.ok(
       ref.get('node:active'),
-      'The active tracker is still in the registry despite being added first'
+      'The active tracker is still in the registry despite being added first',
     );
     assert.notOk(
       ref.get('node:inactive'),
-      'The inactive tracker got pushed out due to not being accessed'
+      'The inactive tracker got pushed out due to not being accessed',
     );
   });
 
@@ -226,9 +226,9 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     tracker.get('poll').perform();
     assert.ok(
       this.tokenAuthorizedRequestSpy.calledWith(
-        `/v1/client/stats?node_id=${node.get('id')}`
+        `/v1/client/stats?node_id=${node.get('id')}`,
       ),
-      'The token service authorizedRequest function was used'
+      'The token service authorizedRequest function was used',
     );
 
     return settled();

@@ -61,14 +61,14 @@ module('Acceptance | servers list', function (hooks) {
     assert.equal(
       ServersList.servers.length,
       ServersList.pageSize,
-      'List is stopped at pageSize'
+      'List is stopped at pageSize',
     );
 
     ServersList.servers.forEach((server, index) => {
       assert.equal(
         server.name,
         sortedAgents[index].name,
-        'Servers are ordered'
+        'Servers are ordered',
       );
     });
 
@@ -87,7 +87,7 @@ module('Acceptance | servers list', function (hooks) {
     assert.equal(
       agentRow.status,
       agent.member.Status[0].toUpperCase() + agent.member.Status.substring(1),
-      'Status'
+      'Status',
     );
     assert.equal(agentRow.leader, 'True', 'Leader?');
     assert.equal(agentRow.address, agent.member.Address, 'Address');
@@ -106,7 +106,7 @@ module('Acceptance | servers list', function (hooks) {
     assert.equal(
       currentURL(),
       `/servers/${agent.name}`,
-      'Now at the server detail page'
+      'Now at the server detail page',
     );
   });
 
@@ -134,17 +134,17 @@ module('Acceptance | servers list', function (hooks) {
     assert.equal(
       ServersList.servers.objectAt(0).leader,
       'True (galactic)',
-      'Leadership is shown for the galactic region'
+      'Leadership is shown for the galactic region',
     );
     assert.equal(
       ServersList.servers.objectAt(1).leader,
       'True (global)',
-      'Leadership is shown for the global region'
+      'Leadership is shown for the global region',
     );
     assert.equal(
       ServersList.servers.objectAt(2).leader,
       'False',
-      'Non-leader servers are shown'
+      'Non-leader servers are shown',
     );
   });
 });

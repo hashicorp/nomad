@@ -11,7 +11,7 @@ import { hash } from 'rsvp';
 
 export default class AccessControlPoliciesPolicyRoute extends Route.extend(
   withForbiddenState,
-  WithModelErrorHandling
+  WithModelErrorHandling,
 ) {
   @service store;
   async model(params) {
@@ -22,7 +22,7 @@ export default class AccessControlPoliciesPolicyRoute extends Route.extend(
       tokens: this.store
         .peekAll('token')
         .filter((token) =>
-          token.policyNames?.includes(decodeURIComponent(params.name))
+          token.policyNames?.includes(decodeURIComponent(params.name)),
         ),
     });
   }

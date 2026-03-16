@@ -29,18 +29,18 @@ export default create({
 
   titleActions: {
     click: clickable(
-      '.job-page-header .actions-dropdown .action-toggle-button'
+      '.job-page-header .actions-dropdown .action-toggle-button',
     ),
     expandedValue: attribute(
       'aria-expanded',
-      '.job-page-header .actions-dropdown .action-toggle-button'
+      '.job-page-header .actions-dropdown .action-toggle-button',
     ),
     actions: collection(
       '.job-page-header .actions-dropdown .hds-dropdown__list li',
       {
         text: text(),
         click: clickable('button'),
-      }
+      },
     ),
     multiAllocActions: collection(
       '.job-page-header .actions-dropdown .hds-dropdown__list li.hds-dropdown-list-item--variant-generic',
@@ -55,10 +55,10 @@ export default create({
           {
             text: text(),
             click: clickable('button'),
-          }
+          },
         ),
         showsDisclosureContent: isPresent('.hds-reveal__content'),
-      }
+      },
     ),
     singleAllocActions: collection(
       '.job-page-header .actions-dropdown .hds-dropdown__list li.hds-dropdown-list-item--variant-interactive',
@@ -69,7 +69,7 @@ export default create({
           expanded: attribute('aria-expanded'),
         }),
         showsDisclosureContent: isPresent('.hds-reveal__content'),
-      }
+      },
     ),
   },
 
@@ -113,12 +113,12 @@ export default create({
             {
               text: text(),
               click: clickable('button'),
-            }
+            },
           ),
           showsDisclosureContent: isPresent(
-            '.hds-disclosure-primitive__content'
+            '.hds-disclosure-primitive__content',
           ),
-        }
+        },
       ),
       singleAllocActions: collection(
         '.actions-dropdown .hds-dropdown__list li.hds-dropdown-list-item--variant-interactive',
@@ -129,9 +129,9 @@ export default create({
             expanded: attribute('aria-expanded'),
           }),
           showsDisclosureContent: isPresent(
-            '.hds-disclosure-primitive__content'
+            '.hds-disclosure-primitive__content',
           ),
-        }
+        },
       ),
     },
   },

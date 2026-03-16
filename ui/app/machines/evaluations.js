@@ -126,5 +126,5 @@ export default createMachine(
       updateEvaluationQueryParameter() {},
       removeCurrentEvaluationQueryParameter() {},
     },
-  }
+  },
 );

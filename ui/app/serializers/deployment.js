@@ -48,7 +48,7 @@ export default class DeploymentSerializer extends ApplicationSerializer {
           },
         },
       },
-      super.extractRelationships(modelClass, hash)
+      super.extractRelationships(modelClass, hash),
     );
   }
 }

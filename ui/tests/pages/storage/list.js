@@ -24,10 +24,10 @@ export default create({
 
   csiSearch: fillable('[data-test-csi-volumes-search]'),
   dynamicHostVolumesSearch: fillable(
-    '[data-test-dynamic-host-volumes-search] input'
+    '[data-test-dynamic-host-volumes-search] input',
   ),
   staticHostVolumesSearch: fillable(
-    '[data-test-static-host-volumes-search] input'
+    '[data-test-static-host-volumes-search] input',
   ),
   ephemeralDisksSearch: fillable('[data-test-ephemeral-disks-search] input'),
 
@@ -52,17 +52,17 @@ export default create({
   dhvEmptyState: text('[data-test-empty-dhv-list-headline]'),
 
   csiNextPage: clickable(
-    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-next'
+    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-next',
   ),
   csiPrevPage: clickable(
-    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-prev'
+    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-prev',
   ),
 
   dhvNextPage: clickable(
-    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-next'
+    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-next',
   ),
   dhvPrevPage: clickable(
-    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-prev'
+    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-prev',
   ),
 
   error: error(),

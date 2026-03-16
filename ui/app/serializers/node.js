@@ -35,7 +35,7 @@ export default class NodeSerializer extends ApplicationSerializer {
         modelName,
         this.extractId(modelClass, hash),
         hash,
-        'findRecord'
+        'findRecord',
       );
 
     return {

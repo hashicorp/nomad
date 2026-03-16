@@ -19,16 +19,24 @@
   </:head>
   <:body as |B|>
     {{#each this.folders as |folder|}}
-      <B.Tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
-        <B.Td colspan="3"
-          {{keyboard-shortcut 
+      <B.Tr
+        data-test-folder-row
+        {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}
+      >
+        <B.Td
+          colspan="3"
+          {{keyboard-shortcut
             enumerated=true
             action=(fn this.handleFolderClick folder.data.absolutePath)
           }}
         >
           <span>
             <Hds::Icon @name="folder" @isInline={{true}} />
-            <LinkTo @route="variables.path" @model={{folder.data.absolutePath}} @query={{hash namespace="*"}}>
+            <LinkTo
+              @route="variables.path"
+              @model={{folder.data.absolutePath}}
+              @query={{hash namespace="*"}}
+            >
               {{trim-path folder.name}}
             </LinkTo>
           </span>
@@ -41,35 +49,54 @@
       <B.Tr
         data-test-file-row="{{file.name}}"
         {{on "click" (fn this.handleFileClick file)}}
-        class={{if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace) "" "inaccessible"}}
-        {{keyboard-shortcut 
+        class={{if
+          (can
+            "read variable"
+            path=file.absoluteFilePath
+            namespace=file.variable.namespace
+          )
+          ""
+          "inaccessible"
+        }}
+        {{keyboard-shortcut
           enumerated=true
           action=(fn this.handleFileClick file)
         }}
       >
         <B.Td>
           <Hds::Icon @name="file-text" @isInline={{true}} />
-          {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
-          <LinkTo
-            @route="variables.variable"
-            @model={{file.variable.id}}
-            @query={{hash namespace="*"}}
-          >
-            {{file.name}}
-          </LinkTo>
+          {{#if
+            (can
+              "read variable"
+              path=file.absoluteFilePath
+              namespace=file.variable.namespace
+            )
+          }}
+            <LinkTo
+              @route="variables.variable"
+              @model={{file.variable.id}}
+              @query={{hash namespace="*"}}
+            >
+              {{file.name}}
+            </LinkTo>
           {{else}}
-            <span title="Your access policy does not allow you to view the contents of {{file.name}}">{{file.name}}</span>
+            <span
+              title="Your access policy does not allow you to view the contents of {{file.name}}"
+            >{{file.name}}</span>
           {{/if}}
         </B.Td>
         <B.Td>
           {{file.variable.namespace}}
         </B.Td>
         <B.Td>
-          <span class="tooltip" aria-label="{{format-ts file.variable.modifyTime}}">
+          <span
+            class="tooltip"
+            aria-label="{{format-ts file.variable.modifyTime}}"
+          >
             {{moment-from-now file.variable.modifyTime}}
           </span>
         </B.Td>
       </B.Tr>
-    {{/each}}              
+    {{/each}}
   </:body>
 </Hds::Table>

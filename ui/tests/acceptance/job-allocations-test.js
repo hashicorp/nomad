@@ -61,7 +61,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.equal(
       Allocations.allocations.length,
       Allocations.pageSize - 1,
-      'Allocations are shown in a table'
+      'Allocations are shown in a table',
     );
 
     const sortedAllocations = allocations.sortBy('modifyIndex').reverse();
@@ -71,7 +71,7 @@ module('Acceptance | job allocations', function (hooks) {
       assert.equal(
         allocation.shortId,
         shortId,
-        `Allocation ${index} is ${shortId}`
+        `Allocation ${index} is ${shortId}`,
       );
     });
 
@@ -91,8 +91,8 @@ module('Acceptance | job allocations', function (hooks) {
     const requestToAllocationEndpoint = server.pretender.handledRequests.find(
       (request) =>
         request.url.includes(
-          `/v1/allocation/${firstAllocation.dataset.testAllocation}`
-        )
+          `/v1/allocation/${firstAllocation.dataset.testAllocation}`,
+        ),
     );
 
     assert.ok(requestToAllocationEndpoint, 'the correct endpoint is hit');
@@ -100,7 +100,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${firstAllocation.dataset.testAllocation}`,
-      'the URL is correct'
+      'the URL is correct',
     );
   });
 
@@ -114,7 +114,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/allocations?sort=taskGroupName`,
-      'the URL persists the sort parameter'
+      'the URL persists the sort parameter',
     );
     const sortedAllocations = allocations.sortBy('taskGroup').reverse();
     Allocations.allocations.forEach((allocation, index) => {
@@ -122,7 +122,7 @@ module('Acceptance | job allocations', function (hooks) {
       assert.equal(
         allocation.shortId,
         shortId,
-        `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`
+        `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`,
       );
     });
   });
@@ -138,7 +138,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.equal(
       Allocations.allocations.length,
       5,
-      'List is filtered by search term'
+      'List is filtered by search term',
     );
   });
 
@@ -153,7 +153,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.equal(
       Allocations.emptyState.headline,
       'No Matches',
-      'List is empty and the empty state is about search'
+      'List is empty and the empty state is about search',
     );
 
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
@@ -167,18 +167,18 @@ module('Acceptance | job allocations', function (hooks) {
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
     assert.equal(
       currentURL(),
       '/jobs/not-a-real-job/allocations',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(Allocations.error.isPresent, 'Error message is shown');
     assert.equal(
       Allocations.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -197,7 +197,7 @@ module('Acceptance | job allocations', function (hooks) {
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
           server.createList('allocation', 5, { clientStatus: s });
-        }
+        },
       );
       await Allocations.visit({ id: job.id });
     },
@@ -214,8 +214,8 @@ module('Acceptance | job allocations', function (hooks) {
           allocs
             .filter((alloc) => alloc.jobId == job.id)
             .mapBy('nodeId')
-            .map((id) => id.split('-')[0])
-        )
+            .map((id) => id.split('-')[0]),
+        ),
       ).sort();
     },
     async beforeEach() {
@@ -234,8 +234,8 @@ module('Acceptance | job allocations', function (hooks) {
     expectedOptions(allocs) {
       return Array.from(
         new Set(
-          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup')
-        )
+          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'),
+        ),
       ).sort();
     },
     async beforeEach() {
@@ -255,7 +255,7 @@ module('Acceptance | job allocations', function (hooks) {
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
+  { facet, paramName, beforeEach, filter, expectedOptions },
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
@@ -271,7 +271,7 @@ function testFacet(
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   });
 
@@ -294,7 +294,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -321,7 +321,7 @@ function testFacet(
       assert.equal(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -342,9 +342,9 @@ function testFacet(
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`,
-      'URL has the correct query param key and value'
+      'URL has the correct query param key and value',
     );
   });
 }

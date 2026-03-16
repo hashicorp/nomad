@@ -57,7 +57,7 @@ export default class Watchable extends ApplicationAdapter {
 
     const signal = get(
       snapshotRecordArray || {},
-      'adapterOptions.abortController.signal'
+      'adapterOptions.abortController.signal',
     );
     return this.ajax(url, 'GET', {
       signal,
@@ -70,13 +70,13 @@ export default class Watchable extends ApplicationAdapter {
       type.modelName,
       id,
       snapshot,
-      'findRecord'
+      'findRecord',
     );
     let [url, params] = originalUrl.split('?');
     params = Object.assign(
       queryString.parse(params) || {},
       this.buildQuery(),
-      additionalParams
+      additionalParams,
     );
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
@@ -105,7 +105,7 @@ export default class Watchable extends ApplicationAdapter {
     query,
     snapshotRecordArray,
     options,
-    additionalParams = {}
+    additionalParams = {},
   ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
     const method = get(options, 'adapterOptions.method') || 'GET';
@@ -114,7 +114,7 @@ export default class Watchable extends ApplicationAdapter {
       queryString.parse(params) || {},
       this.buildQuery(),
       additionalParams,
-      query
+      query,
     );
 
     if (get(options, 'adapterOptions.watch')) {
@@ -140,7 +140,7 @@ export default class Watchable extends ApplicationAdapter {
       // Query params may not necessarily map one-to-one to attribute names.
       // Adapters are responsible for declaring param mappings.
       const queryParamsToAttrs = Object.keys(
-        adapter.queryParamsToAttrs || {}
+        adapter.queryParamsToAttrs || {},
       ).map((key) => ({
         queryParam: key,
         attr: adapter.queryParamsToAttrs[key],
@@ -152,8 +152,9 @@ export default class Watchable extends ApplicationAdapter {
         .peekAll(type.modelName)
         .filter((record) =>
           queryParamsToAttrs.some(
-            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
-          )
+            (mapping) =>
+              get(record, mapping.attr) === query[mapping.queryParam],
+          ),
         )
         .forEach((record) => {
           removeRecord(store, record);
@@ -166,14 +167,14 @@ export default class Watchable extends ApplicationAdapter {
   reloadRelationship(
     model,
     relationshipName,
-    options = { watch: false, abortController: null, replace: false }
+    options = { watch: false, abortController: null, replace: false },
   ) {
     const store = lookupStore(this);
     const { watch, abortController, replace } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(
-        `${relationship.key} must be a belongsTo or hasMany, instead it was ${relationship.kind}`
+        `${relationship.key} must be a belongsTo or hasMany, instead it was ${relationship.kind}`,
       );
     } else {
       const url = model[relationship.kind](relationship.key).link();
@@ -214,7 +215,7 @@ export default class Watchable extends ApplicationAdapter {
           const normalizedData = serializer[normalizeMethod](
             store,
             modelClass,
-            json
+            json,
           );
           if (replace) {
             store.unloadAll(relationship.type);
@@ -226,7 +227,7 @@ export default class Watchable extends ApplicationAdapter {
             return relationship.kind === 'belongsTo' ? {} : [];
           }
           throw error;
-        }
+        },
       );
     }
   }

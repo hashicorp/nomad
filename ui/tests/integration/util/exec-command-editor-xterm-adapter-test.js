@@ -36,7 +36,7 @@ module(
           assert.equal(command, '/bin/long');
           done();
         },
-        '/bin/long-command'
+        '/bin/long-command',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.DELETE);
@@ -52,7 +52,7 @@ module(
 
       assert.equal(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        '/bin/long'
+        '/bin/long',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
@@ -78,7 +78,7 @@ module(
           assert.equal(command, '/bin/bash!');
           done();
         },
-        '/bin/bash'
+        '/bin/bash',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.RIGHT_ARROW);
@@ -97,7 +97,7 @@ module(
 
       assert.equal(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        '/bin/bash!'
+        '/bin/bash!',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
@@ -123,7 +123,7 @@ module(
           assert.equal(command, '!');
           done();
         },
-        'to-delete'
+        'to-delete',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.CONTROL_U);
@@ -132,11 +132,11 @@ module(
 
       assert.equal(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        ''
+        '',
       );
 
       await terminal.simulateCommandDataEvent('!');
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
     });
-  }
+  },
 );

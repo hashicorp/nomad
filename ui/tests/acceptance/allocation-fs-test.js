@@ -41,18 +41,18 @@ module('Acceptance | allocation fs', function (hooks) {
         isDir: true,
         name: 'another',
         parent: files[0],
-      })
+      }),
     );
     files.push(
       server.create('allocFile', 'file', {
         name: 'something.txt',
         fileType: 'txt',
         parent: files[1],
-      })
+      }),
     );
 
     files.push(
-      server.create('allocFile', { isDir: true, name: 'empty-directory' })
+      server.create('allocFile', { isDir: true, name: 'empty-directory' }),
     );
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));

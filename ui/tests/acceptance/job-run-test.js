@@ -54,10 +54,10 @@ const jsonJob = (overrides) => {
           },
         ],
       },
-      overrides
+      overrides,
     ),
     null,
-    2
+    2,
   );
 };
 
@@ -107,7 +107,7 @@ module('Acceptance | job run', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}@${newJobNamespace}`,
-      `Redirected to the job overview page for ${newJobName}`
+      `Redirected to the job overview page for ${newJobName}`,
     );
   });
 
@@ -129,7 +129,7 @@ module('Acceptance | job run', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}@${newNamespace}`,
-      `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`
+      `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`,
     );
   });
 
@@ -224,7 +224,7 @@ module('Acceptance | job run', function (hooks) {
             prefix: 'nomad/job-templates',
             namespace: '*',
           },
-          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
+          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.',
         );
         return [
           {
@@ -243,7 +243,7 @@ module('Acceptance | job run', function (hooks) {
             {
               namespace: 'default',
             },
-            'Dispatches O(n+1) query to retrive items.'
+            'Dispatches O(n+1) query to retrive items.',
           );
           return {
             ID: 'nomad/job-templates/foo',
@@ -254,7 +254,7 @@ module('Acceptance | job run', function (hooks) {
               label: 'foo',
             },
           };
-        }
+        },
       );
       // Act
       await click('[data-test-choose-template]');
@@ -276,7 +276,7 @@ module('Acceptance | job run', function (hooks) {
 
       assert.equal(
         currentURL(),
-        '/jobs/run?template=nomad%2Fjob-templates%2Ffoo%40default'
+        '/jobs/run?template=nomad%2Fjob-templates%2Ffoo%40default',
       );
       assert.dom('[data-test-editor]').containsText('Hello World!');
     });
@@ -292,7 +292,7 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-template-card]')
         .exists(
           { count: NUMBER_OF_DEFAULT_TEMPLATES },
-          'A list of default job templates is rendered.'
+          'A list of default job templates is rendered.',
         );
 
       await click('[data-test-create-new-button]');
@@ -314,7 +314,7 @@ module('Acceptance | job run', function (hooks) {
             ID: 'nomad/job-templates/foo',
             Items: { description: 'foo-bar-baz', template: jsonJob() },
           },
-          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.',
         );
         return {
           Items: { description: 'foo-bar-baz', template: jsonJob() },
@@ -330,7 +330,7 @@ module('Acceptance | job run', function (hooks) {
             prefix: 'nomad/job-templates',
             namespace: '*',
           },
-          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.'
+          'It makes a request to the /vars endpoint with the appropriate query parameters for job templates.',
         );
         return [
           {
@@ -349,7 +349,7 @@ module('Acceptance | job run', function (hooks) {
             {
               namespace: 'default',
             },
-            'Dispatches O(n+1) query to retrive items.'
+            'Dispatches O(n+1) query to retrive items.',
           );
           return {
             ID: 'nomad/job-templates/foo',
@@ -360,7 +360,7 @@ module('Acceptance | job run', function (hooks) {
               label: 'foo',
             },
           };
-        }
+        },
       );
 
       await click('[data-test-save-template]');
@@ -381,7 +381,7 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-template-card]')
         .exists(
           { count: NUMBER_OF_DEFAULT_TEMPLATES },
-          'A list of default job templates is rendered.'
+          'A list of default job templates is rendered.',
         );
 
       await click('[data-test-create-new-button]');
@@ -406,7 +406,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         currentRouteName(),
         'jobs.run.templates.new',
-        'We do not navigate away from the page if an error is returned by the API.'
+        'We do not navigate away from the page if an error is returned by the API.',
       );
       assert
         .dom('.flash-message.alert-critical')
@@ -433,7 +433,7 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-template-card]')
         .exists(
           { count: NUMBER_OF_DEFAULT_TEMPLATES },
-          'A list of default job templates is rendered.'
+          'A list of default job templates is rendered.',
         );
 
       await click('[data-test-create-new-button]');
@@ -450,7 +450,7 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-duplicate-error]')
         .doesNotExist(
-          'an error disappears when name or namespace combination is unique'
+          'an error disappears when name or namespace combination is unique',
         );
 
       // Clean-up
@@ -467,7 +467,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         currentRouteName(),
         'jobs.run.templates.new',
-        'We navigate template creation page.'
+        'We navigate template creation page.',
       );
 
       // Assert
@@ -484,7 +484,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         json,
         jsonJob(),
-        'Template is filled out with text from the editor.'
+        'Template is filled out with text from the editor.',
       );
     });
 
@@ -510,7 +510,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         currentRouteName(),
         'jobs.run.templates.template',
-        'Navigates to edit template view'
+        'Navigates to edit template view',
       );
 
       server.put('/var/:varId', function (_server, fakeRequest) {
@@ -524,7 +524,7 @@ module('Acceptance | job run', function (hooks) {
             ID: 'nomad/job-templates/foo',
             Items: { description: 'baz qud thud' },
           },
-          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.'
+          'It makes a PUT request to the /vars/:varId endpoint with the appropriate request body for job templates.',
         );
 
         return {
@@ -540,7 +540,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         currentRouteName(),
         'jobs.run.templates.index',
-        'We navigate back to the templates view.'
+        'We navigate back to the templates view.',
       );
     });
 
@@ -589,7 +589,7 @@ module('Acceptance | job run', function (hooks) {
       assert.equal(
         currentRouteName(),
         'jobs.run.templates.manage',
-        'We navigate back to the templates manager view.'
+        'We navigate back to the templates manager view.',
       );
 
       assert
@@ -624,7 +624,7 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-template-card="Foo"]')
         .doesNotExist(
-          'The template reactively updates to changes in the Ember Data Store.'
+          'The template reactively updates to changes in the Ember Data Store.',
         );
     });
 
@@ -645,7 +645,7 @@ module('Acceptance | job run', function (hooks) {
 
       assert.equal(
         currentURL(),
-        '/jobs/run?template=nomad%2Fjob-templates%2Fdefault%2Fhello-world'
+        '/jobs/run?template=nomad%2Fjob-templates%2Fdefault%2Fhello-world',
       );
       assert.dom('[data-test-editor]').includesText('job "hello-world"');
     });

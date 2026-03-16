@@ -142,7 +142,9 @@
 
   .task-toggles {
     table {
-      width: calc(100% + 1px); // To remove a mysterious 1px gap between this and the pane border
+      width: calc(
+        100% + 1px
+      ); // To remove a mysterious 1px gap between this and the pane border
     }
 
     th {

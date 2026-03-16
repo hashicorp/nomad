@@ -47,8 +47,8 @@ module('Acceptance | server detail', function (hooks) {
     assert.ok(ServerDetail.serverStatus.includes(agent.member.Status));
     assert.ok(
       ServerDetail.address.includes(
-        formatHost(agent.member.Address, agent.member.Tags.port)
-      )
+        formatHost(agent.member.Address, agent.member.Tags.port),
+      ),
     );
     assert.ok(ServerDetail.datacenter.includes(agent.member.Tags.dc));
   });
@@ -77,12 +77,12 @@ module('Acceptance | server detail', function (hooks) {
     assert.equal(
       currentURL(),
       '/servers/not-a-real-server',
-      'The URL persists'
+      'The URL persists',
     );
     assert.equal(
       ServerDetail.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 });

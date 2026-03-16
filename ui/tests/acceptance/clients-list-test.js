@@ -54,7 +54,7 @@ module('Acceptance | clients list', function (hooks) {
       assert.equal(
         node.id,
         sortedNodes[index].id.split('-')[0],
-        'Clients are ordered'
+        'Clients are ordered',
       );
     });
 
@@ -79,7 +79,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(
       nodeRow.compositeStatus.text,
       'Ready Ineligible Draining',
-      'Combined status, draining, and eligbility'
+      'Combined status, draining, and eligbility',
     );
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
@@ -113,7 +113,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(
       nodeRow.compositeStatus.text,
       'Ready Eligible Not Draining',
-      'Combined status, draining, and eligbility'
+      'Combined status, draining, and eligbility',
     );
     assert.equal(nodeRow.allocations, running.length, '# Allocations');
   });
@@ -160,27 +160,27 @@ module('Acceptance | clients list', function (hooks) {
     await ClientsList.visit();
     assert.equal(
       ClientsList.nodes[0].compositeStatus.text,
-      'Ready Eligible Not Draining'
+      'Ready Eligible Not Draining',
     );
     assert.equal(
       ClientsList.nodes[1].compositeStatus.text,
-      'Initializing Eligible Not Draining'
+      'Initializing Eligible Not Draining',
     );
     assert.equal(
       ClientsList.nodes[2].compositeStatus.text,
-      'Down Eligible Not Draining'
+      'Down Eligible Not Draining',
     );
     assert.equal(
       ClientsList.nodes[3].compositeStatus.text,
-      'Down Ineligible Not Draining'
+      'Down Ineligible Not Draining',
     );
     assert.equal(
       ClientsList.nodes[4].compositeStatus.text,
-      'Ready Ineligible Not Draining'
+      'Ready Ineligible Not Draining',
     );
     assert.equal(
       ClientsList.nodes[5].compositeStatus.text,
-      'Ready Eligible Draining'
+      'Ready Eligible Draining',
     );
 
     await ClientsList.sortBy('status');
@@ -195,7 +195,7 @@ module('Acceptance | clients list', function (hooks) {
         'Down Ineligible Not Draining',
         'Down Eligible Not Draining',
       ],
-      'Nodes are sorted only by status, and otherwise default to modifyIndex'
+      'Nodes are sorted only by status, and otherwise default to modifyIndex',
     );
 
     // Simulate a client state change arriving through polling
@@ -216,7 +216,7 @@ module('Acceptance | clients list', function (hooks) {
         'Initializing Eligible Not Draining',
         'Down Ineligible Not Draining',
         'Down Eligible Not Draining',
-      ]
+      ],
     );
   });
 
@@ -404,7 +404,7 @@ module('Acceptance | clients list', function (hooks) {
     expectedOptions(nodes) {
       const flatten = (acc, val) => acc.concat(Object.keys(val));
       return Array.from(
-        new Set(nodes.mapBy('hostVolumes').reduce(flatten, []))
+        new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])),
       );
     },
     async beforeEach() {
@@ -418,7 +418,7 @@ module('Acceptance | clients list', function (hooks) {
     },
     filter: (node, selection) =>
       Object.keys(node.hostVolumes).find((volume) =>
-        selection.includes(volume)
+        selection.includes(volume),
       ),
   });
 
@@ -433,7 +433,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(
       ClientsList.empty.headline,
       'No Matches',
-      'The message is appropriate'
+      'The message is appropriate',
     );
   });
 
@@ -447,13 +447,13 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(
       ClientsList.nodes.length,
       1,
-      'Only one client shown due to query param'
+      'Only one client shown due to query param',
     );
   });
 
   function testFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
+    { facet, paramName, beforeEach, filter, expectedOptions },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await beforeEach();
@@ -471,7 +471,7 @@ module('Acceptance | clients list', function (hooks) {
           return option.key.trim();
         }),
         expectation,
-        'Options for facet are as expected'
+        'Options for facet are as expected',
       );
     });
 
@@ -494,7 +494,7 @@ module('Acceptance | clients list', function (hooks) {
         assert.equal(
           node.id,
           expectedNodes[index].id.split('-')[0],
-          `Node at ${index} is ${expectedNodes[index].id}`
+          `Node at ${index} is ${expectedNodes[index].id}`,
         );
       });
     });
@@ -521,7 +521,7 @@ module('Acceptance | clients list', function (hooks) {
         assert.equal(
           node.id,
           expectedNodes[index].id.split('-')[0],
-          `Node at ${index} is ${expectedNodes[index].id}`
+          `Node at ${index} is ${expectedNodes[index].id}`,
         );
       });
     });
@@ -547,13 +547,13 @@ module('Acceptance | clients list', function (hooks) {
         .map((option) => `state_${option}=false`)
         .join('&')}`;
       const nonStateString = `/clients?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`;
 
       assert.equal(
         currentURL(),
         paramName === 'state' ? stateString : nonStateString,
-        'URL has the correct query param key and value'
+        'URL has the correct query param key and value',
       );
     });
   }

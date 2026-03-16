@@ -32,7 +32,7 @@ export default class JobVersionsStream extends Component {
       } else {
         const previousVersion = versions[index - 1];
         const previousStart = moment(previousVersion.get('submitTime')).startOf(
-          'day'
+          'day',
         );
         const currentStart = moment(version.get('submitTime')).startOf('day');
         if (previousStart.diff(currentStart, 'days') > 0) {

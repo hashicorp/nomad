@@ -77,10 +77,10 @@ module('Integration | Component | allocation row', function (hooks) {
     assert.equal(
       this.server.pretender.handledRequests.filterBy(
         'url',
-        `/v1/client/allocation/${allocation.get('id')}/stats`
+        `/v1/client/allocation/${allocation.get('id')}/stats`,
       ).length,
       frames.length,
-      'Requests continue to be made after malformed responses and server errors'
+      'Requests continue to be made after malformed responses and server errors',
     );
   });
 
@@ -115,7 +115,7 @@ module('Integration | Component | allocation row', function (hooks) {
 
     assert.ok(
       find('[data-test-icon="unhealthy-driver"]'),
-      'Unhealthy driver icon is shown'
+      'Unhealthy driver icon is shown',
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -147,7 +147,7 @@ module('Integration | Component | allocation row', function (hooks) {
 
     // All non-running statuses need to be tested
     ['pending', 'complete', 'failed', 'lost'].forEach((clientStatus) =>
-      this.server.create('allocation', { clientStatus })
+      this.server.create('allocation', { clientStatus }),
     );
 
     await this.store.findAll('allocation');
@@ -166,11 +166,11 @@ module('Integration | Component | allocation row', function (hooks) {
       const status = allocation.get('clientStatus');
       assert.notOk(
         find('[data-test-cpu] .inline-chart'),
-        `No CPU chart for ${status}`
+        `No CPU chart for ${status}`,
       );
       assert.notOk(
         find('[data-test-mem] .inline-chart'),
-        `No Mem chart for ${status}`
+        `No Mem chart for ${status}`,
       );
     }
   });

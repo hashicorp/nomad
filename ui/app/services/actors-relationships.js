@@ -21,7 +21,7 @@ function boxToArrow(ra, rb) {
     bbB.offsetLeft,
     bbB.offsetTop,
     bbB.offsetWidth,
-    bbB.offsetHeight
+    bbB.offsetHeight,
   );
 
   return {
@@ -84,7 +84,7 @@ export default class ActorRelationshipService extends Service {
     return rects.map(([eRectangle, prevRectangle]) => {
       const { sx, sy, c1x, c1y, c2x, c2y, ex, ey } = boxToArrow(
         eRectangle,
-        prevRectangle
+        prevRectangle,
       );
 
       return {

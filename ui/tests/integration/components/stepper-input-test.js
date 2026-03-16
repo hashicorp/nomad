@@ -61,10 +61,10 @@ module('Integration | Component | stepper input', function (hooks) {
     assert.ok(StepperInput.decrement.isPresent);
     assert.ok(StepperInput.increment.isPresent);
     assert.ok(
-      StepperInput.decrement.classNames.split(' ').includes(this.classVariant)
+      StepperInput.decrement.classNames.split(' ').includes(this.classVariant),
     );
     assert.ok(
-      StepperInput.increment.classNames.split(' ').includes(this.classVariant)
+      StepperInput.increment.classNames.split(' ').includes(this.classVariant),
     );
 
     await componentA11yAudit(this.element, assert);
@@ -202,7 +202,7 @@ module('Integration | Component | stepper input', function (hooks) {
 
     assert.equal(
       window.getSelection().toString().trim(),
-      this.value.toString()
+      this.value.toString(),
     );
   });
 

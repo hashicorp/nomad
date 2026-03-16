@@ -7,9 +7,15 @@
   {{#each breadcrumbs as |crumb iter|}}
     {{#let crumb.args.crumb as |c|}}
       {{#if (eq c.type "job")}}
-        <Breadcrumbs::Job @crumb={{c}} @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}} />
+        <Breadcrumbs::Job
+          @crumb={{c}}
+          @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}}
+        />
       {{else}}
-        <Breadcrumbs::Default @crumb={{c}} @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}} />
+        <Breadcrumbs::Default
+          @crumb={{c}}
+          @isOneCrumbUp={{fn this.isOneCrumbUp iter breadcrumbs.length}}
+        />
       {{/if}}
     {{/let}}
   {{/each}}

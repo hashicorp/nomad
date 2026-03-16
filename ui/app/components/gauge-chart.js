@@ -28,7 +28,7 @@ export default class GaugeChart extends Component.extend(WindowResizable) {
   get percent() {
     assert(
       'Provide complement OR total to GaugeChart, not both.',
-      this.complement != null || this.total != null
+      this.complement != null || this.total != null,
     );
 
     if (this.complement != null) {

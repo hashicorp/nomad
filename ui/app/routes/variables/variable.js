@@ -9,7 +9,7 @@ import { inject as service } from '@ember/service';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 export default class VariablesVariableRoute extends Route.extend(
-  withForbiddenState
+  withForbiddenState,
 ) {
   @service store;
   model(params) {

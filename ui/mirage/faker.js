@@ -23,7 +23,7 @@ if (
 } else if (config.environment === 'test') {
   const randomSeed = faker.random.number();
   console.log(
-    `No seed specified with faker-seed query parameter, seeding Faker with ${randomSeed}`
+    `No seed specified with faker-seed query parameter, seeding Faker with ${randomSeed}`,
   );
   faker.seed(randomSeed);
 }

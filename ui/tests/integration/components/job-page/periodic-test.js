@@ -89,7 +89,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     assert.equal(
       findAll('[data-test-job-row] [data-test-job-name]').length,
       childrenCount,
-      'The new periodic job launch is in the children list'
+      'The new periodic job launch is in the children list',
     );
 
     await click('[data-test-force-launch]');
@@ -100,13 +100,13 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       this.server.pretender.handledRequests
         .filterBy('method', 'POST')
         .find((req) => req.url === expectedURL),
-      'POST URL was correct'
+      'POST URL was correct',
     );
 
     assert.equal(
       server.db.jobs.length,
       currentJobCount + 1,
-      'POST request was made'
+      'POST request was made',
     );
   });
 
@@ -181,7 +181,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled')
+      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
 
     await componentA11yAudit(this.element, assert);
@@ -231,7 +231,9 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-start] [data-test-idle-button]').hasAttribute('disabled')
+      find('[data-test-start] [data-test-idle-button]').hasAttribute(
+        'disabled',
+      ),
     );
   });
 
@@ -283,9 +285,9 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     assert.equal(
       find('[data-test-job-submit-time]').textContent.trim(),
       moment(job.get('children.firstObject.submitTime')).format(
-        'MMM DD HH:mm:ss ZZ'
+        'MMM DD HH:mm:ss ZZ',
       ),
-      'The new periodic job launch is in the children list'
+      'The new periodic job launch is in the children list',
     );
   });
 

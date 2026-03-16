@@ -41,7 +41,7 @@ module('Acceptance | plugin detail', function (hooks) {
     assert.equal(Layout.breadcrumbFor('storage.plugins').text, 'Plugins');
     assert.equal(
       Layout.breadcrumbFor('storage.plugins.plugin').text,
-      plugin.id
+      plugin.id,
     );
   });
 
@@ -60,24 +60,24 @@ module('Acceptance | plugin detail', function (hooks) {
     assert.ok(
       PluginDetail.controllerHealth.includes(
         `${Math.round(
-          (plugin.controllersHealthy / plugin.controllersExpected) * 100
-        )}%`
-      )
+          (plugin.controllersHealthy / plugin.controllersExpected) * 100,
+        )}%`,
+      ),
     );
     assert.ok(
       PluginDetail.controllerHealth.includes(
-        `${plugin.controllersHealthy}/${plugin.controllersExpected}`
-      )
+        `${plugin.controllersHealthy}/${plugin.controllersExpected}`,
+      ),
     );
     assert.ok(
       PluginDetail.nodeHealth.includes(
-        `${Math.round((plugin.nodesHealthy / plugin.nodesExpected) * 100)}%`
-      )
+        `${Math.round((plugin.nodesHealthy / plugin.nodesExpected) * 100)}%`,
+      ),
     );
     assert.ok(
       PluginDetail.nodeHealth.includes(
-        `${plugin.nodesHealthy}/${plugin.nodesExpected}`
-      )
+        `${plugin.nodesHealthy}/${plugin.nodesExpected}`,
+      ),
     );
     assert.ok(PluginDetail.provider.includes(plugin.provider));
   });
@@ -87,7 +87,7 @@ module('Acceptance | plugin detail', function (hooks) {
 
     assert.equal(
       PluginDetail.controllerAllocations.length,
-      plugin.controllers.length
+      plugin.controllers.length,
     );
     plugin.controllers.models
       .sortBy('updateTime')
@@ -95,7 +95,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .forEach((allocation, idx) => {
         assert.equal(
           PluginDetail.controllerAllocations.objectAt(idx).id,
-          allocation.allocID
+          allocation.allocID,
         );
       });
   });
@@ -110,7 +110,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .forEach((allocation, idx) => {
         assert.equal(
           PluginDetail.nodeAllocations.objectAt(idx).id,
-          allocation.allocID
+          allocation.allocID,
         );
       });
   });
@@ -130,7 +130,7 @@ module('Acceptance | plugin detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     await PluginDetail.visit({ id: plugin.id });
@@ -139,65 +139,65 @@ module('Acceptance | plugin detail', function (hooks) {
       assert.equal(
         allocationRow.shortId,
         allocation.id.split('-')[0],
-        'Allocation short ID'
+        'Allocation short ID',
       );
       assert.equal(
         allocationRow.createTime,
-        moment(allocation.createTime / 1000000).format('MMM D')
+        moment(allocation.createTime / 1000000).format('MMM D'),
       );
       assert.equal(
         allocationRow.createTooltip,
-        moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+        moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
       );
       assert.equal(
         allocationRow.modifyTime,
-        moment(allocation.modifyTime / 1000000).fromNow()
+        moment(allocation.modifyTime / 1000000).fromNow(),
       );
       assert.equal(
         allocationRow.health,
-        controller.healthy ? 'Healthy' : 'Unhealthy'
+        controller.healthy ? 'Healthy' : 'Unhealthy',
       );
       assert.equal(
         allocationRow.client,
         server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-        'Node ID'
+        'Node ID',
       );
       assert.equal(
         allocationRow.clientTooltip.substr(0, 15),
         server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
-        'Node Name'
+        'Node Name',
       );
       assert.equal(
         allocationRow.job,
         server.db.jobs.find(allocation.jobId).name,
-        'Job name'
+        'Job name',
       );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
       assert.equal(
         allocationRow.cpu,
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-        'CPU %'
+        'CPU %',
       );
       const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks
+        allocStats.resourceUsage.CpuStats.TotalTicks,
       );
       assert.equal(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-        'Detailed CPU information is in a tooltip'
+        'Detailed CPU information is in a tooltip',
       );
       assert.equal(
         allocationRow.mem,
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-        'Memory used'
+        'Memory used',
       );
       assert.equal(
         allocationRow.memTooltip,
         `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS
+          allocStats.resourceUsage.MemoryStats.RSS,
         )} / ${formatBytes(memoryUsed, 'MiB')}`,
-        'Detailed memory information is in a tooltip'
+        'Detailed memory information is in a tooltip',
       );
     });
   });
@@ -227,13 +227,13 @@ module('Acceptance | plugin detail', function (hooks) {
     assert.ok(PluginDetail.controllerTableIsEmpty);
     assert.equal(
       PluginDetail.controllerEmptyState.headline,
-      'No Controller Plugin Allocations'
+      'No Controller Plugin Allocations',
     );
 
     assert.ok(PluginDetail.nodeTableIsEmpty);
     assert.equal(
       PluginDetail.nodeEmptyState.headline,
-      'No Node Plugin Allocations'
+      'No Node Plugin Allocations',
     );
   });
 
@@ -269,25 +269,25 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: plugin.id });
     assert.ok(
       PluginDetail.goToControllerAllocationsText.includes(
-        plugin.controllers.models.length
-      )
+        plugin.controllers.models.length,
+      ),
     );
     await PluginDetail.goToControllerAllocations();
     assert.equal(
       currentURL(),
       `/storage/plugins/${plugin.id}/allocations?type=${serialize([
         'controller',
-      ])}`
+      ])}`,
     );
 
     await PluginDetail.visit({ id: plugin.id });
     assert.ok(
-      PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length)
+      PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length),
     );
     await PluginDetail.goToNodeAllocations();
     assert.equal(
       currentURL(),
-      `/storage/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`
+      `/storage/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`,
     );
   });
 });

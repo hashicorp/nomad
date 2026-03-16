@@ -36,21 +36,21 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       '/jobs',
-      'redirected to the jobs page if a non-management token on /administration'
+      'redirected to the jobs page if a non-management token on /administration',
     );
 
     await Administration.visitTokens();
     assert.equal(
       currentURL(),
       '/jobs',
-      'redirected to the jobs page if a non-management token on /tokens'
+      'redirected to the jobs page if a non-management token on /tokens',
     );
 
     assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
 
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -61,7 +61,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       '/administration',
-      'management token can access /administration'
+      'management token can access /administration',
     );
 
     await a11yAudit(assert);
@@ -70,7 +70,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       '/administration/tokens',
-      'management token can access /administration/tokens'
+      'management token can access /administration/tokens',
     );
   });
 
@@ -78,7 +78,7 @@ module('Acceptance | access control', function (hooks) {
     allScenarios.policiesTestCluster(server);
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -91,7 +91,7 @@ module('Acceptance | access control', function (hooks) {
     allScenarios.policiesTestCluster(server, { sentinel: true });
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -106,7 +106,7 @@ module('Acceptance | access control', function (hooks) {
   test('Access control index content', async function (assert) {
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -139,7 +139,7 @@ module('Acceptance | access control', function (hooks) {
   test('Access control subnav', async function (assert) {
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+      (t) => t.type === 'management',
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -154,7 +154,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/tokens`,
-      'Shift+ArrowRight takes you to the next tab (Tokens)'
+      'Shift+ArrowRight takes you to the next tab (Tokens)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -163,7 +163,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/roles`,
-      'Shift+ArrowRight takes you to the next tab (Roles)'
+      'Shift+ArrowRight takes you to the next tab (Roles)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -172,7 +172,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/policies`,
-      'Shift+ArrowRight takes you to the next tab (Policies)'
+      'Shift+ArrowRight takes you to the next tab (Policies)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -181,7 +181,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration/namespaces`,
-      'Shift+ArrowRight takes you to the next tab (Namespaces)'
+      'Shift+ArrowRight takes you to the next tab (Namespaces)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -190,7 +190,7 @@ module('Acceptance | access control', function (hooks) {
     assert.equal(
       currentURL(),
       `/administration`,
-      'Shift+ArrowLeft takes you back to the Access Control index page'
+      'Shift+ArrowLeft takes you back to the Access Control index page',
     );
   });
 });

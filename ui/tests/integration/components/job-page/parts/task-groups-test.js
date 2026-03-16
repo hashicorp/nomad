@@ -66,7 +66,7 @@ module(
       assert.equal(
         findAll('[data-test-task-group]').length,
         job.get('taskGroups.length'),
-        'One row per task group'
+        'One row per task group',
       );
 
       await componentA11yAudit(this.element, assert);
@@ -101,35 +101,35 @@ module(
           .querySelector('[data-test-task-group-name]')
           .textContent.trim(),
         taskGroup.get('name'),
-        'Name'
+        'Name',
       );
       assert.equal(
         taskGroupRow
           .querySelector('[data-test-task-group-count]')
           .textContent.trim(),
         taskGroup.get('count'),
-        'Count'
+        'Count',
       );
       assert.equal(
         taskGroupRow
           .querySelector('[data-test-task-group-volume]')
           .textContent.trim(),
         taskGroup.get('volumes.length') ? 'Yes' : '',
-        'Volumes'
+        'Volumes',
       );
       assert.equal(
         taskGroupRow
           .querySelector('[data-test-task-group-cpu]')
           .textContent.trim(),
         `${formatScheduledHertz(taskGroup.get('reservedCPU'), 'MHz')}`,
-        'Reserved CPU'
+        'Reserved CPU',
       );
       assert.equal(
         taskGroupRow
           .querySelector('[data-test-task-group-mem]')
           .textContent.trim(),
         `${formatScheduledBytes(taskGroup.get('reservedMemory'), 'MiB')}`,
-        'Reserved Memory'
+        'Reserved Memory',
       );
       assert.equal(
         taskGroupRow
@@ -137,10 +137,10 @@ module(
           .textContent.trim(),
         `${formatScheduledBytes(
           taskGroup.get('reservedEphemeralDisk'),
-          'MiB'
+          'MiB',
         )}`,
-        'Reserved Disk'
+        'Reserved Disk',
       );
     });
-  }
+  },
 );

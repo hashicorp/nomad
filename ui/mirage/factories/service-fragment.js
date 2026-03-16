@@ -20,7 +20,7 @@ export default Factory.extend({
     if (!faker.random.boolean()) {
       return provide(
         faker.random.number({ min: 0, max: 2 }),
-        faker.hacker.noun.bind(faker.hacker.noun)
+        faker.hacker.noun.bind(faker.hacker.noun),
       );
     } else {
       return null;

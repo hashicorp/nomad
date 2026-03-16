@@ -59,11 +59,11 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       find('[data-test-dropdown-trigger]').textContent.trim(),
       props.label,
-      'Trigger is appropriately labeled'
+      'Trigger is appropriately labeled',
     );
     assert.notOk(
       find('[data-test-dropdown-options]'),
-      'Options are not rendered'
+      'Options are not rendered',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -80,7 +80,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     await assert.ok(
       find('[data-test-dropdown-options]'),
-      'Options are shown now'
+      'Options are shown now',
     );
     await componentA11yAudit(this.element, assert);
 
@@ -88,7 +88,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     assert.notOk(
       find('[data-test-dropdown-options]'),
-      'Options are hidden after clicking again'
+      'Options are hidden after clicking again',
     );
   });
 
@@ -104,18 +104,18 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       findAll('[data-test-dropdown-option]').length,
       props.options.length,
-      'All options are shown'
+      'All options are shown',
     );
     findAll('[data-test-dropdown-option]').forEach((optionEl, index) => {
       const label = props.options[index].label;
       assert.equal(
         optionEl.textContent.trim(),
         label,
-        `Correct label for ${label}`
+        `Correct label for ${label}`,
       );
       assert.ok(
         optionEl.querySelector('input[type="checkbox"]'),
-        'Option contains a checkbox'
+        'Option contains a checkbox',
       );
     });
   });
@@ -133,7 +133,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.deepEqual(
       newSelection,
       [props.options[0].key],
-      'onSelect was called with the first option key'
+      'onSelect was called with the first option key',
     );
   });
 
@@ -147,13 +147,13 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     assert.ok(
       find('[data-test-dropdown-trigger] [data-test-dropdown-count]'),
-      'The count is shown'
+      'The count is shown',
     );
     assert.equal(
       find('[data-test-dropdown-trigger] [data-test-dropdown-count]')
         .textContent,
       props.selection.length,
-      'The count is accurate'
+      'The count is accurate',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -162,7 +162,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     assert.notOk(
       find('[data-test-dropdown-trigger] [data-test-dropdown-count]'),
-      'The count is no longer shown when the selection is empty'
+      'The count is no longer shown when the selection is empty',
     );
   });
 
@@ -174,14 +174,14 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await focus('[data-test-dropdown-trigger]');
     assert.notOk(
       find('[data-test-dropdown-options]'),
-      'Options are not shown on focus'
+      'Options are not shown on focus',
     );
     await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
     assert.ok(find('[data-test-dropdown-options]'), 'Options are now shown');
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-trigger]'),
-      'The dropdown trigger maintains focus'
+      'The dropdown trigger maintains focus',
     );
   });
 
@@ -196,7 +196,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
-      'The first option now has focus'
+      'The first option now has focus',
     );
   });
 
@@ -211,7 +211,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
-      'The first option now has focus'
+      'The first option now has focus',
     );
   });
 
@@ -227,7 +227,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
-      'The first option maintains focus'
+      'The first option maintains focus',
     );
   });
 
@@ -243,7 +243,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       document.activeElement,
       findAll('[data-test-dropdown-option]')[1],
-      'The second option has focus'
+      'The second option has focus',
     );
   });
 
@@ -268,7 +268,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
         assert.equal(
           document.activeElement,
           optionEls[index + 1],
-          `Option ${index + 1} has focus`
+          `Option ${index + 1} has focus`,
         );
       }
     }
@@ -277,7 +277,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.equal(
       document.activeElement,
       optionEls[lastIndex],
-      `Option ${lastIndex} still has focus`
+      `Option ${lastIndex} still has focus`,
     );
   });
 
@@ -296,7 +296,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     assert.deepEqual(
       newSelection,
       [props.options[0].key],
-      'onSelect was called with the first option key'
+      'onSelect was called with the first option key',
     );
   });
 
@@ -313,7 +313,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       assert.equal(
         parseInt(option.getAttribute('tabindex'), 10),
         0,
-        'tabindex is zero'
+        'tabindex is zero',
       );
     });
   });
@@ -333,9 +333,9 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
           option
             .querySelector('input[type="checkbox"]')
             .getAttribute('tabindex'),
-          10
+          10,
         ) < 0,
-        'tabindex is a negative value'
+        'tabindex is a negative value',
       );
     });
   });
@@ -352,12 +352,12 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     assert.notOk(
       find('[data-test-dropdown-options]'),
-      'The options list is hidden once more'
+      'The options list is hidden once more',
     );
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-trigger]'),
-      'The trigger has focus'
+      'The trigger has focus',
     );
   });
 
@@ -372,7 +372,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await click('[data-test-dropdown-trigger]');
     assert.ok(
       find('[data-test-dropdown-options]'),
-      'The dropdown is still shown'
+      'The dropdown is still shown',
     );
     assert.ok(find('[data-test-dropdown-empty]'), 'The empty state is shown');
     assert.notOk(find('[data-test-dropdown-option]'), 'No options are shown');

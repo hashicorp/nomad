@@ -44,7 +44,7 @@ export default class DasRecommendationCardComponent extends Component {
       taskGroup,
       taskGroup.count,
       this.args.summary.recommendations,
-      this.args.summary.excludedRecommendations
+      this.args.summary.excludedRecommendations,
     );
 
     const cpuDelta = diffs.cpu.delta;
@@ -129,7 +129,7 @@ export default class DasRecommendationCardComponent extends Component {
 
         return taskToggleRows;
       },
-      []
+      [],
     );
   }
 
@@ -160,7 +160,7 @@ export default class DasRecommendationCardComponent extends Component {
       this.args.summary.slug,
       {
         queryParams: { namespace: this.args.summary.jobNamespace },
-      }
+      },
     );
     const { origin } = window.location;
 
@@ -189,7 +189,7 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onApplied.perform(),
-        (e) => this.onError.perform(e)
+        (e) => this.onError.perform(e),
       )
       .catch((e) => {
         if (!didCancel(e)) {
@@ -209,7 +209,7 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onDismissed.perform(),
-        (e) => this.onError.perform(e)
+        (e) => this.onError.perform(e),
       )
       .catch((e) => {
         if (!didCancel(e)) {

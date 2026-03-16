@@ -15,7 +15,7 @@ export default class PolicyRoute extends Route {
       decodeURIComponent(params.id),
       {
         reload: true,
-      }
+      },
     );
   }
 }

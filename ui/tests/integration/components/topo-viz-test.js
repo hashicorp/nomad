@@ -110,7 +110,7 @@ module('Integration | Component | TopoViz', function (hooks) {
     assert.ok(this.onAllocationSelect.calledOnce);
     assert.equal(
       this.onAllocationSelect.getCall(0).args[0],
-      this.allocations[0]
+      this.allocations[0],
     );
     assert.ok(this.onNodeSelect.calledOnce);
 
@@ -147,7 +147,7 @@ module('Integration | Component | TopoViz', function (hooks) {
     const selectedAllocations = this.allocations.filter(
       (alloc) =>
         alloc.belongsTo('job').id() === 'job1' &&
-        alloc.taskGroupName === 'group'
+        alloc.taskGroupName === 'group',
     );
 
     await render(commonTemplate);
@@ -159,14 +159,14 @@ module('Integration | Component | TopoViz', function (hooks) {
     assert.ok(TopoViz.allocationAssociationsArePresent);
     assert.equal(
       TopoViz.allocationAssociations.length,
-      selectedAllocations.length * 2
+      selectedAllocations.length * 2,
     );
 
     // Lines get redrawn when the window resizes; make sure the lines persist.
     await triggerEvent(window, 'resize');
     assert.equal(
       TopoViz.allocationAssociations.length,
-      selectedAllocations.length * 2
+      selectedAllocations.length * 2,
     );
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();

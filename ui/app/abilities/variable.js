@@ -27,28 +27,28 @@ export default class Variable extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableList'
+    'policiesSupportVariableList',
   )
   canList;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableWriting'
+    'policiesSupportVariableWriting',
   )
   canWrite;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableDestroy'
+    'policiesSupportVariableDestroy',
   )
   canDestroy;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableRead'
+    'policiesSupportVariableRead',
   )
   canRead;
 
@@ -56,7 +56,7 @@ export default class Variable extends AbstractAbility {
   get policiesSupportVariableList() {
     return this.policyNamespacesIncludeVariablesCapabilities(
       this.token.selfTokenPolicies,
-      ['list', 'read', 'write', 'destroy']
+      ['list', 'read', 'write', 'destroy'],
     );
   }
 
@@ -68,7 +68,7 @@ export default class Variable extends AbstractAbility {
     'allVariablePathRules',
     'namespace',
     'path',
-    'token.selfTokenPolicies'
+    'token.selfTokenPolicies',
   )
   get policiesSupportVariableRead() {
     const matchingPath = this._nearestMatchingPath(this.path);
@@ -76,7 +76,7 @@ export default class Variable extends AbstractAbility {
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['read'],
-        matchingPath
+        matchingPath,
       );
     } else {
       return this.allVariablePathRules.some((rule) => {
@@ -100,7 +100,7 @@ export default class Variable extends AbstractAbility {
     'allVariablePathRules',
     'namespace',
     'path',
-    'token.selfTokenPolicies'
+    'token.selfTokenPolicies',
   )
   get policiesSupportVariableDestroy() {
     const matchingPath = this._nearestMatchingPath(this.path);
@@ -108,7 +108,7 @@ export default class Variable extends AbstractAbility {
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['destroy'],
-        matchingPath
+        matchingPath,
       );
     } else {
       return this.allVariablePathRules.some((rule) => {
@@ -139,7 +139,7 @@ export default class Variable extends AbstractAbility {
   policyNamespacesIncludeVariablesCapabilities(
     policies = [],
     capabilities = [],
-    path
+    path,
   ) {
     const variableCapabilitiesAmongNamespaces = policies
       .toArray()
@@ -179,7 +179,7 @@ export default class Variable extends AbstractAbility {
     'allVariablePathRules',
     'namespace',
     'path',
-    'token.selfTokenPolicies'
+    'token.selfTokenPolicies',
   )
   get policiesSupportVariableWriting() {
     const matchingPath = this._nearestMatchingPath(this.path);
@@ -188,7 +188,7 @@ export default class Variable extends AbstractAbility {
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['write'],
-        matchingPath
+        matchingPath,
       );
     } else {
       // If the namespace is not wildcarded, then we dig into rules by namespace.

@@ -49,7 +49,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
     return (
       this.args.allocations ||
       this.jobAllocations.filter(
-        (alloc) => alloc.jobVersion === this.deploymentVersion
+        (alloc) => alloc.jobVersion === this.deploymentVersion,
       )
     );
   }
@@ -62,7 +62,8 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
     try {
       return this.deploymentAllocations
         .map((allocation) => {
-          const states = allocation?.get?.('states') || allocation?.states || [];
+          const states =
+            allocation?.get?.('states') || allocation?.states || [];
           const stateList = states?.toArray?.() || states || [];
 
           return stateList

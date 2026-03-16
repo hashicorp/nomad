@@ -4,8 +4,8 @@
 ~}}
 
 <tr
-  class={{if @active 'active'}}
-  {{on 'click' @onClick}}
+  class={{if @active "active"}}
+  {{on "click" @onClick}}
   {{did-insert this.calculateHeight}}
   data-test-task-toggles
 >
@@ -17,7 +17,7 @@
         @isActive={{@cpu.isActive}}
         @onToggle={{action @toggleRecommendation @cpu.recommendation}}
         @isDisabled={{not @cpu.recommendation}}
-        title={{concat 'CPU for ' @task.name}}
+        title={{concat "CPU for " @task.name}}
         aria-label="CPU for {{@task.name}}"
       />
     </label>
@@ -29,14 +29,22 @@
         @isActive={{@memory.isActive}}
         @onToggle={{action @toggleRecommendation @memory.recommendation}}
         @isDisabled={{not @memory.recommendation}}
-        title={{concat 'Memory for ' @task.name}}
+        title={{concat "Memory for " @task.name}}
         aria-label="Memory for {{@task.name}}"
       />
     </label>
     {{#if (and @active this.height)}}
       <svg width={{this.height}} height={{this.height}}>
-        <rect class="border-cover" x="0" y="1" height={{this.borderCoverHeight}} />
-        <polyline class="triangle" points="1 1 {{this.half}} {{this.half}} 1 {{this.height}}" />
+        <rect
+          class="border-cover"
+          x="0"
+          y="1"
+          height={{this.borderCoverHeight}}
+        />
+        <polyline
+          class="triangle"
+          points="1 1 {{this.half}} {{this.half}} 1 {{this.height}}"
+        />
       </svg>
     {{/if}}
   </td>

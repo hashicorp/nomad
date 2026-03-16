@@ -50,15 +50,15 @@ module('Unit | Component | TopoViz', function (hooks) {
     ]);
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
-      node0Allocs
+      node0Allocs,
     );
     assert.deepEqual(
       topoViz.topology.datacenters[1].nodes[0].allocations.mapBy('allocation'),
-      node1Allocs
+      node1Allocs,
     );
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[1].allocations.mapBy('allocation'),
-      node2Allocs
+      node2Allocs,
     );
   });
 
@@ -94,7 +94,7 @@ module('Unit | Component | TopoViz', function (hooks) {
         JSON.stringify(['job1', 'three']),
 
         JSON.stringify(['job2', 'one']),
-      ].sort()
+      ].sort(),
     );
 
     Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
@@ -102,8 +102,8 @@ module('Unit | Component | TopoViz', function (hooks) {
       assert.deepEqual(
         topoViz.topology.allocationIndex[key].mapBy('allocation'),
         allocations.filter(
-          (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group
-        )
+          (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group,
+        ),
       );
     });
   });
@@ -204,11 +204,11 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     assert.equal(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent,
-      0.5
+      0.5,
     );
     assert.equal(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent,
-      0.1
+      0.1,
     );
   });
 
@@ -229,7 +229,7 @@ module('Unit | Component | TopoViz', function (hooks) {
     ]);
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
-      [allocations[0]]
+      [allocations[0]],
     );
   });
 });

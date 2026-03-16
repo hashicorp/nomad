@@ -76,7 +76,7 @@ class FetchMock {
       this._closeRequest(this.response);
     } else {
       throw new Error(
-        'Must call FetchMock.request() before FetchMock.closeRequest'
+        'Must call FetchMock.request() before FetchMock.closeRequest',
       );
     }
   }

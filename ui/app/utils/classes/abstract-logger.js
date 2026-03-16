@@ -17,7 +17,7 @@ export default Mixin.create({
   params: overridable(() => ({})),
   logFetch() {
     assert(
-      'Loggers need a logFetch method, which should have an interface like window.fetch'
+      'Loggers need a logFetch method, which should have an interface like window.fetch',
     );
   },
 
@@ -39,9 +39,14 @@ export default Mixin.create({
     'additionalParams',
     function () {
       const queryParams = queryString.stringify(
-        Object.assign({}, this.params, this.offsetParams, this.additionalParams)
+        Object.assign(
+          {},
+          this.params,
+          this.offsetParams,
+          this.additionalParams,
+        ),
       );
       return `${this.url}?${queryParams}`;
-    }
+    },
   ),
 });

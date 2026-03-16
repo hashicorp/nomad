@@ -68,11 +68,11 @@ module('Acceptance | plugins list', function (hooks) {
     assert.equal(pluginRow.id, plugin.id);
     assert.equal(
       pluginRow.controllerHealth,
-      `${controllerHealthStr} (${plugin.controllersHealthy}/${plugin.controllersExpected})`
+      `${controllerHealthStr} (${plugin.controllersHealthy}/${plugin.controllersExpected})`,
     );
     assert.equal(
       pluginRow.nodeHealth,
-      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`
+      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`,
     );
     assert.equal(pluginRow.provider, plugin.provider);
   });
@@ -92,7 +92,7 @@ module('Acceptance | plugins list', function (hooks) {
     assert.equal(pluginRow.controllerHealth, 'Node Only');
     assert.equal(
       pluginRow.nodeHealth,
-      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`
+      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`,
     );
     assert.equal(pluginRow.provider, plugin.provider);
   });

@@ -14,7 +14,7 @@ export default class JobVersionAdapter extends ApplicationAdapter {
 
     const url = addToPath(
       jobAdapter.urlForFindRecord(jobVersion.get('job.id'), 'job'),
-      '/revert'
+      '/revert',
     );
     const [jobName] = JSON.parse(jobVersion.get('job.id'));
 

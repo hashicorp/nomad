@@ -51,14 +51,14 @@ module('Integration | Component | two step button', function (hooks) {
     assert.equal(
       TwoStepButton.idleText,
       props.idleText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
     assert.notOk(find('[data-test-cancel-button]'), 'No cancel button yet');
     assert.notOk(find('[data-test-confirm-button]'), 'No confirm button yet');
     assert.notOk(
       find('[data-test-confirmation-message]'),
-      'No confirmation message yet'
+      'No confirmation message yet',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -77,20 +77,20 @@ module('Integration | Component | two step button', function (hooks) {
     assert.equal(
       TwoStepButton.cancelText,
       props.cancelText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
     assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
     assert.equal(
       TwoStepButton.confirmText,
       props.confirmText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
     assert.equal(
       TwoStepButton.confirmationMessage,
       props.confirmationMessage,
-      'Confirmation message is shown'
+      'Confirmation message is shown',
     );
 
     assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
@@ -136,13 +136,13 @@ module('Integration | Component | two step button', function (hooks) {
     assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
     assert.ok(
       TwoStepButton.confirmIsDisabled,
-      'The confirm button is disabled'
+      'The confirm button is disabled',
     );
 
     assert.equal(
       TwoStepButton.confirmText,
       'Loading...',
-      'The confirm button is in a loading state'
+      'The confirm button is in a loading state',
     );
 
     await componentA11yAudit(this.element, assert);

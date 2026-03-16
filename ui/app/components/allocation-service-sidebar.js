@@ -28,7 +28,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   get address() {
     const port = this.args.allocation?.allocatedResources?.ports?.findBy(
       'label',
-      this.args.service.portLabel
+      this.args.service.portLabel,
     );
     if (port) {
       return `${port.hostIp}:${port.value}`;

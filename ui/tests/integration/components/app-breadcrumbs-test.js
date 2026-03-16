@@ -30,7 +30,7 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
     assert
       .dom('[data-test-breadcrumb-default]')
       .exists(
-        'We register the default breadcrumb component if no type is specified on the crumb'
+        'We register the default breadcrumb component if no type is specified on the crumb',
       );
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
@@ -39,7 +39,7 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
       assert.equal(
         crumb.textContent.trim(),
         commonCrumbs[index].label,
-        `Crumb ${index} is ${commonCrumbs[index].label}`
+        `Crumb ${index} is ${commonCrumbs[index].label}`,
       );
     });
   });
@@ -61,7 +61,7 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
       .dom('[data-test-breadcrumb-default]')
       .exists(
         { count: 2 },
-        'All crumbs without a type render as default breadcrumbs'
+        'All crumbs without a type render as default breadcrumbs',
       );
   });
 });

@@ -177,7 +177,7 @@ export default class KeyboardService extends Service {
       },
     ].map((command) => {
       const persistedValue = window.localStorage.getItem(
-        `keyboard.command.${command.label}`
+        `keyboard.command.${command.label}`,
       );
       if (persistedValue) {
         set(command, 'pattern', JSON.parse(persistedValue));
@@ -187,7 +187,7 @@ export default class KeyboardService extends Service {
         set(command, 'pattern', this.defaultPatterns[command.label]);
       }
       return command;
-    })
+    }),
   );
 
   /**
@@ -218,7 +218,7 @@ export default class KeyboardService extends Service {
       commands.forEach((command) => {
         if (command.exclusive) {
           this.removeCommands(
-            this.keyCommands.filterBy('label', command.label)
+            this.keyCommands.filterBy('label', command.label),
           );
         }
         this.keyCommands.pushObject(command);
@@ -278,7 +278,7 @@ export default class KeyboardService extends Service {
   @action
   unregisterSubnav(element) {
     this.subnavLinks = this.subnavLinks.reject(
-      (link) => link.parent === guidFor(element)
+      (link) => link.parent === guidFor(element),
     );
   }
 
@@ -382,7 +382,7 @@ export default class KeyboardService extends Service {
     set(cmd, 'previousPattern', null);
     window.localStorage.setItem(
       `keyboard.command.${cmd.label}`,
-      JSON.stringify([...this.buffer])
+      JSON.stringify([...this.buffer]),
     );
   };
 
@@ -443,7 +443,7 @@ export default class KeyboardService extends Service {
   get matchedCommands() {
     // Shiftless Buffer: handle the case where use is holding shift (to see shortcut hints) and typing a key command
     const shiftlessBuffer = this.buffer.map((key) =>
-      key.replace('Shift+', '').toLowerCase()
+      key.replace('Shift+', '').toLowerCase(),
     );
 
     // Shift Friendly Buffer: If you hold Shift and type 0 and 1, it'll output as ['Shift+0', 'Shift+1'].

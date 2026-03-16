@@ -51,7 +51,7 @@ export default class ApplicationRoute extends Route {
 
       if (transition.to.queryParams.ott) {
         exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(
-          transition.to.queryParams.ott
+          transition.to.queryParams.ott,
         );
       } else {
         exchangeOneTimeToken = Promise.resolve(true);
@@ -64,7 +64,7 @@ export default class ApplicationRoute extends Route {
       }
 
       const fetchSelfTokenAndPolicies = await this.get(
-        'token.fetchSelfTokenAndPolicies'
+        'token.fetchSelfTokenAndPolicies',
       )
         .perform()
         .catch();
@@ -72,7 +72,7 @@ export default class ApplicationRoute extends Route {
       const fetchLicense = this.get('system.fetchLicense').perform().catch();
 
       const checkFuzzySearchPresence = this.get(
-        'system.checkFuzzySearchPresence'
+        'system.checkFuzzySearchPresence',
       )
         .perform()
         .catch();
@@ -113,7 +113,7 @@ export default class ApplicationRoute extends Route {
       to: {
         queryParams: { ott },
       },
-    }
+    },
   ) {
     return {
       region,

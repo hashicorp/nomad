@@ -45,7 +45,7 @@ module('Unit | Adapter | Node', function (hooks) {
     assert.equal(
       allocations.get('length'),
       this.server.db.allocations.where({ nodeId: node.get('id') }).length,
-      'Allocations returned from the findHasMany matches the db state'
+      'Allocations returned from the findHasMany matches the db state',
     );
 
     await settled();
@@ -58,12 +58,12 @@ module('Unit | Adapter | Node', function (hooks) {
     assert.equal(
       allocations.get('length'),
       dbAllocations.length,
-      'Allocations returned from the findHasMany matches the db state'
+      'Allocations returned from the findHasMany matches the db state',
     );
     assert.equal(
       this.store.peekAll('allocation').get('length'),
       dbAllocations.length,
-      'Server-side deleted allocation was removed from the store'
+      'Server-side deleted allocation was removed from the store',
     );
   });
 
@@ -80,7 +80,7 @@ module('Unit | Adapter | Node', function (hooks) {
     assert.deepEqual(
       this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
-      'All allocations for the first and second node are in the store'
+      'All allocations for the first and second node are in the store',
     );
 
     server.db.allocations.remove('node-1-1');
@@ -90,7 +90,7 @@ module('Unit | Adapter | Node', function (hooks) {
     assert.deepEqual(
       this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-2', 'node-2-1', 'node-2-2'],
-      'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
+      'The deleted allocation is removed from the store and the allocations associated with the other node are untouched',
     );
   });
 

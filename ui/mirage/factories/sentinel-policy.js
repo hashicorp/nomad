@@ -10,7 +10,7 @@ import { pickOne } from '../utils';
 export default Factory.extend({
   id: () =>
     `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
-      5
+      5,
     )}`,
   name() {
     return this.id;

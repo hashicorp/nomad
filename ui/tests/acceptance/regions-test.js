@@ -67,7 +67,7 @@ module('Acceptance | regions (only one)', function (hooks) {
     assert.equal(
       currentURL(),
       `/jobs/${jobId}@default`,
-      'No region query param'
+      'No region query param',
     );
 
     await ClientsList.visit();
@@ -111,7 +111,7 @@ module('Acceptance | regions (many)', function (hooks) {
 
     assert.ok(
       Layout.navbar.regionSwitcher.isPresent,
-      'Region switcher is shown'
+      'Region switcher is shown',
     );
     assert.ok(getPageTitle().includes('Jobs - global'));
   });
@@ -126,7 +126,7 @@ module('Acceptance | regions (many)', function (hooks) {
     assert.equal(
       window.localStorage.nomadActiveRegion,
       'global',
-      'Region in localStorage'
+      'Region in localStorage',
     );
   });
 
@@ -139,12 +139,12 @@ module('Acceptance | regions (many)', function (hooks) {
 
     assert.ok(
       currentURL().includes(`region=${newRegion}`),
-      'New region is the region query param value'
+      'New region is the region query param value',
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
       newRegion,
-      'New region in localStorage'
+      'New region in localStorage',
     );
   });
 
@@ -160,12 +160,12 @@ module('Acceptance | regions (many)', function (hooks) {
 
     assert.notOk(
       currentURL().includes('region='),
-      'No region query param for the default region'
+      'No region query param for the default region',
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
       defaultRegion,
-      'New region in localStorage'
+      'New region in localStorage',
     );
   });
 
@@ -177,12 +177,12 @@ module('Acceptance | regions (many)', function (hooks) {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}?region=${region}`,
-      'Region param is persisted when navigating straight to a detail page'
+      'Region param is persisted when navigating straight to a detail page',
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
       region,
-      'Region is also set in localStorage from a detail page'
+      'Region is also set in localStorage from a detail page',
     );
   });
 
@@ -197,25 +197,25 @@ module('Acceptance | regions (many)', function (hooks) {
     await Layout.gutter.visitServers();
 
     const regionsRequest = server.pretender.handledRequests.find((req) =>
-      req.responseURL.includes('/v1/regions')
+      req.responseURL.includes('/v1/regions'),
     );
     const licenseRequest = server.pretender.handledRequests.find((req) =>
-      req.responseURL.includes('/v1/operator/license')
+      req.responseURL.includes('/v1/operator/license'),
     );
     const appRequests = server.pretender.handledRequests.filter(
       (req) =>
         !req.responseURL.includes('/v1/regions') &&
         !req.responseURL.includes('/v1/operator/license') &&
-        !req.responseURL.includes('/v1/status/leader')
+        !req.responseURL.includes('/v1/status/leader'),
     );
 
     assert.notOk(
       regionsRequest.url.includes('region='),
-      'The regions request is made without a region qp'
+      'The regions request is made without a region qp',
     );
     assert.notOk(
       licenseRequest.url.includes('region='),
-      'The default region request is made without a region qp'
+      'The default region request is made without a region qp',
     );
 
     appRequests.forEach((req) => {
@@ -237,20 +237,20 @@ module('Acceptance | regions (many)', function (hooks) {
     await Tokens.visit();
     assert.ok(
       ['Select a Region', 'Region: global'].includes(
-        Layout.navbar.regionSwitcher.text
+        Layout.navbar.regionSwitcher.text,
       ),
-      'Region picker shows either placeholder or default global region before signing in'
+      'Region picker shows either placeholder or default global region before signing in',
     );
     await Tokens.secret(managementToken.secretId).submit();
     assert.equal(
       window.localStorage.nomadActiveRegion,
       'global',
-      'Region is set in localStorage after signing in'
+      'Region is set in localStorage after signing in',
     );
     assert.equal(
       Layout.navbar.regionSwitcher.text,
       'Region: global',
-      'Region picker says "Region: global" after signing in'
+      'Region picker says "Region: global" after signing in',
     );
   });
 });

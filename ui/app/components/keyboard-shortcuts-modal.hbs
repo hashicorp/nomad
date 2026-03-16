@@ -5,10 +5,9 @@
 
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <section class="keyboard-shortcuts"
-      {{on-click-outside
-        (toggle "keyboard.shortcutsVisible" this)
-      }}
+  <section
+    class="keyboard-shortcuts"
+    {{on-click-outside (toggle "keyboard.shortcutsVisible" this)}}
   >
     <header>
       <button
@@ -27,34 +26,47 @@
       {{#each this.commands as |command|}}
         <li data-test-command-label={{command.label}}>
           <strong>{{command.label}}</strong>
-            <span class="keys">
-              {{#if command.recording}}
-                <span class="recording">Recording; ESC to cancel.</span>
-              {{else}}
-                {{#if command.custom}}
-                  <button type="button" class="reset-to-default" {{on "click" (action this.keyboard.resetCommandToDefault command)}}>reset to default</button>
-                {{/if}}
+          <span class="keys">
+            {{#if command.recording}}
+              <span class="recording">Recording; ESC to cancel.</span>
+            {{else}}
+              {{#if command.custom}}
+                <button
+                  type="button"
+                  class="reset-to-default"
+                  {{on
+                    "click"
+                    (action this.keyboard.resetCommandToDefault command)
+                  }}
+                >reset to default</button>
               {{/if}}
+            {{/if}}
 
-              <button data-test-rebinder disabled={{or (not command.rebindable) command.recording}} type="button" {{on "click" (action this.keyboard.rebindCommand command)}}>
-                {{#each command.pattern as |key|}}
-                  <span>{{clean-keycommand key}}</span>
-                {{/each}}
-              </button>
-            </span>
+            <button
+              data-test-rebinder
+              disabled={{or (not command.rebindable) command.recording}}
+              type="button"
+              {{on "click" (action this.keyboard.rebindCommand command)}}
+            >
+              {{#each command.pattern as |key|}}
+                <span>{{clean-keycommand key}}</span>
+              {{/each}}
+            </button>
+          </span>
         </li>
       {{/each}}
     </ul>
     <footer>
-    <Hds::Form::Toggle::Field
-      {{on "change" this.toggleListener}}
-      data-test-enable-shortcuts-toggle
-      class={{if this.keyboard.enabled "is-active"}}
-      checked={{this.keyboard.enabled}}
-      as |F|
-    >
-      <F.Label>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</F.Label>
-    </Hds::Form::Toggle::Field>
+      <Hds::Form::Toggle::Field
+        {{on "change" this.toggleListener}}
+        data-test-enable-shortcuts-toggle
+        class={{if this.keyboard.enabled "is-active"}}
+        checked={{this.keyboard.enabled}}
+        as |F|
+      >
+        <F.Label>Keyboard shortcuts
+          {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</F.Label>
+      </Hds::Form::Toggle::Field>
     </footer>
   </section>
 {{/if}}
@@ -66,7 +78,7 @@
       {{will-destroy (fn this.untetherFromElement hint)}}
       data-test-keyboard-hint
       data-shortcut={{hint.pattern}}
-      class="{{if hint.menuLevel "menu-level"}}"
+      class="{{if hint.menuLevel 'menu-level'}}"
       aria-hidden="true"
     >
       {{#each hint.pattern as |key|}}

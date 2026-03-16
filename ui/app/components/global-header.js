@@ -25,7 +25,7 @@ export default class GlobalHeader extends Component {
         background-color: ${
           this.system.agent.get('config')?.UI?.Label?.BackgroundColor
         };
-      `
+      `,
     );
   }
 }

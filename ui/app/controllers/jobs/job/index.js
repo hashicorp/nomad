@@ -16,7 +16,7 @@ import { macroCondition, isTesting } from '@embroider/macros';
 
 @classic
 export default class IndexController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @service store;
   @service system;
@@ -97,7 +97,7 @@ export default class IndexController extends Controller.extend(
 
   @restartableTask *watchChildJobs(
     { id, namespace },
-    throttle = macroCondition(isTesting()) ? 0 : 2000
+    throttle = macroCondition(isTesting()) ? 0 : 2000,
   ) {
     this.childJobs = [];
     while (true) {
@@ -107,7 +107,7 @@ export default class IndexController extends Controller.extend(
         include_children: true,
       };
       params.index = this.watchList.getIndexFor(
-        `child-jobs-for-${id}-${namespace}`
+        `child-jobs-for-${id}-${namespace}`,
       );
 
       const childJobs = yield this.childJobsQuery(params);
@@ -115,7 +115,7 @@ export default class IndexController extends Controller.extend(
         if (childJobs.meta.index) {
           this.watchList.setIndexFor(
             `child-jobs-for-${id}-${namespace}`,
-            childJobs.meta.index
+            childJobs.meta.index,
           );
         }
         this.childJobs = childJobs;

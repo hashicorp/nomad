@@ -24,19 +24,19 @@ export default Mixin.create({
 
   fetch() {
     assert(
-      'StatsTrackers need a fetch method, which should have an interface like window.fetch'
+      'StatsTrackers need a fetch method, which should have an interface like window.fetch',
     );
   },
 
   append(/* frame */) {
     assert(
-      'StatsTrackers need an append method, which takes the JSON response from a request to url as an argument'
+      'StatsTrackers need an append method, which takes the JSON response from a request to url as an argument',
     );
   },
 
   pause() {
     assert(
-      'StatsTrackers need a pause method, which takes no arguments but adds a frame of data at the current timestamp with null as the value'
+      'StatsTrackers need a pause method, which takes no arguments but adds a frame of data at the current timestamp with null as the value',
     );
   },
 

@@ -21,7 +21,10 @@ export default Factory.extend({
 
   afterCreate(taskGroupScale, server) {
     if (!taskGroupScale.shallow) {
-      const events = server.createList('scale-event', faker.random.number({ min: 1, max: 10 }));
+      const events = server.createList(
+        'scale-event',
+        faker.random.number({ min: 1, max: 10 }),
+      );
 
       taskGroupScale.update({
         eventIds: events.mapBy('id'),

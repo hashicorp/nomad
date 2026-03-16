@@ -133,7 +133,7 @@ export default class JobVersion extends Component {
             isEditing: true,
             version: this.version.number,
           },
-        }
+        },
       );
     } catch (e) {
       this.args.handleError({
@@ -147,7 +147,7 @@ export default class JobVersion extends Component {
     const job = await this.version.get('job');
     try {
       const specification = await job.fetchRawSpecification(
-        this.version.number
+        this.version.number,
       );
       this.router.transitionTo('jobs.run', {
         queryParams: {
@@ -252,7 +252,7 @@ export default class JobVersion extends Component {
         .deleteTag(
           this.editableTag.jobNamespace,
           this.editableTag.jobName,
-          this.editableTag.name
+          this.editableTag.name,
         );
       this.notifications.add({
         title: 'Job Version Un-Tagged',

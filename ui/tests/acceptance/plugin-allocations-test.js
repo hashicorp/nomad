@@ -169,12 +169,12 @@ module('Acceptance | plugin allocations', function (hooks) {
       selection.push(option2.key);
 
       const queryString = `${paramName}=${window.encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`;
 
       assert.equal(
         currentURL(),
-        `/storage/plugins/${plugin.id}/allocations?${queryString}`
+        `/storage/plugins/${plugin.id}/allocations?${queryString}`,
       );
     });
   }

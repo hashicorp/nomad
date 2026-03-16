@@ -75,7 +75,7 @@ export default class JobSerializer extends ApplicationSerializer {
     primaryModelClass,
     payload = [],
     id,
-    requestType
+    requestType,
   ) {
     // What jobs did we ask for?
     if (payload._requestBody?.jobs) {
@@ -87,7 +87,7 @@ export default class JobSerializer extends ApplicationSerializer {
       });
       let missingJobIDs = requestedJobIDs.filter(
         (j) =>
-          !payload.find((p) => p.ID === j.id && p.Namespace === j.namespace)
+          !payload.find((p) => p.ID === j.id && p.Namespace === j.namespace),
       );
       missingJobIDs.forEach((job) => {
         payload.push({
@@ -109,10 +109,10 @@ export default class JobSerializer extends ApplicationSerializer {
       payload.sort((a, b) => {
         return (
           requestedJobIDs.findIndex(
-            (j) => j.id === a.ID && j.namespace === a.Namespace
+            (j) => j.id === a.ID && j.namespace === a.Namespace,
           ) -
           requestedJobIDs.findIndex(
-            (j) => j.id === b.ID && j.namespace === b.Namespace
+            (j) => j.id === b.ID && j.namespace === b.Namespace,
           )
         );
       });
@@ -146,7 +146,7 @@ export default class JobSerializer extends ApplicationSerializer {
       primaryModelClass,
       jobs,
       id,
-      requestType
+      requestType,
     );
   }
 

@@ -20,7 +20,7 @@ const DEFAULT_THROTTLE = 2000;
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
-  WithForbiddenState
+  WithForbiddenState,
 ) {
   @service store;
   @service watchList;
@@ -242,7 +242,7 @@ export default class IndexRoute extends Route.extend(
       let suggestion = null;
 
       const keyMatch = err.detail.match(
-        /couldn't find key: struct field with name "([^"]+)"/
+        /couldn't find key: struct field with name "([^"]+)"/,
       );
       if (keyMatch && keyMatch[1]) {
         const incorrectKey = keyMatch[1];
@@ -251,7 +251,7 @@ export default class IndexRoute extends Route.extend(
             key.key ===
             `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
               .slice(1)
-              .toLowerCase()}`
+              .toLowerCase()}`,
         )?.key;
         if (correctKey) {
           correction = {

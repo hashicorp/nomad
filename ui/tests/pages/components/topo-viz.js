@@ -11,11 +11,11 @@ export default (scope) => ({
 
   datacenters: collection(
     '[data-test-topo-viz-datacenter]',
-    TopoVizDatacenter()
+    TopoVizDatacenter(),
   ),
 
   allocationAssociationsArePresent: isPresent(
-    '[data-test-allocation-associations]'
+    '[data-test-allocation-associations]',
   ),
   allocationAssociations: collection('[data-test-allocation-association]'),
 });

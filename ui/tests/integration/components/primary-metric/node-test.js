@@ -66,7 +66,7 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
     assert.ok(find('[data-test-annotation]'));
     assert.equal(
       find('[data-test-annotation]').textContent.trim(),
-      `${formatScheduledHertz(resource.reserved.cpu, 'MHz')} reserved`
+      `${formatScheduledHertz(resource.reserved.cpu, 'MHz')} reserved`,
     );
   });
 

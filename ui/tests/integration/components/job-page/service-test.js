@@ -109,7 +109,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled')
+      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
 
     await componentA11yAudit(this.element, assert);
@@ -155,7 +155,9 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-start] [data-test-idle-button]').hasAttribute('disabled')
+      find('[data-test-start] [data-test-idle-button]').hasAttribute(
+        'disabled',
+      ),
     );
   });
 
@@ -208,7 +210,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     assert.equal(
       allocationRow.taskGroup,
       allocation.taskGroup,
-      'Task Group name'
+      'Task Group name',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -229,7 +231,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     assert.equal(Job.allocations.length, 5, 'Capped at 5 allocations');
     assert.ok(
       Job.viewAllAllocations.includes(job.get('allocations.length') + ''),
-      `View link mentions ${job.get('allocations.length')} allocations`
+      `View link mentions ${job.get('allocations.length')} allocations`,
     );
   });
 
@@ -248,7 +250,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
-      'No allocations empty message'
+      'No allocations empty message',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -289,7 +291,7 @@ module('Integration | Component | job-page/service', function (hooks) {
       requests
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
-      'A promote POST request was made'
+      'A promote POST request was made',
     );
   });
 
@@ -360,7 +362,7 @@ module('Integration | Component | job-page/service', function (hooks) {
       requests
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
-      'A fail POST request was made'
+      'A fail POST request was made',
     );
   });
 

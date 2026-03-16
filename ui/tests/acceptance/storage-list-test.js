@@ -103,12 +103,12 @@ module('Acceptance | storage list', function (hooks) {
     assert.notOk(volumeRow.hasNamespace);
     assert.equal(
       volumeRow.schedulable,
-      volume.schedulable ? 'Schedulable' : 'Unschedulable'
+      volume.schedulable ? 'Schedulable' : 'Unschedulable',
     );
     assert.equal(volumeRow.controllerHealth, controllerHealthStr);
     assert.equal(
       volumeRow.nodeHealth,
-      `${nodeHealthStr} ( ${volume.nodesHealthy} / ${volume.nodesExpected} )`
+      `${nodeHealthStr} ( ${volume.nodesHealthy} / ${volume.nodesExpected} )`,
     );
     assert.equal(volumeRow.plugin, volume.PluginId);
     assert.equal(volumeRow.allocations, readAllocs.length + writeAllocs.length);
@@ -124,7 +124,7 @@ module('Acceptance | storage list', function (hooks) {
     await StorageList.csiVolumes.objectAt(0).clickName();
     assert.equal(
       currentURL(),
-      `/storage/volumes/csi/${volume.id}@${secondNamespace.id}`
+      `/storage/volumes/csi/${volume.id}@${secondNamespace.id}`,
     );
 
     await StorageList.visit({ namespace: '*' });
@@ -148,7 +148,7 @@ module('Acceptance | storage list', function (hooks) {
     await StorageList.csiSearch('dog');
     assert.ok(StorageList.csiIsEmpty);
     assert.ok(
-      StorageList.csiEmptyState.includes('No CSI volumes match your search')
+      StorageList.csiEmptyState.includes('No CSI volumes match your search'),
     );
   });
 
@@ -228,7 +228,7 @@ module('Acceptance | storage list', function (hooks) {
 
   function testSingleSelectFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await beforeEach();
@@ -244,7 +244,7 @@ module('Acceptance | storage list', function (hooks) {
       assert.deepEqual(
         facet.options.map((option) => option.label.trim()),
         expectation,
-        'Options for facet are as expected'
+        'Options for facet are as expected',
       );
     });
 
@@ -264,7 +264,7 @@ module('Acceptance | storage list', function (hooks) {
         assert.equal(
           volume.name,
           expectedVolumes[index].name,
-          `Volume at ${index} is ${expectedVolumes[index].name}`
+          `Volume at ${index} is ${expectedVolumes[index].name}`,
         );
       });
     });
@@ -279,7 +279,7 @@ module('Acceptance | storage list', function (hooks) {
 
       assert.ok(
         currentURL().includes(`${paramName}=${label}`),
-        'URL has the correct query param key and value'
+        'URL has the correct query param key and value',
       );
     });
 
@@ -288,10 +288,10 @@ module('Acceptance | storage list', function (hooks) {
         await StorageList.visit();
         const requests = server.pretender.handledRequests;
         const dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         const csiRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi'),
         );
         assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
         assert.equal(csiRequests.length, 2, '2 CSI requests were made');
@@ -309,7 +309,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Should be 2 DHV requests made: the initial one, and the watcher
         let dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
 
@@ -327,7 +327,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Now there should be a third DHV request
         dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
 
@@ -347,7 +347,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Should be 2 DHV requests made: the initial one, and the watcher
         let csiRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi'),
         );
         assert.equal(csiRequests.length, 2, '2 CSI requests were made');
         assert.dom('[data-test-csi-volume-row]').exists({ count: 1 });
@@ -364,7 +364,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Now there should be a third DHV request
         csiRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi'),
         );
         assert.equal(csiRequests.length, 3, '3 CSI requests were made');
 
@@ -384,7 +384,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Should be 2 DHV requests made: the initial one, and the watcher
         let dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
 
@@ -399,7 +399,7 @@ module('Acceptance | storage list', function (hooks) {
         });
 
         dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
 
@@ -420,7 +420,7 @@ module('Acceptance | storage list', function (hooks) {
 
         // Should be 2 DHV requests made: the initial one, and the watcher
         let dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
 
@@ -435,7 +435,7 @@ module('Acceptance | storage list', function (hooks) {
         });
 
         dhvRequests = requests.filter((request) =>
-          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host'),
         );
         assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
 
