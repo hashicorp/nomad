@@ -1,0 +1,20 @@
+{
+  "extends": "@tsconfig/ember",
+  "compilerOptions": {
+    // The combination of `baseUrl` with `paths` allows Ember's classic package
+    // layout, which is not resolvable with the Node resolution algorithm, to
+    // work with TypeScript.
+    "baseUrl": ".",
+    "paths": {
+      "nomad-ui/tests/*": ["tests/*"],
+      "nomad-ui/*": ["app/*"],
+      "mirage/*": ["mirage/*"],
+      "*": ["types/*"]
+    },
+    "types": [
+      "ember-source/types",
+      "ember-data/unstable-preview-types",
+      "@glint/ember-tsc/types"
+    ]
+  }
+}

@@ -3,6 +3,3 @@
 
 # compiled output
 /dist/
-
-# addons
-/.node_modules.ember-try/
