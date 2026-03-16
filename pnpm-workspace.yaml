@@ -2,7 +2,6 @@ packages:
   - ui
 overrides:
   '@babel/runtime@<7.26.10': '>=7.26.10'
-  "@ember/test-waiters": ^4.1.1
   "@glimmer/component": ^2.0.0
   ansi-html@<0.0.8: '>=0.0.8'
   braces@<3.0.3: '>=3.0.3'

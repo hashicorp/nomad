@@ -288,17 +288,21 @@ export default class IndexRoute extends Route.extend(
       return;
     }
 
-    controller.set('nextToken', model.jobs.meta.nextToken);
-    controller.set('jobQueryIndex', model.jobs.meta.index);
-    controller.set('jobAllocsQueryIndex', model.jobs.meta.allocsIndex); // Assuming allocsIndex is your meta key for job allocations.
+    const jobs = model.jobs;
+    const meta = jobs?.meta || {};
+    const jobsList = jobs?.toArray?.() || jobs;
+
+    controller.set('nextToken', meta.nextToken || null);
+    controller.set('jobQueryIndex', meta.index || 0);
+    controller.set('jobAllocsQueryIndex', meta.allocsIndex || 0); // Assuming allocsIndex is your meta key for job allocations.
     controller.set(
       'jobIDs',
-      model.jobs.map((job) => {
+      jobsList.map((job) => {
         return {
           id: job.plainId,
-          namespace: job.belongsTo('namespace').id(),
+          namespace: job.namespaceId || job.belongsTo('namespace').id(),
         };
-      })
+      }),
     );
 
     // Now that we've set the jobIDs, immediately start watching them
