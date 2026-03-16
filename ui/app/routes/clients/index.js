@@ -12,6 +12,20 @@ import { inject as service } from '@ember/service';
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service store;
 
+  deactivate() {
+    const startTime = performance.now();
+    console.log('🔴 [CLIENTS] Route deactivating at', new Date().toISOString());
+
+    this.cancelAllWatchers();
+
+    super.deactivate(...arguments);
+
+    const duration = performance.now() - startTime;
+    console.log(
+      `🔴 [CLIENTS] Deactivate completed in ${duration.toFixed(2)}ms`
+    );
+  }
+
   startWatchers(controller) {
     controller.set('watcher', this.watch.perform());
   }
