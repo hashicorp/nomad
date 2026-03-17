@@ -66,15 +66,16 @@ jobs:
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+          JSON_REPORT_PATH: test-results/test-results.json
         run: |
           set +e
           mkdir -p test-results
-          pnpm exam:ci --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+          pnpm exam:ci --parallel=${{ matrix.split }} --split=${{ matrix.split }} --partition=${{ matrix.partition }}
           status=$?
 
           if [ "$status" -ne 0 ]; then
             echo "Retrying ember-exam for flaky partition ${{ matrix.partition }}"
-            pnpm exam:ci --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+            pnpm exam:ci --parallel=${{ matrix.split }} --split=${{ matrix.split }} --partition=${{ matrix.partition }}
             status=$?
           fi
 

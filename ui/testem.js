@@ -12,6 +12,10 @@ const JsonReporter = require('./test-reporter');
  * @returns {string} The path to the test results file
  */
 const getReportPath = () => {
+  if (process.env.JSON_REPORT_PATH) {
+    return process.env.JSON_REPORT_PATH;
+  }
+
   const jsonReportArg = process.argv.find((arg) =>
     arg.startsWith('--json-report='),
   );
