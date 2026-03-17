@@ -16,8 +16,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/shared"
 # -> https://github.com/go-git/go-git/issues/1812
 
 echo 'Checking variables'
+  CI="${CI:-false}"
   # NEW_VERSION is only for display, e.g. in changelog header, not functional
-  NEW_VERSION="${NEW_VERSION:-$(make version)}"
+  NEW_VERSION="${NEW_VERSION:-$(make --no-print-directory version)}"
   SOURCE_BRANCH="${SOURCE_BRANCH:-$(git branch --show-current)}"
   # LAST_RELEASE is the last released GA or backport version.
   # main branch should have the latest published release, and
@@ -25,6 +26,7 @@ echo 'Checking variables'
   LAST_RELEASE="${LAST_RELEASE:-$(grep -v '^#' scripts/release/previous.version)}"
   # vars displayed this way for easier troubleshooting
   cat <<VARS
+export CI='$CI'
 export NEW_VERSION='$NEW_VERSION'
 export SOURCE_BRANCH='$SOURCE_BRANCH'
 export LAST_RELEASE='$LAST_RELEASE'
@@ -40,7 +42,7 @@ echo 'Ensuring source branch'
   git switch "$SOURCE_BRANCH"
 echo
 
-cl_file="$(mktemp -t changelog-XXXXX-$NEW_VERSION.md)"
+cl_file="$(mktemp -t "changelog-XXXXX-$NEW_VERSION.md")"
 
 echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD))"
   changelog-build \
@@ -60,6 +62,12 @@ echo "Generating the changelog from v$LAST_RELEASE to HEAD ($(git rev-parse HEAD
     exit 1
   fi
 echo
+
+# if not CI, just display the changelog contents
+case $CI in
+  1|true|yes) ;; # continue below
+  *) echo "========="; cat "$cl_file" ; exit ;;
+esac
 
 echo 'Updating CHANGELOG.md'
   {
