@@ -36,6 +36,7 @@ export default class VersionsController extends Controller.extend(
     );
   }
 
+  @action
   onDismiss() {
     this.set('error', null);
   }

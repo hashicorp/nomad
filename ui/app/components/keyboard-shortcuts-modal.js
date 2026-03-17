@@ -5,7 +5,7 @@
 
 import { set } from '@ember/object';
 import Component from '@glimmer/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { action } from '@ember/object';
 import Tether from 'tether';
@@ -104,6 +104,11 @@ export default class KeyboardShortcutsModalComponent extends Component {
     if (!this.config.isTest) {
       hint.binder.destroy();
     }
+  }
+
+  @action
+  closeShortcuts() {
+    this.keyboard.shortcutsVisible = false;
   }
 
   @action toggleListener() {

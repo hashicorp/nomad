@@ -37,7 +37,7 @@
             this.model.job.runningDeployment
             (cannot "scale job" namespace=this.model.job.namespace.name)
           }}
-          @onChange={{action "scaleTaskGroup"}}
+          @onChange={{this.scaleTaskGroup}}
         >
           Count
         </StepperInput>
@@ -152,19 +152,19 @@
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
         />
         <MultiSelectDropdown
           data-test-allocation-client-facet
           @label="Client"
           @options={{this.optionsClients}}
           @selection={{this.selectionClient}}
-          @onSelect={{action this.setFacetQueryParam "qpClient"}}
+          @onSelect={{fn this.setFacetQueryParam "qpClient"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
           @placeholder="Search allocations..."
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @class="is-padded"
           @inputClass="is-compact"
         />
@@ -233,12 +233,12 @@
               <AllocationRow
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoAllocation" row.model)
+                  action=(fn this.gotoAllocation row.model)
                 }}
                 @data-test-allocation={{row.model.id}}
                 @allocation={{row.model}}
                 @context="taskGroup"
-                @onClick={{action "gotoAllocation" row.model}}
+                @onClick={{fn this.gotoAllocation row.model}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
@@ -249,7 +249,7 @@
                       this.activeTask
                       (concat task.allocation.id "-" task.name)
                     }}
-                    @onSetActiveTask={{action "setActiveTaskQueryParam"}}
+                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
                     @jobHasActions={{this.model.job.actions.length}}
                   />
                 {{/each}}
@@ -257,7 +257,7 @@
             </t.body>
           </ListTable>
           <div class="table-foot">
-            <PageSizeSelect @onChange={{action this.resetPagination}} />
+            <PageSizeSelect @onChange={{this.resetPagination}} />
             <nav class="pagination">
               <div class="pagination-numbers">
                 {{p.startsAt}}

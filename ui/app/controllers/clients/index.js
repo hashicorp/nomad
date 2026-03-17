@@ -5,7 +5,7 @@
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias, readOnly } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -349,6 +349,7 @@ export default class IndexController extends Controller.extend(
 
   @alias('clientsController.isForbidden') isForbidden;
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }
@@ -361,6 +362,11 @@ export default class IndexController extends Controller.extend(
       queryParamValue.addObject(option);
     }
     this.set(queryParamLabel, serialize(queryParamValue));
+  }
+
+  @action
+  toggleClientFilter(queryParam) {
+    this.set(queryParam, !this[queryParam]);
   }
 
   @action

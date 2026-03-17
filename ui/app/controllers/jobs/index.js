@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
@@ -466,15 +466,17 @@ export default class JobsIndexController extends Controller {
 
   @computed('namespaceFacet.{filter,options}')
   get filteredNamespaceOptions() {
+    const filter = String(this.namespaceFacet.filter || '').toLowerCase();
     return this.namespaceFacet.options.filter((ns) =>
-      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase()),
+      ns.key.toLowerCase().includes(filter),
     );
   }
 
   @computed('nodePoolFacet.{filter,options}')
   get filteredNodePoolOptions() {
+    const filter = String(this.nodePoolFacet.filter || '').toLowerCase();
     return this.nodePoolFacet.options.filter((np) =>
-      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase()),
+      np.key.toLowerCase().includes(filter),
     );
   }
 

@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
@@ -101,12 +101,14 @@ export default class AllocationsController extends Controller.extend(
   @alias('filteredAllocations') listToSort;
   @alias('listSorted') sortedAllocations;
 
+  @action
   resetPagination() {
     if (this.currentPage != null) {
       this.set('currentPage', 1);
     }
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

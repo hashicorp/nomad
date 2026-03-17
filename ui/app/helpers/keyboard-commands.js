@@ -4,7 +4,7 @@
  */
 
 import Helper from '@ember/component/helper';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 /**
   `{{keyboard-commands}}` helper used to initialize and tear down contextual keynav commands

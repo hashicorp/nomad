@@ -4,7 +4,7 @@
  */
 
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 // eslint-disable-next-line no-unused-vars
 import JobModel from '../../../models/job';
 import { A } from '@ember/array';

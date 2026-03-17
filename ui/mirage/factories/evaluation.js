@@ -25,10 +25,13 @@ const EVAL_TRIGGERED_BY = [
 const REF_TIME = new Date();
 
 const generateCountMap = (keysCount, list) => () => {
-  const sample = Array(keysCount)
-    .fill(null)
-    .map(() => pickOne(list))
-    .uniq();
+  const sample = [
+    ...new Set(
+      Array(keysCount)
+        .fill(null)
+        .map(() => pickOne(list)),
+    ),
+  ];
   return sample.reduce((hash, key) => {
     hash[key] = faker.random.number({ min: 1, max: 5 });
     return hash;
@@ -87,7 +90,7 @@ export default Factory.extend({
         jobId: evaluation.jobId,
       });
 
-      const taskGroupNames = taskGroups.mapBy('name');
+      const taskGroupNames = taskGroups.map((taskGroup) => taskGroup.name);
       const failedTaskGroupsCount = faker.random.number({
         min: 1,
         max: taskGroupNames.length,

@@ -5,7 +5,7 @@
 
 import Component from '@ember/component';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { attributeBindings } from '@ember-decorators/component';
 import { htmlSafe } from '@ember/template';
 

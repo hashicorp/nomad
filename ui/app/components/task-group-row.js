@@ -4,10 +4,9 @@
  */
 
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
-import { computed, action } from '@ember/object';
-import { alias, oneWay } from '@ember/object/computed';
-import { debounce } from '@ember/runloop';
+import { service } from '@ember/service';
+import { action } from '@ember/object';
+import { debounce, join } from '@ember/runloop';
 import {
   classNames,
   tagName,
@@ -24,10 +23,17 @@ export default class TaskGroupRow extends Component {
   @service abilities;
 
   taskGroup = null;
+  count = 0;
   debounce = 500;
 
-  @oneWay('taskGroup.count') count;
-  @alias('taskGroup.job.runningDeployment') runningDeployment;
+  didReceiveAttrs() {
+    super.didReceiveAttrs(...arguments);
+    this.set('count', Number(this.taskGroup?.count ?? 0));
+  }
+
+  get runningDeployment() {
+    return this.taskGroup?.job?.runningDeployment;
+  }
 
   get namespace() {
     const job = this.taskGroup?.job;
@@ -57,7 +63,6 @@ export default class TaskGroupRow extends Component {
     return 'default';
   }
 
-  @computed('runningDeployment', 'namespace')
   get tooltipText() {
     if (this.abilities.cannot('scale job', null, { namespace: this.namespace }))
       return "You aren't allowed to scale task groups";
@@ -72,14 +77,12 @@ export default class TaskGroupRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  @computed('count', 'taskGroup.scaling.min')
   get isMinimum() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.min == null) return false;
     return this.count <= scaling.min;
   }
 
-  @computed('count', 'taskGroup.scaling.max')
   get isMaximum() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.max == null) return false;
@@ -88,20 +91,28 @@ export default class TaskGroupRow extends Component {
 
   @action
   countUp() {
-    const scaling = this.taskGroup.scaling;
-    if (!scaling || scaling.max == null || this.count < scaling.max) {
-      this.incrementProperty('count');
-      this.scale(this.count);
-    }
+    join(this, () => {
+      const scaling = this.taskGroup.scaling;
+      if (!scaling || scaling.max == null || this.count < scaling.max) {
+        const nextCount = this.count + 1;
+        this.set('count', nextCount);
+        this.taskGroup.set('count', nextCount);
+        this.scale(nextCount);
+      }
+    });
   }
 
   @action
   countDown() {
-    const scaling = this.taskGroup.scaling;
-    if (!scaling || scaling.min == null || this.count > scaling.min) {
-      this.decrementProperty('count');
-      this.scale(this.count);
-    }
+    join(this, () => {
+      const scaling = this.taskGroup.scaling;
+      if (!scaling || scaling.min == null || this.count > scaling.min) {
+        const nextCount = this.count - 1;
+        this.set('count', nextCount);
+        this.taskGroup.set('count', nextCount);
+        this.scale(nextCount);
+      }
+    });
   }
 
   scale(count) {

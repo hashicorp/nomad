@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';

@@ -2,12 +2,10 @@
   Copyright IBM Corp. 2015, 2025
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-{{!-- TODO: <JobRow> is not currently used in the UI. It should be re-implemented in jobs/index.hbs --}}
-<td data-test-job-name
-  {{keyboard-shortcut
-    enumerated=true
-    action=(fn this.gotoJob @job)
-  }}
+{{! TODO: <JobRow> is not currently used in the UI. It should be re-implemented in jobs/index.hbs }}
+<td
+  data-test-job-name
+  {{keyboard-shortcut enumerated=true action=(fn this.gotoJob @job)}}
 >
   <LinkTo
     @route="jobs.job.index"

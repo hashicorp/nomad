@@ -120,7 +120,7 @@ export default Factory.extend({
           withMeta: group.withTaskMeta,
         });
       });
-      taskIds = tasks.mapBy('id');
+      taskIds = tasks.map((task) => task.id);
     }
 
     group.update({

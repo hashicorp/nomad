@@ -78,17 +78,21 @@
 
   <div class={{if this.namespaceOptions "path-namespace"}}>
 
-		<Hds::Form::TextInput::Field
-			@isRequired={{true}}
-			@value={{this.path}}
-			placeholder="nomad/jobs/my-job/my-group/my-task"
-      @isInvalid={{or this.duplicatePathWarning (and @model.isNew this.hasInvalidPath)}}
+    <Hds::Form::TextInput::Field
+      @isRequired={{true}}
+      @value={{this.path}}
+      placeholder="nomad/jobs/my-job/my-group/my-task"
+      @isInvalid={{or
+        this.duplicatePathWarning
+        (and @model.isNew this.hasInvalidPath)
+      }}
       {{on "input" this.setModelPath}}
       disabled={{not @model.isNew}}
       {{autofocus}}
       data-test-path-input
-		as |F|>
-			<F.Label>Path</F.Label>
+      as |F|
+    >
+      <F.Label>Path</F.Label>
 
       {{#if this.duplicatePathWarning}}
         <F.Error data-test-duplicate-variable-error>
@@ -127,7 +131,6 @@
         </F.HelperText>
       {{/if}}
     </Hds::Form::TextInput::Field>
-
 
     <VariableForm::NamespaceFilter
       @data={{hash
@@ -175,7 +178,8 @@
             class="input"
             {{autofocus ignore=(eq iter 0)}}
             {{on "input" (fn this.validateKey entry)}}
-          as |F|>
+            as |F|
+          >
             <F.Label>Key</F.Label>
           </Hds::Form::TextInput::Field>
           <VariableForm::InputGroup @entry={{entry}} />

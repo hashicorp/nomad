@@ -14,7 +14,7 @@ export default ApplicationSerializer.extend({
     }
 
     return json
-      .sortBy('SubmitTime')
+      .sort((a, b) => a.SubmitTime - b.SubmitTime)
       .reverse()
       .reduce(
         (hash, version) => {

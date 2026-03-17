@@ -18,7 +18,10 @@
 >
   <form
     data-test-drain-popover-form
-    {{on "submit" (queue this.preventDefault (perform this.drain m.actions.close))}}
+    {{on
+      "submit"
+      (queue this.preventDefault (perform this.drain m.actions.close))
+    }}
     class="form is-small"
   >
     <h4 class="group-heading">Drain Options</h4>
@@ -67,8 +70,8 @@
             placeholder="1h30m"
             value={{if (eq this.customDuration 0) "" this.customDuration}}
             oninput={{queue
-                (fn (mut this.parseError) "")
-                (pick "target.value" (fn (mut this.customDuration)))
+              (fn (mut this.parseError) "")
+              (pick "target.value" (fn (mut this.customDuration)))
             }}
           />
           {{#if this.parseError}}
@@ -116,7 +119,7 @@
         data-test-drain-submit
         type="button"
         class="popover-action is-primary"
-        onclick={{perform this.drain m.actions.close}}
+        {{on "click" (perform this.drain m.actions.close)}}
       >
         Drain
       </button>

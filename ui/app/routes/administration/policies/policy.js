@@ -6,7 +6,7 @@
 import Route from '@ember/routing/route';
 import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { hash } from 'rsvp';
 
 export default class AccessControlPoliciesPolicyRoute extends Route.extend(

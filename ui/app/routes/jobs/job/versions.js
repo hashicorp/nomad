@@ -10,7 +10,7 @@ import {
   watchRelationship,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class VersionsRoute extends Route.extend(WithWatchers) {
   @service store;

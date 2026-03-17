@@ -7,6 +7,7 @@ import Application from '@ember/application';
 import Resolver from 'ember-resolver';
 import loadInitializers from 'ember-load-initializers';
 import config from 'nomad-ui/config/environment';
+import '@nullvoxpopuli/legacy-prototype-extensions/array';
 import { extendResolver } from 'ember-can';
 import { importSync, isDevelopingApp, macroCondition } from '@embroider/macros';
 

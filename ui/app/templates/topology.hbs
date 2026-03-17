@@ -30,7 +30,7 @@
               <button
                 data-test-dismiss
                 class="button is-warning"
-                onclick={{action (mut this.pre09Nodes) null}}
+                {{on "click" (fn (mut this.pre09Nodes) null)}}
                 type="button"
               >
                 Okay
@@ -58,7 +58,7 @@
                     data-test-polling-notice-dismiss
                     class="button is-warning"
                     type="button"
-                    onclick={{toggle-action "showPollingNotice" this}}
+                    {{on "click" (fn (mut this.showPollingNotice) false)}}
                   >
                     Okay
                   </button>
@@ -522,35 +522,35 @@
                   @label="Node Pool"
                   @options={{this.optionsNodePool}}
                   @selection={{this.selectionNodePool}}
-                  @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpNodePool"}}
                 />
                 <MultiSelectDropdown
                   data-test-datacenter-facet
                   @label="Datacenter"
                   @options={{this.optionsDatacenter}}
                   @selection={{this.selectionDatacenter}}
-                  @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpDatacenter"}}
                 />
                 <MultiSelectDropdown
                   data-test-class-facet
                   @label="Class"
                   @options={{this.optionsClass}}
                   @selection={{this.selectionClass}}
-                  @onSelect={{action this.setFacetQueryParam "qpClass"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpClass"}}
                 />
                 <MultiSelectDropdown
                   data-test-state-facet
                   @label="State"
                   @options={{this.optionsState}}
                   @selection={{this.selectionState}}
-                  @onSelect={{action this.setFacetQueryParam "qpState"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpState"}}
                 />
                 <MultiSelectDropdown
                   data-test-version-facet
                   @label="Version"
                   @options={{this.optionsVersion}}
                   @selection={{this.selectionVersion}}
-                  @onSelect={{action this.setFacetQueryParam "qpVersion"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpVersion"}}
                 />
               </div>
             </div>
@@ -558,9 +558,9 @@
           <TopoViz
             @nodes={{this.filteredNodes}}
             @allocations={{this.model.allocations}}
-            @onAllocationSelect={{action this.setAllocation}}
-            @onNodeSelect={{action this.setNode}}
-            @onDataError={{action this.handleTopoVizDataError}}
+            @onAllocationSelect={{this.setAllocation}}
+            @onNodeSelect={{this.setNode}}
+            @onDataError={{this.handleTopoVizDataError}}
             @filters={{hash
               search=this.searchTerm
               clientState=this.selectionState

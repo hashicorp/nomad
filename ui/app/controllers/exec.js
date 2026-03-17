@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';

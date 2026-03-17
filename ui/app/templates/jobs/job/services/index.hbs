@@ -21,7 +21,7 @@
         <JobServiceRow
           {{keyboard-shortcut
             enumerated=true
-            action=(action "gotoService" row.model)
+            action=(fn this.gotoService row.model)
           }}
           @service={{row.model}}
         />

@@ -27,7 +27,7 @@ export default Factory.extend({
       );
 
       taskGroupScale.update({
-        eventIds: events.mapBy('id'),
+        eventIds: events.map((event) => event.id),
       });
     }
   },

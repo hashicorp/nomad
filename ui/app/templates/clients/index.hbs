@@ -13,7 +13,7 @@
         {{#if this.nodes.length}}
           <SearchBox
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
+            @onChange={{this.resetPagination}}
             @placeholder="Search clients..."
           />
         {{/if}}
@@ -33,9 +33,9 @@
           <dd.Title @text="Status" />
           {{#each this.clientFilterToggles.state as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -46,9 +46,9 @@
           <dd.Title @text="Eligibility" />
           {{#each this.clientFilterToggles.eligibility as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -59,9 +59,9 @@
           <dd.Title @text="Drain Status" />
           {{#each this.clientFilterToggles.drainStatus as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -80,7 +80,7 @@
             <dd.Checkbox
               {{on
                 "change"
-                (action
+                (fn
                   this.handleFilterChange
                   this.selectionNodePool
                   option.label
@@ -114,7 +114,7 @@
             <dd.Checkbox
               {{on
                 "change"
-                (action
+                (fn
                   this.handleFilterChange
                   this.selectionClass
                   option.label
@@ -148,7 +148,7 @@
             <dd.Checkbox
               {{on
                 "change"
-                (action
+                (fn
                   this.handleFilterChange
                   this.selectionDatacenter
                   option.label
@@ -183,7 +183,7 @@
             <dd.Checkbox
               {{on
                 "change"
-                (action
+                (fn
                   this.handleFilterChange
                   this.selectionVersion
                   option.label
@@ -217,7 +217,7 @@
             <dd.Checkbox
               {{on
                 "change"
-                (action
+                (fn
                   this.handleFilterChange
                   this.selectionVolume
                   option.label
@@ -275,16 +275,16 @@
             <ClientNodeRow
               data-test-client-node-row
               @node={{row.model}}
-              @onClick={{action "gotoNode" row.model}}
+              @onClick={{fn this.gotoNode row.model}}
               {{keyboard-shortcut
                 enumerated=true
-                action=(action "gotoNode" row.model)
+                action=(fn this.gotoNode row.model)
               }}
             />
           </t.body>
         </ListTable>
         <div class="table-foot">
-          <PageSizeSelect @onChange={{action this.resetPagination}} />
+          <PageSizeSelect @onChange={{this.resetPagination}} />
           <nav class="pagination" data-test-pagination>
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}}

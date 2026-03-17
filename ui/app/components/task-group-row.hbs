@@ -30,9 +30,14 @@
         data-test-scale="decrement"
         aria-label="decrement"
         class="button is-xsmall is-light"
-        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
+        disabled={{or
+          this.isMinimum
+          this.runningDeployment
+          (cannot "scale job" namespace=this.namespace)
+        }}
         {{on "click" this.countDown}}
-        type="button">
+        type="button"
+      >
         <Hds::Icon @name="minus" @isInline={{true}} />
       </button>
       <button
@@ -40,9 +45,14 @@
         data-test-scale="increment"
         aria-label="increment"
         class="button is-xsmall is-light"
-        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
+        disabled={{or
+          this.isMaximum
+          this.runningDeployment
+          (cannot "scale job" namespace=this.namespace)
+        }}
         {{on "click" this.countUp}}
-        type="button">
+        type="button"
+      >
         <Hds::Icon @name="plus" @isInline={{true}} />
       </button>
     </div>

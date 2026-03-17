@@ -18,7 +18,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 @classic
 export default class ClientsController extends Controller.extend(
@@ -198,6 +198,7 @@ export default class ClientsController extends Controller.extend(
     }
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

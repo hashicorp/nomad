@@ -54,7 +54,7 @@ export default Factory.extend({
     });
 
     deployment.update({
-      deploymentTaskGroupSummaryIds: groups.mapBy('id'),
+      deploymentTaskGroupSummaryIds: groups.map((group) => group.id),
     });
   },
 });

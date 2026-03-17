@@ -80,7 +80,11 @@ export default Factory.extend({
         );
       }
 
-      task.save({ recommendationIds: recommendations.mapBy('id') });
+      task.save({
+        recommendationIds: recommendations.map(
+          (recommendation) => recommendation.id,
+        ),
+      });
     }
 
     if (task.withServices) {

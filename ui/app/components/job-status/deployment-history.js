@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 

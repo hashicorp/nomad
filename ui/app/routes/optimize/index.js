@@ -5,7 +5,7 @@
 
 /* eslint-disable ember/no-controller-access-in-routes */
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 
 export default class OptimizeIndexRoute extends Route {

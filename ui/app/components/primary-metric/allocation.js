@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, get, computed } from '@ember/object';
 import { dependentKeyCompat } from '@ember/object/compat';
 import ENV from 'nomad-ui/config/environment';

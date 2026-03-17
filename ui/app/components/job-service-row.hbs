@@ -13,10 +13,7 @@
   class={{if (eq @service.provider "nomad") "is-interactive"}}
 >
   <td
-    {{keyboard-shortcut
-      enumerated=true
-      action=(fn this.gotoService @service)
-    }}
+    {{keyboard-shortcut enumerated=true action=(fn this.gotoService @service)}}
   >
     {{#if (eq @service.provider "nomad")}}
       <Hds::Icon @name="nomad-color" @isInline={{true}} />

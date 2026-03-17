@@ -4,7 +4,7 @@
  */
 
 import { macroCondition, isTesting } from '@embroider/macros';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { equal, gt } from '@ember/object/computed';

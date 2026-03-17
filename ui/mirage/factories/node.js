@@ -162,7 +162,7 @@ export default Factory.extend({
 
     node.update({
       nodePool: nodePool.name,
-      eventIds: events.mapBy('id'),
+      eventIds: events.map((event) => event.id),
     });
 
     server.create('client-stat', {

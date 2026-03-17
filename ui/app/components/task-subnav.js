@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { equal, or } from '@ember/object/computed';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';

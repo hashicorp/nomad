@@ -47,14 +47,15 @@
     >
       <:body as |B|>
         <B.Tr>
-					<B.Td class="selection-checkbox">
-						<label>
-							<input type="checkbox"
-								checked={{find-by "name" B.data.name @role.policies}}
-								{{on "change" (fn this.updateRolePolicies B.data)}}
-							/>
-						</label>
-					</B.Td>
+          <B.Td class="selection-checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={{find-by "name" B.data.name @role.policies}}
+                {{on "change" (fn this.updateRolePolicies B.data)}}
+              />
+            </label>
+          </B.Td>
           <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
           <B.Td>{{B.data.description}}</B.Td>
           <B.Td>

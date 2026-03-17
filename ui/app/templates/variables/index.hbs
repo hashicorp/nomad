@@ -8,37 +8,32 @@
 
   <Hds::PageHeader class="variable-title" as |PH|>
     <PH.Actions>
-        {{#if this.namespaceOptions}}
-          <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
-            <dd.ToggleButton @text="Namespace ({{this.namespaceSelection}})" @color="secondary" />
-            {{#each this.namespaceOptions as |option|}}
-              <dd.Radio
-                name={{option.key}}
-                {{on "change" (fn this.setNamespace option.key)}}
-                checked={{eq this.namespaceSelection option.key}}
-              >
-                {{option.label}}
-              </dd.Radio>
-            {{/each}}
-          </Hds::Dropdown>
-        {{/if}}
+      {{#if this.namespaceOptions}}
+        <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
+          <dd.ToggleButton
+            @text="Namespace ({{this.namespaceSelection}})"
+            @color="secondary"
+          />
+          {{#each this.namespaceOptions as |option|}}
+            <dd.Radio
+              name={{option.key}}
+              {{on "change" (fn this.setNamespace option.key)}}
+              checked={{eq this.namespaceSelection option.key}}
+            >
+              {{option.label}}
+            </dd.Radio>
+          {{/each}}
+        </Hds::Dropdown>
+      {{/if}}
 
-        {{#if (can "write variable" path="*" namespace="*")}}
-          <div
-            {{keyboard-shortcut
-              pattern=(array "n" "v")
-              action=this.goToNewVariable
-              label="Create Variable"
-            }}
-          >
-            <Hds::Button
-              @text="Create Variable"
-              @icon="plus"
-              @route="variables.new"
-              data-test-create-var
-            />
-          </div>
-        {{else}}
+      {{#if (can "write variable" path="*" namespace="*")}}
+        <div
+          {{keyboard-shortcut
+            pattern=(array "n" "v")
+            action=this.goToNewVariable
+            label="Create Variable"
+          }}
+        >
           <Hds::Button
             @text="Create Variable"
             @icon="plus"

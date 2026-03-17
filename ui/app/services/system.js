@@ -4,7 +4,7 @@
  */
 
 import { set } from '@ember/object';
-import Service, { inject as service } from '@ember/service';
+import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';

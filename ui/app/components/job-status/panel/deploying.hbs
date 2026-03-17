@@ -8,28 +8,32 @@
   data-test-job-status-panel
 >
   <div class="boxed-section-head hds-foreground-primary">
-    <div class="boxed-section-row"
+    <div
+      class="boxed-section-row"
       {{did-insert this.establishOldAllocBlockIDs}}
-      >
-        <h2>Status:
-          <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="filled" />
-        </h2>
-        <div class="pull-right">
-          {{#if @job.latestDeployment.isRunning}}
-            {{#if (can "fail deployment" namespace=@job.namespace)}}
-              <Hds::Button
-                data-test-fail
-                {{on "click" (perform this.fail)}}
-                disabled={{this.fail.isRunning}}
-                @color="critical"
-                @text="Fail Deployment"
-                {{keyboard-shortcut
-                  label="Fail Deployment"
-                  pattern=(array "f" "a" "i" "l")
-                  action=(perform this.fail)
-                }}
-              />
-            {{/if}}
+    >
+      <h2>Status:
+        <Hds::Badge
+          @text="Deploying {{@job.latestDeployment.shortId}}"
+          @color="highlight"
+          @type="filled"
+        />
+      </h2>
+      <div class="pull-right">
+        {{#if @job.latestDeployment.isRunning}}
+          {{#if (can "fail deployment" namespace=@job.namespace)}}
+            <Hds::Button
+              data-test-fail
+              {{on "click" (perform this.fail)}}
+              disabled={{this.fail.isRunning}}
+              @color="critical"
+              @text="Fail Deployment"
+              {{keyboard-shortcut
+                label="Fail Deployment"
+                pattern=(array "f" "a" "i" "l")
+                action=(perform this.fail)
+              }}
+            />
           {{/if}}
         {{/if}}
       </div>
@@ -46,7 +50,7 @@
             <A.Title>Deployment requires promotion</A.Title>
             <A.Description>Your deployment requires manual promotion — all
               canary allocations have passed their health checks.</A.Description>
-            {{#if (can "promote deployment" namespace=@job.namespaceId)}}
+            {{#if (can "promote deployment" namespace=@job.namespace)}}
               <A.Button
                 {{keyboard-shortcut
                   pattern=(array "p" "r" "o" "m" "o" "t" "e")
@@ -174,12 +178,10 @@
 
       {{/if}}
 
-      <h4 class="title is-5" data-test-new-allocation-tally>
-        <span>
-          New allocations:
+      <h4 class="title is-5" data-test-new-allocation-tally><span>New
+          allocations:
           {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}}
-          running and healthy
-        </span>
+          running and healthy</span>
         <span class="versions">
           <LinkTo
             data-version={{@job.version}}
@@ -208,7 +210,7 @@
       <legend>
         {{#each-in this.newAllocsByStatus as |status count|}}
           <ConditionalLinkTo
-            @condition={{and (not-eq status "unplaced") (gt count 0)}}
+            @condition={{and (not (eq status "unplaced")) (gt count 0)}}
             @route="jobs.job.allocations"
             @model={{@job}}
             @query={{hash

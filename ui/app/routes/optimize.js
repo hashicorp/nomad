@@ -5,7 +5,7 @@
 
 import Route from '@ember/routing/route';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { next } from '@ember/runloop';
 import RSVP from 'rsvp';

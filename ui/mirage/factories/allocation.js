@@ -65,7 +65,9 @@ export default Factory.extend({
         });
       });
 
-      allocation.update({ taskResourceIds: resources.mapBy('id') });
+      allocation.update({
+        taskResourceIds: resources.map((resource) => resource.id),
+      });
     },
   }),
 
@@ -88,7 +90,9 @@ export default Factory.extend({
         });
       });
 
-      allocation.update({ taskResourceIds: resources.mapBy('id') });
+      allocation.update({
+        taskResourceIds: resources.map((resource) => resource.id),
+      });
     },
   }),
 
@@ -229,15 +233,15 @@ export default Factory.extend({
       });
 
       allocation.update({
-        taskStateIds: states.mapBy('id'),
-        taskResourceIds: resources.mapBy('id'),
+        taskStateIds: states.map((state) => state.id),
+        taskResourceIds: resources.map((resource) => resource.id),
       });
 
       // Each allocation has a corresponding allocation stats running on some client.
       // Create that record, even though it's not a relationship.
       server.create('client-allocation-stat', {
         id: allocation.id,
-        _taskNames: states.mapBy('name'),
+        _taskNames: states.map((state) => state.name),
       });
     }
   },

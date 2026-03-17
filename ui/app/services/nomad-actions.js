@@ -4,7 +4,7 @@
  */
 
 import Service from '@ember/service';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import { base64DecodeString } from '../utils/encode';

@@ -27,7 +27,7 @@
         <input
           type="checkbox"
           checked={{this.dismissInTheFuture}}
-          onchange={{toggle-action "dismissInTheFuture" this}}
+          {{on "change" this.toggleDismissInTheFuture}}
         />
         Don’t show this again
       </label>

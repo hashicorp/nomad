@@ -4,7 +4,7 @@
  */
 
 import { action } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';

@@ -5,14 +5,14 @@
 
 /* eslint-disable ember/no-observers */
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { A } from '@ember/array';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
@@ -21,7 +21,9 @@ import { union } from '@ember/object/computed';
 import { tracked } from '@glimmer/tracking';
 
 @classic
-export default class IndexController extends Controller.extend(Sortable) {
+export default class IndexController extends Controller.extend(
+  SortableFactory(['name', 'state']),
+) {
   @service token;
   @service store;
   @service router;
@@ -124,6 +126,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     });
   }
 
+  @action
   onDismiss() {
     this.set('error', null);
   }

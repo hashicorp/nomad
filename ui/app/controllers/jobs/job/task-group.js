@@ -4,13 +4,13 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed, get } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import {
@@ -22,7 +22,7 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-  Sortable,
+  SortableFactory(['modifyIndex', 'name', 'shortId', 'clientStatus']),
   Searchable,
   WithNamespaceResetting,
 ) {
@@ -185,6 +185,7 @@ export default class TaskGroupController extends Controller.extend(
     return clients.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

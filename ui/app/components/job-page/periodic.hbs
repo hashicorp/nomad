@@ -13,7 +13,7 @@
       <button
         data-test-force-launch
         class="button is-warning is-small is-inline"
-        onclick={{fn this.forceLaunch jobPage.fns.setError}}
+        {{on "click" (fn this.forceLaunch jobPage.fns.setError)}}
         type="button"
       >
         Force Launch

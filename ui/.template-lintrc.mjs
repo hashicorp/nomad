@@ -11,7 +11,6 @@ export default {
     'no-builtin-form-components': 'off',
     'no-at-ember-render-modifiers': 'off',
     'link-href-attributes': 'off',
-    'no-action': 'off',
     'no-invalid-interactive': 'off',
     'no-inline-styles': 'off',
     'no-curly-component-invocation': {

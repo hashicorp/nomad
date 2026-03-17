@@ -15,7 +15,7 @@
           <SearchBox
             data-test-plugins-search
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
+            @onChange={{this.resetPagination}}
             @placeholder="Search plugins..."
           />
         {{/if}}
@@ -45,13 +45,13 @@
             <tr
               class="is-interactive"
               data-test-plugin-row
-              {{on "click" (action "gotoPlugin" row.model)}}
+              {{on "click" (fn this.gotoPlugin row.model)}}
             >
               <td
                 data-test-plugin-id
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoPlugin" row.model)
+                  action=(fn this.gotoPlugin row.model)
                 }}
               >
                 <LinkTo
@@ -90,7 +90,7 @@
           </t.body>
         </ListTable>
         <div class="table-foot">
-          <PageSizeSelect @onChange={{action this.resetPagination}} />
+          <PageSizeSelect @onChange={{this.resetPagination}} />
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}}

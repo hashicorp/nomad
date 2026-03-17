@@ -4,7 +4,7 @@
  */
 
 import Mixin from '@ember/object/mixin';
-import { get, computed } from '@ember/object';
+import { get, computed, action } from '@ember/object';
 import { reads } from '@ember/object/computed';
 import Fuse from 'fuse.js';
 
@@ -49,11 +49,11 @@ export default Mixin.create({
   // search will be paired with pagination, but it's still
   // preferable to generalize this rather than risking it being
   // forgotten on a single page.
-  resetPagination() {
+  resetPagination: action(function () {
     if (this.currentPage != null) {
       this.set('currentPage', 1);
     }
-  },
+  }),
 
   fuse: computed(
     'fuzzySearchProps.[]',

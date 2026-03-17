@@ -8,7 +8,7 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as controller } from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';

@@ -7,7 +7,7 @@
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import { reduceBytes, reduceHertz } from 'nomad-ui/utils/units';
@@ -56,6 +56,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   qpDatacenter = '';
   qpNodePool = '';
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

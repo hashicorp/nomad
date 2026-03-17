@@ -65,10 +65,7 @@
                   placeholder="Filter {{group.label}}"
                   @value={{group.filter}}
                   {{autofocus}}
-                  {{on
-                    "input"
-                    (action (mut group.filter) value="target.value")
-                  }}
+                  {{on "input" (pick "target.value" (fn (mut group.filter)))}}
                   data-test-namespace-filter-searchbox
                 />
               </dd.Header>
@@ -172,12 +169,9 @@
       <:body as |B|>
         {{! TODO: use <JobRow> }}
         <B.Tr
-          {{keyboard-shortcut
-            enumerated=true
-            action=(fn this.gotoJob B.data)
-          }}
+          {{keyboard-shortcut enumerated=true action=(fn this.gotoJob B.data)}}
           {{on "click" (fn this.gotoJob B.data)}}
-          class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
+          class="job-row is-interactive {{if B.data.assumeGC 'assume-gc'}}"
           data-test-job-row={{B.data.plainId}}
           data-test-modify-index={{B.data.modifyIndex}}
         >
@@ -313,10 +307,12 @@
 
     <section id="jobs-list-pagination">
       <div class="nav-buttons">
-        <span {{keyboard-shortcut
-          label="First Page"
-          pattern=(array "{" "{")
-          action=(fn this.handlePageChange "first")}}
+        <span
+          {{keyboard-shortcut
+            label="First Page"
+            pattern=(array "{" "{")
+            action=(fn this.handlePageChange "first")
+          }}
         >
           <Hds::Button
             @text="First"
@@ -329,10 +325,12 @@
             {{on "click" (fn this.handlePageChange "first")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Previous Page"
-          pattern=(array "[" "[")
-          action=(fn this.handlePageChange "prev")}}
+        <span
+          {{keyboard-shortcut
+            label="Previous Page"
+            pattern=(array "[" "[")
+            action=(fn this.handlePageChange "prev")
+          }}
         >
           <Hds::Button
             @text="Previous"
@@ -345,10 +343,12 @@
             {{on "click" (fn this.handlePageChange "prev")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Next Page"
-          pattern=(array "]" "]")
-          action=(fn this.handlePageChange "next")}}
+        <span
+          {{keyboard-shortcut
+            label="Next Page"
+            pattern=(array "]" "]")
+            action=(fn this.handlePageChange "next")
+          }}
         >
           <Hds::Button
             @text="Next"
@@ -361,10 +361,12 @@
             {{on "click" (fn this.handlePageChange "next")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Last Page"
-          pattern=(array "}" "}")
-          action=(fn this.handlePageChange "last")}}
+        <span
+          {{keyboard-shortcut
+            label="Last Page"
+            pattern=(array "}" "}")
+            action=(fn this.handlePageChange "last")
+          }}
         >
           <Hds::Button
             @text="Last"
@@ -398,22 +400,24 @@
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (fn this.correctFilterKey this.model.error.correction)}}
-
+              {{on
+                "click"
+                (fn this.correctFilterKey this.model.error.correction)
+              }}
             />?
           {{else if this.model.error.suggestion}}
             <ul>
-            {{#each this.model.error.suggestion as |suggestion|}}
-              <li><Hds::Button
-                data-test-filter-suggestion
-                @text={{suggestion.key}}
-                @isInline={{true}}
-                @size="small"
-                @color="tertiary"
-                @icon="bulb"
-                {{on "click" (fn this.suggestFilter suggestion)}}
-              /></li>
-            {{/each}}
+              {{#each this.model.error.suggestion as |suggestion|}}
+                <li><Hds::Button
+                    data-test-filter-suggestion
+                    @text={{suggestion.key}}
+                    @isInline={{true}}
+                    @size="small"
+                    @color="tertiary"
+                    @icon="bulb"
+                    {{on "click" (fn this.suggestFilter suggestion)}}
+                  /></li>
+              {{/each}}
             </ul>
           {{else}}
             {{! This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions }}
@@ -426,9 +430,10 @@
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (fn this.suggestFilter
-                (hash example=this.exampleFilter)
-              )}}
+              {{on
+                "click"
+                (fn this.suggestFilter (hash example=this.exampleFilter))
+              }}
             />
           {{/if}}
         </A.Body>
@@ -438,7 +443,7 @@
             @color="tertiary"
             @icon="arrow-left"
             @size="small"
-{{on "click" this.resetFilters}}
+            {{on "click" this.resetFilters}}
           />
 
           <F.LinkStandalone

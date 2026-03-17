@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Service, { inject as service } from '@ember/service';
+import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/owner';
