@@ -40,10 +40,10 @@ export default class TokenService extends Service {
     }
   }
 
-  @task(function* () {
+  @task(function* (regionOverride = null) {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
-      var token = yield TokenAdapter.findSelf();
+      var token = yield TokenAdapter.findSelf(regionOverride);
       if (token.accessor === 'acls-disabled') {
         this.set('aclEnabled', false);
         return null;
@@ -102,8 +102,8 @@ export default class TokenService extends Service {
 
   @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
 
-  @task(function* () {
-    yield this.fetchSelfToken.perform();
+  @task(function* (regionOverride = null) {
+    yield this.fetchSelfToken.perform(regionOverride);
     this.kickoffTokenTTLMonitoring();
     if (this.aclEnabled) {
       yield this.fetchSelfTokenPolicies.perform();
