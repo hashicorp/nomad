@@ -28,8 +28,8 @@ $size-4: 1.3rem;
 $size-7: 0.85rem;
 $title-weight: $weight-semibold;
 $family-sans-serif:
-  -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, oxygen-sans, ubuntu,
-  cantarell, 'Helvetica Neue', sans-serif;
+  -apple-system, blinkmacsystemfont, "Segoe UI", roboto, oxygen-sans, ubuntu,
+  cantarell, "Helvetica Neue", sans-serif;
 $text: $black;
 $header-height: 112px;
 $gutter-width: 250px;
@@ -41,8 +41,8 @@ $breadcrumb-item-color: $white;
 $breadcrumb-item-hover-color: $white;
 $breadcrumb-item-active-color: $white;
 $breadcrumb-item-separator-color: $primary;
-$mq-hidden-gutter: 'only screen and (max-width : 960px)';
-$mq-table-overflow: 'only screen and (max-width : 1100px)';
+$mq-hidden-gutter: "only screen and (max-width : 960px)";
+$mq-table-overflow: "only screen and (max-width : 1100px)";
 $timing-fast: 150ms;
 $timing-medium: 300ms;
 $timing-slow: 450ms;
@@ -55,6 +55,6 @@ $control-padding-vertical: calc(0.375em - #{$control-border-width});
 $control-padding-horizontal: calc(0.625em - #{$control-border-width});
 $button-padding-vertical: calc(0.375em - #{$button-border-width});
 $button-padding-horizontal: 0.75em;
-$breakpoint-mobile: 'max-width: 768px';
-$breakpoint-tablet: 'min-width: 769px';
-$breakpoint-desktop: 'min-width: 1088px';
+$breakpoint-mobile: "max-width: 768px";
+$breakpoint-tablet: "min-width: 769px";
+$breakpoint-desktop: "min-width: 1088px";

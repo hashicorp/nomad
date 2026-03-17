@@ -93,7 +93,7 @@
     overflow: hidden;
 
     &::before {
-      content: 'Canary';
+      content: "Canary";
       background-color: $blue-light;
       color: $black;
       line-height: 1.5em;

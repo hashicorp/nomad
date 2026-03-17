@@ -25,7 +25,7 @@
 #jobs-list-pagination {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  grid-template-areas: 'info nav-buttons page-size';
+  grid-template-areas: "info nav-buttons page-size";
   place-items: center start;
   padding: 1rem 0;
   gap: 1rem;

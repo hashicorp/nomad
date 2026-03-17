@@ -3,34 +3,59 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Component from '@ember/component';
-import { classNames, attributeBindings } from '@ember-decorators/component';
+import Component from '@glimmer/component';
 import { task } from 'ember-concurrency';
-import { action, set } from '@ember/object';
 import { service } from '@ember/service';
 import { debounce, next } from '@ember/runloop';
+import { registerDestructor } from '@ember/destroyable';
+import PowerSelect from 'ember-power-select/components/power-select';
+import GlobalSearchTrigger from './trigger';
 
 const SLASH_KEY = '/';
 const MAXIMUM_RESULTS = 10;
 
-@classNames('global-search-container')
-@attributeBindings('data-test-search-parent')
+const Message = <template></template>;
+
+function resultsGroupLabel(type, renderedResults, allResults, truncated) {
+  let countString;
+
+  if (renderedResults.length < allResults.length) {
+    countString = `showing ${renderedResults.length} of ${allResults.length}`;
+  } else {
+    countString = renderedResults.length;
+  }
+
+  const truncationIndicator = truncated ? '+' : '';
+
+  return `${type} (${countString}${truncationIndicator})`;
+}
+
 export default class GlobalSearchControl extends Component {
   @service router;
   @service token;
   @service store;
 
-  searchString = null;
+  select = null;
+  _keyDownHandler = null;
 
   constructor() {
     super(...arguments);
-    this['data-test-search-parent'] = true;
+
+    this._keyDownHandler = this.keyDownHandler.bind(this);
+    document.addEventListener('keydown', this._keyDownHandler);
+
+    registerDestructor(this, () => {
+      if (this._keyDownHandler) {
+        document.removeEventListener('keydown', this._keyDownHandler);
+        this._keyDownHandler = null;
+      }
+    });
   }
 
   keyDownHandler(e) {
     const targetElementName = e.target.nodeName.toLowerCase();
 
-    if (targetElementName != 'input' && targetElementName != 'textarea') {
+    if (targetElementName !== 'input' && targetElementName !== 'textarea') {
       if (e.key === SLASH_KEY) {
         e.preventDefault();
         this.open();
@@ -38,19 +63,8 @@ export default class GlobalSearchControl extends Component {
     }
   }
 
-  didInsertElement() {
-    super.didInsertElement(...arguments);
-    set(this, '_keyDownHandler', this.keyDownHandler.bind(this));
-    document.addEventListener('keydown', this._keyDownHandler);
-  }
-
-  willDestroyElement() {
-    super.willDestroyElement(...arguments);
-    document.removeEventListener('keydown', this._keyDownHandler);
-  }
-
-  @task(function* (string) {
-    const searchResponse = yield this.token.authorizedRequest(
+  search = task(async (string) => {
+    const searchResponse = await this.token.authorizedRequest(
       '/v1/search/fuzzy',
       {
         method: 'POST',
@@ -62,7 +76,7 @@ export default class GlobalSearchControl extends Component {
       },
     );
 
-    const results = yield searchResponse.json();
+    const results = await searchResponse.json();
 
     const allJobResults = results.Matches.jobs || [];
     const allNodeResults = results.Matches.nodes || [];
@@ -168,23 +182,19 @@ export default class GlobalSearchControl extends Component {
         options: csiPluginResults,
       },
     ];
-  })
-  search;
+  });
 
-  @action
-  open() {
+  open = () => {
     if (this.select) {
       this.select.actions.open();
     }
-  }
+  };
 
-  @action
-  ensureMinimumLength(string) {
+  ensureMinimumLength = (string) => {
     return string.length > 1;
-  }
+  };
 
-  @action
-  selectOption(model) {
+  selectOption = (model) => {
     if (model.type === 'job') {
       const fullId = JSON.stringify([model.id, model.namespace]);
       this.store.findRecord('job', fullId).then((job) => {
@@ -206,17 +216,15 @@ export default class GlobalSearchControl extends Component {
     } else if (model.type === 'allocation') {
       this.router.transitionTo('allocations.allocation', model.id);
     }
-  }
+  };
 
-  @action
-  storeSelect(select) {
+  storeSelect = (select) => {
     if (select) {
       this.select = select;
     }
-  }
+  };
 
-  @action
-  openOnClickOrTab(select, { target }) {
+  openOnClickOrTab = (select, { target }) => {
     // Bypass having to press enter to access search after clicking/tabbing
     const targetClassList = target.classList;
     const targetIsTrigger = targetClassList.contains(
@@ -231,19 +239,20 @@ export default class GlobalSearchControl extends Component {
     if (targetIsTrigger && triggerIsNotActive) {
       debounce(this, this.open, 150);
     }
-  }
+  };
 
-  @action
-  onCloseEvent(select, event) {
+  onCloseEvent = (select, event) => {
     if (event.key === 'Escape') {
       next(() => {
-        this.element.querySelector('.ember-power-select-trigger').blur();
+        document
+          .querySelector('[data-test-search-parent]')
+          ?.querySelector('.ember-power-select-trigger')
+          ?.blur();
       });
     }
-  }
+  };
 
-  @action
-  calculatePosition(trigger) {
+  calculatePosition = (trigger) => {
     const { top, left, width } = trigger.getBoundingClientRect();
     return {
       style: {
@@ -252,19 +261,30 @@ export default class GlobalSearchControl extends Component {
         top,
       },
     };
-  }
-}
+  };
 
-function resultsGroupLabel(type, renderedResults, allResults, truncated) {
-  let countString;
-
-  if (renderedResults.length < allResults.length) {
-    countString = `showing ${renderedResults.length} of ${allResults.length}`;
-  } else {
-    countString = renderedResults.length;
-  }
-
-  const truncationIndicator = truncated ? '+' : '';
-
-  return `${type} (${countString}${truncationIndicator})`;
+  <template>
+    <div class="global-search-container" data-test-search-parent>
+      <PowerSelect
+        @tagName="div"
+        data-test-search
+        @ariaLabel="label-global-search"
+        @ariaLabelledBy="label-global-search"
+        @searchEnabled={{true}}
+        @search={{this.search.perform}}
+        @onInput={{this.ensureMinimumLength}}
+        @onChange={{this.selectOption}}
+        @onFocus={{this.openOnClickOrTab}}
+        @onClose={{this.onCloseEvent}}
+        @dropdownClass="global-search-dropdown"
+        @calculatePosition={{this.calculatePosition}}
+        @searchMessageComponent={{Message}}
+        @triggerComponent={{GlobalSearchTrigger}}
+        @registerAPI={{this.storeSelect}}
+        as |option|
+      >
+        {{option.label}}
+      </PowerSelect>
+    </div>
+  </template>
 }

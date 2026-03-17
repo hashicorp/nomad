@@ -19,8 +19,8 @@
       display: grid;
       gap: 0.5rem;
       grid-template-areas:
-        'title actions'
-        'intro search';
+        "title actions"
+        "intro search";
       grid-template-columns: 2fr 1fr;
 
       h3 {
@@ -68,7 +68,7 @@
 
     header {
       grid-column: -1 / 1;
-      grid-template-areas: 'title';
+      grid-template-areas: "title";
     }
   }
 }

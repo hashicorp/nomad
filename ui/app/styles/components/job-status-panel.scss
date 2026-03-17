@@ -8,9 +8,9 @@
   &.steady-state.current-state .boxed-section-body {
     display: grid;
     grid-template-areas:
-      'title'
-      'allocation-status-row'
-      'legend-and-summary';
+      "title"
+      "allocation-status-row"
+      "legend-and-summary";
     gap: 1rem;
     grid-auto-columns: 100%;
 
@@ -50,18 +50,18 @@
   &.active-deployment .boxed-section-body {
     display: grid;
     grid-template-areas:
-      'deployment-allocations'
-      'legend-and-summary'
-      'history-and-params';
+      "deployment-allocations"
+      "legend-and-summary"
+      "history-and-params";
     gap: 1rem;
     grid-auto-columns: 100%;
 
     &.requires-promotion {
       grid-template-areas:
-        'promotion-alert'
-        'deployment-allocations'
-        'legend-and-summary'
-        'history-and-params';
+        "promotion-alert"
+        "deployment-allocations"
+        "legend-and-summary"
+        "history-and-params";
 
       & > .canary-promotion-alert {
         button {
@@ -318,7 +318,7 @@
       overflow: hidden;
 
       &::after {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
@@ -341,7 +341,7 @@
       &::before {
         background: linear-gradient(-60deg, $pending, #eee, $pending);
         animation: shimmer 2s ease-in-out infinite;
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
@@ -350,7 +350,7 @@
       }
 
       &::after {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
@@ -409,7 +409,7 @@
       border-radius: 4px;
 
       &::after {
-        content: '';
+        content: "";
         position: absolute;
         left: -8px;
         bottom: -8px;
@@ -592,7 +592,7 @@
         color: #1caeff;
 
         &::after {
-          content: '=';
+          content: "=";
           color: white;
           margin-left: 0.5rem;
         }
