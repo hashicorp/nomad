@@ -13,7 +13,7 @@ export async function waitForFetch(fetchPromise) {
   const response = await fetchPromise;
 
   return new Proxy(response, {
-    get(target, prop, receiver) {
+    get(target, prop) {
       // Native Response getters are sensitive to `this`; use the original
       // response object as the receiver to avoid illegal invocation errors.
       const original = Reflect.get(target, prop, target);
