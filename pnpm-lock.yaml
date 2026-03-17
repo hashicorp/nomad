@@ -109,6 +109,9 @@ importers:
       bulma:
         specifier: 0.9.3
         version: 0.9.3
+      change-case:
+        specifier: ^5.4.4
+        version: 5.4.4
       codemirror:
         specifier: ^5.65.21
         version: 5.65.21
@@ -316,6 +319,9 @@ importers:
       faker:
         specifier: ^4.1.0
         version: 4.1.0
+      fast-deep-equal:
+        specifier: ^3.1.3
+        version: 3.1.3
       fuse.js:
         specifier: ^7.1.0
         version: 7.1.0
@@ -340,9 +346,6 @@ importers:
       lodash.intersection:
         specifier: ^4.4.0
         version: 4.4.0
-      lodash.isequal:
-        specifier: ^4.5.0
-        version: 4.5.0
       lru_map:
         specifier: ^0.4.1
         version: 0.4.1
@@ -355,9 +358,6 @@ importers:
       morgan:
         specifier: ^1.10.1
         version: 1.10.1
-      no-case:
-        specifier: ^4.0.0
-        version: 4.0.0
       pretender:
         specifier: ^3.4.7
         version: 3.4.7
@@ -2713,6 +2713,9 @@ packages:
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  change-case@5.4.4:
+    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   chardet@0.7.0:
     resolution: {integrity: sha512-mT8iDcrh03qDGRRmoA2hmBJnxpllMR+0/0qlzjqZES6NdiWDcZkCNAk4rPFZ9Q85r27unkiNNg8ZOiwZXBHwcA==}
@@ -5313,10 +5316,6 @@ packages:
   lodash.isarray@3.0.4:
     resolution: {integrity: sha512-JwObCrNJuT0Nnbuecmqr5DgtuBppuCvGD9lxjFpAzwnVtdGoDQ1zig+5W8k5/6Gcn0gZ3936HDAlGd28i7sOGQ==}
 
-  lodash.isequal@4.5.0:
-    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
-    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
-
   lodash.kebabcase@4.1.1:
     resolution: {integrity: sha512-N8XRTIMMqqDgSy4VLKPnJ/+hpGZN+PHQiJnSenYqPaVV/NCqEogTnAdZLQiGKhxX+JCs8waWq2t1XHWKOmlY8g==}
 
@@ -5621,10 +5620,6 @@ packages:
 
   no-case@3.0.4:
     resolution: {integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==}
-
-  no-case@4.0.0:
-    resolution: {integrity: sha512-WmS3EUGw+vXHlTgiUPi3NzbZNwH6+uGX0QLGgqG+aFSJ5rkX/Ee0nuwHBJfZTfQwwR8lGO819NEIwQ7CGhkdEQ==}
-    deprecated: Use `change-case`
 
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
@@ -10627,6 +10622,8 @@ snapshots:
 
   chalk@5.6.2: {}
 
+  change-case@5.4.4: {}
+
   chardet@0.7.0: {}
 
   chardet@2.1.1: {}
@@ -13995,8 +13992,6 @@ snapshots:
 
   lodash.isarray@3.0.4: {}
 
-  lodash.isequal@4.5.0: {}
-
   lodash.kebabcase@4.1.1: {}
 
   lodash.merge@4.6.2: {}
@@ -14278,8 +14273,6 @@ snapshots:
     dependencies:
       lower-case: 2.0.2
       tslib: 2.8.1
-
-  no-case@4.0.0: {}
 
   node-addon-api@7.1.1:
     optional: true

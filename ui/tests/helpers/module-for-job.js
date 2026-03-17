@@ -94,7 +94,9 @@ export default function moduleForJob(
         if (job.stopped) {
           assert.ok(JobDetail.start.isPresent);
         } else {
-          assert.ok(JobDetail.revert.isPresent);
+          assert.ok(
+            JobDetail.revert.isPresent || JobDetail.editAndResubmit.isPresent,
+          );
         }
         assert.ok(JobDetail.purge.isPresent);
         assert.notOk(JobDetail.stop.isPresent);
