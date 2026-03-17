@@ -206,6 +206,7 @@ module('Acceptance | regions (many)', function (hooks) {
         !req.responseURL.includes('/v1/operator/license') &&
         !req.responseURL.includes('/v1/acl/token/self') &&
         !req.responseURL.includes('/v1/acl/policy/anonymous') &&
+        !req.responseURL.includes('/v1/search/fuzzy') &&
         !req.responseURL.includes('/v1/status/leader'),
     );
 
