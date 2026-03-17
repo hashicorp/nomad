@@ -1,9 +1,12 @@
 # Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "filename" {
+  type = string
+}
+
 job "checks_task_restart" {
-  datacenters = ["dc1"]
-  type        = "service"
+  type = "service"
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -23,7 +26,7 @@ job "checks_task_restart" {
       check {
         name     = "alive"
         type     = "http"
-        path     = "/nsd-checks-task-restart-test.txt"
+        path     = "/${var.filename}"
         interval = "2s"
         timeout  = "1s"
         check_restart {
