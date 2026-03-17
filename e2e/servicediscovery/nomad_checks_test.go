@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
@@ -108,38 +108,23 @@ func testChecksSad(t *testing.T) {
 }
 
 func testChecksServiceReRegisterAfterCheckRestart(t *testing.T) {
-	const (
-		jobChecksAfterRestartMain   = "./input/checks_task_restart_main.nomad"
-		jobChecksAfterRestartHelper = "./input/checks_task_restart_helper.nomad"
-	)
-
 	nomadClient := e2eutil.NomadClient(t)
 
-	idJobMain := "nsd-check-restart-services-" + uuid.Short()
-	idJobHelper := "nsd-check-restart-services-helper-" + uuid.Short()
-	jobIDs := []string{idJobMain, idJobHelper}
-
-	// Defer a cleanup function to remove the job. This will trigger if the
-	// test fails, unless the cancel function is called.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	defer e2eutil.CleanupJobsAndGCWithContext(t, ctx, &jobIDs)
-
-	// register the main job
-	allocStubs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, jobChecksAfterRestartMain, idJobMain, "")
-	must.Len(t, 1, allocStubs)
+	filename := uuid.Generate() + ".txt"
+	mainJob, mainCleanup := jobs3.Submit(t,
+		"./input/checks_task_restart_main.nomad",
+		jobs3.Var("filename", filename),
+		jobs3.Detach(),
+	)
+	t.Cleanup(mainCleanup)
 
 	// wait for task restart due to failing health check
 	must.Wait(t, wait.InitialSuccess(
 		wait.BoolFunc(func() bool {
-			allocEvents, err := e2eutil.AllocTaskEventsForJob(idJobMain, "")
-			if err != nil {
-				t.Log("failed to get task events for job", idJobMain, err)
-				return false
-			}
+			allocEvents := mainJob.AllocEvents()
 			for _, events := range allocEvents {
-				for _, event := range events {
-					if event["Type"] == "Restarting" {
+				for _, event := range events.Events {
+					if event.Type == "Restarting" {
 						return true
 					}
 				}
@@ -150,20 +135,21 @@ func testChecksServiceReRegisterAfterCheckRestart(t *testing.T) {
 		wait.Gap(3*time.Second),
 	))
 
-	runHelper := func(command string) {
-		vars := []string{"-var", "nodeID=" + allocStubs[0].NodeID, "-var", "cmd=touch", "-var", "delay=3s"}
-		err := e2eutil.RegisterWithArgs(idJobHelper, jobChecksAfterRestartHelper, vars...)
-		test.NoError(t, err)
-	}
+	alloc := mainJob.Allocs()[0]
 
 	// register helper job, triggering check to start passing
-	runHelper("touch")
-	defer func() {
-		runHelper("rm")
-	}()
+	_, helperCleanup := jobs3.Submit(t,
+		"./input/checks_task_restart_helper.nomad",
+		jobs3.Var("filename", filename),
+		jobs3.Var("cmd", "touch"),
+		jobs3.Var("delay", "3s"),
+		jobs3.Var("nodeID", alloc.NodeID),
+		jobs3.WaitComplete("group"),
+	)
+	t.Cleanup(helperCleanup)
 
 	// wait for main task to become healthy
-	e2eutil.WaitForAllocStatus(t, nomadClient, allocStubs[0].ID, structs.AllocClientStatusRunning)
+	e2eutil.WaitForAllocStatus(t, nomadClient, alloc.ID, structs.AllocClientStatusRunning)
 
 	// finally assert we have services
 	services := nomadClient.Services()
