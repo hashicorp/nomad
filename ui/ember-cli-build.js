@@ -40,6 +40,8 @@ module.exports = function (defaults) {
       precision: 4,
       includePaths: [
         './node_modules/bulma',
+        './node_modules/xterm/css',
+        './node_modules/codemirror/lib',
         './node_modules/@hashicorp/design-system-components/dist/styles',
         './node_modules/ember-basic-dropdown/dist/vendor',
         './node_modules/ember-power-select/dist/vendor',
@@ -51,9 +53,6 @@ module.exports = function (defaults) {
     },
     // Add options here
   });
-
-  app.import('node_modules/xterm/css/xterm.css');
-  app.import('node_modules/codemirror/lib/codemirror.css');
 
   return app.toTree();
 };
