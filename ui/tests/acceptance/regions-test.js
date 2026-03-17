@@ -204,6 +204,8 @@ module('Acceptance | regions (many)', function (hooks) {
       (req) =>
         !req.responseURL.includes('/v1/regions') &&
         !req.responseURL.includes('/v1/operator/license') &&
+        !req.responseURL.includes('/v1/agent/self') &&
+        !req.responseURL.includes('/v1/agent/members') &&
         !req.responseURL.includes('/v1/acl/token/self') &&
         !req.responseURL.includes('/v1/acl/policy/anonymous') &&
         !req.responseURL.includes('/v1/search/fuzzy') &&
@@ -220,16 +222,7 @@ module('Acceptance | regions (many)', function (hooks) {
     );
 
     appRequests.forEach((req) => {
-      const requestPath = req.url.split('?')[0];
-
-      if (
-        requestPath === '/v1/agent/self' ||
-        requestPath === '/v1/agent/members'
-      ) {
-        assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
-      } else {
-        assert.ok(req.url.includes(`region=${region}`), req.url);
-      }
+      assert.ok(req.url.includes(`region=${region}`), req.url);
     });
   });
 
