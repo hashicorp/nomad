@@ -19,7 +19,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func Test_newTlsMetric(t *testing.T) {
+func Test_newTLSMetrics(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("valid combined key/cert file", func(t *testing.T) {
