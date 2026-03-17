@@ -122,7 +122,7 @@ echo "Installing Podman"
 sudo apt-get -y install podman catatonit
 
 echo "Installing Podman Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-podman
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.6.4 nomad-driver-podman
 
 # Pledge
 echo "Installing Pledge Driver"
