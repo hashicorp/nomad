@@ -68,6 +68,7 @@ jobs:
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: |
           set +e
+          mkdir -p test-results
           pnpm exam:ci --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
           status=$?
 
@@ -83,6 +84,11 @@ jobs:
         if: steps.ember_exam.outcome == 'failure'
         run: |
           echo "Tests failed in ember-exam for partition ${{ matrix.partition }}"
+          if [ ! -f test-results/test-results.json ]; then
+            echo "No JSON report produced at test-results/test-results.json"
+            echo "ember-exam failed before writing the report; see logs above for root cause."
+            exit 1
+          fi
           echo "Failed tests:"
           node -e "
             const results = JSON.parse(require('fs').readFileSync('test-results/test-results.json'));

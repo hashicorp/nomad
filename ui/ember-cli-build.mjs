@@ -5,13 +5,16 @@
 
 'use strict';
 
-const EmberApp = require('ember-cli/lib/broccoli/ember-app');
+import EmberApp from 'ember-cli/lib/broccoli/ember-app.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const environment = EmberApp.env();
 const isProd = environment === 'production';
 const isTest = environment === 'test';
 
-module.exports = function (defaults) {
+export default function (defaults) {
   const app = new EmberApp(defaults, {
     emberData: {
       deprecations: {
@@ -55,4 +58,4 @@ module.exports = function (defaults) {
   });
 
   return app.toTree();
-};
+}
