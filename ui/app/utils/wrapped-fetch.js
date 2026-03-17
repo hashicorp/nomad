@@ -14,7 +14,9 @@ export async function waitForFetch(fetchPromise) {
 
   return new Proxy(response, {
     get(target, prop, receiver) {
-      const original = Reflect.get(target, prop, receiver);
+      // Native Response getters are sensitive to `this`; use the original
+      // response object as the receiver to avoid illegal invocation errors.
+      const original = Reflect.get(target, prop, target);
 
       if (BODY_METHODS.includes(prop) && typeof original === 'function') {
         return (...args) => waitForPromise(original.call(target, ...args));
