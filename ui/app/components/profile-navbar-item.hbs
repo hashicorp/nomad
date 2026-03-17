@@ -13,7 +13,7 @@
     <dd.ToggleButton
       @color="secondary"
       @icon="user-circle"
-      @text={{this.token.selfToken.name}}
+      @text={{or this.token.selfToken.name "Profile"}}
       @size="small"
       data-test-header-profile-dropdown
     />
