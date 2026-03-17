@@ -11,6 +11,7 @@ import {
   triggerKeyEvent,
   typeIn,
   visit,
+  waitUntil,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -583,29 +584,33 @@ module('Acceptance | jobs list', function (hooks) {
     };
 
     // We have to wait for watchJobIDs to trigger the "dueling query" with watchJobs.
-    // Since we can't await the watchJobs promise, we set a reasonably short timeout
-    // to check the state of the list after the dueling query has completed.
+    // Since we can't await the watchJobs promise directly, poll for the parent
+    // status text to update before making assertions.
     await controller.watchJobIDs.perform(currentParams, 0);
 
-    let parentStatusUpdated = assert.async(); // watch for this to say "My tests oughta be passing by now"
-    const duelingQueryUpdateTime = 200;
+    await waitUntil(
+      () =>
+        document
+          .querySelector(
+            '[data-test-job-row="periodic"] [data-test-job-status]',
+          )
+          ?.textContent?.trim() === '10 completed jobs',
+      {
+        timeout: 5000,
+      },
+    );
 
-    assert.timeout(500);
+    assert
+      .dom('[data-test-job-row="periodic"] [data-test-job-status]')
+      .hasText(
+        '10 completed jobs',
+        'Parent job status indicates complete jobs',
+      );
 
-    setTimeout(async () => {
-      assert
-        .dom('[data-test-job-row="periodic"] [data-test-job-status]')
-        .hasText(
-          '10 completed jobs',
-          'Parent job status indicates complete jobs',
-        );
-      parentStatusUpdated();
-
-      await click('[data-test-job-row="periodic"]');
-      assert
-        .dom('[data-test-child-job-row]')
-        .exists({ count: 10 }, 'All children are shown');
-    }, duelingQueryUpdateTime);
+    await click('[data-test-job-row="periodic"]');
+    assert
+      .dom('[data-test-child-job-row]')
+      .exists({ count: 10 }, 'All children are shown');
 
     await percySnapshot(assert);
     localStorage.removeItem('nomadPageSize');

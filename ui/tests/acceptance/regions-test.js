@@ -217,10 +217,12 @@ module('Acceptance | regions (many)', function (hooks) {
     );
 
     appRequests.forEach((req) => {
+      const requestPath = req.url.split('?')[0];
+
       if (
-        req.url === '/v1/agent/self' ||
-        req.url === '/v1/acl/token/self' ||
-        req.url === '/v1/agent/members'
+        requestPath === '/v1/agent/self' ||
+        requestPath === '/v1/acl/token/self' ||
+        requestPath === '/v1/agent/members'
       ) {
         assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
       } else {
