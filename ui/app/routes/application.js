@@ -92,15 +92,34 @@ export default class ApplicationRoute extends Route {
     const defaultRegion = this.get('system.defaultRegion.region');
     const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-    // Only reset the store if the region actually changed
-    if (
+    // Check if region actually changed
+    const regionChanged =
       (queryParam && queryParam !== currentRegion) ||
-      (!queryParam && currentRegion !== defaultRegion)
-    ) {
-      this.store.unloadAll();
-    }
+      (!queryParam && currentRegion !== defaultRegion);
 
+    // Update the active region - the adapter will use this for all API requests
     this.set('system.activeRegion', queryParam || defaultRegion);
+
+    // If region changed, cancel watchers, clear store, and refresh
+    if (regionChanged) {
+      later(() => {
+        // Cancel all watchers on the current route to prevent polling old region
+        const currentRoute = this.router.currentRoute;
+        if (
+          currentRoute &&
+          currentRoute.handler &&
+          currentRoute.handler.cancelAllWatchers
+        ) {
+          currentRoute.handler.cancelAllWatchers();
+        }
+
+        // Clear the store to remove stale data
+        this.store.unloadAll();
+
+        // Refresh to reload with new region data
+        this.refresh();
+      }, 0);
+    }
 
     return promises;
   }
