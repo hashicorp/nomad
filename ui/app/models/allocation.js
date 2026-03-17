@@ -9,7 +9,7 @@ import { equal, none } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import isEqual from 'lodash.isequal';
+import isEqual from 'fast-deep-equal';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import classic from 'ember-classic-decorator';

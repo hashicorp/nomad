@@ -15,7 +15,7 @@ import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
 import notifyConflict from 'nomad-ui/utils/notify-conflict';
-import isEqual from 'lodash.isequal';
+import isEqual from 'fast-deep-equal';
 
 const EMPTY_KV = {
   key: '',

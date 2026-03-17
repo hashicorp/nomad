@@ -9,7 +9,7 @@ import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { A } from '@ember/array';
 import { task } from 'ember-concurrency';
-import { noCase } from 'no-case';
+import { noCase } from 'change-case';
 import { titleCase } from 'title-case';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
