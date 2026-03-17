@@ -30,10 +30,7 @@
     @color="secondary"
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    {{on "click" (queue
-      this.setToIdle
-      this.onCancel
-    )}}
+    {{on "click" (queue this.setToIdle this.onCancel)}}
   />
   <Hds::Button
     data-test-confirm-button
@@ -42,9 +39,6 @@
     @color="critical"
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    {{on "click" (queue
-      this.setToIdle
-      this.onConfirm
-    )}}
+    {{on "click" (queue this.setToIdle this.onConfirm)}}
   />
 {{/if}}

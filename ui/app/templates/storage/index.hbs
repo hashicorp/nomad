@@ -12,24 +12,27 @@
 <StorageSubnav />
 <section class="section storage-index">
 
-<Hds::PageHeader @title="Storage" as |PH|>
-  <PH.Actions>
-    {{#if this.system.shouldShowNamespaces}}
-      <Hds::Dropdown data-test-namespace-facet as |dd|>
-        <dd.ToggleButton @text="Namespace ({{this.qpNamespace}})" @color="secondary" />
-        {{#each this.optionsNamespaces as |option|}}
-          <dd.Radio
-            name={{option.key}}
-            {{on "change" (fn (mut this.qpNamespace) option.key)}}
-            checked={{eq this.qpNamespace option.key}}
-          >
-            {{option.label}}
-          </dd.Radio>
-        {{/each}}
-      </Hds::Dropdown>
-    {{/if}}
-  </PH.Actions>
-</Hds::PageHeader>
+  <Hds::PageHeader @title="Storage" as |PH|>
+    <PH.Actions>
+      {{#if this.system.shouldShowNamespaces}}
+        <Hds::Dropdown data-test-namespace-facet as |dd|>
+          <dd.ToggleButton
+            @text="Namespace ({{this.qpNamespace}})"
+            @color="secondary"
+          />
+          {{#each this.optionsNamespaces as |option|}}
+            <dd.Radio
+              name={{option.key}}
+              {{on "change" (fn (mut this.qpNamespace) option.key)}}
+              checked={{eq this.qpNamespace option.key}}
+            >
+              {{option.label}}
+            </dd.Radio>
+          {{/each}}
+        </Hds::Dropdown>
+      {{/if}}
+    </PH.Actions>
+  </Hds::PageHeader>
 
   {{#if this.isForbidden}}
     <ForbiddenMessage />
@@ -69,7 +72,7 @@
           @sortBy={{this.csiSortProperty}}
           @sortOrder={{if this.csiSortDescending "desc" "asc"}}
           @onSort={{fn this.handleSort "csi"}}
-          >
+        >
           <:body as |B|>
             <B.Tr
               data-test-csi-volume-row
@@ -150,7 +153,17 @@
         <div class="empty-message" data-test-empty-csi-volumes-list-headline>
           {{#if this.csiFilter}}
             <p>No CSI volumes match your search for "{{this.csiFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (fn (mut this.csiFilter) "") (fn this.handlePageChange "csi" 1))}} />
+            <Hds::Button
+              @text="Clear search"
+              @color="secondary"
+              {{on
+                "click"
+                (queue
+                  (fn (mut this.csiFilter) "")
+                  (fn this.handlePageChange "csi" 1)
+                )
+              }}
+            />
           {{else}}
             <p>No CSI Volumes found</p>
           {{/if}}
@@ -247,7 +260,17 @@
         <div class="empty-message" data-test-empty-dhv-list-headline>
           {{#if this.dhvFilter}}
             <p>No dynamic host volumes match your search for "{{this.dhvFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (fn (mut this.dhvFilter) "") (fn this.handlePageChange "dhv" 1))}} />
+            <Hds::Button
+              @text="Clear search"
+              @color="secondary"
+              {{on
+                "click"
+                (queue
+                  (fn (mut this.dhvFilter) "")
+                  (fn this.handlePageChange "dhv" 1)
+                )
+              }}
+            />
           {{else}}
             <p>No Dynamic Host Volumes found</p>
           {{/if}}

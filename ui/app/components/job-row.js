@@ -5,7 +5,7 @@
 
 import Component from '@ember/component';
 import { action } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { lazyClick } from '../helpers/lazy-click';
 import {
   classNames,

@@ -4,7 +4,7 @@
  */
 
 import Component from '@glimmer/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';

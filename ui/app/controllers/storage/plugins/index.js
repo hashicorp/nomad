@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';

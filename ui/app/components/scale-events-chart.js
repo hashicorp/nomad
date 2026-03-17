@@ -6,7 +6,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, get } from '@ember/object';
-import { copy } from 'ember-copy';
 
 export default class ScaleEventsChart extends Component {
   /** Args
@@ -40,7 +39,7 @@ export default class ScaleEventsChart extends Component {
     return this.args.events.rejectBy('hasCount').map((ev) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
-      event: cloneEvent(ev),
+      event: cloneScaleEvent(ev),
     }));
   }
 
@@ -59,4 +58,22 @@ export default class ScaleEventsChart extends Component {
   closeEventDetails() {
     this.activeEvent = null;
   }
+}
+
+function cloneValue(value) {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function cloneScaleEvent(event) {
+  return {
+    uid: get(event, 'uid'),
+    error: get(event, 'error'),
+    time: get(event, 'time'),
+    message: get(event, 'message'),
+    meta: cloneValue(get(event, 'meta')),
+  };
 }

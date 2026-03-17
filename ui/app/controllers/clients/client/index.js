@@ -12,7 +12,7 @@ import { observes } from '@ember-decorators/object';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import {
@@ -21,12 +21,19 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class ClientController extends Controller.extend(
-  Sortable,
+  SortableFactory([
+    'modifyIndex',
+    'name',
+    'shortId',
+    'clientStatus',
+    'plainJobId',
+    'namespace',
+  ]),
   Searchable,
 ) {
   @service notifications;
@@ -275,6 +282,7 @@ export default class ClientController extends Controller.extend(
     return ns.sort().map((n) => ({ key: n, label: n }));
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

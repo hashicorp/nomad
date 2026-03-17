@@ -7,7 +7,7 @@ import Component from '@ember/component';
 import { classNames, attributeBindings } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import { action, set } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { debounce, next } from '@ember/runloop';
 
 const SLASH_KEY = '/';

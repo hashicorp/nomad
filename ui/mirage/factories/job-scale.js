@@ -24,7 +24,7 @@ export default Factory.extend({
     );
 
     jobScale.update({
-      taskGroupScaleIds: groups.mapBy('id'),
+      taskGroupScaleIds: groups.map((group) => group.id),
     });
   },
 });

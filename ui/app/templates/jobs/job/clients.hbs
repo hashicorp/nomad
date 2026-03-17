@@ -12,7 +12,7 @@
         <SearchBox
           data-test-clients-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @placeholder="Search clients..."
         />
       </div>
@@ -23,21 +23,21 @@
             @label="Job Status"
             @options={{this.optionsJobStatus}}
             @selection={{this.selectionStatus}}
-            @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+            @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
           />
           <MultiSelectDropdown
             data-test-datacenter-facet
             @label="Datacenter"
             @options={{this.optionsDatacenter}}
             @selection={{this.selectionDatacenter}}
-            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+            @onSelect={{fn this.setFacetQueryParam "qpDatacenter"}}
           />
           <MultiSelectDropdown
             data-test-client-class-facet
             @label="Client Class"
             @options={{this.optionsClientClass}}
             @selection={{this.selectionClientClass}}
-            @onSelect={{action this.setFacetQueryParam "qpClientClass"}}
+            @onSelect={{fn this.setFacetQueryParam "qpClientClass"}}
           />
         </div>
       </div>

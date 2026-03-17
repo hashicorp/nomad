@@ -44,7 +44,7 @@ export default Factory.extend({
         namespace: version.job.namespace,
         versionNumber: version.version,
       },
-    ].compact();
+    ].filter(Boolean);
     server.create(...args);
   },
 });

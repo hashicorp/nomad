@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-observers */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { next } from '@ember/runloop';
 import { observes } from '@ember-decorators/object';

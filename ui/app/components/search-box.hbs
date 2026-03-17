@@ -12,6 +12,12 @@
     aria-label={{this.placeholder}}
     value={{this._searchTerm}}
     {{on "input" this.setSearchTerm}}
-    size="1">
-  <button class="suffix-icon" {{on "click" this.clear}} type="button" title="Clear search"><Hds::Icon @name="x" /></button>
+    size="1"
+  />
+  <button
+    class="suffix-icon"
+    {{on "click" this.clear}}
+    type="button"
+    title="Clear search"
+  ><Hds::Icon @name="x" /></button>
 </div>

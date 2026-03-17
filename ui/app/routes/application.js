@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-controller-access-in-routes */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';

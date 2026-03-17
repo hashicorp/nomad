@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { task } from 'ember-concurrency';
 import rollbackWithoutChangedAttrs from 'nomad-ui/utils/rollback-without-changed-attrs';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';

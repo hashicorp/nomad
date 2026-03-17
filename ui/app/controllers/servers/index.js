@@ -5,9 +5,11 @@
 
 import { alias } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 
-export default class IndexController extends Controller.extend(Sortable) {
+export default class IndexController extends Controller.extend(
+  SortableFactory(['isLeader', 'name']),
+) {
   @controller('servers') serversController;
   @alias('serversController.isForbidden') isForbidden;
 

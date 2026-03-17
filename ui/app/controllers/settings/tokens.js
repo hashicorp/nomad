@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/owner';
 import { alias } from '@ember/object/computed';
@@ -103,6 +103,13 @@ export default class Tokens extends Controller {
 
   get selectedJWTAuthMethod() {
     return this.jwtAuthMethod || this.defaultJWTAuthMethod?.name;
+  }
+
+  @action
+  setCurrentAuthMethod() {
+    if (!this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
   }
 
   @action

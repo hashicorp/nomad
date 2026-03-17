@@ -12,7 +12,7 @@
         <SearchBox
           data-test-allocations-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @placeholder="Search allocations..."
         />
       </div>
@@ -23,34 +23,34 @@
             @label="Status"
             @options={{this.optionsAllocationStatus}}
             @selection={{this.selectionStatus}}
-            @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+            @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
           />
           <MultiSelectDropdown
             data-test-allocation-client-facet
             @label="Client"
             @options={{this.optionsClients}}
             @selection={{this.selectionClient}}
-            @onSelect={{action this.setFacetQueryParam "qpClient"}}
+            @onSelect={{fn this.setFacetQueryParam "qpClient"}}
           />
           <MultiSelectDropdown
             data-test-allocation-task-group-facet
             @label="Task Group"
             @options={{this.optionsTaskGroups}}
             @selection={{this.selectionTaskGroup}}
-            @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
+            @onSelect={{fn this.setFacetQueryParam "qpTaskGroup"}}
           />
           <MultiSelectDropdown
             data-test-allocation-version-facet
             @label="Job Version"
             @options={{this.optionsVersions}}
             @selection={{this.selectionVersion}}
-            @onSelect={{action this.setFacetQueryParam "qpVersion"}}
+            @onSelect={{fn this.setFacetQueryParam "qpVersion"}}
           />
           <MultiSelectDropdown
             @label="Scheduling"
             @options={{this.optionsScheduling}}
             @selection={{this.selectionScheduling}}
-            @onSelect={{action this.setFacetQueryParam "qpScheduling"}}
+            @onSelect={{fn this.setFacetQueryParam "qpScheduling"}}
           />
         </div>
       </div>
@@ -97,12 +97,12 @@
             <AllocationRow
               {{keyboard-shortcut
                 enumerated=true
-                action=(action "gotoAllocation" row.model)
+                action=(fn this.gotoAllocation row.model)
               }}
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"
-              @onClick={{action "gotoAllocation" row.model}}
+              @onClick={{fn this.gotoAllocation row.model}}
             />
             {{#each row.model.states as |task|}}
               <TaskSubRow
@@ -110,7 +110,7 @@
                   this.activeTask
                   (concat task.allocation.id "-" task.name)
                 }}
-                @onSetActiveTask={{action "setActiveTaskQueryParam"}}
+                @onSetActiveTask={{this.setActiveTaskQueryParam}}
                 @namespan="9"
                 @taskState={{task}}
                 @jobHasActions={{this.job.actions.length}}

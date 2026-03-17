@@ -29,12 +29,12 @@ export default Factory.extend({
       {
         taskStateId: state.id,
       },
-    ].compact();
+    ].filter(Boolean);
 
     const events = server.createList(...props);
 
     state.update({
-      eventIds: events.mapBy('id'),
+      eventIds: events.map((event) => event.id),
     });
   },
 });

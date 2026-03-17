@@ -5,7 +5,7 @@
 
 <div
   class="loading-spinner {{if this.paused 'paused'}}"
-  {{on "click" (toggle-action "paused" this)}}
+  {{on "click" this.togglePaused}}
 >
   <div class="cube-and-logo">
     <div class="cube">

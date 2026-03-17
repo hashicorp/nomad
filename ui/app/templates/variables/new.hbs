@@ -20,7 +20,8 @@
         checked={{eq this.view "json"}}
         data-test-json-toggle
         {{on "change" this.toggleView}}
-      as |F|>
+        as |F|
+      >
         <F.Label>JSON</F.Label>
       </Hds::Form::Toggle::Field>
     </PH.Actions>

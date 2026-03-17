@@ -19,20 +19,29 @@
 
   {{#each this.metaFields as |meta|}}
     <div class="columns">
-        <div class="column is-6">
-          <div data-test-meta-field="{{ if meta.required "required" "optional" }}" class="field">
-            <label data-test-meta-field-label class="label {{if meta.error "has-text-danger"}}" for="{{meta.name}}">
-              {{meta.title}} {{#if meta.required}}*{{/if}}
-            </label>
-            <div class="control">
-              <input
-                data-test-meta-field-input
-                id="{{meta.name}}"
-                class="input {{if meta.error "is-danger"}}"
-                type="text"
-                value={{meta.value}}
-                oninput={{pick "target.value" (fn (mut meta.value))}}
-                required={{meta.required}} >
+      <div class="column is-6">
+        <div
+          data-test-meta-field="{{if meta.required 'required' 'optional'}}"
+          class="field"
+        >
+          <label
+            data-test-meta-field-label
+            class="label {{if meta.error 'has-text-danger'}}"
+            for="{{meta.name}}"
+          >
+            {{meta.title}}
+            {{#if meta.required}}*{{/if}}
+          </label>
+          <div class="control">
+            <input
+              data-test-meta-field-input
+              id="{{meta.name}}"
+              class="input {{if meta.error 'is-danger'}}"
+              type="text"
+              value={{meta.value}}
+              oninput={{pick "target.value" (fn (mut meta.value))}}
+              required={{meta.required}}
+            />
 
             <p class="help {{if meta.error 'has-text-danger'}}">
               {{#if meta.required}}Required{{else}}Optional{{/if}}
@@ -75,7 +84,17 @@
   </div>
 
   <div>
-    <button data-test-dispatch-button class="button is-primary" type="button" {{on "click" this.dispatch}}>Dispatch</button>
-    <button data-test-cancel-button class="button is-white" type="button" {{on "click" this.cancel}}>Cancel</button>
+    <button
+      data-test-dispatch-button
+      class="button is-primary"
+      type="button"
+      {{on "click" this.dispatch}}
+    >Dispatch</button>
+    <button
+      data-test-cancel-button
+      class="button is-white"
+      type="button"
+      {{on "click" this.cancel}}
+    >Cancel</button>
   </div>
 </form>

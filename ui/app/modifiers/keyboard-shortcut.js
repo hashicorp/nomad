@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Modifier from 'ember-modifier';
 import { registerDestructor } from '@ember/destroyable';
 

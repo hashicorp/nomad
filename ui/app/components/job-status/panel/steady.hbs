@@ -10,13 +10,19 @@
   data-test-status-mode={{@statusMode}}
 >
   <div class="boxed-section-head">
-    <h2>Status: <Hds::Badge @text={{this.currentStatus.label}} @color={{this.currentStatus.state}} @type="filled" /></h2>
+    <h2>Status:
+      <Hds::Badge
+        @text={{this.currentStatus.label}}
+        @color={{this.currentStatus.state}}
+        @type="filled"
+      /></h2>
 
     <div class="select-mode">
       <button
         type="button"
         data-test-status-mode-current
-        class="button is-small is-borderless {{if (eq @statusMode "current") "is-active"}}"
+        class="button is-small is-borderless
+          {{if (eq @statusMode 'current') 'is-active'}}"
         {{on "click" (fn (optional @setStatusMode) "current")}}
       >
         Current
@@ -24,8 +30,10 @@
       <button
         type="button"
         data-test-status-mode-historical
-        class="button is-small is-borderless {{if (eq @statusMode "historical") "is-active"}}"
-        {{on "click" (fn (optional @setStatusMode) "historical")}}>
+        class="button is-small is-borderless
+          {{if (eq @statusMode 'historical') 'is-active'}}"
+        {{on "click" (fn (optional @setStatusMode) "historical")}}
+      >
         Historical
       </button>
     </div>

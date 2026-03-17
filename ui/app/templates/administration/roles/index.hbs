@@ -43,10 +43,7 @@
     >
       <:body as |B|>
         <B.Tr
-          {{keyboard-shortcut
-            enumerated=true
-            action=(fn this.openRole B.data)
-          }}
+          {{keyboard-shortcut enumerated=true action=(fn this.openRole B.data)}}
           data-test-role-row={{B.data.name}}
         >
           <B.Td data-test-role-name={{B.data.name}}>

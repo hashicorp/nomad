@@ -54,7 +54,7 @@
             {{keyboard-shortcut
               menuLevel=true
               pattern=(array "g" "o")
-              action=(fn this.transitionTo 'optimize')
+              action=(fn this.transitionTo "optimize")
             }}
           >
             <LinkTo
@@ -137,7 +137,7 @@
             {{keyboard-shortcut
               menuLevel=true
               pattern=(array "g" "a")
-              action=(fn this.transitionTo 'administration')
+              action=(fn this.transitionTo "administration")
             }}
           >
             <LinkTo
@@ -165,6 +165,6 @@
 </div>
 <div
   data-test-gutter-backdrop
-  class="gutter-backdrop {{if this.isOpen "is-open"}}"
+  class="gutter-backdrop {{if this.isOpen 'is-open'}}"
   {{on "click" this.onHamburgerClick}}
 ></div>

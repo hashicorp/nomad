@@ -17,14 +17,14 @@
           @label="Health"
           @options={{this.optionsHealth}}
           @selection={{this.selectionHealth}}
-          @onSelect={{action this.setFacetQueryParam "qpHealth"}}
+          @onSelect={{fn this.setFacetQueryParam "qpHealth"}}
         />
         <MultiSelectDropdown
           data-test-type-facet
           @label="Type"
           @options={{this.optionsType}}
           @selection={{this.selectionType}}
-          @onSelect={{action this.setFacetQueryParam "qpType"}}
+          @onSelect={{fn this.setFacetQueryParam "qpType"}}
         />
       </div>
     </div>
@@ -65,7 +65,7 @@
         </t.body>
       </ListTable>
       <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <PageSizeSelect @onChange={{this.resetPagination}} />
         <nav class="pagination">
           <div class="pagination-numbers">
             {{p.startsAt}}&ndash;{{p.endsAt}}

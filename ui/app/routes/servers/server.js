@@ -5,7 +5,7 @@
 
 import Route from '@ember/routing/route';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class ServerRoute extends Route.extend(WithModelErrorHandling) {
   @service store;

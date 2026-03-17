@@ -56,38 +56,75 @@
     {{/if}}
     <footer class="boxed-section-foot {{if this.isEditing 'editing'}}">
       {{#if this.isEditing}}
-        <form class="tag-options" autocomplete="off" {{on "submit" this.saveTag}}>
-          {{! template-lint-disable no-down-event-binding }}
+        <form
+          class="tag-options"
+          autocomplete="off"
+          {{on "submit" this.saveTag}}
+        >
           <Hds::Form::TextInput::Field
             data-test-tag-name-input
             @label="Tag Name"
             placeholder="Tag Name"
             @value={{this.editableTag.name}}
             @size="small"
-            {{on "input" (pick "target.value" (fn (mut this.editableTag.name))) }}
+            {{on
+              "input"
+              (pick "target.value" (fn (mut this.editableTag.name)))
+            }}
             {{on "keydown" this.handleKeydown}}
-            autofocus
           />
           <Hds::Form::TextInput::Field
             data-test-tag-description-input
             @label="Tag Description"
             placeholder="Tag Description"
             @value={{this.editableTag.description}}
-            {{on "input" (pick "target.value" (fn (mut this.editableTag.description))) }}
+            {{on
+              "input"
+              (pick "target.value" (fn (mut this.editableTag.description)))
+            }}
             {{on "keydown" this.handleKeydown}}
           />
-          {{! template-lint-enable no-down-event-binding }}
-          <Hds::Button data-test-tag-save-button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
-          <Hds::Button @text="Cancel" @color="secondary" @size="small" @isInline={{true}} {{on "click" this.cancelEditTag}} />
+          <Hds::Button
+            data-test-tag-save-button
+            type="submit"
+            @text="Save"
+            @color="primary"
+            @size="small"
+            @isInline={{true}}
+            {{on "click" this.saveTag}}
+          />
+          <Hds::Button
+            @text="Cancel"
+            @color="secondary"
+            @size="small"
+            @isInline={{true}}
+            {{on "click" this.cancelEditTag}}
+          />
           {{#if this.version.versionTag}}
-            <Hds::Button data-test-tag-delete-button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" this.deleteTag}} />
+            <Hds::Button
+              data-test-tag-delete-button
+              @text="Delete"
+              @color="critical"
+              @size="small"
+              @isInline={{true}}
+              {{on "click" this.deleteTag}}
+            />
           {{/if}}
         </form>
 
       {{else}}
         <div class="tag-options">
           {{#if this.version.versionTag}}
-            <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" this.toggleEditTag}} />
+            <Hds::Button
+              class="tag-button-primary"
+              @text={{this.version.versionTag.name}}
+              @color="primary"
+              @size="small"
+              @icon="tag"
+              @iconPosition="leading"
+              @isInline={{true}}
+              {{on "click" this.toggleEditTag}}
+            />
           {{else}}
             {{#if (can "tag version" namespace=this.version.job.namespace)}}
               <Hds::Button
@@ -98,7 +135,8 @@
                 @size="small"
                 @icon="tag"
                 @iconPosition="leading"
-                @isInline={{true}} {{on "click" this.toggleEditTag}}
+                @isInline={{true}}
+                {{on "click" this.toggleEditTag}}
               />
             {{/if}}
           {{/if}}
@@ -153,7 +191,7 @@
                 @color="secondary"
                 @size="small"
                 @isInline={{true}}
-                {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
+                {{on "click" (fn (mut this.cloneButtonStatus) "idle")}}
               />
               {{#if (can "start job" namespace=this.version.job.namespaceId)}}
                 <Hds::Button
@@ -162,25 +200,7 @@
                   @color="secondary"
                   @size="small"
                   @isInline={{true}}
-                  {{on "click" (fn (mut this.cloneButtonStatus) "idle")}}
-                />
-                {{#if (can "start job" namespace=this.version.job.namespace)}}
-                  <Hds::Button
-                    data-test-clone-as-new-version
-                    @text="Clone as New Version of {{this.version.job.name}}"
-                    @color="secondary"
-                    @size="small"
-                    @isInline={{true}}
-                    {{on "click" this.cloneAsNewVersion}}
-                  />
-                {{/if}}
-                <Hds::Button
-                  data-test-clone-as-new-job
-                  @text="Clone as New Job"
-                  @color="secondary"
-                  @size="small"
-                  @isInline={{true}}
-                  {{on "click" this.cloneAsNewJob}}
+                  {{on "click" this.cloneAsNewVersion}}
                 />
               {{/if}}
               <Hds::Button
@@ -189,7 +209,7 @@
                 @color="secondary"
                 @size="small"
                 @isInline={{true}}
-                {{on "click" (action this.cloneAsNewJob)}}
+                {{on "click" this.cloneAsNewJob}}
               />
             {{/if}}
           {{/unless}}

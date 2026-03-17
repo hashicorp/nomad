@@ -283,7 +283,7 @@ export default Factory.extend({
     }
 
     job.update({
-      taskGroupIds: groups.mapBy('id'),
+      taskGroupIds: groups.map((group) => group.id),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
@@ -292,7 +292,7 @@ export default Factory.extend({
       hasChildren ? 'withChildren' : 'withSummary',
       {
         jobId: job.id,
-        groupNames: groups.mapBy('name'),
+        groupNames: groups.map((group) => group.name),
         namespace: job.namespace,
       },
     );
@@ -302,7 +302,7 @@ export default Factory.extend({
     });
 
     const jobScale = server.create('job-scale', {
-      groupNames: groups.mapBy('name'),
+      groupNames: groups.map((group) => group.name),
       jobId: job.id,
       namespace: job.namespace,
       shallow: job.shallow,

@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
 import EmberObject, { set } from '@ember/object';

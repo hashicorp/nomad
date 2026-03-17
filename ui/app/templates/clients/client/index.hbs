@@ -22,7 +22,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.eligibilityError) ""}}
+          {{on "click" (fn (mut this.eligibilityError) "")}}
           type="button"
         >
           Okay
@@ -46,7 +46,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.stopDrainError) ""}}
+          {{on "click" (fn (mut this.stopDrainError) "")}}
           type="button"
         >
           Okay
@@ -70,7 +70,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.drainError) ""}}
+          {{on "click" (fn (mut this.drainError) "")}}
           type="button"
         >
           Okay
@@ -93,7 +93,7 @@
           <button
             data-test-dismiss
             class="button is-info"
-            onclick={{action (mut this.showDrainStoppedNotification) false}}
+            {{on "click" (fn (mut this.showDrainStoppedNotification) false)}}
             type="button"
           >
             Okay
@@ -117,7 +117,7 @@
           <button
             data-test-dismiss
             class="button is-info"
-            onclick={{action (mut this.showDrainUpdateNotification) false}}
+            {{on "click" (fn (mut this.showDrainUpdateNotification) false)}}
             type="button"
           >
             Okay
@@ -142,7 +142,7 @@
           <button
             data-test-dimiss
             class="button is-info"
-            onclick={{action (mut this.showDrainNotification) false}}
+            {{on "click" (fn (mut this.showDrainNotification) false)}}
             type="button"
           >
             Okay
@@ -224,8 +224,8 @@
       <DrainPopover
         @client={{this.model}}
         @isDisabled={{cannot "write client"}}
-        @onDrain={{action "drainNotify"}}
-        @onError={{action "setDrainError"}}
+        @onDrain={{this.drainNotify}}
+        @onError={{this.setDrainError}}
       />
     </div>
   </div>
@@ -480,7 +480,7 @@
         Allocations
         <button
           class="badge is-white"
-          onclick={{action "setPreemptionFilter" false}}
+          {{on "click" (fn this.setPreemptionFilter false)}}
           data-test-filter-all
           type="button"
         >
@@ -489,7 +489,7 @@
         {{#if this.preemptions.length}}
           <button
             class="badge is-warning"
-            onclick={{action "setPreemptionFilter" true}}
+            {{on "click" (fn this.setPreemptionFilter true)}}
             data-test-filter-preemptions
             type="button"
           >
@@ -504,25 +504,25 @@
           @label="Namespace"
           @options={{this.optionsNamespace}}
           @selection={{this.selectionNamespace}}
-          @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+          @onSelect={{fn this.setFacetQueryParam "qpNamespace"}}
         />
         <MultiSelectDropdown
           data-test-allocation-job-facet
           @label="Job"
           @options={{this.optionsJob}}
           @selection={{this.selectionJob}}
-          @onSelect={{action this.setFacetQueryParam "qpJob"}}
+          @onSelect={{fn this.setFacetQueryParam "qpJob"}}
         />
         <MultiSelectDropdown
           data-test-allocation-status-facet
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @placeholder="Search allocations..."
           @inputClass="is-compact"
           @class="is-padded"
@@ -593,11 +593,11 @@
               <AllocationRow
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoAllocation" row.model)
+                  action=(fn this.gotoAllocation row.model)
                 }}
                 @allocation={{row.model}}
                 @context="node"
-                @onClick={{action "gotoAllocation" row.model}}
+                @onClick={{fn this.gotoAllocation row.model}}
                 @data-test-allocation={{row.model.id}}
               />
               {{#if this.showSubTasks}}
@@ -609,7 +609,7 @@
                       this.activeTask
                       (concat task.allocation.id "-" task.name)
                     }}
-                    @onSetActiveTask={{action "setActiveTaskQueryParam"}}
+                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
                     @jobHasActions={{true}}
                   />
                 {{/each}}
@@ -903,9 +903,9 @@
               {{on
                 "click"
                 (queue
-                  (action this.addDynamicMetaData this.newMetaData)
+                  (fn this.addDynamicMetaData this.newMetaData)
                   this.resetNewMetaData
-                  (action (mut this.editingMetadata) false)
+                  (fn (mut this.editingMetadata) false)
                 )
               }}
             >
@@ -920,8 +920,7 @@
               {{on
                 "click"
                 (queue
-                  this.resetNewMetaData
-                  (action (mut this.editingMetadata) false)
+                  this.resetNewMetaData (fn (mut this.editingMetadata) false)
                 )
               }}
             >
@@ -935,11 +934,11 @@
           <button
             type="button"
             class="button is-primary"
-            {{on "click" (action (mut this.editingMetadata) true)}}
+            {{on "click" (fn (mut this.editingMetadata) true)}}
             {{keyboard-shortcut
               label="Add Dynamic Node Metadata"
               pattern=(array "m" "e" "t" "a")
-              action=(action (mut this.editingMetadata) true)
+              action=(fn (mut this.editingMetadata) true)
             }}
           >
             Add new Dynamic Metadata

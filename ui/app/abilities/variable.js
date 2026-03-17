@@ -140,8 +140,10 @@ export default class Variable extends AbstractAbility {
     capabilities = [],
     path,
   ) {
-    const variableCapabilitiesAmongNamespaces = policies
-      .toArray()
+    const policyList =
+      typeof policies?.toArray === 'function' ? policies.toArray() : policies;
+
+    const variableCapabilitiesAmongNamespaces = policyList
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
@@ -149,7 +151,7 @@ export default class Variable extends AbstractAbility {
         return namespace.Variables?.Paths;
       })
       .flat()
-      .compact()
+      .filter(Boolean)
       .filter((varsBlock = {}) => {
         if (!path || path === WILDCARD_GLOB) {
           return true;
@@ -161,7 +163,7 @@ export default class Variable extends AbstractAbility {
         return varsBlock.Capabilities;
       })
       .flat()
-      .compact();
+      .filter(Boolean);
 
     // Check for requested permissions
     return variableCapabilitiesAmongNamespaces.some((abilityList) => {
@@ -216,23 +218,25 @@ export default class Variable extends AbstractAbility {
    */
   @computed('token.selfTokenPolicies.[]', 'namespace')
   get allVariablePathRules() {
-    return (get(this, 'token.selfTokenPolicies') || [])
-      .toArray()
-      .flatMap((policy) => {
-        const namespaces = get(policy, 'rulesJSON.Namespaces') || [];
+    const policies = get(this, 'token.selfTokenPolicies') || [];
+    const policyList =
+      typeof policies?.toArray === 'function' ? policies.toArray() : policies;
 
-        return namespaces.flatMap((namespace) => {
-          const variables = namespace.Variables;
-          const pathNames =
-            variables?.Paths?.map((path) => ({
-              namespace: namespace.Name,
-              name: path.PathSpec,
-              capabilities: path.Capabilities,
-            })) || [];
+    return policyList.flatMap((policy) => {
+      const namespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
-          return pathNames;
-        });
+      return namespaces.flatMap((namespace) => {
+        const variables = namespace.Variables;
+        const pathNames =
+          variables?.Paths?.map((path) => ({
+            namespace: namespace.Name,
+            name: path.PathSpec,
+            capabilities: path.Capabilities,
+          })) || [];
+
+        return pathNames;
       });
+    });
   }
 
   _nearestMatchingNamespace(policyNamespaces, namespace) {

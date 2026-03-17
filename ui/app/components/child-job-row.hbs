@@ -4,11 +4,9 @@
 ~}}
 
 <tr data-test-job-row data-test-child-job-row>
-  <td data-test-job-name
-    {{keyboard-shortcut
-      enumerated=true
-      action=(fn this.gotoJob @job)
-    }}
+  <td
+    data-test-job-name
+    {{keyboard-shortcut enumerated=true action=(fn this.gotoJob @job)}}
   >
     <LinkTo
       @route="jobs.job.index"

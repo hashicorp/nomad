@@ -6,7 +6,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';

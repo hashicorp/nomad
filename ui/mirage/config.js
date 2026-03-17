@@ -362,16 +362,17 @@ export default function (config) {
                     JobVersion: alloc.jobVersion,
                     NodeID: alloc.nodeId,
                     ID: alloc.id,
-                    HasPausedTask: taskStates.any((ts) => ts.paused),
+                    HasPausedTask: taskStates.some((ts) => ts.paused),
                   };
                 });
-              job.ChildStatuses = children ? children.mapBy('Status') : null;
+              job.ChildStatuses = children
+                ? children.map((child) => child.Status)
+                : null;
               job.Datacenters = j.Datacenters;
               job.LatestDeployment = j.LatestDeployment;
-              job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
-                (a, b) => a + b,
-                0,
-              );
+              job.GroupCountSum = j.TaskGroups.map(
+                (taskGroup) => taskGroup.Count,
+              ).reduce((a, b) => a + b, 0);
               job.Namespace = j.NamespaceID;
               job.NodePool = j.NodePool;
               job.Type = j.Type;
@@ -1318,7 +1319,7 @@ export default function (config) {
         if (records.length) {
           return {
             License: {
-              Features: records.models.mapBy('name'),
+              Features: records.models.map((record) => record.name),
             },
           };
         }
@@ -1339,7 +1340,7 @@ export default function (config) {
           server.taskStates.find(id),
         );
 
-        if (!tasks.mapBy('name').includes(queryParams.task)) {
+        if (!tasks.map((task) => task.name).includes(queryParams.task)) {
           return new Response(400, {}, 'must include task name');
         }
 
@@ -1617,7 +1618,9 @@ export default function (config) {
             const recommendationIds = tasks.reduce(
               (recommendationIds, task) => {
                 return recommendationIds.concat(
-                  task.recommendations.models.mapBy('id'),
+                  task.recommendations.models.map(
+                    (recommendation) => recommendation.id,
+                  ),
                 );
               },
               [],
@@ -1841,7 +1844,8 @@ function okEmpty() {
 }
 
 function generateFailedTGAllocs(job, taskGroups) {
-  const taskGroupsFromSpec = job.TaskGroups && job.TaskGroups.mapBy('Name');
+  const taskGroupsFromSpec =
+    job.TaskGroups && job.TaskGroups.map((taskGroup) => taskGroup.Name);
 
   let tgNames = ['tg-one', 'tg-two'];
   if (taskGroupsFromSpec && taskGroupsFromSpec.length)

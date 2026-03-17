@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 

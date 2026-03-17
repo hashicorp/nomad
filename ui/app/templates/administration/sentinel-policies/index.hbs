@@ -20,7 +20,7 @@ SPDX-License-Identifier: BUSL-1.1
       {{#if (can "write sentinel-policy")}}
         <span
           {{keyboard-shortcut
-            pattern=(array "n" "p" )
+            pattern=(array "n" "p")
             action=this.goToNewPolicy
             label="Create Policy"
           }}
@@ -58,18 +58,21 @@ SPDX-License-Identifier: BUSL-1.1
   </Hds::PageHeader>
 
   {{#if this.model}}
-  <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.model}}
-    @columns={{this.columns}} @sortBy="name">
-    <:body as |B|>
-      <B.Tr {{keyboard-shortcut enumerated=true action=(fn this.openPolicy B.data) }} data-test-sentinel-policy-row>
-        <B.Td>
-          <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="administration.sentinel-policies.policy"
-            @model={{B.data.name}}>{{B.data.name}}</LinkTo>
-        </B.Td>
-        <B.Td data-test-sentinel-policy-description>{{B.data.description}}</B.Td>
-        <B.Td data-test-sentinel-policy-enforcement>{{B.data.enforcementLevel}}</B.Td>
-        <B.Td data-test-sentinel-policy-scope>{{B.data.scope}}</B.Td>
-        {{#if (can "destroy sentinel-policy")}}
+    <Hds::Table
+      @caption="A list of policies for this cluster"
+      class="acl-table"
+      @model={{this.model}}
+      @columns={{this.columns}}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr
+          {{keyboard-shortcut
+            enumerated=true
+            action=(fn this.openPolicy B.data)
+          }}
+          data-test-sentinel-policy-row
+        >
           <B.Td>
             <LinkTo
               data-test-sentinel-policy-name={{B.data.name}}

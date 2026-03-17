@@ -8,7 +8,8 @@
   @source={{array this.job}}
   @key="id"
   @startExpanded={{this.isExpanded}}
-  @onToggle={{this.persist}} as |a|
+  @onToggle={{this.persist}}
+  as |a|
 >
   <a.head
     @buttonLabel={{if a.isOpen "collapse" "expand"}}
