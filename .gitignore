@@ -82,7 +82,8 @@ rkt-*
 # Common editor config
 ./idea
 *.iml
-.vscode
+.vscode/*
+!.vscode/extensions.json
 .zed
 
 # UI rules
