@@ -140,7 +140,6 @@ export default defineConfig([
       '.prettierrc.js',
       '.stylelintrc.js',
       '.template-lintrc.js',
-      'ember-cli-build.js',
       'server/**/*.js',
     ],
     plugins: {
