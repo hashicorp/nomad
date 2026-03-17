@@ -30,7 +30,7 @@
     "precommit": "lint-staged",
     "seedless-test": "USE_PERCY=false ember test",
     "start": "ember server",
-    "start:proxy": "ember server --proxy http://127.0.0.1:4646",
+    "start:proxy": "USE_MIRAGE=false ember server --port 4646 --proxy http://127.0.0.1:4646",
     "test": "concurrently \"pnpm:lint\" \"pnpm:test:*\" --names \"lint,test:\" --prefixColors auto",
     "test:ember": "percy exec -- ember test"
   },
