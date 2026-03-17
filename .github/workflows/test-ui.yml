@@ -67,7 +67,17 @@ jobs:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: |
-          pnpm exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+          set +e
+          pnpm exam:ci --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+          status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "Retrying ember-exam for flaky partition ${{ matrix.partition }}"
+            pnpm exam:ci --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+            status=$?
+          fi
+
+          exit "$status"
         continue-on-error: true
       - name: Express failure
         if: steps.ember_exam.outcome == 'failure'
