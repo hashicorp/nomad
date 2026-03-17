@@ -103,7 +103,7 @@ func testChecksSad(t *testing.T) {
 		}
 
 		// assert output contains error output from python http.server
-		return strings.Contains(output, `<p>Error code explanation: HTTPStatus.NOT_IMPLEMENTED - Server does not support this operation.</p>`)
+		return strings.Contains(output, `<p>Error code explanation: 501 - Server does not support this operation.</p>`)
 	}, 5*time.Second, 200*time.Millisecond)
 }
 
