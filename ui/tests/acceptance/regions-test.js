@@ -204,6 +204,7 @@ module('Acceptance | regions (many)', function (hooks) {
       (req) =>
         !req.responseURL.includes('/v1/regions') &&
         !req.responseURL.includes('/v1/operator/license') &&
+        !req.responseURL.includes('/v1/acl/token/self') &&
         !req.responseURL.includes('/v1/status/leader'),
     );
 
@@ -221,7 +222,6 @@ module('Acceptance | regions (many)', function (hooks) {
 
       if (
         requestPath === '/v1/agent/self' ||
-        requestPath === '/v1/acl/token/self' ||
         requestPath === '/v1/agent/members'
       ) {
         assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
