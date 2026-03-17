@@ -21,7 +21,7 @@
   }
 
   // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
-  input[type='search'] {
+  input[type="search"] {
     appearance: textfield;
   }
 
@@ -34,7 +34,7 @@
     background: white;
     padding: 0.35rem;
 
-    &[role='listbox'] {
+    &[role="listbox"] {
       border: 1px solid $grey-blue;
       box-shadow:
         0 6px 8px -2px rgba($black, 0.05),
@@ -45,7 +45,7 @@
       padding: 0.2rem 0.4rem;
       border-radius: $radius;
 
-      &[aria-current='true'] {
+      &[aria-current="true"] {
         background: transparentize($blue, 0.8);
         color: $blue;
       }

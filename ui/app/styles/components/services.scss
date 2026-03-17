@@ -161,7 +161,7 @@ table.health-checks {
             &::before {
               display: none;
               border-left: 1px solid $grey-blue;
-              content: '';
+              content: "";
               position: absolute;
               left: 50%;
               height: 50%;
@@ -172,7 +172,7 @@ table.health-checks {
               display: block;
               width: calc(12px + 2px); // account for grid.gap
               border-top: 1px solid $grey-blue;
-              content: '';
+              content: "";
               position: absolute;
               left: calc(50% - 1px);
               margin-left: -6px;

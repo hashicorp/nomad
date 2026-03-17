@@ -195,8 +195,8 @@
 
     &:hover,
     &:focus,
-    &[aria-current='true'],
-    &[aria-selected='true'] {
+    &[aria-current="true"],
+    &[aria-selected="true"] {
       background: $white-bis;
       color: $black;
       outline: none;
@@ -209,7 +209,7 @@
       }
     }
 
-    &[aria-selected='true'] {
+    &[aria-selected="true"] {
       background: $blue-050;
     }
   }
