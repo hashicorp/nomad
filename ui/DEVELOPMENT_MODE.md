@@ -38,5 +38,5 @@ To use your own Nomad cluster as a backend, use the proxy option.
 
 The Web UI will now be accessible from your host machine.
 
-- **Local:** [http://localhost:4200](http://localhost:4200)
+- **Local:** [http://localhost:4200/ui](http://localhost:4200/ui)
 - **Vagrant:** [http://localhost:4201](http://localhost:4201)
