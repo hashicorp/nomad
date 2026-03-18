@@ -46,6 +46,7 @@ func TestOutputLicenseReply(t *testing.T) {
 			StartTime:       now,
 			ExpirationTime:  now.Add(1 * time.Hour),
 			TerminationTime: now,
+			NonProduction:   true,
 			Product:         "nomad",
 			Flags: map[string]interface{}{
 				"": nil,
@@ -60,4 +61,5 @@ func TestOutputLicenseReply(t *testing.T) {
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, "Customer ID")
 	must.StrContains(t, out, "License ID")
+	must.StrContains(t, out, "NonProduction")
 }

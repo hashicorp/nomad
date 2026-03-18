@@ -58,6 +58,13 @@ type ReportingConfig struct {
 	// snapshots in Raft.
 	SnapshotRetentionTime    time.Duration
 	SnapshotRetentionTimeHCL string `hcl:"snapshot_retention_time"`
+
+	// DisableUsageReporting disables reporting detailed product usage information.
+	// This does not disable license reporting.
+	DisableUsageReporting *bool `hcl:"disable_product_usage_reporting"`
+
+	// NonProduction is set on the server config
+	NonProduction bool
 }
 
 func (r *ReportingConfig) Copy() *ReportingConfig {
@@ -82,25 +89,32 @@ func (r *ReportingConfig) Merge(b *ReportingConfig) *ReportingConfig {
 		return &result
 	}
 
+	if b.NonProduction {
+		result.NonProduction = true
+	}
+
 	if result.License == nil && b.License != nil {
 		result.License = b.License
 	} else if b.License != nil {
 		result.License = result.License.Merge(b.License)
 	}
-	if r.ExportAddress == "" {
+	if b.ExportAddress != "" {
 		result.ExportAddress = b.ExportAddress
 	}
-	if r.ExportIntervalHCL == "" {
+	if b.ExportIntervalHCL != "" {
 		result.ExportIntervalHCL = b.ExportIntervalHCL
 	}
-	if r.ExportInterval == 0 {
+	if b.ExportInterval != 0 {
 		result.ExportInterval = b.ExportInterval
 	}
-	if r.SnapshotRetentionTime == 0 {
+	if b.SnapshotRetentionTime != 0 {
 		result.SnapshotRetentionTime = b.SnapshotRetentionTime
 	}
-	if r.SnapshotRetentionTimeHCL == "" {
+	if b.SnapshotRetentionTimeHCL != "" {
 		result.SnapshotRetentionTimeHCL = b.SnapshotRetentionTimeHCL
+	}
+	if b.DisableUsageReporting != nil {
+		result.DisableUsageReporting = b.DisableUsageReporting
 	}
 
 	return &result

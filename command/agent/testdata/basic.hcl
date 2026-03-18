@@ -152,6 +152,7 @@ server {
   job_max_priority              = 200
   job_max_count                 = 1000
   start_timeout                 = "1m"
+  non_production                = true
 
   plan_rejection_tracker {
     enabled        = true

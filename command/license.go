@@ -75,6 +75,7 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired, terminated bool) {
 	}
 	output := []string{
 		fmt.Sprintf("Product|%s", lic.Product),
+		fmt.Sprintf("NonProduction|%t", lic.NonProduction),
 		fmt.Sprintf("License Status|%s", validity),
 		fmt.Sprintf("License ID|%s", lic.LicenseID),
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
