@@ -52,7 +52,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		// Perform the initial upsert of variables.
 		for _, sv := range svs {
 			insertIndex++
-			resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+			resp := testState.VarSet(structs.VarApplyStateRequestType, insertIndex, &structs.VarApplyStateRequest{
 				Op:  structs.VarOpSet,
 				Var: sv,
 			})
@@ -102,7 +102,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 				Var: sv,
 			}
 			reInsertIndex++
-			resp := testState.VarSet(reInsertIndex, svReq)
+			resp := testState.VarSet(structs.VarApplyStateRequestType, reInsertIndex, svReq)
 			must.NoError(t, resp.Error)
 		}
 
@@ -129,7 +129,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 
 		update1Index := uint64(40)
 
-		resp := testState.VarSet(update1Index, &structs.VarApplyStateRequest{
+		resp := testState.VarSet(structs.VarApplyStateRequestType, update1Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv1Update,
 		})
@@ -164,7 +164,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		sv2.KeyID = "sv2-update"
 		sv2.ModifyIndex = update2Index
 
-		resp := testState.VarSet(update2Index, &structs.VarApplyStateRequest{
+		resp := testState.VarSet(structs.VarApplyStateRequestType, update2Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
@@ -207,7 +207,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			ID: "theLockID",
 		}
 
-		resp := testState.VarLockAcquire(acquireIndex,
+		resp := testState.VarLockAcquire(structs.VarApplyStateRequestType, acquireIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: &sv3,
@@ -226,7 +226,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		sv4.KeyID = "sv4-update"
 		sv4.ModifyIndex = update4Index
 
-		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+		resp = testState.VarSet(structs.VarApplyStateRequestType, update4Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv4,
 		})
@@ -243,7 +243,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			ID: "theLockID",
 		}
 
-		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+		resp = testState.VarSet(structs.VarApplyStateRequestType, update4Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv4,
 		})
@@ -278,7 +278,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 
 	t.Run("1 delete a variable that does not exist", func(t *testing.T) {
 
-		resp := testState.VarDelete(initialIndex, &structs.VarApplyStateRequest{
+		resp := testState.VarDelete(structs.VarApplyStateRequestType, initialIndex, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
@@ -307,14 +307,14 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 				Var: sv,
 			}
 			initialIndex++
-			resp := testState.VarSet(initialIndex, svReq)
+			resp := testState.VarSet(structs.VarApplyStateRequestType, initialIndex, svReq)
 			must.NoError(t, resp.Error)
 		}
 
 		// Perform the delete.
 		delete1Index := uint64(20)
 
-		resp := testState.VarDelete(delete1Index, &structs.VarApplyStateRequest{
+		resp := testState.VarDelete(structs.VarApplyStateRequestType, delete1Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
@@ -355,7 +355,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			ID: "theLockID",
 		}
 
-		resp := testState.VarLockAcquire(acquireIndex,
+		resp := testState.VarLockAcquire(structs.VarApplyStateRequestType, acquireIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: &lsv,
@@ -367,7 +367,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		deleteLockedIndex := uint64(27)
 
 		// Attempt to delete without the lock ID
-		resp2 := testState.VarDelete(deleteLockedIndex, &structs.VarApplyStateRequest{
+		resp2 := testState.VarDelete(structs.VarApplyStateRequestType, deleteLockedIndex, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
 			Var: svs[1],
 		})
@@ -391,7 +391,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			ID: "theLockID",
 		}
 
-		resp3 := testState.VarLockRelease(releaseIndex,
+		resp3 := testState.VarLockRelease(structs.VarApplyStateRequestType, releaseIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockRelease,
 				Var: &lsv,
@@ -408,7 +408,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 	t.Run("4 delete remaining variable", func(t *testing.T) {
 		delete2Index := uint64(40)
 
-		resp := testState.VarDelete(delete2Index, &structs.VarApplyStateRequest{
+		resp := testState.VarDelete(structs.VarApplyStateRequestType, delete2Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
 			Var: svs[1],
 		})
@@ -462,7 +462,7 @@ func TestStateStore_GetVariables(t *testing.T) {
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.VarSet(initialIndex, svReq)
+		resp := testState.VarSet(structs.VarApplyStateRequestType, initialIndex, svReq)
 		must.NoError(t, resp.Error)
 	}
 
@@ -543,7 +543,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.VarSet(initialIndex, svReq)
+		resp := testState.VarSet(structs.VarApplyStateRequestType, initialIndex, svReq)
 		must.NoError(t, resp.Error)
 	}
 
@@ -715,7 +715,7 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 			Var: sv,
 		}
 		initialIndex++
-		resp := testState.VarSet(initialIndex, svReq)
+		resp := testState.VarSet(structs.VarApplyStateRequestType, initialIndex, svReq)
 		must.NoError(t, resp.Error)
 	}
 
@@ -752,7 +752,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		varNotExist := varNotExist
 		// A CAS delete with index 0 should succeed when the variable does not
 		// exist in the state store.
-		resp := ts.VarDeleteCAS(10, &structs.VarApplyStateRequest{
+		resp := ts.VarDeleteCAS(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
 			Var: &varNotExist,
 		})
@@ -770,7 +770,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: &varNotExist,
 		}
-		resp := ts.VarDeleteCAS(10, req)
+		resp := ts.VarDeleteCAS(structs.VarApplyStateRequestType, 10, req)
 		must.True(t, resp.IsConflict())
 		must.NotNil(t, resp.Conflict)
 		must.Eq(t, varZero.VariableMetadata, resp.Conflict.VariableMetadata)
@@ -783,7 +783,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		sv.Path = "real_var/cas_0"
 		// Need to make a copy because VarSet mutates Var.
 		svZero := sv.Copy()
-		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+		resp := ts.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -796,7 +796,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: &svZero,
 		}
-		resp = ts.VarDeleteCAS(0, req)
+		resp = ts.VarDeleteCAS(structs.VarApplyStateRequestType, 0, req)
 		must.True(t, resp.IsConflict(), must.Sprintf("resp: %+v", resp))
 		must.NotNil(t, resp.Conflict)
 		must.Eq(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
@@ -806,7 +806,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		ci.Parallel(t)
 		sv := mock.VariableEncrypted()
 		sv.Path = "real_locked_var/cas_0"
-		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+		resp := ts.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -817,7 +817,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			ID: "theLockID",
 		}
 
-		resp = ts.VarLockAcquire(15,
+		resp = ts.VarLockAcquire(structs.VarApplyStateRequestType, 15,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: &svCopy,
@@ -831,10 +831,10 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Var: sv,
 		}
 
-		resp = ts.VarDeleteCAS(15, req)
+		resp = ts.VarDeleteCAS(structs.VarApplyStateRequestType, 15, req)
 		must.True(t, resp.IsConflict())
 
-		resp = ts.VarLockRelease(20,
+		resp = ts.VarLockRelease(structs.VarApplyStateRequestType, 20,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockRelease,
 				Var: &svCopy,
@@ -847,7 +847,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		ci.Parallel(t)
 		sv := mock.VariableEncrypted()
 		sv.Path = "real_var/cas_ok"
-		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+		resp := ts.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -858,7 +858,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: sv,
 		}
-		resp = ts.VarDeleteCAS(10, req)
+		resp = ts.VarDeleteCAS(structs.VarApplyStateRequestType, 10, req)
 		must.True(t, resp.IsOk())
 	})
 }
@@ -882,7 +882,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 
 	t.Run("1 lock on missing variable", func(t *testing.T) {
 		/* Attempt to acquire the lock on a variable that doesn't exist. */
-		resp := testState.VarLockAcquire(insertIndex,
+		resp := testState.VarLockAcquire(structs.VarApplyStateRequestType, insertIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: mv,
@@ -914,7 +914,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 			ID: "aDifferentLockID",
 		}
 
-		resp := testState.VarLockAcquire(insertIndex+1,
+		resp := testState.VarLockAcquire(structs.VarApplyStateRequestType, insertIndex+1,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: &sv,
@@ -931,7 +931,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 		/*  Test to release the lock  */
 		allVars, err := getAllVariables(testState, ws)
 		releaseIndex := uint64(40)
-		resp := testState.VarLockRelease(releaseIndex,
+		resp := testState.VarLockRelease(structs.VarApplyStateRequestType, releaseIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockRelease,
 				Var: allVars[0],
@@ -962,7 +962,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 	t.Run("3 reacquire lock", func(t *testing.T) {
 		/*  Reacquire the lock, testing the mechanism to lock a previously existing variable */
 		acquireIndex := uint64(60)
-		resp := testState.VarLockAcquire(acquireIndex,
+		resp := testState.VarLockAcquire(structs.VarApplyStateRequestType, acquireIndex,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
 				Var: mv,
@@ -995,7 +995,7 @@ func TestStateStore_ReleaseLock(t *testing.T) {
 	testState := testStateStore(t)
 
 	insertIndex := uint64(20)
-	resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+	resp := testState.VarSet(structs.VarApplyStateRequestType, insertIndex, &structs.VarApplyStateRequest{
 		Op: structs.VarOpSet,
 		Var: &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -1008,7 +1008,7 @@ func TestStateStore_ReleaseLock(t *testing.T) {
 	insertIndex++
 	must.NoError(t, resp.Error)
 
-	resp = testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+	resp = testState.VarSet(structs.VarApplyStateRequestType, insertIndex, &structs.VarApplyStateRequest{
 		Op: structs.VarOpSet,
 		Var: &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -1076,7 +1076,7 @@ func TestStateStore_ReleaseLock(t *testing.T) {
 				}
 			}
 
-			resp = testState.VarLockRelease(insertIndex, req)
+			resp = testState.VarLockRelease(structs.VarApplyStateRequestType, insertIndex, req)
 
 			if !errors.Is(tc.expErr, resp.Error) {
 				t.Fatalf("expected error, got %s", resp.Error)
@@ -1092,7 +1092,7 @@ func TestStateStore_Release(t *testing.T) {
 	testState := testStateStore(t)
 
 	insertIndex := uint64(20)
-	resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+	resp := testState.VarSet(structs.VarApplyStateRequestType, insertIndex, &structs.VarApplyStateRequest{
 		Op: structs.VarOpSet,
 		Var: &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -1105,7 +1105,7 @@ func TestStateStore_Release(t *testing.T) {
 	insertIndex++
 	must.NoError(t, resp.Error)
 
-	resp = testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+	resp = testState.VarSet(structs.VarApplyStateRequestType, insertIndex, &structs.VarApplyStateRequest{
 		Op: structs.VarOpSet,
 		Var: &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -1173,7 +1173,7 @@ func TestStateStore_Release(t *testing.T) {
 				}
 			}
 
-			resp = testState.VarLockRelease(insertIndex, req)
+			resp = testState.VarLockRelease(structs.VarApplyStateRequestType, insertIndex, req)
 
 			if !errors.Is(tc.expErr, resp.Error) {
 				t.Fatalf("expected error, got %s", resp.Error)

@@ -115,7 +115,7 @@ func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
 	time.AfterFunc(delay, func() {
 		sv := mock.VariableEncrypted()
 		sv.Path = "bbb"
-		if resp := state.VarDelete(400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
+		if resp := state.VarDelete(structs.VarApplyStateRequestType, 400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
 			fmt.Println("\n *** resp", resp.Result, resp.Conflict.VariableMetadata)
 			t.Fatalf("err: %v", resp.Error)
 		}
@@ -162,7 +162,7 @@ func writeVarGet(t *testing.T, s *Server, idx uint64, ns, path string) {
 			KeyID: kID,
 		},
 	}
-	resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: sve,
 	})
@@ -910,7 +910,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		sv := mock.VariableEncrypted()
 		sv.Namespace = ns
 		sv.Path = path
-		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -1017,7 +1017,7 @@ namespace "*" {}
 		sv := mock.VariableEncrypted()
 		sv.Namespace = ns
 		sv.Path = path
-		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -1450,7 +1450,7 @@ func TestVariablesEndpoint_List_Lock_ACL(t *testing.T) {
 
 	// Creating and locking the variable directly on the state store allows us to
 	// set up the lock ID and bypass the timers.
-	ssResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
+	ssResp := state.VarLockAcquire(structs.VarApplyStateRequestType, 100, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpLockAcquire,
 		Var: sv1,
 	})
@@ -1602,7 +1602,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 
 	unlockedVar := mock.VariableEncrypted()
 	unlockedVar.Path = "/unlocked/var"
-	vsResp := state.VarSet(102, &structs.VarApplyStateRequest{
+	vsResp := state.VarSet(structs.VarApplyStateRequestType, 102, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: unlockedVar,
 	})
@@ -1618,7 +1618,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 
 	// Creating and locking the variable directly on the state store allows us to
 	// set up the lock ID and bypass the timers.
-	vlResp := state.VarLockAcquire(104, &structs.VarApplyStateRequest{
+	vlResp := state.VarLockAcquire(structs.VarApplyStateRequestType, 104, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpLockAcquire,
 		Var: lockedVar,
 	})

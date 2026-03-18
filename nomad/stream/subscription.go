@@ -65,6 +65,11 @@ type SubscribeRequest struct {
 	// associated with the SubscribeRequest has not expired and
 	// has the correct permissions
 	Authenticate func() error
+
+	// FilterFn, if non-nil, is called for each event that passes
+	// topic/key/namespace matching. Returning false excludes the event
+	// from the subscription. It must be safe to call concurrently.
+	FilterFn func(event structs.Event) bool
 }
 
 func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Subscription {
@@ -140,7 +145,9 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 
 		// *[*] always matches
 		if len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
-			result = append(result, event)
+			if req.FilterFn == nil || req.FilterFn(event) {
+				result = append(result, event)
+			}
 			continue
 		}
 
@@ -151,13 +158,17 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 		}
 
 		if len(keys) == 1 && keys[0] == string(structs.TopicAll) {
-			result = append(result, event)
+			if req.FilterFn == nil || req.FilterFn(event) {
+				result = append(result, event)
+			}
 			continue
 		}
 
 		for _, key := range keys {
 			if eventMatchesKey(event, key) {
-				result = append(result, event)
+				if req.FilterFn == nil || req.FilterFn(event) {
+					result = append(result, event)
+				}
 				continue
 			}
 		}

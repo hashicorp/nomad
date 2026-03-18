@@ -95,7 +95,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	job := registerMockJob(s, t, jobID, 0)
 
 	variable := mock.VariableEncrypted()
-	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, 1001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: variable,
 	})
@@ -109,7 +109,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 
 	disallowedVariable := mock.VariableEncrypted()
 	disallowedVariable.Namespace = "not-allowed"
-	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+	resp = store.VarSet(structs.VarApplyStateRequestType, 2001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: disallowedVariable,
 	})
@@ -1310,7 +1310,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 
 	variable := mock.VariableEncrypted()
 	variable.Path = "test-path/o"
-	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, 1001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: variable,
 	})
@@ -1325,7 +1325,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 
 	disallowedVariable := mock.VariableEncrypted()
 	disallowedVariable.Namespace = "not-allowed"
-	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+	resp = store.VarSet(structs.VarApplyStateRequestType, 2001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: disallowedVariable,
 	})

@@ -3382,7 +3382,7 @@ func TestFSM_SnapshotRestore_Variables(t *testing.T) {
 	svs := msvs.List()
 
 	for _, sv := range svs {
-		setResp := testState.VarSet(10, &structs.VarApplyStateRequest{
+		setResp := testState.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})

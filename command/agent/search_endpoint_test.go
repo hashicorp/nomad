@@ -638,7 +638,7 @@ func TestHTTP_PrefixSearch_Variables(t *testing.T) {
 
 		state := s.Agent.server.State()
 		sv.Path = testPath
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -671,7 +671,7 @@ func TestHTTP_FuzzySearch_Variables(t *testing.T) {
 		state := s.Agent.server.State()
 		sv := mock.VariableEncrypted()
 		sv.Path = testPath
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -712,12 +712,12 @@ func TestHTTP_PrefixSearch_Variables_ACL(t *testing.T) {
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+		setResp = state.VarSet(structs.VarApplyStateRequestType, 8001, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
@@ -826,12 +826,12 @@ func TestHTTP_FuzzySearch_Variables_ACL(t *testing.T) {
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+		setResp = state.VarSet(structs.VarApplyStateRequestType, 8001, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
