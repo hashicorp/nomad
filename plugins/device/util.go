@@ -57,12 +57,14 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 	if in == nil {
 		return nil
 	}
-
+	s := in.Shared.GetShared()
+	share := DeviceSharing(s)
 	return &Device{
 		ID:         in.ID,
 		Healthy:    in.Healthy,
 		HealthDesc: in.HealthDescription,
 		HwLocality: convertProtoDeviceLocality(in.HwLocality),
+		Shared:     &share,
 	}
 }
 
@@ -199,6 +201,7 @@ func convertStructDevice(in *Device) *proto.DetectedDevice {
 		Healthy:           in.Healthy,
 		HealthDescription: in.HealthDesc,
 		HwLocality:        convertStructDeviceLocality(in.HwLocality),
+		Shared:            convertDeviceSharing(in.Shared),
 	}
 }
 
@@ -389,21 +392,16 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 	}
 }
 
-func convertProtoDeviceSharing(s *DeviceSharing) DeviceSharing {
-	if s == nil {
-		return SharingUnset
-	}
+func convertDeviceSharing(s *DeviceSharing) *proto.DeviceSharing {
+	var d *proto.DeviceSharing
 
-	var d DeviceSharing
 	switch *s {
-	case SharingIneligible:
-		d = SharingIneligible
-	case SharingActive:
-		d = SharingActive
-	case SharingInactive:
-		d = SharingInactive
-	default:
-		d = SharingUnset
+	case "ineligible":
+		d = &proto.DeviceSharing{Shared: "ineligible"}
+	case "active":
+		d = &proto.DeviceSharing{Shared: "active"}
+	case "inactive":
+		d = &proto.DeviceSharing{Shared: "inactive"}
 	}
 	return d
 }

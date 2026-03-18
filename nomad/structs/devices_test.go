@@ -74,12 +74,12 @@ func addSharedNvidiaDevice(n *Node) *Node {
 			{
 				ID:      uuid.Generate(),
 				Healthy: true,
-				Shared:  SharingActive,
+				Shared:  DeviceSharingActive,
 			},
 			{
 				ID:      uuid.Generate(),
 				Healthy: true,
-				Shared:  SharingActive,
+				Shared:  DeviceSharingActive,
 			},
 		},
 	},

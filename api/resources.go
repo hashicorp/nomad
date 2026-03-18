@@ -247,7 +247,7 @@ type NodeDevice struct {
 	Locality *NodeDeviceLocality
 
 	// Shared reports the MPS Sharing status of the device
-	Shared string
+	Shared DeviceSharing
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -292,6 +292,15 @@ func (a Attribute) String() string {
 	}
 }
 
+type DeviceSharing string
+
+const (
+	DeviceSharingIneligible DeviceSharing = "ineligible"
+	DeviceSharingUnset      DeviceSharing = ""
+	DeviceSharingActive     DeviceSharing = "active"
+	DeviceSharingInactive   DeviceSharing = "inactive"
+)
+
 // NodeDeviceLocality stores information about the devices hardware locality on
 // the node.
 type NodeDeviceLocality struct {
@@ -302,7 +311,7 @@ type NodeDeviceLocality struct {
 // WillShare indicates whether the task should be placed on a shared device
 type WillShare struct {
 	Enabled bool   `hcl:"enabled"`
-	GpuUid  string `hcl:"gpu_id,optional"`
+	GpuId   string `hcl:"gpu_id,optional"`
 }
 
 // RequestedDevice is used to request a device for a task.

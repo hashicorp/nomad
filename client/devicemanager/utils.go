@@ -96,9 +96,12 @@ func convertHwLocality(l *device.DeviceLocality) *structs.NodeDeviceLocality {
 	}
 }
 
-func convertDeviceSharing(s device.DeviceSharing) structs.DeviceSharing {
+func convertDeviceSharing(s *device.DeviceSharing) structs.DeviceSharing {
+	if s == nil {
+		return structs.DeviceSharingInactive
+	}
 	var d structs.DeviceSharing
-	switch s {
+	switch *s {
 	case device.SharingIneligible:
 		d = structs.DeviceSharingIneligible
 	case device.SharingActive:

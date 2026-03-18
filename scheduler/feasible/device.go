@@ -140,21 +140,6 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 				willShare[instanceID] = ask.WillShare.Enabled //only update willShare map if assignable
 			}
 
-			//// if ask includes a sharing block with sharing enabled, confirm device instance is sharable
-			////TODO: ensure this works with GPUID
-			//if ask.WillShare != nil {
-			//	// if sharing is not nil, compare the sharing value on the ask with the
-			//	// shared value of the device. If they match add the device ID to the
-			//	// []devices and update the WillShare map to include the deviceID and
-			//	// its willingness to share
-			//	if d.deviceIDAllowsSharing(instanceID, ask.WillShare, devInst.Device) {
-			//		assignable = append(assignable, instanceID)
-			//		willShare[instanceID] = ask.WillShare.Enabled
-			//	}
-
-			//} else {
-			//	willShare[instanceID] = false
-			//}
 			// Don't assign more than the ask
 			if len(assignable) == int(ask.Count) {
 				break
@@ -252,7 +237,6 @@ func (d *deviceAllocator) deviceIDMatchesConstraint(id string, constraints struc
 	return true
 }
 
-// TOOD: maybe improve to use an enum instead of a bool
 // deviceIDAllowsSharing checks a device instance ID against the
 // device's Shared status to ensure we're only assigning devices that
 // are set up to be shared.
@@ -267,11 +251,12 @@ func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.Will
 				continue
 			}
 
-			if len(sharing.GpuUid) != 0 {
-				if sharing.GpuUid == dev.ID {
+			if len(sharing.GpuId) != 0 {
+				if sharing.GpuId == dev.ID {
 					return canShare
 				}
 			} else {
+				// this should probably be false
 				return canShare
 			}
 
@@ -292,6 +277,5 @@ func (d *deviceAllocator) deviceIDConstraintAndSharingChecks(id string, constrai
 			return false
 		}
 	}
-
 	return true
 }

@@ -3041,7 +3041,7 @@ func (ns Networks) Modes() *set.Set[string] {
 // WillShare indicates whether the task should be placed on a shared device
 type WillShare struct {
 	Enabled bool
-	GpuUid  string
+	GpuId   string
 }
 
 // RequestedDevice is used to request a device for a task.
@@ -3597,6 +3597,21 @@ const (
 	DeviceSharingInactive   DeviceSharing = "inactive"
 )
 
+func (d DeviceSharing) Copy() DeviceSharing {
+	var copied DeviceSharing
+	switch d {
+	case DeviceSharingActive:
+		copied = DeviceSharingActive
+	case DeviceSharingInactive:
+		copied = DeviceSharingInactive
+	case DeviceSharingIneligible:
+		copied = DeviceSharingIneligible
+	default:
+		copied = DeviceSharingUnset
+	}
+	return copied
+}
+
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
 	// ID is the ID of the device.
@@ -3652,7 +3667,8 @@ func (n *NodeDevice) Copy() *NodeDevice {
 
 	// Copy the locality
 	nn.Locality = nn.Locality.Copy()
-
+	// copy sharing
+	nn.Shared = n.Shared.Copy()
 	return &nn
 }
 
