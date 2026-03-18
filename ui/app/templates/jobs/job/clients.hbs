@@ -58,18 +58,15 @@
           as |t|
         >
           <t.head>
-            <t.sort-by @prop="node.id">Client ID</t.sort-by>
-            <t.sort-by @prop="node.name" class="is-200px is-truncatable">Client
-              Name</t.sort-by>
-            <t.sort-by
-              @prop="createTime"
-              @title="Create Time"
-            >Created</t.sort-by>
-            <t.sort-by
+            <t.sortBy @prop="node.id">Client ID</t.sortBy>
+            <t.sortBy @prop="node.name" class="is-200px is-truncatable">Client
+              Name</t.sortBy>
+            <t.sortBy @prop="createTime" @title="Create Time">Created</t.sortBy>
+            <t.sortBy
               @prop="modifyTime"
               @title="Modify Time"
-            >Modified</t.sort-by>
-            <t.sort-by @prop="jobStatus">Job Status</t.sort-by>
+            >Modified</t.sortBy>
+            <t.sortBy @prop="jobStatus">Job Status</t.sortBy>
             <th class="is-3">Allocation Summary</th>
           </t.head>
           <t.body as |row|>

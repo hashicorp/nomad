@@ -36,10 +36,10 @@
           as |t|
         >
           <t.head>
-            <t.sort-by @prop="plainId">ID</t.sort-by>
-            <t.sort-by @prop="controllersHealthyProportion">Controller Health</t.sort-by>
-            <t.sort-by @prop="nodesHealthyProportion">Node Health</t.sort-by>
-            <t.sort-by @prop="provider">Provider</t.sort-by>
+            <t.sortBy @prop="plainId">ID</t.sortBy>
+            <t.sortBy @prop="controllersHealthyProportion">Controller Health</t.sortBy>
+            <t.sortBy @prop="nodesHealthyProportion">Node Health</t.sortBy>
+            <t.sortBy @prop="provider">Provider</t.sortBy>
           </t.head>
           <t.body @key="model.id" as |row|>
             <tr

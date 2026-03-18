@@ -6,9 +6,9 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import faker from 'nomad-ui/mirage/faker';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import ListTable from 'nomad-ui/components/list-table';
+import faker from 'nomad-ui/mirage/faker';
 
 module('Integration | Component | list table', function (hooks) {
   setupRenderingTest(hooks);
@@ -23,16 +23,19 @@ module('Integration | Component | list table', function (hooks) {
 
   // thead
   test('component exposes a thead contextual component', async function (assert) {
-    this.set('source', commonTable);
-    await render(hbs`
-      <ListTable @source={{this.source}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
-        <t.head @class="head">
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>Age</th>
-        </t.head>
-      </ListTable>
-    `);
+    const source = commonTable;
+
+    await render(
+      <template>
+        <ListTable @source={{source}} as |t|>
+          <t.head @class="head">
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Age</th>
+          </t.head>
+        </ListTable>
+      </template>,
+    );
 
     assert.ok(findAll('.head').length, 'Table head is rendered');
     assert.deepEqual(
@@ -44,23 +47,29 @@ module('Integration | Component | list table', function (hooks) {
 
   // tbody
   test('component exposes a tbody contextual component', async function (assert) {
-    this.setProperties({
-      source: commonTable,
-      sortProperty: 'firstName',
-      sortDescending: false,
-    });
-    await render(hbs`
-      <ListTable @source={{this.source}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
-        <t.body @class="body" as |row index|>
-          <tr class="item">
-            <td>{{row.model.firstName}}</td>
-            <td>{{row.model.lastName}}</td>
-            <td>{{row.model.age}}</td>
-            <td>{{index}}</td>
-          </tr>
-        </t.body>
-      </ListTable>
-    `);
+    const source = commonTable;
+    const sortProperty = 'firstName';
+    const sortDescending = false;
+
+    await render(
+      <template>
+        <ListTable
+          @source={{source}}
+          @sortProperty={{sortProperty}}
+          @sortDescending={{sortDescending}}
+          as |t|
+        >
+          <t.body @class="body" as |row index|>
+            <tr class="item">
+              <td>{{row.model.firstName}}</td>
+              <td>{{row.model.lastName}}</td>
+              <td>{{row.model.age}}</td>
+              <td>{{index}}</td>
+            </tr>
+          </t.body>
+        </ListTable>
+      </template>,
+    );
 
     assert.ok(findAll('.body').length, 'Table body is rendered');
     assert.deepEqual(
@@ -71,13 +80,13 @@ module('Integration | Component | list table', function (hooks) {
 
     assert.deepEqual(
       findAll('.item').length,
-      this.source.length,
+      source.length,
       'Each item gets its own row',
     );
 
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
     // rendered in index-order.
-    this.source.forEach((item, index) => {
+    source.forEach((item, index) => {
       const $item = this.element.querySelectorAll('.item')[index];
       assert.strictEqual(
         $item.querySelectorAll('td')[0].textContent.trim(),

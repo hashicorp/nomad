@@ -15,27 +15,27 @@
       as |t|
     >
       <t.head>
-        <t.sort-by @prop="name">
+        <t.sortBy @prop="name">
           Name
-        </t.sort-by>
-        <t.sort-by @prop="count">
+        </t.sortBy>
+        <t.sortBy @prop="count">
           Count
-        </t.sort-by>
-        <t.sort-by @prop="queuedOrStartingAllocs" @class="is-3">
+        </t.sortBy>
+        <t.sortBy @prop="queuedOrStartingAllocs" @class="is-3">
           Allocation Status
-        </t.sort-by>
-        <t.sort-by @prop="volumes.length">
+        </t.sortBy>
+        <t.sortBy @prop="volumes.length">
           Volume
-        </t.sort-by>
-        <t.sort-by @prop="reservedCPU">
+        </t.sortBy>
+        <t.sortBy @prop="reservedCPU">
           Reserved CPU
-        </t.sort-by>
-        <t.sort-by @prop="reservedMemory">
+        </t.sortBy>
+        <t.sortBy @prop="reservedMemory">
           Reserved Memory
-        </t.sort-by>
-        <t.sort-by @prop="reservedEphemeralDisk">
+        </t.sortBy>
+        <t.sortBy @prop="reservedEphemeralDisk">
           Reserved Disk
-        </t.sort-by>
+        </t.sortBy>
       </t.head>
       <t.body as |row|>
         <TaskGroupRow

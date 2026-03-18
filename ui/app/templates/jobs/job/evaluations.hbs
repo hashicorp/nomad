@@ -15,11 +15,11 @@
     >
       <t.head>
         <th>ID</th>
-        <t.sort-by @prop="priority">Priority</t.sort-by>
-        <t.sort-by @prop="createTime">Created</t.sort-by>
-        <t.sort-by @prop="triggeredBy">Triggered By</t.sort-by>
-        <t.sort-by @prop="status">Status</t.sort-by>
-        <t.sort-by @prop="hasPlacementFailures">Placement Failures</t.sort-by>
+        <t.sortBy @prop="priority">Priority</t.sortBy>
+        <t.sortBy @prop="createTime">Created</t.sortBy>
+        <t.sortBy @prop="triggeredBy">Triggered By</t.sortBy>
+        <t.sortBy @prop="status">Status</t.sortBy>
+        <t.sortBy @prop="hasPlacementFailures">Placement Failures</t.sortBy>
       </t.head>
       <t.body as |row|>
         <tr data-test-evaluation="{{row.model.shortId}}">
