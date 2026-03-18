@@ -659,9 +659,11 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.S
 	// Figure out whether we need to submit a plan that contains a full job or
 	// a new, "lean" plan with just the basic job info (ns, id and ver)
 	if w.ServersMeetMinimumVersion(minVersionPlanLeanJob, false) {
-		plan.JobInfo = &structs.PlanJobTuple{
-			Namespace: plan.Job.Namespace,
-			ID:        plan.Job.ID,
+		if plan.Job != nil { // extra safety check
+			plan.JobInfo = &structs.PlanJobTuple{
+				Namespace: plan.Job.Namespace,
+				ID:        plan.Job.ID,
+			}
 		}
 		plan.Job = nil
 	}
