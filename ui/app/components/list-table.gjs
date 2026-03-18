@@ -19,7 +19,7 @@ export default class ListTable extends Component {
   }
 
   <template>
-    <table class={{concat "table " (or @class "")}}>
+    <table class={{concat "table " (or @class "")}} ...attributes>
       {{yield
         (hash
           head=ListTableTableHead

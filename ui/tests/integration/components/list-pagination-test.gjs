@@ -6,8 +6,8 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import ListPagination from 'nomad-ui/components/list-pagination';
 
 module('Integration | Component | list pagination', function (hooks) {
   setupRenderingTest(hooks);
@@ -24,23 +24,28 @@ module('Integration | Component | list pagination', function (hooks) {
     .map((_, i) => i);
 
   test('the source property', async function (assert) {
-    this.set('source', list100);
-    await render(hbs`
-      <ListPagination @source={{this.source}} as |p|>
-        <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        <p.first><span class="first">first</span></p.first>
-        <p.prev><span class="prev">prev</span></p.prev>
-        {{#each p.pageLinks as |link|}}
-          <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
-        {{/each}}
-        <p.next><span class="next">next</span></p.next>
-        <p.last><span class="last">last</span></p.last>
+    const source = list100;
 
-        {{#each p.list as |item|}}
-          <div class="item">{{item}}</div>
-        {{/each}}
-      </ListPagination>
-    `);
+    await render(
+      <template>
+        <ListPagination @source={{source}} as |p|>
+          <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
+          <p.first><span class="first">first</span></p.first>
+          <p.prev><span class="prev">prev</span></p.prev>
+          {{#each p.pageLinks as |link|}}
+            <span
+              class="link page-{{link.pageNumber}}"
+            >{{link.pageNumber}}</span>
+          {{/each}}
+          <p.next><span class="next">next</span></p.next>
+          <p.last><span class="last">last</span></p.last>
+
+          {{#each p.list as |item|}}
+            <div class="item">{{item}}</div>
+          {{/each}}
+        </ListPagination>
+      </template>,
+    );
 
     assert.notOk(
       findAll('.first').length,
@@ -91,17 +96,18 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   test('the size property', async function (assert) {
-    this.setProperties({
-      size: 5,
-      source: list100,
-    });
-    await render(hbs`
-      <ListPagination @source={{this.source}} @size={{this.size}} as |p|>
-        <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-      </ListPagination>
-    `);
+    const size = 5;
+    const source = list100;
 
-    const totalPages = Math.ceil(this.source.length / this.size);
+    await render(
+      <template>
+        <ListPagination @source={{source}} @size={{size}} as |p|>
+          <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
+        </ListPagination>
+      </template>,
+    );
+
+    const totalPages = Math.ceil(source.length / size);
     assert.deepEqual(
       find('.page-info').textContent,
       `1 of ${totalPages}`,
@@ -117,13 +123,23 @@ module('Integration | Component | list pagination', function (hooks) {
       currentPage: 5,
     });
 
-    await render(hbs`
-      <ListPagination @source={{this.source}} @spread={{this.spread}} @size={{this.size}} @page={{this.currentPage}} as |p|>
-        {{#each p.pageLinks as |link|}}
-          <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
-        {{/each}}
-      </ListPagination>
-    `);
+    await render(
+      <template>
+        <ListPagination
+          @source={{this.source}}
+          @spread={{this.spread}}
+          @size={{this.size}}
+          @page={{this.currentPage}}
+          as |p|
+        >
+          {{#each p.pageLinks as |link|}}
+            <span
+              class="link page-{{link.pageNumber}}"
+            >{{link.pageNumber}}</span>
+          {{/each}}
+        </ListPagination>
+      </template>,
+    );
 
     testSpread.call(this, assert);
     this.set('spread', 4);
@@ -137,13 +153,20 @@ module('Integration | Component | list pagination', function (hooks) {
       currentPage: 5,
     });
 
-    await render(hbs`
-      <ListPagination @source={{this.source}} @size={{this.size}} @page={{this.currentPage}} as |p|>
-        {{#each p.list as |item|}}
-          <div class="item">{{item}}</div>
-        {{/each}}
-      </ListPagination>
-    `);
+    await render(
+      <template>
+        <ListPagination
+          @source={{this.source}}
+          @size={{this.size}}
+          @page={{this.currentPage}}
+          as |p|
+        >
+          {{#each p.list as |item|}}
+            <div class="item">{{item}}</div>
+          {{/each}}
+        </ListPagination>
+      </template>,
+    );
 
     testItems.call(this, assert);
     this.set('currentPage', 2);
@@ -156,23 +179,28 @@ module('Integration | Component | list pagination', function (hooks) {
   skip('pagination links link with query params', function () {});
 
   test('there are no pagination links when source is less than page size', async function (assert) {
-    this.set('source', list100.slice(0, 10));
-    await render(hbs`
-      <ListPagination @source={{this.source}} as |p|>
-        <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        <p.first><span class="first">first</span></p.first>
-        <p.prev><span class="prev">prev</span></p.prev>
-        {{#each p.pageLinks as |link|}}
-          <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
-        {{/each}}
-        <p.next><span class="next">next</span></p.next>
-        <p.last><span class="last">last</span></p.last>
+    const source = list100.slice(0, 10);
 
-        {{#each p.list as |item|}}
-          <div class="item">{{item}}</div>
-        {{/each}}
-      </ListPagination>
-    `);
+    await render(
+      <template>
+        <ListPagination @source={{source}} as |p|>
+          <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
+          <p.first><span class="first">first</span></p.first>
+          <p.prev><span class="prev">prev</span></p.prev>
+          {{#each p.pageLinks as |link|}}
+            <span
+              class="link page-{{link.pageNumber}}"
+            >{{link.pageNumber}}</span>
+          {{/each}}
+          <p.next><span class="next">next</span></p.next>
+          <p.last><span class="last">last</span></p.last>
+
+          {{#each p.list as |item|}}
+            <div class="item">{{item}}</div>
+          {{/each}}
+        </ListPagination>
+      </template>,
+    );
 
     assert.notOk(findAll('.first').length, 'No first link');
     assert.notOk(findAll('.prev').length, 'No prev link');
@@ -182,7 +210,7 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.deepEqual(find('.page-info').textContent, '1 of 1', 'Only one page');
     assert.deepEqual(
       findAll('.item').length,
-      this.source.length,
+      source.length,
       'Number of items equals length of source',
     );
   });
@@ -198,18 +226,28 @@ module('Integration | Component | list pagination', function (hooks) {
 
     const totalPages = Math.ceil(this.source.length / this.size);
 
-    await render(hbs`
-      <ListPagination @source={{this.source}} @page={{this.page}} @spread={{this.spread}} @size={{this.size}} as |p|>
-        <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        <p.first><span class="first">first</span></p.first>
-        <p.prev><span class="prev">prev</span></p.prev>
-        {{#each p.pageLinks as |link|}}
-          <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
-        {{/each}}
-        <p.next><span class="next">next</span></p.next>
-        <p.last><span class="last">last</span></p.last>
-      </ListPagination>
-    `);
+    await render(
+      <template>
+        <ListPagination
+          @source={{this.source}}
+          @page={{this.page}}
+          @spread={{this.spread}}
+          @size={{this.size}}
+          as |p|
+        >
+          <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
+          <p.first><span class="first">first</span></p.first>
+          <p.prev><span class="prev">prev</span></p.prev>
+          {{#each p.pageLinks as |link|}}
+            <span
+              class="link page-{{link.pageNumber}}"
+            >{{link.pageNumber}}</span>
+          {{/each}}
+          <p.next><span class="next">next</span></p.next>
+          <p.last><span class="last">last</span></p.last>
+        </ListPagination>
+      </template>,
+    );
 
     assert.ok(findAll('.first').length, 'First page still exists');
     assert.ok(findAll('.prev').length, 'Prev page still exists');
