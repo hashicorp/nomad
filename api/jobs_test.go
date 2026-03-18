@@ -1555,9 +1555,9 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 		value int
 		want  string
 	}{
-		{"", "", 1, "404"},
+		{"", "", 1, "400"},
 		{"i-dont-exist", "", 1, "400"},
-		{"", "i-dont-exist", 1, "404"},
+		{"", "i-dont-exist", 1, "400"},
 		{"i-dont-exist", "me-neither", 1, "404"},
 	}
 	for _, test := range tests {
