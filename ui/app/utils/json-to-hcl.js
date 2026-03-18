@@ -21,7 +21,6 @@ export default function jsonToHcl(obj) {
     let hclValue;
 
     if (typeof value === 'string') {
-      //
       if (
         (value.startsWith('[') && value.endsWith(']')) ||
         (value.startsWith('{') && value.endsWith('}'))
