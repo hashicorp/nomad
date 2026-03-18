@@ -16,8 +16,7 @@ export default function jsonToHcl(obj) {
 
   for (const key in obj) {
     const value = obj[key];
-    const hclValue = typeof value === 'string' ? JSON.stringify(value) : value;
-
+    const hclValue = typeof value === 'string' ? value : JSON.stringify(value);
     hclLines.push(`${key}=${hclValue}\n`);
   }
 
