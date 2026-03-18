@@ -3038,6 +3038,12 @@ func (ns Networks) Modes() *set.Set[string] {
 	})
 }
 
+// WillShare indicates whether the task should be placed on a shared device
+type WillShare struct {
+	Enabled bool
+	GpuUid  string
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -3062,9 +3068,9 @@ type RequestedDevice struct {
 	// to use.
 	Affinities Affinities
 
-	// Shared indicates whether the job should be placed on a shared device
+	// WillShare indicates whether the job should be placed on a shared device
 	// and is willing to share
-	Shared DeviceSharing
+	WillShare *WillShare
 }
 
 func (r *RequestedDevice) String() string {
@@ -4198,6 +4204,10 @@ type AllocatedDeviceResource struct {
 
 	// DeviceIDs is the set of allocated devices
 	DeviceIDs []string
+
+	// WillShare is a map of DeviceIDs[bool] that indicates whether if the
+	// requesting task is willing to share the device
+	WillShare map[string]bool
 }
 
 func (a *AllocatedDeviceResource) ID() *DeviceIdTuple {
@@ -4230,6 +4240,7 @@ func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
 	// Copy the devices
 	na.DeviceIDs = make([]string, len(a.DeviceIDs))
 	copy(na.DeviceIDs, a.DeviceIDs)
+	na.WillShare = make(map[string]bool, len(a.DeviceIDs))
 	return &na
 }
 

@@ -245,6 +245,9 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	// Shared reports the MPS Sharing status of the device
+	Shared string
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -296,6 +299,12 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
+// WillShare indicates whether the task should be placed on a shared device
+type WillShare struct {
+	Enabled bool   `hcl:"enabled"`
+	GpuUid  string `hcl:"gpu_id,optional"`
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -319,6 +328,9 @@ type RequestedDevice struct {
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
 	Affinities []*Affinity `hcl:"affinity,block"`
+
+	// WillShare reports whether the task should be placed on a shared device
+	WillShare *WillShare `hcl:"will_share,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {

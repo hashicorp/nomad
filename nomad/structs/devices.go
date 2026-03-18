@@ -24,6 +24,10 @@ type DeviceAccounterInstance struct {
 	// Instances is a mapping of the device IDs to their usage.
 	// Only a value of 0 indicates that the instance is unused.
 	Instances map[string]int
+
+	// WillShare is a mapping of the device IDs to whether the
+	// tasks allocated to them indicated a willingness to share
+	WillShare map[string]bool
 }
 
 // GetLocality returns the NodeDeviceLocality of the instance of the specific
@@ -43,6 +47,7 @@ func (dai *DeviceAccounterInstance) Copy() *DeviceAccounterInstance {
 	return &DeviceAccounterInstance{
 		Device:    dai.Device.Copy(),
 		Instances: maps.Clone(dai.Instances),
+		WillShare: maps.Clone(dai.WillShare),
 	}
 }
 
@@ -68,6 +73,7 @@ func NewDeviceAccounter(n *Node) *DeviceAccounter {
 		d.Devices[id] = &DeviceAccounterInstance{
 			Device:    dev,
 			Instances: make(map[string]int, len(dev.Instances)),
+			WillShare: make(map[string]bool, len(dev.Instances)),
 		}
 		for _, instance := range dev.Instances {
 			// Skip unhealthy devices as they aren't allocatable
@@ -113,14 +119,14 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 			// Go through each assigned device group
 			for _, allocatedDeviceGroup := range tr.Devices {
 
-				devName := allocatedDeviceGroup.ID()
+				devID := allocatedDeviceGroup.ID()
 				// Go through each assigned device
 				for _, instanceID := range allocatedDeviceGroup.DeviceIDs {
 
 					// Mark that we are using the device. It may not be in the
 					// map if the device is no longer being fingerprinted, is
 					// unhealthy, etc.
-					if devAccounter, ok := d.Devices[*devName]; ok {
+					if devAccounter, ok := d.Devices[*devID]; ok {
 						if i, ok := devAccounter.Instances[instanceID]; ok {
 							// Mark that the device is in use
 							devAccounter.Instances[instanceID]++
@@ -140,7 +146,7 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	return
 }
 
-// Loops through the []*NodeDevices in DeviceAccounterInstance.Device
+// isShared loops through the []*NodeDevices in DeviceAccounterInstance.Device
 // and returns a bool to indicate whether the device matching the supplied
 // instanceID is shared
 func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
@@ -154,28 +160,31 @@ func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
 	return false
 }
 
+// willShare loops through the []*NodeDevices in DevAccounterInstance.Device
+// and returns a bool to indicate
+
 // AddReserved marks the device instances in the passed device reservation as
-// used and returns if there is a collision.
+// used,  updates its entry in the  WillShare map and returns if there is a collision.
 func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision bool) {
 	// Lookup the device.
-	devInst, ok := d.Devices[*res.ID()]
+	devAccounter, ok := d.Devices[*res.ID()]
 	if !ok {
 		return false
 	}
 
 	// For each reserved instance, mark it as used
 	for _, id := range res.DeviceIDs {
-		cur, ok := devInst.Instances[id]
+		cur, ok := devAccounter.Instances[id]
 		if !ok {
 			continue
 		}
 
-		// It has already been used, so mark that there is a collision
+		// Check if it is shared
 		if cur != 0 {
 			collision = true
 		}
 
-		devInst.Instances[id]++
+		devAccounter.Instances[id]++
 	}
 
 	return
