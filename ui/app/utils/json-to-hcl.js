@@ -12,8 +12,6 @@
  * @returns {string} The HCL string representation of the JSON object.
  */
 export default function jsonToHcl(obj) {
-  if (!obj) return '';
-
   const hclLines = [];
 
   for (const key in obj) {
@@ -21,6 +19,7 @@ export default function jsonToHcl(obj) {
     let hclValue;
 
     if (typeof value === 'string') {
+      // Check if it's a JSON array or object (starts with [ or {)
       if (
         (value.startsWith('[') && value.endsWith(']')) ||
         (value.startsWith('{') && value.endsWith('}'))
