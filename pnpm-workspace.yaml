@@ -1,6 +1,13 @@
 packages:
   - ui
 
+autoInstallPeers: false
+# strictPeerDependencies: true # this is temporarily disabled. We should re-enable this once those issues are resolved.
+resolvePeersFromWorkspaceRoot: false
+publicHoistPattern:
+  - ember-source
+verifyDepsBeforeRun: install
+
 overrides:
   '@babel/runtime@<7.26.10': '>=7.26.10'
   "@glimmer/component": ^2.0.0
