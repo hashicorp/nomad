@@ -1,36 +1,31 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
-import cleanWhitespace from '../../utils/clean-whitespace';
+import PlacementFailure from 'nomad-ui/components/placement-failure';
+import cleanWhitespace from 'nomad-ui/tests/utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | placement failures', function (hooks) {
   setupRenderingTest(hooks);
 
-  const commonTemplate = hbs`
-      <PlacementFailure @taskGroup={{this.taskGroup}} />
-  `;
-
   test('should render the placement failure (basic render)', async function (assert) {
     const name = 'Placement Failure';
     const failures = 11;
-    this.set(
-      'taskGroup',
-      createFixture(
-        {
-          coalescedFailures: failures - 1,
-        },
-        name,
-      ),
+    const taskGroup = createFixture(
+      {
+        coalescedFailures: failures - 1,
+      },
+      name,
     );
 
-    await render(commonTemplate);
+    await render(
+      <template><PlacementFailure @taskGroup={{taskGroup}} /></template>,
+    );
 
     assert.deepEqual(
       cleanWhitespace(
@@ -96,15 +91,14 @@ module('Integration | Component | placement failures', function (hooks) {
   });
 
   test('should render correctly when a node is not evaluated', async function (assert) {
-    this.set(
-      'taskGroup',
-      createFixture({
-        nodesEvaluated: 1,
-        nodesExhausted: 0,
-      }),
-    );
+    const taskGroup = createFixture({
+      nodesEvaluated: 1,
+      nodesExhausted: 0,
+    });
 
-    await render(commonTemplate);
+    await render(
+      <template><PlacementFailure @taskGroup={{taskGroup}} /></template>,
+    );
 
     assert.deepEqual(
       findAll('[data-test-placement-failure-no-evaluated-nodes]').length,
@@ -122,10 +116,10 @@ module('Integration | Component | placement failures', function (hooks) {
 
   function createFixture(obj = {}, name = 'Placement Failure') {
     return {
-      name: name,
+      name,
       placementFailures: Object.assign(
         {
-          name: name,
+          name,
           coalescedFailures: 10,
           nodesEvaluated: 0,
           nodesAvailable: {

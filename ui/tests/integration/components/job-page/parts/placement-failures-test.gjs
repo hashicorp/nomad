@@ -4,10 +4,10 @@
  */
 
 /* Mirage fixtures are random so we can't expect a set number of assertions */
-import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
+import JobPagePartsPlacementFailures from 'nomad-ui/components/job-page/parts/placement-failures';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -41,13 +41,11 @@ module(
       const job = this.store.peekAll('job').get('firstObject');
       await job.reload();
 
-      this.set('job', job);
+      await render(
+        <template><JobPagePartsPlacementFailures @job={{job}} /></template>,
+      );
 
-      await render(hbs`
-      <JobPage::Parts::PlacementFailures @job={{this.job}} />)
-    `);
-
-      const failedEvaluation = this.job.evaluations
+      const failedEvaluation = job.evaluations
         .filterBy('hasPlacementFailures')
         .sortBy('modifyIndex')
         .reverse()
@@ -90,11 +88,9 @@ module(
       const job = this.store.peekAll('job').get('firstObject');
       await job.reload();
 
-      this.set('job', job);
-
-      await render(hbs`
-      <JobPage::Parts::PlacementFailures @job={{this.job}} />)
-    `);
+      await render(
+        <template><JobPagePartsPlacementFailures @job={{job}} /></template>,
+      );
 
       assert.notOk(
         find('[data-test-placement-failures]'),
