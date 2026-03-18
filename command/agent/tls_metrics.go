@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -52,21 +53,25 @@ func newTLSMetrics(logger hclog.Logger, tlsCfg *config.TLSConfig, labels []metri
 		stopCh: make(chan struct{}),
 	}
 
-	if tlsCfg.CertFile != "" {
-		expiry, err := certFileExpiry(tlsCfg.CertFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse TLS certificate file: %w", err)
-		}
-		t.certExpiry = expiry
+	exp, err := caFileExpiry(tlsCfg.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CA file: %w", err)
+	}
+	t.caExpiry = exp
+
+	// Using LoadX509KeyPair helps with parsing files with combined
+	// public/private keys, whitespace, etc.
+	certs, err := tls.LoadX509KeyPair(tlsCfg.CertFile, tlsCfg.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse cert key pair: %w", err)
 	}
 
-	if tlsCfg.CAFile != "" {
-		expiry, err := certFileExpiry(tlsCfg.CAFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse CA file: %w", err)
-		}
-		t.caExpiry = expiry
+	// we are guaranteed to have at least 1 cert if LoadX509 succeeds
+	c, err := x509.ParseCertificate(certs.Certificate[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse cert bytes: %w", err)
 	}
+	t.certExpiry = c.NotAfter
 
 	return &t, nil
 }
@@ -128,7 +133,7 @@ func (t *tlsMetrics) emit() {
 
 // certFileExpiry reads a PEM-encoded certificate file and returns the NotAfter
 // time of the certificate.
-func certFileExpiry(path string) (time.Time, error) {
+func caFileExpiry(path string) (time.Time, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to read file: %w", err)
