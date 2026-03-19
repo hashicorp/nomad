@@ -6,21 +6,37 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, click, waitFor } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
+import { tracked } from '@glimmer/tracking';
+import { on } from '@ember/modifier';
+import Trigger from 'nomad-ui/components/trigger';
+
+class State {
+  @tracked name = 'Tomster';
+}
 
 module('Integration | Component | trigger', function (hooks) {
   setupRenderingTest(hooks);
 
   module('Synchronous Interactions', function () {
     test('it can trigger a synchronous action', async function (assert) {
-      this.set('name', 'Tomster');
-      this.set('changeName', () => this.set('name', 'Zoey'));
-      await render(hbs`
-      <Trigger @do={{this.changeName}} as |trigger|>
-        <h2 data-test-name>{{this.name}}</h2>
-        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Change my name.</button>
-      </Trigger>
-      `);
+      const state = new State();
+      const changeName = () => {
+        state.name = 'Zoey';
+      };
+
+      await render(
+        <template>
+          <Trigger @do={{changeName}} as |trigger|>
+            <h2 data-test-name>{{state.name}}</h2>
+            <button
+              data-test-button
+              type="button"
+              {{on "click" trigger.fns.do}}
+            >Change my name.</button>
+          </Trigger>
+        </template>,
+      );
+
       assert
         .dom('[data-test-name]')
         .hasText('Tomster', 'Initial state renders correctly.');
@@ -36,15 +52,23 @@ module('Integration | Component | trigger', function (hooks) {
     });
 
     test('it sets the result of the action', async function (assert) {
-      this.set('tomster', () => 'Tomster');
-      await render(hbs`
-      <Trigger @do={{this.tomster}} as |trigger|>
-        {{#if trigger.data.result}}
-          <h2 data-test-name>{{trigger.data.result}}</h2>
-        {{/if}}
-        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Generate</button>
-      </Trigger>
-      `);
+      const tomster = () => 'Tomster';
+
+      await render(
+        <template>
+          <Trigger @do={{tomster}} as |trigger|>
+            {{#if trigger.data.result}}
+              <h2 data-test-name>{{trigger.data.result}}</h2>
+            {{/if}}
+            <button
+              data-test-button
+              type="button"
+              {{on "click" trigger.fns.do}}
+            >Generate</button>
+          </Trigger>
+        </template>,
+      );
+
       assert
         .dom('[data-test-name]')
         .doesNotExist(
@@ -64,25 +88,29 @@ module('Integration | Component | trigger', function (hooks) {
 
   module('Asynchronous Interactions', function () {
     test('it can trigger an asynchronous action', async function (assert) {
-      this.set(
-        'onTrigger',
-        () =>
-          new Promise((resolve) => {
-            this.set('resolve', resolve);
-          }),
-      );
+      let resolve;
+      const onTrigger = () =>
+        new Promise((res) => {
+          resolve = res;
+        });
 
-      await render(hbs`
-      <Trigger @do={{this.onTrigger}} as |trigger|>
-        {{#if trigger.data.isBusy}}
-          <div data-test-div-loading>...Loading</div>
-        {{/if}}
-        {{#if trigger.data.isSuccess}}
-          <div data-test-div>Success!</div>
-        {{/if}}
-        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
-      </Trigger>
-      `);
+      await render(
+        <template>
+          <Trigger @do={{onTrigger}} as |trigger|>
+            {{#if trigger.data.isBusy}}
+              <div data-test-div-loading>...Loading</div>
+            {{/if}}
+            {{#if trigger.data.isSuccess}}
+              <div data-test-div>Success!</div>
+            {{/if}}
+            <button
+              data-test-button
+              type="button"
+              {{on "click" trigger.fns.do}}
+            >Click Me</button>
+          </Trigger>
+        </template>,
+      );
 
       assert
         .dom('[data-test-div]')
@@ -102,7 +130,7 @@ module('Integration | Component | trigger', function (hooks) {
           'Success message does not display until after promise resolves',
         );
 
-      this.resolve();
+      resolve();
       await waitFor('[data-test-div]');
       assert
         .dom('[data-test-div-loading]')
@@ -127,7 +155,7 @@ module('Integration | Component | trigger', function (hooks) {
           'After clicking the button, again, we are back in the loading state',
         );
 
-      this.resolve();
+      resolve();
       await waitFor('[data-test-div]');
 
       assert
@@ -138,23 +166,27 @@ module('Integration | Component | trigger', function (hooks) {
     });
 
     test('it handles the success state', async function (assert) {
-      this.set(
-        'onTrigger',
-        () =>
-          new Promise((resolve) => {
-            this.set('resolve', resolve);
-          }),
-      );
-      this.set('onSuccess', () => assert.step('On success happened'));
+      let resolve;
+      const onTrigger = () =>
+        new Promise((res) => {
+          resolve = res;
+        });
+      const onSuccess = () => assert.step('On success happened');
 
-      await render(hbs`
-      <Trigger @do={{this.onTrigger}} @onSuccess={{this.onSuccess}} as |trigger|>
-          {{#if trigger.data.isSuccess}}
-            <span data-test-div>Success!</span>
-          {{/if}}
-        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
-      </Trigger>
-      `);
+      await render(
+        <template>
+          <Trigger @do={{onTrigger}} @onSuccess={{onSuccess}} as |trigger|>
+            {{#if trigger.data.isSuccess}}
+              <span data-test-div>Success!</span>
+            {{/if}}
+            <button
+              data-test-button
+              type="button"
+              {{on "click" trigger.fns.do}}
+            >Click Me</button>
+          </Trigger>
+        </template>,
+      );
 
       assert
         .dom('[data-test-div]')
@@ -162,34 +194,38 @@ module('Integration | Component | trigger', function (hooks) {
           'No text should appear until after the onSuccess callback is fired',
         );
       await click('[data-test-button]');
-      this.resolve();
+      resolve();
       await waitFor('[data-test-div]');
       assert.verifySteps(['On success happened']);
     });
 
     test('it handles the error state', async function (assert) {
-      this.set(
-        'onTrigger',
-        () =>
-          new Promise((_, reject) => {
-            this.set('reject', reject);
-          }),
-      );
-      this.set('onError', () => {
+      let reject;
+      const onTrigger = () =>
+        new Promise((_, rej) => {
+          reject = rej;
+        });
+      const onError = () => {
         assert.step('On error happened');
-      });
+      };
 
-      await render(hbs`
-      <Trigger @do={{this.onTrigger}} @onError={{this.onError}} as |trigger|>
-          {{#if trigger.data.isBusy}}
-            <div data-test-div-loading>...Loading</div>
-          {{/if}}
-          {{#if trigger.data.isError}}
-            <span data-test-span>Error!</span>
-          {{/if}}
-        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
-      </Trigger>
-      `);
+      await render(
+        <template>
+          <Trigger @do={{onTrigger}} @onError={{onError}} as |trigger|>
+            {{#if trigger.data.isBusy}}
+              <div data-test-div-loading>...Loading</div>
+            {{/if}}
+            {{#if trigger.data.isError}}
+              <span data-test-span>Error!</span>
+            {{/if}}
+            <button
+              data-test-button
+              type="button"
+              {{on "click" trigger.fns.do}}
+            >Click Me</button>
+          </Trigger>
+        </template>,
+      );
 
       await click('[data-test-button]');
       assert
@@ -204,7 +240,7 @@ module('Integration | Component | trigger', function (hooks) {
           'No text should appear until after the onError callback is fired',
         );
 
-      this.reject();
+      reject();
       await waitFor('[data-test-span]');
       assert.verifySteps(['On error happened']);
 
@@ -218,7 +254,7 @@ module('Integration | Component | trigger', function (hooks) {
 
       assert.dom('[data-test-div]').doesNotExist('The error state is cleared');
 
-      this.reject();
+      reject();
       await waitFor('[data-test-span]');
       assert.verifySteps(['On error happened'], 'The error dispatches');
     });

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { action } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
+import { hash } from '@ember/helper';
 import { task } from 'ember-concurrency';
 
 const noOp = () => undefined;
@@ -54,20 +54,20 @@ export default class Trigger extends Component {
     this.error = null;
   }
 
-  @task(function* () {
+  triggerTask = task(async () => {
     this._reset();
     try {
-      this.result = yield this.args.do();
+      this.result = await this.args.do();
       this.onSuccess(this.result);
     } catch (e) {
       this.error = { Error: e };
       this.onError(this.error);
     }
-  })
-  triggerTask;
+  });
 
-  @action
-  onTrigger() {
+  onTrigger = () => {
     this.triggerTask.perform();
-  }
+  };
+
+  <template>{{yield (hash data=this.data fns=this.fns)}}</template>
 }
