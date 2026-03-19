@@ -568,3 +568,12 @@ func FindExecutableFiles(path string) (map[string]string, error) {
 	}
 	return executables, nil
 }
+
+// IsSubdirectory returns true if potentialParent is equal to or a parent directory of path.
+func IsSubdirectory(potentialParent, path string) bool {
+	rel, err := filepath.Rel(potentialParent, path)
+	if err != nil {
+		return false
+	}
+	return !strings.HasPrefix(rel, "..")
+}
