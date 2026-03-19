@@ -5,19 +5,20 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
+import { click, render, rerender } from '@ember/test-helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
-import EmberObject from '@ember/object';
+import { TrackedObject } from 'tracked-built-ins';
+import AllocationServiceSidebar from 'nomad-ui/components/allocation-service-sidebar';
 
 module(
   'Integration | Component | allocation-service-sidebar',
   function (hooks) {
     setupRenderingTest(hooks);
+
     hooks.beforeEach(function () {
       const mockSystem = Service.extend({
-        agent: EmberObject.create({
+        agent: {
           config: {
             UI: {
               Consul: {
@@ -25,7 +26,7 @@ module(
               },
             },
           },
-        }),
+        },
       });
       this.owner.register('service:system', mockSystem);
       this.system = this.owner.lookup('service:system');
@@ -34,24 +35,31 @@ module(
     test('it supports basic open/close states', async function (assert) {
       await componentA11yAudit(this.element, assert);
 
-      this.set('closeSidebar', () => this.set('service', null));
+      const state = new TrackedObject({
+        service: { name: 'Funky Service' },
+      });
+      const closeSidebar = () => {
+        state.service = null;
+      };
+      const fns = { closeSidebar };
 
-      this.set('service', { name: 'Funky Service' });
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
+        <template>
+          <AllocationServiceSidebar @service={{state.service}} @fns={{fns}} />
+        </template>,
       );
       assert.dom('h1').includesText('Funky Service');
       assert.dom('.sidebar').hasClass('open');
 
-      this.set('service', null);
-      await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
-      );
+      state.service = null;
+      await rerender();
       assert.dom(this.element).hasText('');
       assert.dom('.sidebar').doesNotHaveClass('open');
 
-      this.set('service', { name: 'Funky Service' });
+      state.service = { name: 'Funky Service' };
+      await rerender();
       await click('[data-test-close-service-sidebar]');
+      await rerender();
       assert.dom(this.element).hasText('');
       assert.dom('.sidebar').doesNotHaveClass('open');
     });
@@ -74,28 +82,36 @@ module(
         ],
       };
 
-      this.set('closeSidebar', () => this.set('service', null));
-      this.set('allocation', { id: 'myAlloc', clientStatus: 'running' });
-      this.set('service', healthyService);
+      const state = new TrackedObject({
+        service: healthyService,
+        allocation: { id: 'myAlloc', clientStatus: 'running' },
+      });
+      const closeSidebar = () => {
+        state.service = null;
+      };
+      const fns = { closeSidebar };
+
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
+        <template>
+          <AllocationServiceSidebar
+            @service={{state.service}}
+            @allocation={{state.allocation}}
+            @fns={{fns}}
+          />
+        </template>,
       );
       assert.dom('h1 .aggregate-status').includesText('Healthy');
       assert
         .dom('table.health-checks tbody tr:not(.service-status-indicators)')
         .exists({ count: 2 }, 'has two rows');
 
-      this.set('service', unhealthyService);
-      await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
-      );
+      state.service = unhealthyService;
+      await rerender();
       assert.dom('h1 .aggregate-status').includesText('Unhealthy');
 
-      this.set('service', healthyService);
-      this.set('allocation', { id: 'myAlloc2', clientStatus: 'failed' });
-      await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
-      );
+      state.service = healthyService;
+      state.allocation = { id: 'myAlloc2', clientStatus: 'failed' };
+      await rerender();
       assert.dom('h1 .aggregate-status').includesText('Health Unknown');
     });
 
@@ -106,19 +122,28 @@ module(
         healthChecks: [],
       };
 
-      this.set('closeSidebar', () => this.set('service', null));
-      this.set('service', consulService);
+      const state = new TrackedObject({
+        service: consulService,
+      });
+      const closeSidebar = () => {
+        state.service = null;
+      };
+      const fns = { closeSidebar };
+
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
+        <template>
+          <AllocationServiceSidebar @service={{state.service}} @fns={{fns}} />
+        </template>,
       );
       assert.dom('h1 .aggregate-status').doesNotExist();
       assert.dom('table.health-checks').doesNotExist();
       assert.dom('[data-test-consul-link-notice]').doesNotExist();
 
       this.system.agent.config.UI.Consul.BaseUIURL = 'http://localhost:8500';
-
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
+        <template>
+          <AllocationServiceSidebar @service={{state.service}} @fns={{fns}} />
+        </template>,
       );
 
       assert.dom('[data-test-consul-link-notice]').exists();
