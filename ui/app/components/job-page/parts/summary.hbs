@@ -34,7 +34,11 @@
           <div class="inline-chart bumper-left">
             {{#if a.item.hasChildren}}
               {{#if (gt a.item.totalChildren 0)}}
-                <ChildrenStatusBar @job={{a.item}} @isNarrow={{true}} />
+                <ChildrenStatusBar
+                  @job={{a.item}}
+                  @isNarrow={{true}}
+                  data-test-children-status-bar
+                />
               {{else}}
                 <em class="is-faded">
                   No Children
@@ -44,6 +48,7 @@
               <AllocationStatusBar
                 @allocationContainer={{a.item}}
                 @isNarrow={{true}}
+                data-test-allocation-status-bar
               />
             {{/if}}
           </div>

@@ -5,10 +5,11 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, waitUntil } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
+import { click, render, waitUntil } from '@ember/test-helpers';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
+import JobEditor from 'nomad-ui/components/job-editor';
+import JobEditorAlert from 'nomad-ui/components/job-editor/alert';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
@@ -80,23 +81,28 @@ module('Integration | Component | job-editor', function (hooks) {
   }
   `;
 
-  const commonTemplate = hbs`
-    <JobEditor
-      @job={{this.job}}
-      @context={{this.context}}
-      @onSubmit={{this.onSubmit}}
-      @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-    />
-  `;
-
   const renderNewJob = async (component, job) => {
+    const onSubmit = sinon.spy();
+    const handleSaveAsTemplate = sinon.spy();
+    const context = 'new';
+
     component.setProperties({
       job,
-      onSubmit: sinon.spy(),
-      handleSaveAsTemplate: sinon.spy(),
-      context: 'new',
+      onSubmit,
+      handleSaveAsTemplate,
+      context,
     });
-    await render(commonTemplate);
+
+    await render(
+      <template>
+        <JobEditor
+          @job={{job}}
+          @context={{context}}
+          @onSubmit={{onSubmit}}
+          @handleSaveAsTemplate={{handleSaveAsTemplate}}
+        />
+      </template>,
+    );
   };
 
   const planJob = async (spec) => {
@@ -363,16 +369,18 @@ module('Integration | Component | job-editor', function (hooks) {
     this.set('handleSaveAsTemplate', () => {});
     this.set('onSelect', () => {});
 
-    await render(hbs`
-      <JobEditor
-        @context="edit"
-        @job={{this.job}}
-        @onToggleEdit={{this.onToggleEdit}}
-        @onSubmit={{this.onSubmit}}
-        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-        @onSelect={{this.onSelect}}
-      />
-    `);
+    await render(
+      <template>
+        <JobEditor
+          @context="edit"
+          @job={{this.job}}
+          @onToggleEdit={{this.onToggleEdit}}
+          @onSubmit={{this.onSubmit}}
+          @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
+          @onSelect={{this.onSelect}}
+        />
+      </template>,
+    );
 
     await planJob(spec);
     await waitForReviewStage();
@@ -445,17 +453,19 @@ module('Integration | Component | job-editor', function (hooks) {
     this.set('handleSaveAsTemplate', () => {});
     this.set('onSelect', () => {});
 
-    await render(hbs`
-      <JobEditor
-        @cancelable={{true}}
-        @context="new"
-        @job={{this.job}}
-        @onToggleEdit={{this.onToggleEdit}}
-        @onSubmit={{this.onSubmit}}
-        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-        @onSelect={{this.onSelect}}
-      />
-    `);
+    await render(
+      <template>
+        <JobEditor
+          @cancelable={{true}}
+          @context="new"
+          @job={{this.job}}
+          @onToggleEdit={{this.onToggleEdit}}
+          @onSubmit={{this.onSubmit}}
+          @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
+          @onSelect={{this.onSelect}}
+        />
+      </template>,
+    );
 
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
 
@@ -481,12 +491,17 @@ module('Integration | Component | job-editor', function (hooks) {
     this.set('job', job);
 
     // Act
-    await render(hbs`<JobEditor
-      @specification={{this.definition}}
-      @view="job-spec"
-      @variables={{this.variables}}
-      @job={{this.job}}
-      @onSelect={{this.onSelect}} />`);
+    await render(
+      <template>
+        <JobEditor
+          @specification={{this.definition}}
+          @view="job-spec"
+          @variables={{this.variables}}
+          @job={{this.job}}
+          @onSelect={{this.onSelect}}
+        />
+      </template>,
+    );
 
     // Check if the definition is set on the model
     assert.deepEqual(
@@ -515,5 +530,30 @@ module('Integration | Component | job-editor', function (hooks) {
       expectedVariables,
       'Variables are set on the model',
     );
+  });
+
+  test('variable notification alert can be dismissed', async function (assert) {
+    this.set('data', {
+      stage: 'read',
+      hasVariables: true,
+      view: 'job-spec',
+    });
+    this.set('fns', { onDismissPlanMessage: () => {} });
+
+    await render(
+      <template>
+        <JobEditorAlert @data={{this.data}} @fns={{this.fns}} />
+      </template>,
+    );
+
+    assert
+      .dom('[data-test-variable-notification]')
+      .exists('Variable notification is shown');
+
+    await click('[data-test-variable-notification] button');
+
+    assert
+      .dom('[data-test-variable-notification]')
+      .doesNotExist('Variable notification is dismissed');
   });
 });

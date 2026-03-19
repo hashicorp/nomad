@@ -4,7 +4,6 @@
  */
 
 import { assert } from '@ember/debug';
-import { action } from '@ember/object';
 import { service } from '@ember/service';
 import Component from '@glimmer/component';
 
@@ -17,11 +16,11 @@ export default class Breadcrumb extends Component {
     this.register();
   }
 
-  @action register() {
+  register() {
     this.breadcrumbs.registerBreadcrumb(this);
   }
 
-  @action deregister() {
+  deregister() {
     this.breadcrumbs.deregisterBreadcrumb(this);
   }
 

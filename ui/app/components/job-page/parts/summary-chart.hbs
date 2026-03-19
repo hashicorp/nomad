@@ -7,7 +7,8 @@
   <ChildrenStatusBar
     @allocationContainer={{@job.summary}}
     @job={{@job.summary}}
-    @class="split-view"
+    class="split-view"
+    data-test-children-status-bar
     as |chart|
   >
     <ol data-test-legend class="legend">
@@ -30,7 +31,8 @@
     @allocationContainer={{@job.summary}}
     @job={{@job}}
     @onSliceClick={{this.onSliceClick}}
-    @class="split-view"
+    class="split-view"
+    data-test-allocation-status-bar
     as |chart|
   >
     <ol data-test-legend class="legend">

@@ -13,7 +13,7 @@ export const JobPagePartsSummaryLegendItem = <template>
         {{if @datum.className @datum.className (concat 'swatch-' @index)}}"
     ></span>
     <span class="text">
-      <span class="value" data-test-legend-value="{{@datum.className}}">
+      <span class="value" data-test-legend-value={{@datum.className}}>
         {{@datum.value}}
       </span>
       <span>

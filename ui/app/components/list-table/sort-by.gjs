@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { concat, hash } from '@ember/helper';
 import Component from '@glimmer/component';
-import SafeLinkTo from 'nomad-ui/components/safe-link-to';
+import { LinkTo } from '@ember/routing';
+import { concat, hash } from '@ember/helper';
 
 export default class SortBy extends Component {
   get isActive() {
@@ -26,7 +26,7 @@ export default class SortBy extends Component {
       }}
       title={{@title}}
     >
-      <SafeLinkTo
+      <LinkTo
         @query={{hash
           sortProperty=@prop
           sortDescending=this.shouldSortDescending
@@ -34,7 +34,7 @@ export default class SortBy extends Component {
         data-test-sort-by={{@prop}}
       >
         {{yield}}
-      </SafeLinkTo>
+      </LinkTo>
     </th>
   </template>
 }

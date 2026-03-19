@@ -3,31 +3,21 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { computed } from '@ember/object';
+import Component from '@glimmer/component';
 import DistributionBar from './distribution-bar';
-import classic from 'ember-classic-decorator';
-import { attributeBindings } from '@ember-decorators/component';
 
-@classic
-@attributeBindings('data-test-children-status-bar')
-export default class ChildrenStatusBar extends DistributionBar {
-  layoutName = 'components/distribution-bar';
-
-  job = null;
-
-  'data-test-children-status-bar' = true;
-
-  @computed('job.{pendingChildren,runningChildren,deadChildren}')
+export default class ChildrenStatusBar extends Component {
   get data() {
-    if (!this.job) {
+    if (!this.args.job) {
       return [];
     }
 
-    const children = this.job.getProperties(
+    const children = this.jobModel.getProperties(
       'pendingChildren',
       'runningChildren',
       'deadChildren',
     );
+
     return [
       {
         label: 'Pending',
@@ -42,4 +32,17 @@ export default class ChildrenStatusBar extends DistributionBar {
       { label: 'Dead', value: children.deadChildren, className: 'complete' },
     ];
   }
+
+  <template>
+    <DistributionBar
+      @data={{this.data}}
+      @isNarrow={{@isNarrow}}
+      @onSliceClick={{@onSliceClick}}
+      data-test-children-status-bar
+      ...attributes
+      as |chart|
+    >
+      {{yield chart}}
+    </DistributionBar>
+  </template>
 }

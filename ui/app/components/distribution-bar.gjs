@@ -226,6 +226,7 @@ export default class DistributionBar extends Component {
   <template>
     <div
       class="chart distribution-bar {{if this.isNarrow 'is-narrow'}}"
+      ...attributes
       {{windowResize this.windowResizeHandler}}
     >
       <svg

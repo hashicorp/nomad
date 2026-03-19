@@ -3,22 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { computed } from '@ember/object';
+import Component from '@glimmer/component';
 import DistributionBar from './distribution-bar';
-import { attributeBindings } from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
 
-@classic
-@attributeBindings('data-test-job-client-status-bar')
-export default class JobClientStatusBar extends DistributionBar {
-  layoutName = 'components/distribution-bar';
-
-  'data-test-job-client-status-bar' = true;
-  job = null;
-  jobClientStatus = null;
-
-  legendQueryParamsForStatus(status) {
-    const namespace = this.job?.namespaceId || this.job?.namespace?.get?.('id');
+export default class JobClientStatusBar extends Component {
+  legendQueryParamsForStatus = (status) => {
+    const namespace =
+      this.args.job?.namespaceId || this.args.job?.namespace?.get?.('id');
     const queryParams = {
       status: JSON.stringify([status]),
       page: 1,
@@ -32,10 +23,14 @@ export default class JobClientStatusBar extends DistributionBar {
     }
 
     return queryParams;
-  }
+  };
 
-  @computed('job.namespace', 'jobClientStatus.byStatus')
   get data() {
+    const byStatus = this.args.jobClientStatus?.byStatus;
+    if (!byStatus) {
+      return [];
+    }
+
     const {
       queued,
       starting,
@@ -46,7 +41,7 @@ export default class JobClientStatusBar extends DistributionBar {
       lost,
       notScheduled,
       unknown,
-    } = this.jobClientStatus.byStatus;
+    } = byStatus;
 
     return [
       {
@@ -127,4 +122,17 @@ export default class JobClientStatusBar extends DistributionBar {
       },
     ];
   }
+
+  <template>
+    <DistributionBar
+      @data={{this.data}}
+      @isNarrow={{@isNarrow}}
+      @onSliceClick={{@onSliceClick}}
+      data-test-job-client-status-bar
+      ...attributes
+      as |chart|
+    >
+      {{yield chart}}
+    </DistributionBar>
+  </template>
 }

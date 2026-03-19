@@ -97,6 +97,7 @@ export default class CopyButton extends Component {
         <button
           type="button"
           title="Copy"
+          data-clipboard-text={{this.text}}
           class="button is-small
             {{if @compact 'is-compact'}}
             {{unless @border 'is-borderless'}}
