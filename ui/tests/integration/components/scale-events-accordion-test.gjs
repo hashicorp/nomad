@@ -6,11 +6,12 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
+import { TrackedObject } from 'tracked-built-ins';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import ScaleEventsAccordion from 'nomad-ui/components/scale-events-accordion';
 
 module('Integration | Component | scale-events-accordion', function (hooks) {
   setupRenderingTest(hooks);
@@ -42,16 +43,16 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     this.server.shutdown();
   });
 
-  const commonTemplate = hbs`<ScaleEventsAccordion @events={{this.events}} />`;
-
   test('it shows an accordion with an entry for each event', async function (assert) {
     const eventCount = 5;
     const taskGroup = await this.taskGroupWithEvents(
       this.server.createList('scale-event', eventCount),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.deepEqual(
       findAll('[data-test-scale-events] [data-test-accordion-head]').length,
@@ -64,9 +65,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     const taskGroup = await this.taskGroupWithEvents(
       this.server.createList('scale-event', 1, { error: true }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.ok(find('[data-test-error]'));
     await componentA11yAudit(this.element, assert);
@@ -81,9 +84,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         error: false,
       }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.notOk(find('[data-test-error]'));
     assert.strictEqual(
@@ -102,9 +107,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         error: false,
       }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.notOk(find('[data-test-error]'));
     assert.strictEqual(
@@ -117,9 +124,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     const taskGroup = await this.taskGroupWithEvents(
       this.server.createList('scale-event', 1, { count: null }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.notOk(find('[data-test-count]'));
     assert.notOk(find('[data-test-count-icon]'));
@@ -129,9 +138,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     const taskGroup = await this.taskGroupWithEvents(
       this.server.createList('scale-event', 1, { meta: {} }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
 
     assert.ok(
       find('[data-test-accordion-toggle]').classList.contains('is-invisible'),
@@ -151,9 +162,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     const taskGroup = await this.taskGroupWithEvents(
       this.server.createList('scale-event', 1, { meta }),
     );
-    this.set('events', taskGroup.scaleState.events);
+    const state = new TrackedObject({ events: taskGroup.scaleState.events });
 
-    await render(commonTemplate);
+    await render(
+      <template><ScaleEventsAccordion @events={{state.events}} /></template>,
+    );
     assert.notOk(find('[data-test-accordion-body]'));
 
     await click('[data-test-accordion-toggle]');
