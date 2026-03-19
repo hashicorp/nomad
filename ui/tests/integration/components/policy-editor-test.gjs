@@ -6,14 +6,14 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import PolicyEditor from 'nomad-ui/components/policy-editor';
 
 module('Integration | Component | policy-editor', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders', async function (assert) {
-    await render(hbs`<PolicyEditor />`);
+    await render(<template><PolicyEditor /></template>);
     await componentA11yAudit(this.element, assert);
   });
 
@@ -28,12 +28,14 @@ module('Integration | Component | policy-editor', function (hooks) {
       name: 'Old Policy',
     };
 
-    this.set('newMockPolicy', newMockPolicy);
-    this.set('oldMockPolicy', oldMockPolicy);
-
-    await render(hbs`<PolicyEditor @policy={{this.newMockPolicy}} />`);
+    await render(
+      <template><PolicyEditor @policy={{newMockPolicy}} /></template>,
+    );
     assert.dom('[data-test-policy-name-input]').exists();
-    await render(hbs`<PolicyEditor @policy={{this.oldMockPolicy}} />`);
+
+    await render(
+      <template><PolicyEditor @policy={{oldMockPolicy}} /></template>,
+    );
     assert.dom('[data-test-policy-name-input]').doesNotExist();
   });
 });
