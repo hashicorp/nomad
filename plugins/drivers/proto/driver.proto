@@ -600,6 +600,10 @@ message Mount {
     string propagation_mode = 4;
 
     string selinux_label = 5;
+
+    // RequestName is the optional name of the volume request in the job spec
+    // from which this mount originated.
+    string request_name = 6;
 }
 
 message Device {
