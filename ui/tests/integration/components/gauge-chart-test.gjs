@@ -6,9 +6,9 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
+import GaugeChartComponent from 'nomad-ui/components/gauge-chart';
 import gaugeChart from 'nomad-ui/tests/pages/components/gauge-chart';
 
 const GaugeChart = create(gaugeChart());
@@ -24,34 +24,38 @@ module('Integration | Component | gauge chart', function (hooks) {
 
   test('presents as an svg, a formatted percentage, and a label', async function (assert) {
     const props = commonProperties();
-    this.setProperties(props);
 
-    await render(hbs`
-      <GaugeChart
-        @value={{this.value}}
-        @total={{this.total}}
-        @label={{this.label}} />
-    `);
+    await render(
+      <template>
+        <GaugeChartComponent
+          @value={{props.value}}
+          @total={{props.total}}
+          @label={{props.label}}
+        />
+      </template>,
+    );
 
     assert.deepEqual(GaugeChart.label, props.label);
     assert.deepEqual(GaugeChart.percentage, '50%');
     assert.ok(GaugeChart.svgIsPresent);
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(find('.chart.gauge-chart'), assert);
   });
 
   test('the width of the chart is determined based on the container and the height is a function of the width', async function (assert) {
     const props = commonProperties();
-    this.setProperties(props);
 
-    await render(hbs`
-      <div style="width:100px">
-        <GaugeChart
-          @value={{this.value}}
-          @total={{this.total}}
-          @label={{this.label}} />
-      </div>
-    `);
+    await render(
+      <template>
+        <div style="width:100px">
+          <GaugeChartComponent
+            @value={{props.value}}
+            @total={{props.total}}
+            @label={{props.label}}
+          />
+        </div>
+      </template>,
+    );
 
     const svg = find('[data-test-gauge-svg]');
 

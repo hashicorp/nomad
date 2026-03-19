@@ -6,11 +6,11 @@
 import { find, render, triggerKeyEvent, waitUntil } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
 import Log from 'nomad-ui/utils/classes/log';
+import StreamingFile from 'nomad-ui/components/streaming-file';
 
 const { assign } = Object;
 const A_KEY = 65;
@@ -26,7 +26,7 @@ const makeLogger = (url, params) =>
     url,
     params,
     plainText: true,
-    logFetch: (url) => fetch(url).then((res) => res),
+    logFetch: (fetchUrl) => fetch(fetchUrl).then((res) => res),
   });
 
 module('Integration | Component | streaming file', function (hooks) {
@@ -43,20 +43,16 @@ module('Integration | Component | streaming file', function (hooks) {
     this.server.shutdown();
   });
 
-  const commonTemplate = hbs`
-    <StreamingFile @logger={{this.logger}} @mode={{this.mode}} @isStreaming={{this.isStreaming}} />
-  `;
-
   test('when mode is `head`, the logger signals head', async function (assert) {
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
-    this.setProperties({
-      logger: makeLogger(url, params),
-      mode: 'head',
-      isStreaming: false,
-    });
+    const logger = makeLogger(url, params);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <StreamingFile @logger={{logger}} @mode="head" @isStreaming={{false}} />
+      </template>,
+    );
 
     await waitUntil(
       () => find('[data-test-output]')?.textContent === 'Hello World',
@@ -77,13 +73,13 @@ module('Integration | Component | streaming file', function (hooks) {
   test('when mode is `tail`, the logger signals tail', async function (assert) {
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', limit: 50000 };
-    this.setProperties({
-      logger: makeLogger(url, params),
-      mode: 'tail',
-      isStreaming: false,
-    });
+    const logger = makeLogger(url, params);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <StreamingFile @logger={{logger}} @mode="tail" @isStreaming={{false}} />
+      </template>,
+    );
 
     await waitUntil(
       () => find('[data-test-output]')?.textContent === 'Hello World',
@@ -103,13 +99,17 @@ module('Integration | Component | streaming file', function (hooks) {
   test('when mode is `streaming` and `isStreaming` is true, streaming starts', async function (assert) {
     const url = '/file/stream';
     const params = { path: 'hello/world.txt', limit: 50000 };
-    this.setProperties({
-      logger: makeLogger(url, params),
-      mode: 'streaming',
-      isStreaming: true,
-    });
+    const logger = makeLogger(url, params);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <StreamingFile
+          @logger={{logger}}
+          @mode="streaming"
+          @isStreaming={{true}}
+        />
+      </template>,
+    );
 
     await waitUntil(
       () => find('[data-test-output]')?.textContent === 'Hello World',
@@ -123,19 +123,17 @@ module('Integration | Component | streaming file', function (hooks) {
   test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function (assert) {
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
-    this.setProperties({
-      logger: makeLogger(url, params),
-      mode: 'head',
-      isStreaming: false,
-    });
+    const logger = makeLogger(url, params);
 
-    await render(hbs`
-      Extra text
-      <StreamingFile @logger={{this.logger}} @mode={{this.mode}} @isStreaming={{this.isStreaming}} />
-      On either side
-    `);
+    await render(
+      <template>
+        Extra text
+        <StreamingFile @logger={{logger}} @mode="head" @isStreaming={{false}} />
+        On either side
+      </template>,
+    );
 
-    // Windows and Linux shortcut
+    // Windows and Linux shortcut.
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       ctrlKey: true,
     });
@@ -146,7 +144,7 @@ module('Integration | Component | streaming file', function (hooks) {
 
     window.getSelection().removeAllRanges();
 
-    // MacOS shortcut
+    // MacOS shortcut.
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       metaKey: true,
     });
