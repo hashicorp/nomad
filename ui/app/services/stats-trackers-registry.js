@@ -21,6 +21,12 @@ const exists = (tracker, prop) =>
   !tracker.get(prop).isDestroyed &&
   !tracker.get(prop).isDestroying;
 
+const createTracker = ({ Constructor, resource, resourceProp, token }) =>
+  Constructor.create({
+    fetch: (url) => token.authorizedRequest(url),
+    [resourceProp]: resource,
+  });
+
 export default class StatsTrackersRegistryService extends Service {
   @service token;
 
@@ -51,16 +57,27 @@ export default class StatsTrackersRegistryService extends Service {
 
     const cachedTracker = registry.get(key);
     if (cachedTracker) {
-      // It's possible for the resource on a cachedTracker to have been
-      // deleted. Rebind it if that's the case.
-      if (!exists(cachedTracker, resourceProp))
-        cachedTracker.set(resourceProp, resource);
+      // Avoid mutating a cached tracker during render-time computations.
+      // If the bound resource is gone or destroyed, replace the tracker.
+      if (!exists(cachedTracker, resourceProp)) {
+        const tracker = createTracker({
+          Constructor,
+          resource,
+          resourceProp,
+          token: this.token,
+        });
+        registry.set(key, tracker);
+        return tracker;
+      }
+
       return cachedTracker;
     }
 
-    const tracker = Constructor.create({
-      fetch: (url) => this.token.authorizedRequest(url),
-      [resourceProp]: resource,
+    const tracker = createTracker({
+      Constructor,
+      resource,
+      resourceProp,
+      token: this.token,
     });
 
     registry.set(key, tracker);

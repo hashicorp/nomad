@@ -5,27 +5,22 @@
 
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
+import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
 module('Unit | Component | gauge-chart', function (hooks) {
   setupTest(hooks);
-
-  hooks.beforeEach(function () {
-    this.subject = this.owner.factoryFor('component:gauge-chart');
-  });
+  setupGlimmerComponentFactory(hooks, 'gauge-chart');
 
   test('percent is a function of value and total OR complement', function (assert) {
-    const chart = this.subject.create();
-    chart.setProperties({
+    const chart = this.createComponent({
       value: 5,
       total: 10,
     });
 
     assert.deepEqual(chart.percent, 0.5);
 
-    chart.setProperties({
-      total: null,
-      complement: 15,
-    });
+    chart.args.total = null;
+    chart.args.complement = 15;
 
     assert.deepEqual(chart.percent, 0.25);
   });

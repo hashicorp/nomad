@@ -35,10 +35,10 @@ export default class ScaleEventsChart extends Component {
   }
 
   get annotations() {
-    return this.args.events.rejectBy('hasCount').map((ev) => ({
+    return this.args.events.rejectBy('hasCount').map((ev, index) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
-      event: cloneScaleEvent(ev),
+      event: cloneScaleEvent(ev, index),
     }));
   }
 
@@ -118,9 +118,11 @@ function cloneValue(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
-function cloneScaleEvent(event) {
+function cloneScaleEvent(event, index) {
+  const fallbackUid = `${+event?.time || 0}:${event?.message || ''}:${index}`;
+
   return {
-    uid: event?.uid,
+    uid: event?.uid ?? fallbackUid,
     error: event?.error,
     time: event?.time,
     message: event?.message,

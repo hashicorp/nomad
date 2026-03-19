@@ -14,15 +14,12 @@ import {
   HdsIcon,
 } from '@hashicorp/design-system-components/components';
 import can from 'ember-can/helpers/can';
-import { perform } from 'ember-concurrency/helpers/perform';
 import { task, timeout } from 'ember-concurrency';
-import { and, not } from 'ember-truth-helpers';
 import formatBytes from 'nomad-ui/helpers/format-bytes';
 import formatHertz from 'nomad-ui/helpers/format-hertz';
 import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 import TaskContextSidebar from 'nomad-ui/components/task-context-sidebar';
 import ENV from 'nomad-ui/config/environment';
-import { hash } from '@ember/helper';
 
 export default class TaskSubRowComponent extends Component {
   @service store;
@@ -72,6 +69,14 @@ export default class TaskSubRowComponent extends Component {
     return memory?.[memory.length - 1];
   }
 
+  get isCpuLoading() {
+    return !this.cpu && this.fetchStats.isRunning;
+  }
+
+  get isMemoryLoading() {
+    return !this.memory && this.fetchStats.isRunning;
+  }
+
   fetchStats = task({ drop: true }, async () => {
     do {
       if (this.stats) {
@@ -116,6 +121,12 @@ export default class TaskSubRowComponent extends Component {
     this.args.onSetActiveTask?.(null);
   };
 
+  get sidebarFns() {
+    return {
+      closeSidebar: this.closeSidebar,
+    };
+  }
+
   runAction = task(async (action, allocID) => {
     try {
       await this.nomadActions.runAction({ action, allocID });
@@ -156,7 +167,7 @@ export default class TaskSubRowComponent extends Component {
       </td>
       <td data-test-cpu class="is-1 has-text-centered">
         {{#if this.task.isRunning}}
-          {{#if (and (not this.cpu) this.fetchStats.isRunning)}}
+          {{#if this.isCpuLoading}}
             ...
           {{else if this.statsError}}
             <span
@@ -187,7 +198,7 @@ export default class TaskSubRowComponent extends Component {
       </td>
       <td data-test-mem class="is-1 has-text-centered">
         {{#if this.task.isRunning}}
-          {{#if (and (not this.memory) this.fetchStats.isRunning)}}
+          {{#if this.isMemoryLoading}}
             ...
           {{else if this.statsError}}
             <span
@@ -229,9 +240,12 @@ export default class TaskSubRowComponent extends Component {
                 />
                 {{#each this.task.task.actions as |actionC|}}
                   <dd.Interactive
+                    data-test-task-row-action
                     {{on
                       "click"
-                      (perform this.runAction actionC this.task.allocation.id)
+                      (fn
+                        this.runAction.perform actionC this.task.allocation.id
+                      )
                     }}
                     @text={{actionC.name}}
                   />
@@ -246,10 +260,7 @@ export default class TaskSubRowComponent extends Component {
     {{yield}}
 
     {{#if this.shouldShowLogs}}
-      <TaskContextSidebar
-        @task={{this.task}}
-        @fns={{hash closeSidebar=this.closeSidebar}}
-      />
+      <TaskContextSidebar @task={{this.task}} @fns={{this.sidebarFns}} />
     {{/if}}
   </template>
 }

@@ -142,46 +142,59 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     assert.ok(ref.limit < Infinity, `A limit (${ref.limit}) is set`);
   });
 
-  test('Registry re-attaches deleted resources to cached trackers', function (assert) {
+  test('Registry replaces cached trackers when resources are deleted', function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
     const node1 = mockNode.create({ id });
-    let tracker = registry.getTracker(node1);
+    const tracker1 = registry.getTracker(node1);
 
-    assert.ok(tracker.get('node'), 'The tracker has a node');
+    assert.ok(tracker1.get('node'), 'The tracker has a node');
 
-    tracker.set('node', null);
-    assert.notOk(tracker.get('node'), 'The tracker does not have a node');
+    tracker1.set('node', null);
+    assert.notOk(tracker1.get('node'), 'The tracker does not have a node');
 
-    tracker = registry.getTracker(node1);
+    const tracker2 = registry.getTracker(node1);
+    assert.notEqual(
+      tracker1,
+      tracker2,
+      'A new tracker is returned when the cached tracker has no resource',
+    );
     assert.deepEqual(
-      tracker.get('node'),
+      tracker2.get('node'),
       node1,
-      'The node was re-attached to the tracker after calling getTracker again',
+      'The replacement tracker is attached to the resource',
     );
   });
 
-  test('Registry re-attaches destroyed resources to cached trackers', async function (assert) {
+  test('Registry replaces cached trackers when resources are destroyed', async function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
     const node1 = mockNode.create({ id });
-    let tracker = registry.getTracker(node1);
+    const tracker1 = registry.getTracker(node1);
 
-    assert.ok(tracker.get('node'), 'The tracker has a node');
+    assert.ok(tracker1.get('node'), 'The tracker has a node');
 
     node1.destroy();
     await settled();
 
-    assert.ok(tracker.get('node').isDestroyed, 'The tracker node is destroyed');
+    assert.ok(
+      tracker1.get('node').isDestroyed,
+      'The tracker node is destroyed',
+    );
 
     const node2 = mockNode.create({ id });
-    tracker = registry.getTracker(node2);
+    const tracker2 = registry.getTracker(node2);
+    assert.notEqual(
+      tracker1,
+      tracker2,
+      'A new tracker is returned when the cached tracker resource is destroyed',
+    );
     assert.deepEqual(
-      tracker.get('node'),
+      tracker2.get('node'),
       node2,
-      'Since node1 was destroyed but it matches the tracker of node2, node2 is attached to the tracker',
+      'The replacement tracker is attached to the new resource',
     );
   });
 

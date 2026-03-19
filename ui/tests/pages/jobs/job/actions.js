@@ -23,7 +23,7 @@ export default create({
     click: clickable('button'),
     actions: collection('.hds-dropdown__list li', {
       text: text(),
-      click: clickable('button'),
+      click: clickable('[data-test-task-row-action]'),
     }),
   }),
 

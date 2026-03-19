@@ -4,7 +4,16 @@
  */
 
 import { on } from '@ember/modifier';
+import { fn } from '@ember/helper';
 import autofocus from 'nomad-ui/modifiers/autofocus';
+
+const updateKVKey = (kv, event) => {
+  if (kv) kv.key = event.target.value;
+};
+
+const updateKVValue = (kv, event) => {
+  if (kv) kv.value = event.target.value;
+};
 
 export const MetadataEditor = <template>
   <form class="metadata-editor">
@@ -19,6 +28,8 @@ export const MetadataEditor = <template>
           type="text"
           value={{@kv.key}}
           class="input"
+          {{on "input" (fn updateKVKey @kv)}}
+          {{on "input" @onEdit}}
           {{on "keyup" @onEdit}}
         />
       {{/if}}
@@ -32,6 +43,8 @@ export const MetadataEditor = <template>
           value={{@kv.value}}
           class="input"
           {{autofocus}}
+          {{on "input" (fn updateKVValue @kv)}}
+          {{on "input" @onEdit}}
           {{on "keyup" @onEdit}}
         />
       {{else}}
@@ -40,6 +53,8 @@ export const MetadataEditor = <template>
           type="text"
           value={{@kv.value}}
           class="input"
+          {{on "input" (fn updateKVValue @kv)}}
+          {{on "input" @onEdit}}
           {{on "keyup" @onEdit}}
         />
       {{/if}}
