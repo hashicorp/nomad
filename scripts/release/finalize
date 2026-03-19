@@ -65,6 +65,7 @@ echo 'Updating magic strings in magic files'
     echo "$NEW_VERSION is a prerelease; reverting changelog"
     # we'll re-update changelog for GA.
     git restore --source="origin/$MERGE_INTO" -- CHANGELOG.md
+    git add CHANGELOG.md
 
   else
     echo "$NEW_VERSION is not a prerelease; bumping versions"
