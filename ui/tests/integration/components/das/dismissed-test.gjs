@@ -5,9 +5,9 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
+import { click, find, render } from '@ember/test-helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import DasDismissed from 'nomad-ui/components/das/dismissed';
 import sinon from 'sinon';
 
 module('Integration | Component | das/dismissed', function (hooks) {
@@ -19,11 +19,10 @@ module('Integration | Component | das/dismissed', function (hooks) {
 
   test('it renders the dismissal interstitial with a button to proceed and an option to never show again and proceeds manually', async function (assert) {
     const proceedSpy = sinon.spy();
-    this.set('proceedSpy', proceedSpy);
 
-    await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
+    await render(<template><DasDismissed @proceed={{proceedSpy}} /></template>);
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(find('.das-dismissed'), assert);
 
     await click('input[type=checkbox]');
     await click('[data-test-understood]');
@@ -36,16 +35,18 @@ module('Integration | Component | das/dismissed', function (hooks) {
   });
 
   test('it renders the dismissal interstitial with no button when the option to never show again has been chosen and proceeds automatically', async function (assert) {
-    window.localStorage.setItem('nomadRecommendationDismssalUnderstood', true);
+    window.localStorage.setItem(
+      'nomadRecommendationDismssalUnderstood',
+      'true',
+    );
 
     const proceedSpy = sinon.spy();
-    this.set('proceedSpy', proceedSpy);
 
-    await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
+    await render(<template><DasDismissed @proceed={{proceedSpy}} /></template>);
 
     assert.dom('[data-test-understood]').doesNotExist();
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(find('.das-dismissed'), assert);
 
     assert.ok(proceedSpy.calledWith({ manuallyDismissed: false }));
   });
