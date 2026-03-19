@@ -6,14 +6,16 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import pathTree from 'nomad-ui/utils/path-tree';
 import Service from '@ember/service';
+import VariablePaths from 'nomad-ui/components/variable-paths';
+
 let tree;
 
 module('Integration | Component | variable-paths', function (hooks) {
   setupRenderingTest(hooks);
+
   hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
 
@@ -36,28 +38,39 @@ module('Integration | Component | variable-paths', function (hooks) {
       varInstance.setAndTrimPath();
       return varInstance;
     });
+
     tree = new pathTree(PATHSTRINGS);
   });
 
   test('it renders without data', async function (assert) {
     this.set('emptyRoot', { children: {}, files: [] });
-    await render(hbs`<VariablePaths @branch={{this.emptyRoot}} />`);
-    assert.dom('tbody tr').exists({ count: 0 });
 
+    await render(
+      <template><VariablePaths @branch={{this.emptyRoot}} /></template>,
+    );
+
+    assert.dom('tbody tr').exists({ count: 0 });
     await componentA11yAudit(this.element, assert);
   });
 
   test('it renders with data', async function (assert) {
     this.set('tree', tree);
-    await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
-    assert.dom('tbody tr').exists({ count: 2 }, 'There are two rows');
 
+    await render(
+      <template><VariablePaths @branch={{this.tree.paths.root}} /></template>,
+    );
+
+    assert.dom('tbody tr').exists({ count: 2 }, 'There are two rows');
     await componentA11yAudit(this.element, assert);
   });
 
   test('it allows for traversal: Folders', async function (assert) {
     this.set('tree', tree);
-    await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
+
+    await render(
+      <template><VariablePaths @branch={{this.tree.paths.root}} /></template>,
+    );
+
     assert
       .dom('tbody tr:first-child td:first-child a')
       .hasAttribute(
@@ -77,7 +90,6 @@ module('Integration | Component | variable-paths', function (hooks) {
   });
 
   test('it allows for traversal: Files', async function (assert) {
-    // Arrange Test Set-up
     const mockToken = Service.extend({
       selfTokenPolicies: [
         [
@@ -104,11 +116,10 @@ module('Integration | Component | variable-paths', function (hooks) {
     });
 
     this.owner.register('service:token', mockToken);
-
-    // End Test Set-up
-
     this.set('tree', tree.findPath('foo/bar'));
-    await render(hbs`<VariablePaths @branch={{this.tree}} />`);
+
+    await render(<template><VariablePaths @branch={{this.tree}} /></template>);
+
     assert
       .dom('tbody tr:first-child td:first-child a')
       .hasAttribute(
@@ -137,6 +148,7 @@ module('Integration | Component | variable-paths', function (hooks) {
         'file-text',
         'Correctly renders the file icon',
       );
+
     await componentA11yAudit(this.element, assert);
   });
 });

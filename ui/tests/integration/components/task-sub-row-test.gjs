@@ -6,8 +6,8 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import TaskSubRow from 'nomad-ui/components/task-sub-row';
 
 const mockTask = {
   name: 'another-server',
@@ -55,25 +55,36 @@ const mockTask = {
 
 module('Integration | Component | task-sub-row', function (hooks) {
   setupRenderingTest(hooks);
+
   test('it renders', async function (assert) {
     this.set('task', mockTask);
-    await render(hbs`<TaskSubRow @taskState={{this.task}} />`);
+
+    await render(<template><TaskSubRow @taskState={{this.task}} /></template>);
+
     assert.ok(
       this.element.textContent.includes(`${mockTask.name}`),
       'Task name is rendered',
     );
     assert.dom('.task-sub-row').doesNotHaveClass('is-active');
 
-    await render(hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} />`);
+    await render(
+      <template>
+        <TaskSubRow @taskState={{this.task}} @active={{true}} />
+      </template>,
+    );
     assert.dom('.task-sub-row').hasClass('is-active');
 
     await render(
-      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{5}} />`,
+      <template>
+        <TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{5}} />
+      </template>,
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '5');
 
     await render(
-      hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />`,
+      <template>
+        <TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />
+      </template>,
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '9');
 
