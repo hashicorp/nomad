@@ -6,9 +6,9 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import PageLayout from 'nomad-ui/components/page-layout';
 
 module('Integration | Component | page layout', function (hooks) {
   setupRenderingTest(hooks);
@@ -22,7 +22,7 @@ module('Integration | Component | page layout', function (hooks) {
   });
 
   test('the global-header hamburger menu opens the gutter menu', async function (assert) {
-    await render(hbs`<PageLayout />`);
+    await render(<template><PageLayout /></template>);
 
     assert.notOk(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
@@ -38,7 +38,7 @@ module('Integration | Component | page layout', function (hooks) {
   });
 
   test('the gutter-menu hamburger menu closes the gutter menu', async function (assert) {
-    await render(hbs`<PageLayout />`);
+    await render(<template><PageLayout /></template>);
 
     await click('[data-test-header-gutter-toggle]');
 
@@ -55,7 +55,7 @@ module('Integration | Component | page layout', function (hooks) {
   });
 
   test('the gutter-menu backdrop closes the gutter menu', async function (assert) {
-    await render(hbs`<PageLayout />`);
+    await render(<template><PageLayout /></template>);
 
     await click('[data-test-header-gutter-toggle]');
 
