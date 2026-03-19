@@ -5,10 +5,9 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
-import { fillIn, find, triggerEvent } from '@ember/test-helpers';
+import { fillIn, find, render, triggerEvent } from '@ember/test-helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import JobSearchBox from 'nomad-ui/components/job-search-box';
 
 const DEBOUNCE_MS = 500;
 
@@ -17,19 +16,21 @@ module('Integration | Component | job-search-box', function (hooks) {
 
   test('debouncer debounces appropriately', async function (assert) {
     let message = '';
-
-    this.set('externalAction', (value) => {
+    const externalAction = (value) => {
       message = value;
-    });
+    };
 
     await render(
-      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @s={{S}} /></Hds::SegmentedGroup>`,
+      <template>
+        <JobSearchBox @onSearchTextChange={{externalAction}} />
+      </template>,
     );
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(find('[data-test-jobs-search]'), assert);
 
     const element = find('input');
     await fillIn('input', 'test1');
     assert.deepEqual(message, 'test1', 'Initial typing');
+
     element.value += ' wont be ';
     triggerEvent('input', 'input');
     assert.deepEqual(
@@ -37,6 +38,7 @@ module('Integration | Component | job-search-box', function (hooks) {
       'test1',
       'Typing has happened within debounce window',
     );
+
     element.value += 'seen ';
     triggerEvent('input', 'input');
     await delay(DEBOUNCE_MS - 100);
@@ -45,6 +47,7 @@ module('Integration | Component | job-search-box', function (hooks) {
       'test1',
       'Typing has happened within debounce window, albeit a little slower',
     );
+
     element.value += 'until now.';
     triggerEvent('input', 'input');
     await delay(DEBOUNCE_MS + 100);
