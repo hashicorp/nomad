@@ -4,11 +4,16 @@
  */
 
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { next } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import { get } from '@ember/object';
+import { fn, concat } from '@ember/helper';
+import { on } from '@ember/modifier';
+import didInsert from '@ember/render-modifiers/modifiers/did-insert';
+import { HdsIcon } from '@hashicorp/design-system-components/components';
+import { eq } from 'ember-truth-helpers';
+import windowResize from 'nomad-ui/modifiers/window-resize';
 
 import { scaleLinear } from 'd3-scale';
 import d3Format from 'd3-format';
@@ -24,6 +29,7 @@ const statsKeyToLabel = {
 };
 
 const formatPercent = d3Format.format('+.0%');
+
 export default class RecommendationChartComponent extends Component {
   @tracked width;
   @tracked height;
@@ -126,7 +132,7 @@ export default class RecommendationChartComponent extends Component {
         label,
         x: tickX,
         y: this.tickTextHeight - 5,
-        class: '', // overridden in statsShapes to align/hide based on proximity
+        class: '',
       },
       line: {
         x1: tickX,
@@ -239,9 +245,7 @@ export default class RecommendationChartComponent extends Component {
       points: `
         0,${this.center.y1}
         0,${this.center.y1 - this.deltaTriangleHeight / 2}
-        ${(directionXMultiplier * this.deltaTriangleHeight) / 2},${
-          this.center.y1
-        }
+        ${(directionXMultiplier * this.deltaTriangleHeight) / 2},${this.center.y1}
         0,${this.center.y1 + this.deltaTriangleHeight / 2}
       `,
     };
@@ -255,9 +259,7 @@ export default class RecommendationChartComponent extends Component {
         },
         delta: {
           style: htmlSafe(
-            `transform: translateX(${
-              this.shown ? this.higherValueWidth : this.lowerValueWidth
-            }px)`,
+            `transform: translateX(${this.shown ? this.higherValueWidth : this.lowerValueWidth}px)`,
           ),
         },
       };
@@ -268,9 +270,7 @@ export default class RecommendationChartComponent extends Component {
         },
         delta: {
           style: htmlSafe(
-            `transform: translateX(${
-              this.shown ? this.lowerValueWidth : this.higherValueWidth
-            }px)`,
+            `transform: translateX(${this.shown ? this.lowerValueWidth : this.higherValueWidth}px)`,
           ),
         },
       };
@@ -350,37 +350,210 @@ export default class RecommendationChartComponent extends Component {
     }
   }
 
-  @action
-  isShown() {
+  isShown = () => {
     next(() => {
       this.shown = true;
     });
-  }
+  };
 
-  @action
-  onResize() {
+  onResize = () => {
     this.width = this.svgElement.clientWidth;
     this.height = this.svgElement.clientHeight;
-  }
+  };
 
-  @action
-  storeSvgElement(element) {
+  storeSvgElement = (element) => {
     this.svgElement = element;
-  }
+  };
 
-  @action
-  setLegendPosition(mouseMoveEvent) {
+  setLegendPosition = (mouseMoveEvent) => {
     this.showLegend = true;
     this.mouseX = mouseMoveEvent.layerX;
-  }
+  };
 
-  @action
-  setActiveLegendRow(row) {
+  hideLegend = () => {
+    this.showLegend = false;
+  };
+
+  setActiveLegendRow = (row) => {
     this.activeLegendRow = row;
-  }
+  };
 
-  @action
-  unsetActiveLegendRow() {
+  unsetActiveLegendRow = () => {
     this.activeLegendRow = undefined;
-  }
+  };
+
+  <template>
+    <div
+      ...attributes
+      class={{concat "chart recommendation-chart " this.directionClass}}
+      {{didInsert this.onResize}}
+      {{windowResize this.onResize}}
+      {{on "mousemove" this.setLegendPosition}}
+      {{on "mouseleave" this.hideLegend}}
+    >
+
+      <svg
+        class="chart"
+        height={{this.chartHeight}}
+        {{didInsert this.storeSvgElement}}
+      >
+        <svg
+          class="icon delta"
+          x={{this.icon.x}}
+          y={{this.icon.y}}
+          width={{this.icon.width}}
+          height={{this.icon.height}}
+        >
+          <HdsIcon @name={{this.icon.name}} @isInline={{true}} />
+        </svg>
+
+        <text
+          class="resource"
+          x={{this.resourceLabel.x}}
+          y={{this.resourceLabel.y}}
+        >
+          {{this.resourceLabel.text}}
+        </text>
+
+        {{#if this.center}}
+          <line
+            class="center"
+            x1={{this.center.x1}}
+            y1={{this.center.y1}}
+            x2={{this.center.x2}}
+            y2={{this.center.y2}}
+          ></line>
+        {{/if}}
+
+        {{#each this.statsShapes as |shapes|}}
+          <text
+            class="stats-label {{shapes.text.class}}"
+            text-anchor="end"
+            x={{shapes.text.x}}
+            y={{shapes.text.y}}
+            data-test-label={{shapes.class}}
+            {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+            {{on "mouseleave" this.unsetActiveLegendRow}}
+          >
+            {{shapes.text.label}}
+          </text>
+
+          <rect
+            class="stat {{shapes.class}}"
+            x={{shapes.rect.x}}
+            width={{shapes.rect.width}}
+            y={{shapes.rect.y}}
+            height={{shapes.rect.height}}
+            {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+            {{on "mouseleave" this.unsetActiveLegendRow}}
+          ></rect>
+
+          <line
+            class="stat {{shapes.class}}"
+            x1={{shapes.line.x1}}
+            y1={{shapes.line.y1}}
+            x2={{shapes.line.x2}}
+            y2={{shapes.line.y2}}
+            {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+            {{on "mouseleave" this.unsetActiveLegendRow}}
+          ></line>
+        {{/each}}
+
+        {{#unless @disabled}}
+          {{#if this.deltaRect.x}}
+            <rect
+              {{didInsert this.isShown}}
+              class="delta"
+              x={{this.deltaRect.x}}
+              y={{this.deltaRect.y}}
+              width={{this.deltaRect.width}}
+              height={{this.deltaRect.height}}
+            ></rect>
+
+            <polygon
+              class="delta"
+              style={{this.deltaTriangle.style}}
+              points={{this.deltaTriangle.points}}
+            ></polygon>
+
+            <line
+              class="changes delta"
+              style={{this.deltaLines.delta.style}}
+              x1={{0}}
+              y1={{this.edgeTickY1}}
+              x2={{0}}
+              y2={{this.edgeTickY2}}
+              {{on "mouseenter" (fn this.setActiveLegendRow "New")}}
+              {{on "mouseleave" this.unsetActiveLegendRow}}
+            ></line>
+
+            <line
+              class="changes"
+              x1={{this.deltaLines.original.x}}
+              y1={{this.edgeTickY1}}
+              x2={{this.deltaLines.original.x}}
+              y2={{this.edgeTickY2}}
+              {{on "mouseenter" (fn this.setActiveLegendRow "Current")}}
+              {{on "mouseleave" this.unsetActiveLegendRow}}
+            ></line>
+
+            <text
+              class="changes"
+              text-anchor={{this.deltaText.original.anchor}}
+              x={{this.deltaText.original.x}}
+              y={{this.deltaText.original.y}}
+              {{on "mouseenter" (fn this.setActiveLegendRow "Current")}}
+              {{on "mouseleave" this.unsetActiveLegendRow}}
+            >
+              Current
+            </text>
+
+            <text
+              class="changes new"
+              text-anchor={{this.deltaText.delta.anchor}}
+              x={{this.deltaText.delta.x}}
+              y={{this.deltaText.delta.y}}
+              {{on "mouseenter" (fn this.setActiveLegendRow "New")}}
+              {{on "mouseleave" this.unsetActiveLegendRow}}
+            >
+              New
+            </text>
+
+            <text
+              class="changes percent"
+              x={{this.deltaText.percent.x}}
+              y={{this.deltaText.percent.y}}
+            >
+              {{this.deltaText.percent.text}}
+            </text>
+          {{/if}}
+        {{/unless}}
+
+        <line
+          class="zero"
+          x1={{this.gutterWidthLeft}}
+          y1={{this.edgeTickY1}}
+          x2={{this.gutterWidthLeft}}
+          y2={{this.edgeTickY2}}
+        ></line>
+      </svg>
+
+      <div
+        class="chart-tooltip {{if this.showLegend 'active' 'inactive'}}"
+        style={{this.tooltipStyle}}
+      >
+        <ol>
+          {{#each this.sortedStats as |stat|}}
+            <li class={{if (eq this.activeLegendRow stat.label) "active"}}>
+              <span class="label">
+                {{stat.label}}
+              </span>
+              <span class="value">{{stat.value}}</span>
+            </li>
+          {{/each}}
+        </ol>
+      </div>
+
+    </div>
+  </template>
 }
