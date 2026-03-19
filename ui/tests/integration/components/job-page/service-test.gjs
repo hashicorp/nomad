@@ -6,7 +6,6 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, render, settled } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import {
   startJob,
@@ -20,6 +19,8 @@ import {
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import { TrackedObject } from 'tracked-built-ins';
+import JobPageService from 'nomad-ui/components/job-page/service';
 
 module('Integration | Component | job-page/service', function (hooks) {
   setupRenderingTest(hooks);
@@ -33,7 +34,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server.create('namespace');
     this.server.create('node-pool');
     this.server.create('node');
-    let managementToken = this.server.create('token');
+    const managementToken = this.server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
@@ -41,18 +42,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server.shutdown();
     window.localStorage.clear();
   });
-
-  const commonTemplate = hbs`
-    <JobPage::Service
-      @job={{this.job}}
-      @sortProperty={{this.sortProperty}}
-      @sortDescending={{this.sortDescending}}
-      @currentPage={{this.currentPage}}
-      @gotoJob={{this.gotoJob}}
-      @statusMode={{this.statusMode}}
-      @setStatusMode={{this.setStatusMode}}
-      />
-  `;
 
   const commonProperties = (job) => ({
     job,
@@ -63,6 +52,22 @@ module('Integration | Component | job-page/service', function (hooks) {
     statusMode: 'current',
     setStatusMode() {},
   });
+
+  const renderPage = async (state) => {
+    await render(
+      <template>
+        <JobPageService
+          @job={{state.job}}
+          @sortProperty={{state.sortProperty}}
+          @sortDescending={{state.sortDescending}}
+          @currentPage={{state.currentPage}}
+          @gotoJob={{state.gotoJob}}
+          @statusMode={{state.statusMode}}
+          @setStatusMode={{state.setStatusMode}}
+        />
+      </template>,
+    );
+  };
 
   const makeMirageJob = (server, props = {}) =>
     server.create(
@@ -85,8 +90,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await stopJob();
     expectDeleteRequest(assert, this.server, job);
@@ -101,8 +106,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     assert.ok(
       find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
@@ -123,8 +128,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await startJob();
     await expectStartRequest(assert, this.server, job);
@@ -143,8 +148,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     assert.ok(
       find('[data-test-start] [data-test-idle-button]').hasAttribute(
@@ -167,8 +172,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     try {
       await purgeJob();
@@ -186,8 +191,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     const allocation = this.server.db.allocations
       .sortBy('modifyIndex')
@@ -213,8 +218,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     assert.deepEqual(Job.allocations.length, 5, 'Capped at 5 allocations');
     assert.ok(
@@ -231,8 +236,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     assert.ok(
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
@@ -266,8 +271,8 @@ module('Integration | Component | job-page/service', function (hooks) {
         Canary: true,
       },
     });
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await click('[data-test-promote-canary]');
 
@@ -312,8 +317,8 @@ module('Integration | Component | job-page/service', function (hooks) {
       },
     });
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await click('[data-test-promote-canary]');
 
@@ -323,7 +328,7 @@ module('Integration | Component | job-page/service', function (hooks) {
       this.element,
       assert,
       'scrollable-region-focusable',
-    ); //keyframe animation fades from opacity 0
+    );
   });
 
   test('Active deployment can be failed', async function (assert) {
@@ -336,8 +341,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
     const deployment = await job.get('latestDeployment');
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await click('.active-deployment [data-test-fail]');
 
@@ -362,8 +367,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
+    const state = new TrackedObject(commonProperties(job));
+    await renderPage(state);
 
     await click('.active-deployment [data-test-fail]');
 
@@ -373,6 +378,6 @@ module('Integration | Component | job-page/service', function (hooks) {
       this.element,
       assert,
       'scrollable-region-focusable',
-    ); //keyframe animation fades from opacity 0
+    );
   });
 });
