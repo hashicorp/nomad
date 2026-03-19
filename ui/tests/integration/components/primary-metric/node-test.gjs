@@ -7,11 +7,11 @@ import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { find, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { hbs } from 'ember-cli-htmlbars';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { formatScheduledHertz } from 'nomad-ui/utils/units';
+import PrimaryMetricNode from 'nomad-ui/components/primary-metric/node';
 
 module('Integration | Component | PrimaryMetric::Node', function (hooks) {
   setupRenderingTest(hooks);
@@ -30,17 +30,19 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
     this.server.shutdown();
   });
 
-  const template = hbs`
-    <PrimaryMetric::Node
-      @node={{this.resource}}
-      @metric={{this.metric}} />
-  `;
-
   const preload = async (store) => {
     await store.findAll('node');
   };
 
   const findResource = (store) => store.peekAll('node').get('firstObject');
+
+  const renderMetric = async (ctx) => {
+    await render(
+      <template>
+        <PrimaryMetricNode @node={{ctx.resource}} @metric={{ctx.metric}} />
+      </template>,
+    );
+  };
 
   test('Must pass an accessibility audit', async function (assert) {
     await preload(this.store);
@@ -48,7 +50,7 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric: 'cpu' });
 
-    await render(template);
+    await renderMetric(this);
     await componentA11yAudit(this.element, assert);
   });
 
@@ -59,7 +61,7 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
     const resource = this.store.peekRecord('node', 'withAnnotation');
     this.setProperties({ resource, metric: 'cpu' });
 
-    await render(template);
+    await renderMetric(this);
 
     assert.ok(find('[data-test-annotation]'));
     assert.deepEqual(
@@ -69,7 +71,7 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
   });
 
   primaryMetric({
-    template,
+    renderMetric,
     preload,
     findResource,
   });

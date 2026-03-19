@@ -7,10 +7,10 @@ import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { findAll, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { hbs } from 'ember-cli-htmlbars';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
+import PrimaryMetricAllocation from 'nomad-ui/components/primary-metric/allocation';
 
 const mockTasks = [
   { task: 'One', reservedCPU: 200, reservedMemory: 500, cpu: [], memory: [] },
@@ -41,12 +41,6 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     this.server.shutdown();
   });
 
-  const template = hbs`
-    <PrimaryMetric::Allocation
-      @allocation={{this.resource}}
-      @metric={{this.metric}} />
-  `;
-
   const preload = async (store) => {
     await store.findAll('allocation');
   };
@@ -54,13 +48,24 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
   const findResource = (store) =>
     store.peekAll('allocation').get('firstObject');
 
+  const renderMetric = async (ctx) => {
+    await render(
+      <template>
+        <PrimaryMetricAllocation
+          @allocation={{ctx.resource}}
+          @metric={{ctx.metric}}
+        />
+      </template>,
+    );
+  };
+
   test('Must pass an accessibility audit', async function (assert) {
     await preload(this.store);
 
     const resource = findResource(this.store);
     this.setProperties({ resource, metric: 'cpu' });
 
-    await render(template);
+    await renderMetric(this);
     await componentA11yAudit(this.element, assert);
   });
 
@@ -70,7 +75,7 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric: 'cpu' });
 
-    await render(template);
+    await renderMetric(this);
     assert.deepEqual(
       findAll('[data-test-chart-area]').length,
       mockTasks.length,
@@ -78,7 +83,7 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
   });
 
   primaryMetric({
-    template,
+    renderMetric,
     preload,
     findResource,
   });

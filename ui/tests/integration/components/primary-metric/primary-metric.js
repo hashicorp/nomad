@@ -5,7 +5,7 @@
 
 import EmberObject, { computed } from '@ember/object';
 import Service from '@ember/service';
-import { find, render, clearRender } from '@ember/test-helpers';
+import { find, clearRender } from '@ember/test-helpers';
 import { test } from 'qunit';
 import { task } from 'ember-concurrency';
 import sinon from 'sinon';
@@ -50,7 +50,7 @@ export function setupPrimaryMetricMocks(hooks, tasks = []) {
   });
 }
 
-export function primaryMetric({ template, findResource, preload }) {
+export function primaryMetric({ renderMetric, findResource, preload }) {
   test('Contains a line chart, a percentage bar, a percentage figure, and an absolute usage figure', async function (assert) {
     const metric = 'cpu';
 
@@ -59,7 +59,7 @@ export function primaryMetric({ template, findResource, preload }) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
 
-    await render(template);
+    await renderMetric(this);
 
     assert.ok(find('[data-test-line-chart]'), 'Line chart');
     assert.ok(find('[data-test-percentage-bar]'), 'Percentage bar');
@@ -75,7 +75,7 @@ export function primaryMetric({ template, findResource, preload }) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
 
-    await render(template);
+    await renderMetric(this);
 
     assert.ok(
       find('[data-test-current-value]').classList.contains('is-info'),
@@ -91,7 +91,7 @@ export function primaryMetric({ template, findResource, preload }) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
 
-    await render(template);
+    await renderMetric(this);
 
     assert.ok(
       find('[data-test-current-value]').classList.contains('is-danger'),
@@ -107,7 +107,7 @@ export function primaryMetric({ template, findResource, preload }) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
 
-    await render(template);
+    await renderMetric(this);
 
     const spy =
       this.getTrackerSpy.calledWith(resource) ||
@@ -127,7 +127,7 @@ export function primaryMetric({ template, findResource, preload }) {
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
 
-    await render(template);
+    await renderMetric(this);
 
     assert.ok(
       this.trackerPollSpy.calledOnce,
@@ -145,7 +145,7 @@ export function primaryMetric({ template, findResource, preload }) {
 
     const resource = findResource(this.store);
     this.setProperties({ resource, metric });
-    await render(template);
+    await renderMetric(this);
 
     assert.notOk(
       trackerSignalPauseSpy.called,
