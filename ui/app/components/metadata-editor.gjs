@@ -12,7 +12,14 @@ const updateKVKey = (kv, event) => {
 };
 
 const updateKVValue = (kv, event) => {
-  if (kv) kv.value = event.target.value;
+  if (!kv) return;
+
+  const value = event.target.value;
+  if (typeof kv.setValue === 'function') {
+    kv.setValue(value);
+  }
+
+  kv.value = value;
 };
 
 export const MetadataEditor = <template>

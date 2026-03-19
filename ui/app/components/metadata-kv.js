@@ -23,4 +23,8 @@ export default class MetadataKvComponent extends Component {
       this.editing = false;
     }
   }
+
+  @action setValue(value) {
+    this.value = value;
+  }
 }
