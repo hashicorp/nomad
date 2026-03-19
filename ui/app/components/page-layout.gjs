@@ -22,11 +22,11 @@ export default class PageLayoutComponent extends Component {
 
   <template>
     <div class="page-layout">
-      <GlobalHeader @class="page-header" @onHamburgerClick={{this.openGutter}}>
+      <GlobalHeader class="page-header" @onHamburgerClick={{this.openGutter}}>
         <AppBreadcrumbs />
       </GlobalHeader>
       <GutterMenu
-        @class="page-body"
+        class="page-body"
         @isOpen={{this.isGutterOpen}}
         @onHamburgerClick={{this.closeGutter}}
       >
