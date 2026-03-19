@@ -1,3 +1,20 @@
+## 2.0.0-beta.1 (March 19, 2026)
+
+FEATURES:
+
+* config: add nonproduction config option for server, license, and reporting config [[GH-27646](https://github.com/hashicorp/nomad/issues/27646)]
+
+IMPROVEMENTS:
+
+* build: Upgrade to Go 1.26 [[GH-27685](https://github.com/hashicorp/nomad/issues/27685)]
+* metrics: adds a metric for total agent http connections [[GH-26756](https://github.com/hashicorp/nomad/issues/26756)]
+* server: Added support for raft-WAL logstore [[GH-27493](https://github.com/hashicorp/nomad/issues/27493)]
+* variables: Add variable events to the event stream [[GH-27637](https://github.com/hashicorp/nomad/issues/27637)]
+
+BUG FIXES:
+
+* tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
 ## 1.11.3 (March 11, 2026)
 
 SECURITY:
