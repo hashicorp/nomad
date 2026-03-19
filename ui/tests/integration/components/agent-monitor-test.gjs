@@ -7,7 +7,6 @@ import { later, cancelTimers } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import Pretender from 'pretender';
 import sinon from 'sinon';
 import { logEncode } from '../../../mirage/data/logs';
@@ -17,6 +16,7 @@ import {
 } from '../../utils/ember-power-select-extensions';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { capitalize } from '@ember/string';
+import AgentMonitor from 'nomad-ui/components/agent-monitor';
 
 module('Integration | Component | agent-monitor', function (hooks) {
   setupRenderingTest(hooks);
@@ -48,43 +48,50 @@ module('Integration | Component | agent-monitor', function (hooks) {
 
   const INTERVAL = 200;
 
-  const commonTemplate = hbs`
-    <AgentMonitor
-      @level={{this.level}}
-      @isStreaming={{this.isStreaming}}
-      @client={{this.client}}
-      @server={{this.server}}
-      @onLevelChange={{this.onLevelChange}} />
-  `;
-
   test('basic appearance', async function (assert) {
-    this.setProperties({
-      level: 'info',
-      isStreaming: false,
-      client: { id: 'client1' },
-    });
+    this.level = 'info';
+    this.isStreaming = false;
+    this.client = { id: 'client1' };
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     assert.ok(find('[data-test-level-switcher-parent]'));
     assert.ok(find('[data-test-toggle]'));
     assert.ok(find('[data-test-log-box]'));
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'));
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(find('.boxed-section'), assert);
   });
 
   // TODO(ember5-upgrade): Re-enable streaming behaviors once long-lived
   // log polling is isolated from test settlement in this suite.
   test.skip('when provided with a client, AgentMonitor streams logs for the client', async function (assert) {
-    this.setProperties({
-      level: 'info',
-      client: { id: 'client1', region: 'us-west-1' },
-    });
+    this.level = 'info';
+    this.client = { id: 'client1', region: 'us-west-1' };
 
     later(cancelTimers, INTERVAL);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     const logRequest = this.pretender.handledRequests[1];
     assert.ok(logRequest.url.startsWith('/v1/agent/monitor'));
@@ -95,14 +102,22 @@ module('Integration | Component | agent-monitor', function (hooks) {
   });
 
   test.skip('when provided with a server, AgentMonitor streams logs for the server', async function (assert) {
-    this.setProperties({
-      level: 'warn',
-      server: { id: 'server1', region: 'us-west-1' },
-    });
+    this.level = 'warn';
+    this.server = { id: 'server1', region: 'us-west-1' };
 
     later(cancelTimers, INTERVAL);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     const logRequest = this.pretender.handledRequests[1];
     assert.ok(logRequest.url.startsWith('/v1/agent/monitor'));
@@ -116,15 +131,23 @@ module('Integration | Component | agent-monitor', function (hooks) {
     const onLevelChange = sinon.spy();
     const newLevel = 'trace';
 
-    this.setProperties({
-      level: 'info',
-      client: { id: 'client1' },
-      onLevelChange,
-    });
+    this.level = 'info';
+    this.client = { id: 'client1' };
+    this.onLevelChange = onLevelChange;
 
     later(cancelTimers, INTERVAL);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     later(cancelTimers, INTERVAL);
@@ -142,15 +165,23 @@ module('Integration | Component | agent-monitor', function (hooks) {
     const newLevel = 'trace';
     const onLevelChange = sinon.spy();
 
-    this.setProperties({
-      level: 'info',
-      client: { id: 'client1' },
-      onLevelChange,
-    });
+    this.level = 'info';
+    this.client = { id: 'client1' };
+    this.onLevelChange = onLevelChange;
 
     later(cancelTimers, INTERVAL);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     assert.deepEqual(
       find('[data-test-log-cli]').textContent,
@@ -188,15 +219,23 @@ module('Integration | Component | agent-monitor', function (hooks) {
           ),
     ]);
 
-    this.setProperties({
-      level: 'info',
-      client: { id: 'client1' },
-      onLevelChange,
-    });
+    this.level = 'info';
+    this.client = { id: 'client1' };
+    this.onLevelChange = onLevelChange;
 
     later(cancelTimers, INTERVAL);
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <AgentMonitor
+          @level={{this.level}}
+          @isStreaming={{this.isStreaming}}
+          @client={{this.client}}
+          @server={{this.server}}
+          @onLevelChange={{this.onLevelChange}}
+        />
+      </template>,
+    );
 
     assert.deepEqual(find('[data-test-log-cli]').textContent, '');
 
