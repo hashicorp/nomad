@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { concat, hash } from '@ember/helper';
+import { concat } from '@ember/helper';
 import {
   HdsIcon,
   HdsTooltipButton,
