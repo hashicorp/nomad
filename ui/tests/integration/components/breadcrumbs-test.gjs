@@ -6,7 +6,9 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, findAll, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
+import { on } from '@ember/modifier';
+import Breadcrumbs from 'nomad-ui/components/breadcrumbs';
+import Breadcrumb from 'nomad-ui/components/breadcrumb';
 
 module('Integration | Component | breadcrumbs', function (hooks) {
   setupRenderingTest(hooks);
@@ -14,20 +16,27 @@ module('Integration | Component | breadcrumbs', function (hooks) {
   test('it declaratively renders a list of registered crumbs', async function (assert) {
     this.set('isRegistered', false);
     this.set('toggleCrumb', () => this.set('isRegistered', !this.isRegistered));
-    await render(hbs`
-      <Breadcrumbs as |bb|>
-        <ul>
-          {{#each bb as |crumb|}}
-            <li data-test-crumb={{crumb.args.crumb}}>{{crumb.args.crumb}}</li>
-          {{/each}}
-        </ul>
-      </Breadcrumbs>
-      <button data-test-button type="button" {{on "click" this.toggleCrumb}}>Toggle</button>
-      <Breadcrumb @crumb="Zoey" />
-      {{#if this.isRegistered}}
-        <Breadcrumb @crumb="Tomster" />
-      {{/if}}
-    `);
+
+    await render(
+      <template>
+        <Breadcrumbs as |bb|>
+          <ul>
+            {{#each bb as |crumb|}}
+              <li data-test-crumb={{crumb.args.crumb}}>{{crumb.args.crumb}}</li>
+            {{/each}}
+          </ul>
+        </Breadcrumbs>
+        <button
+          data-test-button
+          type="button"
+          {{on "click" this.toggleCrumb}}
+        >Toggle</button>
+        <Breadcrumb @crumb="Zoey" />
+        {{#if this.isRegistered}}
+          <Breadcrumb @crumb="Tomster" />
+        {{/if}}
+      </template>,
+    );
 
     assert
       .dom('[data-test-crumb]')
@@ -68,16 +77,20 @@ module('Integration | Component | breadcrumbs', function (hooks) {
   });
 
   test('it can register complex crumb objects', async function (assert) {
-    await render(hbs`
-      <Breadcrumbs as |bb|>
-        <ul>
-          {{#each bb as |crumb|}}
-            <li data-test-crumb>{{crumb.args.crumb.name}}</li>
-          {{/each}}
-        </ul>
-      </Breadcrumbs>
-      <Breadcrumb @crumb={{hash name='Tomster'}} />
-    `);
+    this.set('complexCrumb', { name: 'Tomster' });
+
+    await render(
+      <template>
+        <Breadcrumbs as |bb|>
+          <ul>
+            {{#each bb as |crumb|}}
+              <li data-test-crumb>{{crumb.args.crumb.name}}</li>
+            {{/each}}
+          </ul>
+        </Breadcrumbs>
+        <Breadcrumb @crumb={{this.complexCrumb}} />
+      </template>,
+    );
 
     assert
       .dom('[data-test-crumb]')
