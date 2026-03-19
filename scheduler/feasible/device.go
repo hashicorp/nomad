@@ -137,7 +137,9 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			}
 			if d.deviceIDConstraintAndSharingChecks(instanceID, ask.Constraints, ask.WillShare, devInst.Device) {
 				assignable = append(assignable, instanceID)
-				willShare[instanceID] = ask.WillShare.Enabled //only update willShare map if assignable
+				if ask.WillShare != nil {
+					willShare[instanceID] = ask.WillShare.Enabled //only update willShare map if assignable
+				}
 			}
 
 			// Don't assign more than the ask
