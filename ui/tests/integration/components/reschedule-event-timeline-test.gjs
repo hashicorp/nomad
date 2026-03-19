@@ -7,9 +7,10 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import { TrackedObject } from 'tracked-built-ins';
 import moment from 'moment';
+import RescheduleEventTimeline from 'nomad-ui/components/reschedule-event-timeline';
 
 module('Integration | Component | reschedule event timeline', function (hooks) {
   setupRenderingTest(hooks);
@@ -27,10 +28,6 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     this.server.shutdown();
   });
 
-  const commonTemplate = hbs`
-    <RescheduleEventTimeline @allocation={{this.allocation}} />
-  `;
-
   test('when the allocation is running, the timeline shows past allocations', async function (assert) {
     const attempts = 2;
 
@@ -45,8 +42,12 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       .peekAll('allocation')
       .find((alloc) => !alloc.get('nextAllocation.content'));
 
-    this.set('allocation', allocation);
-    await render(commonTemplate);
+    const state = new TrackedObject({ allocation });
+    await render(
+      <template>
+        <RescheduleEventTimeline @allocation={{state.allocation}} />
+      </template>,
+    );
 
     assert.deepEqual(
       findAll('[data-test-allocation]').length,
@@ -94,8 +95,12 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       .peekAll('allocation')
       .find((alloc) => !alloc.get('nextAllocation.content'));
 
-    this.set('allocation', allocation);
-    await render(commonTemplate);
+    const state = new TrackedObject({ allocation });
+    await render(
+      <template>
+        <RescheduleEventTimeline @allocation={{state.allocation}} />
+      </template>,
+    );
 
     assert.ok(
       find('[data-test-stop-warning]'),
@@ -128,12 +133,16 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     await this.store.findAll('allocation');
 
-    let allocation = this.store
+    const allocation = this.store
       .peekAll('allocation')
       .find((alloc) => !alloc.get('nextAllocation.content'));
-    this.set('allocation', allocation);
+    const state = new TrackedObject({ allocation });
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <RescheduleEventTimeline @allocation={{state.allocation}} />
+      </template>,
+    );
 
     assert.ok(
       find('[data-test-attempt-notice]'),
@@ -157,9 +166,12 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     const allocation = this.store
       .peekAll('allocation')
       .findBy('id', originalAllocation.id);
-
-    this.set('allocation', allocation);
-    await render(commonTemplate);
+    const state = new TrackedObject({ allocation });
+    await render(
+      <template>
+        <RescheduleEventTimeline @allocation={{state.allocation}} />
+      </template>,
+    );
 
     assert.deepEqual(
       find('[data-test-reschedule-label]').textContent.trim(),
