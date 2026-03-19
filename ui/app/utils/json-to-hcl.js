@@ -33,7 +33,7 @@ export default function jsonToHcl(obj) {
       hclValue = JSON.stringify(value);
     }
 
-    hclLines.push(`${key}=${hclValue}`);
+    hclLines.push(`${key}=${hclValue}\n`);
   }
 
   return hclLines.join('\n');
