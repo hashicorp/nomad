@@ -6,18 +6,14 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import RSVP from 'rsvp';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { formatBytes } from 'nomad-ui/utils/units';
+import ImageFile from 'nomad-ui/components/image-file';
 
 module('Integration | Component | image file', function (hooks) {
   setupRenderingTest(hooks);
-
-  const commonTemplate = hbs`
-    <ImageFile @src={{this.src}} @alt={{this.alt}} @size={{this.size}} />
-  `;
 
   const commonProperties = {
     src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -26,32 +22,32 @@ module('Integration | Component | image file', function (hooks) {
   };
 
   test('component displays the image', async function (assert) {
-    this.setProperties(commonProperties);
+    const { src, alt, size } = commonProperties;
 
-    await render(commonTemplate);
-
-    assert.ok(find('img'), 'Image is in the DOM');
-    assert.deepEqual(
-      find('img').getAttribute('src'),
-      commonProperties.src,
-      `src is ${commonProperties.src}`,
+    await render(
+      <template>
+        <ImageFile @src={{src}} @alt={{alt}} @size={{size}} />
+      </template>,
     );
 
-    await componentA11yAudit(this.element, assert);
+    assert.ok(find('img'), 'Image is in the DOM');
+    assert.deepEqual(find('img').getAttribute('src'), src, `src is ${src}`);
+
+    await componentA11yAudit(find('[data-test-image-file]'), assert);
   });
 
   test('the image is wrapped in an anchor that links directly to the image', async function (assert) {
-    this.setProperties(commonProperties);
+    const { src, alt, size } = commonProperties;
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <ImageFile @src={{src}} @alt={{alt}} @size={{size}} />
+      </template>,
+    );
 
     assert.ok(find('a'), 'Anchor');
     assert.ok(find('a > img'), 'Image in anchor');
-    assert.deepEqual(
-      find('a').getAttribute('href'),
-      commonProperties.src,
-      `href is ${commonProperties.src}`,
-    );
+    assert.deepEqual(find('a').getAttribute('href'), src, `href is ${src}`);
     assert.deepEqual(
       find('a').getAttribute('target'),
       '_blank',
@@ -66,22 +62,31 @@ module('Integration | Component | image file', function (hooks) {
 
   test('component updates image meta when the image loads', async function (assert) {
     const { spy, wrapper, notifier } = notifyingSpy();
+    const { src, alt, size } = commonProperties;
 
-    this.setProperties(commonProperties);
-    this.set('spy', wrapper);
-
-    render(hbs`
-      <ImageFile @src={{this.src}} @alt={{this.alt}} @size={{this.size}} @updateImageMeta={{this.spy}} />
-    `);
+    await render(
+      <template>
+        <ImageFile
+          @src={{src}}
+          @alt={{alt}}
+          @size={{size}}
+          @updateImageMeta={{wrapper}}
+        />
+      </template>,
+    );
 
     await notifier;
     assert.ok(spy.calledOnce);
   });
 
   test('component shows the width, height, and size of the image', async function (assert) {
-    this.setProperties(commonProperties);
+    const { src, alt, size } = commonProperties;
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <ImageFile @src={{src}} @alt={{alt}} @size={{size}} />
+      </template>,
+    );
 
     const statsEl = find('[data-test-file-stats]');
     assert.ok(
@@ -89,16 +94,14 @@ module('Integration | Component | image file', function (hooks) {
       'Width and height are formatted correctly',
     );
     assert.ok(
-      statsEl.textContent
-        .trim()
-        .endsWith(formatBytes(commonProperties.size) + ')'),
+      statsEl.textContent.trim().endsWith(formatBytes(size) + ')'),
       'Human-formatted size is included',
     );
   });
 });
 
 function notifyingSpy() {
-  // The notifier must resolve when the spy wrapper is called
+  // The notifier must resolve when the spy wrapper is called.
   let dispatch;
   const notifier = new RSVP.Promise((resolve) => {
     dispatch = resolve;
@@ -106,14 +109,11 @@ function notifyingSpy() {
 
   const spy = sinon.spy();
 
-  // The spy wrapper must call the spy, passing all arguments through, and it must
-  // call dispatch in order to resolve the promise.
+  // The spy wrapper calls through and resolves the notifier.
   const wrapper = (...args) => {
     spy(...args);
     dispatch();
   };
 
-  // All three pieces are required to wire up a component, pause test execution, and
-  // write assertions.
   return { spy, wrapper, notifier };
 }
