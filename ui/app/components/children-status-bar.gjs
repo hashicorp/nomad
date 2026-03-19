@@ -12,7 +12,7 @@ export default class ChildrenStatusBar extends Component {
       return [];
     }
 
-    const children = this.jobModel.getProperties(
+    const children = this.args.job.getProperties(
       'pendingChildren',
       'runningChildren',
       'deadChildren',

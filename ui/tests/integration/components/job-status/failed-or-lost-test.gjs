@@ -43,10 +43,7 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
 
     await render(
       <template>
-        <JobStatusFailedOrLost
-          @job={{job}}
-          @restartedAllocs={{state.allocs}}
-        />
+        <JobStatusFailedOrLost @job={{job}} @restartedAllocs={{state.allocs}} />
       </template>,
     );
 
@@ -71,10 +68,7 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
 
     await render(
       <template>
-        <JobStatusFailedOrLost
-          @restartedAllocs={{state.allocs}}
-          @job={{job}}
-        />
+        <JobStatusFailedOrLost @restartedAllocs={{state.allocs}} @job={{job}} />
       </template>,
     );
 

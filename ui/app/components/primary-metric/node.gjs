@@ -13,6 +13,7 @@ import { eq } from 'ember-truth-helpers';
 import ENV from 'nomad-ui/config/environment';
 import formatScheduledBytes from 'nomad-ui/helpers/format-scheduled-bytes';
 import formatScheduledHertz from 'nomad-ui/helpers/format-scheduled-hertz';
+import { formatScheduledHertz as formatScheduledHertzValue } from 'nomad-ui/utils/units';
 import PrimaryMetricCurrentValue from 'nomad-ui/components/primary-metric/current-value';
 import StatsTimeSeries from 'nomad-ui/components/stats-time-series';
 
@@ -53,7 +54,7 @@ export default class NodePrimaryMetric extends Component {
       const cpu = reserved.cpu;
       return [
         {
-          label: `${formatScheduledHertz(cpu, 'MHz')} reserved`,
+          label: `${formatScheduledHertzValue(cpu, 'MHz')} reserved`,
           percent: cpu / this.reservedAmount,
         },
       ];

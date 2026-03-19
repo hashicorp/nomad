@@ -130,6 +130,7 @@ export default class StepperInput extends Component {
   <template>
     <div
       class={{this.rootClass}}
+      ...attributes
       {{didInsert this.syncValueFromArgs}}
       {{didUpdate this.syncValueFromArgs @value}}
     >

@@ -82,7 +82,7 @@ export default class PopoverMenu extends Component {
   };
 
   <template>
-    <div class="popover">
+    <div class="popover" ...attributes>
       <BasicDropdown
         @ariaLabel="label-popover-menu"
         @ariaLabelledBy="label-popover-menu"
