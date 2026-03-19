@@ -1,0 +1,44 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { LinkTo } from '@ember/routing';
+import JobPage from 'nomad-ui/components/job-page';
+
+export const JobPagePeriodicChild = <template>
+  <JobPage @job={{@job}} as |jobPage|>
+    <jobPage.ui.Body>
+      <jobPage.ui.Error />
+      <jobPage.ui.Title @title={{@job.trimmedName}} />
+      <jobPage.ui.StatsBox>
+        <:beforeNamespace>
+          <span class="pair" data-test-job-stat="parent">
+            <span class="term">
+              Parent
+            </span>
+            <LinkTo @route="jobs.job" @model={{@job.parent}}>
+              {{@job.parent.name}}
+            </LinkTo>
+          </span>
+        </:beforeNamespace>
+      </jobPage.ui.StatsBox>
+      <jobPage.ui.StatusPanel
+        @statusMode={{@statusMode}}
+        @setStatusMode={{@setStatusMode}}
+      />
+      <jobPage.ui.PlacementFailures />
+      <jobPage.ui.TaskGroups
+        @sortProperty={{@sortProperty}}
+        @sortDescending={{@sortDescending}}
+      />
+      <jobPage.ui.RecentAllocations
+        @activeTask={{@activeTask}}
+        @setActiveTaskQueryParam={{@setActiveTaskQueryParam}}
+      />
+      <jobPage.ui.Meta />
+    </jobPage.ui.Body>
+  </JobPage>
+</template>;
+
+export default JobPagePeriodicChild;
