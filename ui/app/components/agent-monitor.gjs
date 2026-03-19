@@ -26,34 +26,22 @@ export default class AgentMonitor extends Component {
   @tracked isStreaming = this.args.isStreaming ?? true;
   @tracked logger = null;
 
-  get client() {
-    return this.args.client;
-  }
-
-  get server() {
-    return this.args.server;
-  }
-
-  get onLevelChange() {
-    return this.args.onLevelChange ?? (() => {});
-  }
-
   get monitorParams() {
     assert(
       'Provide a client OR a server to AgentMonitor, not both.',
-      this.server != null || this.client != null,
+      this.args.server != null || this.args.client != null,
     );
 
-    const type = this.server ? 'server_id' : 'client_id';
-    const id = this.server ? this.server.id : this.client?.id;
+    const type = this.args.server ? 'server_id' : 'client_id';
+    const id = this.args.server ? this.args.server.id : this.args.client?.id;
 
     const params = {
       log_level: this.level,
       [type]: id,
     };
 
-    if (this.server) {
-      params.region = this.server.region;
+    if (this.args.server) {
+      params.region = this.args.server.region;
     }
 
     return params;
@@ -85,7 +73,7 @@ export default class AgentMonitor extends Component {
   setLevel = (level) => {
     this.logger?.stop();
     this.level = level;
-    this.onLevelChange(level);
+    this.args.onLevelChange?.(level);
     this.updateLogger();
   };
 

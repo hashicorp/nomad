@@ -21,20 +21,16 @@ export default class PolicyEditorComponent extends Component {
   @service router;
   @service store;
 
-  get policy() {
-    return this.args.policy;
-  }
-
   updatePolicyRules = (value) => {
-    this.policy?.set?.('rules', value);
+    this.args.policy?.set?.('rules', value);
   };
 
   updatePolicyName = ({ target: { value } }) => {
-    this.policy?.set?.('name', value);
+    this.args.policy?.set?.('name', value);
   };
 
   updatePolicyDescription = ({ target: { value } }) => {
-    this.policy?.set?.('description', value);
+    this.args.policy?.set?.('description', value);
   };
 
   save = async (event) => {
@@ -43,33 +39,33 @@ export default class PolicyEditorComponent extends Component {
       event.preventDefault();
     }
 
+    const policy = this.args.policy;
+
     try {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
-      if (!this.policy?.name?.match(nameRegex)) {
+      if (!policy?.name?.match(nameRegex)) {
         throw new Error(
           'Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.',
         );
       }
 
-      const shouldRedirectAfterSave = this.policy.isNew;
+      const shouldRedirectAfterSave = policy.isNew;
 
       // Because we set the ID for adapter/serialization reasons just before save here,
       // that becomes a barrier to our Unique Name validation. So we explicitly exclude
       // the current policy when checking for uniqueness.
       if (
-        this.policy.isNew &&
+        policy.isNew &&
         this.store
           .peekAll('policy')
-          .filter((policy) => policy !== this.policy)
-          .findBy('name', this.policy.name)
+          .filter((existingPolicy) => existingPolicy !== policy)
+          .findBy('name', policy.name)
       ) {
-        throw new Error(
-          `A policy with name ${this.policy.name} already exists.`,
-        );
+        throw new Error(`A policy with name ${policy.name} already exists.`);
       }
 
-      this.policy.set('id', this.policy.name);
-      await this.policy.save();
+      policy.set('id', policy.name);
+      await policy.save();
 
       this.notifications.add({
         title: 'Policy Saved',
@@ -77,10 +73,7 @@ export default class PolicyEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        this.router.transitionTo(
-          'administration.policies.policy',
-          this.policy.id,
-        );
+        this.router.transitionTo('administration.policies.policy', policy.id);
       }
     } catch (err) {
       const message = err.errors?.length
@@ -88,7 +81,7 @@ export default class PolicyEditorComponent extends Component {
         : err.message || 'Unknown Error';
 
       this.notifications.add({
-        title: `Error creating Policy ${this.policy?.name}`,
+        title: `Error creating Policy ${policy?.name}`,
         message,
         color: 'critical',
         sticky: true,

@@ -45,10 +45,6 @@ export default class DrainPopover extends Component {
     });
   }
 
-  get client() {
-    return this.args.client;
-  }
-
   get isDisabled() {
     return this.args.isDisabled ?? false;
   }
@@ -83,7 +79,7 @@ export default class DrainPopover extends Component {
   }
 
   get popoverLabel() {
-    return this.client?.isDraining ? 'Update Drain' : 'Drain';
+    return this.args.client?.isDraining ? 'Update Drain' : 'Drain';
   }
 
   get popoverTooltip() {
@@ -105,8 +101,8 @@ export default class DrainPopover extends Component {
   }
 
   drain = task({ drop: true }, async (close) => {
-    if (!this.client) return;
-    const isUpdating = this.client.isDraining;
+    if (!this.args.client) return;
+    const isUpdating = this.args.client.isDraining;
 
     let deadline;
     try {
@@ -133,9 +129,9 @@ export default class DrainPopover extends Component {
 
     try {
       if (this.forceDrain) {
-        await this.client.forceDrain(spec);
+        await this.args.client.forceDrain(spec);
       } else {
-        await this.client.drain(spec);
+        await this.args.client.drain(spec);
       }
       this.onDrain(isUpdating);
     } catch (err) {
