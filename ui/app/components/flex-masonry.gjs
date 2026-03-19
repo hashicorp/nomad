@@ -6,19 +6,21 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { next } from '@ember/runloop';
-import { action } from '@ember/object';
 import { minIndex, max } from 'd3-array';
+
+import didInsert from '@ember/render-modifiers/modifiers/did-insert';
+
+import didUpdate from '@ember/render-modifiers/modifiers/did-update';
+import windowResize from 'nomad-ui/modifiers/window-resize';
 
 export default class FlexMasonry extends Component {
   @tracked element = null;
 
-  @action
-  captureElement(element) {
+  captureElement = (element) => {
     this.element = element;
-  }
+  };
 
-  @action
-  reflow() {
+  reflow = () => {
     next(() => {
       // There's nothing to do if there is no element
       if (!this.element) return;
@@ -66,7 +68,7 @@ export default class FlexMasonry extends Component {
         });
 
       // Guarantee column wrapping as predicted (if the first item of a column is shorter than the difference
-      // beteen the height of the column and the previous column, then flexbox will naturally place the first
+      // between the height of the column and the previous column, then flexbox will naturally place the first
       // item at the end of the previous column).
       columns.forEach((column, index) => {
         const nextHeight =
@@ -81,5 +83,24 @@ export default class FlexMasonry extends Component {
       // Set the max height of the container to the height of the tallest column
       this.element.style.maxHeight = max(columns.mapBy('height')) + 1 + 'px';
     });
-  }
+  };
+
+  <template>
+    <div
+      data-test-flex-masonry
+      class="flex-masonry
+        {{if @withSpacing 'with-spacing'}}
+        flex-masonry-columns-{{@columns}}"
+      {{didInsert this.captureElement}}
+      {{didInsert this.reflow}}
+      {{didUpdate this.reflow @columns}}
+      {{windowResize this.reflow}}
+    >
+      {{#each @items as |item|}}
+        <div data-test-flex-masonry-item class="flex-masonry-item">
+          {{yield item this.reflow}}
+        </div>
+      {{/each}}
+    </div>
+  </template>
 }

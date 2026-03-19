@@ -5,7 +5,7 @@
 
 import { assert } from '@ember/debug';
 import { LinkTo } from '@ember/routing';
-// eslint-disable-next-line ember/no-at-ember-render-modifiers
+
 import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import KeyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 import Trigger from 'nomad-ui/components/trigger';

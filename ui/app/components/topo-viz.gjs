@@ -5,13 +5,20 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action, set } from '@ember/object';
+import { set } from '@ember/object';
 import { service } from '@ember/service';
 import { next } from '@ember/runloop';
+import { htmlSafe } from '@ember/template';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
 import { line, curveBasis } from 'd3-shape';
-import styleStringProperty from '../utils/properties/style-string';
+import didInsert from '@ember/render-modifiers/modifiers/did-insert';
+import didUpdate from '@ember/render-modifiers/modifiers/did-update';
+import formatScheduledBytes from 'nomad-ui/helpers/format-scheduled-bytes';
+import formatScheduledHertz from 'nomad-ui/helpers/format-scheduled-hertz';
+import windowResize from 'nomad-ui/modifiers/window-resize';
+import FlexMasonry from 'nomad-ui/components/flex-masonry';
+import TopoVizDatacenter from 'nomad-ui/components/topo-viz/datacenter';
 
 export default class TopoViz extends Component {
   @service system;
@@ -28,7 +35,23 @@ export default class TopoViz extends Component {
   @tracked highlightAllocation = null;
   @tracked tooltipProps = {};
 
-  @styleStringProperty('tooltipProps') tooltipStyle;
+  get tooltipStyle() {
+    const styles = this.tooltipProps;
+    if (!styles) return htmlSafe('');
+
+    const value = Object.keys(styles)
+      .map((key) => {
+        const styleValue = styles[key];
+        const formattedValue =
+          typeof styleValue === 'number'
+            ? `${styleValue.toFixed(2)}px`
+            : styleValue;
+        return `${key}:${formattedValue}`;
+      })
+      .join(';');
+
+    return htmlSafe(value);
+  }
 
   get isSingleColumn() {
     if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1)
@@ -41,7 +64,7 @@ export default class TopoViz extends Component {
     );
     const variationCoefficient = deviation(nodeCounts) / mean(nodeCounts);
 
-    // The point at which the varation is too extreme for a two column layout
+    // The point at which the variation is too extreme for a two column layout
     const threshold = 0.5;
     if (variationCoefficient > threshold) return true;
     return false;
@@ -89,8 +112,7 @@ export default class TopoViz extends Component {
     };
   }
 
-  @action
-  buildTopology() {
+  buildTopology = () => {
     const nodes = this.args.nodes;
     const allocations = this.args.allocations;
 
@@ -166,16 +188,14 @@ export default class TopoViz extends Component {
         },
       ]);
     }
-  }
+  };
 
-  @action
-  captureElement(element) {
+  captureElement = (element) => {
     this.element = element;
     this.determineViewportColumns();
-  }
+  };
 
-  @action
-  showNodeDetails(node) {
+  showNodeDetails = (node) => {
     if (this.activeNode) {
       set(this.activeNode, 'isSelected', false);
     }
@@ -187,23 +207,23 @@ export default class TopoViz extends Component {
     }
 
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
-  }
+  };
 
-  @action showTooltip(allocation, element) {
+  showTooltip = (allocation, element) => {
     const bbox = element.getBoundingClientRect();
     this.highlightAllocation = allocation;
     this.tooltipProps = {
-      left: window.scrollX + bbox.left + bbox.width / 2,
-      top: window.scrollY + bbox.top,
+      position: 'fixed',
+      left: bbox.left + bbox.width / 2,
+      top: bbox.top,
     };
-  }
+  };
 
-  @action hideTooltip() {
+  hideTooltip = () => {
     this.highlightAllocation = null;
-  }
+  };
 
-  @action
-  associateAllocations(allocation) {
+  associateAllocations = (allocation) => {
     if (this.activeAllocation === allocation) {
       this.activeAllocation = null;
       this.activeEdges = [];
@@ -256,22 +276,19 @@ export default class TopoViz extends Component {
         this.activeAllocation && this.activeAllocation.allocation,
       );
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
-  }
+  };
 
-  @action
-  determineViewportColumns() {
+  determineViewportColumns = () => {
     this.viewportColumns = this.element.clientWidth < 900 ? 1 : 2;
-  }
+  };
 
-  @action
-  resizeEdges() {
+  resizeEdges = () => {
     if (this.activeEdges.length > 0) {
       this.computedActiveEdges();
     }
-  }
+  };
 
-  @action
-  computedActiveEdges() {
+  computedActiveEdges = () => {
     // Wait a render cycle
     next(() => {
       const path = line().curve(curveBasis);
@@ -327,7 +344,86 @@ export default class TopoViz extends Component {
       this.activeEdges = curves.map((curve) => path(curve));
       this.edgeOffset = { x: window.scrollX, y: window.scrollY };
     });
-  }
+  };
+
+  <template>
+    <div
+      data-test-topo-viz
+      class="topo-viz {{if this.isSingleColumn 'is-single-column'}}"
+      {{didInsert this.buildTopology}}
+      {{didUpdate this.buildTopology @nodes}}
+      {{didInsert this.captureElement}}
+      {{windowResize this.determineViewportColumns}}
+    >
+      <FlexMasonry
+        @columns={{if this.isSingleColumn 1 2}}
+        @items={{this.topology.datacenters}}
+        @withSpacing={{true}}
+        as |dc|
+      >
+        <TopoVizDatacenter
+          @datacenter={{dc}}
+          @isSingleColumn={{this.datacenterIsSingleColumn}}
+          @isDense={{this.isDense}}
+          @heightScale={{this.topology.heightScale}}
+          @onAllocationSelect={{this.associateAllocations}}
+          @onAllocationFocus={{this.showTooltip}}
+          @onAllocationBlur={{this.hideTooltip}}
+          @onNodeSelect={{this.showNodeDetails}}
+        />
+      </FlexMasonry>
+
+      <div
+        class="chart-tooltip
+          {{if this.highlightAllocation 'active' 'inactive'}}"
+        style={{this.tooltipStyle}}
+      >
+        {{#let this.highlightAllocation as |allocation|}}
+          <ol class="is-static">
+            <li>
+              <span class="label">Job</span>
+              <span
+                class="value"
+              >{{allocation.allocation.job.name}}/{{allocation.allocation.taskGroupName}}</span>
+            </li>
+            {{#if this.system.shouldShowNamespaces}}
+              <li>
+                <span class="label">Namespace</span>
+                <span
+                  class="value"
+                >{{allocation.allocation.job.namespace.name}}</span>
+              </li>
+            {{/if}}
+            <li>
+              <span class="label">Memory</span>
+              <span class="value">{{formatScheduledBytes
+                  allocation.memory
+                  start="MiB"
+                }}</span>
+            </li>
+            <li>
+              <span class="label">CPU</span>
+              <span class="value">{{formatScheduledHertz allocation.cpu}}</span>
+            </li>
+          </ol>
+        {{/let}}
+      </div>
+
+      {{#if this.activeAllocation}}
+        <svg
+          data-test-allocation-associations
+          class="chart topo-viz-edges"
+          {{windowResize this.resizeEdges}}
+        >
+          <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
+            {{#each this.activeEdges as |edge|}}
+              <path data-test-allocation-association class="edge" d={{edge}} />
+            {{/each}}
+          </g>
+        </svg>
+      {{/if}}
+    </div>
+  </template>
 }
 
 function centerOfBBox(bbox) {
