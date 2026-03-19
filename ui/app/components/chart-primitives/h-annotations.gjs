@@ -5,10 +5,12 @@
 
 import Component from '@glimmer/component';
 import { htmlSafe } from '@ember/template';
-import { action, get } from '@ember/object';
+import { get } from '@ember/object';
+import { on } from '@ember/modifier';
+import { fn } from '@ember/helper';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
-export default class ChartPrimitiveVAnnotations extends Component {
+export default class ChartPrimitiveHAnnotations extends Component {
   @styleString
   get chartAnnotationsStyle() {
     return {
@@ -22,7 +24,7 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
     if (!annotations || !annotations.length) return null;
 
-    let sortedAnnotations = annotations.sortBy(prop).reverse();
+    const sortedAnnotations = annotations.sortBy(prop).reverse();
 
     return sortedAnnotations.map((annotation) => {
       const y = scale(annotation[prop]);
@@ -47,8 +49,34 @@ export default class ChartPrimitiveVAnnotations extends Component {
     return annotation === activeAnnotation;
   }
 
-  @action
-  selectAnnotation(annotation) {
+  selectAnnotation = (annotation) => {
     if (this.args.annotationClick) this.args.annotationClick(annotation);
-  }
+  };
+
+  <template>
+    <div
+      data-test-annotations
+      class="line-chart-annotations"
+      style={{this.chartAnnotationsStyle}}
+      ...attributes
+    >
+      {{#each this.processed key=@key as |annotation|}}
+        <div
+          data-test-annotation
+          class="chart-horizontal-annotation"
+          style={{annotation.style}}
+        >
+          <button
+            type="button"
+            title={{annotation.a11yLabel}}
+            class="indicator {{if annotation.isActive 'is-active'}}"
+            {{on "click" (fn this.selectAnnotation annotation.annotation)}}
+          >
+            {{annotation.label}}
+          </button>
+          <div class="line" />
+        </div>
+      {{/each}}
+    </div>
+  </template>
 }

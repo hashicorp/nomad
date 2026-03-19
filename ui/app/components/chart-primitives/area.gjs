@@ -5,8 +5,9 @@
 
 import Component from '@glimmer/component';
 import { assert } from '@ember/debug';
+import { concat } from '@ember/helper';
 import { default as d3Shape, area, line } from 'd3-shape';
-import uniquely from 'nomad-ui/utils/properties/uniquely';
+import { guidFor } from '@ember/object/internals';
 
 export default class ChartPrimitiveArea extends Component {
   get colorClass() {
@@ -18,8 +19,13 @@ export default class ChartPrimitiveArea extends Component {
     return 'is-primary';
   }
 
-  @uniquely('area-mask') maskId;
-  @uniquely('area-fill') fillId;
+  get maskId() {
+    return `area-mask-${guidFor(this)}`;
+  }
+
+  get fillId() {
+    return `area-fill-${guidFor(this)}`;
+  }
 
   get curveMethod() {
     const mappings = {
@@ -27,7 +33,7 @@ export default class ChartPrimitiveArea extends Component {
       stepAfter: 'curveStepAfter',
     };
     assert(
-      `Provided curve "${this.curve}" is not an allowed curve type`,
+      `Provided curve "${this.args.curve}" is not an allowed curve type`,
       mappings[this.args.curve],
     );
     return mappings[this.args.curve];
@@ -57,4 +63,39 @@ export default class ChartPrimitiveArea extends Component {
 
     return builder(this.args.data);
   }
+
+  <template>
+    <defs>
+      <linearGradient
+        x1="0"
+        x2="0"
+        y1="0"
+        y2="1"
+        class={{this.colorClass}}
+        id={{this.fillId}}
+      >
+        <stop class="start" offset="0%" />
+        <stop class="end" offset="100%" />
+      </linearGradient>
+      <clipPath id={{this.maskId}}>
+        <path class="fill" d={{this.area}} />
+      </clipPath>
+    </defs>
+    <g
+      data-test-chart-area
+      class={{concat "area " this.colorClass}}
+      ...attributes
+    >
+      <path class="line" d={{this.line}} />
+      <rect
+        class="fill"
+        x="0"
+        y="0"
+        width={{@width}}
+        height={{@height}}
+        fill={{concat "url(#" this.fillId ")"}}
+        clip-path={{concat "url(#" this.maskId ")"}}
+      />
+    </g>
+  </template>
 }
