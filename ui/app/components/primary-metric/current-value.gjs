@@ -1,0 +1,32 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { or } from 'ember-truth-helpers';
+import formatPercentage from 'nomad-ui/helpers/format-percentage';
+
+export const PrimaryMetricCurrentValue = <template>
+  <div class="columns secondary-graphic">
+    <div class="column">
+      <div class="inline-chart" data-test-percentage-bar>
+        <progress
+          data-test-current-value
+          class="progress {{@chartClass}} is-small"
+          value="{{or @percent 0}}"
+          max="1"
+        >
+          {{@percent}}
+        </progress>
+      </div>
+    </div>
+    <div class="column is-minimum">
+      <span class="nowrap" data-test-percentage>{{formatPercentage
+          @percent
+          total=1
+        }}</span>
+    </div>
+  </div>
+</template>;
+
+export default PrimaryMetricCurrentValue;
