@@ -5,7 +5,14 @@
 
 import Component from '@glimmer/component';
 import { service } from '@ember/service';
+import { hash } from '@ember/helper';
 
 export default class ActorsRelationships extends Component {
   @service actorsRelationships;
+
+  <template>
+    {{yield
+      (hash fns=this.actorsRelationships.fns data=this.actorsRelationships.data)
+    }}
+  </template>
 }
