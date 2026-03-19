@@ -6,9 +6,9 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import JobPagePartsBody from 'nomad-ui/components/job-page/parts/body';
 
 module('Integration | Component | job-page/parts/body', function (hooks) {
   setupRenderingTest(hooks);
@@ -25,13 +25,15 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
   });
 
   test('includes a subnav for the job', async function (assert) {
-    this.set('job', {});
+    const job = {};
 
-    await render(hbs`
-      <JobPage::Parts::Body @job={{this.job}}>
-        <div class="inner-content">Inner content</div>
-      </JobPage::Parts::Body>
-    `);
+    await render(
+      <template>
+        <JobPagePartsBody @job={{job}}>
+          <div class="inner-content">Inner content</div>
+        </JobPagePartsBody>
+      </template>,
+    );
     assert.ok(find('[data-test-subnav="job"]'), 'Job subnav is rendered');
   });
 
@@ -42,13 +44,13 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       type: 'service',
     });
 
-    this.set('job', job);
-
-    await render(hbs`
-      <JobPage::Parts::Body @job={{this.job}}>
-        <div class="inner-content">Inner content</div>
-      </JobPage::Parts::Body>
-    `);
+    await render(
+      <template>
+        <JobPagePartsBody @job={{job}}>
+          <div class="inner-content">Inner content</div>
+        </JobPagePartsBody>
+      </template>,
+    );
 
     const subnavLabels = findAll('[data-test-tab]').map((anchor) =>
       anchor.textContent.trim(),
@@ -77,13 +79,13 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       type: 'batch',
     });
 
-    this.set('job', job);
-
-    await render(hbs`
-      <JobPage::Parts::Body @job={{this.job}}>
-        <div class="inner-content">Inner content</div>
-      </JobPage::Parts::Body>
-    `);
+    await render(
+      <template>
+        <JobPagePartsBody @job={{job}}>
+          <div class="inner-content">Inner content</div>
+        </JobPagePartsBody>
+      </template>,
+    );
 
     const subnavLabels = findAll('[data-test-tab]').map((anchor) =>
       anchor.textContent.trim(),
@@ -103,13 +105,15 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
   });
 
   test('body yields content to a section after the subnav', async function (assert) {
-    this.set('job', {});
+    const job = {};
 
-    await render(hbs`
-      <JobPage::Parts::Body @job={{this.job}}>
-        <div class="inner-content">Inner content</div>
-      </JobPage::Parts::Body>
-    `);
+    await render(
+      <template>
+        <JobPagePartsBody @job={{job}}>
+          <div class="inner-content">Inner content</div>
+        </JobPagePartsBody>
+      </template>,
+    );
 
     assert.ok(
       find('[data-test-subnav="job"] + .section > .inner-content'),
