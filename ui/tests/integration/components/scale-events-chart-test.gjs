@@ -6,10 +6,10 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import moment from 'moment';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import ScaleEventsChart from 'nomad-ui/components/scale-events-chart';
 
 module('Integration | Component | scale-events-chart', function (hooks) {
   setupRenderingTest(hooks);
@@ -58,7 +58,10 @@ module('Integration | Component | scale-events-chart', function (hooks) {
 
   test('each event is rendered as an annotation', async function (assert) {
     this.set('events', events);
-    await render(hbs`<ScaleEventsChart @events={{this.events}} />`);
+
+    await render(
+      <template><ScaleEventsChart @events={{this.events}} /></template>,
+    );
 
     assert.deepEqual(
       findAll('[data-test-annotation]').length,
@@ -71,7 +74,9 @@ module('Integration | Component | scale-events-chart', function (hooks) {
     const annotation = events.rejectBy('hasCount').sortBy('time').reverse()[0];
 
     this.set('events', events);
-    await render(hbs`<ScaleEventsChart @events={{this.events}} />`);
+    await render(
+      <template><ScaleEventsChart @events={{this.events}} /></template>,
+    );
 
     assert.notOk(find('[data-test-event-details]'));
     await click('[data-test-annotation] button');
@@ -96,7 +101,9 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   test('clicking an active annotation closes event details', async function (assert) {
     this.set('events', events);
 
-    await render(hbs`<ScaleEventsChart @events={{this.events}} />`);
+    await render(
+      <template><ScaleEventsChart @events={{this.events}} /></template>,
+    );
     assert.notOk(find('[data-test-event-details]'));
 
     await click('[data-test-annotation] button');
