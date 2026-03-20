@@ -5,13 +5,13 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import generateResources from '../../../mirage/data/generate-resources';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { find, render } from '@ember/test-helpers';
 import { Response } from 'miragejs';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import AllocationRow from 'nomad-ui/components/allocation-row';
 
 module('Integration | Component | allocation row', function (hooks) {
   setupRenderingTest(hooks);
@@ -34,7 +34,7 @@ module('Integration | Component | allocation row', function (hooks) {
     const component = this;
 
     let currentFrame = 0;
-    let frames = [
+    const frames = [
       JSON.stringify({ ResourceUsage: generateResources() }),
       JSON.stringify({ ResourceUsage: generateResources() }),
       null,
@@ -45,7 +45,6 @@ module('Integration | Component | allocation row', function (hooks) {
     this.server.get('/client/allocation/:id/stats', function () {
       const response = frames[++currentFrame];
 
-      // Disable polling to stop the EC task in the component
       if (currentFrame >= frames.length) {
         component.set('enablePolling', false);
       }
@@ -67,12 +66,15 @@ module('Integration | Component | allocation row', function (hooks) {
       enablePolling: true,
     });
 
-    await render(hbs`
-      <AllocationRow
-        @allocation={{this.allocation}}
-        @context={{this.context}}
-        @enablePolling={{this.enablePolling}} />
-    `);
+    await render(
+      <template>
+        <AllocationRow
+          @allocation={{this.allocation}}
+          @context={{this.context}}
+          @enablePolling={{this.enablePolling}}
+        />
+      </template>,
+    );
 
     assert.deepEqual(
       this.server.pretender.handledRequests.filterBy(
@@ -105,11 +107,14 @@ module('Integration | Component | allocation row', function (hooks) {
       context: 'job',
     });
 
-    await render(hbs`
-      <AllocationRow
-        @allocation={{this.allocation}}
-        @context={{this.context}} />
-    `);
+    await render(
+      <template>
+        <AllocationRow
+          @allocation={{this.allocation}}
+          @context={{this.context}}
+        />
+      </template>,
+    );
 
     assert.ok(
       find('[data-test-icon="unhealthy-driver"]'),
@@ -123,11 +128,14 @@ module('Integration | Component | allocation row', function (hooks) {
     const allocation = await this.store.findRecord('allocation', allocId);
 
     this.setProperties({ allocation, context: 'job' });
-    await render(hbs`
-      <AllocationRow
-        @allocation={{this.allocation}}
-        @context={{this.context}} />
-    `);
+    await render(
+      <template>
+        <AllocationRow
+          @allocation={{this.allocation}}
+          @context={{this.context}}
+        />
+      </template>,
+    );
 
     assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
     await componentA11yAudit(this.element, assert);
@@ -139,7 +147,6 @@ module('Integration | Component | allocation row', function (hooks) {
       enablePolling: false,
     });
 
-    // All non-running statuses need to be tested
     ['pending', 'complete', 'failed', 'lost'].forEach((clientStatus) =>
       this.server.create('allocation', { clientStatus }),
     );
@@ -150,12 +157,15 @@ module('Integration | Component | allocation row', function (hooks) {
 
     for (const allocation of allocations.toArray()) {
       this.set('allocation', allocation);
-      await render(hbs`
+      await render(
+        <template>
           <AllocationRow
             @allocation={{this.allocation}}
             @context={{this.context}}
-            @enablePolling={{this.enablePolling}} />
-        `);
+            @enablePolling={{this.enablePolling}}
+          />
+        </template>,
+      );
 
       const status = allocation.get('clientStatus');
       assert.notOk(

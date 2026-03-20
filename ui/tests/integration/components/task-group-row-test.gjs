@@ -6,10 +6,10 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import TaskGroupRow from 'nomad-ui/components/task-group-row';
 
 const jobName = 'test-job';
 const jobId = JSON.stringify([jobName, 'default']);
@@ -18,8 +18,6 @@ let managementToken;
 let clientToken;
 
 const makeJob = (server, props = {}) => {
-  // These tests require a job with particular task groups. This requires
-  // mild Mirage surgery.
   server.create('namespace', {
     id: 'default',
   });
@@ -69,9 +67,8 @@ module('Integration | Component | task group row', function (hooks) {
     window.localStorage.clear();
   });
 
-  const commonTemplate = hbs`
-    <TaskGroupRow @taskGroup={{this.group}} />
-  `;
+  const renderComponent = (context) =>
+    render(<template><TaskGroupRow @taskGroup={{context.group}} /></template>);
 
   test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
@@ -81,7 +78,7 @@ module('Integration | Component | task group row', function (hooks) {
     const job = await this.store.find('job', jobId);
     this.set('group', job.taskGroups.findBy('name', 'no-scaling'));
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.notOk(find('[data-test-scale]'));
 
     this.set('group', job.taskGroups.findBy('name', 'scaling'));
@@ -100,7 +97,7 @@ module('Integration | Component | task group row', function (hooks) {
     const job = await this.store.find('job', jobId);
     this.set('group', job.taskGroups.findBy('name', 'scaling'));
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.strictEqual(
       Number(find('[data-test-task-group-count]').textContent.trim()),
       2,
@@ -142,7 +139,7 @@ module('Integration | Component | task group row', function (hooks) {
     group.set('count', group.scaling.max);
     this.set('group', group);
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
 
     await componentA11yAudit(this.element, assert);
@@ -158,7 +155,7 @@ module('Integration | Component | task group row', function (hooks) {
     group.set('count', group.scaling.min);
     this.set('group', group);
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
 
     await componentA11yAudit(this.element, assert);
@@ -172,7 +169,7 @@ module('Integration | Component | task group row', function (hooks) {
     const job = await this.store.find('job', jobId);
     this.set('group', job.taskGroups.findBy('name', 'scaling'));
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
 
@@ -188,7 +185,7 @@ module('Integration | Component | task group row', function (hooks) {
     const job = await this.store.find('job', jobId);
     this.set('group', job.taskGroups.findBy('name', 'scaling'));
 
-    await render(commonTemplate);
+    await renderComponent(this);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
     assert.ok(

@@ -14,8 +14,8 @@ import {
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import sinon from 'sinon';
-import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import MultiSelectDropdown from 'nomad-ui/components/multi-select-dropdown';
 
 const TAB = 9;
 const ESC = 27;
@@ -40,18 +40,22 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     onSelect: sinon.spy(),
   });
 
-  const commonTemplate = hbs`
-    <MultiSelectDropdown
-      @label={{this.label}}
-      @options={{this.options}}
-      @selection={{this.selection}}
-      @onSelect={{this.onSelect}} />
-  `;
+  const renderComponent = (context) =>
+    render(
+      <template>
+        <MultiSelectDropdown
+          @label={{context.label}}
+          @options={{context.options}}
+          @selection={{context.selection}}
+          @onSelect={{context.onSelect}}
+        />
+      </template>,
+    );
 
   test('component is initially closed', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     assert.ok(find('.dropdown-trigger'), 'Trigger is shown');
     assert.deepEqual(
@@ -70,14 +74,11 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('component opens the options dropdown when clicked', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
-    await assert.ok(
-      find('[data-test-dropdown-options]'),
-      'Options are shown now',
-    );
+    assert.ok(find('[data-test-dropdown-options]'), 'Options are shown now');
     await componentA11yAudit(this.element, assert);
 
     await click('[data-test-dropdown-trigger]');
@@ -91,7 +92,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('all options are shown in the options dropdown, each with a checkbox input', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -117,7 +118,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('onSelect gets called when an option is clicked', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
     await click('[data-test-dropdown-option] label');
@@ -135,7 +136,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     const props = commonProperties();
     props.selection = [props.options[0].key, props.options[1].key];
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     assert.ok(
       find('[data-test-dropdown-trigger] [data-test-dropdown-count]'),
@@ -164,7 +165,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing DOWN when the trigger has focus opens the options list', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await focus('[data-test-dropdown-trigger]');
     assert.notOk(
@@ -183,7 +184,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing DOWN when the trigger has focus and the options list is open focuses the first option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await focus('[data-test-dropdown-trigger]');
     await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
@@ -198,7 +199,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing TAB when the trigger has focus and the options list is open focuses the first option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await focus('[data-test-dropdown-trigger]');
     await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
@@ -213,7 +214,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing UP when the first list option is focused does nothing', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -229,7 +230,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing DOWN when the a list option is focused moves focus to the next list option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -245,7 +246,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing DOWN when the last list option has focus does nothing', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -276,7 +277,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('onSelect gets called when pressing SPACE when a list option is focused', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -295,7 +296,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('list options have a zero tabindex and are therefore sequentially navigable', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -311,7 +312,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('the checkboxes inside list options have a negative tabindex and are therefore not sequentially navigable', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -331,7 +332,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   test('pressing ESC when the options list is open closes the list and returns focus to the dropdown trigger', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await focus('[data-test-dropdown-trigger]');
     await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
@@ -353,7 +354,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     const props = commonProperties();
     props.options = [];
     this.setProperties(props);
-    await render(commonTemplate);
+    await renderComponent(this);
 
     await click('[data-test-dropdown-trigger]');
     assert.ok(

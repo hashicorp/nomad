@@ -6,13 +6,13 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
-import { hbs } from 'ember-cli-htmlbars';
 import { set } from '@ember/object';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
-import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
+import LifecycleChartPage from 'nomad-ui/tests/pages/components/lifecycle-chart';
+import LifecycleChartComponent from 'nomad-ui/components/lifecycle-chart';
 
-const Chart = create(LifecycleChart);
+const Chart = create(LifecycleChartPage);
 
 const tasks = [
   {
@@ -51,7 +51,9 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   test('it renders stateless phases and lifecycle- and name-sorted tasks', async function (assert) {
     this.set('tasks', tasks);
 
-    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
+    await render(
+      <template><LifecycleChartComponent @tasks={{this.tasks}} /></template>,
+    );
     assert.ok(Chart.isPresent);
 
     assert.deepEqual(Chart.phases[0].name, 'Prestart');
@@ -59,7 +61,9 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     assert.deepEqual(Chart.phases[2].name, 'Poststart');
     assert.deepEqual(Chart.phases[3].name, 'Poststop');
 
-    Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
+    Chart.phases.forEach((phase) => {
+      assert.notOk(phase.isActive);
+    });
 
     assert.deepEqual(Chart.tasks.mapBy('name'), [
       'prestart ephemeral: 0',
@@ -95,21 +99,25 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('it doesn’t render when there’s only one phase', async function (assert) {
+  test("it doesn't render when there's only one phase", async function (assert) {
     this.set('tasks', [
       {
         lifecycleName: 'main',
       },
     ]);
 
-    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
+    await render(
+      <template><LifecycleChartComponent @tasks={{this.tasks}} /></template>,
+    );
     assert.notOk(Chart.isPresent);
   });
 
   test('it renders all phases when there are any non-main tasks', async function (assert) {
     this.set('tasks', [tasks[0], tasks[6]]);
 
-    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
+    await render(
+      <template><LifecycleChartComponent @tasks={{this.tasks}} /></template>,
+    );
     assert.deepEqual(Chart.phases.length, 4);
   });
 
@@ -121,17 +129,22 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       }),
     );
 
-    await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
+    await render(
+      <template>
+        <LifecycleChartComponent @taskStates={{this.taskStates}} />
+      </template>,
+    );
     assert.ok(Chart.isPresent);
 
-    Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
+    Chart.phases.forEach((phase) => {
+      assert.notOk(phase.isActive);
+    });
 
     Chart.tasks.forEach((task) => {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
 
-    // Change poststart-ephemeral to be running
     this.set('taskStates.4.state', 'running');
     await settled();
 
@@ -163,7 +176,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       activePhaseNames: ['Prestart', 'Main', 'Poststop'],
     },
     {
-      testName: 'sidecar task states don’t affect phase active states',
+      testName: "sidecar task states don't affect phase active states",
       runningTaskNames: ['prestart sidecar', 'poststart sidecar'],
       activePhaseNames: [],
     },
@@ -173,14 +186,18 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       runningTaskNames: ['poststart ephemeral'],
       activePhaseNames: ['Main'],
     },
-  ].forEach(async ({ testName, runningTaskNames, activePhaseNames }) => {
+  ].forEach(({ testName, runningTaskNames, activePhaseNames }) => {
     test(testName, async function (assert) {
       this.set(
         'taskStates',
         tasks.map((task) => ({ task })),
       );
 
-      await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
+      await render(
+        <template>
+          <LifecycleChartComponent @taskStates={{this.taskStates}} />
+        </template>,
+      );
 
       runningTaskNames.forEach((taskName) => {
         const taskState = this.taskStates.find((taskState) =>
