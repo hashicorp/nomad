@@ -256,6 +256,37 @@ func MockNvidiaNode() *Node {
 	return n
 }
 
+// IntelNode returns a node with a single Intel GPU
+func MockIntelNode() *Node {
+	n := MockNode()
+	n.NodeResources.Devices = []*NodeDeviceResource{
+		{
+			Type:   "fpga",
+			Vendor: "intel",
+			Name:   "F100",
+			Attributes: map[string]*psstructs.Attribute{
+				"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
+			},
+			Instances: []*NodeDevice{
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+					Shared:  "inactive",
+				},
+				{
+					ID:      uuid.Generate(),
+					Healthy: false,
+					Shared:  "inactive",
+				},
+			},
+		},
+	}
+	err := n.ComputeClass()
+	if err != nil {
+		panic(fmt.Sprintf("failed to compute node class: %v", err))
+	}
+	return n
+}
 func MockJob() *Job {
 	job := &Job{
 		Region:      "global",

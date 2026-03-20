@@ -32,6 +32,64 @@ func nvidiaAlloc() *Allocation {
 	return a
 }
 
+// sets the supplied DeviceSharing on the node and returns the node and 1st deviceID
+func sharedNodeWithDeviceID(node *Node, sharingStatus DeviceSharing) (*Node, string) {
+	node.NodeResources.Devices[0].Instances[0].Shared = sharingStatus
+	deviceID := node.NodeResources.Devices[0].Instances[0].ID
+	return node, deviceID
+}
+
+// genNvidiaOrIntelAllocs return a []*Allocation and takes configuration
+// to indicate whether allocs should be for Nvidia or Intel devices, whether
+// they should be sharing enabled and how many should point to the same
+// device[]*Allocs
+// [][]string{status, sharedGPUID,
+func genNvidiaOrIntelAllocs(isNvidia bool, willShare bool, count int, sharedGpuId string) []*Allocation {
+	var allocs []*Allocation
+
+	// function to generate a single allocation
+	genAlloc := func(ID string, isNvidia bool) *Allocation {
+		var (
+			allocated *AllocatedDeviceResource
+			gpuID     string
+		)
+		if len(ID) == 0 {
+			gpuID = uuid.Generate()
+		} else {
+			gpuID = ID
+		}
+		if isNvidia {
+			allocated = &AllocatedDeviceResource{
+				Type:      "gpu",
+				Vendor:    "nvidia",
+				Name:      "1080ti",
+				DeviceIDs: []string{gpuID},
+				//WillShare: map[string]bool{gpuID: willShare},
+			}
+		} else {
+			allocated = &AllocatedDeviceResource{
+				Type:      "fpga",
+				Vendor:    "intel",
+				Name:      "F100",
+				DeviceIDs: []string{gpuID},
+				WillShare: map[string]bool{gpuID: willShare},
+			}
+		}
+		a := MockAlloc()
+		a.AllocatedResources.Tasks["web"].Devices = []*AllocatedDeviceResource{allocated}
+		a.ClientStatus = AllocClientStatusPending
+		return a
+	}
+
+	// build []*Allocation
+	for range count {
+		allocs = append(allocs, genAlloc(sharedGpuId, isNvidia))
+	}
+
+	return allocs
+
+}
+
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *Node {
