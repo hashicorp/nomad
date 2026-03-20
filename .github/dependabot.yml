@@ -5,9 +5,6 @@ version: 2
 updates:
   - package-ecosystem: gomod
     directory: "/"
-    schedule:
-      interval: "cron"
-      cronjob: "0 9 15 * *" # once a month, mid-month
     labels:
       - "theme/dependencies"
     groups:
@@ -15,26 +12,20 @@ updates:
         patterns:
           - "*"
         applies-to: "version-updates"
-
-  - package-ecosystem: gomod
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
-    labels:
-      - "theme/dependencies"
-    groups:
+        schedule:
+          interval: "cron"
+          cronjob: "0 9 15 * *" # once a month, mid-month
       go-security:
         patterns:
           - "*"
         applies-to: "security-updates"
+        schedule:
+          interval: "weekly"
+          day: "sunday"
+          time: "09:00"
 
   - package-ecosystem: gomod
     directory: "/api"
-    schedule:
-      interval: "cron"
-      cronjob: "0 9 15 * *" # once a month, mid-month
     labels:
       - "theme/dependencies"
       - "theme/api"
@@ -43,51 +34,43 @@ updates:
         patterns:
           - "*"
         applies-to: "version-updates"
-
-  - package-ecosystem: gomod
-    directory: "/api"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
-    labels:
-      - "theme/dependencies"
-      - "theme/api"
-    groups:
+        schedule:
+          interval: "cron"
+          cronjob: "0 9 15 * *" # once a month, mid-month
       go-security-api:
         patterns:
           - "*"
         applies-to: "security-updates"
+        schedule:
+          interval: "weekly"
+          day: "sunday"
+          time: "09:00"
 
   - package-ecosystem: npm
     directory: "/ui"
-    schedule:
-      interval: "cron"
-      cronjob: "0 9 15 * *" # once a month, mid-month
     labels:
       - "theme/dependencies"
       - "theme/ui"
     groups:
       ui-dev:
-        patterns:
-          - "*"
-        dependency-type: "development"
+        schedule:
+          interval: "cron"
+          cronjob: "0 9 15 * *" # once a month, mid-month
+         patterns:
+           - "*"
+         dependency-type: "development"
       ui-prod:
-        patterns:
-          - "*"
-        dependency-type: "production"
-
-  - package-ecosystem: npm
-    directory: "/ui"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
-    labels:
-      - "theme/dependencies"
-      - "theme/ui"
-    groups:
+        schedule:
+          interval: "cron"
+          cronjob: "0 9 15 * *" # once a month, mid-month
+         patterns:
+           - "*"
+         dependency-type: "production"
       ui-security:
+        schedule:
+          interval: "weekly"
+          day: "sunday"
+          time: "09:00"
         patterns:
           - "*"
         applies-to: "security-updates"
