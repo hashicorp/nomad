@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { set } from '@ember/object';
 import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { computed } from '@ember/object';
@@ -13,14 +12,24 @@ import Tether from 'tether';
 export default class KeyboardShortcutsModal extends Component {
   @service keyboard;
   @service config;
+  _blurHandler = null;
 
   blurHandler() {
-    set(this, 'keyboard.displayHints', false);
+    if (this.isDestroying || this.isDestroyed) {
+      return;
+    }
+
+    const keyboard = this.keyboard;
+    if (!keyboard || keyboard.isDestroying || keyboard.isDestroyed) {
+      return;
+    }
+
+    keyboard.displayHints = false;
   }
 
   constructor() {
     super(...arguments);
-    set(this, '_blurHandler', this.blurHandler.bind(this));
+    this._blurHandler = this.blurHandler.bind(this);
     window.addEventListener('blur', this._blurHandler);
   }
 
