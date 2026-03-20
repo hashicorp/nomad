@@ -27,6 +27,8 @@ type StatsFetcher struct {
 	logger       log.Logger
 	pool         *pool.ConnPool
 	region       string
+	localID      raft.ServerID
+	localServer  *Server
 	inflight     map[raft.ServerID]struct{}
 	inflightLock sync.Mutex
 }
@@ -39,6 +41,13 @@ func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *Sta
 		region:   region,
 		inflight: make(map[raft.ServerID]struct{}),
 	}
+}
+
+// SetLocalServer sets the local server instance, enabling direct in-mem RPC
+// calls for the local server instead of going through the network pool.
+func (f *StatsFetcher) SetLocalServer(srv *Server) {
+	f.localServer = srv
+	f.localID = raft.ServerID(srv.config.NodeID)
 }
 
 // fetch does the RPC to fetch the server stats from a single server. We don't
@@ -56,6 +65,19 @@ func (f *StatsFetcher) fetch(server *autopilot.Server, replyCh chan *autopilot.S
 		delete(f.inflight, server.ID)
 		f.inflightLock.Unlock()
 	}()
+
+	// if this is a local server and we have a reference to it, don't go over
+	// the network
+	if f.localServer != nil && server.ID == f.localID {
+		statusEndpoint := NewStatusEndpoint(f.localServer, nil)
+		err := statusEndpoint.RaftStats(&args, &reply)
+		if err != nil {
+			f.logger.Warn("error getting server health", "server", server.Name, "error", err)
+			return
+		}
+		replyCh <- reply.ToAutopilotServerStats()
+		return
+	}
 
 	addr, err := net.ResolveTCPAddr("tcp", string(server.Address))
 	if err != nil {

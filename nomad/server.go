@@ -421,6 +421,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
+	s.statsFetcher.SetLocalServer(s)
 
 	// Setup Consul
 	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
