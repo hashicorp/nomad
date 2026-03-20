@@ -5,7 +5,7 @@
 
 import Component from '@glimmer/component';
 import { capitalize } from '@ember/string';
-import { didUpdate } from '@ember/render-modifiers/modifiers/did-update';
+import didUpdate from '@ember/render-modifiers/modifiers/did-update';
 import { fn } from '@ember/helper';
 import { LinkTo } from '@ember/routing';
 import { on } from '@ember/modifier';
