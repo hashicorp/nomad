@@ -681,8 +681,11 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !(aclObj.AllowClientOp(structs.NodePoolDefault) || aclObj.AllowServerOp()) {
-		return structs.ErrPermissionDenied
+	} else {
+		pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+		if !(aclObj.AllowClientOp(pool) || aclObj.AllowServerOp()) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Verify the arguments
@@ -1001,7 +1004,8 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 
 	// If the ACL object has client operations allowed, check if the identity
 	// matches the node being drained. This allows nodes to drain themselves.
-	if aclObj.AllowClientOp(structs.NodePoolDefault) {
+	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if aclObj.AllowClientOp(pool) {
 
 		identity := args.GetIdentity()
 
@@ -1019,6 +1023,16 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 		// node is using its node identity JWT to authenticate.
 		if identityClaims.IsNode() && identityClaims.NodeIdentityClaims.NodeID == args.NodeID {
 			return nil
+		}
+
+		// Additionally, allow clients in the same node pool as the target node.
+		// Look up the target node's pool and allow if it matches the caller.
+		if snap, err := n.srv.fsm.State().Snapshot(); err == nil {
+			if node, err := snap.NodeByID(nil, args.NodeID); err == nil && node != nil {
+				if node.NodePool == pool {
+					return nil
+				}
+			}
 		}
 	}
 
@@ -1205,7 +1219,8 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp(structs.NodePoolDefault) && !aclObj.AllowNodeRead() {
+	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if !aclObj.AllowClientOp(pool) && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1365,7 +1380,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
+	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1511,7 +1527,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
+	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1966,7 +1983,8 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
-	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
+	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 

@@ -51,7 +51,8 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
+	pool := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
+	if !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -131,7 +132,7 @@ func (s *ServiceRegistration) DeleteByID(
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityDeleteServiceRegistration,
 	) &&
-		!aclObj.AllowClientOp(structs.NodePoolDefault) {
+		!aclObj.AllowClientOp(resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())) {
 		return structs.ErrPermissionDenied
 	}
 
