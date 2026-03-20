@@ -197,6 +197,7 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			Type:      id.Type,
 			Name:      id.Name,
 			DeviceIDs: assignable,
+			WillShare: willShare,
 		}
 	}
 

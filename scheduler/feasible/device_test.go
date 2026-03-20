@@ -35,10 +35,48 @@ func deviceRequest(name string, count uint64,
 	}
 }
 
+// sharedDeviceRequest takes the name, count and potential constraints and affinities
+// and returns a device request.
+func sharedDeviceRequest(name string, count uint64,
+	constraints []*structs.Constraint, affinities []*structs.Affinity, willShare *structs.WillShare) *structs.RequestedDevice {
+	return &structs.RequestedDevice{
+		Name:        name,
+		Count:       count,
+		Constraints: constraints,
+		Affinities:  affinities,
+		WillShare:   willShare,
+	}
+}
+
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *structs.Node {
 	n := mock.NvidiaNode()
+	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
+		Type:   "fpga",
+		Vendor: "intel",
+		Name:   "F100",
+		Attributes: map[string]*psstructs.Attribute{
+			"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
+		},
+		Instances: []*structs.NodeDevice{
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+			{
+				ID:      uuid.Generate(),
+				Healthy: false,
+			},
+		},
+	})
+	return n
+}
+
+// sharedDevNode returns a node containing two shared devices, an nvidia gpu and an intel
+// FPGA.
+func sharedDevNode() *structs.Node {
+	n := mock.SharedNvidiaNode()
 	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
 		Type:   "fpga",
 		Vendor: "intel",
@@ -614,4 +652,98 @@ func Test_memoryNodeMatcher(t *testing.T) {
 			must.Eq(t, tc.exp, result)
 		})
 	}
+}
+
+func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
+	ci.Parallel(t)
+
+	n := mock.SharedNvidiaNode()
+	nvidia0 := n.NodeResources.Devices[0]
+	gpuID0 := n.NodeResources.Devices[0].Instances[0]
+	gpuID1 := n.NodeResources.Devices[0].Instances[1]
+	_, ctx := MockContext(t)
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+	mem := &memoryNodeMatcher{
+		memoryNode: -1, // we are not testing
+	}
+
+	for _, tc := range []struct {
+		name        string
+		deviceName  string
+		deviceID    string
+		willShare   *structs.WillShare
+		count       uint64
+		expectedErr string
+	}{
+		{
+			name:       "happy path",
+			deviceName: "nvidia/gpu",
+			deviceID:   gpuID0.ID,
+			willShare:  &structs.WillShare{Enabled: true},
+			count:      1,
+		},
+		{
+			name:       "structs.WillShare can be nil",
+			deviceName: "nvidia/gpu",
+			deviceID:   gpuID0.ID,
+			willShare:  nil,
+			count:      1,
+		},
+		{
+			name:        "if present, willShare must match device",
+			deviceName:  "nvidia/gpu",
+			deviceID:    gpuID0.ID,
+			willShare:   &structs.WillShare{Enabled: false},
+			count:       1,
+			expectedErr: "no devices match request",
+		},
+		{
+			name:        "if present, gpu_id must match device",
+			deviceName:  "nvidia/gpu",
+			deviceID:    gpuID0.ID,
+			willShare:   &structs.WillShare{Enabled: false, GpuId: gpuID1.ID},
+			count:       1,
+			expectedErr: "no devices match request",
+		},
+		{
+			name:        "sharing passes, constraint doesn't match",
+			deviceName:  "nvidia/gpu",
+			deviceID:    "notanID",
+			willShare:   &structs.WillShare{Enabled: true},
+			count:       1,
+			expectedErr: "no devices match request",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testConstraints := []*structs.Constraint{
+				{
+					LTarget: "${device.ids}",
+					Operand: "set_contains",
+					RTarget: tc.deviceID,
+				},
+			}
+			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.willShare)
+
+			out, _, err := d.createOffer(mem, ask)
+			if len(tc.expectedErr) != 0 {
+				must.ErrorContains(t, err, tc.expectedErr)
+				must.Nil(t, out)
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, out)
+			must.Len(t, 1, out.DeviceIDs)
+			// validate expected instance and device IDs
+			must.SliceContains(t, collectInstanceIDs(nvidia0), out.DeviceIDs[0])
+			must.SliceContains(t, out.DeviceIDs, nvidia0.Instances[0].ID)
+			must.Eq(t, tc.deviceID, out.DeviceIDs[0])
+
+			if tc.willShare != nil {
+				must.MapContainsKey(t, out.WillShare, out.DeviceIDs[0])
+			}
+
+		})
+	}
+
 }
