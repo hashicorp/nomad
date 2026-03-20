@@ -7,74 +7,44 @@ updates:
     directory: "/"
     labels:
       - "theme/dependencies"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
     groups:
-      go-updates:
+      go:
         patterns:
           - "*"
-        applies-to: "version-updates"
-        schedule:
-          interval: "cron"
-          cronjob: "0 9 15 * *" # once a month, mid-month
-      go-security:
-        patterns:
-          - "*"
-        applies-to: "security-updates"
-        schedule:
-          interval: "weekly"
-          day: "sunday"
-          time: "09:00"
 
   - package-ecosystem: gomod
     directory: "/api"
     labels:
       - "theme/dependencies"
       - "theme/api"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
     groups:
-      go-updates-api:
+      go-api:
         patterns:
           - "*"
-        applies-to: "version-updates"
-        schedule:
-          interval: "cron"
-          cronjob: "0 9 15 * *" # once a month, mid-month
-      go-security-api:
-        patterns:
-          - "*"
-        applies-to: "security-updates"
-        schedule:
-          interval: "weekly"
-          day: "sunday"
-          time: "09:00"
 
   - package-ecosystem: npm
     directory: "/ui"
     labels:
       - "theme/dependencies"
       - "theme/ui"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
     groups:
       ui-dev:
-        schedule:
-          interval: "cron"
-          cronjob: "0 9 15 * *" # once a month, mid-month
          patterns:
            - "*"
          dependency-type: "development"
       ui-prod:
-        schedule:
-          interval: "cron"
-          cronjob: "0 9 15 * *" # once a month, mid-month
          patterns:
            - "*"
          dependency-type: "production"
-      ui-security:
-        schedule:
-          interval: "weekly"
-          day: "sunday"
-          time: "09:00"
-        patterns:
-          - "*"
-        applies-to: "security-updates"
-        dependency-type: "production"
 
   - package-ecosystem: "github-actions"
     directory: "/"
