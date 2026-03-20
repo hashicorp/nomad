@@ -11,7 +11,7 @@ import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import { and, not } from 'ember-truth-helpers';
 import Toggle from 'nomad-ui/components/toggle';
 
-export default class DasTaskRowComponent extends Component {
+export default class DasTaskRow extends Component {
   @tracked height;
 
   get half() {

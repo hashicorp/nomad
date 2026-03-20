@@ -19,7 +19,7 @@ import trimPath from 'nomad-ui/helpers/trim-path';
 import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 import compactPath from '../utils/compact-path';
 
-export default class VariablePathsComponent extends Component {
+export default class VariablePaths extends Component {
   @service router;
   @service abilities;
 

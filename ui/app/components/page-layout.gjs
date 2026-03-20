@@ -9,7 +9,7 @@ import AppBreadcrumbs from 'nomad-ui/components/app-breadcrumbs';
 import GlobalHeader from 'nomad-ui/components/global-header';
 import GutterMenu from 'nomad-ui/components/gutter-menu';
 
-export default class PageLayoutComponent extends Component {
+export default class PageLayout extends Component {
   @tracked isGutterOpen = false;
 
   openGutter = () => {

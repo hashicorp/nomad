@@ -277,9 +277,6 @@ importers:
       ember-source:
         specifier: ~6.10.1
         version: 6.10.1(@glimmer/component@2.0.0)(rsvp@4.8.5)
-      ember-stargate:
-        specifier: ^1.0.2
-        version: 1.0.2(@babel/core@7.29.0)(@glimmer/component@2.0.0)(@glint/template@1.7.7)
       ember-statecharts:
         specifier: 0.14.0
         version: 0.14.0(@babel/core@7.29.0)(xstate@4.38.3)
@@ -3802,15 +3799,6 @@ packages:
       ember-concurrency:
         optional: true
 
-  ember-resources@7.0.7:
-    resolution: {integrity: sha512-0tEfLTi9hHNwZaBsTjLf+by+YXHL4Zj2VITLfFkcqJiwHIIsBnOddxtTSrjRmYLJd6L3JXfaMcVdUwT+B050Ww==}
-    peerDependencies:
-      '@glimmer/component': ^2.0.0
-      '@glint/template': '>= 1.0.0'
-    peerDependenciesMeta:
-      '@glimmer/component':
-        optional: true
-
   ember-responsive@5.0.0:
     resolution: {integrity: sha512-JDwNIKHNcHrILGkpLqLqZ1idO7hxxt6f4M2wmiktOuzhBm2/JxUjkK+yec+tzIzXaD7rrl2/S7STa/Uj5s6TEw==}
     engines: {node: 10.* || >= 12}
@@ -3835,11 +3823,6 @@ packages:
   ember-stargate@0.4.3:
     resolution: {integrity: sha512-GeT5n+TT3Lfl335f16fx9ms0Jap+v5LTs8otIaQEGtFbSP5Jj/hlT3JPB9Uo8IDLXdjejxJsKRpCEzRD43g5dg==}
     engines: {node: 12.* || >= 14}
-
-  ember-stargate@1.0.2:
-    resolution: {integrity: sha512-tZkctWX0QySv5sTzpajT19OlK0RivQvXxtq+XGXhQJvVdGzKy/7W9MK4RbhpxDbvDrzXOXJSYKZnKrdwJFyrdg==}
-    peerDependencies:
-      '@glimmer/component': ^2.0.0
 
   ember-statecharts@0.14.0:
     resolution: {integrity: sha512-nl+hgsK59sx/FpaEwaTtlrLxl369XcL1YqU757aa11KoFVn9xDvsoPsz3uCmDkIyOr+U4nFDtRUtGffRh2T6qw==}
@@ -12063,17 +12046,6 @@ snapshots:
       - '@babel/core'
       - supports-color
 
-  ember-resources@7.0.7(@babel/core@7.29.0)(@glimmer/component@2.0.0)(@glint/template@1.7.7):
-    dependencies:
-      '@embroider/addon-shim': 1.10.2
-      '@embroider/macros': 1.20.1(@babel/core@7.29.0)(@glint/template@1.7.7)
-      '@glint/template': 1.7.7
-    optionalDependencies:
-      '@glimmer/component': 2.0.0
-    transitivePeerDependencies:
-      - '@babel/core'
-      - supports-color
-
   ember-responsive@5.0.0:
     dependencies:
       ember-cli-babel: 7.26.11
@@ -12160,19 +12132,6 @@ snapshots:
       - '@glint/template'
       - ember-concurrency
       - ember-source
-      - supports-color
-
-  ember-stargate@1.0.2(@babel/core@7.29.0)(@glimmer/component@2.0.0)(@glint/template@1.7.7):
-    dependencies:
-      '@embroider/addon-shim': 1.10.2
-      '@glimmer/component': 2.0.0
-      decorator-transforms: 2.3.1(@babel/core@7.29.0)
-      ember-modifier: 4.3.0(@babel/core@7.29.0)
-      ember-resources: 7.0.7(@babel/core@7.29.0)(@glimmer/component@2.0.0)(@glint/template@1.7.7)
-      tracked-built-ins: 4.1.0(@babel/core@7.29.0)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - '@glint/template'
       - supports-color
 
   ember-statecharts@0.14.0(@babel/core@7.29.0)(xstate@4.38.3):

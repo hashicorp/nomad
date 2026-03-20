@@ -8,7 +8,7 @@ import { LinkTo } from '@ember/routing';
 import { HdsTooltipButton } from '@hashicorp/design-system-components/components';
 import hdsTooltip from '@hashicorp/design-system-components/modifiers/hds-tooltip';
 
-export default class ConditionalLinkToComponent extends Component {
+export default class ConditionalLinkTo extends Component {
   get query() {
     return this.args.query || {};
   }

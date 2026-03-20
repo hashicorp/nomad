@@ -21,7 +21,7 @@ import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 import TaskContextSidebar from 'nomad-ui/components/task-context-sidebar';
 import ENV from 'nomad-ui/config/environment';
 
-export default class TaskSubRowComponent extends Component {
+export default class TaskSubRow extends Component {
   @service store;
   @service router;
   @service notifications;

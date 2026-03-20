@@ -134,7 +134,6 @@
     "ember-responsive": "^5.0.0",
     "ember-sinon": "^5.0.0",
     "ember-source": "~6.10.1",
-    "ember-stargate": "^1.0.2",
     "ember-statecharts": "0.14.0",
     "ember-template-imports": "^4.4.0",
     "ember-template-lint": "^7.9.3",

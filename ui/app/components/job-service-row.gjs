@@ -12,7 +12,7 @@ import { and, eq } from 'ember-truth-helpers';
 import { HdsIcon } from '@hashicorp/design-system-components/components';
 import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 
-export default class JobServiceRowComponent extends Component {
+export default class JobServiceRow extends Component {
   @service router;
   @service system;
 

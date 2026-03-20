@@ -8,7 +8,7 @@ import { action } from '@ember/object';
 import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
-export default class ActionCardComponent extends Component {
+export default class ActionCard extends Component {
   @service nomadActions;
   get stateColor() {
     /**

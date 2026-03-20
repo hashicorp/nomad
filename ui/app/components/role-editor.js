@@ -10,7 +10,7 @@ import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-export default class RoleEditorComponent extends Component {
+export default class RoleEditor extends Component {
   @service notifications;
   @service router;
   @service store;

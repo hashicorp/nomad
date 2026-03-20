@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 
-export default class MetadataKvComponent extends Component {
+export default class MetadataKv extends Component {
   @tracked editing = false;
   // eslint-disable-next-line ember/no-tracked-properties-from-args
   @tracked value = this.args.value;

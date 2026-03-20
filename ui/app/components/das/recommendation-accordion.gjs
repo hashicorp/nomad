@@ -15,7 +15,7 @@ import ListAccordion from 'nomad-ui/components/list-accordion';
 import DasRecommendationCard from 'nomad-ui/components/das/recommendation-card';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 
-export default class DasRecommendationAccordionComponent extends Component {
+export default class DasRecommendationAccordion extends Component {
   @tracked waitingToProceed = false;
   @tracked closing = false;
   @tracked animationContainerStyle = htmlSafe('');

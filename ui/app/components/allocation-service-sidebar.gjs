@@ -16,7 +16,7 @@ import Tooltip from 'nomad-ui/components/tooltip';
 import ListTable from 'nomad-ui/components/list-table';
 import ServiceStatusIndicator from 'nomad-ui/components/service-status-indicator';
 
-export default class AllocationServiceSidebarComponent extends Component {
+export default class AllocationServiceSidebar extends Component {
   @service store;
   @service system;
 

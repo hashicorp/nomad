@@ -6,7 +6,6 @@
 import { array, fn } from '@ember/helper';
 import { on } from '@ember/modifier';
 import can from 'ember-can/helpers/can';
-import perform from 'ember-concurrency/helpers/perform';
 import { eq, not, or } from 'ember-truth-helpers';
 import {
   HdsButton,
@@ -121,7 +120,7 @@ export const JobEditorEdit = <template>
   </div>
   <HdsButtonSet class="is-associative buttonset sticky pull-left">
     <HdsButton
-      {{on "click" (perform @fns.onPlan)}}
+      {{on "click" @fns.onPlan.perform}}
       disabled={{or @fns.onPlan.isRunning (not @data.job._newDefinition)}}
       data-test-plan
       @text="Plan"

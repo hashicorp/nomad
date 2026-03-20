@@ -25,22 +25,6 @@ export default class PopoverMenu extends Component {
 
   dropdown = null;
 
-  get triggerClass() {
-    return this.args.triggerClass || '';
-  }
-
-  get label() {
-    return this.args.label || '';
-  }
-
-  get isDisabled() {
-    return this.args.isDisabled || false;
-  }
-
-  get tooltip() {
-    return this.args.tooltip;
-  }
-
   capture = (dropdown) => {
     // A direct dropdown reference is required for close/reposition controls.
     this.dropdown = dropdown;
@@ -87,7 +71,7 @@ export default class PopoverMenu extends Component {
         @ariaLabel="label-popover-menu"
         @ariaLabelledBy="label-popover-menu"
         @horizontalPosition="right"
-        @disabled={{this.isDisabled}}
+        @disabled={{@isDisabled}}
         @onOpen={{this.handleOpen}}
         @onClose={{this.handleClose}}
         as |dd|
@@ -97,13 +81,13 @@ export default class PopoverMenu extends Component {
             data-test-popover-trigger
             class={{concat
               "popover-trigger button is-primary "
-              this.triggerClass
-              (if this.isDisabled " is-disabled")
+              @triggerClass
+              (if @isDisabled " is-disabled")
             }}
-            aria-label={{this.tooltip}}
+            aria-label={{@tooltip}}
             {{on "keyup" (fn this.openOnArrowDown dd)}}
           >
-            {{this.label}}
+            {{@label}}
             <HdsIcon @name="chevron-down" @isInline={{true}} />
           </Trigger>
           <Content data-test-popover-menu class="popover-content">

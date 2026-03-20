@@ -14,10 +14,12 @@ export default class JobTemplateEditor extends Component {
   @tracked template;
 
   establishKeyValues = () => {
-    this.description =
-      this.args.keyValues?.find?.((entry) => entry.key === 'description')?.value;
-    this.template =
-      this.args.keyValues?.find?.((entry) => entry.key === 'template')?.value;
+    this.description = this.args.keyValues?.find?.(
+      (entry) => entry.key === 'description',
+    )?.value;
+    this.template = this.args.keyValues?.find?.(
+      (entry) => entry.key === 'template',
+    )?.value;
   };
 
   updateDescription = (event) => {
@@ -35,9 +37,9 @@ export default class JobTemplateEditor extends Component {
         <span>
           Description
         </span>
-        <Input
-          @type="text"
-          @value={{this.description}}
+        <input
+          type="text"
+          value={{this.description}}
           {{on "input" this.updateDescription}}
           class="input value-input"
           data-test-template-description

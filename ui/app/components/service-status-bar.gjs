@@ -7,18 +7,14 @@ import Component from '@glimmer/component';
 import DistributionBar from 'nomad-ui/components/distribution-bar';
 
 export default class ServiceStatusBar extends Component {
-  get serviceStatus() {
-    return this.args.status;
-  }
-
   get data() {
-    if (!this.serviceStatus) {
+    if (!this.args.status) {
       return [];
     }
 
-    const pending = this.serviceStatus.pending || 0;
-    const failing = this.serviceStatus.failure || 0;
-    const success = this.serviceStatus.success || 0;
+    const pending = this.args.status.pending || 0;
+    const failing = this.args.status.failure || 0;
+    const success = this.args.status.success || 0;
 
     const [grey, red, green] = ['queued', 'failed', 'running'];
 

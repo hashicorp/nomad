@@ -10,7 +10,7 @@ import { computed } from '@ember/object';
 import { action } from '@ember/object';
 import Tether from 'tether';
 
-export default class KeyboardShortcutsModalComponent extends Component {
+export default class KeyboardShortcutsModal extends Component {
   @service keyboard;
   @service config;
 

@@ -9,7 +9,7 @@ import { service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-export default class SentinelPolicyEditorComponent extends Component {
+export default class SentinelPolicyEditor extends Component {
   @service notifications;
   @service router;
   @service store;

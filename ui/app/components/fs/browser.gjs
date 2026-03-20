@@ -23,7 +23,11 @@ export default class Browser extends Component {
   }
 
   get directoryEntriesArray() {
-    return this.args.directoryEntries?.toArray?.() || this.args.directoryEntries || [];
+    return (
+      this.args.directoryEntries?.toArray?.() ||
+      this.args.directoryEntries ||
+      []
+    );
   }
 
   get directories() {
@@ -36,11 +40,14 @@ export default class Browser extends Component {
 
   get sortedDirectoryEntries() {
     const sortProperty = this.args.sortProperty;
-    const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
+    const directorySortProperty =
+      sortProperty === 'Size' ? 'Name' : sortProperty;
 
     const sortedDirectories = this.directories
       .slice()
-      .sort((left, right) => compareEntries(left, right, directorySortProperty));
+      .sort((left, right) =>
+        compareEntries(left, right, directorySortProperty),
+      );
     const sortedFiles = this.files
       .slice()
       .sort((left, right) => compareEntries(left, right, sortProperty));

@@ -8,7 +8,7 @@ import { action } from '@ember/object';
 import { service } from '@ember/service';
 import { lazyClick } from '../helpers/lazy-click';
 
-export default class ChildJobRowComponent extends Component {
+export default class ChildJobRow extends Component {
   @service router;
 
   click(event) {

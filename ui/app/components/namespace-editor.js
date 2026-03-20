@@ -10,7 +10,7 @@ import { tracked } from '@glimmer/tracking';
 import Component from '@glimmer/component';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-export default class NamespaceEditorComponent extends Component {
+export default class NamespaceEditor extends Component {
   @service notifications;
   @service router;
   @service store;

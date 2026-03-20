@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { on } from '@ember/modifier';
 import { HdsIcon } from '@hashicorp/design-system-components/components';
 
-export default class DasErrorComponent extends Component {
+export default class DasError extends Component {
   dismissClicked = () => {
     this.args.proceed({ manuallyDismissed: true });
   };

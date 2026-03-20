@@ -9,7 +9,7 @@ import { LinkTo } from '@ember/routing';
 import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import willDestroy from '@ember/render-modifiers/modifiers/will-destroy';
 
-export default class PluginSubnavComponent extends Component {
+export default class PluginSubnav extends Component {
   @service keyboard;
 
   <template>

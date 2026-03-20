@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { action } from '@ember/object';
 
-export default class ActionsDropdownComponent extends Component {
+export default class ActionsDropdown extends Component {
   @service nomadActions;
   @service notifications;
 

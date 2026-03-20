@@ -11,7 +11,7 @@ import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-export default class TokenEditorComponent extends Component {
+export default class TokenEditor extends Component {
   @service notifications;
   @service router;
   @service store;

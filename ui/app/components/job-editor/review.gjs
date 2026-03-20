@@ -6,7 +6,6 @@
 import Component from '@glimmer/component';
 import { on } from '@ember/modifier';
 import { and } from 'ember-truth-helpers';
-import perform from 'ember-concurrency/helpers/perform';
 import {
   HdsAlert,
   HdsButton,
@@ -18,7 +17,7 @@ import JobDiff from 'nomad-ui/components/job-diff';
 import ListTable from 'nomad-ui/components/list-table';
 import PlacementFailure from 'nomad-ui/components/placement-failure';
 
-export default class JobEditorReviewComponent extends Component {
+export default class JobEditorReview extends Component {
   // Slightly formats the warning string to be more readable
   get warnings() {
     return htmlSafe(
@@ -93,8 +92,11 @@ export default class JobEditorReviewComponent extends Component {
             as |t|
           >
             <t.head>
-              <th class="is-narrow"><span class="visually-hidden">Driver Health,
-                  Scheduling, and Preemption</span></th>
+              <th class="is-narrow">
+                <span class="visually-hidden">
+                  Driver Health, Scheduling, and Preemption
+                </span>
+              </th>
               <th>ID</th>
               <th>Task Group</th>
               <th>Created</th>
@@ -116,7 +118,7 @@ export default class JobEditorReviewComponent extends Component {
     <HdsButtonSet class="is-associative">
       <HdsButton
         @text="Run"
-        {{on "click" (perform @fns.onSubmit)}}
+        {{on "click" @fns.onSubmit.perform}}
         disabled={{@fns.onSubmit.isRunning}}
         data-test-run
       />

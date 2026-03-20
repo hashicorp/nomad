@@ -6,6 +6,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { service } from '@ember/service';
+import { get } from '@ember/object';
 import { macroCondition, isTesting } from '@embroider/macros';
 import { and } from 'ember-truth-helpers';
 import { eq } from 'ember-truth-helpers';
@@ -60,7 +61,9 @@ export default class File extends Component {
   }
 
   get catUrlWithoutRegion() {
-    const taskUrlPrefix = this.args.taskState ? `${this.args.taskState.name}/` : '';
+    const taskUrlPrefix = this.args.taskState
+      ? `${this.args.taskState.name}/`
+      : '';
     const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.args.file}`);
     return `/v1/client/fs/cat/${this.args.allocation.id}?path=${encodedPath}`;
   }
@@ -89,14 +92,24 @@ export default class File extends Component {
     return undefined;
   }
 
+  get allocationId() {
+    return get(this.args.allocation, 'id');
+  }
+
+  get nodeHttpAddr() {
+    return get(this.args.allocation, 'node.httpAddr');
+  }
+
   get fileUrl() {
-    const address = this.args.allocation?.node?.httpAddr;
-    const url = `/v1/client/fs/${this.fetchMode}/${this.args.allocation.id}`;
+    const address = this.nodeHttpAddr;
+    const url = `/v1/client/fs/${this.fetchMode}/${this.allocationId}`;
     return this.useServer ? url : `//${address}${url}`;
   }
 
   get fileParams() {
-    const taskUrlPrefix = this.args.taskState ? `${this.args.taskState.name}/` : '';
+    const taskUrlPrefix = this.args.taskState
+      ? `${this.args.taskState.name}/`
+      : '';
     const path = `${taskUrlPrefix}${this.args.file}`;
 
     switch (this.mode) {
@@ -216,7 +229,7 @@ export default class File extends Component {
       {{didUpdate
         this.refreshLogger
         @allocation.id
-        @allocation.node.httpAddr
+        this.nodeHttpAddr
         @taskState.name
         @file
         @stat.Size
@@ -225,7 +238,10 @@ export default class File extends Component {
       {{#if this.noConnection}}
         <div data-test-connection-error class="notification is-error">
           <h3 class="title is-4">Cannot fetch file</h3>
-          <p>The files for this {{if @taskState "task" "allocation"}} are inaccessible. Check the condition of the client the allocation is on.</p>
+          <p>The files for this
+            {{if @taskState "task" "allocation"}}
+            are inaccessible. Check the condition of the client the allocation
+            is on.</p>
         </div>
       {{/if}}
       <div data-test-header class="boxed-section-head">
@@ -272,7 +288,8 @@ export default class File extends Component {
       </div>
       <div
         data-test-file-box
-        class="boxed-section-body {{if (eq this.fileComponent 'stream') 'is-dark is-full-bleed'}}"
+        class="boxed-section-body
+          {{if (eq this.fileComponent 'stream') 'is-dark is-full-bleed'}}"
       >
         {{#if (eq this.fileComponent "stream")}}
           <StreamingFile
@@ -289,7 +306,8 @@ export default class File extends Component {
         {{else}}
           <div data-test-unsupported-type class="empty-message is-hollow">
             <h3 class="empty-message-headline">Unsupported File Type</h3>
-            <p class="empty-message-body message">The Nomad UI could not render this file, but you can still view the file directly.</p>
+            <p class="empty-message-body message">The Nomad UI could not render
+              this file, but you can still view the file directly.</p>
             <p class="empty-message-body">
               <button
                 data-test-log-action="raw"

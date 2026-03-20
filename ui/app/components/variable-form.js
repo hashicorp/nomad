@@ -26,7 +26,7 @@ const EMPTY_KV = {
 // Capture characters that are not _, letters, or numbers using Unicode.
 const invalidKeyCharactersRegex = new RegExp(/[^_\p{Letter}\p{Number}]/gu);
 
-export default class VariableFormComponent extends Component {
+export default class VariableForm extends Component {
   @service notifications;
   @service router;
   @service store;

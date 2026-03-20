@@ -30,7 +30,7 @@ const statsKeyToLabel = {
 
 const formatPercent = d3Format.format('+.0%');
 
-export default class RecommendationChartComponent extends Component {
+export default class RecommendationChart extends Component {
   @tracked width;
   @tracked height;
 

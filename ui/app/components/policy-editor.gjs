@@ -16,7 +16,7 @@ import codeMirror from 'nomad-ui/modifiers/code-mirror';
 import autofocus from 'nomad-ui/modifiers/autofocus';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-export default class PolicyEditorComponent extends Component {
+export default class PolicyEditor extends Component {
   @service notifications;
   @service router;
   @service store;

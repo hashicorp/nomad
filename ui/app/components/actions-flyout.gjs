@@ -14,7 +14,7 @@ import {
 import ActionCard from 'nomad-ui/components/action-card';
 import ActionsDropdown from 'nomad-ui/components/actions-dropdown';
 
-export default class ActionsFlyoutComponent extends Component {
+export default class ActionsFlyout extends Component {
   @service nomadActions;
   @service router;
 

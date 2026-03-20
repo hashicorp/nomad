@@ -9,7 +9,7 @@ import { on } from '@ember/modifier';
 import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-export default class DasDismissedComponent extends Component {
+export default class DasDismissed extends Component {
   @localStorageProperty('nomadRecommendationDismssalUnderstood', false)
   explanationUnderstood;
 

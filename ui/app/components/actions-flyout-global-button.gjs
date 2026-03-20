@@ -9,7 +9,7 @@ import { on } from '@ember/modifier';
 import { HdsButton } from '@hashicorp/design-system-components/components';
 import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 
-export default class ActionsFlyoutGlobalButtonComponent extends Component {
+export default class ActionsFlyoutGlobalButton extends Component {
   @service nomadActions;
 
   shortcutPattern = ['a', 'c'];

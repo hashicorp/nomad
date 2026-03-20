@@ -5,7 +5,7 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { component, fn, hash } from '@ember/helper';
+import { fn, hash } from '@ember/helper';
 import { get } from '@ember/object';
 import ListAccordionAccordionBody from 'nomad-ui/components/list-accordion/accordion-body';
 import ListAccordionAccordionHead from 'nomad-ui/components/list-accordion/accordion-head';
@@ -70,7 +70,7 @@ export default class ListAccordion extends Component {
   };
 
   <template>
-    <div class="accordion">
+    <div class="accordion" ...attributes>
       {{#each this.decoratedSource as |item|}}
         {{yield
           (hash

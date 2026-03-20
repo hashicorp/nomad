@@ -12,7 +12,7 @@ import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 
 const DEBOUNCE_MS = 500;
 
-export default class JobSearchBoxComponent extends Component {
+export default class JobSearchBox extends Component {
   @service keyboard;
 
   shortcutPattern = ['Shift+F'];

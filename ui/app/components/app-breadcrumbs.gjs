@@ -11,7 +11,7 @@ import BreadcrumbsJob from 'nomad-ui/components/breadcrumbs/job';
 
 const isJobType = (type) => type === 'job';
 
-export default class AppBreadcrumbsComponent extends Component {
+export default class AppBreadcrumbs extends Component {
   isOneCrumbUp = (iter = 0, totalNum = 0) => {
     return iter === totalNum - 2;
   };

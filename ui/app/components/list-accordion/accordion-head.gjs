@@ -5,6 +5,7 @@
 
 import { fn } from '@ember/helper';
 import { on } from '@ember/modifier';
+import { or } from 'ember-truth-helpers';
 
 export const ListAccordionAccordionHead = <template>
   <div

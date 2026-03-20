@@ -24,7 +24,7 @@ import DasRecommendationChart from 'nomad-ui/components/das/recommendation-chart
 import DasTaskRow from 'nomad-ui/components/das/task-row';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 
-export default class DasRecommendationCardComponent extends Component {
+export default class DasRecommendationCard extends Component {
   @service router;
 
   @tracked allCpuToggleActive = true;

@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 
-export default class DasResourceTotalsComponent extends Component {
+export default class DasResourceTotals extends Component {
   get diffs() {
     return new ResourcesDiffs(
       this.args.model,

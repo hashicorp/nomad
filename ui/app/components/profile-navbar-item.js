@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { action } from '@ember/object';
 
-export default class ProfileNavbarItemComponent extends Component {
+export default class ProfileNavbarItem extends Component {
   @service token;
   @service router;
   @service store;

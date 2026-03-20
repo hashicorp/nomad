@@ -29,10 +29,6 @@ export default class StreamingFile extends Component {
     return this.args.isStreaming ?? true;
   }
 
-  get logger() {
-    return this.args.logger;
-  }
-
   get shouldFillHeight() {
     return this.args.shouldFillHeight ?? true;
   }
@@ -52,7 +48,7 @@ export default class StreamingFile extends Component {
   };
 
   onArgsChange = () => {
-    if (!this.logger) {
+    if (!this.args.logger) {
       return;
     }
 
@@ -75,7 +71,7 @@ export default class StreamingFile extends Component {
         if (this.isStreaming) {
           this.stream.perform();
         } else {
-          this.logger.stop();
+          this.args.logger.stop();
         }
         break;
     }
@@ -133,7 +129,7 @@ export default class StreamingFile extends Component {
   };
 
   head = task(async () => {
-    await this.logger.gotoHead.perform();
+    await this.args.logger.gotoHead.perform();
     scheduleOnce('afterRender', this, this.scrollToTop);
   });
 
@@ -144,7 +140,7 @@ export default class StreamingFile extends Component {
   };
 
   tail = task(async () => {
-    await this.logger.gotoTail.perform();
+    await this.args.logger.gotoTail.perform();
   });
 
   synchronizeScrollPosition = () => {
@@ -155,10 +151,10 @@ export default class StreamingFile extends Component {
 
   stream = task(async () => {
     // Follow the log if the scroll position is near the bottom of the cli window.
-    this.logger.on('tick', this, 'scheduleScrollSynchronization');
+    this.args.logger.on('tick', this, 'scheduleScrollSynchronization');
 
-    await this.logger.startStreaming();
-    this.logger.off('tick', this, 'scheduleScrollSynchronization');
+    await this.args.logger.startStreaming();
+    this.args.logger.off('tick', this, 'scheduleScrollSynchronization');
   });
 
   scheduleScrollSynchronization() {
@@ -176,7 +172,7 @@ export default class StreamingFile extends Component {
       document.removeEventListener('keydown', this.keyDownHandlerBound);
     }
 
-    this.logger?.stop();
+    this.args.logger?.stop();
   }
 
   <template>
@@ -185,13 +181,13 @@ export default class StreamingFile extends Component {
       class="cli-window"
       {{didInsert this.setupElement}}
       {{didInsert this.onArgsChange}}
-      {{didUpdate this.onArgsChange this.logger this.mode this.isStreaming}}
+      {{didUpdate this.onArgsChange @logger this.mode this.isStreaming}}
       {{windowResize this.windowResizeHandler}}
     >
       <code
         data-test-output
         class={{if @wrapped "wrapped"}}
-      >{{this.logger.output}}</code>
+      >{{@logger.output}}</code>
     </pre>
   </template>
 }
