@@ -69,7 +69,7 @@ func (f *StatsFetcher) fetch(server *autopilot.Server, replyCh chan *autopilot.S
 	// if this is a local server and we have a reference to it, don't go over
 	// the network
 	if f.localServer != nil && server.ID == f.localID {
-		statusEndpoint := NewStatusEndpoint(f.localServer, &RPCContext{})
+		statusEndpoint := NewStatusEndpoint(f.localServer, nil)
 		err := statusEndpoint.RaftStats(&args, &reply)
 		if err != nil {
 			f.logger.Warn("error getting server health", "server", server.Name, "error", err)
