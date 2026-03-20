@@ -6,20 +6,20 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import JobDiff from 'nomad-ui/components/job-diff';
 
 module('Integration | Component | job diff', function (hooks) {
   setupRenderingTest(hooks);
 
-  const commonTemplate = hbs`
+  const commonTemplate = <template>
     <div class="boxed-section">
       <div class="boxed-section-body is-dark">
         <JobDiff @diff={{this.diff}} />
       </div>
     </div>
-  `;
+  </template>;
 
   test('job field diffs', async function (assert) {
     this.set('diff', {
