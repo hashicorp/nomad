@@ -159,12 +159,20 @@ class Log extends EmberObject.extend(Evented) {
 
 export default Log;
 
+function getByPath(context, path) {
+  if (!context || !path) {
+    return undefined;
+  }
+
+  return path.split('.').reduce((value, segment) => value?.[segment], context);
+}
+
 export function logger(urlProp, params, logFetch) {
   return computed(urlProp, params, function () {
     return Log.create({
       logFetch: logFetch.call(this),
-      params: this.get(params),
-      url: this.get(urlProp),
+      params: getByPath(this, params),
+      url: getByPath(this, urlProp),
     });
   });
 }
