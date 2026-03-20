@@ -6,11 +6,44 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    labels:
+      - "theme/dependencies"
+    groups:
+      go-updates:
+        patterns:
+          - "*"
+        applies-to: "version-updates"
+
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
       interval: "weekly"
       day: "sunday"
       time: "09:00"
     labels:
       - "theme/dependencies"
+    groups:
+      go-security:
+        patterns:
+          - "*"
+        applies-to: "security-updates"
+
+  - package-ecosystem: gomod
+    directory: "/api"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    labels:
+      - "theme/dependencies"
+      - "theme/api"
+    groups:
+      go-updates-api:
+        patterns:
+          - "*"
+        applies-to: "version-updates"
+
   - package-ecosystem: gomod
     directory: "/api"
     schedule:
@@ -20,6 +53,30 @@ updates:
     labels:
       - "theme/dependencies"
       - "theme/api"
+    groups:
+      go-security-api:
+        patterns:
+          - "*"
+        applies-to: "security-updates"
+
+  - package-ecosystem: npm
+    directory: "/ui"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    labels:
+      - "theme/dependencies"
+      - "theme/ui"
+    groups:
+      ui-dev:
+        patterns:
+          - "*"
+        dependency-type: "development"
+      ui-prod:
+        patterns:
+          - "*"
+        dependency-type: "production"
+
   - package-ecosystem: npm
     directory: "/ui"
     schedule:
@@ -29,3 +86,22 @@ updates:
     labels:
       - "theme/dependencies"
       - "theme/ui"
+    groups:
+      ui-security:
+        patterns:
+          - "*"
+        applies-to: "security-updates"
+        dependency-type: "production"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    labels:
+      - "theme/dependencies"
+      - "theme/build-infrastructure"
+    groups:
+      actions:
+        patterns:
+          - "*"
