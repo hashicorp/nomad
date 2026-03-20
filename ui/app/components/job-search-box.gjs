@@ -8,7 +8,7 @@ import { service } from '@ember/service';
 import { debounce } from '@ember/runloop';
 import { on } from '@ember/modifier';
 import { HdsFormTextInputBase } from '@hashicorp/design-system-components/components';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 
 const DEBOUNCE_MS = 500;
 
@@ -48,7 +48,7 @@ export default class JobSearchBox extends Component {
       @icon="search"
       @width="300px"
       {{on "input" this.updateSearchText}}
-      {{keyboardShortcutModifier
+      {{keyboardShortcut
         label="Search Jobs"
         pattern=this.shortcutPattern
         action=this.focus

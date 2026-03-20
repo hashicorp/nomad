@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { on } from '@ember/modifier';
 import { HdsButton } from '@hashicorp/design-system-components/components';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 
 export default class ActionsFlyoutGlobalButton extends Component {
   @service nomadActions;
@@ -41,7 +41,7 @@ export default class ActionsFlyoutGlobalButton extends Component {
     {{#if this.shouldShow}}
       <div
         class="actions-flyout-button"
-        {{keyboardShortcutModifier
+        {{keyboardShortcut
           menuLevel=true
           pattern=this.shortcutPattern
           action=this.nomadActions.openFlyout

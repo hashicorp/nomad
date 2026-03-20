@@ -13,7 +13,7 @@ import {
   HdsIcon,
 } from '@hashicorp/design-system-components/components';
 import formatMonthTs from 'nomad-ui/helpers/format-month-ts';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 import JobStatusAllocationStatusRow from 'nomad-ui/components/job-status/allocation-status-row';
 
 export default class ChildJobRow extends Component {
@@ -32,10 +32,7 @@ export default class ChildJobRow extends Component {
     <tr data-test-job-row data-test-child-job-row>
       <td
         data-test-job-name
-        {{keyboardShortcutModifier
-          enumerated=true
-          action=(fn this.gotoJob @job)
-        }}
+        {{keyboardShortcut enumerated=true action=(fn this.gotoJob @job)}}
       >
         <LinkTo
           @route="jobs.job.index"

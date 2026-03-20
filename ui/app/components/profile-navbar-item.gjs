@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { on } from '@ember/modifier';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 import {
   HdsButton,
   HdsDropdown,
@@ -39,7 +39,7 @@ export default class ProfileNavbarItem extends Component {
       <HdsDropdown
         @color="secondary"
         class="profile-dropdown"
-        {{keyboardShortcutModifier menuLevel=true pattern=this.profileShortcut}}
+        {{keyboardShortcut menuLevel=true pattern=this.profileShortcut}}
         as |dd|
       >
         <dd.ToggleButton
@@ -66,7 +66,7 @@ export default class ProfileNavbarItem extends Component {
     {{else}}
       <span
         class="profile-link"
-        {{keyboardShortcutModifier menuLevel=true pattern=this.profileShortcut}}
+        {{keyboardShortcut menuLevel=true pattern=this.profileShortcut}}
       >
         <HdsButton
           data-test-header-signin-link

@@ -10,7 +10,7 @@ import { on } from '@ember/modifier';
 import { LinkTo } from '@ember/routing';
 import { HdsIcon } from '@hashicorp/design-system-components/components';
 import onClickOutside from 'ember-click-outside/modifiers/on-click-outside';
-import reverse from '@nullvoxpopuli/ember-composable-helpers/helpers/reverse';
+import { reverse } from '@nullvoxpopuli/ember-composable-helpers';
 import ListTable from 'nomad-ui/components/list-table';
 import TaskLog from 'nomad-ui/components/task-log';
 import formatTs from 'nomad-ui/helpers/format-ts';

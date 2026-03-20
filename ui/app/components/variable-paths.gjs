@@ -16,7 +16,7 @@ import can from 'ember-can/helpers/can';
 import momentFromNow from 'ember-moment/helpers/moment-from-now';
 import formatTs from 'nomad-ui/helpers/format-ts';
 import trimPath from 'nomad-ui/helpers/trim-path';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 import compactPath from '../utils/compact-path';
 
 export default class VariablePaths extends Component {
@@ -80,7 +80,7 @@ export default class VariablePaths extends Component {
           >
             <B.Td
               colspan="3"
-              {{keyboardShortcutModifier
+              {{keyboardShortcut
                 enumerated=true
                 action=(fn this.handleFolderClick folder.data.absolutePath)
               }}
@@ -113,7 +113,7 @@ export default class VariablePaths extends Component {
               ""
               "inaccessible"
             }}
-            {{keyboardShortcutModifier
+            {{keyboardShortcut
               enumerated=true
               action=(fn this.handleFileClick file)
             }}

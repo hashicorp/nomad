@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { action } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { hash } from '@ember/helper';
@@ -24,23 +23,20 @@ import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 export default class JobPage extends Component {
   @tracked errorMessage = null;
 
-  @action
-  clearErrorMessage() {
+  clearErrorMessage = () => {
     this.errorMessage = null;
-  }
+  };
 
-  @action
-  handleError(errorObject) {
+  handleError = (errorObject) => {
     this.errorMessage = errorObject;
-  }
+  };
 
-  @action
-  setError(err) {
+  setError = (err) => {
     this.errorMessage = {
       title: 'Could Not Force Launch',
       description: messageForError(err, 'submit jobs'),
     };
-  }
+  };
 
   <template>
     {{yield

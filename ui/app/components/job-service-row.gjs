@@ -10,7 +10,7 @@ import { fn, hash } from '@ember/helper';
 import { LinkTo } from '@ember/routing';
 import { and, eq } from 'ember-truth-helpers';
 import { HdsIcon } from '@hashicorp/design-system-components/components';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 
 export default class JobServiceRow extends Component {
   @service router;
@@ -48,7 +48,7 @@ export default class JobServiceRow extends Component {
       class={{if (eq @service.provider "nomad") "is-interactive"}}
     >
       <td
-        {{keyboardShortcutModifier
+        {{keyboardShortcut
           enumerated=true
           action=(fn this.gotoService @service)
         }}

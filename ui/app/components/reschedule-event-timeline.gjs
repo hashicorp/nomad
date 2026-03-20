@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { and, not } from 'ember-truth-helpers';
 import { service } from '@ember/service';
-import reverse from 'ember-composable-helpers/helpers/reverse';
+import { reverse } from '@nullvoxpopuli/ember-composable-helpers';
 import momentFromNow from 'ember-moment/helpers/moment-from-now';
 import { HdsIcon } from '@hashicorp/design-system-components/components';
 import formatTs from 'nomad-ui/helpers/format-ts';

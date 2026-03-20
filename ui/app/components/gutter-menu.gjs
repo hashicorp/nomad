@@ -13,7 +13,7 @@ import can from 'ember-can/helpers/can';
 import HamburgerMenu from 'nomad-ui/components/hamburger-menu';
 import NomadLogo from 'nomad-ui/components/nomad-logo';
 import RegionSwitcher from 'nomad-ui/components/region-switcher';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 
 export default class GutterMenu extends Component {
   @service system;
@@ -108,7 +108,7 @@ export default class GutterMenu extends Component {
             {{/if}}
             <ul class="menu-list">
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuJobsShortcut
                 }}
@@ -123,7 +123,7 @@ export default class GutterMenu extends Component {
               </li>
               {{#if (can "accept recommendation")}}
                 <li
-                  {{keyboardShortcutModifier
+                  {{keyboardShortcut
                     menuLevel=true
                     pattern=this.mainMenuOptimizeShortcut
                     action=(fn this.transitionTo "optimize")
@@ -139,7 +139,7 @@ export default class GutterMenu extends Component {
                 </li>
               {{/if}}
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuStorageShortcut
                 }}
@@ -154,7 +154,7 @@ export default class GutterMenu extends Component {
               </li>
               {{#if (can "list variables")}}
                 <li
-                  {{keyboardShortcutModifier
+                  {{keyboardShortcut
                     menuLevel=true
                     pattern=this.mainMenuVariablesShortcut
                   }}
@@ -174,7 +174,7 @@ export default class GutterMenu extends Component {
             </p>
             <ul class="menu-list">
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuClientsShortcut
                 }}
@@ -188,7 +188,7 @@ export default class GutterMenu extends Component {
                 </LinkTo>
               </li>
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuServersShortcut
                 }}
@@ -202,7 +202,7 @@ export default class GutterMenu extends Component {
                 </LinkTo>
               </li>
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuTopologyShortcut
                 }}
@@ -221,7 +221,7 @@ export default class GutterMenu extends Component {
             </p>
             <ul class="menu-list">
               <li
-                {{keyboardShortcutModifier
+                {{keyboardShortcut
                   menuLevel=true
                   pattern=this.mainMenuEvaluationsShortcut
                 }}
@@ -236,7 +236,7 @@ export default class GutterMenu extends Component {
               </li>
               {{#if (can "list policies")}}
                 <li
-                  {{keyboardShortcutModifier
+                  {{keyboardShortcut
                     menuLevel=true
                     pattern=this.mainMenuAdministrationShortcut
                     action=(fn this.transitionTo "administration")

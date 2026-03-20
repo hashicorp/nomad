@@ -17,7 +17,7 @@ import can from 'ember-can/helpers/can';
 import { task, timeout } from 'ember-concurrency';
 import formatBytes from 'nomad-ui/helpers/format-bytes';
 import formatHertz from 'nomad-ui/helpers/format-hertz';
-import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 import TaskContextSidebar from 'nomad-ui/components/task-context-sidebar';
 import ENV from 'nomad-ui/config/environment';
 
@@ -143,7 +143,7 @@ export default class TaskSubRow extends Component {
   <template>
     <tr
       class="task-sub-row {{if @active 'is-active'}}"
-      {{keyboardShortcutModifier
+      {{keyboardShortcut
         enumerated=true
         action=(fn this.gotoTask this.task.allocation this.task)
       }}
