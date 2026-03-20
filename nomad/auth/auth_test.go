@@ -127,7 +127,7 @@ func TestAuthenticateDefault(t *testing.T) {
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -559,7 +559,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -611,7 +611,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowServerOp() || aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowServerOp() || aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -651,7 +651,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -674,7 +674,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -697,7 +697,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -744,7 +744,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -819,7 +819,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -835,7 +835,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -851,7 +851,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -867,7 +867,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -883,7 +883,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 					"invalid certificate: cli.global.nomad not in expected client.global.nomad, server.global.nomad")
 				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -899,7 +899,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, "server.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -916,7 +916,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -932,7 +932,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -955,7 +955,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -978,7 +978,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{

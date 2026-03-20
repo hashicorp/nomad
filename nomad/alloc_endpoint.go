@@ -164,7 +164,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				}
 				reply.Alloc = out
 				// Re-check namespace in case it differs from request.
-				if !aclObj.AllowClientOp() && !allowNsOp(aclObj, out.Namespace) {
+				nodePool := structs.NodePoolDefault
+				if out.Job != nil {
+					nodePool = out.Job.NodePool
+				}
+				if !aclObj.AllowClientOp(nodePool) && !allowNsOp(aclObj, out.Namespace) {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
 
@@ -200,7 +204,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -450,7 +454,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 

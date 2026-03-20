@@ -1002,13 +1002,20 @@ func (a *ACL) AllowServerOp() bool {
 	return a.server != PolicyDeny || a.isLeader
 }
 
-// AllowClientOp checks if client-only operations are allowed, or ACLs are
-// disabled
-func (a *ACL) AllowClientOp() bool {
+// AllowClientOp checks if client-only operations are allowed for the given node
+// pool
+func (a *ACL) AllowClientOp(pool string) bool {
 	if a == nil {
 		return false
 	}
-	return a.client != PolicyDeny || a.aclsDisabled
+
+	// return early if ACLs are disabled
+	if a.aclsDisabled {
+		return true
+	}
+
+	// client operations are scoped to node pools
+	return a.client != PolicyDeny && a.AllowNodePool(pool)
 }
 
 // IsManagement checks if this represents a management token

@@ -681,7 +681,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
+	} else if !(aclObj.AllowClientOp(structs.NodePoolDefault) || aclObj.AllowServerOp()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1001,7 +1001,7 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 
 	// If the ACL object has client operations allowed, check if the identity
 	// matches the node being drained. This allows nodes to drain themselves.
-	if aclObj.AllowClientOp() {
+	if aclObj.AllowClientOp(structs.NodePoolDefault) {
 
 		identity := args.GetIdentity()
 
@@ -1205,7 +1205,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1365,7 +1365,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1511,7 +1511,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1966,7 +1966,7 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 

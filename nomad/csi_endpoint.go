@@ -453,7 +453,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() {
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -694,7 +694,7 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	// this RPC is called by both clients and by `nomad volume detach`. we can't
 	// safely match the node ID for client RPCs because we may not have the node
 	// ID anymore
-	if !aclObj.AllowClientOp() &&
+	if !aclObj.AllowClientOp(structs.NodePoolDefault) &&
 		!(allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()) {
 		return structs.ErrPermissionDenied
 	}
