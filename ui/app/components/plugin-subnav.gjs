@@ -16,6 +16,7 @@ export default class PluginSubnav extends Component {
     <div
       data-test-subnav="plugins"
       class="tabs is-subnav"
+      ...attributes
       {{didInsert this.keyboard.registerNav type="subnav"}}
       {{willDestroy this.keyboard.unregisterSubnav}}
     >

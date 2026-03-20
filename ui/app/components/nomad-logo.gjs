@@ -8,6 +8,7 @@ export const NomadLogo = <template>
     class="nomad-logo"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 206.31 60.07"
+    ...attributes
   >
     <g>
       <g>

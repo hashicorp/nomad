@@ -117,6 +117,7 @@ export default class AllocationServiceSidebar extends Component {
       class="sidebar has-subnav service-sidebar
         {{if this.isSideBarOpen 'open'}}"
       {{onClickOutside @fns.closeSidebar capture=true}}
+      ...attributes
     >
       {{#if @service}}
         {{keyboardCommands this.keyCommands}}

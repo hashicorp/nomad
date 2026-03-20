@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import inc from 'ember-composable-helpers/helpers/inc';
+import { inc } from '@nullvoxpopuli/ember-composable-helpers';
 
 export const ChartPrimitivesTooltip = <template>
   <div

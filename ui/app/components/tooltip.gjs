@@ -13,14 +13,6 @@ import Component from '@glimmer/component';
  * @extends Component
  */
 export default class Tooltip extends Component {
-  /**
-   * Determines if the tooltip should be displayed.
-   * Defaults to `true` if the `condition` argument is not provided.
-   *
-   * @property condition
-   * @type {boolean}
-   * @readonly
-   */
   get condition() {
     if (this.args.condition === undefined) return true;
 
@@ -29,16 +21,6 @@ export default class Tooltip extends Component {
     return this.args.condition;
   }
 
-  /**
-   * Returns the truncated text to be displayed in the tooltip.
-   * If the input text length is less than 30 characters, the input text is returned as-is.
-   * Otherwise, the text is truncated to include the first 15 characters, followed by an ellipsis,
-   * and then the last 10 characters.
-   *
-   * @property text
-   * @type {string}
-   * @readonly
-   */
   get text() {
     const inputText = this.args.text?.toString();
     if (!inputText || inputText.length < 30) {
@@ -51,4 +33,21 @@ export default class Tooltip extends Component {
       .trim();
     return `${prefix}...${suffix}`;
   }
+
+  get tooltipClass() {
+    return this.args.isFullText ? 'tooltip multiline' : 'tooltip';
+  }
+
+  <template>
+    {{#if this.condition}}
+      <span
+        class={{this.tooltipClass}}
+        aria-label={{if @isFullText @text this.text}}
+      >
+        {{yield}}
+      </span>
+    {{else}}
+      {{yield}}
+    {{/if}}
+  </template>
 }

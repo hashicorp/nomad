@@ -107,7 +107,7 @@ export default class JobStatusAllocationStatusRow extends Component {
   };
 
   <template>
-    <div class="allocation-status-row {{if @compact 'compact'}}">
+    <div class="allocation-status-row {{if @compact 'compact'}}" ...attributes>
       {{#if this.showSummaries}}
         <div
           class="alloc-status-summaries"

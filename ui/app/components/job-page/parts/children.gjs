@@ -37,7 +37,7 @@ export default class Children extends Component {
   };
 
   <template>
-    <div class="boxed-section">
+    <div class="boxed-section" ...attributes>
       <div class="boxed-section-head">
         Job Launches
         {{#if @job.parameterized}}

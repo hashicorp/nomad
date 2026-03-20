@@ -44,6 +44,7 @@ export default class TopoVizDatacenter extends Component {
     <div
       data-test-topo-viz-datacenter
       class="boxed-section topo-viz-datacenter"
+      ...attributes
     >
       <div
         data-test-topo-viz-datacenter-label

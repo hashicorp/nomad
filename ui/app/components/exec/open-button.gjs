@@ -42,6 +42,7 @@ export default class OpenButton extends Component {
           pattern=(array "e" "x" "e" "c")
           action=this.open
         }}
+        ...attributes
       >
         <HdsButton
           data-test-exec-button

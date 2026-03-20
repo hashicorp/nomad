@@ -5,11 +5,11 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
-import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { render, settled } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import PluginAllocationRow from 'nomad-ui/components/plugin-allocation-row';
 
 module('Integration | Component | plugin allocation row', function (hooks) {
   setupRenderingTest(hooks);
@@ -39,12 +39,16 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       plugin: pluginRecord.get('controllers.firstObject'),
     });
 
-    await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
-    `);
+    await render(
+      <template>
+        <table><tbody>
+            <PluginAllocationRow @pluginAllocation={{this.plugin}} />
+          </tbody></table>
+      </template>,
+    );
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation'),
+      (request) => request.url.startsWith('/v1/allocation'),
     );
     assert.deepEqual(
       allocationRequest.url,
@@ -66,9 +70,13 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       plugin: pluginRecord.get('controllers.firstObject'),
     });
 
-    await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
-    `);
+    await render(
+      <template>
+        <table><tbody>
+            <PluginAllocationRow @pluginAllocation={{this.plugin}} />
+          </tbody></table>
+      </template>,
+    );
 
     const [statsRequest] = this.server.pretender.handledRequests.slice(-1);
 
@@ -94,12 +102,16 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       plugin: pluginRecord.get('controllers.firstObject'),
     });
 
-    await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
-    `);
+    await render(
+      <template>
+        <table><tbody>
+            <PluginAllocationRow @pluginAllocation={{this.plugin}} />
+          </tbody></table>
+      </template>,
+    );
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation'),
+      (request) => request.url.startsWith('/v1/allocation'),
     );
 
     assert.deepEqual(
@@ -111,7 +123,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     await settled();
 
     const latestAllocationRequest = this.server.pretender.handledRequests
-      .filter((req) => req.url.startsWith('/v1/allocation'))
+      .filter((request) => request.url.startsWith('/v1/allocation'))
       .reverse()[0];
 
     assert.deepEqual(

@@ -10,7 +10,7 @@ import JobDeployment from 'nomad-ui/components/job-deployment';
 
 export default class JobDeploymentsStream extends Component {
   get deployments() {
-    return this.args.deployments ?? [];
+    return normalizeCollection(this.args.deployments);
   }
 
   get sortedDeployments() {
@@ -46,7 +46,7 @@ export default class JobDeploymentsStream extends Component {
   }
 
   <template>
-    <ol class="timeline">
+    <ol class="timeline" ...attributes>
       {{#each this.annotatedDeployments key="deployment.id" as |record|}}
         {{#if record.meta.showDate}}
           <li data-test-deployment-time class="timeline-note">
@@ -63,4 +63,24 @@ export default class JobDeploymentsStream extends Component {
       {{/each}}
     </ol>
   </template>
+}
+
+function normalizeCollection(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return [...value];
+  }
+
+  if (typeof value.toArray === 'function') {
+    return value.toArray();
+  }
+
+  if (typeof value[Symbol.iterator] === 'function') {
+    return Array.from(value);
+  }
+
+  return [];
 }

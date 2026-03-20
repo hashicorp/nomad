@@ -41,6 +41,7 @@ export default class BreadcrumbsTemplate extends Component {
     {{#if this.isOneCrumbUp}}
       <li
         data-test-breadcrumb-default
+        ...attributes
         {{KeyboardShortcutModifier
           label="Go up a level"
           pattern=this.shortcutPattern
@@ -69,7 +70,7 @@ export default class BreadcrumbsTemplate extends Component {
         </LinkTo>
       </li>
     {{else}}
-      <li data-test-breadcrumb-default>
+      <li data-test-breadcrumb-default ...attributes>
         <LinkTo
           @route={{this.route}}
           @models={{this.models}}

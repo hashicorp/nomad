@@ -95,6 +95,7 @@ export default class FlexMasonry extends Component {
       {{didInsert this.reflow}}
       {{didUpdate this.reflow @columns}}
       {{windowResize this.reflow}}
+      ...attributes
     >
       {{#each @items as |item|}}
         <div data-test-flex-masonry-item class="flex-masonry-item">

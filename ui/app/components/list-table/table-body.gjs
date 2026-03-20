@@ -4,7 +4,7 @@
  */
 
 const TableBody = <template>
-  <tbody class={{@class}}>
+  <tbody class={{@class}} ...attributes>
     {{#each @rows as |row index|}}
       {{yield row index}}
     {{/each}}

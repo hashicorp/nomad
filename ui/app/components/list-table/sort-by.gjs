@@ -25,6 +25,7 @@ export default class SortBy extends Component {
         (if @sortDescending "desc" "asc")
       }}
       title={{@title}}
+      ...attributes
     >
       <LinkTo
         @query={{hash

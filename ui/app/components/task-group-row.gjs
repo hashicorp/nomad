@@ -136,6 +136,7 @@ export default class TaskGroupRow extends Component {
       data-test-task-group
       {{on "click" this.handleClick}}
       {{didUpdate this.syncCount @taskGroup.count}}
+      ...attributes
     >
       <td data-test-task-group-name={{@taskGroup.name}}>
         <LinkTo

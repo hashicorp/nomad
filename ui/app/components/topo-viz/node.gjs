@@ -208,6 +208,7 @@ export default class TopoVizNode extends Component {
       data-test-topo-viz-node
       class="topo-viz-node {{unless this.allocations.length 'is-empty'}}"
       {{didInsert this.reloadNode}}
+      ...attributes
     >
       {{#unless @isDense}}
         <p data-test-label class="label">

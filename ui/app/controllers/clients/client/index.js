@@ -331,7 +331,7 @@ export default class ClientController extends Controller.extend(
 
   @action async addDynamicMetaData({ key, value }, e) {
     try {
-      e.preventDefault();
+      e?.preventDefault?.();
       await this.model.addMeta({ [key]: value });
 
       this.notifications.add({

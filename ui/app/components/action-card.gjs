@@ -110,7 +110,7 @@ export default class ActionCard extends Component {
   };
 
   <template>
-    <div class="action-card">
+    <div class="action-card" ...attributes>
       <HdsPageHeader class="action-card-header" as |PH|>
         <PH.Title>
           <span class="action-card-title">

@@ -19,6 +19,7 @@ export default class LoadingSpinner extends Component {
     <div
       class="loading-spinner {{if this.paused 'paused'}}"
       {{on "click" this.togglePaused}}
+      ...attributes
     >
       <div class="cube-and-logo">
         <div class="cube">

@@ -111,6 +111,7 @@ export default class ClientRow extends Component {
       data-test-client={{this.row.node.id}}
       class="job-client-status-row is-interactive"
       {{on "click" (fn @onClick this.row.node)}}
+      ...attributes
     >
       <td data-test-short-id>
         <LinkTo

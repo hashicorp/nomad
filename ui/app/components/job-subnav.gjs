@@ -35,6 +35,7 @@ export default class JobSubnav extends Component {
     <div
       data-test-subnav="job"
       class="tabs is-subnav"
+      ...attributes
       {{didInsert this.keyboard.registerNav type="subnav"}}
       {{willDestroy this.keyboard.unregisterSubnav}}
     >

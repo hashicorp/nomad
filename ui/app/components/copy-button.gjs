@@ -49,7 +49,7 @@ export default class CopyButton extends Component {
   }
 
   <template>
-    <div class="copy-button {{if @inset 'inset'}}">
+    <div class="copy-button {{if @inset 'inset'}}" ...attributes>
       {{#if (eq this.state "success")}}
         <div
           data-test-copy-success

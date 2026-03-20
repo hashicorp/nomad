@@ -16,6 +16,12 @@ import Tooltip from 'nomad-ui/components/tooltip';
 import codeMirror from 'nomad-ui/modifiers/code-mirror';
 import keyboardShortcutModifier from 'nomad-ui/modifiers/keyboard-shortcut';
 
+const performTask = (task) => {
+  if (typeof task?.perform === 'function') {
+    task.perform();
+  }
+};
+
 export const JobEditorEdit = <template>
   <div class="boxed-section">
     <div class="boxed-section-head">
@@ -120,7 +126,7 @@ export const JobEditorEdit = <template>
   </div>
   <HdsButtonSet class="is-associative buttonset sticky pull-left">
     <HdsButton
-      {{on "click" @fns.onPlan.perform}}
+      {{on "click" (fn performTask @fns.onPlan)}}
       disabled={{or @fns.onPlan.isRunning (not @data.job._newDefinition)}}
       data-test-plan
       @text="Plan"

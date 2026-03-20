@@ -511,6 +511,7 @@
                 <SearchBox
                   @inputClass="node-search"
                   @searchTerm={{mut this.searchTerm}}
+                  @onChange={{fn (mut this.searchTerm)}}
                   @placeholder="Search clients..."
                 />
               {{/if}}

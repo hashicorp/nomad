@@ -10,11 +10,11 @@ import JobVersion from 'nomad-ui/components/job-version';
 
 export default class JobVersionsStream extends Component {
   get versions() {
-    return this.args.versions ?? [];
+    return normalizeCollection(this.args.versions);
   }
 
   get diffs() {
-    return this.args.diffs ?? [];
+    return normalizeCollection(this.args.diffs);
   }
 
   get verbose() {
@@ -67,4 +67,24 @@ export default class JobVersionsStream extends Component {
       {{/each}}
     </ol>
   </template>
+}
+
+function normalizeCollection(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return [...value];
+  }
+
+  if (typeof value.toArray === 'function') {
+    return value.toArray();
+  }
+
+  if (typeof value[Symbol.iterator] === 'function') {
+    return Array.from(value);
+  }
+
+  return [];
 }

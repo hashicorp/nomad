@@ -69,7 +69,7 @@ export default class ExecTerminal extends Component {
   }
 
   <template>
-    <div class="terminal-container">
+    <div class="terminal-container" ...attributes>
       <div
         class="terminal"
         {{didInsert this.setupTerminal}}

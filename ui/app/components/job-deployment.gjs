@@ -18,7 +18,7 @@ export default class JobDeployment extends Component {
   };
 
   <template>
-    <div class="job-deployment boxed-section">
+    <div class="job-deployment boxed-section" ...attributes>
       <div class="boxed-section-head is-light inline-definitions">
         <span>{{@deployment.shortId}}</span>
         <span

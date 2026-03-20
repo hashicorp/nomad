@@ -5,7 +5,9 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action } from '@ember/object';
+import { hash } from '@ember/helper';
+import didInsert from '@ember/render-modifiers/modifiers/did-insert';
+import didUpdate from '@ember/render-modifiers/modifiers/did-update';
 import { schedule, next } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
@@ -13,26 +15,31 @@ import d3Axis from 'd3-axis';
 import d3Array from 'd3-array';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
+import Area from 'nomad-ui/components/chart-primitives/area';
+import HAnnotations from 'nomad-ui/components/chart-primitives/h-annotations';
+import Tooltip from 'nomad-ui/components/chart-primitives/tooltip';
+import VAnnotations from 'nomad-ui/components/chart-primitives/v-annotations';
+import windowResize from 'nomad-ui/modifiers/window-resize';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 import uniquely from 'nomad-ui/utils/properties/uniquely';
 
-// Returns a new array with the specified number of points linearly
-// distributed across the bounds
 const lerp = ([low, high], numPoints) => {
   const step = (high - low) / (numPoints - 1);
-  const arr = [];
-  for (var i = 0; i < numPoints; i++) {
-    arr.push(low + step * i);
+  const values = [];
+  for (let index = 0; index < numPoints; index++) {
+    values.push(low + step * index);
   }
-  return arr;
+  return values;
 };
 
-// Round a number or an array of numbers
-const nice = (val) => (val instanceof Array ? val.map(nice) : Math.round(val));
+const nice = (value) =>
+  value instanceof Array ? value.map(nice) : Math.round(value);
 
 const defaultXScale = (data, yAxisOffset, xProp, timeseries) => {
   const scale = timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-  const domain = data.length ? d3Array.extent(data, (d) => d[xProp]) : [0, 1];
+  const domain = data.length
+    ? d3Array.extent(data, (datum) => datum[xProp])
+    : [0, 1];
 
   scale.rangeRound([10, yAxisOffset]).domain(domain);
 
@@ -40,7 +47,7 @@ const defaultXScale = (data, yAxisOffset, xProp, timeseries) => {
 };
 
 const defaultYScale = (data, xAxisOffset, yProp) => {
-  let max = d3Array.max(data, (d) => d[yProp]) || 1;
+  let max = d3Array.max(data, (datum) => datum[yProp]) || 1;
   if (max > 1) {
     max = nice(max);
   }
@@ -49,22 +56,6 @@ const defaultYScale = (data, xAxisOffset, yProp) => {
 };
 
 export default class LineChart extends Component {
-  /** Args
-    data = null;
-    xProp = null;
-    yProp = null;
-    curve = 'linear';
-    title = 'Line Chart';
-    description = null;
-    timeseries = false;
-    activeAnnotation = null;
-    onAnnotationClick() {}
-    xFormat;
-    yFormat;
-    xScale;
-    yScale;
-  */
-
   @tracked width = 0;
   @tracked height = 0;
   @tracked isActive = false;
@@ -77,35 +68,46 @@ export default class LineChart extends Component {
   @uniquely('title') titleId;
   @uniquely('desc') descriptionId;
 
+  latestMouseX = 0;
+
   get xProp() {
     return this.args.xProp || 'time';
   }
+
   get yProp() {
     return this.args.yProp || 'value';
   }
+
   get data() {
     if (!this.args.data) return [];
     if (this.args.dataProp) {
-      return this.args.data.mapBy(this.args.dataProp).flat();
+      return this.args.data.map((item) => item?.[this.args.dataProp]).flat();
     }
     return this.args.data;
   }
+
   get curve() {
     return this.args.curve || 'linear';
   }
 
-  @action
-  xFormat(timeseries) {
+  xFormat = (timeseries) => {
     if (this.args.xFormat) return this.args.xFormat;
     return timeseries
       ? d3TimeFormat.timeFormat('%b %d, %H:%M')
       : d3Format.format(',');
-  }
+  };
 
-  @action
-  yFormat() {
+  yFormat = () => {
     if (this.args.yFormat) return this.args.yFormat;
     return d3Format.format(',.2~r');
+  };
+
+  get title() {
+    return this.args.title || 'Line Chart';
+  }
+
+  get description() {
+    return this.args.description;
   }
 
   get activeDatumLabel() {
@@ -113,8 +115,7 @@ export default class LineChart extends Component {
 
     if (!datum) return undefined;
 
-    const x = datum[this.xProp];
-    return this.xFormat(this.args.timeseries)(x);
+    return this.xFormat(this.args.timeseries)(datum[this.xProp]);
   }
 
   get activeDatumValue() {
@@ -122,8 +123,7 @@ export default class LineChart extends Component {
 
     if (!datum) return undefined;
 
-    const y = datum[this.yProp];
-    return this.yFormat()(y);
+    return this.yFormat()(datum[this.yProp]);
   }
 
   @styleString
@@ -137,19 +137,33 @@ export default class LineChart extends Component {
   }
 
   get xRange() {
-    const { xProp, data } = this;
-    const range = d3Array.extent(data, (d) => d[xProp]);
     const formatter = this.xFormat(this.args.timeseries);
-
-    return range.map(formatter);
+    return d3Array
+      .extent(this.data, (datum) => datum[this.xProp])
+      .map(formatter);
   }
 
   get yRange() {
-    const yProp = this.yProp;
-    const range = d3Array.extent(this.data, (d) => d[yProp]);
     const formatter = this.yFormat();
+    return d3Array
+      .extent(this.data, (datum) => datum[this.yProp])
+      .map(formatter);
+  }
 
-    return range.map(formatter);
+  get xRangeStart() {
+    return this.xRange[0];
+  }
+
+  get xRangeEnd() {
+    return this.xRange[this.xRange.length - 1];
+  }
+
+  get yRangeStart() {
+    return this.yRange[0];
+  }
+
+  get yRangeEnd() {
+    return this.yRange[this.yRange.length - 1];
   }
 
   get yScale() {
@@ -158,35 +172,29 @@ export default class LineChart extends Component {
   }
 
   get xAxis() {
-    const formatter = this.xFormat(this.args.timeseries);
-
     return d3Axis
       .axisBottom()
       .scale(this.xScale)
       .ticks(5)
-      .tickFormat(formatter);
+      .tickFormat(this.xFormat(this.args.timeseries));
   }
 
   get yTicks() {
-    const height = this.xAxisOffset;
-    const tickCount = Math.ceil(height / 120) * 2 + 1;
+    const tickCount = Math.ceil(this.xAxisOffset / 120) * 2 + 1;
     const domain = this.yScale.domain();
     const ticks = lerp(domain, tickCount);
     return domain[1] - domain[0] > 1 ? nice(ticks) : ticks;
   }
 
   get yAxis() {
-    const formatter = this.yFormat();
-
     return d3Axis
       .axisRight()
       .scale(this.yScale)
       .tickValues(this.yTicks)
-      .tickFormat(formatter);
+      .tickFormat(this.yFormat());
   }
 
   get yGridlines() {
-    // The first gridline overlaps the x-axis, so remove it
     const [, ...ticks] = this.yTicks;
 
     return d3Axis
@@ -198,7 +206,6 @@ export default class LineChart extends Component {
   }
 
   get xAxisHeight() {
-    // Avoid divide by zero errors by always having a height
     if (!this.element) return 1;
 
     const axis = this.element.querySelector('.x-axis');
@@ -206,7 +213,6 @@ export default class LineChart extends Component {
   }
 
   get yAxisWidth() {
-    // Avoid divide by zero errors by always having a width
     if (!this.element) return 1;
 
     const axis = this.element.querySelector('.y-axis');
@@ -227,25 +233,23 @@ export default class LineChart extends Component {
     return { left, width: right - left, top, height: bottom - top };
   }
 
-  @action
-  onInsert(element) {
+  onInsert = (element) => {
     this.element = element;
     this.updateDimensions();
 
     const canvas = d3.select(this.element.querySelector('.hover-target'));
     const updateActiveDatum = this.updateActiveDatum.bind(this);
 
-    const chart = this;
-    canvas.on('mouseenter', function (ev) {
-      const mouseX = d3.pointer(ev, this)[0];
-      chart.latestMouseX = mouseX;
+    canvas.on('mouseenter', (event) => {
+      const mouseX = d3.pointer(event, canvas.node())[0];
+      this.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
-      schedule('afterRender', chart, () => (chart.isActive = true));
+      schedule('afterRender', this, () => (this.isActive = true));
     });
 
-    canvas.on('mousemove', function (ev) {
-      const mouseX = d3.pointer(ev, this)[0];
-      chart.latestMouseX = mouseX;
+    canvas.on('mousemove', (event) => {
+      const mouseX = d3.pointer(event, canvas.node())[0];
+      this.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
     });
 
@@ -254,10 +258,10 @@ export default class LineChart extends Component {
       this.activeDatum = null;
       this.activeData = [];
     });
-  }
+  };
 
   updateActiveDatum(mouseX) {
-    if (!this.data || !this.data.length) return;
+    if (!this.data?.length) return;
 
     const { xScale, xProp, yScale, yProp } = this;
     let { dataProp, data } = this.args;
@@ -267,33 +271,22 @@ export default class LineChart extends Component {
       data = [{ data: this.data }];
     }
 
-    // Map screen coordinates to data domain
-    const bisector = d3Array.bisector((d) => d[xProp]).left;
+    const bisector = d3Array.bisector((datum) => datum[xProp]).left;
     const x = xScale.invert(mouseX);
 
-    // Find the closest datum to the cursor for each series
     const activeData = data
       .map((series, seriesIndex) => {
         const dataset = series[dataProp];
-
-        // If the dataset is empty, there can't be an activeData.
-        // This must be done here instead of preemptively in a filter to
-        // preserve the seriesIndex value.
         if (!dataset.length) return null;
 
         const index = bisector(dataset, x, 1);
-
-        // The data point on either side of the cursor
         const dLeft = dataset[index - 1];
         const dRight = dataset[index];
 
         let datum;
-
-        // If there is only one point, it's the activeDatum
         if (dLeft && !dRight) {
           datum = dLeft;
         } else {
-          // Pick the closer point
           datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
         }
 
@@ -307,9 +300,8 @@ export default class LineChart extends Component {
           index: data.length - seriesIndex - 1,
         };
       })
-      .compact();
+      .filter(Boolean);
 
-    // Of the selected data, determine which is closest
     const closestDatum = activeData
       .slice()
       .sort(
@@ -318,11 +310,10 @@ export default class LineChart extends Component {
           Math.abs(b.datum.datum[xProp] - x),
       )[0];
 
-    // If any other selected data are beyond a distance threshold, drop them from the list
-    // xScale is used here to measure distance in screen-space rather than data-space.
     const dist = Math.abs(xScale(closestDatum.datum.datum[xProp]) - mouseX);
     const filteredData = activeData.filter(
-      (d) => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10,
+      (entry) =>
+        Math.abs(xScale(entry.datum.datum[xProp]) - mouseX) < dist + 10,
     );
 
     this.activeData = filteredData;
@@ -333,41 +324,31 @@ export default class LineChart extends Component {
     };
   }
 
-  // The renderChart method should only ever be responsible for runtime calculations
-  // and appending d3 created elements to the DOM (such as axes).
-  renderChart() {
-    // There is nothing to do if the element hasn't been inserted yet
+  renderChart = () => {
     if (!this.element) return;
 
-    // Create the axes to get the dimensions of the resulting
-    // svg elements
     this.mountD3Elements();
 
     next(() => {
-      // Since each axis depends on the dimension of the other
-      // axis, the axes themselves are recomputed and need to
-      // be re-rendered.
       this.mountD3Elements();
       this.ready = true;
       if (this.isActive) {
         this.updateActiveDatum(this.latestMouseX);
       }
     });
-  }
+  };
 
-  @action
-  recomputeXAxis(el) {
+  recomputeXAxis = (element) => {
     if (!this.isDestroyed && !this.isDestroying) {
-      d3.select(el.querySelector('.x-axis')).call(this.xAxis);
+      d3.select(element.querySelector('.x-axis')).call(this.xAxis);
     }
-  }
+  };
 
-  @action
-  recomputeYAxis(el) {
+  recomputeYAxis = (element) => {
     if (!this.isDestroyed && !this.isDestroying) {
-      d3.select(el.querySelector('.y-axis')).call(this.yAxis);
+      d3.select(element.querySelector('.y-axis')).call(this.yAxis);
     }
-  }
+  };
 
   mountD3Elements() {
     if (!this.isDestroyed && !this.isDestroying) {
@@ -379,16 +360,116 @@ export default class LineChart extends Component {
     }
   }
 
-  annotationClick(annotation) {
-    this.args.onAnnotationClick && this.args.onAnnotationClick(annotation);
-  }
+  annotationClick = (annotation) => {
+    this.args.onAnnotationClick?.(annotation);
+  };
 
-  @action
-  updateDimensions() {
-    const $svg = this.element.querySelector('svg');
+  updateDimensions = () => {
+    const svg = this.element.querySelector('svg');
 
-    this.height = $svg.clientHeight;
-    this.width = $svg.clientWidth;
+    this.height = svg.clientHeight;
+    this.width = svg.clientWidth;
     this.renderChart();
-  }
+  };
+
+  <template>
+    <div
+      class="chart line-chart"
+      ...attributes
+      {{didInsert this.onInsert}}
+      {{didUpdate this.renderChart}}
+      {{didUpdate this.recomputeXAxis this.xScale}}
+      {{didUpdate this.recomputeYAxis this.yScale}}
+      {{windowResize this.updateDimensions}}
+    >
+      <svg
+        data-test-line-chart
+        aria-labelledby={{this.titleId}}
+        aria-describedby={{this.descriptionId}}
+      >
+        <title id={{this.titleId}}>{{this.title}}</title>
+        <desc id={{this.descriptionId}}>
+          {{#if this.description}}
+            {{this.description}}
+          {{else}}
+            X-axis values range from
+            {{this.xRangeStart}}
+            to
+            {{this.xRangeEnd}}, and Y-axis values range from
+            {{this.yRangeStart}}
+            to
+            {{this.yRangeEnd}}.
+          {{/if}}
+        </desc>
+        <g
+          class="y-gridlines gridlines"
+          transform="translate({{this.yAxisOffset}}, 0)"
+        ></g>
+        {{#if this.ready}}
+          {{yield
+            (hash
+              Area=(component
+                Area
+                curve="linear"
+                xScale=this.xScale
+                yScale=this.yScale
+                xProp=this.xProp
+                yProp=this.yProp
+                width=this.yAxisOffset
+                height=this.xAxisOffset
+              )
+            )
+            to="svg"
+          }}
+        {{/if}}
+        <g
+          aria-hidden="true"
+          class="x-axis axis"
+          transform="translate(0, {{this.xAxisOffset}})"
+        ></g>
+        <g
+          aria-hidden="true"
+          class="y-axis axis"
+          transform="translate({{this.yAxisOffset}}, 0)"
+        ></g>
+        <rect
+          data-test-hover-target
+          class="hover-target"
+          x="0"
+          y="0"
+          width="{{this.yAxisOffset}}"
+          height="{{this.xAxisOffset}}"
+        />
+      </svg>
+      {{#if this.ready}}
+        {{yield
+          (hash
+            VAnnotations=(component
+              VAnnotations
+              timeseries=@timeseries
+              format=this.xFormat
+              scale=this.xScale
+              prop=this.xProp
+              height=this.xAxisOffset
+            )
+            HAnnotations=(component
+              HAnnotations
+              format=this.yFormat
+              scale=this.yScale
+              prop=this.yProp
+              left=this.canvasDimensions.left
+              width=this.canvasDimensions.width
+            )
+            Tooltip=(component
+              Tooltip
+              active=this.activeData.length
+              style=this.tooltipStyle
+              data=this.activeData
+            )
+          )
+          to="after"
+        }}
+      {{/if}}
+    </div>
+  </template>
 }

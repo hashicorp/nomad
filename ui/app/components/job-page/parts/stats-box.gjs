@@ -32,7 +32,7 @@ export default class StatsBox extends Component {
 
   <template>
     {{! template-lint-disable no-inline-styles }}
-    <div class="boxed-section is-small">
+    <div class="boxed-section is-small" ...attributes>
       <div class="boxed-section-body inline-definitions">
         <span class="label" style="width: 6.125rem;">Job Details</span>
         <span class="pair" data-test-job-stat="type">

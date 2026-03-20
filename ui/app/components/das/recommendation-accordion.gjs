@@ -20,22 +20,21 @@ export default class DasRecommendationAccordion extends Component {
   @tracked closing = false;
   @tracked animationContainerStyle = htmlSafe('');
 
-  @(task(function* () {
+  proceed = task({ drop: true }, async () => {
     this.closing = true;
     this.animationContainerStyle = htmlSafe(
       `height: ${this.accordionElement.clientHeight}px`,
     );
 
-    yield timeout(10);
+    await timeout(10);
 
     this.animationContainerStyle = htmlSafe('height: 0px');
 
     // The 450ms for the animation to complete, set in CSS as $timing-slow
-    yield timeout(macroCondition(isTesting()) ? 0 : 450);
+    await timeout(macroCondition(isTesting()) ? 0 : 450);
 
     this.waitingToProceed = false;
-  }).drop())
-  proceed;
+  });
 
   inserted = (element) => {
     this.accordionElement = element;

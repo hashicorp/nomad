@@ -522,7 +522,7 @@
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{this.resetPagination}}
+          @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
           @placeholder="Search allocations..."
           @inputClass="is-compact"
           @class="is-padded"
@@ -598,7 +598,7 @@
                 @allocation={{row.model}}
                 @context="node"
                 @onClick={{fn this.gotoAllocation row.model}}
-                @data-test-allocation={{row.model.id}}
+                data-test-allocation={{row.model.id}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}

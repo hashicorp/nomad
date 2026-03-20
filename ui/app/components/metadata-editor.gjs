@@ -22,8 +22,12 @@ const updateKVValue = (kv, event) => {
   kv.value = value;
 };
 
+const preventSubmit = (event) => {
+  event?.preventDefault?.();
+};
+
 export const MetadataEditor = <template>
-  <form class="metadata-editor">
+  <form class="metadata-editor" {{on "submit" preventSubmit}} ...attributes>
     <label>
       <strong>Key</strong>
       {{#if @constantKey}}

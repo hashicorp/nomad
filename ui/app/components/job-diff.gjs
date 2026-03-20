@@ -12,6 +12,28 @@ export default class JobDiff extends Component {
     return this.args.verbose ?? true;
   }
 
+  get diff() {
+    return this.args.diff || {};
+  }
+
+  get fields() {
+    return this.diff.Fields || this.diff.fields || [];
+  }
+
+  get objects() {
+    return this.diff.Objects || this.diff.objects || [];
+  }
+
+  get taskGroups() {
+    return this.diff.TaskGroups || this.diff.taskGroups || [];
+  }
+
+  fieldsFor = (item) => item?.Fields || item?.fields || [];
+
+  objectsFor = (item) => item?.Objects || item?.objects || [];
+
+  tasksFor = (group) => group?.Tasks || group?.tasks || [];
+
   lowerType = (item) => (item?.Type || '').toLowerCase();
 
   marker = (item) => {
@@ -43,35 +65,35 @@ export default class JobDiff extends Component {
 
   get rootClass() {
     const classes = ['job-diff'];
-    if (this.isType(this.args.diff, 'edited')) classes.push('is-edited');
-    if (this.isType(this.args.diff, 'added')) classes.push('is-added');
-    if (this.isType(this.args.diff, 'deleted')) classes.push('is-deleted');
+    if (this.isType(this.diff, 'edited')) classes.push('is-edited');
+    if (this.isType(this.diff, 'added')) classes.push('is-added');
+    if (this.isType(this.diff, 'deleted')) classes.push('is-deleted');
     return classes.join(' ');
   }
 
   <template>
-    <div class={{this.rootClass}}>
+    <div class={{this.rootClass}} ...attributes>
       <div
         data-test-diff-section-label="job"
-        data-test-diff-field={{this.lowerType @diff}}
-        class={{this.sectionClass @diff}}
+        data-test-diff-field={{this.lowerType this.diff}}
+        class={{this.sectionClass this.diff}}
       >
-        <span class="marker {{this.markerClass @diff}}">
-          {{this.marker @diff}}
+        <span class="marker {{this.markerClass this.diff}}">
+          {{this.marker this.diff}}
         </span>
-        <span class="diff-section-bold">Job: "{{@diff.ID}}"</span>
+        <span class="diff-section-bold">Job: "{{this.diff.ID}}"</span>
       </div>
 
-      {{#if (this.shouldShowDiff @diff)}}
+      {{#if (this.shouldShowDiff this.diff)}}
         <div data-test-diff-section-label="job-diff" class="diff-section-label">
           <JobDiffFieldsAndObjects
-            @fields={{@diff.Fields}}
-            @objects={{@diff.Objects}}
+            @fields={{this.fields}}
+            @objects={{this.objects}}
           />
         </div>
       {{/if}}
 
-      {{#each @diff.TaskGroups as |group|}}
+      {{#each this.taskGroups as |group|}}
         <div
           data-test-diff-section-label="task-group"
           class={{this.sectionClass group}}
@@ -95,13 +117,13 @@ export default class JobDiff extends Component {
               class="diff-section-label"
             >
               <JobDiffFieldsAndObjects
-                @fields={{group.Fields}}
-                @objects={{group.Objects}}
+                @fields={{this.fieldsFor group}}
+                @objects={{this.objectsFor group}}
               />
             </div>
           {{/if}}
 
-          {{#each group.Tasks as |task|}}
+          {{#each (this.tasksFor group) as |task|}}
             <div
               data-test-diff-section-label="task"
               data-test-diff-field={{this.lowerType task}}
@@ -119,8 +141,8 @@ export default class JobDiff extends Component {
               {{/if}}
               {{#if (this.shouldShowDiff task)}}
                 <JobDiffFieldsAndObjects
-                  @fields={{task.Fields}}
-                  @objects={{task.Objects}}
+                  @fields={{this.fieldsFor task}}
+                  @objects={{this.objectsFor task}}
                 />
               {{/if}}
             </div>

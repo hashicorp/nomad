@@ -4,23 +4,27 @@
  */
 
 import Component from '@glimmer/component';
+import { get } from '@ember/object';
 import { capitalize } from '@ember/string';
 import { array } from '@ember/helper';
 import { LinkTo } from '@ember/routing';
-import { eq } from 'ember-truth-helpers';
 import { HdsAlert } from '@hashicorp/design-system-components/components';
+
+const safeGet = (obj, key) => (obj ? get(obj, key) : undefined);
 
 export default class LifecycleChartRow extends Component {
   get taskColor() {
+    const state = safeGet(this.args.taskState, 'state');
+    const failed = safeGet(this.args.taskState, 'failed');
     let color = 'neutral';
-    if (this.args.taskState?.state === 'running') {
+    if (state === 'running') {
       color = 'success';
     }
-    if (this.args.taskState?.state === 'pending') {
+    if (state === 'pending') {
       color = 'neutral';
     }
-    if (this.args.taskState?.state === 'dead') {
-      if (this.args.taskState?.failed) {
+    if (state === 'dead') {
+      if (failed) {
         color = 'critical';
       } else {
         color = 'neutral';
@@ -30,18 +34,21 @@ export default class LifecycleChartRow extends Component {
   }
 
   get taskIcon() {
+    const state = safeGet(this.args.taskState, 'state');
+    const failed = safeGet(this.args.taskState, 'failed');
+    const startedAt = safeGet(this.args.taskState, 'startedAt');
     let icon;
-    if (this.args.taskState?.state === 'running') {
+    if (state === 'running') {
       icon = 'running';
     }
-    if (this.args.taskState?.state === 'pending') {
+    if (state === 'pending') {
       icon = 'test';
     }
-    if (this.args.taskState?.state === 'dead') {
-      if (this.args.taskState?.failed) {
+    if (state === 'dead') {
+      if (failed) {
         icon = 'alert-circle';
       } else {
-        if (this.args.taskState?.startedAt) {
+        if (startedAt) {
           icon = 'check-circle';
         } else {
           icon = 'minus-circle';
@@ -53,7 +60,10 @@ export default class LifecycleChartRow extends Component {
   }
 
   get activeClass() {
-    if (this.args.taskState && this.args.taskState.state === 'running') {
+    if (
+      this.args.taskState &&
+      get(this.args.taskState, 'state') === 'running'
+    ) {
       return 'is-active';
     }
 
@@ -61,11 +71,15 @@ export default class LifecycleChartRow extends Component {
   }
 
   get finishedClass() {
-    if (this.args.taskState && this.args.taskState.state === 'dead') {
+    if (this.args.taskState && get(this.args.taskState, 'state') === 'dead') {
       return 'is-finished';
     }
 
     return undefined;
+  }
+
+  get pendingClass() {
+    return safeGet(this.args.taskState, 'state') === 'pending' ? 'pending' : '';
   }
 
   get lifecycleLabel() {
@@ -73,7 +87,7 @@ export default class LifecycleChartRow extends Component {
       return '';
     }
 
-    const name = this.args.task.lifecycleName;
+    const name = get(this.args.task, 'lifecycleName');
 
     if (name.includes('sidecar')) {
       return 'sidecar';
@@ -95,11 +109,12 @@ export default class LifecycleChartRow extends Component {
         {{this.activeClass}}
         {{this.finishedClass}}"
       data-test-lifecycle-task
+      ...attributes
     >
       <HdsAlert
         @type="inline"
         @color={{this.taskColor}}
-        class="{{if (eq @taskState.state 'pending') 'pending'}}"
+        class={{this.pendingClass}}
         @icon={{this.taskIcon}}
         as |A|
       >

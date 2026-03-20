@@ -4,7 +4,7 @@
  */
 
 const TableHead = <template>
-  <thead class={{@class}}>
+  <thead class={{@class}} ...attributes>
     <tr>
       {{yield}}
     </tr>

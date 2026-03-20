@@ -45,7 +45,7 @@ export default class ForbiddenMessage extends Component {
   }
 
   <template>
-    <div data-test-error class="empty-message">
+    <div data-test-error class="empty-message" ...attributes>
       <h3 data-test-error-title class="empty-message-headline">Not Authorized</h3>
       <p data-test-error-message class="empty-message-body">
         {{#if this.token.secret}}

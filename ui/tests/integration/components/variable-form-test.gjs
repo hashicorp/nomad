@@ -5,9 +5,16 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
+import { tracked } from '@glimmer/tracking';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import { click, typeIn, find, findAll, render } from '@ember/test-helpers';
+import {
+  click,
+  typeIn,
+  triggerEvent,
+  findAll,
+  render,
+  settled,
+} from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
@@ -15,6 +22,47 @@ import percySnapshot from '@percy/ember';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
 import faker from 'nomad-ui/mirage/faker';
+import VariableForm from 'nomad-ui/components/variable-form';
+
+function pickInteractiveControl(scope, selectors) {
+  const root = document.querySelector(scope);
+  if (!root) return null;
+
+  const controls = selectors.flatMap((selector) =>
+    Array.from(root.querySelectorAll(selector)),
+  );
+
+  const interactive = controls.filter((control) => {
+    if (!control) return false;
+    if (control.disabled) return false;
+    if (control.type === 'hidden') return false;
+    return control.offsetParent !== null || control.getClientRects().length > 0;
+  });
+
+  return interactive[0] || controls[0] || null;
+}
+
+function findKeyControl(scope = '.key-value:last-of-type') {
+  return pickInteractiveControl(scope, [
+    'input[data-test-var-key]',
+    'textarea[data-test-var-key]',
+    '[data-test-var-key] input',
+    '[data-test-var-key] textarea',
+  ]);
+}
+
+function findValueControl(scope = '.key-value:last-of-type') {
+  return pickInteractiveControl(scope, [
+    'textarea[data-test-var-value]',
+    'input[data-test-var-value]',
+    '[data-test-var-value] textarea',
+    '[data-test-var-value] input',
+  ]);
+}
+
+class State {
+  @tracked view = 'table';
+}
 
 module('Integration | Component | variable-form', function (hooks) {
   setupRenderingTest(hooks);
@@ -22,25 +70,19 @@ module('Integration | Component | variable-form', function (hooks) {
   setupCodeMirror(hooks);
 
   test('passes an accessibility audit', async function (assert) {
-    this.set(
-      'mockedModel',
-      this.server.create('variable', {
-        keyValues: [{ key: '', value: '' }],
-      }),
-    );
-    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+    const mockedModel = this.server.create('variable', {
+      keyValues: [{ key: '', value: '' }],
+    });
+    await render(<template><VariableForm @model={{mockedModel}} /></template>);
     await componentA11yAudit(this.element, assert);
   });
 
   test('shows a single row by default and modifies on "Add More" and "Delete"', async function (assert) {
-    this.set(
-      'mockedModel',
-      this.server.create('variable', {
-        keyValues: [{ key: '', value: '' }],
-      }),
-    );
+    const mockedModel = this.server.create('variable', {
+      keyValues: [{ key: '', value: '' }],
+    });
 
-    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+    await render(<template><VariableForm @model={{mockedModel}} /></template>);
     assert.deepEqual(
       findAll('div.key-value').length,
       1,
@@ -99,21 +141,20 @@ module('Integration | Component | variable-form', function (hooks) {
   module('editing and creating new key/value pairs', function () {
     test('it should allow each key/value row to toggle password visibility', async function (assert) {
       faker.seed(1);
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          keyValues: [{ key: 'foo', value: 'bar' }],
-        }),
+      const mockedModel = this.server.create('variable', {
+        keyValues: [{ key: 'foo', value: 'bar' }],
+      });
+
+      await render(
+        <template><VariableForm @model={{mockedModel}} /></template>,
       );
+      await click('[data-test-add-kv]');
 
-      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-      await click('[data-test-add-kv]'); // add a second variable
-
-      findAll('.value-label').forEach((label, iter) => {
+      findAll('.value-label').forEach((label, index) => {
         const maskedInput = label.querySelector('.hds-form-masked-input');
         assert.ok(
           maskedInput.classList.contains('hds-form-masked-input--is-masked'),
-          `Value ${iter + 1} is hidden by default`,
+          `Value ${index + 1} is hidden by default`,
         );
       });
 
@@ -151,14 +192,11 @@ module('Integration | Component | variable-form', function (hooks) {
       { key: 'and\\now/for-something_completely@different', value: 'up' },
     ];
 
-    this.set(
-      'mockedModel',
-      this.server.create('variable', {
-        path: 'my/path/to',
-        keyValues,
-      }),
-    );
-    await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+    const mockedModel = this.server.create('variable', {
+      path: 'my/path/to',
+      keyValues,
+    });
+    await render(<template><VariableForm @model={{mockedModel}} /></template>);
     assert.deepEqual(
       findAll('div.key-value').length,
       5,
@@ -175,17 +213,17 @@ module('Integration | Component | variable-form', function (hooks) {
       'Shows "add more" only on the last row',
     );
 
-    findAll('div.key-value').forEach((row, idx) => {
+    findAll('div.key-value').forEach((row, index) => {
       assert.deepEqual(
         row.querySelector(`[data-test-var-key]`).value,
-        keyValues[idx].key,
-        `Key ${idx + 1} is correct`,
+        keyValues[index].key,
+        `Key ${index + 1} is correct`,
       );
 
       assert.deepEqual(
         row.querySelector(`[data-test-var-value]`).value,
-        keyValues[idx].value,
-        keyValues[idx].value,
+        keyValues[index].value,
+        keyValues[index].value,
       );
     });
   });
@@ -198,8 +236,7 @@ module('Integration | Component | variable-form', function (hooks) {
       keyValues: [{ key: '', value: '' }],
     });
     variable.isNew = false;
-    this.set('variable', variable);
-    await render(hbs`<VariableForm @model={{this.variable}} />`);
+    await render(<template><VariableForm @model={{variable}} /></template>);
     assert.dom('[data-test-path-input]').hasValue('/baz/bat', 'Path is set');
     assert
       .dom('[data-test-path-input]')
@@ -207,8 +244,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
     variable.isNew = true;
     variable.path = '';
-    this.set('variable', variable);
-    await render(hbs`<VariableForm @model={{this.variable}} />`);
+    await render(<template><VariableForm @model={{variable}} /></template>);
     assert
       .dom('[data-test-path-input]')
       .isNotDisabled('New variable is not in disabled state');
@@ -218,13 +254,10 @@ module('Integration | Component | variable-form', function (hooks) {
     test('warns when you try to create a path that already exists', async function (assert) {
       this.server.createList('namespace', 3);
 
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          path: '',
-          keyValues: [{ key: '', value: '' }],
-        }),
-      );
+      const mockedModel = this.server.create('variable', {
+        path: '',
+        keyValues: [{ key: '', value: '' }],
+      });
 
       this.server.create('variable', {
         path: 'baz/bat',
@@ -234,10 +267,15 @@ module('Integration | Component | variable-form', function (hooks) {
         namespace: this.server.db.namespaces[2].id,
       });
 
-      this.set('existingVariables', this.server.db.variables.toArray());
+      const existingVariables = this.server.db.variables.toArray();
 
       await render(
-        hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`,
+        <template>
+          <VariableForm
+            @model={{mockedModel}}
+            @existingVariables={{existingVariables}}
+          />
+        </template>,
       );
 
       await typeIn('[data-test-path-input]', 'foo/bar');
@@ -246,7 +284,7 @@ module('Integration | Component | variable-form', function (hooks) {
         .dom('[data-test-path-input]')
         .doesNotHaveClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      document.querySelector('[data-test-path-input]').value = '';
       await typeIn('[data-test-path-input]', 'baz/bat');
 
       assert.dom('[data-test-duplicate-variable-error]').exists();
@@ -264,7 +302,7 @@ module('Integration | Component | variable-form', function (hooks) {
         .dom('[data-test-path-input]')
         .doesNotHaveClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      document.querySelector('[data-test-path-input]').value = '';
       await typeIn('[data-test-path-input]', 'baz/bat/qux');
       assert.dom('[data-test-duplicate-variable-error]').exists();
       assert
@@ -275,15 +313,14 @@ module('Integration | Component | variable-form', function (hooks) {
     test('warns when you try to create a path with invalid characters', async function (assert) {
       this.server.createList('namespace', 3);
 
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          path: '',
-          keyValues: [{ key: '', value: '' }],
-        }),
-      );
+      const mockedModel = this.server.create('variable', {
+        path: '',
+        keyValues: [{ key: '', value: '' }],
+      });
 
-      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+      await render(
+        <template><VariableForm @model={{mockedModel}} /></template>,
+      );
 
       await typeIn('[data-test-path-input]', 'foo-bar');
       assert.dom('[data-test-invalid-path-error]').doesNotExist();
@@ -291,7 +328,7 @@ module('Integration | Component | variable-form', function (hooks) {
         .dom('[data-test-path-input]')
         .doesNotHaveClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      document.querySelector('[data-test-path-input]').value = '';
       await typeIn('[data-test-path-input]', 'foo bar');
 
       assert
@@ -301,12 +338,11 @@ module('Integration | Component | variable-form', function (hooks) {
         .dom('[data-test-path-input]')
         .hasClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      document.querySelector('[data-test-path-input]').value = '';
       await typeIn('[data-test-path-input]', '_');
       assert.dom('[data-test-invalid-path-error]').doesNotExist();
 
-      // Try 129 characters
-      let longString = 'a'.repeat(129);
+      const longString = 'a'.repeat(129);
       await typeIn('[data-test-path-input]', longString);
       assert
         .dom('[data-test-invalid-path-error]')
@@ -314,12 +350,9 @@ module('Integration | Component | variable-form', function (hooks) {
     });
 
     test('warns you when you set a key with . in it', async function (assert) {
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          keyValues: [{ key: '', value: '' }],
-        }),
-      );
+      const mockedModel = this.server.create('variable', {
+        keyValues: [{ key: '', value: '' }],
+      });
 
       const testCases = [
         {
@@ -358,26 +391,27 @@ module('Integration | Component | variable-form', function (hooks) {
           warn: false,
         },
       ];
-      for (const tc of testCases) {
-        await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-        await typeIn('[data-test-var-key]', tc.key);
-        if (tc.warn) {
-          assert.dom('.key-value-error').exists(tc.name);
+      for (const testCase of testCases) {
+        await render(
+          <template><VariableForm @model={{mockedModel}} /></template>,
+        );
+        await typeIn('[data-test-var-key]', testCase.key);
+        if (testCase.warn) {
+          assert.dom('.key-value-error').exists(testCase.name);
         } else {
-          assert.dom('.key-value-error').doesNotExist(tc.name);
+          assert.dom('.key-value-error').doesNotExist(testCase.name);
         }
       }
     });
 
     test('warns you when you create a duplicate key', async function (assert) {
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          keyValues: [{ key: 'myKey', value: 'myVal' }],
-        }),
-      );
+      const mockedModel = this.server.create('variable', {
+        keyValues: [{ key: 'myKey', value: 'myVal' }],
+      });
 
-      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+      await render(
+        <template><VariableForm @model={{mockedModel}} /></template>,
+      );
 
       await click('[data-test-add-kv]');
 
@@ -394,60 +428,62 @@ module('Integration | Component | variable-form', function (hooks) {
 
   module('Views', function () {
     test('Allows you to swap between JSON and Key/Value Views', async function (assert) {
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          path: '',
-          keyValues: [{ key: '', value: '' }],
-        }),
-      );
+      const state = new State();
+      const mockedModel = this.server.create('variable', {
+        path: '',
+        keyValues: [{ key: '', value: '' }],
+      });
 
-      this.set(
-        'existingVariables',
-        this.server.createList('variable', 1, {
-          path: 'baz/bat',
-        }),
-      );
-
-      this.set('view', 'table');
+      const existingVariables = this.server.createList('variable', 1, {
+        path: 'baz/bat',
+      });
 
       await render(
-        hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} @view={{this.view}} />`,
+        <template>
+          <VariableForm
+            @model={{mockedModel}}
+            @existingVariables={{existingVariables}}
+            @view={{state.view}}
+          />
+        </template>,
       );
       assert.dom('.key-value').exists();
       assert.dom('.CodeMirror').doesNotExist();
 
-      this.set('view', 'json');
+      state.view = 'json';
+      await settled();
       assert.dom('.key-value').doesNotExist();
       assert.dom('.CodeMirror').exists();
     });
 
     test('Persists Key/Values table data to JSON', async function (assert) {
+      const state = new State();
       faker.seed(1);
       const keyValues = [
         { key: 'foo', value: '123' },
         { key: 'bar', value: '456' },
       ];
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          path: '',
-          keyValues,
-        }),
-      );
-
-      this.set('view', 'json');
+      const mockedModel = this.server.create('variable', {
+        path: '',
+        keyValues,
+      });
+      state.view = 'json';
 
       await render(
-        hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`,
+        <template>
+          <VariableForm @model={{mockedModel}} @view={{state.view}} />
+        </template>,
       );
 
       await percySnapshot(assert);
 
-      const keyValuesAsJSON = keyValues.reduce((acc, { key, value }) => {
-        acc[key] = value;
-        return acc;
-      }, {});
+      const keyValuesAsJSON = keyValues.reduce(
+        (accumulator, { key, value }) => {
+          accumulator[key] = value;
+          return accumulator;
+        },
+        {},
+      );
 
       assert.deepEqual(
         code('.editor-wrapper').get(),
@@ -455,49 +491,66 @@ module('Integration | Component | variable-form', function (hooks) {
         'JSON editor contains the key values, stringified, by default',
       );
 
-      this.set('view', 'table');
+      state.view = 'table';
+      await settled();
 
       await click('[data-test-add-kv]');
 
-      await typeIn('.key-value:last-of-type [data-test-var-key]', 'howdy');
-      await typeIn('.key-value:last-of-type [data-test-var-value]', 'partner');
+      const keyControl = findKeyControl();
+      const valueControl = findValueControl();
+      assert.ok(keyControl, 'Found key input control');
+      assert.ok(valueControl, 'Found value input control');
 
-      this.set('view', 'json');
+      await typeIn(keyControl, 'howdy');
+      await typeIn(valueControl, 'partner');
+      await triggerEvent(keyControl, 'change');
+      await triggerEvent(valueControl, 'change');
+      await triggerEvent(keyControl, 'blur');
+      await triggerEvent(valueControl, 'blur');
 
-      assert.ok(
-        code('[data-test-json-editor]').get().includes('"howdy": "partner"'),
+      state.view = 'json';
+      await settled();
+
+      const parsedJSON = JSON.parse(code('[data-test-json-editor]').get());
+      const parsedObject = Array.isArray(parsedJSON)
+        ? parsedJSON[0]
+        : parsedJSON;
+
+      assert.strictEqual(
+        parsedObject?.howdy,
+        'partner',
         'JSON editor contains the new key value',
       );
     });
 
     test('Persists JSON data to Key/Values table', async function (assert) {
+      const state = new State();
       const keyValues = [{ key: '', value: '' }];
-      this.set(
-        'mockedModel',
-        this.server.create('variable', {
-          path: '',
-          keyValues,
-        }),
-      );
-
-      this.set('view', 'json');
+      const mockedModel = this.server.create('variable', {
+        path: '',
+        keyValues,
+      });
+      state.view = 'json';
 
       await render(
-        hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`,
+        <template>
+          <VariableForm @model={{mockedModel}} @view={{state.view}} />
+        </template>,
       );
 
       codeFillable('[data-test-json-editor]').get()(
         JSON.stringify({ golden: 'gate' }, null, 2),
       );
-      this.set('view', 'table');
+      state.view = 'table';
+      await settled();
       assert.deepEqual(
-        find(`.key-value:last-of-type [data-test-var-key]`).value,
+        findKeyControl()?.value,
         'golden',
         'Key persists from JSON to Table',
       );
 
       assert.deepEqual(
-        find(`.key-value:last-of-type [data-test-var-value]`).value,
+        findValueControl()?.value,
         'gate',
         'Value persists from JSON to Table',
       );

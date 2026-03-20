@@ -13,7 +13,7 @@
         {{#if this.nodes.length}}
           <SearchBox
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{this.resetPagination}}
+            @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
             @placeholder="Search clients..."
           />
         {{/if}}

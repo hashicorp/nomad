@@ -7,7 +7,7 @@ import { on } from '@ember/modifier';
 
 const JobPagePartsError = <template>
   {{#if @errorMessage}}
-    <div class="notification is-danger">
+    <div class="notification is-danger" ...attributes>
       <div class="columns">
         <div class="column">
           <h3

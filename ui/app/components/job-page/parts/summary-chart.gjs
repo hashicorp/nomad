@@ -5,7 +5,6 @@
 
 import { LinkTo } from '@ember/routing';
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
 import { camelize } from '@ember/string';
 import { service } from '@ember/service';
 import { and, eq, gt } from 'ember-truth-helpers';
@@ -16,8 +15,7 @@ import JobPagePartsSummaryLegendItem from 'nomad-ui/components/job-page/parts/su
 export default class JobPagePartsSummaryChart extends Component {
   @service router;
 
-  @action
-  gotoAllocations(status) {
+  gotoAllocations = (status) => {
     const namespace = this.args.job.namespaceId || this.args.job.namespace;
     const queryParams = {
       status: JSON.stringify(status),
@@ -39,12 +37,11 @@ export default class JobPagePartsSummaryChart extends Component {
     this.router.transitionTo('jobs.job.allocations', this.args.job, {
       queryParams,
     });
-  }
+  };
 
-  @action
-  onSliceClick(event, slice) {
+  onSliceClick = (event, slice) => {
     this.gotoAllocations([camelize(slice.label)]);
-  }
+  };
 
   <template>
     {{#if @job.hasChildren}}

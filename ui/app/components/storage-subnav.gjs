@@ -15,6 +15,7 @@ export default class StorageSubnav extends Component {
   <template>
     <div
       class="tabs is-subnav"
+      ...attributes
       {{didInsert this.keyboard.registerNav type="subnav"}}
       {{willDestroy this.keyboard.unregisterSubnav}}
     >

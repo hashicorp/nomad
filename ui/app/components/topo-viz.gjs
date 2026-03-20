@@ -354,6 +354,7 @@ export default class TopoViz extends Component {
       {{didUpdate this.buildTopology @nodes}}
       {{didInsert this.captureElement}}
       {{windowResize this.determineViewportColumns}}
+      ...attributes
     >
       <FlexMasonry
         @columns={{if this.isSingleColumn 1 2}}

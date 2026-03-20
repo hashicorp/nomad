@@ -183,6 +183,7 @@ export default class StreamingFile extends Component {
       {{didInsert this.onArgsChange}}
       {{didUpdate this.onArgsChange @logger this.mode this.isStreaming}}
       {{windowResize this.windowResizeHandler}}
+      ...attributes
     >
       <code
         data-test-output

@@ -8,6 +8,7 @@ export const HamburgerMenu = <template>
     class="hamburger-menu"
     viewBox="0 0 100 100"
     xmlns="http://www.w3.org/2000/svg"
+    ...attributes
   >
     <rect x="0" y="0" width="100" height="16" />
     <rect x="0" y="42" width="100" height="16" />

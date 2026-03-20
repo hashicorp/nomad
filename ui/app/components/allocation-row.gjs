@@ -6,6 +6,7 @@
 import Component from '@glimmer/component';
 import { array } from '@ember/helper';
 import { tracked } from '@glimmer/tracking';
+import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import didUpdate from '@ember/render-modifiers/modifiers/did-update';
 import { LinkTo } from '@ember/routing';
 import { on } from '@ember/modifier';
@@ -27,17 +28,28 @@ export default class AllocationRow extends Component {
   @service token;
 
   @tracked statsError = false;
+  @tracked statsTracker = null;
 
   get enablePolling() {
+    if (typeof this.args.enablePolling === 'boolean') {
+      return this.args.enablePolling;
+    }
+
     return ENV.environment !== 'test';
   }
 
   get stats() {
-    if (!this.args.allocation?.isRunning) return undefined;
+    return this.statsTracker;
+  }
+
+  buildStatsTracker(allocation) {
+    if (!allocation?.isRunning) {
+      return null;
+    }
 
     return AllocationStatsTracker.create({
       fetch: (url) => this.token.authorizedRequest(url),
-      allocation: this.args.allocation,
+      allocation,
     });
   }
 
@@ -51,12 +63,17 @@ export default class AllocationRow extends Component {
     return memory?.[memory.length - 1];
   }
 
+  get hasJobActions() {
+    return Boolean(this.args.model?.job?.actions?.length);
+  }
+
   click = (event) => {
     lazyClick([this.args.onClick, event]);
   };
 
   updateStatsTracker = () => {
     const allocation = this.args.allocation;
+    this.statsTracker = this.buildStatsTracker(allocation);
 
     if (allocation) {
       this.qualifyAllocation();
@@ -87,25 +104,26 @@ export default class AllocationRow extends Component {
     this.fetchStats.perform();
   };
 
-  @task({ drop: true }) *fetchStats() {
+  fetchStats = task({ drop: true }, async () => {
     do {
       if (this.stats) {
         try {
-          yield this.stats.poll.linked().perform();
+          await this.stats.poll.linked().perform();
           this.statsError = false;
         } catch {
           this.statsError = true;
         }
       }
 
-      yield timeout(500);
+      await timeout(500);
     } while (this.enablePolling);
-  }
+  });
 
   <template>
     <tr
       class="allocation-row is-interactive"
       {{on "click" this.click}}
+      {{didInsert this.updateStatsTracker}}
       {{didUpdate this.updateStatsTracker @allocation}}
       ...attributes
     >
@@ -247,7 +265,7 @@ export default class AllocationRow extends Component {
           @error={{this.statsError}}
         />
       </td>
-      {{#if @model.job.actions.length}}
+      {{#if this.hasJobActions}}
         <td class="job-actions-cell" />
       {{/if}}
     </tr>

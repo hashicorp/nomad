@@ -46,6 +46,7 @@ export default class JobServiceRow extends Component {
       data-test-service-level={{@service.level}}
       {{on "click" (fn this.gotoService @service)}}
       class={{if (eq @service.provider "nomad") "is-interactive"}}
+      ...attributes
     >
       <td
         {{keyboardShortcut

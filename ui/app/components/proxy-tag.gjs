@@ -9,6 +9,7 @@ const ProxyTag = <template>
     role="tooltip"
     aria-label="Consul Connect proxy task"
     data-test-proxy-tag
+    ...attributes
   >
     Proxy
   </span>

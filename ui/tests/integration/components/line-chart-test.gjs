@@ -4,18 +4,18 @@
  */
 
 import {
+  click,
   find,
   findAll,
-  click,
   render,
   triggerEvent,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { hbs } from 'ember-cli-htmlbars';
 import sinon from 'sinon';
 import moment from 'moment';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import LineChart from 'nomad-ui/components/line-chart';
 
 const REF_DATE = new Date();
 
@@ -36,20 +36,19 @@ module('Integration | Component | line-chart', function (hooks) {
       ],
     });
 
-    await render(hbs`
-      <LineChart
-        @xProp="x"
-        @yProp="y"
-        @data={{this.data}}>
-        <:after as |c|>
-          <c.VAnnotations @annotations={{this.annotations}} />
-        </:after>
-      </LineChart>
-    `);
+    await render(
+      <template>
+        <LineChart @xProp="x" @yProp="y" @data={{this.data}}>
+          <:after as |c|>
+            <c.VAnnotations @annotations={{this.annotations}} />
+          </:after>
+        </LineChart>
+      </template>,
+    );
 
     const sortedAnnotations = annotations.sortBy('x');
-    findAll('[data-test-annotation]').forEach((annotation, idx) => {
-      const datum = sortedAnnotations[idx];
+    findAll('[data-test-annotation]').forEach((annotation, index) => {
+      const datum = sortedAnnotations[index];
       assert.deepEqual(
         annotation.querySelector('button').getAttribute('title'),
         `${datum.type} event at ${datum.x}`,
@@ -82,21 +81,24 @@ module('Integration | Component | line-chart', function (hooks) {
       ],
     });
 
-    await render(hbs`
-      <LineChart
-        @xProp="x"
-        @yProp="y"
-        @timeseries={{true}}
-        @data={{this.data}}>
-        <:after as |c|>
-          <c.VAnnotations @annotations={{this.annotations}} />
-        </:after>
-      </LineChart>
-    `);
+    await render(
+      <template>
+        <LineChart
+          @xProp="x"
+          @yProp="y"
+          @timeseries={{true}}
+          @data={{this.data}}
+        >
+          <:after as |c|>
+            <c.VAnnotations @annotations={{this.annotations}} />
+          </:after>
+        </LineChart>
+      </template>,
+    );
 
     const sortedAnnotations = annotations.sortBy('x').reverse();
-    findAll('[data-test-annotation]').forEach((annotation, idx) => {
-      const datum = sortedAnnotations[idx];
+    findAll('[data-test-annotation]').forEach((annotation, index) => {
+      const datum = sortedAnnotations[index];
       assert.deepEqual(
         annotation.querySelector('button').getAttribute('title'),
         `${datum.type} event at ${moment(datum.x).format('MMM DD, HH:mm')}`,
@@ -115,16 +117,18 @@ module('Integration | Component | line-chart', function (hooks) {
       click: sinon.spy(),
     });
 
-    await render(hbs`
-      <LineChart
-        @xProp="x"
-        @yProp="y"
-        @data={{this.data}}>
-        <:after as |c|>
-          <c.VAnnotations @annotations={{this.annotations}} @annotationClick={{this.click}} />
-        </:after>
-      </LineChart>
-    `);
+    await render(
+      <template>
+        <LineChart @xProp="x" @yProp="y" @data={{this.data}}>
+          <:after as |c|>
+            <c.VAnnotations
+              @annotations={{this.annotations}}
+              @annotationClick={{this.click}}
+            />
+          </:after>
+        </LineChart>
+      </template>,
+    );
 
     await click('[data-test-annotation] button');
     assert.ok(this.click.calledWith(annotations[0]));
@@ -145,23 +149,22 @@ module('Integration | Component | line-chart', function (hooks) {
       click: sinon.spy(),
     });
 
-    await render(hbs`
-      <div style="width:200px;">
-        <LineChart
-          @xProp="x"
-          @yProp="y"
-          @data={{this.data}}>
-          <:after as |c|>
-            <c.VAnnotations @annotations={{this.annotations}} />
-          </:after>
-        </LineChart>
-      </div>
-    `);
+    await render(
+      <template>
+        <div style="width:200px;">
+          <LineChart @xProp="x" @yProp="y" @data={{this.data}}>
+            <:after as |c|>
+              <c.VAnnotations @annotations={{this.annotations}} />
+            </:after>
+          </LineChart>
+        </div>
+      </template>,
+    );
 
-    const annotationEls = findAll('[data-test-annotation]');
-    assert.notOk(annotationEls[0].classList.contains('is-staggered'));
-    assert.ok(annotationEls[1].classList.contains('is-staggered'));
-    assert.notOk(annotationEls[2].classList.contains('is-staggered'));
+    const annotationElements = findAll('[data-test-annotation]');
+    assert.notOk(annotationElements[0].classList.contains('is-staggered'));
+    assert.ok(annotationElements[1].classList.contains('is-staggered'));
+    assert.notOk(annotationElements[2].classList.contains('is-staggered'));
 
     await componentA11yAudit(this.element, assert);
   });
@@ -180,24 +183,26 @@ module('Integration | Component | line-chart', function (hooks) {
       ],
     });
 
-    await render(hbs`
-      <LineChart
-        @xProp="x"
-        @yProp="y"
-        @data={{this.data}}>
-        <:after as |c|>
-          <c.HAnnotations @annotations={{this.annotations}} @labelProp="label" />
-        </:after>
-      </LineChart>
-    `);
+    await render(
+      <template>
+        <LineChart @xProp="x" @yProp="y" @data={{this.data}}>
+          <:after as |c|>
+            <c.HAnnotations
+              @annotations={{this.annotations}}
+              @labelProp="label"
+            />
+          </:after>
+        </LineChart>
+      </template>,
+    );
 
-    const annotationEls = findAll('[data-test-annotation]');
+    const annotationElements = findAll('[data-test-annotation]');
     annotations
       .sortBy('y')
       .reverse()
       .forEach((annotation, index) => {
         assert.deepEqual(
-          annotationEls[index].textContent.trim(),
+          annotationElements[index].textContent.trim(),
           annotation.label,
         );
       });
@@ -221,44 +226,41 @@ module('Integration | Component | line-chart', function (hooks) {
       ],
     });
 
-    await render(hbs`
-      <div style="width:500px;margin-top:100px">
-        <LineChart
-          @xProp="x"
-          @yProp="y"
-          @dataProp="data"
-          @data={{this.data}}>
-          <:svg as |c|>
-            {{#each this.data as |series idx|}}
-              <c.Area @data={{series.data}} @colorScale="blues" @index={{idx}} />
-            {{/each}}
-          </:svg>
-          <:after as |c|>
-            <c.Tooltip as |series datum index|>
-              <li>
-                <span class="label"><span class="color-swatch swatch-blues swatch-blues-{{index}}" />{{series.series}}</span>
-                <span class="value">{{datum.formattedY}}</span>
-              </li>
-            </c.Tooltip>
-          </:after>
-        </LineChart>
-      </div>
-    `);
+    await render(
+      <template>
+        <div style="width:500px;margin-top:100px">
+          <LineChart @xProp="x" @yProp="y" @dataProp="data" @data={{this.data}}>
+            <:svg as |c|>
+              {{#each this.data as |series index|}}
+                <c.Area
+                  @data={{series.data}}
+                  @colorScale="blues"
+                  @index={{index}}
+                />
+              {{/each}}
+            </:svg>
+            <:after as |c|>
+              <c.Tooltip as |series datum index|>
+                <li>
+                  <span class="label"><span
+                      class="color-swatch swatch-blues swatch-blues-{{index}}"
+                    />{{series.series}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
+          </LineChart>
+        </div>
+      </template>,
+    );
 
-    // All tooltip events are attached to the hover target
     const hoverTarget = find('[data-test-hover-target]');
 
-    // Mouse to data mapping happens based on the clientX of the MouseEvent
     const bbox = hoverTarget.getBoundingClientRect();
-    // The MouseEvent needs to be translated based on the location of the hover target
     const xOffset = bbox.x;
-    // An interval here is the width between x values given the fixed dimensions of the line chart
-    // and the domain of the data
     const interval = bbox.width / 5;
 
-    // MouseEnter triggers the tooltip visibility
     await triggerEvent(hoverTarget, 'mouseenter');
-    // MouseMove positions the tooltip and updates the active datum
     await triggerEvent(hoverTarget, 'mousemove', {
       clientX: xOffset + interval * 1 + 5,
     });
@@ -269,16 +271,18 @@ module('Integration | Component | line-chart', function (hooks) {
     );
     assert.deepEqual(
       find('[data-test-chart-tooltip] .value').textContent.trim(),
-      String(series2.find((d) => d.x === 2).y),
+      String(series2.find((datum) => datum.x === 2).y),
     );
 
-    // When the mouse falls between points and each series has points with different x values,
-    // points will only be shown in the tooltip if they are close enough to the closest point
-    // to the cursor.
-    // This event is intentionally between points such that both points are within proximity.
     const expected = [
-      { label: this.data[0].series, value: series1.find((d) => d.x === 3).y },
-      { label: this.data[1].series, value: series2.find((d) => d.x === 2).y },
+      {
+        label: this.data[0].series,
+        value: series1.find((datum) => datum.x === 3).y,
+      },
+      {
+        label: this.data[1].series,
+        value: series2.find((datum) => datum.x === 2).y,
+      },
     ];
     await triggerEvent(hoverTarget, 'mousemove', {
       clientX: xOffset + interval * 1.5 + 5,

@@ -12,7 +12,7 @@
         <SearchBox
           data-test-allocations-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{this.resetPagination}}
+          @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
           @placeholder="Search allocations..."
         />
       </div>
@@ -99,7 +99,7 @@
                 enumerated=true
                 action=(fn this.gotoAllocation row.model)
               }}
-              @data-test-allocation={{row.model.id}}
+              data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"
               @onClick={{fn this.gotoAllocation row.model}}

@@ -108,7 +108,11 @@ export default class GaugeChart extends Component {
   };
 
   <template>
-    <div class="chart gauge-chart" {{windowResize this.handleResize}}>
+    <div
+      class="chart gauge-chart"
+      {{windowResize this.handleResize}}
+      ...attributes
+    >
       <svg
         data-test-gauge-svg
         role="img"

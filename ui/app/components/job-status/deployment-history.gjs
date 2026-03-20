@@ -123,7 +123,7 @@ export default class JobStatusDeploymentHistory extends Component {
   };
 
   <template>
-    <div class="deployment-history {{if this.isHidden 'hidden'}}">
+    <div class="deployment-history {{if this.isHidden 'hidden'}}" ...attributes>
       <header>
         <h4 class="title is-5">
           <button class="button" {{on "click" this.toggleHidden}} type="button">

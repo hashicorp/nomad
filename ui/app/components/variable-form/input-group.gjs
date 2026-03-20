@@ -6,10 +6,12 @@
 import { HdsFormMaskedInputField } from '@hashicorp/design-system-components/components';
 
 export const VariableFormInputGroup = <template>
-  <label class="value-label">
+  <label class="value-label" ...attributes>
     <HdsFormMaskedInputField
       @isMultiline={{true}}
       @value={{@entry.value}}
+      @onInput={{@onInput}}
+      @onChange={{@onInput}}
       rows="1"
       class="hds-typography-code-200"
       autocomplete="new-password"

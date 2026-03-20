@@ -30,7 +30,7 @@ export default class TaskGroups extends Component {
   };
 
   <template>
-    <div class="boxed-section">
+    <div class="boxed-section" ...attributes>
       <div class="boxed-section-head">
         Task Groups
       </div>
@@ -66,7 +66,7 @@ export default class TaskGroups extends Component {
           </t.head>
           <t.body as |row|>
             <TaskGroupRow
-              @data-test-task-group={{row.model.name}}
+              data-test-task-group={{row.model.name}}
               @taskGroup={{row.model}}
               @onClick={{fn this.gotoTaskGroup row.model}}
               {{keyboardShortcutModifier

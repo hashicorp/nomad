@@ -217,7 +217,7 @@
                 enumerated=true
                 action=(fn this.taskClick row.model.allocation row.model)
               }}
-              @data-test-task-row={{row.model.name}}
+              data-test-task-row={{row.model.name}}
               @task={{row.model}}
               @onClick={{fn this.taskClick row.model.allocation row.model}}
             />
@@ -516,7 +516,7 @@
             <AllocationRow
               @allocation={{row.model}}
               @context="job"
-              @data-test-allocation={{row.model.id}}
+              data-test-allocation={{row.model.id}}
             />
           </t.body>
         </ListTable>

@@ -68,7 +68,7 @@
                 enumerated=true
                 action=(fn this.gotoAllocation row.model)
               }}
-              @data-test-write-allocation={{row.model.id}}
+              data-test-write-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
               @onClick={{fn this.gotoAllocation row.model}}
@@ -123,7 +123,7 @@
                 enumerated=true
                 action=(fn this.gotoAllocation row.model)
               }}
-              @data-test-read-allocation={{row.model.id}}
+              data-test-read-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
               @onClick={{fn this.gotoAllocation row.model}}

@@ -15,7 +15,7 @@ export default class JsonViewer extends Component {
   }
 
   <template>
-    <div class={{this.rootClass}}>
+    <div class={{this.rootClass}} ...attributes>
       <div
         data-test-json-viewer
         {{codeMirror

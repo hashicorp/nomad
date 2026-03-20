@@ -130,7 +130,7 @@
             </t.head>
             <t.body @key="model.allocID" as |row|>
               <PluginAllocationRow
-                @data-test-controller-allocation={{row.model.allocID}}
+                data-test-controller-allocation={{row.model.allocID}}
                 @pluginAllocation={{row.model}}
               />
             </t.body>
@@ -195,7 +195,7 @@
           </t.head>
           <t.body @key="model.allocID" as |row|>
             <PluginAllocationRow
-              @data-test-node-allocation={{row.model.allocID}}
+              data-test-node-allocation={{row.model.allocID}}
               @pluginAllocation={{row.model}}
             />
           </t.body>

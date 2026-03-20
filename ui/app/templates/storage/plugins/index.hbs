@@ -15,7 +15,7 @@
           <SearchBox
             data-test-plugins-search
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{this.resetPagination}}
+            @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
             @placeholder="Search plugins..."
           />
         {{/if}}

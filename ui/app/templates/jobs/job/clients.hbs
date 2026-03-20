@@ -12,7 +12,7 @@
         <SearchBox
           data-test-clients-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{this.resetPagination}}
+          @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
           @placeholder="Search clients..."
         />
       </div>

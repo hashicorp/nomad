@@ -56,6 +56,7 @@ export default class JobStatusAllocationStatusBlock extends Component {
     <div
       class="allocation-status-block {{unless this.countToShow 'rest-only'}}"
       style={{this.blockStyle}}
+      ...attributes
     >
       {{#if this.countToShow}}
         <div class="ungrouped-allocs">

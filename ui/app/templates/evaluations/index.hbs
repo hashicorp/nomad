@@ -11,7 +11,7 @@
       <SearchBox
         data-test-evaluations-search
         @searchTerm={{mut this.searchTerm}}
-        @onChange={{this._resetTokens}}
+        @onChange={{queue (fn (mut this.searchTerm)) this._resetTokens}}
         @placeholder="Search evaluations..."
       />
     </div>

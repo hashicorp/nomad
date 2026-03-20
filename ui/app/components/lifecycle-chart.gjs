@@ -4,12 +4,15 @@
  */
 
 import Component from '@glimmer/component';
+import { get } from '@ember/object';
 import { gt } from 'ember-truth-helpers';
 import LifecycleChartRow from 'nomad-ui/components/lifecycle-chart-row';
 
 export default class LifecycleChart extends Component {
   get lifecyclePhases() {
-    const tasksOrStates = this.args.taskStates || this.args.tasks || [];
+    const taskStates = normalizeCollection(this.args.taskStates);
+    const tasks = normalizeCollection(this.args.tasks);
+    const tasksOrStates = taskStates.length ? taskStates : tasks;
     const lifecycles = {
       'prestart-ephemerals': [],
       'prestart-sidecars': [],
@@ -20,15 +23,16 @@ export default class LifecycleChart extends Component {
     };
 
     tasksOrStates.forEach((taskOrState) => {
-      const task = taskOrState.task || taskOrState;
+      const task = get(taskOrState, 'task') || taskOrState;
 
-      if (task.lifecycleName) {
-        lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+      const lifecycleName = get(task, 'lifecycleName');
+      if (lifecycleName) {
+        lifecycles[`${lifecycleName}s`].push(taskOrState);
       }
     });
 
     const phases = [];
-    const stateActiveIterator = (state) => state.state === 'running';
+    const stateActiveIterator = (state) => get(state, 'state') === 'running';
 
     if (lifecycles.mains.length < tasksOrStates.length) {
       phases.push({
@@ -61,20 +65,20 @@ export default class LifecycleChart extends Component {
   }
 
   get sortedLifecycleTaskStates() {
-    return [...(this.args.taskStates ?? [])].sort((a, b) => {
+    return normalizeCollection(this.args.taskStates).sort((a, b) => {
       return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
     });
   }
 
   get sortedLifecycleTasks() {
-    return [...(this.args.tasks ?? [])].sort((a, b) => {
+    return normalizeCollection(this.args.tasks).sort((a, b) => {
       return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
     });
   }
 
   <template>
     {{#if (gt this.lifecyclePhases.length 1)}}
-      <div class="boxed-section" data-test-lifecycle-chart>
+      <div class="boxed-section" data-test-lifecycle-chart ...attributes>
         <div class="boxed-section-head">
           Task Lifecycle
           {{if @taskStates "Status" "Configuration"}}
@@ -129,4 +133,24 @@ const lifecycleNameSortPrefix = {
 
 function getTaskSortPrefix(task) {
   return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
+}
+
+function normalizeCollection(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return [...value];
+  }
+
+  if (typeof value.toArray === 'function') {
+    return value.toArray();
+  }
+
+  if (typeof value[Symbol.iterator] === 'function') {
+    return Array.from(value);
+  }
+
+  return [];
 }

@@ -11,6 +11,7 @@ export const ServiceStatusIndicator = <template>
     class="service-status-indicator status-{{@check.Status}}
       tooltip is-right-aligned"
     aria-label="{{@check.Status}} at {{formatTs @check.Timestamp}}"
+    ...attributes
   >
     {{#if (eq @check.Status "failure")}}
       &times;

@@ -7,7 +7,7 @@ import AttributesTable from 'nomad-ui/components/attributes-table';
 
 export const JobPagePartsMeta = <template>
   {{#if @meta.structured}}
-    <div class="boxed-section">
+    <div class="boxed-section" ...attributes>
       <div class="boxed-section-head">
         Meta
       </div>

@@ -34,10 +34,7 @@ export default class PolicyEditor extends Component {
   };
 
   save = async (event) => {
-    if (event instanceof Event) {
-      // code-mirror "command+enter" submits the form, but may not have preventDefault.
-      event.preventDefault();
-    }
+    event?.preventDefault?.();
 
     const policy = this.args.policy;
 
@@ -90,7 +87,12 @@ export default class PolicyEditor extends Component {
   };
 
   <template>
-    <form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+    <form
+      class="acl-form"
+      autocomplete="off"
+      {{on "submit" this.save}}
+      ...attributes
+    >
       {{#if @policy.isNew}}
         <HdsFormTextInputField
           @isRequired={{true}}

@@ -54,7 +54,7 @@ export default class JobStatusLatestDeployment extends Component {
   }
 
   <template>
-    <section class="latest-deployment">
+    <section class="latest-deployment" ...attributes>
       <LinkTo @route="jobs.job.deployments" @model={{@job}}>
         <h4>
           Latest Deployment

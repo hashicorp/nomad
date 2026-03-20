@@ -46,6 +46,7 @@ export default class ActionsFlyoutGlobalButton extends Component {
           pattern=this.shortcutPattern
           action=this.nomadActions.openFlyout
         }}
+        ...attributes
       >
         <HdsButton
           {{on "click" this.nomadActions.openFlyout}}

@@ -29,7 +29,7 @@ export default class ChildJobRow extends Component {
   }
 
   <template>
-    <tr data-test-job-row data-test-child-job-row>
+    <tr data-test-job-row data-test-child-job-row ...attributes>
       <td
         data-test-job-name
         {{keyboardShortcut enumerated=true action=(fn this.gotoJob @job)}}

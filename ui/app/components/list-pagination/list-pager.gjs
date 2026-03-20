@@ -44,6 +44,7 @@ export default class ListPager extends Component {
         class={{@class}}
         data-test-pager={{@test}}
         aria-label={{@label}}
+        ...attributes
         {{(modifier
           this.includeKeyboardNav
           label=this.keyboardLabel

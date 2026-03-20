@@ -4,21 +4,25 @@
  */
 
 import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
+import { on } from '@ember/modifier';
 import { service } from '@ember/service';
-import { action } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
+import can from 'ember-can/helpers/can';
+import { eq } from 'ember-truth-helpers';
+import {
+  HdsButton,
+  HdsButtonSet,
+} from '@hashicorp/design-system-components/components';
+import JobEditorAlert from 'nomad-ui/components/job-editor/alert';
+import JobEditorEdit from 'nomad-ui/components/job-editor/edit';
+import JobEditorRead from 'nomad-ui/components/job-editor/read';
+import JobEditorReview from 'nomad-ui/components/job-editor/review';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
-import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import { tracked } from '@glimmer/tracking';
 import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-/**
- * JobEditor component that provides an interface for editing and managing Nomad jobs.
- *
- * @class JobEditor
- * @extends Component
- */
 export default class JobEditor extends Component {
   @service config;
   @service store;
@@ -27,9 +31,6 @@ export default class JobEditor extends Component {
   @tracked error = null;
   @tracked planOutput = null;
 
-  /**
-   * Initialize the component, setting the definition and definition variables on the model if available.
-   */
   constructor() {
     super(...arguments);
 
@@ -65,17 +66,11 @@ export default class JobEditor extends Component {
     }
   }
 
-  /**
-   * Check if the component is in editing mode.
-   *
-   * @returns {boolean} True if the component is in 'new' or 'edit' context, otherwise false.
-   */
   get isEditing() {
     return ['new', 'edit'].includes(this.args.context);
   }
 
-  @action
-  setDefinitionOnModel() {
+  setDefinitionOnModel = () => {
     if (
       !this.args.job ||
       this.args.job.isDestroying ||
@@ -89,9 +84,9 @@ export default class JobEditor extends Component {
     if (this.args.job._newDefinition !== definition) {
       this.args.job.set('_newDefinition', definition);
     }
-  }
+  };
 
-  setDefinitionVariablesOnModel(variables) {
+  setDefinitionVariablesOnModel = (variables) => {
     if (
       !this.args.job ||
       this.args.job.isDestroying ||
@@ -103,108 +98,77 @@ export default class JobEditor extends Component {
     if (this.args.job._newDefinitionVariables !== variables) {
       this.args.job.set('_newDefinitionVariables', variables);
     }
-  }
+  };
 
-  /**
-   * Enter the edit mode and defensively set the definition on the model.
-   */
-  @action
-  edit() {
+  edit = () => {
     this.setDefinitionOnModel();
     this.args.onToggleEdit(true);
-  }
+  };
 
-  @action
-  onCancel() {
+  onCancel = () => {
     this.args.onToggleEdit(false);
-  }
+  };
 
-  /**
-   * Determine the current stage of the component based on the plan output and editing state.
-   *
-   * @returns {"review"|"edit"|"read"} The current stage, either 'review', 'edit', or 'read'.
-   */
   get stage() {
     if (this.planOutput) return 'review';
     if (this.isEditing) return 'edit';
-    else return 'read';
+    return 'read';
   }
 
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
   @localStorageProperty('nomadShouldWrapCode', false) shouldWrapCode;
 
-  @action
-  dismissPlanMessage() {
+  dismissPlanMessage = () => {
     this.shouldShowPlanMessage = false;
-  }
+  };
 
-  /**
-   * A task that performs the job parsing and planning.
-   * On error, it calls the onError method.
-   */
-  @(task(function* () {
+  plan = task({ drop: true }, async () => {
     this.reset();
 
     try {
-      yield this.args.job.parse();
+      await this.args.job.parse();
     } catch (err) {
       this.onError(err, 'parse', 'parse jobs');
       return;
     }
 
     try {
-      const plan = yield this.args.job.plan();
+      const plan = await this.args.job.plan();
       this.planOutput = plan;
     } catch (err) {
       this.onError(err, 'plan', 'plan jobs');
     }
-  }).drop())
-  plan;
+  });
 
-  /**
-   * A task that submits the job, either running a new job or updating an existing one.
-   * On error, it calls the onError method and resets our planOutput state.
-   */
-  @task(function* () {
+  submit = task(async () => {
     try {
       if (this.args.context === 'new') {
-        yield this.args.job.run();
+        await this.args.job.run();
       } else {
-        yield this.args.job.update(this.args.format);
+        await this.args.job.update(this.args.format);
       }
 
       const id = this.args.job.plainId;
       const namespace = this.args.job.belongsTo('namespace').id() || 'default';
 
       this.reset();
-
-      // Treat the job as ephemeral and only provide ID parts.
       this.args.onSubmit(id, namespace);
     } catch (err) {
       this.onError(err, 'run', 'submit jobs');
       this.planOutput = null;
     }
-  })
-  submit;
+  });
 
-  /**
-   * Handle errors, setting the error object and scrolling to the error message.
-   *
-   * @param {Error} err - The error object.
-   * @param {"parse"|"plan"|"run"} type - The type of error (e.g., 'parse', 'plan', 'run').
-   * @param {string} actionMsg - A message describing the action that caused the error.
-   */
   onError(err, type, actionMsg) {
     const error = messageFromAdapterError(err, actionMsg);
     this.error = { message: error, type };
     this.scrollToError();
   }
 
-  @action
-  reset() {
+  reset = () => {
     this.planOutput = null;
     this.error = null;
-  }
+  };
 
   scrollToError() {
     if (!this.config.get('isTest')) {
@@ -212,15 +176,7 @@ export default class JobEditor extends Component {
     }
   }
 
-  /**
-   * Update the job's definition or definition variables based on the provided type.
-   *
-   * @param {string} value - The new value for the job's definition or definition variables.
-   * @param {_codemirror} _codemirror - The CodeMirror instance (not used in this action).
-   * @param {"hclVariables"|"job"} [type='job'] - The type of code being updated ('job' or 'hclVariables').
-   */
-  @action
-  updateCode(value, _codemirror, type = 'job') {
+  updateCode = (value, _codemirror, type = 'job') => {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
       if (type === 'hclVariables') {
         this.args.job.set('_newDefinitionVariables', value);
@@ -228,23 +184,13 @@ export default class JobEditor extends Component {
         this.args.job.set('_newDefinition', value);
       }
     }
-  }
+  };
 
-  /**
-   * Toggle the wrapping of the job's definition or definition variables.
-   */
-  @action
-  toggleWrap() {
+  toggleWrap = () => {
     this.shouldWrapCode = !this.shouldWrapCode;
-  }
+  };
 
-  /**
-   * Read the content of an uploaded job specification file and update the job's definition.
-   *
-   * @param {Event} event - The input change event containing the selected file.
-   */
-  @action
-  uploadJobSpec(event) {
+  uploadJobSpec = (event) => {
     const reader = new FileReader();
     reader.onload = () => {
       this.updateCode(reader.result);
@@ -252,13 +198,9 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
-  }
+  };
 
-  /**
-   * Download the job's definition or specification as .nomad.hcl file locally
-   */
-  @action
-  async handleSaveAsFile() {
+  handleSaveAsFile = async () => {
     try {
       const blob = new Blob([this.args.job._newDefinition], {
         type: 'text/plain',
@@ -288,19 +230,14 @@ export default class JobEditor extends Component {
         sticky: true,
       });
     }
-  }
+  };
 
-  /**
-   * Get the definition or specification based on the view type.
-   *
-   * @returns {string} The definition or specification in JSON or HCL format.
-   */
   get definition() {
     if (this.args.view === 'full-definition') {
       return JSON.stringify(this.args.definition, null, 2);
-    } else {
-      return this.args.specification;
     }
+
+    return this.args.specification;
   }
 
   get definitionVariables() {
@@ -330,6 +267,14 @@ export default class JobEditor extends Component {
     };
   }
 
+  get alertData() {
+    return {
+      ...this.data,
+      error: this.error,
+      stage: this.stage,
+    };
+  }
+
   get fns() {
     return {
       onCancel: this.onCancel,
@@ -346,4 +291,51 @@ export default class JobEditor extends Component {
       onToggleWrap: this.toggleWrap,
     };
   }
+
+  <template>
+    <div ...attributes>
+      <JobEditorAlert @data={{this.alertData}} @fns={{this.fns}} />
+
+      {{#if (eq @context "new")}}
+        <header class="run-job-header">
+          <h1 class="title is-3">Run a job</h1>
+          <p>
+            Paste or author HCL or JSON to submit to your cluster, or select
+            from a list of templates. A plan will be requested before the job is
+            submitted. You can also attach a job spec by uploading a job file or
+            dragging &amp; dropping a file to the editor.
+          </p>
+          <HdsButtonSet>
+            <label
+              class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
+            >
+              <div class="hds-button__text">Upload file</div>
+              <input
+                type="file"
+                {{on "change" this.fns.onUpload}}
+                accept=".hcl,.json,.nomad"
+              />
+            </label>
+            {{#if
+              (can "read variable" path="nomad/job-templates/*" namespace="*")
+            }}
+              <HdsButton
+                @text="Choose from template"
+                @color="secondary"
+                @route="jobs.run.templates"
+                data-test-choose-template
+              />
+            {{/if}}
+          </HdsButtonSet>
+        </header>
+      {{/if}}
+      {{#if (eq this.stage "review")}}
+        <JobEditorReview @data={{this.data}} @fns={{this.fns}} />
+      {{else if (eq this.stage "edit")}}
+        <JobEditorEdit @data={{this.data}} @fns={{this.fns}} />
+      {{else}}
+        <JobEditorRead @data={{this.data}} @fns={{this.fns}} />
+      {{/if}}
+    </div>
+  </template>
 }

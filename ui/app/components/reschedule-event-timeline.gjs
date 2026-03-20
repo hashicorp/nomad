@@ -35,7 +35,7 @@ export default class RescheduleEventTimeline extends Component {
   };
 
   <template>
-    <ol class="timeline">
+    <ol class="timeline" ...attributes>
       {{#if @allocation.nextAllocation}}
         <RescheduleEventRow
           @label="Next Allocation"

@@ -21,7 +21,7 @@ export default class PageLayout extends Component {
   };
 
   <template>
-    <div class="page-layout">
+    <div class="page-layout" ...attributes>
       <GlobalHeader class="page-header" @onHamburgerClick={{this.openGutter}}>
         <AppBreadcrumbs />
       </GlobalHeader>

@@ -33,6 +33,7 @@ export default class JobRow extends Component {
       class="job-row is-interactive"
       data-test-job-row
       {{on "click" this.click}}
+      ...attributes
     >
       <td
         data-test-job-name

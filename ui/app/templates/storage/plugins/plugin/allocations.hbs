@@ -59,7 +59,7 @@
         </t.head>
         <t.body @key="model.allocID" as |row|>
           <PluginAllocationRow
-            @data-test-allocation={{row.model.allocID}}
+            data-test-allocation={{row.model.allocID}}
             @pluginAllocation={{row.model}}
           />
         </t.body>

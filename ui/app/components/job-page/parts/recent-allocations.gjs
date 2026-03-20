@@ -43,7 +43,7 @@ export default class RecentAllocations extends Component {
   };
 
   <template>
-    <div class="boxed-section">
+    <div class="boxed-section" ...attributes>
       <div class="boxed-section-head">
         Recent Allocations
         <span class="pull-right is-padded">
@@ -105,7 +105,7 @@ export default class RecentAllocations extends Component {
             </t.head>
             <t.body as |row|>
               <AllocationRow
-                @data-test-allocation={{row.model.id}}
+                data-test-allocation={{row.model.id}}
                 @allocation={{row.model}}
                 @context="job"
                 @onClick={{fn this.gotoAllocation row.model}}

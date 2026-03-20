@@ -18,7 +18,7 @@ export default class JobStatusFailedOrLost extends Component {
   }
 
   <template>
-    <section class="failed-or-lost">
+    <section class="failed-or-lost" ...attributes>
       <h4>Replaced Allocations</h4>
       <div class="failed-or-lost-links">
         {{#if @supportsRescheduling}}

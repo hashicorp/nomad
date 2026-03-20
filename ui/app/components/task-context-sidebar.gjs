@@ -64,6 +64,7 @@ export default class TaskContextSidebar extends Component {
             {{if @task.events.length 'has-events'}}
             {{if this.isSideBarOpen 'open'}}"
           {{onClickOutside @fns.closeSidebar capture=true}}
+          ...attributes
         >
           {{#if @task}}
             {{keyboardCommands this.keyCommands}}

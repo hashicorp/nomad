@@ -11,7 +11,7 @@ import { fn } from '@ember/helper';
 import { on } from '@ember/modifier';
 import didInsert from '@ember/render-modifiers/modifiers/did-insert';
 import { and, not, eq } from 'ember-truth-helpers';
-import includes from 'ember-composable-helpers/helpers/includes';
+import { includes } from '@nullvoxpopuli/ember-composable-helpers';
 import { didCancel, task, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
 import CopyButton from 'nomad-ui/components/copy-button';
@@ -179,32 +179,30 @@ export default class DasRecommendationCard extends Component {
     return `${origin}${path}`;
   }
 
-  @(task(function* () {
+  onApplied = task({ drop: true }, async () => {
     this.interstitialComponent = 'accepted';
-    yield timeout(macroCondition(isTesting()) ? 0 : 2000);
+    await timeout(macroCondition(isTesting()) ? 0 : 2000);
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onApplied;
+  });
 
-  @(task(function* () {
-    const { manuallyDismissed } = yield new Promise((resolve) => {
+  onDismissed = task({ drop: true }, async () => {
+    const { manuallyDismissed } = await new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'dismissed';
     });
 
     if (!manuallyDismissed) {
-      yield timeout(macroCondition(isTesting()) ? 0 : 2000);
+      await timeout(macroCondition(isTesting()) ? 0 : 2000);
     }
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onDismissed;
+  });
 
-  @(task(function* (error) {
-    yield new Promise((resolve) => {
+  onError = task({ drop: true }, async (error) => {
+    await new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'error';
       this.error = error.toString();
@@ -212,8 +210,7 @@ export default class DasRecommendationCard extends Component {
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onError;
+  });
 
   get interstitialStyle() {
     return htmlSafe(`height: ${this.cardHeight}px`);

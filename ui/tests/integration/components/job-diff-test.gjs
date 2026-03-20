@@ -13,16 +13,8 @@ import JobDiff from 'nomad-ui/components/job-diff';
 module('Integration | Component | job diff', function (hooks) {
   setupRenderingTest(hooks);
 
-  const commonTemplate = <template>
-    <div class="boxed-section">
-      <div class="boxed-section-body is-dark">
-        <JobDiff @diff={{this.diff}} />
-      </div>
-    </div>
-  </template>;
-
   test('job field diffs', async function (assert) {
-    this.set('diff', {
+    const diff = {
       ID: 'test-case-1',
       Type: 'Edited',
       Objects: null,
@@ -31,10 +23,17 @@ module('Integration | Component | job diff', function (hooks) {
         field('Added Field', 'added', 'Foobar'),
         field('Edited Field', 'edited', 512, 256),
       ],
-    });
+    };
 
-    await render(commonTemplate);
-
+    await render(
+      <template>
+        <div class="boxed-section">
+          <div class="boxed-section-body is-dark">
+            <JobDiff @diff={{diff}} />
+          </div>
+        </div>
+      </template>,
+    );
     assert.deepEqual(
       findAll('[data-test-diff-section-label]').length,
       5,
@@ -72,7 +71,7 @@ module('Integration | Component | job diff', function (hooks) {
   });
 
   test('job object diffs', async function (assert) {
-    this.set('diff', {
+    const diff = {
       ID: 'test-case-2',
       Type: 'Edited',
       Objects: [
@@ -113,9 +112,17 @@ module('Integration | Component | job diff', function (hooks) {
         },
       ],
       Fields: null,
-    });
+    };
 
-    await render(commonTemplate);
+    await render(
+      <template>
+        <div class="boxed-section">
+          <div class="boxed-section-body is-dark">
+            <JobDiff @diff={{diff}} />
+          </div>
+        </div>
+      </template>,
+    );
 
     assert.ok(
       cleanWhitespace(
@@ -171,7 +178,7 @@ module('Integration | Component | job diff', function (hooks) {
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] > [data-test-diff-section-label]',
       ).length,
-      this.diff.Objects[1].Objects.length + this.diff.Objects[1].Fields.length,
+      diff.Objects[1].Objects.length + diff.Objects[1].Fields.length,
       'Edited block contains each nested field and object',
     );
 
@@ -179,7 +186,7 @@ module('Integration | Component | job diff', function (hooks) {
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] [data-test-diff-section-label="object"] [data-test-diff-section-label="field"]',
       ).length,
-      this.diff.Objects[1].Objects[0].Fields.length,
+      diff.Objects[1].Objects[0].Fields.length,
       'Objects within objects are rendered',
     );
 

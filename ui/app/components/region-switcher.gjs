@@ -45,7 +45,7 @@ export default class RegionSwitcher extends Component {
     {{keyboardCommands this.keyCommands}}
 
     {{#if this.system.shouldShowRegions}}
-      <span data-test-region-switcher-parent>
+      <span data-test-region-switcher-parent ...attributes>
         <PowerSelect
           data-test-region-switcher
           @ariaLabel="label-region-switcher"
@@ -65,7 +65,7 @@ export default class RegionSwitcher extends Component {
         </PowerSelect>
       </span>
     {{else if this.system.hasNonDefaultRegion}}
-      <div class="navbar-item single-region">
+      <div class="navbar-item single-region" ...attributes>
         <span>Region: </span>{{this.system.activeRegion}}
       </div>
     {{/if}}

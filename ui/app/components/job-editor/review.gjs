@@ -27,6 +27,13 @@ export default class JobEditorReview extends Component {
     );
   }
 
+  run = () => {
+    const submitTask = this.args.fns?.onSubmit;
+    if (typeof submitTask?.perform === 'function') {
+      submitTask.perform();
+    }
+  };
+
   <template>
     <div class="boxed-section">
       <div class="boxed-section-head">Job Plan</div>
@@ -118,7 +125,7 @@ export default class JobEditorReview extends Component {
     <HdsButtonSet class="is-associative">
       <HdsButton
         @text="Run"
-        {{on "click" @fns.onSubmit.perform}}
+        {{on "click" this.run}}
         disabled={{@fns.onSubmit.isRunning}}
         data-test-run
       />
