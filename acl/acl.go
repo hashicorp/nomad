@@ -1015,7 +1015,7 @@ func (a *ACL) AllowClientOp(pool string) bool {
 	}
 
 	// client operations are scoped to node pools
-	return a.client != PolicyDeny && a.AllowNodePool(pool)
+	return a.client != PolicyDeny || a.AllowNodePool(pool)
 }
 
 // IsManagement checks if this represents a management token
