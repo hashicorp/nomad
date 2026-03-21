@@ -294,6 +294,12 @@ export default class OptimizeController extends Controller {
   }
 
   @action
+  updateSearchTerm(searchTerm) {
+    this.searchTerm = searchTerm;
+    this.syncActiveSummary();
+  }
+
+  @action
   syncActiveSummary() {
     scheduleOnce('actions', this, () => {
       if (

@@ -55,6 +55,7 @@ export default class AccessControlRolesIndexController extends Controller {
       role.tokens = (this.model.tokens || []).filter((token) => {
         return token.roles.includes(role);
       });
+      role.expiredTokens = role.tokens.filter((token) => token.isExpired);
       return role;
     });
   }

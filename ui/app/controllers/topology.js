@@ -61,6 +61,46 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     this.set(queryParam, serialize(selection));
   }
 
+  @action
+  dismissFilteredNodesWarning() {
+    this.pre09Nodes = null;
+  }
+
+  @action
+  dismissPollingNotice() {
+    this.set('showPollingNotice', false);
+  }
+
+  @action
+  setSearchTerm(searchTerm) {
+    this.searchTerm = searchTerm;
+  }
+
+  @action
+  selectNodePool(selection) {
+    this.setFacetQueryParam('qpNodePool', selection);
+  }
+
+  @action
+  selectDatacenter(selection) {
+    this.setFacetQueryParam('qpDatacenter', selection);
+  }
+
+  @action
+  selectClass(selection) {
+    this.setFacetQueryParam('qpClass', selection);
+  }
+
+  @action
+  selectState(selection) {
+    this.setFacetQueryParam('qpState', selection);
+  }
+
+  @action
+  selectVersion(selection) {
+    this.setFacetQueryParam('qpVersion', selection);
+  }
+
   @selection('qpState') selectionState;
   @selection('qpClass') selectionClass;
   @selection('qpDatacenter') selectionDatacenter;

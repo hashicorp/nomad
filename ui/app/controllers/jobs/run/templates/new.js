@@ -52,6 +52,11 @@ export default class JobsRunTemplatesNewController extends Controller {
   }
 
   @action
+  setTemplateNamespace(namespace) {
+    this.templateNamespace = namespace;
+  }
+
+  @action
   async save(e, overwrite = false) {
     if (e.type === 'submit') {
       e.preventDefault();

@@ -202,6 +202,12 @@ export default class ClientsController extends Controller.extend(
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }
+
+  @action
+  updateSearchTerm(searchTerm) {
+    this.set('searchTerm', searchTerm);
+    this.resetPagination();
+  }
 }
 
 function eldestCreateTime(allocations) {

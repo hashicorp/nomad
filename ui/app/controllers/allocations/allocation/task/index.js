@@ -46,6 +46,20 @@ export default class IndexController extends Controller {
     );
   }
 
+  get recentEvents() {
+    const events = this.model?.events;
+
+    if (Array.isArray(events)) {
+      return [...events].reverse();
+    }
+
+    if (typeof events?.toArray === 'function') {
+      return events.toArray().reverse();
+    }
+
+    return [];
+  }
+
   @task(function* () {
     try {
       yield this.model.forcePause();

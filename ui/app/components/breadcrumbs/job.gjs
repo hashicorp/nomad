@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assert } from '@ember/debug';
 import { LinkTo } from '@ember/routing';
 
 import didInsert from '@ember/render-modifiers/modifiers/did-insert';
@@ -19,7 +18,13 @@ export default class BreadcrumbsJob extends BreadcrumbsTemplate {
   }
 
   get hasParent() {
-    return !!this.job.belongsTo('parent').id();
+    const job = this.job;
+
+    if (!job || typeof job.belongsTo !== 'function') {
+      return false;
+    }
+
+    return !!job.belongsTo('parent').id();
   }
 
   traverseUpALevel = () => {
@@ -27,7 +32,9 @@ export default class BreadcrumbsJob extends BreadcrumbsTemplate {
   };
 
   onError = (err) => {
-    assert(`Error:  ${err.message}`);
+    // Parent breadcrumb lookup can fail for ephemeral/missing parent records.
+    // Keep the current-job breadcrumb visible instead of crashing the app.
+    return err;
   };
 
   fetchParent = () => {

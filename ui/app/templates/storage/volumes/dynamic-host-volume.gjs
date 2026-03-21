@@ -1,0 +1,152 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { fn } from '@ember/helper';
+import Breadcrumb from 'nomad-ui/components/breadcrumb';
+import ListTable from 'nomad-ui/components/list-table';
+import AllocationRow from 'nomad-ui/components/allocation-row';
+import { pageTitle } from 'ember-page-title';
+import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
+import formatBytes from 'nomad-ui/helpers/format-bytes';
+import formatMonthTs from 'nomad-ui/helpers/format-month-ts';
+import momentFromNow from 'ember-moment/helpers/moment-from-now';
+
+<template>
+  {{#each @controller.breadcrumbs as |crumb|}}
+    <Breadcrumb @crumb={{crumb}} />
+  {{/each}}
+  {{pageTitle "Dynamic Host Volume " (if @model @model.name "")}}
+  <section class="section with-headspace">
+    <h1 class="title" data-test-title>{{@model.name}}</h1>
+
+    <div class="boxed-section is-small">
+      <div class="boxed-section-body inline-definitions">
+        <span class="label">Volume Details</span>
+        <span class="pair" data-test-volume-id>
+          <span class="term">ID</span>
+          {{@model.plainId}}
+        </span>
+        {{#if @controller.system.shouldShowNamespaces}}
+          <span class="pair" data-test-volume-namespace>
+            <span class="term">Namespace</span>
+            {{@model.namespace}}
+          </span>
+        {{/if}}
+        <span class="pair" data-test-volume-node>
+          <span class="term">Client</span>
+          {{@model.node.name}}
+        </span>
+        <span class="pair" data-test-volume-plugin>
+          <span class="term">Plugin</span>
+          {{@model.pluginID}}
+        </span>
+        <span class="pair" data-test-volume-create-time>
+          <span class="term">Create Time</span>
+          <span
+            class="tooltip"
+            aria-label="{{formatMonthTs @model.createTime}}"
+          >
+            {{momentFromNow @model.createTime}}
+          </span>
+        </span>
+        <span class="pair" data-test-volume-modify-time>
+          <span class="term">Modify Time</span>
+          <span
+            class="tooltip"
+            aria-label="{{formatMonthTs @model.modifyTime}}"
+          >
+            {{momentFromNow @model.modifyTime}}
+          </span>
+        </span>
+        {{#if @model.capacityBytes}}
+          <span class="pair" data-test-volume-capacity>
+            <span class="term">Capacity</span>
+            {{formatBytes @model.capacityBytes}}
+          </span>
+        {{/if}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Allocations
+      </div>
+      <div
+        class="boxed-section-body
+          {{if @controller.sortedAllocations.length 'is-full-bleed'}}"
+      >
+        {{#if @controller.sortedAllocations.length}}
+          <ListTable
+            @source={{@controller.sortedAllocations}}
+            @class="with-foot"
+            as |t|
+          >
+            <t.head>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
+              <th>ID</th>
+              <th>Created</th>
+              <th>Modified</th>
+              <th>Status</th>
+              <th>Client</th>
+              <th>Job</th>
+              <th>Version</th>
+              <th>CPU</th>
+              <th>Memory</th>
+            </t.head>
+            <t.body as |row|>
+              <AllocationRow
+                {{keyboardShortcut
+                  enumerated=true
+                  action=(fn @controller.gotoAllocation row.model)
+                }}
+                data-test-allocation={{row.model.id}}
+                @allocation={{row.model}}
+                @context="volume"
+                @onClick={{fn @controller.gotoAllocation row.model}}
+              />
+            </t.body>
+          </ListTable>
+        {{else}}
+          <div class="empty-message" data-test-empty-allocations>
+            <h3
+              class="empty-message-headline"
+              data-test-empty-allocations-headline
+            >No Allocations</h3>
+            <p class="empty-message-body" data-test-empty-allocations-message>No
+              allocations are making use of this volume.</p>
+          </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Capabilities
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        <table class="table">
+          <thead>
+            <th>Access Mode</th>
+            <th>Attachment Mode</th>
+          </thead>
+          <tbody>
+            {{#each @model.capabilities as |capability|}}
+              <tr data-test-capability-row>
+                <td
+                  data-test-capability-access-mode
+                >{{capability.access_mode}}</td>
+                <td
+                  data-test-capability-attachment-mode
+                >{{capability.attachment_mode}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+</template>

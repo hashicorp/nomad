@@ -287,4 +287,10 @@ export default class AllocationsController extends Controller.extend(
       this.set('activeTask', null);
     }
   }
+
+  @action
+  updateSearchTerm(searchTerm) {
+    this.set('searchTerm', searchTerm);
+    this.resetPagination();
+  }
 }

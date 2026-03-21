@@ -263,6 +263,12 @@ export default class EvaluationsController extends Controller {
   }
 
   @action
+  updateSearchTerm(searchTerm) {
+    this._resetTokens();
+    this.searchTerm = searchTerm;
+  }
+
+  @action
   toggle() {
     this._resetTokens();
     this.shouldOnlyDisplayClientEvals = !this.shouldOnlyDisplayClientEvals;

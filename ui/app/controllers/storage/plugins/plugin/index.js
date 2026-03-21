@@ -20,6 +20,14 @@ export default class IndexController extends Controller {
     return this.model.nodes.sortBy('updateTime').reverse();
   }
 
+  get topControllers() {
+    return this.sortedControllers.slice(0, 10);
+  }
+
+  get topNodes() {
+    return this.sortedNodes.slice(0, 10);
+  }
+
   @action
   gotoAllocation(allocation) {
     this.router.transitionTo('allocations.allocation', allocation.id);
