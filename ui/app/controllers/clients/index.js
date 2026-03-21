@@ -4,7 +4,6 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias, readOnly } from '@ember/object/computed';
 import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { action, computed, set } from '@ember/object';
@@ -25,7 +24,9 @@ export default class IndexController extends Controller.extend(
   @service router;
   @controller('clients') clientsController;
 
-  @alias('model.nodes') nodes;
+  get nodes() {
+    return this.model.nodes;
+  }
 
   queryParams = [
     {
@@ -161,7 +162,10 @@ export default class IndexController extends Controller.extend(
   }
 
   currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
+
+  get pageSize() {
+    return this.userSettings.pageSize;
+  }
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
@@ -343,11 +347,21 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  @alias('filteredNodes') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedNodes;
+  get listToSort() {
+    return this.filteredNodes;
+  }
 
-  @alias('clientsController.isForbidden') isForbidden;
+  get listToSearch() {
+    return this.listSorted;
+  }
+
+  get sortedNodes() {
+    return this.listSearched;
+  }
+
+  get isForbidden() {
+    return this.clientsController.isForbidden;
+  }
 
   @action
   setFacetQueryParam(queryParam, selection) {

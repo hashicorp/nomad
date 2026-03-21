@@ -5,8 +5,7 @@
 
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import { alias } from '@ember/object/computed';
-import { action, computed } from '@ember/object';
+import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 import { serialize } from 'nomad-ui/utils/qp-serialize';
@@ -21,11 +20,12 @@ const errorLevelToAlertClass = {
 export default class VersionsController extends Controller.extend(WithNamespaceResetting) {
   @tracked error = null;
 
-  @alias('model') job;
+  get job() {
+    return this.model;
+  }
 
   queryParams = ['diffVersion'];
 
-  @computed('error.level')
   get errorLevelClass() {
     return errorLevelToAlertClass[this.error?.level] || alertClassFallback;
   }

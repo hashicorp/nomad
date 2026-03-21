@@ -5,7 +5,6 @@
 
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
@@ -24,7 +23,9 @@ export default class IndexController extends Controller.extend(
   @service router;
   @controller('storage/plugins') pluginsController;
 
-  @alias('pluginsController.isForbidden') isForbidden;
+  get isForbidden() {
+    return this.pluginsController.isForbidden;
+  }
 
   queryParams = [
     {
@@ -42,7 +43,10 @@ export default class IndexController extends Controller.extend(
   ];
 
   currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
+
+  get pageSize() {
+    return this.userSettings.pageSize;
+  }
 
   @computed
   get searchProps() {
@@ -57,9 +61,17 @@ export default class IndexController extends Controller.extend(
   sortProperty = 'id';
   sortDescending = false;
 
-  @alias('model') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedPlugins;
+  get listToSort() {
+    return this.model;
+  }
+
+  get listToSearch() {
+    return this.listSorted;
+  }
+
+  get sortedPlugins() {
+    return this.listSearched;
+  }
 
   @action
   gotoPlugin(plugin, event) {

@@ -6,7 +6,6 @@
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/owner';
-import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { macroCondition, isTesting } from '@embroider/macros';
@@ -32,7 +31,9 @@ export default class Tokens extends Controller {
   @tracked
   signInStatus = null;
 
-  @alias('token.selfToken') tokenRecord;
+  get tokenRecord() {
+    return this.token.selfToken;
+  }
 
   resetStore() {
     this.store.unloadAll();

@@ -6,7 +6,6 @@
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import {
@@ -39,7 +38,10 @@ export default class AllocationsController extends Controller.extend(
   ];
 
   currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
+
+  get pageSize() {
+    return this.userSettings.pageSize;
+  }
 
   sortProperty = 'updateTime';
   sortDescending = false;
@@ -96,8 +98,13 @@ export default class AllocationsController extends Controller.extend(
     return listToFilter;
   }
 
-  @alias('filteredAllocations') listToSort;
-  @alias('listSorted') sortedAllocations;
+  get listToSort() {
+    return this.filteredAllocations;
+  }
+
+  get sortedAllocations() {
+    return this.listSorted;
+  }
 
   @action
   resetPagination() {
