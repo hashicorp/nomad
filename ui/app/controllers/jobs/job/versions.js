@@ -5,9 +5,8 @@
 
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import { action, computed } from '@ember/object';
-import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 
 import { serialize } from 'nomad-ui/utils/qp-serialize';
@@ -19,7 +18,6 @@ const errorLevelToAlertClass = {
   warn: 'is-warning',
 };
 
-@classic
 export default class VersionsController extends Controller.extend(
   WithNamespaceResetting,
 ) {

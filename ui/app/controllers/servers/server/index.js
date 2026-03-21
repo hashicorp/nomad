@@ -5,9 +5,7 @@
 
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class ServerController extends Controller {
   activeTab = 'tags';
 

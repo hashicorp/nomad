@@ -5,7 +5,7 @@
 
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 
 export default class SettingsController extends Controller {
   @service keyboard;

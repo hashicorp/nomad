@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -17,9 +17,7 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class AllocationsController extends Controller.extend(
   SortableFactory([
     'modifyIndex',

@@ -8,9 +8,7 @@ import { task, timeout } from 'ember-concurrency';
 import { decode } from 'nomad-ui/utils/stream-frames';
 import AbstractLogger from './abstract-logger';
 import { fetchFailure } from './log';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class PollLogger extends EmberObject.extend(AbstractLogger) {
   interval = 1000;
 

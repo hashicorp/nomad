@@ -5,18 +5,16 @@
 
 import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias, reads } from '@ember/object/computed';
+import { alias, reads } from '@ember/object';
 import { getOwner } from '@ember/owner';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
 import { wrappedFetch } from 'nomad-ui/utils/wrapped-fetch';
-import classic from 'ember-classic-decorator';
 import moment from 'moment';
 
 const MINUTES_LEFT_AT_WARNING = 10;
 const EXPIRY_NOTIFICATION_TITLE = 'Your access is about to expire';
 
-@classic
 export default class TokenService extends Service {
   @service store;
   @service system;

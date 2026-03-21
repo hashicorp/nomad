@@ -4,7 +4,7 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias, and } from '@ember/object/computed';
+import { alias, and } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default class NodePool extends AbstractAbility {

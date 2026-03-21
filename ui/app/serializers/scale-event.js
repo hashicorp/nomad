@@ -4,9 +4,7 @@
  */
 
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class ScaleEventSerializer extends ApplicationSerializer {
   separateNanos = ['Time'];
   objectNullOverrides = ['Meta'];

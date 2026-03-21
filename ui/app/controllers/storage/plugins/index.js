@@ -5,14 +5,12 @@
 
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class IndexController extends Controller.extend(
   SortableFactory([
     'plainId',

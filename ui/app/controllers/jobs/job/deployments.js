@@ -5,10 +5,8 @@
 
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import { alias } from '@ember/object/computed';
-import classic from 'ember-classic-decorator';
+import { alias } from '@ember/object';
 
-@classic
 export default class DeploymentsController extends Controller.extend(
   WithNamespaceResetting,
 ) {

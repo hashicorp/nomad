@@ -6,9 +6,8 @@
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/owner';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import { action } from '@ember/object';
-import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 import { macroCondition, isTesting } from '@embroider/macros';
 
@@ -17,7 +16,6 @@ import { macroCondition, isTesting } from '@embroider/macros';
  */
 const JWT_MATCH_EXPRESSION = /^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/;
 
-@classic
 export default class Tokens extends Controller {
   @service token;
   @service store;

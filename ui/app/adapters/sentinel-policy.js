@@ -4,9 +4,7 @@
  */
 
 import { default as ApplicationAdapter } from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class SentinelPolicyAdapter extends ApplicationAdapter {
   pathForType = () => 'sentinel/policies';
 

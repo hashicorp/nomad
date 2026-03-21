@@ -6,14 +6,12 @@
 import { set } from '@ember/object';
 import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
-import classic from 'ember-classic-decorator';
 import { task } from 'ember-concurrency';
-@classic
 export default class SystemService extends Service {
   @service token;
   @service store;

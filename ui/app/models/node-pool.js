@@ -6,9 +6,7 @@
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
 import { computed } from '@ember/object';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class NodePool extends Model {
   @attr('string') name;
   @attr('string') description;

@@ -4,9 +4,7 @@
  */
 
 import ApplicationAdapter from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class RecommendationSummaryAdapter extends ApplicationAdapter {
   pathForType = () => 'recommendations';
 

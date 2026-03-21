@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import EmberObject, { computed } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';

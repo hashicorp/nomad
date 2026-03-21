@@ -5,7 +5,7 @@
 
 import AbstractAbility from './abstract';
 import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { or } from '@ember/object';
 
 export default class Allocation extends AbstractAbility {
   @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportExec')

@@ -10,11 +10,9 @@ import RESTAdapter from '@ember-data/adapter/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
 import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
-import classic from 'ember-classic-decorator';
 
 export const namespace = 'v1';
 
-@classic
 export default class ApplicationAdapter extends RESTAdapter {
   namespace = namespace;
 

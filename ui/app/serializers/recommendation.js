@@ -4,10 +4,8 @@
  */
 
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 import queryString from 'query-string';
 
-@classic
 export default class RecommendationSerializer extends ApplicationSerializer {
   attrs = {
     taskName: 'Task',

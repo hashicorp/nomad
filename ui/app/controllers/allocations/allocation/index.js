@@ -10,17 +10,15 @@ import { action, computed } from '@ember/object';
 import { A } from '@ember/array';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import { task } from 'ember-concurrency';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
-import classic from 'ember-classic-decorator';
-import { union } from '@ember/object/computed';
+import { union } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
-@classic
 export default class IndexController extends Controller.extend(
   SortableFactory(['name', 'state']),
 ) {

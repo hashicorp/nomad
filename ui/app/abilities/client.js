@@ -5,10 +5,8 @@
 
 import AbstractAbility from './abstract';
 import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
-import classic from 'ember-classic-decorator';
+import { or } from '@ember/object';
 
-@classic
 export default class Client extends AbstractAbility {
   // Map abilities to policy options (which are coarse for nodes)
   // instead of specific behaviors.

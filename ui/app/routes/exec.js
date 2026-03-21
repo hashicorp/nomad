@@ -12,9 +12,7 @@ import {
   watchRecord,
   watchRelationship,
 } from 'nomad-ui/utils/properties/watch';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class ExecRoute extends Route.extend(WithWatchers) {
   @service store;
   @service token;

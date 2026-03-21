@@ -9,9 +9,7 @@ import { makeArray } from '@ember/array';
 import JSONSerializer from '@ember-data/serializer/json';
 import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
-import classic from 'ember-classic-decorator';
 import { camelize, capitalize, dasherize } from '@ember/string';
-@classic
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
 

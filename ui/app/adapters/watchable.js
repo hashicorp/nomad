@@ -11,13 +11,11 @@ import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import removeRecord from '../utils/remove-record';
-import classic from 'ember-classic-decorator';
 
 const SHOULD_PRE_ADVANCE_WATCH_INDEX = macroCondition(isTesting())
   ? true
   : false;
 
-@classic
 export default class Watchable extends ApplicationAdapter {
   @service watchList;
   @service store;

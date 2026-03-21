@@ -4,7 +4,6 @@
  */
 
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
 /*
   There’s no grouping of recommendations on the server, so this
@@ -12,7 +11,6 @@ import classic from 'ember-classic-decorator';
   group.
 */
 
-@classic
 export default class RecommendationSummarySerializer extends ApplicationSerializer {
   normalizeArrayResponse(store, modelClass, payload) {
     const recommendationSerializer = store.serializerFor('recommendation');

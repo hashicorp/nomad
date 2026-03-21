@@ -4,7 +4,7 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 
 export default class extends AbstractAbility {
   @alias('selfTokenIsManagement') canRead;

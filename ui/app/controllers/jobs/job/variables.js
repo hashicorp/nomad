@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 // eslint-disable-next-line no-unused-vars
 import VariableModel from '../../../models/variable';
 // eslint-disable-next-line no-unused-vars

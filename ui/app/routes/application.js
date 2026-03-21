@@ -10,10 +10,8 @@ import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 import { action } from '@ember/object';
-import classic from 'ember-classic-decorator';
 import { handleRouteRedirects } from '../utils/route-redirector';
 
-@classic
 export default class ApplicationRoute extends Route {
   @service config;
   @service system;

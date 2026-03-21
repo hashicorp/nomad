@@ -5,7 +5,7 @@
 
 import AbstractAbility from './abstract';
 import { computed } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { or } from '@ember/object';
 
 export default class Version extends AbstractAbility {
   @or(

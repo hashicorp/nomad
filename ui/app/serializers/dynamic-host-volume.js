@@ -4,11 +4,8 @@
  */
 
 import ApplicationSerializer from './application';
-import { get, set } from '@ember/object';
 import { capitalize } from '@ember/string';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
   embeddedRelationships = ['allocations'];
   separateNanos = ['CreateTime', 'ModifyTime'];
@@ -36,10 +33,15 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
 
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
+    const relationships = partial?.data?.relationships;
+
+    if (!relationships) {
+      return partial;
+    }
 
     this.embeddedRelationships.forEach((embed) => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
-      const relationship = get(partial, `data.relationships.${embed}.data`);
+      const relationship = relationships[embed]?.data;
 
       if (!relationship) return;
 
@@ -63,7 +65,7 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
       });
 
       const relationshipJson = { data: hasMany };
-      set(partial, `data.relationships.${embed}`, relationshipJson);
+      relationships[embed] = relationshipJson;
     });
 
     return partial;

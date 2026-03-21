@@ -12,11 +12,9 @@ import {
   fragment,
 } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
-import classic from 'ember-classic-decorator';
 
 const maybe = (arr) => arr || [];
 
-@classic
 export default class TaskGroup extends Fragment {
   @fragmentOwner() job;
 

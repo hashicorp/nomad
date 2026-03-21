@@ -6,9 +6,7 @@
 import { service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class Evaluation extends ApplicationSerializer {
   @service system;
 

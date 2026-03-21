@@ -4,7 +4,7 @@
  */
 
 import { computed } from '@ember/object';
-import { alias, equal } from '@ember/object/computed';
+import { alias, equal } from '@ember/object';
 import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';

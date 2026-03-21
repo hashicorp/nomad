@@ -6,16 +6,14 @@
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class AllocationsController extends Controller.extend(
   SortableFactory(['updateTime', 'healthy']),
 ) {

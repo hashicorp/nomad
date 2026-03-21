@@ -4,19 +4,17 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias, equal, or, and, mapBy } from '@ember/object/computed';
+import { alias, equal, or, and, mapBy } from '@ember/object';
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
-import classic from 'ember-classic-decorator';
 import { jobAllocStatuses } from '../utils/allocation-client-statuses';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
-@classic
 export default class Job extends Model {
   @attr('string') region;
   @attr('string') name;

@@ -3,11 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 import { capitalize } from '@ember/string';
-@classic
 export default class VolumeSerializer extends ApplicationSerializer {
   attrs = {
     externalId: 'ExternalID',
@@ -68,10 +65,15 @@ export default class VolumeSerializer extends ApplicationSerializer {
   // Convert the embedded relationship arrays into JSONAPI included records
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
+    const relationships = partial?.data?.relationships;
+
+    if (!relationships) {
+      return partial;
+    }
 
     this.embeddedRelationships.forEach((embed) => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
-      const relationship = get(partial, `data.relationships.${embed}.data`);
+      const relationship = relationships[embed]?.data;
 
       if (!relationship) return;
 
@@ -100,7 +102,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
 
       // Set the JSONAPI relationship value to the sidecar.
       const relationshipJson = { data: hasMany };
-      set(partial, `data.relationships.${embed}`, relationshipJson);
+      relationships[embed] = relationshipJson;
     });
 
     return partial;

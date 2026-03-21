@@ -6,10 +6,8 @@
 import { Ability } from 'ember-can';
 import { service } from '@ember/service';
 import { computed, get } from '@ember/object';
-import { equal, not } from '@ember/object/computed';
-import classic from 'ember-classic-decorator';
+import { equal, not } from '@ember/object';
 
-@classic
 export default class Abstract extends Ability {
   @service system;
   @service token;

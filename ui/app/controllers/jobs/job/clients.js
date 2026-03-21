@@ -8,7 +8,7 @@ import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -17,10 +17,8 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 import { service } from '@ember/service';
 
-@classic
 export default class ClientsController extends Controller.extend(
   SortableFactory(['id', 'name', 'jobStatus']),
   Searchable,

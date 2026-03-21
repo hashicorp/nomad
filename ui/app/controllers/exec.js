@@ -10,12 +10,10 @@ import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import classic from 'ember-classic-decorator';
 
 const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 const ANSI_WHITE = '\x1b[0m';
 
-@classic
 export default class ExecController extends Controller {
   @service sockets;
   @service system;

@@ -5,9 +5,7 @@
 
 import { service } from '@ember/service';
 import Route from '@ember/routing/route';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class AdministrationSentinelPoliciesRoute extends Route {
   @service store;
 

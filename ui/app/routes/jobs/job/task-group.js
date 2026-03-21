@@ -4,7 +4,7 @@
  */
 
 import Route from '@ember/routing/route';
-import { collect } from '@ember/object/computed';
+import { collect } from '@ember/object';
 import { resolve, all } from 'rsvp';
 import {
   watchRecord,

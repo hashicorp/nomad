@@ -4,10 +4,8 @@
  */
 
 import ApplicationAdapter from './application';
-import classic from 'ember-classic-decorator';
 import { pluralize } from 'ember-inflector';
 
-@classic
 export default class NodePoolAdapter extends ApplicationAdapter {
   urlForFindAll(modelName) {
     let [relationshipResource, resource] = modelName.split('-');

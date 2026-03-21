@@ -3,14 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { computed } from '@ember/object';
 import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 import { fragment } from 'ember-data-model-fragments/attributes';
 
-@classic
 export default class NodeDriver extends Fragment {
   @fragmentOwner() node;
 

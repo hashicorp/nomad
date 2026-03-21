@@ -5,7 +5,7 @@
 
 /* eslint-disable ember/no-observers */
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { observes } from '@ember-decorators/object';
@@ -19,12 +19,10 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
-@classic
 export default class ClientController extends Controller.extend(
   SortableFactory([
     'modifyIndex',

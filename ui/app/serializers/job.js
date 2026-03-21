@@ -5,9 +5,7 @@
 
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class JobSerializer extends ApplicationSerializer {
   attrs = {
     parameterized: 'ParameterizedJob',

@@ -6,7 +6,7 @@
 import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { collect } from '@ember/object/computed';
+import { collect } from '@ember/object';
 import {
   watchRecord,
   watchRelationship,

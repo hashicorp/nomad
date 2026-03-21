@@ -4,7 +4,7 @@
  */
 
 import { computed } from '@ember/object';
-import { alias, and } from '@ember/object/computed';
+import { alias, and } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import {
@@ -12,9 +12,7 @@ import {
   fragmentOwner,
   fragmentArray,
 } from 'ember-data-model-fragments/attributes';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class TaskState extends Fragment {
   @fragmentOwner() allocation;
 

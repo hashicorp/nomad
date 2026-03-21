@@ -96,7 +96,6 @@
     "ember-auto-import": "^2.12.1",
     "ember-basic-dropdown": "^8.11.0",
     "ember-can": "^8.0.0",
-    "ember-classic-decorator": "^4.0.0",
     "ember-cli": "~6.10.2",
     "ember-cli-app-version": "^7.0.0",
     "ember-cli-babel": "^8.3.1",

@@ -5,9 +5,7 @@
 
 import { copy } from 'ember-copy';
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class TaskGroup extends ApplicationSerializer {
   arrayNullOverrides = ['Services'];
   mapToArray = ['Volumes'];

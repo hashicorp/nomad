@@ -7,12 +7,10 @@ import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
-import classic from 'ember-classic-decorator';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
-import { collect } from '@ember/object/computed';
+import { collect } from '@ember/object';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-@classic
 export default class JobRoute extends Route.extend(WithWatchers) {
   @service abilities;
   @service store;

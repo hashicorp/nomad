@@ -18,9 +18,8 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 
 import EmberObject, { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import Searchable from 'nomad-ui/mixins/searchable';
-import classic from 'ember-classic-decorator';
 
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
@@ -318,7 +317,6 @@ export default class OptimizeController extends Controller {
   }
 }
 
-@classic
 class RecommendationSummarySearch extends EmberObject.extend(Searchable) {
   @computed
   get fuzzySearchProps() {

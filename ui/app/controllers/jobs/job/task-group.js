@@ -5,7 +5,7 @@
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { service } from '@ember/service';
-import { alias, readOnly } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object';
 import Controller from '@ember/controller';
 import { action, computed, get } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -17,10 +17,8 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-@classic
 export default class TaskGroupController extends Controller.extend(
   SortableFactory(['modifyIndex', 'name', 'shortId', 'clientStatus']),
   Searchable,

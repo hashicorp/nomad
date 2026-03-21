@@ -4,10 +4,9 @@
  */
 
 import EmberObject, { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
-import classic from 'ember-classic-decorator';
 
 const percent = (numerator, denominator) => {
   if (!numerator || !denominator) {
@@ -18,7 +17,6 @@ const percent = (numerator, denominator) => {
 
 const empty = (ts) => ({ timestamp: ts, used: null, percent: null });
 
-@classic
 class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
   node = null;

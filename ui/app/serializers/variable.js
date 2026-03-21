@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import classic from 'ember-classic-decorator';
 import ApplicationSerializer from './application';
 
-@classic
 export default class VariableSerializer extends ApplicationSerializer {
   separateNanos = ['CreateTime', 'ModifyTime'];
 

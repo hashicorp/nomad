@@ -9,9 +9,7 @@ import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import { decode } from 'nomad-ui/utils/stream-frames';
 import AbstractLogger from './abstract-logger';
 import { fetchFailure } from './log';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
   reader = null;
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias, equal } from '@ember/object/computed';
+import { alias, equal } from '@ember/object';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import Model from '@ember-data/model';
@@ -11,9 +11,7 @@ import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import sumAggregation from '../utils/properties/sum-aggregation';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class Deployment extends Model {
   @shortUUIDProperty('id') shortId;
 

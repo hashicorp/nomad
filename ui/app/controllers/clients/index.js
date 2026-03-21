@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias, readOnly } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object';
 import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -16,9 +16,7 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class IndexController extends Controller.extend(
   SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
   Searchable,

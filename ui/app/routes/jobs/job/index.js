@@ -5,7 +5,7 @@
 
 import { service } from '@ember/service';
 import Route from '@ember/routing/route';
-import { collect } from '@ember/object/computed';
+import { collect } from '@ember/object';
 import {
   watchRecord,
   watchRelationship,

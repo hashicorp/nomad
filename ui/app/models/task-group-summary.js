@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { sum, collect } from '@ember/object/computed';
+import { sum, collect } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';

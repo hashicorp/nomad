@@ -4,7 +4,7 @@
  */
 
 import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { or } from '@ember/object';
 import AbstractAbility from './abstract';
 import doesMatchPattern from 'nomad-ui/utils/match-glob';
 

@@ -4,16 +4,14 @@
  */
 
 import Controller from '@ember/controller';
-import { alias } from '@ember/object/computed';
+import { alias } from '@ember/object';
 import { service } from '@ember/service';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import classic from 'ember-classic-decorator';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { restartableTask, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
 
-@classic
 export default class IndexController extends Controller.extend(
   WithNamespaceResetting,
 ) {
