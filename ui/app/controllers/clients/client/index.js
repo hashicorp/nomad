@@ -6,7 +6,7 @@
 /* eslint-disable ember/no-observers */
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { set } from '@ember/object';
-import { alias, mapBy } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { addObserver, removeObserver } from '@ember/object/observers';

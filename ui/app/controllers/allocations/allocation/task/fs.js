@@ -27,7 +27,7 @@ export default class FsController extends Controller {
 
   @computed('path')
   get pathWithLeadingSlash() {
-    const path = this.path;
+    const path = typeof this.path === 'string' ? this.path : '';
 
     if (path.startsWith('/')) {
       return path;

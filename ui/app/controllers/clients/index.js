@@ -7,7 +7,7 @@
 import { alias, readOnly } from '@ember/object/computed';
 import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
-import { action, computed } from '@ember/object';
+import { action, computed, set } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
@@ -192,7 +192,11 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpClass = serialize(intersection(classes, this.selectionClass));
+      set(
+        this,
+        'qpClass',
+        serialize(intersection(classes, this.selectionClass)),
+      );
     });
 
     return classes.sort().map((dc) => ({ key: dc, label: dc }));
@@ -207,8 +211,10 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpDatacenter = serialize(
-        intersection(datacenters, this.selectionDatacenter),
+      set(
+        this,
+        'qpDatacenter',
+        serialize(intersection(datacenters, this.selectionDatacenter)),
       );
     });
 
@@ -222,7 +228,11 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpVersion = serialize(intersection(versions, this.selectionVersion));
+      set(
+        this,
+        'qpVersion',
+        serialize(intersection(versions, this.selectionVersion)),
+      );
     });
 
     return versions.sort().map((v) => ({ key: v, label: v }));
@@ -237,7 +247,11 @@ export default class IndexController extends Controller.extend(
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpVolume = serialize(intersection(volumes, this.selectionVolume));
+      set(
+        this,
+        'qpVolume',
+        serialize(intersection(volumes, this.selectionVolume)),
+      );
     });
 
     return volumes.sort().map((volume) => ({ key: volume, label: volume }));
@@ -251,10 +265,14 @@ export default class IndexController extends Controller.extend(
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpNodePool = serialize(
-        intersection(
-          availableNodePools.map(({ name }) => name),
-          this.selectionNodePool,
+      set(
+        this,
+        'qpNodePool',
+        serialize(
+          intersection(
+            availableNodePools.map(({ name }) => name),
+            this.selectionNodePool,
+          ),
         ),
       );
     });
@@ -333,7 +351,7 @@ export default class IndexController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this[queryParam] = serialize(selection);
+    set(this, queryParam, serialize(selection));
   }
 
   @action
@@ -343,12 +361,12 @@ export default class IndexController extends Controller.extend(
     } else {
       queryParamValue.addObject(option);
     }
-    this[queryParamLabel] = serialize(queryParamValue);
+    set(this, queryParamLabel, serialize(queryParamValue));
   }
 
   @action
   toggleClientFilter(queryParam) {
-    this[queryParam] = !this[queryParam];
+    set(this, queryParam, !this[queryParam]);
   }
 
   @action
