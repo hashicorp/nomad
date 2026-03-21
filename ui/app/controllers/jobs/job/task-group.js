@@ -5,7 +5,6 @@
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { service } from '@ember/service';
-import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -51,7 +50,10 @@ export default class TaskGroupController extends Controller.extend(
   ];
 
   currentPage = 1;
-  @readOnly('userSettings.pageSize') pageSize;
+
+  get pageSize() {
+    return this.userSettings.pageSize;
+  }
 
   qpStatus = '';
   qpClient = '';
@@ -102,9 +104,18 @@ export default class TaskGroupController extends Controller.extend(
   clientKeyForAllocation(allocation) {
     return allocation?.nodeID?.split('-')?.[0] || null;
   }
-  @alias('filteredAllocations') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedAllocations;
+
+  get listToSort() {
+    return this.filteredAllocations;
+  }
+
+  get listToSearch() {
+    return this.listSorted;
+  }
+
+  get sortedAllocations() {
+    return this.listSearched;
+  }
 
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;

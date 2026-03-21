@@ -4,7 +4,6 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias, mapBy } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -75,7 +74,9 @@ export default class AllocationsController extends Controller.extend(
   sortProperty = 'modifyIndex';
   sortDescending = true;
 
-  @alias('model') job;
+  get job() {
+    return this.model;
+  }
 
   @computed
   get searchProps() {
@@ -162,9 +163,17 @@ export default class AllocationsController extends Controller.extend(
     });
   }
 
-  @alias('filteredAllocations') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedAllocations;
+  get listToSort() {
+    return this.filteredAllocations;
+  }
+
+  get listToSearch() {
+    return this.listSorted;
+  }
+
+  get sortedAllocations() {
+    return this.listSearched;
+  }
 
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;

@@ -8,7 +8,6 @@ import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import { alias, mapBy } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -65,12 +64,23 @@ export default class ClientsController extends Controller.extend(
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpClientClass') selectionClientClass;
 
-  @alias('model') job;
+  get job() {
+    return this.model;
+  }
+
   @jobClientStatus('allNodes', 'job') jobClientStatus;
 
-  @alias('filteredNodes') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedClients;
+  get listToSort() {
+    return this.filteredNodes;
+  }
+
+  get listToSearch() {
+    return this.listSorted;
+  }
+
+  get sortedClients() {
+    return this.listSearched;
+  }
 
   @computed('store')
   get allNodes() {

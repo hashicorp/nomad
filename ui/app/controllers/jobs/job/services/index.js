@@ -6,15 +6,19 @@
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
-import { alias, union } from '@ember/object/computed';
 import { computed } from '@ember/object';
 
 export default class JobsJobServicesIndexController extends Controller.extend(
   WithNamespaceResetting,
   SortableFactory(['name', 'level']),
 ) {
-  @alias('model') job;
-  @alias('job.taskGroups') taskGroups;
+  get job() {
+    return this.model;
+  }
+
+  get taskGroups() {
+    return this.job.taskGroups;
+  }
 
   queryParams = [
     {
@@ -28,8 +32,13 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   sortProperty = 'name';
   sortDescending = false;
 
-  @alias('services') listToSort;
-  @alias('listSorted') sortedServices;
+  get listToSort() {
+    return this.services;
+  }
+
+  get sortedServices() {
+    return this.listSorted;
+  }
 
   @computed('taskGroups.@each.tasks')
   get tasks() {
@@ -60,7 +69,9 @@ export default class JobsJobServicesIndexController extends Controller.extend(
       });
   }
 
-  @union('taskServices', 'groupServices') serviceFragments;
+  get serviceFragments() {
+    return [...this.taskServices, ...this.groupServices];
+  }
 
   // Services, grouped by name, with aggregatable allocations.
   @computed(
