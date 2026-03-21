@@ -5,8 +5,6 @@
 
 import { set } from '@ember/object';
 import Service, { service } from '@ember/service';
-import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
@@ -19,7 +17,6 @@ export default class SystemService extends Service {
   /**
    * Iterates over all regions and returns a list of leaders' rpcAddrs
    */
-  @computed('regions.[]')
   get leaders() {
     return Promise.all(
       this.regions.map((region) => {
@@ -30,7 +27,6 @@ export default class SystemService extends Service {
     );
   }
 
-  @computed
   get agent() {
     const token = this.token;
     return PromiseObject.create({
@@ -52,7 +48,6 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('token.selfToken')
   get defaultRegion() {
     const token = this.token;
     return PromiseObject.create({
@@ -65,7 +60,6 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed
   get regions() {
     const token = this.token;
 
@@ -76,7 +70,6 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('regions.[]')
   get activeRegion() {
     const regions = this.regions;
     const region = window.localStorage.nomadActiveRegion;
@@ -100,26 +93,24 @@ export default class SystemService extends Service {
     }
   }
 
-  @computed('regions.[]')
   get shouldShowRegions() {
-    return this.get('regions.length') > 1;
+    return (this.regions?.length || 0) > 1;
   }
 
   get hasNonDefaultRegion() {
-    return this.get('regions')
-      .toArray()
-      .some((region) => region !== 'global');
+    const regions = this.regions;
+    const regionList =
+      typeof regions?.toArray === 'function' ? regions.toArray() : regions;
+
+    return (regionList || []).some((region) => region !== 'global');
   }
 
-  @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
   get shouldIncludeRegion() {
     return (
-      this.shouldShowRegions &&
-      this.activeRegion !== this.get('defaultRegion.region')
+      this.shouldShowRegions && this.activeRegion !== this.defaultRegion?.region
     );
   }
 
-  @computed('activeRegion')
   get namespaces() {
     return PromiseArray.create({
       promise: this.store
@@ -128,7 +119,6 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('_shouldShowNamespacesOverride', 'namespaces.[]')
   get shouldShowNamespaces() {
     if (this._shouldShowNamespacesOverride !== undefined) {
       return this._shouldShowNamespacesOverride;
@@ -179,11 +169,15 @@ export default class SystemService extends Service {
   })
   checkFuzzySearchPresence;
 
-  @alias('fetchLicense.lastSuccessful.value') license;
-  @alias('checkFuzzySearchPresence.last.value') fuzzySearchEnabled;
+  get license() {
+    return this.fetchLicense.lastSuccessful?.value;
+  }
 
-  @computed('license.License.Features.[]')
+  get fuzzySearchEnabled() {
+    return this.checkFuzzySearchPresence.last?.value;
+  }
+
   get features() {
-    return this.get('license.License.Features') || [];
+    return this.license?.License?.Features || [];
   }
 }

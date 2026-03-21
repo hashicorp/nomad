@@ -4,23 +4,36 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias, and, or } from '@ember/object/computed';
-import { computed } from '@ember/object';
 
 export default class SentinelPolicy extends AbstractAbility {
-  @alias('hasFeatureAndManagement') canRead;
-  @alias('hasFeatureAndManagement') canList;
-  @alias('hasFeatureAndManagement') canWrite;
-  @alias('hasFeatureAndManagement') canUpdate;
-  @alias('hasFeatureAndManagement') canDestroy;
+  get canRead() {
+    return this.hasFeatureAndManagement;
+  }
 
-  @or('bypassAuthorization', 'selfTokenIsManagement')
-  hasAuthority;
+  get canList() {
+    return this.hasFeatureAndManagement;
+  }
 
-  @and('sentinelIsPresent', 'hasAuthority')
-  hasFeatureAndManagement;
+  get canWrite() {
+    return this.hasFeatureAndManagement;
+  }
 
-  @computed('features.[]')
+  get canUpdate() {
+    return this.hasFeatureAndManagement;
+  }
+
+  get canDestroy() {
+    return this.hasFeatureAndManagement;
+  }
+
+  get hasAuthority() {
+    return this.bypassAuthorization || this.selfTokenIsManagement;
+  }
+
+  get hasFeatureAndManagement() {
+    return this.sentinelIsPresent && this.hasAuthority;
+  }
+
   get sentinelIsPresent() {
     return this.featureIsPresent('Sentinel Policies');
   }

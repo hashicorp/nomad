@@ -4,16 +4,16 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias, and } from '@ember/object/computed';
-import { computed } from '@ember/object';
 
 export default class NodePool extends AbstractAbility {
-  @alias('hasFeatureAndManagement') canConfigureInNamespace;
+  get canConfigureInNamespace() {
+    return this.hasFeatureAndManagement;
+  }
 
-  @and('nodePoolGovernanceIsPresent', 'selfTokenIsManagement')
-  hasFeatureAndManagement;
+  get hasFeatureAndManagement() {
+    return this.nodePoolGovernanceIsPresent && this.selfTokenIsManagement;
+  }
 
-  @computed('features.[]')
   get nodePoolGovernanceIsPresent() {
     return this.featureIsPresent('Node Pools Governance');
   }

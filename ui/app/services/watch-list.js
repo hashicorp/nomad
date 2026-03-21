@@ -3,20 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { computed } from '@ember/object';
-import { readOnly } from '@ember/object/computed';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
 
 let list = {};
 
 export default class WatchListService extends Service {
-  @computed
   get _list() {
     return copy(list, true);
   }
 
-  @readOnly('_list') list;
+  get list() {
+    return this._list;
+  }
 
   constructor() {
     super(...arguments);

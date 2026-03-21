@@ -4,18 +4,16 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed } from '@ember/object';
-import { or } from '@ember/object/computed';
 
 export default class Version extends AbstractAbility {
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsTagging',
-  )
-  canTag;
+  get canTag() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsTagging
+    );
+  }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsTagging() {
     return (
       this.namespaceIncludesCapability('submit-job') ||

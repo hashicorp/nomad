@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { computed } from '@ember/object';
 import Service, { service } from '@ember/service';
 import { LRUMap } from 'lru_map';
 import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
@@ -41,7 +40,6 @@ export default class StatsTrackersRegistryService extends Service {
   // A read-only way of getting a reference to the registry.
   // Since this could be overwritten by a bad actor, it isn't
   // used in getTracker
-  @computed
   get registryRef() {
     return registry;
   }

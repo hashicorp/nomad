@@ -4,12 +4,25 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias } from '@ember/object/computed';
 
 export default class extends AbstractAbility {
-  @alias('selfTokenIsManagement') canRead;
-  @alias('selfTokenIsManagement') canList;
-  @alias('selfTokenIsManagement') canWrite;
-  @alias('selfTokenIsManagement') canUpdate;
-  @alias('selfTokenIsManagement') canDestroy;
+  get canRead() {
+    return this.selfTokenIsManagement;
+  }
+
+  get canList() {
+    return this.selfTokenIsManagement;
+  }
+
+  get canWrite() {
+    return this.selfTokenIsManagement;
+  }
+
+  get canUpdate() {
+    return this.selfTokenIsManagement;
+  }
+
+  get canDestroy() {
+    return this.selfTokenIsManagement;
+  }
 }

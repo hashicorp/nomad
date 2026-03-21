@@ -4,69 +4,81 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { get } from '@ember/object';
 
 export default class Job extends AbstractAbility {
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning')
-  canRun;
+  get canRun() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportRunning
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsRunning',
-    'policiesSupportScaling',
-  )
-  canScale;
+  get canScale() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsRunning ||
+      this.policiesSupportScaling
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsReading',
-    'policiesSupportReading',
-  )
-  canRead;
+  get canRead() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsReading ||
+      this.policiesSupportReading
+    );
+  }
 
   // TODO: A person can also see all jobs if their token grants read access to all namespaces,
   // but given the complexity of namespaces and policy precedence, there isn't a good quick way
   // to confirm this.
-  @or('bypassAuthorization', 'selfTokenIsManagement')
-  canListAll;
+  get canListAll() {
+    return this.bypassAuthorization || this.selfTokenIsManagement;
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportDispatching',
-  )
-  canDispatch;
+  get canDispatch() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportDispatching
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsStopping',
-  )
-  canStop;
+  get canStop() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsStopping
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsPurging',
-  )
-  canPurge;
+  get canPurge() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsPurging
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsReverting',
-  )
-  canRevert;
+  get canRevert() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsReverting
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsRunning',
-  )
-  canStart;
+  get canStart() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsRunning
+    );
+  }
 
   policyNamespacesIncludePermissions(policies = [], permissions = []) {
     // For each policy record, extract all policies of all namespaces
@@ -87,7 +99,6 @@ export default class Job extends AbstractAbility {
     });
   }
 
-  @computed('token.selfTokenPolicies.[]')
   get policiesSupportRunning() {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
@@ -95,7 +106,6 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('token.selfTokenPolicies.[]')
   get policiesSupportReading() {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
@@ -103,7 +113,6 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsRunning() {
     return (
       this.namespaceIncludesCapability('submit-job') ||
@@ -111,12 +120,10 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsReading() {
     return this.namespaceIncludesCapability('read-job');
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsStopping() {
     return (
       this.namespaceIncludesCapability('submit-job') ||
@@ -125,7 +132,6 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsPurging() {
     return (
       this.namespaceIncludesCapability('submit-job') ||
@@ -133,17 +139,14 @@ export default class Job extends AbstractAbility {
     );
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportScaling() {
     return this.namespaceIncludesCapability('scale-job');
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportDispatching() {
     return this.namespaceIncludesCapability('dispatch-job');
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsReverting() {
     return (
       this.namespaceIncludesCapability('submit-job') ||

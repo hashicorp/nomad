@@ -4,25 +4,24 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed } from '@ember/object';
-import { or } from '@ember/object/computed';
 
 export default class Deployment extends AbstractAbility {
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsFailing',
-  )
-  canFail;
+  get canFail() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsFailing
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'specificNamespaceSupportsPromoting',
-  )
-  canPromote;
+  get canPromote() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.specificNamespaceSupportsPromoting
+    );
+  }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsFailing() {
     return (
       this.namespaceIncludesCapability('submit-job') ||
@@ -30,7 +29,6 @@ export default class Deployment extends AbstractAbility {
     );
   }
 
-  @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsPromoting() {
     return (
       this.namespaceIncludesCapability('submit-job') ||

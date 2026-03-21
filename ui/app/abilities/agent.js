@@ -4,18 +4,17 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { get } from '@ember/object';
 
 export default class Client extends AbstractAbility {
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesIncludeAgentReadOrWrite',
-  )
-  canRead;
+  get canRead() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesIncludeAgentReadOrWrite
+    );
+  }
 
-  @computed('token.selfTokenPolicies.[]')
   get policiesIncludeAgentReadOrWrite() {
     const policies = (get(this, 'token.selfTokenPolicies') || [])
       .toArray()

@@ -5,15 +5,19 @@
 
 import { Ability } from 'ember-can';
 import { service } from '@ember/service';
-import { computed, get } from '@ember/object';
-import { equal, not } from '@ember/object/computed';
+import { get } from '@ember/object';
 
 export default class Abstract extends Ability {
   @service system;
   @service token;
 
-  @not('token.aclEnabled') bypassAuthorization;
-  @equal('token.selfToken.type', 'management') selfTokenIsManagement;
+  get bypassAuthorization() {
+    return !this.token.aclEnabled;
+  }
+
+  get selfTokenIsManagement() {
+    return this.token.selfToken?.type === 'management';
+  }
 
   // Pass in a namespace to `can` or `cannot` calls to override
   // https://github.com/minutebase/ember-can#additional-attributes
@@ -25,10 +29,9 @@ export default class Abstract extends Ability {
     return get(this.namespace, 'name');
   }
 
-  @computed('_namespace', 'token.selfTokenPolicies.[]')
   get rulesForNamespace() {
     let namespace = this._namespace;
-    const policies = this.get('token.selfTokenPolicies') || [];
+    const policies = this.token.selfTokenPolicies || [];
     const policyList =
       typeof policies.toArray === 'function' ? policies.toArray() : policies;
 
@@ -51,9 +54,8 @@ export default class Abstract extends Ability {
     }, []);
   }
 
-  @computed('token.selfTokenPolicies.[]')
   get capabilitiesForAllNamespaces() {
-    const policies = this.get('token.selfTokenPolicies') || [];
+    const policies = this.token.selfTokenPolicies || [];
     const policyList =
       typeof policies.toArray === 'function' ? policies.toArray() : policies;
 
@@ -74,7 +76,6 @@ export default class Abstract extends Ability {
     });
   }
 
-  @computed('system.features.[]')
   get features() {
     return this.system.features;
   }

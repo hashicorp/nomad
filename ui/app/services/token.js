@@ -4,8 +4,6 @@
  */
 
 import Service, { service } from '@ember/service';
-import { computed } from '@ember/object';
-import { alias, mapBy, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/owner';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
@@ -24,6 +22,7 @@ export default class TokenService extends Service {
   aclEnabled = true;
 
   tokenNotFound = false;
+  expirationNotificationDismissed = false;
 
   _postExpiryPath = null;
 
@@ -45,7 +44,6 @@ export default class TokenService extends Service {
     this._postExpiryPath = value;
   }
 
-  @computed
   get secret() {
     return window.localStorage.nomadTokenSecret;
   }
@@ -63,7 +61,7 @@ export default class TokenService extends Service {
     try {
       var token = yield TokenAdapter.findSelf();
       if (token.accessor === 'acls-disabled') {
-        this.set('aclEnabled', false);
+        this.aclEnabled = false;
         return null;
       }
       this.secret = token.secret;
@@ -71,14 +69,16 @@ export default class TokenService extends Service {
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
       if (errors.find((error) => error === 'ACL token not found')) {
-        this.set('tokenNotFound', true);
+        this.tokenNotFound = true;
       }
       return null;
     }
   })
   fetchSelfToken;
 
-  @reads('fetchSelfToken.lastSuccessful.value') selfToken;
+  get selfToken() {
+    return this.fetchSelfToken.lastSuccessful?.value;
+  }
 
   async exchangeOneTimeToken(oneTimeToken) {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
@@ -118,7 +118,9 @@ export default class TokenService extends Service {
   })
   fetchSelfTokenPolicies;
 
-  @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
+  get selfTokenPolicies() {
+    return this.fetchSelfTokenPolicies.lastSuccessful?.value;
+  }
 
   @task(function* () {
     yield this.fetchSelfToken.perform();
@@ -197,7 +199,7 @@ export default class TokenService extends Service {
                 color: 'warning',
                 sticky: true,
                 customCloseAction: () => {
-                  this.set('expirationNotificationDismissed', true);
+                  this.expirationNotificationDismissed = true;
                 },
                 customAction: {
                   label: 'Re-authenticate',

@@ -4,16 +4,16 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias, and } from '@ember/object/computed';
-import { computed } from '@ember/object';
 
 export default class Quota extends AbstractAbility {
-  @alias('hasFeatureAndManagement') canConfigureInNamespace;
+  get canConfigureInNamespace() {
+    return this.hasFeatureAndManagement;
+  }
 
-  @and('quotasIsPresent', 'selfTokenIsManagement')
-  hasFeatureAndManagement;
+  get hasFeatureAndManagement() {
+    return this.quotasIsPresent && this.selfTokenIsManagement;
+  }
 
-  @computed('features.[]')
   get quotasIsPresent() {
     return this.featureIsPresent('Resource Quotas');
   }

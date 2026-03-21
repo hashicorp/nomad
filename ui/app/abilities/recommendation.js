@@ -4,26 +4,24 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed } from '@ember/object';
-import { and, or } from '@ember/object/computed';
 
 export default class Recommendation extends AbstractAbility {
-  @and('dynamicApplicationSizingIsPresent', 'hasPermissions')
-  canAccept;
+  get canAccept() {
+    return this.dynamicApplicationSizingIsPresent && this.hasPermissions;
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportAcceptingOnAnyNamespace',
-  )
-  hasPermissions;
+  get hasPermissions() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportAcceptingOnAnyNamespace
+    );
+  }
 
-  @computed('capabilitiesForAllNamespaces.[]')
   get policiesSupportAcceptingOnAnyNamespace() {
     return this.capabilitiesForAllNamespaces.includes('submit-job');
   }
 
-  @computed('features.[]')
   get dynamicApplicationSizingIsPresent() {
     return this.featureIsPresent('Dynamic Application Sizing');
   }

@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { get } from '@ember/object';
 import AbstractAbility from './abstract';
 import doesMatchPattern from 'nomad-ui/utils/match-glob';
 
@@ -23,35 +22,38 @@ export default class Variable extends AbstractAbility {
     return this.path;
   }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportVariableList',
-  )
-  canList;
+  get canList() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportVariableList
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportVariableWriting',
-  )
-  canWrite;
+  get canWrite() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportVariableWriting
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportVariableDestroy',
-  )
-  canDestroy;
+  get canDestroy() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportVariableDestroy
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesSupportVariableRead',
-  )
-  canRead;
+  get canRead() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesSupportVariableRead
+    );
+  }
 
-  @computed('token.selfTokenPolicies')
   get policiesSupportVariableList() {
     return this.policyNamespacesIncludeVariablesCapabilities(
       this.token.selfTokenPolicies,
@@ -63,12 +65,6 @@ export default class Variable extends AbstractAbility {
    * Check if the user has read access to a specific path in a specific namespace.
    * @returns {boolean}
    */
-  @computed(
-    'allVariablePathRules',
-    'namespace',
-    'path',
-    'token.selfTokenPolicies',
-  )
   get policiesSupportVariableRead() {
     const matchingPath = this._nearestMatchingPath(this.path);
     if (this.namespace === WILDCARD_GLOB) {
@@ -95,12 +91,6 @@ export default class Variable extends AbstractAbility {
    * Check if the user has destroy access to a specific path in a specific namespace.
    * @returns {boolean}
    */
-  @computed(
-    'allVariablePathRules',
-    'namespace',
-    'path',
-    'token.selfTokenPolicies',
-  )
   get policiesSupportVariableDestroy() {
     const matchingPath = this._nearestMatchingPath(this.path);
     if (this.namespace === WILDCARD_GLOB) {
@@ -176,12 +166,6 @@ export default class Variable extends AbstractAbility {
    * Check if the user has write access to a specific path in a specific namespace.
    * @returns {boolean}
    */
-  @computed(
-    'allVariablePathRules',
-    'namespace',
-    'path',
-    'token.selfTokenPolicies',
-  )
   get policiesSupportVariableWriting() {
     const matchingPath = this._nearestMatchingPath(this.path);
     if (this.namespace === WILDCARD_GLOB) {
@@ -216,7 +200,6 @@ export default class Variable extends AbstractAbility {
    * }
    * @returns {Array}
    */
-  @computed('token.selfTokenPolicies.[]', 'namespace')
   get allVariablePathRules() {
     const policies = get(this, 'token.selfTokenPolicies') || [];
     const policyList =

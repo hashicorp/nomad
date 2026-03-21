@@ -4,35 +4,36 @@
  */
 
 import AbstractAbility from './abstract';
-import { computed, get } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { get } from '@ember/object';
 
 export default class Client extends AbstractAbility {
   // Map abilities to policy options (which are coarse for nodes)
   // instead of specific behaviors.
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesIncludeNodeRead')
-  canRead;
+  get canRead() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesIncludeNodeRead
+    );
+  }
 
-  @or(
-    'bypassAuthorization',
-    'selfTokenIsManagement',
-    'policiesIncludeNodeWrite',
-  )
-  canWrite;
+  get canWrite() {
+    return (
+      this.bypassAuthorization ||
+      this.selfTokenIsManagement ||
+      this.policiesIncludeNodeWrite
+    );
+  }
 
-  @computed('token.selfTokenPolicies.[]')
   get policiesIncludeNodeRead() {
-    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
+    return policiesIncludePermissions(this.token.selfTokenPolicies, [
       'read',
       'write',
     ]);
   }
 
-  @computed('token.selfTokenPolicies.[]')
   get policiesIncludeNodeWrite() {
-    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
-      'write',
-    ]);
+    return policiesIncludePermissions(this.token.selfTokenPolicies, ['write']);
   }
 }
 
