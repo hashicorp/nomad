@@ -21,17 +21,17 @@ export default class IndexController extends Controller {
 
   @action
   onDismiss() {
-    this.set('error', null);
+    this.error = null;
   }
 
   @task(function* () {
     try {
       yield this.model.restart();
     } catch (err) {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Restart Task',
         description: messageForError(err, 'manage allocation lifecycle'),
-      });
+      };
     }
   })
   restartTask;
@@ -67,9 +67,9 @@ export default class IndexController extends Controller {
         color: 'success',
       });
     } catch {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Force Pause Task',
-      });
+      };
     }
   })
   forcePause;
@@ -83,9 +83,9 @@ export default class IndexController extends Controller {
         color: 'success',
       });
     } catch {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Force Run Task',
-      });
+      };
     }
   })
   forceRun;
@@ -99,9 +99,9 @@ export default class IndexController extends Controller {
         color: 'success',
       });
     } catch {
-      this.set('error', {
+      this.error = {
         title: 'Could Not put back on schedule',
-      });
+      };
     }
   })
   reEnableSchedule;

@@ -11,7 +11,7 @@ export default class ServerController extends Controller {
 
   @computed('model.tags')
   get sortedTags() {
-    const tags = this.get('model.tags') || {};
+    const tags = this.model.tags || {};
     return Object.keys(tags)
       .map((name) => ({
         name,
@@ -22,6 +22,6 @@ export default class ServerController extends Controller {
 
   @action
   setTab(tab) {
-    this.set('activeTab', tab);
+    this.activeTab = tab;
   }
 }

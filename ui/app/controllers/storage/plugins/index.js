@@ -71,7 +71,7 @@ export default class IndexController extends Controller.extend(
 
   @action
   updateSearchTerm(searchTerm) {
-    this.set('searchTerm', searchTerm);
+    this.searchTerm = searchTerm;
     this.resetPagination();
   }
 }
