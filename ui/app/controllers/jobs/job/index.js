@@ -4,7 +4,6 @@
  */
 
 import Controller from '@ember/controller';
-import { alias } from '@ember/object/computed';
 import { service } from '@ember/service';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { action } from '@ember/object';
@@ -35,7 +34,9 @@ export default class IndexController extends Controller.extend(
 
   currentPage = 1;
 
-  @alias('model') job;
+  get job() {
+    return this.model;
+  }
 
   sortProperty = 'name';
   sortDescending = false;

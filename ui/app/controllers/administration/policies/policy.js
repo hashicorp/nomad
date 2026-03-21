@@ -5,7 +5,6 @@
 
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
-import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default class AccessControlPoliciesPolicyController extends Controller {
@@ -13,8 +12,13 @@ export default class AccessControlPoliciesPolicyController extends Controller {
   @service router;
   @service store;
 
-  @alias('model.policy') policy;
-  @alias('model.tokens') tokens;
+  get policy() {
+    return this.model.policy;
+  }
+
+  get tokens() {
+    return this.model.tokens;
+  }
 
   get newTokenString() {
     return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=8h`;
@@ -54,7 +58,7 @@ export default class AccessControlPoliciesPolicyController extends Controller {
   deletePolicy;
 
   async refreshTokens() {
-    this.tokens = this.store
+    this.model.tokens = this.store
       .peekAll('token')
       .filter((token) =>
         token.policyNames?.includes(decodeURIComponent(this.policy.name)),

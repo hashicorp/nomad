@@ -5,7 +5,6 @@
 
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
-import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default class AccessControlRolesRoleController extends Controller {
@@ -13,9 +12,17 @@ export default class AccessControlRolesRoleController extends Controller {
   @service router;
   @service store;
 
-  @alias('model.role') role;
-  @alias('model.tokens') tokens;
-  @alias('model.policies') policies;
+  get role() {
+    return this.model.role;
+  }
+
+  get tokens() {
+    return this.model.tokens;
+  }
+
+  get policies() {
+    return this.model.policies;
+  }
 
   get newTokenString() {
     return `nomad acl token create -name="<TOKEN_NAME>" -role-name="${this.role.name}" -type=client -ttl=8h`;
@@ -46,7 +53,7 @@ export default class AccessControlRolesRoleController extends Controller {
   async refreshTokens() {
     const roleId = decodeURIComponent(this.role.id);
 
-    this.tokens = this.store.peekAll('token').filter((token) => {
+    this.model.tokens = this.store.peekAll('token').filter((token) => {
       const roleIds = token.hasMany('roles').ids() || [];
       return roleIds.includes(roleId);
     });

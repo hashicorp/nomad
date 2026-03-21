@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
@@ -24,9 +23,19 @@ export default class EvaluationsController extends Controller.extend(
   sortProperty = 'modifyIndex';
   sortDescending = true;
 
-  @alias('model') job;
-  @alias('model.evaluations') evaluations;
+  get job() {
+    return this.model;
+  }
 
-  @alias('evaluations') listToSort;
-  @alias('listSorted') sortedEvaluations;
+  get evaluations() {
+    return this.model.evaluations;
+  }
+
+  get listToSort() {
+    return this.evaluations;
+  }
+
+  get sortedEvaluations() {
+    return this.listSorted;
+  }
 }

@@ -5,7 +5,6 @@
 
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -17,12 +16,29 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 export default class DefinitionController extends Controller.extend(
   WithNamespaceResetting,
 ) {
-  @alias('model.definition') definition;
-  @alias('model.format') format;
-  @alias('model.job') job;
-  @alias('model.specification') specification;
-  @alias('model.variableFlags') variableFlags;
-  @alias('model.variableLiteral') variableLiteral;
+  get definition() {
+    return this.model.definition;
+  }
+
+  get format() {
+    return this.model.format;
+  }
+
+  get job() {
+    return this.model.job;
+  }
+
+  get specification() {
+    return this.model.specification;
+  }
+
+  get variableFlags() {
+    return this.model.variableFlags;
+  }
+
+  get variableLiteral() {
+    return this.model.variableLiteral;
+  }
 
   @tracked view;
   @tracked isEditing = false;

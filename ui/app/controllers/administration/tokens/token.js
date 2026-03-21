@@ -5,7 +5,6 @@
 
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
-import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default class AccessControlTokensTokenController extends Controller {
@@ -13,9 +12,17 @@ export default class AccessControlTokensTokenController extends Controller {
   @service router;
   @service store;
 
-  @alias('model.roles') roles;
-  @alias('model.token') activeToken; // looks like .token is an Ember reserved name?
-  @alias('model.policies') policies;
+  get roles() {
+    return this.model.roles;
+  }
+
+  get activeToken() {
+    return this.model.token;
+  }
+
+  get policies() {
+    return this.model.policies;
+  }
 
   @task(function* () {
     try {
