@@ -8,7 +8,7 @@ import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { A } from '@ember/array';
-import { observes } from '@ember-decorators/object';
+import { addObserver, removeObserver } from '@ember/object/observers';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias, mapBy, union } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
@@ -21,6 +21,27 @@ import { tracked } from '@glimmer/tracking';
 export default class IndexController extends Controller.extend(
   SortableFactory(['name', 'state']),
 ) {
+  // eslint-disable-next-line ember/classic-decorator-hooks
+  constructor() {
+    super(...arguments);
+    addObserver(
+      this,
+      'model.nextAllocation.clientStatus',
+      this,
+      this.observeWatchNext,
+    );
+  }
+
+  willDestroy() {
+    removeObserver(
+      this,
+      'model.nextAllocation.clientStatus',
+      this,
+      this.observeWatchNext,
+    );
+    super.willDestroy(...arguments);
+  }
+
   @service token;
   @service store;
   @service router;
@@ -130,7 +151,6 @@ export default class IndexController extends Controller.extend(
 
   @watchRecord('allocation') watchNext;
 
-  @observes('model.nextAllocation.clientStatus')
   observeWatchNext() {
     const nextAllocation = this.model.nextAllocation;
     if (nextAllocation && nextAllocation.content) {

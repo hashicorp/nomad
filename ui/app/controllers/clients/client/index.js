@@ -8,7 +8,7 @@
 import { alias, mapBy } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
-import { observes } from '@ember-decorators/object';
+import { addObserver, removeObserver } from '@ember/object/observers';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
@@ -34,6 +34,21 @@ export default class ClientController extends Controller.extend(
   ]),
   Searchable,
 ) {
+  constructor() {
+    super(...arguments);
+    addObserver(this, 'model.isDraining', this, this.triggerDrainNotification);
+  }
+
+  willDestroy() {
+    removeObserver(
+      this,
+      'model.isDraining',
+      this,
+      this.triggerDrainNotification,
+    );
+    super.willDestroy(...arguments);
+  }
+
   @service notifications;
   @service router;
 
@@ -200,7 +215,6 @@ export default class ClientController extends Controller.extend(
   }).drop())
   forceDrain;
 
-  @observes('model.isDraining')
   triggerDrainNotification() {
     if (!this.model.isDraining && this.flagAsDraining) {
       this.set('showDrainNotification', true);

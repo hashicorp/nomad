@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember/no-observers */
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { next } from '@ember/runloop';
@@ -14,6 +13,7 @@ import NoLeaderError from '../utils/no-leader-error';
 import OTTExchangeError from '../utils/ott-exchange-error';
 // eslint-disable-next-line no-unused-vars
 import KeyboardService from '../services/keyboard';
+
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
@@ -26,7 +26,7 @@ export default class ApplicationController extends Controller {
    */
   @service keyboard;
 
-  // eslint-disable-next-line ember/classic-decorator-hooks
+
   constructor() {
     super(...arguments);
     this.keyboard.listenForKeypress();
@@ -94,7 +94,7 @@ export default class ApplicationController extends Controller {
   }
 
   throwError() {
-    if (this.get('config.isDev')) {
+    if (this.config.isDev) {
       next(() => {
         throw this.error;
       });

@@ -226,9 +226,6 @@ importers:
       ember-data-model-fragments:
         specifier: 7.0.3
         version: 7.0.3(@ember-data/json-api@4.12.8(@babel/core@7.29.0)(@ember-data/graph@4.12.8)(@ember-data/store@4.12.8)(@glint/template@1.7.7))(ember-data@4.12.8(@babel/core@7.29.0)(@ember/string@4.0.1)(@glimmer/tracking@1.1.2)(@glint/template@1.7.7)(ember-source@6.10.1(@glimmer/component@2.0.0)(rsvp@4.8.5))(webpack@5.105.4))(ember-source@6.10.1(@glimmer/component@2.0.0)(rsvp@4.8.5))
-      ember-decorators:
-        specifier: ^6.1.1
-        version: 6.1.1
       ember-exam:
         specifier: 10.1.0
         version: 10.1.0(@glint/template@1.7.7)(ember-qunit@9.0.4(@babel/core@7.29.0)(@ember/test-helpers@5.4.1(@babel/core@7.29.0)(@glint/template@1.7.7))(@glint/template@1.7.7)(qunit@2.25.0))(ember-source@6.10.1(@glimmer/component@2.0.0)(rsvp@4.8.5))(qunit@2.25.0)(webpack@5.105.4)
@@ -1162,18 +1159,6 @@ packages:
   '@ember-data/tracking@4.12.8':
     resolution: {integrity: sha512-CczHOsEbInbVg4WF2UQhV89gCnSfH+8ZR1WinPFQ8PaY6e1KSlPULuTXhC03NhAo8GaJzHlvc3KfATt5qgBplg==}
     engines: {node: 16.* || >= 18}
-
-  '@ember-decorators/component@6.1.1':
-    resolution: {integrity: sha512-Cj8tY/c0MC/rsipqsiWLh3YVN72DK92edPYamD/HzvftwzC6oDwawWk8RmStiBnG9PG/vntAt41l3S7HSSA+1Q==}
-    engines: {node: '>= 8.*'}
-
-  '@ember-decorators/object@6.1.1':
-    resolution: {integrity: sha512-cb4CNR9sRoA31J3FCOFLDuR9ztM4wO9w1WlS4JeNRS7Z69SlB/XSXB/vplA3i9OOaXEy/zKWbu5ndZrHz0gvLw==}
-    engines: {node: '>= 8.*'}
-
-  '@ember-decorators/utils@6.1.1':
-    resolution: {integrity: sha512-0KqnoeoLKb6AyoSU65TRF5T85wmS4uDn06oARddwNPxxf/lt5jQlh41uX3W7V/fWL9tPu8x1L1Vvpc80MN1+YA==}
-    engines: {node: '>= 8.*'}
 
   '@ember-tooling/blueprint-blueprint@0.2.1':
     resolution: {integrity: sha512-eZ5qicL3gfFFbmzLaSiEWPSmoRUJGnqg+dQmU0R81vv+0Ni7W/cS7MXx1l4HpN9B7Yg4M9GgdQTkeJnb6abQug==}
@@ -3660,10 +3645,6 @@ packages:
     engines: {node: 16.* || >= 18.*}
     peerDependencies:
       '@ember/string': ^3.0.1
-
-  ember-decorators@6.1.1:
-    resolution: {integrity: sha512-63vZPntPn1aqMyeNRLoYjJD+8A8obd+c2iZkJflswpDRNVIsp2m7aQdSCtPt4G0U/TEq2251g+N10maHX3rnJQ==}
-    engines: {node: '>= 8.*'}
 
   ember-element-helper@0.8.8:
     resolution: {integrity: sha512-3slTltQV5ke53t3YVP2GYoswsQ6y+lhuVzKmt09tbEx91DapG8I/xa8W5OA0StvcQlavL3/vHrz/vCQEFs8bBA==}
@@ -8300,26 +8281,6 @@ snapshots:
       - '@glint/template'
       - supports-color
 
-  '@ember-decorators/component@6.1.1':
-    dependencies:
-      '@ember-decorators/utils': 6.1.1
-      ember-cli-babel: 7.26.11
-    transitivePeerDependencies:
-      - supports-color
-
-  '@ember-decorators/object@6.1.1':
-    dependencies:
-      '@ember-decorators/utils': 6.1.1
-      ember-cli-babel: 7.26.11
-    transitivePeerDependencies:
-      - supports-color
-
-  '@ember-decorators/utils@6.1.1':
-    dependencies:
-      ember-cli-babel: 7.26.11
-    transitivePeerDependencies:
-      - supports-color
-
   '@ember-tooling/blueprint-blueprint@0.2.1': {}
 
   '@ember-tooling/blueprint-model@0.5.0':
@@ -11809,14 +11770,6 @@ snapshots:
       - ember-source
       - supports-color
       - webpack
-
-  ember-decorators@6.1.1:
-    dependencies:
-      '@ember-decorators/component': 6.1.1
-      '@ember-decorators/object': 6.1.1
-      ember-cli-babel: 7.26.11
-    transitivePeerDependencies:
-      - supports-color
 
   ember-element-helper@0.8.8:
     dependencies:
