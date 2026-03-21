@@ -499,13 +499,13 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
 		result = &drivers.ExitResult{
-			Err: fmt.Errorf("executor: error waiting on process: %v", err),
+			Err:      fmt.Errorf("executor crashed or lost connection: %v", err),
+			ExitCode: -1,
 		}
-		// if process state is nil, we've probably been killed, so return a reasonable
-		// exit state to the handlers
-		if ps == nil {
-			result.ExitCode = -1
-			result.OOMKilled = false
+		if ps != nil {
+			result.ExitCode = ps.ExitCode
+			result.Signal = ps.Signal
+			result.OOMKilled = ps.OOMKilled
 		}
 	} else {
 		result = &drivers.ExitResult{
