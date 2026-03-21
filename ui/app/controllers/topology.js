@@ -56,7 +56,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action
@@ -66,7 +66,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @action
   dismissPollingNotice() {
-    this.set('showPollingNotice', false);
+    this.showPollingNotice = false;
   }
 
   @action
@@ -126,10 +126,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClass',
-        serialize(intersection(classes, this.selectionClass)),
-      );
+      this.qpClass = serialize(intersection(classes, this.selectionClass));
     });
 
     return classes.sort().map((dc) => ({ key: dc, label: dc }));
@@ -144,9 +141,8 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter)),
+      this.qpDatacenter = serialize(
+        intersection(datacenters, this.selectionDatacenter),
       );
     });
 
@@ -159,13 +155,10 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpNodePool',
-        serialize(
-          intersection(
-            availableNodePools.map(({ name }) => name),
-            this.selectionNodePool,
-          ),
+      this.qpNodePool = serialize(
+        intersection(
+          availableNodePools.map(({ name }) => name),
+          this.selectionNodePool,
         ),
       );
     });
@@ -185,10 +178,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpVersion',
-        serialize(intersection(versions, this.selectionVersion)),
-      );
+      this.qpVersion = serialize(intersection(versions, this.selectionVersion));
     });
 
     return versions.sort().map((v) => ({ key: v, label: v }));
@@ -378,12 +368,12 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
       await allocation.reload();
       await allocation.job.reload();
     }
-    this.set('activeAllocation', allocation);
+    this.activeAllocation = allocation;
   }
 
   @action
   setNode(node) {
-    this.set('activeNode', node);
+    this.activeNode = node;
   }
 
   @action

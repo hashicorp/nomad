@@ -7,7 +7,7 @@
 import { service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { action, computed, get } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
@@ -69,12 +69,12 @@ export default class TaskGroupController extends Controller.extend(
   @action
   toggleShowSubTasks(e) {
     e.preventDefault();
-    this.set('showSubTasks', !this.get('showSubTasks'));
+    this.showSubTasks = !this.showSubTasks;
   }
 
   @computed('model.allocations.[]')
   get allocations() {
-    return this.get('model.allocations') || [];
+    return this.model.allocations || [];
   }
 
   @computed('allocations.[]', 'selectionStatus', 'selectionClient')
@@ -110,7 +110,7 @@ export default class TaskGroupController extends Controller.extend(
   @selection('qpClient') selectionClient;
 
   @computed('model.scaleState.events.@each.time', function () {
-    const events = get(this, 'model.scaleState.events');
+    const events = this.model.scaleState.events;
     if (events) {
       return events.sortBy('time').reverse();
     }
@@ -174,10 +174,7 @@ export default class TaskGroupController extends Controller.extend(
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClient',
-        serialize(intersection(clients, this.selectionClient)),
-      );
+      this.qpClient = serialize(intersection(clients, this.selectionClient));
     });
 
     return clients.sort().map((dc) => ({ key: dc, label: dc }));
@@ -185,7 +182,7 @@ export default class TaskGroupController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   get taskGroup() {
@@ -204,15 +201,15 @@ export default class TaskGroupController extends Controller.extend(
   @action
   setActiveTaskQueryParam(task) {
     if (task) {
-      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+      this.activeTask = `${task.allocation.id}-${task.name}`;
     } else {
-      this.set('activeTask', null);
+      this.activeTask = null;
     }
   }
 
   @action
   updateSearchTerm(searchTerm) {
-    this.set('searchTerm', searchTerm);
+    this.searchTerm = searchTerm;
     this.resetPagination();
   }
 }

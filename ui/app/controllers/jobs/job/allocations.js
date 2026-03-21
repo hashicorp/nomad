@@ -84,7 +84,7 @@ export default class AllocationsController extends Controller.extend(
 
   @computed('model.allocations.[]')
   get allocations() {
-    return this.get('model.allocations') || [];
+    return this.model.allocations || [];
   }
 
   @computed(
@@ -205,10 +205,7 @@ export default class AllocationsController extends Controller.extend(
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClient',
-        serialize(intersection(clients, this.selectionClient)),
-      );
+      this.qpClient = serialize(intersection(clients, this.selectionClient));
     });
 
     return clients.sort().map((c) => ({ key: c, label: c }));
@@ -223,9 +220,8 @@ export default class AllocationsController extends Controller.extend(
     // Update query param when the list of task groups changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpTaskGroup',
-        serialize(intersection(taskGroups, this.selectionTaskGroup)),
+      this.qpTaskGroup = serialize(
+        intersection(taskGroups, this.selectionTaskGroup),
       );
     });
 
@@ -241,10 +237,7 @@ export default class AllocationsController extends Controller.extend(
     // Update query param when the list of versions changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpVersion',
-        serialize(intersection(versions, this.selectionVersion)),
-      );
+      this.qpVersion = serialize(intersection(versions, this.selectionVersion));
     });
 
     return versions.sort((a, b) => a - b).map((v) => ({ key: v, label: v }));
@@ -274,21 +267,21 @@ export default class AllocationsController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action
   setActiveTaskQueryParam(task) {
     if (task) {
-      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+      this.activeTask = `${task.allocation.id}-${task.name}`;
     } else {
-      this.set('activeTask', null);
+      this.activeTask = null;
     }
   }
 
   @action
   updateSearchTerm(searchTerm) {
-    this.set('searchTerm', searchTerm);
+    this.searchTerm = searchTerm;
     this.resetPagination();
   }
 }
