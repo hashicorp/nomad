@@ -7,7 +7,6 @@
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { next } from '@ember/runloop';
-import { observes } from '@ember-decorators/object';
 import { action, computed } from '@ember/object';
 import { macroCondition, isTesting } from '@embroider/macros';
 import codesForError from '../utils/codes-for-error';
@@ -46,7 +45,16 @@ export default class ApplicationController extends Controller {
 
   oneTimeToken = '';
 
-  error = null;
+  _error = null;
+
+  get error() {
+    return this._error;
+  }
+
+  set error(value) {
+    this._error = value;
+    this.throwError();
+  }
 
   @computed('error')
   get errorStr() {
@@ -85,7 +93,6 @@ export default class ApplicationController extends Controller {
     return error instanceof OTTExchangeError;
   }
 
-  @observes('error')
   throwError() {
     if (this.get('config.isDev')) {
       next(() => {
