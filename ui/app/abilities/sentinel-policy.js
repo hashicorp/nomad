@@ -4,7 +4,7 @@
  */
 
 import AbstractAbility from './abstract';
-import { alias, and, or } from '@ember/object';
+import { alias, and, or } from '@ember/object/computed';
 import { computed } from '@ember/object';
 
 export default class SentinelPolicy extends AbstractAbility {

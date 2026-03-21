@@ -18,7 +18,7 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 
 import EmberObject, { computed } from '@ember/object';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import Searchable from 'nomad-ui/mixins/searchable';
 
 export default class OptimizeController extends Controller {

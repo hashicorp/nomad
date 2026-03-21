@@ -4,7 +4,7 @@
  */
 
 import { computed } from '@ember/object';
-import { equal } from '@ember/object';
+import { equal, mapBy } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
 import { hasMany } from '@ember-data/model';

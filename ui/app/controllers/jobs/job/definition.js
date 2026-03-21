@@ -5,7 +5,7 @@
 
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';

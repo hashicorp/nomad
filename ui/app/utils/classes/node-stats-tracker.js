@@ -4,7 +4,7 @@
  */
 
 import EmberObject, { computed } from '@ember/object';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
 

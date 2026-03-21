@@ -6,7 +6,7 @@
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object';
+import { alias, readOnly } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import {

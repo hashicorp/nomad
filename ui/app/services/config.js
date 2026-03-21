@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { equal } from '@ember/object';
+import { equal } from '@ember/object/computed';
 import Service from '@ember/service';
 import { get } from '@ember/object';
 import config from '../config/environment';

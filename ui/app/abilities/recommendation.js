@@ -5,7 +5,7 @@
 
 import AbstractAbility from './abstract';
 import { computed } from '@ember/object';
-import { and, or } from '@ember/object';
+import { and, or } from '@ember/object/computed';
 
 export default class Recommendation extends AbstractAbility {
   @and('dynamicApplicationSizingIsPresent', 'hasPermissions')

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';

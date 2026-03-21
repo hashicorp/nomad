@@ -5,7 +5,7 @@
 
 import Mixin from '@ember/object/mixin';
 import { get, computed, action } from '@ember/object';
-import { reads } from '@ember/object';
+import { reads } from '@ember/object/computed';
 import Fuse from 'fuse.js';
 
 /**

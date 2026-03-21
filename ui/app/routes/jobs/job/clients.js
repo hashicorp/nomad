@@ -11,7 +11,7 @@ import {
   watchRelationship,
   watchAll,
 } from 'nomad-ui/utils/properties/watch';
-import { collect } from '@ember/object';
+import { collect } from '@ember/object/computed';
 
 export default class ClientsRoute extends Route.extend(WithWatchers) {
   @service abilities;

@@ -4,7 +4,7 @@
  */
 
 import { computed } from '@ember/object';
-import { readOnly } from '@ember/object';
+import { readOnly } from '@ember/object/computed';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
 

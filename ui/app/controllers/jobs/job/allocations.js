@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias } from '@ember/object';
+import { alias, mapBy } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';

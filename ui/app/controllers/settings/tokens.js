@@ -6,7 +6,7 @@
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/owner';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { macroCondition, isTesting } from '@embroider/macros';

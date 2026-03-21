@@ -5,7 +5,7 @@
 
 import { attr, belongsTo } from '@ember-data/model';
 import Model from '@ember-data/model';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 
 export default class Service extends Model {
   @belongsTo('allocation', { async: true, inverse: null }) allocation;

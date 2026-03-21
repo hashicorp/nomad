@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import { assert } from '@ember/debug';
 import { htmlSafe } from '@ember/template';
 import Evented from '@ember/object/evented';

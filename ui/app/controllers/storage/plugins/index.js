@@ -5,7 +5,7 @@
 
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
-import { alias, readOnly } from '@ember/object';
+import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';

@@ -8,7 +8,7 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
-import { collect } from '@ember/object';
+import { collect } from '@ember/object/computed';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class JobRoute extends Route.extend(WithWatchers) {

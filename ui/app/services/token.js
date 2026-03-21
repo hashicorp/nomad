@@ -5,7 +5,7 @@
 
 import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias, reads } from '@ember/object';
+import { alias, mapBy, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/owner';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';

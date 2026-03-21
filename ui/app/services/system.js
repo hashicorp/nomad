@@ -6,7 +6,7 @@
 import { set } from '@ember/object';
 import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';

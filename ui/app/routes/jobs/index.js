@@ -6,7 +6,7 @@
 import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
-import { collect } from '@ember/object';
+import { collect } from '@ember/object/computed';
 import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';

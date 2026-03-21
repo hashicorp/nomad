@@ -5,7 +5,7 @@
 
 import { service } from '@ember/service';
 import { computed } from '@ember/object';
-import { equal, none } from '@ember/object';
+import { equal, none } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';

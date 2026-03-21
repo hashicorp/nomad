@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { lt, equal } from '@ember/object';
+import { equal, lt } from '@ember/object/computed';
 import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 

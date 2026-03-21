@@ -5,7 +5,7 @@
 
 import { service } from '@ember/service';
 import Route from '@ember/routing/route';
-import { collect } from '@ember/object';
+import { collect } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';

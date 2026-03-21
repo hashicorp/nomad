@@ -4,7 +4,7 @@
  */
 
 import { computed } from '@ember/object';
-import { alias, and } from '@ember/object';
+import { alias, and } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import {

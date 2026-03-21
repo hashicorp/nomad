@@ -6,7 +6,7 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
-import { alias } from '@ember/object';
+import { alias, mapBy } from '@ember/object/computed';
 import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { reduceBytes, reduceHertz } from 'nomad-ui/utils/units';

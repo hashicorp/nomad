@@ -8,7 +8,7 @@ import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import { alias } from '@ember/object';
+import { alias, mapBy } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
