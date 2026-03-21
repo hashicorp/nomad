@@ -21,7 +21,6 @@ import { tracked } from '@glimmer/tracking';
 export default class IndexController extends Controller.extend(
   SortableFactory(['name', 'state']),
 ) {
-  // eslint-disable-next-line ember/classic-decorator-hooks
   constructor() {
     super(...arguments);
     addObserver(
@@ -75,17 +74,17 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.allocatedResources.ports.@each.label')
   get ports() {
-    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+    return (this.model.allocatedResources.ports || []).sortBy('label');
   }
 
   @computed('model.states.@each.task')
   get tasks() {
-    return this.get('model.states').mapBy('task') || [];
+    return this.model.states.mapBy('task') || [];
   }
 
   @computed('tasks.@each.services')
   get taskServices() {
-    return this.get('tasks')
+    return this.tasks
       .map((t) => ((t && t.services) || []).toArray())
       .flat()
       .compact();
@@ -93,7 +92,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.taskGroup.services.@each.name')
   get groupServices() {
-    return (this.get('model.taskGroup.services') || []).sortBy('name');
+    return (this.model.taskGroup.services || []).sortBy('name');
   }
 
   @union('taskServices', 'groupServices') services;
@@ -146,7 +145,7 @@ export default class IndexController extends Controller.extend(
 
   @action
   onDismiss() {
-    this.set('error', null);
+    this.error = null;
   }
 
   @watchRecord('allocation') watchNext;
@@ -166,10 +165,10 @@ export default class IndexController extends Controller.extend(
       // Eagerly update the allocation clientStatus to avoid flickering
       this.model.set('clientStatus', 'complete');
     } catch (err) {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Stop Allocation',
         description: messageForError(err, 'manage allocation lifecycle'),
-      });
+      };
     }
   })
   stopAllocation;
@@ -178,10 +177,10 @@ export default class IndexController extends Controller.extend(
     try {
       yield this.model.restart();
     } catch (err) {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Restart Allocation',
         description: messageForError(err, 'manage allocation lifecycle'),
-      });
+      };
     }
   })
   restartAllocation;
@@ -190,10 +189,10 @@ export default class IndexController extends Controller.extend(
     try {
       yield this.model.restartAll();
     } catch (err) {
-      this.set('error', {
+      this.error = {
         title: 'Could Not Restart All Tasks',
         description: messageForError(err, 'manage allocation lifecycle'),
-      });
+      };
       console.error(err);
     }
   })
@@ -247,7 +246,7 @@ export default class IndexController extends Controller.extend(
   @tracked activeServiceID = null;
 
   @action handleServiceClick(service) {
-    this.set('activeServiceID', service.refID);
+    this.activeServiceID = service.refID;
   }
 
   @computed('activeServiceID', 'servicesWithHealthChecks.[]')
@@ -256,7 +255,7 @@ export default class IndexController extends Controller.extend(
   }
 
   @action closeSidebar() {
-    this.set('activeServiceID', null);
+    this.activeServiceID = null;
   }
 
   keyCommands = [

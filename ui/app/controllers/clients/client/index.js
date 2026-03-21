@@ -5,6 +5,7 @@
 
 /* eslint-disable ember/no-observers */
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { set } from '@ember/object';
 import { alias, mapBy } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -98,7 +99,7 @@ export default class ClientController extends Controller.extend(
   @action
   toggleShowSubTasks(e) {
     e.preventDefault();
-    this.set('showSubTasks', !this.get('showSubTasks'));
+    this.showSubTasks = !this.showSubTasks;
   }
 
   @computed()
@@ -167,12 +168,12 @@ export default class ClientController extends Controller.extend(
 
   @computed('model.events.@each.time')
   get sortedEvents() {
-    return this.get('model.events').sortBy('time').reverse();
+    return this.model.events.sortBy('time').reverse();
   }
 
   @computed('model.drivers.@each.name')
   get sortedDrivers() {
-    return this.get('model.drivers').sortBy('name');
+    return this.model.drivers.sortBy('name');
   }
 
   @computed('model.hostVolumes.@each.name')
@@ -185,20 +186,20 @@ export default class ClientController extends Controller.extend(
       yield value ? this.model.setEligible() : this.model.setIneligible();
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not set eligibility';
-      this.set('eligibilityError', error);
+      this.eligibilityError = error;
     }
   }).drop())
   setEligibility;
 
   @(task(function* () {
     try {
-      this.set('flagAsDraining', false);
+      this.flagAsDraining = false;
       yield this.model.cancelDrain();
-      this.set('showDrainStoppedNotification', true);
+      this.showDrainStoppedNotification = true;
     } catch (err) {
-      this.set('flagAsDraining', true);
+      this.flagAsDraining = true;
       const error = messageFromAdapterError(err) || 'Could not stop drain';
-      this.set('stopDrainError', error);
+      this.stopDrainError = error;
     }
   }).drop())
   stopDrain;
@@ -210,17 +211,17 @@ export default class ClientController extends Controller.extend(
       });
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not force drain';
-      this.set('drainError', error);
+      this.drainError = error;
     }
   }).drop())
   forceDrain;
 
   triggerDrainNotification() {
     if (!this.model.isDraining && this.flagAsDraining) {
-      this.set('showDrainNotification', true);
+      this.showDrainNotification = true;
     }
 
-    this.set('flagAsDraining', this.model.isDraining);
+    this.flagAsDraining = this.model.isDraining;
   }
 
   @action
@@ -230,48 +231,48 @@ export default class ClientController extends Controller.extend(
 
   @action
   setPreemptionFilter(value) {
-    this.set('onlyPreemptions', value);
+    set(this, 'onlyPreemptions', value);
   }
 
   @action
   drainNotify(isUpdating) {
-    this.set('showDrainUpdateNotification', isUpdating);
+    this.showDrainUpdateNotification = isUpdating;
   }
 
   @action
   setDrainError(err) {
     const error = messageFromAdapterError(err) || 'Could not run drain';
-    this.set('drainError', error);
+    this.drainError = error;
   }
 
   @action
   clearEligibilityError() {
-    this.set('eligibilityError', null);
+    this.eligibilityError = null;
   }
 
   @action
   clearStopDrainError() {
-    this.set('stopDrainError', null);
+    this.stopDrainError = null;
   }
 
   @action
   clearDrainError() {
-    this.set('drainError', null);
+    this.drainError = null;
   }
 
   @action
   dismissDrainStoppedNotification() {
-    this.set('showDrainStoppedNotification', false);
+    this.showDrainStoppedNotification = false;
   }
 
   @action
   dismissDrainUpdateNotification() {
-    this.set('showDrainUpdateNotification', false);
+    this.showDrainUpdateNotification = false;
   }
 
   @action
   dismissDrainNotification() {
-    this.set('showDrainNotification', false);
+    this.showDrainNotification = false;
   }
 
   @action
@@ -306,7 +307,7 @@ export default class ClientController extends Controller.extend(
     // Update query param when the list of jobs changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpJob', serialize(intersection(jobs, this.selectionJob)));
+      this.qpJob = serialize(intersection(jobs, this.selectionJob));
     });
 
     return jobs.sort().map((job) => ({ key: job, label: job }));
@@ -321,10 +322,7 @@ export default class ClientController extends Controller.extend(
     // Update query param when the list of namespaces changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpNamespace',
-        serialize(intersection(ns, this.selectionNamespace)),
-      );
+      this.qpNamespace = serialize(intersection(ns, this.selectionNamespace));
     });
 
     return ns.sort().map((n) => ({ key: n, label: n }));
@@ -332,15 +330,15 @@ export default class ClientController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action
   setActiveTaskQueryParam(task) {
     if (task) {
-      this.set('activeTask', `${task.allocation.id}-${task.name}`);
+      this.activeTask = `${task.allocation.id}-${task.name}`;
     } else {
-      this.set('activeTask', null);
+      this.activeTask = null;
     }
   }
 
