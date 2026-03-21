@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { alias, mapBy, readOnly } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object/computed';
 import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -140,7 +140,6 @@ export default class IndexController extends Controller.extend(
     );
   }
 
-  // eslint-disable-next-line ember/classic-decorator-hooks
   constructor() {
     super(...arguments);
     this.addDynamicQueryParams();
@@ -149,15 +148,15 @@ export default class IndexController extends Controller.extend(
   addDynamicQueryParams() {
     this.clientFilterToggles.state.forEach((filter) => {
       this.queryParams.push({ [filter.qp]: filter.qp });
-      this.set(filter.qp, filter.default);
+      this[filter.qp] = filter.default;
     });
     this.clientFilterToggles.eligibility.forEach((filter) => {
       this.queryParams.push({ [filter.qp]: filter.qp });
-      this.set(filter.qp, filter.default);
+      this[filter.qp] = filter.default;
     });
     this.clientFilterToggles.drainStatus.forEach((filter) => {
       this.queryParams.push({ [filter.qp]: filter.qp });
-      this.set(filter.qp, filter.default);
+      this[filter.qp] = filter.default;
     });
   }
 
@@ -193,10 +192,7 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClass',
-        serialize(intersection(classes, this.selectionClass)),
-      );
+      this.qpClass = serialize(intersection(classes, this.selectionClass));
     });
 
     return classes.sort().map((dc) => ({ key: dc, label: dc }));
@@ -211,9 +207,8 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter)),
+      this.qpDatacenter = serialize(
+        intersection(datacenters, this.selectionDatacenter),
       );
     });
 
@@ -227,10 +222,7 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpVersion',
-        serialize(intersection(versions, this.selectionVersion)),
-      );
+      this.qpVersion = serialize(intersection(versions, this.selectionVersion));
     });
 
     return versions.sort().map((v) => ({ key: v, label: v }));
@@ -245,10 +237,7 @@ export default class IndexController extends Controller.extend(
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpVolume',
-        serialize(intersection(volumes, this.selectionVolume)),
-      );
+      this.qpVolume = serialize(intersection(volumes, this.selectionVolume));
     });
 
     return volumes.sort().map((volume) => ({ key: volume, label: volume }));
@@ -262,13 +251,10 @@ export default class IndexController extends Controller.extend(
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpNodePool',
-        serialize(
-          intersection(
-            availableNodePools.map(({ name }) => name),
-            this.selectionNodePool,
-          ),
+      this.qpNodePool = serialize(
+        intersection(
+          availableNodePools.map(({ name }) => name),
+          this.selectionNodePool,
         ),
       );
     });
@@ -322,18 +308,16 @@ export default class IndexController extends Controller.extend(
     }
 
     return nodes.filter((node) => {
-      if (classes.length && !classes.includes(node.get('nodeClass')))
+      if (classes.length && !classes.includes(node.nodeClass)) return false;
+      if (datacenters.length && !datacenters.includes(node.datacenter))
         return false;
-      if (datacenters.length && !datacenters.includes(node.get('datacenter')))
-        return false;
-      if (versions.length && !versions.includes(node.get('version')))
-        return false;
+      if (versions.length && !versions.includes(node.version)) return false;
       if (
         volumes.length &&
         !node.hostVolumes.find((volume) => volumes.includes(volume.name))
       )
         return false;
-      if (nodePools.length && !nodePools.includes(node.get('nodePool'))) {
+      if (nodePools.length && !nodePools.includes(node.nodePool)) {
         return false;
       }
 
@@ -349,7 +333,7 @@ export default class IndexController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action
@@ -359,17 +343,17 @@ export default class IndexController extends Controller.extend(
     } else {
       queryParamValue.addObject(option);
     }
-    this.set(queryParamLabel, serialize(queryParamValue));
+    this[queryParamLabel] = serialize(queryParamValue);
   }
 
   @action
   toggleClientFilter(queryParam) {
-    this.set(queryParam, !this[queryParam]);
+    this[queryParam] = !this[queryParam];
   }
 
   @action
   updateSearchTerm(searchTerm) {
-    this.set('searchTerm', searchTerm);
+    this.searchTerm = searchTerm;
     this.resetPagination();
   }
 

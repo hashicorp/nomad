@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { set } from '@ember/object';
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -206,11 +207,9 @@ export default class ExecController extends Controller {
 
   @action
   setTaskProperties({ allocationShortId, taskName, taskGroupName }) {
-    this.setProperties({
-      allocationShortId,
-      taskName,
-      taskGroupName,
-    });
+    set(this, 'allocationShortId', allocationShortId);
+    set(this, 'taskName', taskName);
+    set(this, 'taskGroupName', taskGroupName);
 
     if (this.taskState) {
       this.terminal.write(ANSI_UI_GRAY_400);
@@ -257,8 +256,8 @@ export default class ExecController extends Controller {
 
   openAndConnectSocket(command) {
     if (this.taskState) {
-      this.set('socketOpen', true);
-      this.set('command', command);
+      this.socketOpen = true;
+      this.command = command;
       this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
       new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);

@@ -158,9 +158,8 @@ export default class ClientsController extends Controller.extend(
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter)),
+      this.qpDatacenter = serialize(
+        intersection(datacenters, this.selectionDatacenter),
       );
     });
 
@@ -176,9 +175,8 @@ export default class ClientsController extends Controller.extend(
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClientClass',
-        serialize(intersection(clientClasses, this.selectionClientClass)),
+      this.qpClientClass = serialize(
+        intersection(clientClasses, this.selectionClientClass),
       );
     });
 
@@ -198,12 +196,12 @@ export default class ClientsController extends Controller.extend(
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action
   updateSearchTerm(searchTerm) {
-    this.set('searchTerm', searchTerm);
+    this.searchTerm = searchTerm;
     this.resetPagination();
   }
 }
