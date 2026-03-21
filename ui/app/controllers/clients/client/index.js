@@ -186,20 +186,20 @@ export default class ClientController extends Controller.extend(
       yield value ? this.model.setEligible() : this.model.setIneligible();
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not set eligibility';
-      this.eligibilityError = error;
+      set(this, 'eligibilityError', error);
     }
   }).drop())
   setEligibility;
 
   @(task(function* () {
     try {
-      this.flagAsDraining = false;
+      set(this, 'flagAsDraining', false);
       yield this.model.cancelDrain();
-      this.showDrainStoppedNotification = true;
+      set(this, 'showDrainStoppedNotification', true);
     } catch (err) {
-      this.flagAsDraining = true;
+      set(this, 'flagAsDraining', true);
       const error = messageFromAdapterError(err) || 'Could not stop drain';
-      this.stopDrainError = error;
+      set(this, 'stopDrainError', error);
     }
   }).drop())
   stopDrain;
@@ -211,17 +211,17 @@ export default class ClientController extends Controller.extend(
       });
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not force drain';
-      this.drainError = error;
+      set(this, 'drainError', error);
     }
   }).drop())
   forceDrain;
 
   triggerDrainNotification() {
     if (!this.model.isDraining && this.flagAsDraining) {
-      this.showDrainNotification = true;
+      set(this, 'showDrainNotification', true);
     }
 
-    this.flagAsDraining = this.model.isDraining;
+    set(this, 'flagAsDraining', this.model.isDraining);
   }
 
   @action
@@ -236,43 +236,43 @@ export default class ClientController extends Controller.extend(
 
   @action
   drainNotify(isUpdating) {
-    this.showDrainUpdateNotification = isUpdating;
+    set(this, 'showDrainUpdateNotification', isUpdating);
   }
 
   @action
   setDrainError(err) {
     const error = messageFromAdapterError(err) || 'Could not run drain';
-    this.drainError = error;
+    set(this, 'drainError', error);
   }
 
   @action
   clearEligibilityError() {
-    this.eligibilityError = null;
+    set(this, 'eligibilityError', null);
   }
 
   @action
   clearStopDrainError() {
-    this.stopDrainError = null;
+    set(this, 'stopDrainError', null);
   }
 
   @action
   clearDrainError() {
-    this.drainError = null;
+    set(this, 'drainError', null);
   }
 
   @action
   dismissDrainStoppedNotification() {
-    this.showDrainStoppedNotification = false;
+    set(this, 'showDrainStoppedNotification', false);
   }
 
   @action
   dismissDrainUpdateNotification() {
-    this.showDrainUpdateNotification = false;
+    set(this, 'showDrainUpdateNotification', false);
   }
 
   @action
   dismissDrainNotification() {
-    this.showDrainNotification = false;
+    set(this, 'showDrainNotification', false);
   }
 
   @action
