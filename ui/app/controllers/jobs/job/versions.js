@@ -18,10 +18,8 @@ const errorLevelToAlertClass = {
   warn: 'is-warning',
 };
 
-export default class VersionsController extends Controller.extend(
-  WithNamespaceResetting,
-) {
-  error = null;
+export default class VersionsController extends Controller.extend(WithNamespaceResetting) {
+  @tracked error = null;
 
   @alias('model') job;
 
@@ -29,19 +27,17 @@ export default class VersionsController extends Controller.extend(
 
   @computed('error.level')
   get errorLevelClass() {
-    return (
-      errorLevelToAlertClass[this.get('error.level')] || alertClassFallback
-    );
+    return errorLevelToAlertClass[this.error?.level] || alertClassFallback;
   }
 
   @action
   onDismiss() {
-    this.set('error', null);
+    this.error = null;
   }
 
   @action
   handleError(errorObject) {
-    this.set('error', errorObject);
+    this.error = errorObject;
   }
 
   @tracked diffVersion = '';

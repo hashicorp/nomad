@@ -102,13 +102,13 @@ export default class AllocationsController extends Controller.extend(
   @action
   resetPagination() {
     if (this.currentPage != null) {
-      this.set('currentPage', 1);
+      this.currentPage = 1;
     }
   }
 
   @action
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+    this[queryParam] = serialize(selection);
   }
 
   @action

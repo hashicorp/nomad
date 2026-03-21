@@ -182,7 +182,7 @@ export default class Tokens extends Controller {
             secret: token.secret,
             tokenNotFound: false,
           });
-          this.set('secret', null);
+          this.secret = null;
 
           // Clear out all data to ensure only data the new token is privileged to see is shown
           this.resetStore();
@@ -201,7 +201,7 @@ export default class Tokens extends Controller {
     } else {
       this.clearTokenProperties();
       this.token.set('secret', secret);
-      this.set('secret', null);
+      this.secret = null;
 
       TokenAdapter.findSelf().then(
         () => {
