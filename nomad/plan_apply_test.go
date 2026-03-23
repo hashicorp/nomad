@@ -104,6 +104,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Namespace,
 			ID:        alloc.Job.ID,
@@ -183,6 +184,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Apply the plan
 	plan = &structs.Plan{
+		Job: job,
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: job.Namespace,
 			ID:        job.ID,
@@ -218,12 +220,36 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, allocOut)
 	must.NotNil(t, allocOut.Job)
+	must.Eq(t, alloc2.Job.ID, allocOut.Job.ID)
+	must.Eq(t, alloc2.Job.Namespace, allocOut.Job.Namespace)
 
 	// Lookup updated eval
 	evalOut, err = fsmState.EvalByID(ws, eval.ID)
 	must.NoError(t, err)
 	must.NotNil(t, evalOut)
 	must.Eq(t, index, evalOut.ModifyIndex)
+}
+
+func TestPlanApply_applyPlan_RequiresEmbeddedJob(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	plan := &structs.Plan{
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: "default",
+			ID:        "example",
+		},
+		EvalID: uuid.Generate(),
+	}
+	planRes := &structs.PlanResult{}
+	snap, err := srv.State().Snapshot()
+	must.NoError(t, err)
+
+	_, err = srv.applyPlan(plan, planRes, snap)
+	must.EqError(t, err, "plan missing embedded job")
 }
 
 // Verifies that applyPlan properly updates the constituent objects in MemDB,
@@ -307,6 +333,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,
@@ -341,6 +368,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
 	must.NoError(t, err)
 	must.NotNil(t, allocOut)
+	must.NotNil(t, allocOut.Job)
+	must.Eq(t, alloc.Job.ID, allocOut.Job.ID)
+	must.Eq(t, alloc.Job.Namespace, allocOut.Job.Namespace)
 	must.True(t, allocOut.CreateTime > 0)
 	must.True(t, allocOut.ModifyTime > 0)
 	must.Eq(t, allocOut.CreateTime, allocOut.ModifyTime)
@@ -479,6 +509,7 @@ func TestPlanApply_KeyringNotReady(t *testing.T) {
 		},
 	}
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		JobInfo: &structs.PlanJobTuple{
 			Namespace: alloc.Job.Namespace,
 			ID:        alloc.Job.ID,

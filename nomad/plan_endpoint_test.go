@@ -34,22 +34,26 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, eval1, evalOut)
 
-	// Submit a plan
+	// Submit a lean plan and ensure the endpoint hydrates Job for internal use.
 	plan := mock.Plan()
 	plan.EvalID = eval1.ID
 	plan.EvalToken = token
 	job := mock.Job()
+	must.NoError(t, s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 	plan.JobInfo = &structs.PlanJobTuple{
 		Namespace: job.Namespace,
 		ID:        job.ID,
 	}
+	must.Nil(t, plan.Job)
+
 	req := &structs.PlanRequest{
 		Plan:         plan,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.PlanResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp))
-	must.NotNil(t, resp.Result)
+	must.Nil(t, plan.Job)
+	must.Eq(t, plan, req.Plan)
 }
 
 // TestPlanEndpoint_Submit_Bad asserts that the Plan.Submit endpoint rejects
@@ -73,9 +77,10 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 	must.Eq(t, eval, evalOut)
 
 	cases := []struct {
-		Name string
-		Plan *structs.Plan
-		Err  string
+		Name         string
+		Plan         *structs.Plan
+		SetupJobInfo func(*structs.Plan)
+		Err          string
 	}{
 		{
 			Name: "Nil",
@@ -85,21 +90,21 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 		{
 			Name: "Empty",
 			Plan: &structs.Plan{},
-			Err:  "evaluation is not outstanding",
+			Err:  "cannot submit plan without job info",
 		},
 		{
 			Name: "BadEvalID",
 			Plan: &structs.Plan{
 				EvalID: "1234", // does not exist
 			},
-			Err: "evaluation is not outstanding",
+			Err: "cannot submit plan without job info",
 		},
 		{
 			Name: "MissingToken",
 			Plan: &structs.Plan{
 				EvalID: eval.ID,
 			},
-			Err: "evaluation token does not match",
+			Err: "cannot submit plan without job info",
 		},
 		{
 			Name: "InvalidToken",
@@ -107,13 +112,43 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 				EvalID:    eval.ID,
 				EvalToken: "1234", // invalid
 			},
-			Err: "evaluation token does not match",
+			Err: "cannot submit plan without job info",
+		},
+		{
+			Name: "MissingJobInfo",
+			Plan: &structs.Plan{
+				EvalID:    eval.ID,
+				EvalToken: "token",
+			},
+			Err: "cannot submit plan without job info",
+		},
+		{
+			Name: "DeletedJob",
+			Plan: &structs.Plan{
+				EvalID:    eval.ID,
+				EvalToken: "token",
+			},
+			SetupJobInfo: func(plan *structs.Plan) {
+				job := mock.Job()
+				plan.JobInfo = &structs.PlanJobTuple{
+					Namespace: job.Namespace,
+					ID:        job.ID,
+				}
+			},
+			Err: "",
 		},
 	}
 
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
+			if tc.SetupJobInfo != nil {
+				tc.SetupJobInfo(tc.Plan)
+				if tc.Name == "DeletedJob" {
+					tc.Err = "job " + `"` + tc.Plan.JobInfo.ID + `"` + " in namespace " + `"` + tc.Plan.JobInfo.Namespace + `"` + " not found"
+				}
+			}
+
 			req := &structs.PlanRequest{
 				Plan:         tc.Plan,
 				WriteRequest: structs.WriteRequest{Region: "global"},
@@ -248,6 +283,7 @@ func TestPlanEndpoint_Submit_FullJobAndJobInfo(t *testing.T) {
 				}
 				alloc := mock.Alloc()
 				alloc.JobID = job.ID
+				alloc.NodeID = node.ID
 				plan.NodeAllocation = map[string][]*structs.Allocation{node.ID: {alloc}}
 			}
 
@@ -257,7 +293,15 @@ func TestPlanEndpoint_Submit_FullJobAndJobInfo(t *testing.T) {
 			}
 			var resp structs.PlanResponse
 			must.NoError(t, msgpackrpc.CallWithCodec(codec, "Plan.Submit", req, &resp))
-			must.NotNil(t, resp.Result)
+
+			if tc.ProvideFull {
+				must.NotNil(t, plan.Job)
+				must.Nil(t, plan.JobInfo)
+			} else {
+				must.Nil(t, plan.Job)
+				must.NotNil(t, plan.JobInfo)
+				must.Eq(t, req.Plan, plan)
+			}
 		})
 	}
 }
