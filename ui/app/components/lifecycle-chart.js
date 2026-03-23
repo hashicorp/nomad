@@ -86,5 +86,6 @@ const lifecycleNameSortPrefix = {
 };
 
 function getTaskSortPrefix(task) {
+  if (!task) return '';
   return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
 }
