@@ -67,4 +67,21 @@ export default class StatsTrackersRegistryService extends Service {
 
     return tracker;
   }
+
+  // utility method to cancel all active stats polling tasks across all trackers in the registry.
+  cancelAll() {
+    registry.forEach((tracker) => {
+      // Cancel the poll task if it exists and is running
+      if (tracker.poll && typeof tracker.poll.cancelAll === 'function') {
+        tracker.poll.cancelAll();
+      }
+      // Cancel the signalPause task if it exists
+      if (
+        tracker.signalPause &&
+        typeof tracker.signalPause.cancelAll === 'function'
+      ) {
+        tracker.signalPause.cancelAll();
+      }
+    });
+  }
 }
