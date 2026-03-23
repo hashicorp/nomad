@@ -28,7 +28,7 @@ jobs:
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
         id: vault
-        uses: hashicorp/vault-action@a1b77a09293a4366e48a5067a86692ac6e94fdc0 # v3.1.0
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
         with:
           url: ${{ vars.CI_VAULT_URL }}
           method: ${{ vars.CI_VAULT_METHOD }}
@@ -37,7 +37,7 @@ jobs:
           secrets: |-
             kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
       - name: Send Slack notification
-        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: "${{ env.SLACK_FEED_NOMAD || secrets.SLACK_FEED_NOMAD_CI_FAILURE }}"
           webhook-type: incoming-webhook
