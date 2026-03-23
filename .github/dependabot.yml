@@ -5,27 +5,56 @@ version: 2
 updates:
   - package-ecosystem: gomod
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
     labels:
       - "theme/dependencies"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    groups:
+      go:
+        patterns:
+          - "*"
+
   - package-ecosystem: gomod
     directory: "/api"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
     labels:
       - "theme/dependencies"
       - "theme/api"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    groups:
+      go-api:
+        patterns:
+          - "*"
+
   - package-ecosystem: npm
     directory: "/ui"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "09:00"
     labels:
       - "theme/dependencies"
       - "theme/ui"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    groups:
+      ui-dev:
+         patterns:
+           - "*"
+         dependency-type: "development"
+      ui-prod:
+         patterns:
+           - "*"
+         dependency-type: "production"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    labels:
+      - "theme/dependencies"
+      - "theme/build-infrastructure"
+    groups:
+      actions:
+        patterns:
+          - "*"
