@@ -44,18 +44,46 @@ export default class StatsTrackersRegistryService extends Service {
     if (!resource) return;
 
     const type = resource && resource.constructor.modelName;
-    const key = `${type}:${resource.get('id')}`;
+    const resourceId = resource.get('id');
+
+    if (!resourceId) {
+      return;
+    }
+
+    const key = `${type}:${resourceId}`;
     const Constructor =
       type === 'node' ? NodeStatsTracker : AllocationStatsTracker;
     const resourceProp = type === 'node' ? 'node' : 'allocation';
 
     const cachedTracker = registry.get(key);
     if (cachedTracker) {
-      // It's possible for the resource on a cachedTracker to have been
-      // deleted. Rebind it if that's the case.
-      if (!exists(cachedTracker, resourceProp))
-        cachedTracker.set(resourceProp, resource);
-      return cachedTracker;
+      const cachedResource = cachedTracker.get(resourceProp);
+      const shouldReuse =
+        exists(cachedTracker, resourceProp) && cachedResource === resource;
+
+      if (shouldReuse) {
+        return cachedTracker;
+      }
+
+      // Replace stale/mismatched trackers instead of mutating an already-used
+      // tracker during render.
+      if (cachedTracker.poll && typeof cachedTracker.poll.cancelAll === 'function') {
+        cachedTracker.poll.cancelAll();
+      }
+      if (
+        cachedTracker.signalPause &&
+        typeof cachedTracker.signalPause.cancelAll === 'function'
+      ) {
+        cachedTracker.signalPause.cancelAll();
+      }
+
+      const replacementTracker = Constructor.create({
+        fetch: (url) => this.token.authorizedRequest(url),
+        [resourceProp]: resource,
+      });
+
+      registry.set(key, replacementTracker);
+      return replacementTracker;
     }
 
     const tracker = Constructor.create({
