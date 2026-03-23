@@ -21,7 +21,7 @@ jobs:
     outputs:
       nonce: ${{ steps.nonce.outputs.nonce }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-js
       - name: lint:js
         run: pnpm lint:js
@@ -47,13 +47,13 @@ jobs:
         # Note: If we ever change the number of partitions, we'll need to update the
         # finalize.combine step to match
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-js
-      - uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # v1.7.3
+      - uses: browser-actions/setup-chrome@4f8e94349a351df0f048634f25fec36c3c91eded # v2.1.1
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
         id: vault
-        uses: hashicorp/vault-action@a1b77a09293a4366e48a5067a86692ac6e94fdc0 # v3.1.0
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
         with:
           url: ${{ vars.CI_VAULT_URL }}
           method: ${{ vars.CI_VAULT_METHOD }}
@@ -84,7 +84,7 @@ jobs:
           exit 1
       - name: Upload partition test results
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: test-results-${{ matrix.partition }}
           path: ui/test-results/test-results.json
@@ -99,12 +99,12 @@ jobs:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-js
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
         id: vault
-        uses: hashicorp/vault-action@a1b77a09293a4366e48a5067a86692ac6e94fdc0 # v3.1.0
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
         with:
           url: ${{ vars.CI_VAULT_URL }}
           method: ${{ vars.CI_VAULT_METHOD }}
@@ -114,7 +114,7 @@ jobs:
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: Download all test results
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: test-results-*
           path: test-results
@@ -124,7 +124,7 @@ jobs:
         run: node ../scripts/combine-ui-test-results.js
       - name: Upload combined results for comparison
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: test-results-${{ github.sha }}
           path: ui/combined-test-results.json
