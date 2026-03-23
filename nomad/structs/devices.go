@@ -98,7 +98,8 @@ func (d *DeviceAccounter) Copy() *DeviceAccounter {
 
 // AddAllocs takes a set of allocations and internally marks which devices are
 // used. If a device is used more than once by the set of passed allocations,
-// the collision will be returned as true.
+// the collision will be returned as true unless it has been placed on a
+// device that explicitly allows sharing.
 func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	for _, a := range allocs {
 		// Filter any terminal allocation
@@ -160,13 +161,32 @@ func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
 	return false
 }
 
-// willShare loops through the []*NodeDevices in DevAccounterInstance.Device
-// and returns a bool to indicate
+// willShare is called in the loop that marks each reserved instance as used
+// in the accounter. It takes a deviceID string and uses it to look up
+// return the task requesting the device is willing to share
+func willShare(res *AllocatedDeviceResource, deviceID string) bool {
+	// d.WillShare is nil => return false as default and do reservation as usual
+	if res.WillShare == nil {
+		return false
+	}
+	// does exist, is true = > this is the shared device, it will share => return true
+	if exists, willing := res.WillShare[deviceID]; exists && willing {
+
+		return true
+	}
+	// In all remaining cases we return false
+	// does not exist, val is true => this is not the shared device's ID => return false
+	// does not exist, va, is false => this is not the shared device's ID => return false
+	// does exist is false = > this is the shared device, it will not share => return false
+	return false
+}
 
 // AddReserved marks the device instances in the passed device reservation as
-// used,  updates its entry in the  WillShare map and returns if there is a collision.
+// used, checks the res.WillShare map to see if the createOffer expected the device
+// to share. If the device will share we do not report a collision even if it
+// has already been used
 func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision bool) {
-	// Lookup the device.
+	// Lookup the deviceAccounter
 	devAccounter, ok := d.Devices[*res.ID()]
 	if !ok {
 		return false
@@ -179,14 +199,20 @@ func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision b
 			continue
 		}
 
-		// Check if it is shared
+		// if offer expects device will share, mark device as used
+		// and continue without marking collision
+		if willShare(res, id) {
+			devAccounter.Instances[id]++
+			continue
+		}
+
+		// mark collision if device will not share and has already been used
 		if cur != 0 {
 			collision = true
 		}
-
 		devAccounter.Instances[id]++
-	}
 
+	}
 	return
 }
 
