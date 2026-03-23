@@ -19,7 +19,6 @@ import { handleRouteRedirects } from '../utils/route-redirector';
 export default class ApplicationRoute extends Route {
   @service config;
   @service system;
-  @service store;
   @service token;
   @service router;
 
@@ -91,35 +90,15 @@ export default class ApplicationRoute extends Route {
     const queryParam = transition.to.queryParams.region;
     const defaultRegion = this.get('system.defaultRegion.region');
     const currentRegion = this.get('system.activeRegion') || defaultRegion;
-
-    // Check if region actually changed
-    const regionChanged =
-      (queryParam && queryParam !== currentRegion) ||
-      (!queryParam && currentRegion !== defaultRegion);
+    const nextRegion = queryParam || defaultRegion;
+    const regionChanged = nextRegion !== currentRegion;
 
     // Update the active region - the adapter will use this for all API requests
-    this.set('system.activeRegion', queryParam || defaultRegion);
+    this.set('system.activeRegion', nextRegion);
 
-    // If region changed, cancel watchers, clear store, and refresh
-    if (regionChanged) {
+    // Refresh for child routes if region changes and only if query-param-only transitions
+    if (regionChanged && transition.queryParamsOnly) {
       later(() => {
-        // Cancel all watchers on the current route to prevent polling old region
-        const currentRoute = this.router.currentRoute;
-        if (
-          currentRoute &&
-          currentRoute.handler &&
-          currentRoute.handler.cancelAllWatchers
-        ) {
-          currentRoute.handler.cancelAllWatchers();
-
-          // Cancel all stats trackers as well
-          this.get('stats-trackers-registry').cancelAll();
-        }
-
-        // Clear the store to remove stale data
-        this.store.unloadAll();
-
-        // Refresh to reload with new region data
         this.refresh();
       }, 0);
     }
