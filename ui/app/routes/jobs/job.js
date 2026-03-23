@@ -42,8 +42,8 @@ export default class JobRoute extends Route.extend(WithWatchers) {
       .findRecord('job', fullId, { reload: true })
       .then((job) => {
         const relatedModelsQueries = [
-          job.get('allocations'),
-          job.get('evaluations'),
+          job.hasMany('allocations').reload(),
+          job.hasMany('evaluations').reload(),
           this.store.findAll('namespace'),
         ];
 
