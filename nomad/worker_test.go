@@ -640,9 +640,10 @@ func TestWorker_SubmitPlan_JobVsJobInfo(t *testing.T) {
 			// Verify that the plan was transformed appropriately for newer servers.
 			if tc.ExpectLean {
 				// For lean-plan-capable servers the worker should convert the full
-				// Job into JobInfo before RPC, leaving plan.Job nil and populating
-				// plan.JobInfo.
-				must.Nil(t, plan.Job)
+				// Job into JobInfo before RPC. The plan endpoint then hydrates the
+				// embedded job for internal processing, so after SubmitPlan returns
+				// the original plan once again has Job populated alongside JobInfo.
+				must.NotNil(t, plan.Job)
 				must.NotNil(t, plan.JobInfo)
 			} else {
 				// For older servers the full Job should be preserved on the plan.

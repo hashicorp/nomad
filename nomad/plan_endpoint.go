@@ -42,10 +42,29 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 		return fmt.Errorf("cannot submit nil plan")
 	}
 
+	plan := args.Plan
+	if plan.Job == nil {
+		if plan.JobInfo == nil {
+			return fmt.Errorf("cannot submit plan without job info")
+		}
+
+		// we lookup the job immediately after the plan submission is requested,
+		// in order to save time not having to look it up whenever needed and
+		// more importantly, to avoid nil jobs in the plan in situations when
+		// job gets dropped from the state store while plan is still in flight.
+		job, err := p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
+		if err != nil {
+			return err
+		}
+		if job == nil {
+			return fmt.Errorf("job %q in namespace %q not found", plan.JobInfo.ID, plan.JobInfo.Namespace)
+		}
+		plan.Job = job
+	}
+
 	// Pause the Nack timer for the eval as it is making progress as long as it
 	// is in the plan queue. We resume immediately after we get a result to
 	// handle the case that the receiving worker dies.
-	plan := args.Plan
 	id := plan.EvalID
 	token := plan.EvalToken
 	if err := p.srv.evalBroker.PauseNackTimeout(id, token); err != nil {
