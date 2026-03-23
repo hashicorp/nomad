@@ -54,7 +54,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
         await allocation.reload();
       }
       const jobId = allocation.belongsTo('job').id();
-      await this.store.findRecord('job', jobId);
+      await this.store.findRecord('job', jobId, { reload: true });
       return allocation;
     } catch (e) {
       const [allocId, transition] = arguments;
