@@ -22,11 +22,9 @@ export default function jsonToHcl(obj) {
       // Try to parse as JSON to validate it's actually valid JSON
       try {
         const parsed = JSON.parse(value);
-        // Only preserve as JSON if it's an array or object
         if (typeof parsed === 'object' && parsed !== null) {
-          hclValue = value; // Keep it as valid JSON
+          hclValue = value;
         } else {
-          // Parsed to a primitive (string, number, boolean, null)
           hclValue = JSON.stringify(value);
         }
       } catch {
