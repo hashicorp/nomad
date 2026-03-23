@@ -19,14 +19,18 @@ export default function jsonToHcl(obj) {
     let hclValue;
 
     if (typeof value === 'string') {
-      // Check if it's a JSON array or object (starts with [ or {)
-      if (
-        (value.startsWith('[') && value.endsWith(']')) ||
-        (value.startsWith('{') && value.endsWith('}'))
-      ) {
-        hclValue = value; // Keep it as a JSON string
-      } else {
-        // Escape double quotes and backslashes
+      // Try to parse as JSON to validate it's actually valid JSON
+      try {
+        const parsed = JSON.parse(value);
+        // Only preserve as JSON if it's an array or object
+        if (typeof parsed === 'object' && parsed !== null) {
+          hclValue = value; // Keep it as valid JSON
+        } else {
+          // Parsed to a primitive (string, number, boolean, null)
+          hclValue = JSON.stringify(value);
+        }
+      } catch {
+        // Not valid JSON, treat as a regular string
         hclValue = JSON.stringify(value);
       }
     } else {

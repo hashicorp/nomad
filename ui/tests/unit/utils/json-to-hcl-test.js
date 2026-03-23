@@ -55,4 +55,15 @@ module('Unit | Utility | json-to-hcl', function () {
     // Should be treated as a regular string and quoted
     assert.equal(result, 'text="[incomplete"\n');
   });
+
+  test('it handles the case where a string variable contains invalid JSON-like syntax from CLI', function (assert) {
+    // Real-world scenario: nomad job run -var="example=[dc1,dc2]" test-string-var.hcl
+    // When variable has type=string, HCL2 treats it as literal string
+    // The string "[dc1,dc2]" reaches the UI and must be quoted correctly
+    const input = { example: '[dc1,dc2]' };
+    const result = jsonToHcl(input);
+
+    // Should be quoted as a string since it's not valid JSON
+    assert.equal(result, 'example="[dc1,dc2]"\n');
+  });
 });
