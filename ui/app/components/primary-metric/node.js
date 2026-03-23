@@ -74,7 +74,11 @@ export default class NodePrimaryMetric extends Component {
 
   @task(function* () {
     do {
-      this.tracker.poll.perform();
+      const tracker = this.tracker;
+      const nodeId = tracker && get(tracker, 'node.id');
+      if (tracker && nodeId) {
+        tracker.poll.perform();
+      }
       yield timeout(100);
     } while (!Ember.testing);
   })
@@ -88,6 +92,8 @@ export default class NodePrimaryMetric extends Component {
   willDestroy() {
     super.willDestroy(...arguments);
     this.poller.cancelAll();
-    this.tracker.signalPause.perform();
+    if (this.tracker) {
+      this.tracker.signalPause.perform();
+    }
   }
 }
