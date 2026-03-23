@@ -409,14 +409,14 @@ func TestSandbox_Get_inspection_behavior(t *testing.T) {
 				taskDir, sbox, env := sandboxSetup()
 				must.NoError(t, os.MkdirAll(filepath.Join(taskDir, artifact.RelativeDest), 0755))
 				err := sbox.Get(env, artifact, "nobody")
-				must.ErrorContains(t, err, "empty string is not a valid pathspec")
+				must.ErrorContains(t, err, "invalid reference")
 			})
 
 			t.Run("inspection", func(t *testing.T) {
 				taskDir, sbox, env := sandboxSetupInspect()
 				must.NoError(t, os.MkdirAll(filepath.Join(taskDir, artifact.RelativeDest), 0755))
 				err := sbox.Get(env, artifact, "nobody")
-				must.ErrorContains(t, err, "empty string is not a valid pathspec")
+				must.ErrorContains(t, err, "invalid reference")
 			})
 		})
 
