@@ -111,6 +111,9 @@ export default class ApplicationRoute extends Route {
           currentRoute.handler.cancelAllWatchers
         ) {
           currentRoute.handler.cancelAllWatchers();
+
+          // Cancel all stats trackers as well
+          this.get('stats-trackers-registry').cancelAll();
         }
 
         // Clear the store to remove stale data
