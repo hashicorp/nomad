@@ -1959,6 +1959,57 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 					ID: aclRole1.ID, Name: aclRole1.Name}}, tokenResp1.Tokens[0].Roles)
 			},
 		},
+		{
+			name: "upload client token with pre-specified ids",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+				uploadToken := mock.ACLToken()
+				uploadToken.CreateIndex = 0
+				uploadToken.ModifyIndex = 0
+
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{uploadToken},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+				var resp structs.ACLTokenUpsertResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				require.Len(t, resp.Tokens, 1)
+
+				got := resp.Tokens[0]
+				require.Equal(t, uploadToken.AccessorID, got.AccessorID)
+				require.Equal(t, uploadToken.SecretID, got.SecretID)
+
+				out, err := testServer.fsm.State().ACLTokenByAccessorID(nil, uploadToken.AccessorID)
+				require.NoError(t, err)
+				require.NotNil(t, out)
+				require.Equal(t, uploadToken.AccessorID, out.AccessorID)
+				require.Equal(t, uploadToken.SecretID, out.SecretID)
+			},
+		},
+		{
+			name: "cannot upload management token",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+				mgmtToken := &structs.ACLToken{
+					AccessorID: uuid.Generate(),
+					SecretID:   uuid.Generate(),
+					Name:       "my-mgmt-token-" + uuid.Generate(),
+					Type:       structs.ACLManagementToken,
+				}
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{mgmtToken},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+				var resp structs.ACLTokenUpsertResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp)
+				require.ErrorContains(t, err, "cannot find token")
+				require.Empty(t, resp.Tokens)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
