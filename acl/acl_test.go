@@ -144,7 +144,7 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
-	must.False(t, acl.AllowClientOp("my-pool"))
+	must.True(t, acl.AllowClientOp("my-pool"))
 
 	// Merge read + blank
 	p3, err := Parse("", PolicyParseStrict)
@@ -182,7 +182,7 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
-	must.False(t, acl.AllowClientOp("my-pool"))
+	must.True(t, acl.AllowClientOp("my-pool"))
 
 	// Merge read + deny
 	p4, err := Parse(denyAll, PolicyParseStrict)
@@ -667,7 +667,7 @@ func TestAllowClientOp(t *testing.T) {
 		description string
 	}{
 		{
-			name: "client denied without client policy",
+			name: "client allowed in explicitly permitted pool",
 			policy: `
 namespace "default" {
 	policy = "read"
@@ -677,8 +677,8 @@ node_pool "prod" {
 }
 `,
 			pool:        "prod",
-			allowOp:     false,
-			description: "client operations are denied without an explicit client policy, even with node pool read access",
+			allowOp:     true,
+			description: "client operations are allowed when the node pool is permitted",
 		},
 		{
 			name: "client denied in unspecified pool",
@@ -695,7 +695,7 @@ node_pool "prod" {
 			description: "client should be denied in a pool not specified in the policy",
 		},
 		{
-			name: "client denied with wildcard pool but no client policy",
+			name: "client allowed with wildcard pool",
 			policy: `
 namespace "default" {
 	policy = "read"
@@ -705,8 +705,8 @@ node_pool "*" {
 }
 `,
 			pool:        "any-pool",
-			allowOp:     false,
-			description: "client should be denied even with wildcard node pool without explicit client policy",
+			allowOp:     true,
+			description: "client should be allowed when a wildcard node pool matches",
 		},
 		{
 			name: "client denied with explicit deny",
@@ -723,7 +723,7 @@ node_pool "prod" {
 			description: "client should be denied when pool has explicit deny policy",
 		},
 		{
-			name: "client denied with write policy but no client policy",
+			name: "client allowed with write policy",
 			policy: `
 namespace "default" {
 	policy = "read"
@@ -733,8 +733,8 @@ node_pool "staging" {
 }
 `,
 			pool:        "staging",
-			allowOp:     false,
-			description: "client should be denied in pool with write policy if no explicit client policy",
+			allowOp:     true,
+			description: "client should be allowed in a pool with write policy",
 		},
 		{
 			name: "client denied in default pool without policy",
@@ -751,7 +751,7 @@ node_pool "prod" {
 			description: "client should be denied in default pool when no policy specifies it",
 		},
 		{
-			name: "client denied in default pool without client policy",
+			name: "client allowed in default pool with policy",
 			policy: `
 namespace "default" {
 	policy = "read"
@@ -761,11 +761,11 @@ node_pool "default" {
 }
 `,
 			pool:        "default",
-			allowOp:     false,
-			description: "client should be denied in default pool without explicit client policy",
+			allowOp:     true,
+			description: "client should be allowed in default pool when the pool is explicitly permitted",
 		},
 		{
-			name: "client denied with glob pattern match but no client policy",
+			name: "client allowed with glob pattern match",
 			policy: `
 namespace "default" {
 	policy = "read"
@@ -775,8 +775,8 @@ node_pool "prod-*" {
 }
 `,
 			pool:        "prod-us-west",
-			allowOp:     false,
-			description: "client should be denied in pools matching glob pattern without explicit client policy",
+			allowOp:     true,
+			description: "client should be allowed in pools matching glob pattern",
 		},
 		{
 			name: "client denied glob pattern non-match",
