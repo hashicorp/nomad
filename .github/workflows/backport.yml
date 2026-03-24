@@ -93,7 +93,7 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ env.SLACK_FEED_NOMAD || secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          SLACK_WEBHOOK_TYPE: incoming-webhook
 permissions:
   contents: read
   id-token: write
