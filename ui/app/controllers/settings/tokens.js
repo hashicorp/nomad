@@ -206,12 +206,14 @@ export default class Tokens extends Controller {
     }
   }
 
-  // Generate a 20-char nonce, using window.crypto to
-  // create a sufficiently-large output then trimming
+  // Generate a 256-bit nonce and encode bytes as hex to preserve entropy.
   generateNonce() {
-    let randomArray = new Uint32Array(10);
-    crypto.getRandomValues(randomArray);
-    return randomArray.join('').slice(0, 20);
+    const randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+
+    return Array.from(randomBytes, (byte) =>
+      byte.toString(16).padStart(2, '0')
+    ).join('');
   }
 
   @action redirectToSSO(method) {
