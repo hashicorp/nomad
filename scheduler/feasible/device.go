@@ -129,19 +129,29 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 		assignable := []string{}
 		willShare := make(map[string]bool)
 		for instanceID, v := range devInst.Instances {
-			if v != 0 {
+			var shareable bool
+			// mark shareable if we find a single shareable device
+			for _, nodeDevice := range devInst.Device.Instances {
+				if nodeDevice.Shared == structs.DeviceSharingActive {
+					shareable = true
+					break
+				}
+			}
+
+			if v != 0 && !shareable {
 				continue
 			}
+
 			if !mem.Matches(instanceID, devInst.Device) {
 				continue
 			}
+
 			if d.deviceIDConstraintAndSharingChecks(instanceID, ask.Constraints, ask.WillShare, devInst.Device) {
 				assignable = append(assignable, instanceID)
 				if ask.WillShare != nil {
 					willShare[instanceID] = ask.WillShare.Enabled //only update willShare map if assignable
 				}
 			}
-
 			// Don't assign more than the ask
 			if len(assignable) == int(ask.Count) {
 				break
@@ -205,7 +215,6 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 	if offer == nil {
 		return nil, 0.0, fmt.Errorf("no devices match request")
 	}
-
 	return offer, matchedWeights, nil
 }
 
@@ -253,18 +262,16 @@ func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.Will
 			} else {
 				continue
 			}
-
-			if len(sharing.GpuId) != 0 {
-				if sharing.GpuId == dev.ID {
-					return canShare
-				}
-			} else {
-				// this should probably be false
-				return canShare
-			}
-
 		}
 	}
+	// if the device and task are sharable and we're targeting a specific GPU
+	// confirm it's the one we want
+	if len(sharing.GpuId) != 0 {
+		if sharing.GpuId != id {
+			canShare = false
+		}
+	}
+
 	return canShare
 }
 

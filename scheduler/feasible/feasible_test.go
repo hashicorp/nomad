@@ -3193,7 +3193,23 @@ func TestDeviceChecker(t *testing.T) {
 			},
 		}
 	}
+	// will create a taskgroup with with len(devices) tasks, each task will request
+	// all devices
+	getSharedTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
+		var tasks []*structs.Task
 
+		for range devices {
+			tasks = append(tasks, &structs.Task{
+				Resources: &structs.Resources{
+					Devices: devices,
+				},
+			})
+		}
+		return &structs.TaskGroup{
+			Name:  "example",
+			Tasks: tasks,
+		}
+	}
 	// Just type
 	gpuTypeReq := &structs.RequestedDevice{
 		Name:  "gpu",
@@ -3235,7 +3251,6 @@ func TestDeviceChecker(t *testing.T) {
 		n.NodeResources.Devices = devices
 		return n
 	}
-
 	nvidia_A := &structs.NodeDeviceResource{
 		Vendor: "nvidia",
 		Type:   "gpu",
@@ -3277,7 +3292,12 @@ func TestDeviceChecker(t *testing.T) {
 			},
 		},
 	}
-
+	makeDeviceSharable := func(device *structs.NodeDeviceResource) *structs.NodeDeviceResource {
+		for _, v := range device.Instances {
+			v.Shared = structs.DeviceSharingActive
+		}
+		return device
+	}
 	nvidiaUnhealthy := &structs.NodeDeviceResource{
 		Vendor: "nvidia",
 		Type:   "gpu",
@@ -3299,6 +3319,7 @@ func TestDeviceChecker(t *testing.T) {
 		Result           bool
 		NodeDevices      []*structs.NodeDeviceResource
 		RequestedDevices []*structs.RequestedDevice
+		isShared         bool
 	}{
 		{
 			Name:             "no devices on node",
@@ -3359,6 +3380,20 @@ func TestDeviceChecker(t *testing.T) {
 			Result:           false,
 			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
+		},
+		{
+			Name:             "shared device and two tasks",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{makeDeviceSharable(nvidia_A)},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq, gpuTypeReq},
+			isShared:         true,
+		},
+		{
+			Name:             "unshared device and two tasks",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq, gpuTypeReq},
+			isShared:         true,
 		},
 		{
 			Name:        "meets constraints requirement",
@@ -3570,6 +3605,13 @@ func TestDeviceChecker(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			_, ctx := MockContext(t)
 			checker := NewDeviceChecker(ctx)
+			var tg *structs.TaskGroup
+			tg = getTg(c.RequestedDevices...)
+			if c.isShared {
+				getSharedTg(c.RequestedDevices...)
+			}
+			checker.SetTaskGroup(tg)
+
 			checker.SetTaskGroup(getTg(c.RequestedDevices...))
 			if act := checker.Feasible(getNode(c.NodeDevices...)); act != c.Result {
 				t.Fatalf("got %v; want %v", act, c.Result)
