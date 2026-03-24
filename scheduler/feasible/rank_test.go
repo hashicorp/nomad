@@ -1914,9 +1914,9 @@ func TestBinPackIterator_Devices(t *testing.T) {
 							MemoryMB: 1024,
 							Devices: []*structs.RequestedDevice{
 								{
-									Name:      "nvidia/gpu/1080ti",
-									Count:     1,
-									WillShare: &structs.WillShare{Enabled: true},
+									Name:         "nvidia/gpu/1080ti",
+									Count:        1,
+									ShareDevices: &structs.ShareDevices{Enabled: true},
 								},
 							},
 						},
@@ -1928,9 +1928,9 @@ func TestBinPackIterator_Devices(t *testing.T) {
 							MemoryMB: 1024,
 							Devices: []*structs.RequestedDevice{
 								{
-									Name:      "nvidia/gpu/1080ti",
-									Count:     1,
-									WillShare: &structs.WillShare{Enabled: true},
+									Name:         "nvidia/gpu/1080ti",
+									Count:        1,
+									ShareDevices: &structs.ShareDevices{Enabled: true},
 								},
 							},
 						},

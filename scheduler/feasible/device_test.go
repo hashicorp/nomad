@@ -38,13 +38,13 @@ func deviceRequest(name string, count uint64,
 // sharedDeviceRequest takes the name, count and potential constraints and affinities
 // and returns a device request.
 func sharedDeviceRequest(name string, count uint64,
-	constraints []*structs.Constraint, affinities []*structs.Affinity, willShare *structs.WillShare) *structs.RequestedDevice {
+	constraints []*structs.Constraint, affinities []*structs.Affinity, shareDevices *structs.ShareDevices) *structs.RequestedDevice {
 	return &structs.RequestedDevice{
-		Name:        name,
-		Count:       count,
-		Constraints: constraints,
-		Affinities:  affinities,
-		WillShare:   willShare,
+		Name:         name,
+		Count:        count,
+		Constraints:  constraints,
+		Affinities:   affinities,
+		ShareDevices: shareDevices,
 	}
 }
 
@@ -669,50 +669,50 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name        string
-		deviceName  string
-		deviceID    string
-		willShare   *structs.WillShare
-		count       uint64
-		expectedErr string
+		name         string
+		deviceName   string
+		deviceID     string
+		shareDevices *structs.ShareDevices
+		count        uint64
+		expectedErr  string
 	}{
 		{
-			name:       "happy path",
-			deviceName: "nvidia/gpu",
-			deviceID:   gpuID0.ID,
-			willShare:  &structs.WillShare{Enabled: true},
-			count:      1,
+			name:         "happy path",
+			deviceName:   "nvidia/gpu",
+			deviceID:     gpuID0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: true},
+			count:        1,
 		},
 		{
-			name:       "structs.WillShare can be nil",
-			deviceName: "nvidia/gpu",
-			deviceID:   gpuID0.ID,
-			willShare:  nil,
-			count:      1,
+			name:         "structs.ShareDevices can be nil",
+			deviceName:   "nvidia/gpu",
+			deviceID:     gpuID0.ID,
+			shareDevices: nil,
+			count:        1,
 		},
 		{
-			name:        "if present, willShare must match device",
-			deviceName:  "nvidia/gpu",
-			deviceID:    gpuID0.ID,
-			willShare:   &structs.WillShare{Enabled: false},
-			count:       1,
-			expectedErr: "no devices match request",
+			name:         "if present, shareDevices must match device",
+			deviceName:   "nvidia/gpu",
+			deviceID:     gpuID0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: false},
+			count:        1,
+			expectedErr:  "no devices match request",
 		},
 		{
-			name:        "if present, gpu_id must match device",
-			deviceName:  "nvidia/gpu",
-			deviceID:    gpuID0.ID,
-			willShare:   &structs.WillShare{Enabled: false, GpuId: gpuID1.ID},
-			count:       1,
-			expectedErr: "no devices match request",
+			name:         "if present, gpu_id must match device",
+			deviceName:   "nvidia/gpu",
+			deviceID:     gpuID0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: false, GpuId: gpuID1.ID},
+			count:        1,
+			expectedErr:  "no devices match request",
 		},
 		{
-			name:        "sharing passes, constraint doesn't match",
-			deviceName:  "nvidia/gpu",
-			deviceID:    "notanID",
-			willShare:   &structs.WillShare{Enabled: true},
-			count:       1,
-			expectedErr: "no devices match request",
+			name:         "sharing passes, constraint doesn't match",
+			deviceName:   "nvidia/gpu",
+			deviceID:     "notanID",
+			shareDevices: &structs.ShareDevices{Enabled: true},
+			count:        1,
+			expectedErr:  "no devices match request",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -723,7 +723,7 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 					RTarget: tc.deviceID,
 				},
 			}
-			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.willShare)
+			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.shareDevices)
 
 			out, _, err := d.createOffer(mem, ask)
 			if len(tc.expectedErr) != 0 {
@@ -739,7 +739,7 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 			must.SliceContains(t, out.DeviceIDs, nvidia0.Instances[0].ID)
 			must.Eq(t, tc.deviceID, out.DeviceIDs[0])
 
-			if tc.willShare != nil {
+			if tc.shareDevices != nil {
 				must.MapContainsKey(t, out.WillShare, out.DeviceIDs[0])
 			}
 

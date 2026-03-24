@@ -308,8 +308,8 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
-// WillShare indicates whether the task should be placed on a shared device
-type WillShare struct {
+// ShareDevices indicates whether the task should be placed on a shared device
+type ShareDevices struct {
 	Enabled bool   `hcl:"enabled"`
 	GpuId   string `hcl:"gpu_id,optional"`
 }
@@ -338,8 +338,8 @@ type RequestedDevice struct {
 	// to use.
 	Affinities []*Affinity `hcl:"affinity,block"`
 
-	// WillShare reports whether the task should be placed on a shared device
-	WillShare *WillShare `hcl:"will_share,block"`
+	// ShareDevices reports whether the task should be placed on a shared device
+	ShareDevices *ShareDevices `hcl:"will_share,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {

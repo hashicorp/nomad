@@ -3038,8 +3038,8 @@ func (ns Networks) Modes() *set.Set[string] {
 	})
 }
 
-// WillShare indicates whether the task should be placed on a shared device
-type WillShare struct {
+// ShareDevices indicates whether the task should be placed on a shared device
+type ShareDevices struct {
 	Enabled bool
 	GpuId   string
 }
@@ -3068,9 +3068,9 @@ type RequestedDevice struct {
 	// to use.
 	Affinities Affinities
 
-	// WillShare indicates whether the job should be placed on a shared device
+	// ShareDevices indicates whether the job should be placed on a shared device
 	// and is willing to share
-	WillShare *WillShare
+	ShareDevices *ShareDevices
 }
 
 func (r *RequestedDevice) String() string {

@@ -1625,11 +1625,11 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.Devices = []*structs.RequestedDevice{}
 		for _, d := range in.Devices {
 			out.Devices = append(out.Devices, &structs.RequestedDevice{
-				Name:        d.Name,
-				Count:       *d.Count,
-				Constraints: ApiConstraintsToStructs(d.Constraints),
-				Affinities:  ApiAffinitiesToStructs(d.Affinities),
-				WillShare:   ApiSharingToStructs(d.WillShare),
+				Name:         d.Name,
+				Count:        *d.Count,
+				Constraints:  ApiConstraintsToStructs(d.Constraints),
+				Affinities:   ApiAffinitiesToStructs(d.Affinities),
+				ShareDevices: ApiSharingToStructs(d.ShareDevices),
 			})
 		}
 	}
@@ -2331,11 +2331,11 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 	return nil
 }
 
-func ApiSharingToStructs(in *api.WillShare) *structs.WillShare {
+func ApiSharingToStructs(in *api.ShareDevices) *structs.ShareDevices {
 	if in == nil {
 		return nil
 	}
-	return &structs.WillShare{
+	return &structs.ShareDevices{
 		Enabled: in.Enabled,
 		GpuId:   in.GpuId,
 	}

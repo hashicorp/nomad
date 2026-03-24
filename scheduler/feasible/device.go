@@ -146,10 +146,10 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 				continue
 			}
 
-			if d.deviceIDConstraintAndSharingChecks(instanceID, ask.Constraints, ask.WillShare, devInst.Device) {
+			if d.deviceIDConstraintAndSharingChecks(instanceID, ask.Constraints, ask.ShareDevices, devInst.Device) {
 				assignable = append(assignable, instanceID)
-				if ask.WillShare != nil {
-					willShare[instanceID] = ask.WillShare.Enabled //only update willShare map if assignable
+				if ask.ShareDevices != nil {
+					willShare[instanceID] = ask.ShareDevices.Enabled //only update willShare map if assignable
 				}
 			}
 			// Don't assign more than the ask
@@ -252,7 +252,7 @@ func (d *deviceAllocator) deviceIDMatchesConstraint(id string, constraints struc
 // deviceIDAllowsSharing checks a device instance ID against the
 // device's Shared status to ensure we're only assigning devices that
 // are set up to be shared.
-func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.WillShare, device *structs.NodeDeviceResource) bool {
+func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
 	canShare := false
 	for _, dev := range device.Instances {
 		// if the device has sharing active
@@ -278,7 +278,7 @@ func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.Will
 // deviceIDConstraintAndSharingChecks returns a single boolean to report whether
 // device ID matches all of the constraints and if applicable all of the
 // requested sharing modes
-func (d *deviceAllocator) deviceIDConstraintAndSharingChecks(id string, constraints structs.Constraints, sharing *structs.WillShare, device *structs.NodeDeviceResource) bool {
+func (d *deviceAllocator) deviceIDConstraintAndSharingChecks(id string, constraints structs.Constraints, sharing *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
 	if passesConstraint := d.deviceIDMatchesConstraint(id, constraints, device); !passesConstraint {
 		return false
 	}
