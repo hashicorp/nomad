@@ -49,7 +49,7 @@ rules:
             return err
           }
           ...
-          if !aclObj.AllowClientOp() {
+          if !aclObj.AllowClientOp(...) {
             return structs.ErrPermissionDenied
           }
           ...
@@ -64,7 +64,7 @@ rules:
             return err
           }
           ...
-          if !aclObj.AllowClientOp() {
+          if !aclObj.AllowClientOp(...) {
             return structs.ErrPermissionDenied
           }
           ...
@@ -91,10 +91,10 @@ rules:
             - pattern-not: '"ACL.UpsertOneTimeToken"'
             - pattern-not: '"ACL.ExchangeOneTimeToken"'
             - pattern-not: '"ACL.WhoAmI"'
-            - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
-            - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
-            - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
-            - pattern-not: 'structs.ACLLoginRPCMethod'
+            - pattern-not: "structs.ACLListAuthMethodsRPCMethod"
+            - pattern-not: "structs.ACLOIDCAuthURLRPCMethod"
+            - pattern-not: "structs.ACLOIDCCompleteAuthRPCMethod"
+            - pattern-not: "structs.ACLLoginRPCMethod"
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
@@ -107,7 +107,6 @@ rules:
     paths:
       include:
         - "nomad/*_endpoint.go"
-
 
   # ACL objects should never be nil-checked in RPC handlers before checking
   # authorization, as nil ACLs are always programmer errors.
