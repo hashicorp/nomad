@@ -4221,7 +4221,7 @@ type AllocatedDeviceResource struct {
 	// DeviceIDs is the set of allocated devices
 	DeviceIDs []string
 
-	// WillShare is a map of DeviceIDs[bool] that indicates whether if the
+	// WillShare is a map of DeviceIDs[bool] that indicates whether the
 	// requesting task is willing to share the device
 	WillShare map[string]bool
 }

@@ -256,7 +256,7 @@ func MockNvidiaNode() *Node {
 	return n
 }
 
-// IntelNode returns a node with a single Intel GPU
+// MockIntelNode returns a shared node with a single Intel GPU
 func MockIntelNode() *Node {
 	n := MockNode()
 	n.NodeResources.Devices = []*NodeDeviceResource{
