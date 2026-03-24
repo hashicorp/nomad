@@ -63,6 +63,8 @@ jobs:
       - name: Send slack notification on failure
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
+          webhook: ${{ env.SLACK_FEED_NOMAD || secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": ":x::arrow_right_hook::nomad-sob: Backport run *FAILED*",
@@ -91,9 +93,6 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_FEED_NOMAD || secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
-          SLACK_WEBHOOK_TYPE: incoming-webhook
 permissions:
   contents: read
   id-token: write
