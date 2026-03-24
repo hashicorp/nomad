@@ -19,16 +19,17 @@ const sdNotifySocketEnvVar = "NOTIFY_SOCKET"
 
 // openNotify opens the systemd notify socket only if the expected env var has
 // been set, because the systemd unit file is Type=notify or Type=notify-reload
-// (systemd 253+). It then unsets the env var in the agent process so that child
-// processes can't accidentally inherit it. This function returns (nil, nil) if
-// the env var isn't set.
+// (systemd 253+). This function returns (nil, nil) if the env var isn't set.
 func openNotify() (io.WriteCloser, error) {
 	socketPath := os.Getenv(sdNotifySocketEnvVar)
 	if socketPath == "" {
 		return nil, nil
 	}
 
-	defer os.Unsetenv(sdNotifySocketEnvVar)
+	// note we can't safely unset the env var as recommended by systemd because
+	// the Go runtime will have spawned threads by this point. It's up to the
+	// client code to ensure that child processes are not accidentally
+	// inheriting it in their environment.
 	conn, err := net.DialTimeout("unixgram", socketPath, time.Second)
 	return conn, err
 }
