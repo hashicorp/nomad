@@ -54,7 +54,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-connlimit v0.3.1
 	github.com/hashicorp/go-cty-funcs v0.1.0
-	github.com/hashicorp/go-discover v1.1.0
+	github.com/hashicorp/go-discover v1.2.0
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/go-getter v1.8.5
 	github.com/hashicorp/go-hclog v1.6.3
@@ -88,7 +88,7 @@ require (
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
 	github.com/hashicorp/raft-wal v0.4.2
 	github.com/hashicorp/serf v0.10.2
-	github.com/hashicorp/vault/api v1.22.0
+	github.com/hashicorp/vault/api v1.23.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 	github.com/klauspost/cpuid/v2 v2.3.0
@@ -243,11 +243,12 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-resty/resty/v2 v2.16.5 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gojuno/minimock/v3 v3.0.6 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
@@ -282,7 +283,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/linode/linodego v0.7.1 // indirect
+	github.com/linode/linodego v1.61.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
@@ -357,7 +358,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260203192932-546029d2fa20 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260203192932-546029d2fa20 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
-	gopkg.in/resty.v1 v1.12.0 // indirect
+	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
