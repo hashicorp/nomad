@@ -60,7 +60,10 @@ export default class Trigger extends Component {
       this.result = await this.args.do();
       this.onSuccess(this.result);
     } catch (e) {
-      this.error = { Error: e };
+      this.error = {
+        Error: e,
+        message: e?.message ?? String(e ?? 'Unknown error'),
+      };
       this.onError(this.error);
     }
   });

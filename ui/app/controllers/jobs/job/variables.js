@@ -30,6 +30,14 @@ export default class JobsJobVariablesController extends Controller {
       .slice(0, 2);
   }
 
+  get firstTaskGroupName() {
+    return this.firstFewTaskGroupNames[0] || '';
+  }
+
+  get firstTaskName() {
+    return this.firstFewTaskNames[0] || '';
+  }
+
   /**
    * Structures the flattened variables in a "path tree" like we use in the main variables routes
    * @returns {import("../../../utils/path-tree").VariableFolder}

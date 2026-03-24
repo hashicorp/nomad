@@ -235,6 +235,22 @@ export default class IndexController extends Controller {
     this[`${type}Page`] = 1;
   }
 
+  @action
+  setNamespace(namespace) {
+    this.qpNamespace = namespace;
+  }
+
+  @action
+  setUserPageSize(size) {
+    this.userSettings.pageSize = size;
+  }
+
+  @action
+  clearFilter(type) {
+    this[`${type}Filter`] = '';
+    this.handlePageChange(type, 1);
+  }
+
   @action openCSI(csi) {
     this.router.transitionTo('storage.volumes.volume', csi.idWithNamespace);
   }

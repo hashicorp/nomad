@@ -125,6 +125,26 @@ export default class Tokens extends Controller {
     }
   }
 
+  @action
+  setJWTAuthMethod(methodName) {
+    this.jwtAuthMethod = methodName;
+  }
+
+  @action
+  clearSignInStatus() {
+    this.signInStatus = null;
+  }
+
+  @action
+  clearTokenNotFound() {
+    this.token.set('tokenNotFound', false);
+  }
+
+  @action
+  clearState() {
+    this.state = null;
+  }
+
   /**
    * @type {boolean}
    */

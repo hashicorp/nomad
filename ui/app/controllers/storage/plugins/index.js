@@ -70,4 +70,10 @@ export default class IndexController extends Controller.extend(
       event,
     ]);
   }
+
+  @action
+  updateSearchTerm(searchTerm) {
+    this.set('searchTerm', searchTerm);
+    this.resetPagination();
+  }
 }

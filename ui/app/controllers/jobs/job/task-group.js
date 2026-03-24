@@ -211,4 +211,10 @@ export default class TaskGroupController extends Controller.extend(
       this.set('activeTask', null);
     }
   }
+
+  @action
+  updateSearchTerm(searchTerm) {
+    this.set('searchTerm', searchTerm);
+    this.resetPagination();
+  }
 }

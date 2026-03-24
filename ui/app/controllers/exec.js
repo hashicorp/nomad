@@ -28,6 +28,26 @@ export default class ExecController extends Controller {
   @localStorageProperty('nomadExecCommand', '/bin/bash') command;
   socketOpen = false;
 
+  @computed('model.status')
+  get isJobDead() {
+    return this.model?.status === 'dead';
+  }
+
+  @computed('system.activeRegion', 'model.region')
+  get currentRegion() {
+    return this.system.activeRegion || this.model?.region;
+  }
+
+  @computed('namespace', 'model.namespaceId')
+  get displayNamespace() {
+    return this.namespace || this.model?.namespaceId;
+  }
+
+  @computed('model.{name,plainId,id}')
+  get displayJobName() {
+    return this.model?.name || this.model?.plainId || this.model?.id || '';
+  }
+
   get pendingAndRunningAllocations() {
     return this.allocations.filter((allocation) => {
       const status = allocation.clientStatus || allocation.ClientStatus;

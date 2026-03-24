@@ -232,6 +232,42 @@ export default class ClientController extends Controller.extend(
     this.set('drainError', error);
   }
 
+  @action
+  clearEligibilityError() {
+    this.set('eligibilityError', null);
+  }
+
+  @action
+  clearStopDrainError() {
+    this.set('stopDrainError', null);
+  }
+
+  @action
+  clearDrainError() {
+    this.set('drainError', null);
+  }
+
+  @action
+  dismissDrainStoppedNotification() {
+    this.set('showDrainStoppedNotification', false);
+  }
+
+  @action
+  dismissDrainUpdateNotification() {
+    this.set('showDrainUpdateNotification', false);
+  }
+
+  @action
+  dismissDrainNotification() {
+    this.set('showDrainNotification', false);
+  }
+
+  @action
+  updateSearchTerm(searchTerm) {
+    this.searchTerm = searchTerm;
+    this.resetPagination();
+  }
+
   get optionsAllocationStatus() {
     return [
       { key: 'pending', label: 'Pending' },
@@ -316,6 +352,24 @@ export default class ClientController extends Controller.extend(
       key: '',
       value: '',
     };
+  }
+
+  @action
+  beginEditingMetadata() {
+    this.editingMetadata = true;
+  }
+
+  @action
+  cancelEditingMetadata() {
+    this.resetNewMetaData();
+    this.editingMetadata = false;
+  }
+
+  @action
+  async saveEditingMetadata(event) {
+    await this.addDynamicMetaData(this.newMetaData, event);
+    this.resetNewMetaData();
+    this.editingMetadata = false;
   }
 
   @action validateMetadata(event) {

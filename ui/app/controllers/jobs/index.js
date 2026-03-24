@@ -663,6 +663,17 @@ export default class JobsIndexController extends Controller {
     }
   }
 
+  @action
+  onSearchTextChange(newFilter) {
+    this.updateSearchText(newFilter);
+    this.updateFilter();
+  }
+
+  @action
+  updateFacetFilter(group, event) {
+    set(group, 'filter', event.target.value);
+  }
+
   get humanizedFilterError() {
     let baseString = `No jobs match your current filter selection: ${this.filter}.`;
     if (this.model.error?.humanized) {

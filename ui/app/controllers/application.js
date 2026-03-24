@@ -8,7 +8,7 @@ import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { next } from '@ember/runloop';
 import { observes } from '@ember-decorators/object';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { macroCondition, isTesting } from '@embroider/macros';
 import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
@@ -98,5 +98,16 @@ export default class ApplicationController extends Controller {
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });
     }
+  }
+
+  @action
+  dismissFlash(close, customCloseAction) {
+    close?.();
+    customCloseAction?.();
+  }
+
+  @action
+  setPostExpiryPath(path) {
+    this.token.postExpiryPath = path;
   }
 }

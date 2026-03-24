@@ -50,6 +50,7 @@ export default class AccessControlPoliciesIndexController extends Controller {
       policy.tokens = (this.model.tokens || []).filter((token) => {
         return token.policies.includes(policy);
       });
+      policy.expiredTokens = policy.tokens.filter((token) => token.isExpired);
       return policy;
     });
   }
