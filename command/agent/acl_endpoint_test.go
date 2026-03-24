@@ -582,6 +582,48 @@ func TestHTTP_ACLTokenCreateExpirationTTL(t *testing.T) {
 	})
 }
 
+func TestHTTP_ACLTokenUpdate(t *testing.T) {
+	ci.Parallel(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		token := &structs.ACLToken{
+			AccessorID:    uuid.Generate(),
+			SecretID:      uuid.Generate(),
+			Name:          "test token",
+			Type:          "client",
+			Policies:      []string{"foo"},
+			ExpirationTTL: 10 * time.Hour,
+		}
+
+		buf := encodeReq(token)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/token/"+token.AccessorID, buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+		setToken(req, s.RootToken)
+
+		// Make the request
+		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
+		assert.Nil(t, err)
+		assert.NotNil(t, obj)
+		outTK := obj.(*structs.ACLToken)
+
+		// Check for the index
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check token was created
+		state := s.Agent.server.State()
+		out, err := state.ACLTokenByAccessorID(nil, outTK.AccessorID)
+		assert.Nil(t, err)
+		assert.NotNil(t, out)
+		assert.Equal(t, outTK, out)
+		must.Eq(t, token.AccessorID, out.AccessorID)
+		must.Eq(t, token.SecretID, out.SecretID)
+	})
+}
+
 func TestHTTP_ACLTokenDelete(t *testing.T) {
 	ci.Parallel(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
