@@ -55,6 +55,21 @@ rules:
           ...
 
       # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization can be done after forwarding via a helper that resolves
+      # the caller's node pool before checking AllowClientOp.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if !$A.$B.AllowClientOpInCallerPool($A.ctx, aclObj, args) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      # Pattern used by endpoints that are used only for client-to-server.
       # Authorization can be done after forwarding, but must check the
       # AllowClientOp policy. This should not be added to any new endpoints.
       - pattern-not-inside: |
