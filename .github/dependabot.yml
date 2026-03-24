@@ -45,16 +45,3 @@ updates:
          patterns:
            - "*"
          dependency-type: "production"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "cron"
-      cronjob: "0 9 15 * *" # once a month, mid-month
-    labels:
-      - "theme/dependencies"
-      - "theme/build-infrastructure"
-    groups:
-      actions:
-        patterns:
-          - "*"
