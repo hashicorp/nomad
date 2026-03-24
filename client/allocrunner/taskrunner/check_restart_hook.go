@@ -40,45 +40,22 @@ type checkRestartHook struct {
 	allocID  string
 	taskName string
 	taskEnv  *taskenv.TaskEnv
+
+	tgName       string
+	tgServices   []*structs.Service
+	taskServices []*structs.Service
 }
 
-func newCheckRestartHook(alloc *structs.Allocation, task *structs.Task, handler *wrapper.HandlerWrapper, taskEnv *taskenv.TaskEnv) *checkRestartHook {
-	var checks []*hookCheck
-
+func newCheckRestartHook(alloc *structs.Allocation, task *structs.Task, handler *wrapper.HandlerWrapper, restarter serviceregistration.WorkloadRestarter) *checkRestartHook {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	for _, s := range taskenv.InterpolateServices(taskEnv, tg.Services) {
-		for _, c := range s.Checks {
-			if c.TriggersRestarts() && c.TaskName == task.Name {
-				checks = append(checks, &hookCheck{
-					providerType: s.Provider,
-					providerNS:   s.Cluster,
-					check:        c,
-					// TODO: does this work for Nomad?
-					checkID: checkID(alloc.ID, tg.Name, fmt.Sprintf("group-%s", tg.Name), s.Provider, c, s),
-				})
-			}
-		}
-	}
-
-	for _, s := range taskenv.InterpolateServices(taskEnv, task.Services) {
-		for _, c := range s.Checks {
-			if c.TriggersRestarts() {
-				checks = append(checks, &hookCheck{
-					providerType: s.Provider,
-					providerNS:   s.Cluster,
-					check:        c,
-					// TODO: does this work for Nomad?
-					checkID: checkID(alloc.ID, tg.Name, task.Name, s.Provider, c, s),
-				})
-			}
-		}
-	}
-
 	return &checkRestartHook{
-		checks:   checks,
-		handler:  handler,
-		allocID:  alloc.ID,
-		taskName: task.Name,
+		handler:      handler,
+		allocID:      alloc.ID,
+		taskName:     task.Name,
+		tgName:       tg.Name,
+		tgServices:   tg.Services,
+		taskServices: task.Services,
+		wr:           restarter,
 	}
 }
 
@@ -87,6 +64,36 @@ func (h *checkRestartHook) Name() string {
 }
 
 func (h *checkRestartHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, _ *interfaces.TaskPrestartResponse) error {
+	var checks []*hookCheck
+	for _, s := range taskenv.InterpolateServices(req.TaskEnv, h.tgServices) {
+		for _, c := range s.Checks {
+			if c.TriggersRestarts() && c.TaskName == h.taskName {
+				checks = append(checks, &hookCheck{
+					providerType: s.Provider,
+					providerNS:   s.Cluster,
+					check:        c,
+					// TODO: does this work for Nomad?
+					checkID: checkID(h.allocID, h.tgName, fmt.Sprintf("group-%s", h.tgName), s.Provider, c, s),
+				})
+			}
+		}
+	}
+
+	for _, s := range taskenv.InterpolateServices(req.TaskEnv, h.taskServices) {
+		for _, c := range s.Checks {
+			if c.TriggersRestarts() {
+				checks = append(checks, &hookCheck{
+					providerType: s.Provider,
+					providerNS:   s.Cluster,
+					check:        c,
+					// TODO: does this work for Nomad?
+					checkID: checkID(h.allocID, h.tgName, h.taskName, s.Provider, c, s),
+				})
+			}
+		}
+	}
+	h.checks = checks
+
 	for _, c := range h.checks {
 		watcher := h.handler.CheckWatcher(c.providerType, c.providerNS)
 		watcher.Watch(c.checkID, c.check, h.wr)

@@ -150,7 +150,7 @@ func (tr *TaskRunner) initHooks() {
 		logger:            hookLogger,
 	}))
 
-	tr.runnerHooks = append(tr.runnerHooks, newCheckRestartHook(tr.Alloc(), tr.Task(), tr.serviceRegWrapper))
+	tr.runnerHooks = append(tr.runnerHooks, newCheckRestartHook(tr.Alloc(), tr.Task(), tr.serviceRegWrapper, tr))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
