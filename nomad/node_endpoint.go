@@ -1527,8 +1527,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
+	if !n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1983,8 +1982,7 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
-	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
+	if !n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args) {
 		return structs.ErrPermissionDenied
 	}
 

@@ -51,8 +51,7 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	pool := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
+	if !s.srv.AllowClientOpInCallerPool(s.ctx, aclObj, args) {
 		return structs.ErrPermissionDenied
 	}
 

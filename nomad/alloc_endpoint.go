@@ -211,8 +211,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	pool := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
+	if !a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -462,8 +461,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
-	pool := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
+	if !a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args) {
 		return structs.ErrPermissionDenied
 	}
 
