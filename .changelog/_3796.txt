@@ -1,0 +1,3 @@
+```release-note:improvement
+build (Enterprise): Added support for ppc64le CPU architecture on Linux
+```
