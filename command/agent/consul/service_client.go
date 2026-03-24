@@ -533,6 +533,10 @@ func (scw *ServiceClientWrapper) RegisterWorkload(workload *serviceregistration.
 	return nil
 }
 
+func (scw *ServiceClientWrapper) CheckWatcher(cluster string) serviceregistration.CheckWatcher {
+	return scw.serviceClients[cluster].checkWatcher
+}
+
 func (scw *ServiceClientWrapper) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
 	scw.lock.RLock()
 	defer scw.lock.RUnlock()
@@ -907,10 +911,8 @@ INIT:
 				default:
 				}
 			}
-			backoff := c.retryInterval * time.Duration(failures)
-			if backoff > c.maxRetryInterval {
-				backoff = c.maxRetryInterval
-			}
+
+			backoff := min(c.retryInterval*time.Duration(failures), c.maxRetryInterval)
 			retryTimer.Reset(backoff)
 		} else {
 			if failures > 0 {
@@ -1561,17 +1563,6 @@ func (c *ServiceClient) RegisterWorkload(workload *serviceregistration.WorkloadS
 
 	c.commit(ops)
 
-	// Start watching checks. Done after service registrations are built
-	// since an error building them could leak watches.
-	for _, service := range workload.Services {
-		serviceID := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), service)
-		for _, check := range service.Checks {
-			if check.TriggersRestarts() {
-				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
-			}
-		}
-	}
 	return nil
 }
 
@@ -1602,11 +1593,6 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 			for _, check := range existingSvc.Checks {
 				cid := MakeCheckID(existingID, check)
 				ops.deregChecks = append(ops.deregChecks, cid)
-
-				// Unwatch watched checks
-				if check.TriggersRestarts() {
-					c.checkWatcher.Unwatch(cid)
-				}
 			}
 			continue
 		}
@@ -1659,21 +1645,11 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 				sreg.CheckOnUpdate[registration.ID] = check.OnUpdate
 				ops.regChecks = append(ops.regChecks, registration)
 			}
-
-			// Update all watched checks as CheckRestart fields aren't part of ID
-			if check.TriggersRestarts() {
-				c.checkWatcher.Watch(newWorkload.AllocInfo.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
-			}
 		}
 
 		// Remove existing checks not in updated service
-		for cid, check := range existingChecks {
+		for cid := range existingChecks {
 			ops.deregChecks = append(ops.deregChecks, cid)
-
-			// Unwatch checks
-			if check.TriggersRestarts() {
-				c.checkWatcher.Unwatch(cid)
-			}
 		}
 	}
 
@@ -1698,18 +1674,6 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 	c.addRegistrations(newWorkload.AllocInfo.AllocID, newWorkload.Name(), regs)
 
 	c.commit(ops)
-
-	// Start watching checks. Done after service registrations are built
-	// since an error building them could leak watches.
-	for serviceID, service := range newIDs {
-		for _, check := range service.Checks {
-			if check.TriggersRestarts() {
-				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(newWorkload.AllocInfo.AllocID, newWorkload.Name(), checkID, check, newWorkload.Restarter)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -1726,10 +1690,6 @@ func (c *ServiceClient) RemoveWorkload(workload *serviceregistration.WorkloadSer
 		for _, check := range service.Checks {
 			cid := MakeCheckID(id, check)
 			ops.deregChecks = append(ops.deregChecks, cid)
-
-			if check.TriggersRestarts() {
-				c.checkWatcher.Unwatch(cid)
-			}
 		}
 	}
 

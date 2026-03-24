@@ -100,10 +100,6 @@ type Agent struct {
 	// config entries for Connect gateways
 	consulConfigEntriesFunc consul.ConfigAPIFunc
 
-	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses. Used by
-	// server for legacy token workflow only, so only needs default Consul.
-	consulACLs consul.ACLsAPI
-
 	// client is the launched Nomad Client. Can be nil if the agent isn't
 	// configured to run a client.
 	client *client.Client
@@ -1765,10 +1761,6 @@ func (a *Agent) setupConsuls(cfgs []*config.ConsulConfig) error {
 		consulConfigEntries[cluster] = consulClient.ConfigEntries()
 
 		if cluster == structs.ConsulDefaultCluster {
-			// Create Consul ACL client for managing tokens in the legacy
-			// workflow on the server
-			a.consulACLs = consulClient.ACL()
-
 			// Create Consul Catalog client for self service discovery.
 			a.consulCatalog = consulClient.Catalog()
 		}

@@ -12,7 +12,7 @@ import (
 )
 
 func BuildAllocServices(
-	node *structs.Node, alloc *structs.Allocation, restarter serviceregistration.WorkloadRestarter) *serviceregistration.WorkloadServices {
+	node *structs.Node, alloc *structs.Allocation) *serviceregistration.WorkloadServices {
 
 	//TODO(schmichael) only support one network for now
 	net := alloc.AllocatedResources.Shared.Networks[0]
@@ -34,8 +34,6 @@ func BuildAllocServices(
 			// Copy PortLabels from group network
 			PortMap: net.PortLabels(),
 		},
-
-		Restarter:  restarter,
 		DriverExec: nil,
 	}
 

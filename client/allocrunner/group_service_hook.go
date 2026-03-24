@@ -31,7 +31,6 @@ type groupServiceHook struct {
 	group            string
 	tg               *structs.TaskGroup
 	namespace        string
-	restarter        serviceregistration.WorkloadRestarter
 	prerun           bool
 	deregistered     bool
 	networkStatus    structs.NetworkStatus
@@ -63,7 +62,6 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc            *structs.Allocation
-	restarter        serviceregistration.WorkloadRestarter
 	networkStatus    structs.NetworkStatus
 	shutdownDelayCtx context.Context
 	logger           hclog.Logger
@@ -92,7 +90,6 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		jobID:             cfg.alloc.JobID,
 		group:             cfg.alloc.TaskGroup,
 		namespace:         cfg.alloc.Namespace,
-		restarter:         cfg.restarter,
 		providerNamespace: cfg.providerNamespace,
 		delay:             shutdownDelay,
 		networkStatus:     cfg.networkStatus,
@@ -311,7 +308,6 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 	return &serviceregistration.WorkloadServices{
 		AllocInfo:         info,
 		ProviderNamespace: h.providerNamespace,
-		Restarter:         h.restarter,
 		Services:          h.services,
 		Networks:          h.networks,
 		NetworkStatus:     netStatus,

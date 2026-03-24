@@ -41,6 +41,17 @@ func NewHandlerWrapper(
 	}
 }
 
+func (h *HandlerWrapper) CheckWatcher(provider, key string) serviceregistration.CheckWatcher {
+	switch provider {
+	case structs.ServiceProviderNomad:
+		return h.nomadServiceProvider.CheckWatcher("")
+	case structs.ServiceProviderConsul:
+		return h.consulServiceProvider.CheckWatcher(key)
+	default:
+		return nil
+	}
+}
+
 // RegisterWorkload wraps the serviceregistration.Handler RegisterWorkload
 // function. It determines which backend provider to call and passes the
 // workload unless the provider is unknown, in which case an error will be

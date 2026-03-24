@@ -41,6 +41,10 @@ func NewServiceRegistrationHandler(log hclog.Logger) *ServiceRegistrationHandler
 	}
 }
 
+func (h *ServiceRegistrationHandler) CheckWatcher(_ string) serviceregistration.CheckWatcher {
+	return nil
+}
+
 func (h *ServiceRegistrationHandler) RegisterWorkload(services *serviceregistration.WorkloadServices) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()

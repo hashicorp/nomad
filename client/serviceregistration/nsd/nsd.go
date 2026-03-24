@@ -113,6 +113,10 @@ func NewServiceRegistrationHandler(log hclog.Logger, cfg *ServiceRegistrationHan
 // renewed.
 func (s *ServiceRegistrationHandler) SetNodeIdentityToken(token string) { s.nodeAuthToken.Store(token) }
 
+func (s *ServiceRegistrationHandler) CheckWatcher(_ string) serviceregistration.CheckWatcher {
+	return s.checkWatcher
+}
+
 func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
 	// Check whether we are enabled or not first. Hitting this likely means
 	// there is a bug within the implicit constraint, or process using it, as
@@ -141,18 +145,6 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 	// If we generated any errors, return this to the caller.
 	if err := mErr.ErrorOrNil(); err != nil {
 		return err
-	}
-
-	// Service registrations look ok; startup check watchers as specified. The
-	// astute observer may notice the services are not actually registered yet -
-	// this is the same as the Consul flow so hopefully things just work out.
-	for _, service := range workload.Services {
-		for _, check := range service.Checks {
-			if check.TriggersRestarts() {
-				checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
-				s.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
-			}
-		}
 	}
 
 	args := structs.ServiceRegistrationUpsertRequest{
@@ -193,16 +185,6 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 ) {
 	// unblock wait group when we are done
 	defer wg.Done()
-
-	// Stop check watcher
-	//
-	// todo(shoenig) - shouldn't we only unwatch checks for the given serviceSpec ?
-	for _, service := range workload.Services {
-		for _, check := range service.Checks {
-			checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
-			s.checkWatcher.Unwatch(checkID)
-		}
-	}
 
 	// Generate the consistent ID for this service, so we know what to remove.
 	id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), serviceSpec)
