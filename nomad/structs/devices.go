@@ -24,10 +24,6 @@ type DeviceAccounterInstance struct {
 	// Instances is a mapping of the device IDs to their usage.
 	// Only a value of 0 indicates that the instance is unused.
 	Instances map[string]int
-
-	// WillShare is a mapping of the device IDs to whether the
-	// tasks allocated to them indicated a willingness to share
-	WillShare map[string]bool
 }
 
 // GetLocality returns the NodeDeviceLocality of the instance of the specific
@@ -47,7 +43,6 @@ func (dai *DeviceAccounterInstance) Copy() *DeviceAccounterInstance {
 	return &DeviceAccounterInstance{
 		Device:    dai.Device.Copy(),
 		Instances: maps.Clone(dai.Instances),
-		WillShare: maps.Clone(dai.WillShare),
 	}
 }
 
@@ -73,7 +68,6 @@ func NewDeviceAccounter(n *Node) *DeviceAccounter {
 		d.Devices[id] = &DeviceAccounterInstance{
 			Device:    dev,
 			Instances: make(map[string]int, len(dev.Instances)),
-			WillShare: make(map[string]bool, len(dev.Instances)),
 		}
 		for _, instance := range dev.Instances {
 			// Skip unhealthy devices as they aren't allocatable
@@ -161,11 +155,11 @@ func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
 	return false
 }
 
-// willShare is called in the loop that marks each reserved instance as used
+// willingToShare is called in the loop that marks each reserved instance as used
 // in the accounter. It takes a deviceID string and uses it to look up
 // return the task requesting the device is willing to share
-func willShare(res *AllocatedDeviceResource, deviceID string) bool {
-	// d.WillShare is nil => return false as default and do reservation as usual
+func willingToShare(res *AllocatedDeviceResource, deviceID string) bool {
+	// res.WillShare is nil => return false as default and do reservation as usual
 	if res.WillShare == nil {
 		return false
 	}
@@ -182,7 +176,7 @@ func willShare(res *AllocatedDeviceResource, deviceID string) bool {
 }
 
 // AddReserved marks the device instances in the passed device reservation as
-// used, checks the res.WillShare map to see if the createOffer expected the device
+// used, checks the res.WillingToShare map to see if the createOffer expected the device
 // to share. If the device will share we do not report a collision even if it
 // has already been used
 func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision bool) {
@@ -201,7 +195,7 @@ func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision b
 
 		// if offer expects device will share, mark device as used
 		// and continue without marking collision
-		if willShare(res, id) {
+		if willingToShare(res, id) {
 			devAccounter.Instances[id]++
 			continue
 		}
