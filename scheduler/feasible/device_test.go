@@ -73,31 +73,6 @@ func devNode() *structs.Node {
 	return n
 }
 
-// sharedDevNode returns a node containing two shared devices, an nvidia gpu and an intel
-// FPGA.
-func sharedDevNode() *structs.Node {
-	n := mock.SharedNvidiaNode()
-	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
-		Type:   "fpga",
-		Vendor: "intel",
-		Name:   "F100",
-		Attributes: map[string]*psstructs.Attribute{
-			"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
-		},
-		Instances: []*structs.NodeDevice{
-			{
-				ID:      uuid.Generate(),
-				Healthy: true,
-			},
-			{
-				ID:      uuid.Generate(),
-				Healthy: false,
-			},
-		},
-	})
-	return n
-}
-
 // multipleNvidiaNode returns a node containing multiple nvidia device types.
 func multipleNvidiaNode() *structs.Node {
 	n := mock.NvidiaNode()

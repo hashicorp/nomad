@@ -169,9 +169,6 @@ func willingToShare(res *AllocatedDeviceResource, deviceID string) bool {
 		return true
 	}
 	// In all remaining cases we return false
-	// does not exist, val is true => this is not the shared device's ID => return false
-	// does not exist, va, is false => this is not the shared device's ID => return false
-	// does exist is false = > this is the shared device, it will not share => return false
 	return false
 }
 

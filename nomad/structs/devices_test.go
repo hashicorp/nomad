@@ -39,54 +39,6 @@ func sharedNodeWithDeviceID(node *Node, sharingStatus DeviceSharing) (*Node, str
 	return node, deviceID
 }
 
-// genNvidiaOrIntelAllocs return a []*Allocation and takes configuration
-// to indicate whether allocs should be for Nvidia or Intel devices, whether
-// they should be sharing enabled and how many should point to the same
-// device[]*Allocs
-func genNvidiaOrIntelAllocs(isNvidia bool, willShare bool, count int, sharedGpuId string) []*Allocation {
-	var (
-		allocs    []*Allocation
-		allocated *AllocatedDeviceResource
-	)
-	if isNvidia {
-		allocated = &AllocatedDeviceResource{
-			Type:   "gpu",
-			Vendor: "nvidia",
-			Name:   "1080ti",
-		}
-	} else {
-		allocated = &AllocatedDeviceResource{
-			Type:   "fpga",
-			Vendor: "intel",
-			Name:   "F100",
-		}
-	}
-	// function to generate a single intel or nvidia allocation
-	genAlloc := func(ID string, allocated *AllocatedDeviceResource, willShare bool) *Allocation {
-		var gpuID string
-		if len(ID) == 0 {
-			gpuID = uuid.Generate()
-		} else {
-			gpuID = ID
-		}
-		allocated.DeviceIDs = []string{gpuID}
-		allocated.WillShare = map[string]bool{gpuID: willShare}
-
-		a := MockAlloc()
-		a.AllocatedResources.Tasks["web"].Devices = []*AllocatedDeviceResource{allocated}
-		a.ClientStatus = AllocClientStatusPending
-		return a
-	}
-
-	// build []*Allocation
-	for range count {
-		allocs = append(allocs, genAlloc(sharedGpuId, allocated, willShare))
-	}
-
-	return allocs
-
-}
-
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *Node {
@@ -102,43 +54,13 @@ func devNode() *Node {
 			{
 				ID:      uuid.Generate(),
 				Healthy: true,
-				Shared:  "inactive",
 			},
 			{
 				ID:      uuid.Generate(),
 				Healthy: false,
-				Shared:  "inactive",
 			},
 		},
 	})
-	return n
-}
-
-func addSharedNvidiaDevice(n *Node) *Node {
-	n.NodeResources.Devices = append(n.NodeResources.Devices, &NodeDeviceResource{
-		Type:   "gpu",
-		Vendor: "nvidia",
-		Name:   "1080ti",
-		Attributes: map[string]*psstructs.Attribute{
-			"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
-			"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
-			"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
-			"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
-		},
-		Instances: []*NodeDevice{
-			{
-				ID:      uuid.Generate(),
-				Healthy: true,
-				Shared:  DeviceSharingActive,
-			},
-			{
-				ID:      uuid.Generate(),
-				Healthy: true,
-				Shared:  DeviceSharingActive,
-			},
-		},
-	},
-	)
 	return n
 }
 
@@ -255,7 +177,29 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 			targetDevice := 0
 			n := devNode()
 			if tc.shared {
-				n = addSharedNvidiaDevice(n)
+				n.NodeResources.Devices = append(n.NodeResources.Devices, &NodeDeviceResource{
+					Type:   "gpu",
+					Vendor: "nvidia",
+					Name:   "1080ti",
+					Attributes: map[string]*psstructs.Attribute{
+						"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+						"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+						"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+						"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+					},
+					Instances: []*NodeDevice{
+						{
+							ID:      uuid.Generate(),
+							Healthy: true,
+							Shared:  DeviceSharingActive,
+						},
+						{
+							ID:      uuid.Generate(),
+							Healthy: true,
+							Shared:  DeviceSharingActive,
+						},
+					},
+				})
 				targetDevice = len(n.NodeResources.Devices) - 1
 			}
 			d := NewDeviceAccounter(n)
@@ -275,13 +219,56 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 }
 
 // Tests that allocs on any shared devices can be double scheduled
+// if device and request both agree to share
 func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 	ci.Parallel(t)
 
 	nvidiaNode, nvidiaGpuId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingUnset)
 	sharedNvidiaNode, sharedNvidiaGpuId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingActive)
 	sharedIntelNode, sharedIntelNodeGpuId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharingActive)
+	genNvidiaOrIntelAllocs := func(isNvidia bool, willShare bool, count int, sharedGpuId string) []*Allocation {
+		var (
+			allocs    []*Allocation
+			allocated *AllocatedDeviceResource
+		)
+		if isNvidia {
+			allocated = &AllocatedDeviceResource{
+				Type:   "gpu",
+				Vendor: "nvidia",
+				Name:   "1080ti",
+			}
+		} else {
+			allocated = &AllocatedDeviceResource{
+				Type:   "fpga",
+				Vendor: "intel",
+				Name:   "F100",
+			}
+		}
+		// function to generate a single intel or nvidia allocation
+		genAlloc := func(ID string, allocated *AllocatedDeviceResource, willShare bool) *Allocation {
+			var gpuID string
+			if len(ID) == 0 {
+				gpuID = uuid.Generate()
+			} else {
+				gpuID = ID
+			}
+			allocated.DeviceIDs = []string{gpuID}
+			allocated.WillShare = map[string]bool{gpuID: willShare}
 
+			a := MockAlloc()
+			a.AllocatedResources.Tasks["web"].Devices = []*AllocatedDeviceResource{allocated}
+			a.ClientStatus = AllocClientStatusPending
+			return a
+		}
+
+		// build []*Allocation
+		for range count {
+			allocs = append(allocs, genAlloc(sharedGpuId, allocated, willShare))
+		}
+
+		return allocs
+
+	}
 	for _, tc := range []struct {
 		name               string
 		node               *Node
@@ -292,7 +279,7 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		expectedCount      int
 	}{
 		{
-			name:               "shared device- alloc passes, shared request- reservation passes",
+			name:               "shared device- alloc passes, willing request- reservation passes",
 			node:               sharedNvidiaNode,
 			allocs:             genNvidiaOrIntelAllocs(true, true, 2, sharedNvidiaGpuId),
 			gpuID:              sharedNvidiaGpuId,
@@ -301,7 +288,7 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 			expectedCount:      3,
 		},
 		{
-			name:               "shared/sharing non-nvidia alloc passes, reservation passes",
+			name:               "intel , reservation passes",
 			node:               sharedIntelNode,
 			allocs:             genNvidiaOrIntelAllocs(false, true, 2, sharedIntelNodeGpuId),
 			gpuID:              sharedIntelNodeGpuId,

@@ -257,6 +257,7 @@ NEXTNODE:
 		// Create a device allocator
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
 		devAllocator.AddAllocs(proposed)
+
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
 		sumMatchingAffinities := 0.0
