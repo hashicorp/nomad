@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: improved error messages and exit codes when the executor process crashes unexpectedly
+```
