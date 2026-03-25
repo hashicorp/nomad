@@ -22,21 +22,48 @@ func TestRequestCache(t *testing.T) {
 		t.Parallel()
 		req := getRequest(t)
 
-		must.NoError(t, rc.Store(req))
-		must.ErrorIs(t, rc.Store(req), ErrNonceReuse)
+		must.NoError(t, rc.store(req))
+		must.ErrorIs(t, rc.store(req), ErrNonceReuse)
 	})
 
 	t.Run("load and delete", func(t *testing.T) {
 		t.Parallel()
 		req := getRequest(t)
 
-		must.NoError(t, rc.Store(req))
+		must.NoError(t, rc.store(req))
 		must.Eq(t, req, rc.Load(req.Nonce()))
 
 		must.Eq(t, req, rc.LoadAndDelete(req.Nonce()))
 
 		waitUntilGone(t, rc, req.Nonce())
 		must.Nil(t, rc.LoadAndDelete(req.Nonce()))
+	})
+
+	t.Run("load or add", func(t *testing.T) {
+		t.Parallel()
+		nonce := t.Name()
+		fn := func() (*oidc.Req, error) {
+			return oidc.NewRequest(time.Millisecond, "test-redirect-url",
+				oidc.WithNonce(nonce))
+		}
+
+		// create new
+		req, err := rc.LoadOrAdd(nonce, fn)
+		must.NoError(t, err)
+		must.Eq(t, nonce, req.Nonce())
+
+		// fetch from cache
+		req, err = rc.LoadOrAdd(nonce, fn)
+		must.NoError(t, err)
+		must.Eq(t, nonce, req.Nonce())
+
+		// clear the cache
+		must.NotNil(t, rc.LoadAndDelete(req.Nonce()))
+
+		// create new again
+		req, err = rc.LoadOrAdd(nonce, fn)
+		must.NoError(t, err)
+		must.Eq(t, nonce, req.Nonce())
 	})
 
 	t.Run("timeout", func(t *testing.T) {
@@ -46,7 +73,7 @@ func TestRequestCache(t *testing.T) {
 
 		req := getRequest(t)
 
-		must.NoError(t, rc.Store(req))
+		must.NoError(t, rc.store(req))
 
 		// timeout triggers delete behind the scenes
 		waitUntilGone(t, rc, req.Nonce())
@@ -62,7 +89,7 @@ func TestRequestCache(t *testing.T) {
 				oidc.WithNonce(fmt.Sprintf("too-many-cooks-%d", i)))
 			must.NoError(t, err)
 
-			if err := rc.Store(req); err != nil {
+			if err := rc.store(req); err != nil {
 				gotErr = err
 				break
 			}

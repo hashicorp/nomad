@@ -5,6 +5,8 @@ package oidc
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/cap/oidc"
@@ -34,12 +36,19 @@ func NewRequestCache(timeout time.Duration) *RequestCache {
 }
 
 type RequestCache struct {
-	c *expirable.LRU[string, *oidc.Req]
+	c    *expirable.LRU[string, *oidc.Req]
+	lock sync.Mutex
 }
 
-// Store saves the request, to be Loaded later with its Nonce.
-// If LoadAndDelete is not called, the stale request will be auto-deleted.
-func (rc *RequestCache) Store(req *oidc.Req) error {
+// store saves the request, to be Loaded later with its Nonce. This is only used
+// in testing.
+func (rc *RequestCache) store(req *oidc.Req) error {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+	return rc.storeLocked(req)
+}
+
+func (rc *RequestCache) storeLocked(req *oidc.Req) error {
 	if rc.c.Len() >= MaxRequests {
 		return ErrTooManyRequests
 	}
@@ -54,14 +63,48 @@ func (rc *RequestCache) Store(req *oidc.Req) error {
 	return nil
 }
 
+// Load fetches a previously cached oidc.Req. You should only use this for test
+// assertions, as the workflows require atomic load-or-set and atomic
+// load-or-delete.
 func (rc *RequestCache) Load(nonce string) *oidc.Req {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+	return rc.loadLocked(nonce)
+}
+
+func (rc *RequestCache) loadLocked(nonce string) *oidc.Req {
 	if req, ok := rc.c.Get(nonce); ok {
 		return req
 	}
 	return nil
 }
 
+// LoadOrAdd atomically fetches a previously cached oidc.Req or creates once
+// using the provided function and stores it before returning it. If
+// LoadAndDelete is not called later, the stale request will eventually expire
+// and be auto-deleted.
+func (rc *RequestCache) LoadOrAdd(clientNonce string, create func() (*oidc.Req, error)) (*oidc.Req, error) {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+	var err error
+	oidcReq := rc.loadLocked(clientNonce)
+	if oidcReq == nil {
+		oidcReq, err = create()
+		if err != nil {
+			return nil, err
+		}
+		if err = rc.storeLocked(oidcReq); err != nil {
+			return nil, fmt.Errorf("error storing OIDC request: %w", err)
+		}
+	}
+	return oidcReq, nil
+}
+
+// LoadAndDelete atomically loads a previously-cache oidc.Req and clears it from
+// the cache
 func (rc *RequestCache) LoadAndDelete(nonce string) *oidc.Req {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
 	if req, ok := rc.c.Get(nonce); ok {
 		rc.c.Remove(nonce)
 		return req
