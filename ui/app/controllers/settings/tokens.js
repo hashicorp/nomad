@@ -67,10 +67,6 @@ export default class Tokens extends Controller {
       return methods.some((method) => method.type === 'JWT');
     }
 
-    if (typeof methods?.any === 'function') {
-      return methods.any((method) => method.type === 'JWT');
-    }
-
     const methodList = methods?.toArray?.() || [];
     return methodList.some((method) => method.type === 'JWT');
   }

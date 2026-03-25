@@ -621,7 +621,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     const groupsWithRecommendations = job.taskGroups.filter((group) =>
-      group.tasks.models.any((task) => task.recommendations.models.length),
+      group.tasks.models.some((task) => task.recommendations.models.length),
     );
     const jobRecommendationCount = groupsWithRecommendations.length;
 
