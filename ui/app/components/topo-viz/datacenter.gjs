@@ -13,7 +13,7 @@ export default class TopoVizDatacenter extends Component {
   get scheduledAllocations() {
     return this.args.datacenter.nodes.reduce(
       (all, node) =>
-        all.concat(node.allocations.filterBy('allocation.isScheduled')),
+        all.concat(node.allocations.filter(el => el.allocation.isScheduled)),
       [],
     );
   }

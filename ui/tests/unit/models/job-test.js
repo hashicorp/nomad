@@ -212,12 +212,12 @@ module('Unit | Model | job', function (hooks) {
 
     // Three actions named one, one named two
     assert.deepEqual(
-      job.get('actions').filterBy('name', 'one').length,
+      job.get('actions').filter(action => action.name === 'one').length,
       3,
       'Job has three actions named one',
     );
     assert.deepEqual(
-      job.get('actions').filterBy('name', 'two').length,
+      job.get('actions').filter(action => action.name === 'two').length,
       1,
       'Job has one action named two',
     );

@@ -46,7 +46,7 @@ module(
       );
 
       const failedEvaluation = job.evaluations
-        .filterBy('hasPlacementFailures')
+        .filter(el => el.hasPlacementFailures)
         .sortBy('modifyIndex')
         .reverse()
         .get('firstObject');

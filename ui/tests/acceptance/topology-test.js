@@ -166,8 +166,9 @@ module('Acceptance | topology', function (hooks) {
       .uniq()
       .sort()
       .indexOf(node.datacenter);
-    const nodeIndex = nodes
-      .filterBy('datacenter', node.datacenter)
+    let nodeIndex = nodes;
+    nodeIndex = nodeIndex
+      .filter(n => n.datacenter === node.datacenter)
       .indexOf(node);
 
     const reset = async () => {

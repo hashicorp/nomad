@@ -150,12 +150,12 @@ export default class DasRecommendationCard extends Component {
   }
 
   get allCpuToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'CPU')
+    return !this.args.summary.recommendations.filter(el => el.resource === 'CPU')
       .length;
   }
 
   get allMemoryToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'MemoryMB')
+    return !this.args.summary.recommendations.filter(el => el.resource === 'MemoryMB')
       .length;
   }
 

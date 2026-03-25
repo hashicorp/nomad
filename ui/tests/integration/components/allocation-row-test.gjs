@@ -77,9 +77,8 @@ module('Integration | Component | allocation row', function (hooks) {
     );
 
     assert.deepEqual(
-      this.server.pretender.handledRequests.filterBy(
-        'url',
-        `/v1/client/allocation/${allocation.get('id')}/stats`,
+      this.server.pretender.handledRequests.filter(
+        el => el.url === `/v1/client/allocation/${allocation.get('id')}/stats`
       ).length,
       frames.length,
       'Requests continue to be made after malformed responses and server errors',

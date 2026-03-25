@@ -21,9 +21,8 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
 
-      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filterBy(
-        'provider',
-        'nomad',
+      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filter(
+        service => service.provider === 'nomad',
       ).length;
 
       const anyTaskServicesAreNomad = model.states

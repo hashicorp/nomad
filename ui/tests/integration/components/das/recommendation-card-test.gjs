@@ -629,7 +629,7 @@ class MockRecommendationSummary {
       );
     } else {
       this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource),
+        this.recommendations.filter(el => el.resource === resource),
       );
     }
   }

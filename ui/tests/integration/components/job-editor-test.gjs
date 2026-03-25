@@ -386,8 +386,13 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
+<<<<<<< Updated upstream
       .filterBy('method', 'POST')
       .mapBy('url');
+=======
+      .filter(el => el.method === 'POST')
+      .map(el => el.url);
+>>>>>>> Stashed changes
     assert.ok(
       requests.includes(`/v1/job/${newJobName}`),
       'A request was made to job update',
@@ -408,8 +413,13 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
+<<<<<<< Updated upstream
       .filterBy('method', 'POST')
       .mapBy('url');
+=======
+      .filter(el => el.method === 'POST')
+      .map(el => el.url);
+>>>>>>> Stashed changes
     assert.ok(
       requests.includes('/v1/jobs'),
       'A request was made to job create',

@@ -574,7 +574,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.ok(
       this.server.pretender.handledRequests
-        .filterBy('status', 200)
+        .filter(req => req.status === 200)
         .mapBy('url')
         .includes(`/v1/job/${job.id}`),
       'A request to the job is made and succeeds',

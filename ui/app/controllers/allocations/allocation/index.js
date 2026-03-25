@@ -86,9 +86,9 @@ export default class IndexController extends Controller.extend(
     const checks = Object.values(this.model.healthChecks || {});
 
     return this.services.map((service) => {
-      const existingHealthChecks = (service.healthChecks || []).filterBy(
-        'Alloc',
-        allocId,
+      let existingHealthChecks = (service.healthChecks || []);
+      existingHealthChecks = existingHealthChecks.filter(
+        check => check.Alloc === allocId,
       );
 
       const discoveredHealthChecks = checks.filter((check) => {

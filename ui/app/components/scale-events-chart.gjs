@@ -14,7 +14,7 @@ export default class ScaleEventsChart extends Component {
   @tracked activeEvent = null;
 
   get data() {
-    const data = this.args.events.filterBy('hasCount').sortBy('time');
+    const data = this.args.events.filter(el => el.hasCount).sortBy('time');
 
     // Extend the domain of the chart to the current time.
     data.push({

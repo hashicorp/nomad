@@ -57,7 +57,7 @@ export default class RecommendationSummary extends Model {
       );
     } else {
       this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource),
+        this.recommendations.filter(rec => rec.resource === resource),
       );
     }
   }

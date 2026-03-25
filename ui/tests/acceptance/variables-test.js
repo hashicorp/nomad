@@ -155,8 +155,9 @@ module('Acceptance | variables', function (hooks) {
     const variableLinkedTask = this.server.db.tasks.findBy({
       taskGroupId: variableLinkedGroup.id,
     });
-    const variableLinkedTaskAlloc = this.server.db.allocations
-      .filterBy('taskGroup', variableLinkedGroup.name)
+    let variableLinkedTaskAlloc = this.server.db.allocations;
+    variableLinkedTaskAlloc = variableLinkedTaskAlloc
+      .filter(alloc => alloc.taskGroup === variableLinkedGroup.name)
       ?.find((alloc) => alloc.taskStateIds.length);
 
     window.localStorage.nomadTokenSecret = variablesToken.secretId;

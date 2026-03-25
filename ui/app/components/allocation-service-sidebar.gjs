@@ -89,7 +89,7 @@ export default class AllocationServiceSidebar extends Component {
     // Therefore, we'll have duplicate checks in a service's healthChecks array.
     // Only get the most recent check for each check.
     return (this.args.service.healthChecks || [])
-      .filterBy('Alloc', allocID)
+      .filter(el => el.Alloc === allocID)
       .sortBy('Timestamp')
       .reverse()
       .uniqBy('Check')

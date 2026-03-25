@@ -280,8 +280,13 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
+<<<<<<< Updated upstream
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
+=======
+        .filter(el => el.method === 'POST')
+        .find(el => el.url === `/v1/deployment/promote/${deployment.get('id')}`),
+>>>>>>> Stashed changes
       'A promote POST request was made',
     );
   });
@@ -350,8 +355,13 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
+<<<<<<< Updated upstream
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
+=======
+        .filter(el => el.method === 'POST')
+        .find(el => el.url === `/v1/deployment/fail/${deployment.get('id')}`),
+>>>>>>> Stashed changes
       'A fail POST request was made',
     );
   });

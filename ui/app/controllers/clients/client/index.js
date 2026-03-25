@@ -149,7 +149,7 @@ export default class ClientController extends Controller.extend(
 
   @computed('model.allocations.@each.wasPreempted')
   get preemptions() {
-    return this.model.allocations.filterBy('wasPreempted');
+    return this.model.allocations.filter(alloc => alloc.wasPreempted);
   }
 
   @computed('model.events.@each.time')

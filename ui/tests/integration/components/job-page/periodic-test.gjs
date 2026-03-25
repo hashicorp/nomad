@@ -101,7 +101,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     assert.ok(
       this.server.pretender.handledRequests
-        .filterBy('method', 'POST')
+        .filter(el => el.method === 'POST')
         .find((req) => req.url === expectedURL),
       'POST URL was correct',
     );

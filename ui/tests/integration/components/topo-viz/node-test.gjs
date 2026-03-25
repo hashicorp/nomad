@@ -90,7 +90,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.ok(TopoVizNode.isPresent);
     assert.deepEqual(
       TopoVizNode.memoryRects.length,
-      this.node.allocations.filterBy('allocation.isScheduled').length,
+      this.node.allocations.filter(el => el.allocation.isScheduled).length,
     );
     assert.ok(TopoVizNode.cpuRects.length);
 
@@ -129,7 +129,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.ok(TopoVizNode.label.includes(node.node.name));
     assert.ok(
       TopoVizNode.label.includes(
-        `${this.node.allocations.filterBy('allocation.isScheduled').length} Allocs`,
+        `${this.node.allocations.filter(el => el.allocation.isScheduled).length} Allocs`,
       ),
     );
     assert.ok(

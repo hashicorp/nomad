@@ -38,7 +38,7 @@ module('Unit | Serializer | Node', function (hooks) {
     );
 
     assert.deepEqual(
-      this.store.peekAll('node').filterBy('id').get('length'),
+      this.store.peekAll('node').filter(node => node.id).get('length'),
       findAllResponse.length,
       'Each original record is now in the store',
     );
@@ -67,7 +67,7 @@ module('Unit | Serializer | Node', function (hooks) {
     );
 
     assert.deepEqual(
-      this.store.peekAll('node').filterBy('id').get('length'),
+      this.store.peekAll('node').filter(node => node.id).get('length'),
       newFindAllResponse.length,
       'The node length in the store reflects the new response',
     );

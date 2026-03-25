@@ -270,8 +270,9 @@ module('Acceptance | optimize', function (hooks) {
 
     await Optimize.card.acceptButton.click();
 
-    const request = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
+    let request = this.server.pretender.handledRequests;
+    request = request
+      .filter(req => req.method === 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
@@ -384,8 +385,9 @@ module('Acceptance | optimize', function (hooks) {
 
     await Optimize.card.dismissButton.click();
 
-    const request = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
+    let request = this.server.pretender.handledRequests;
+    request = request
+      .filter(req => req.method === 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 

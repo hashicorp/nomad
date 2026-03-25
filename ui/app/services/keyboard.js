@@ -207,7 +207,7 @@ export default class KeyboardService extends Service {
   }
 
   recomputeEnumeratedCommands() {
-    this.keyCommands.filterBy('enumerated').forEach((command, iter) => {
+    this.keyCommands.filter(command => command.enumerated).forEach((command, iter) => {
       command.pattern = this.cleanPattern(iter);
     });
   }
@@ -217,7 +217,7 @@ export default class KeyboardService extends Service {
       commands.forEach((command) => {
         if (command.exclusive) {
           this.removeCommands(
-            this.keyCommands.filterBy('label', command.label),
+            this.keyCommands.filter(cmd => cmd.label === command.label),
           );
         }
         this.keyCommands.pushObject(command);

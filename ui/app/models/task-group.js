@@ -79,9 +79,8 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.allocations.{@each.taskGroup,isFulfilled}', 'name')
   get allocations() {
-    return maybe(this.get('job.allocations')).filterBy(
-      'taskGroupName',
-      this.name,
+    return maybe(this.get('job.allocations')).filter(
+      alloc => alloc.taskGroupName === this.name,
     );
   }
 

@@ -21,8 +21,10 @@ export default class ResourcesDiffs {
   }
 
   get cpu() {
-    const included = this.includedRecommendations.filterBy('resource', 'CPU');
-    const excluded = this.excludedRecommendations.filterBy('resource', 'CPU');
+    let included = this.includedRecommendations;
+    included = included.filter(rec => rec.resource === 'CPU');
+    let excluded = this.excludedRecommendations;
+    excluded = excluded.filter(rec => rec.resource === 'CPU');
 
     return new ResourceDiffs(
       this.model.reservedCPU,
@@ -35,13 +37,13 @@ export default class ResourcesDiffs {
   }
 
   get memory() {
-    const included = this.includedRecommendations.filterBy(
-      'resource',
-      'MemoryMB',
+    let included = this.includedRecommendations;
+    included = included.filter(
+      rec => rec.resource === 'MemoryMB',
     );
-    const excluded = this.excludedRecommendations.filterBy(
-      'resource',
-      'MemoryMB',
+    let excluded = this.excludedRecommendations;
+    excluded = excluded.filter(
+      rec => rec.resource === 'MemoryMB',
     );
 
     return new ResourceDiffs(

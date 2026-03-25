@@ -129,7 +129,8 @@ export default class ExecController extends Controller {
           return hydratedTaskGroup;
         }
 
-        const groupedAllocations = allocations.filterBy('taskGroupName', name);
+        let groupedAllocations = allocations;
+        groupedAllocations = groupedAllocations.filter(alloc => alloc.taskGroupName === name);
         const groupedStates = groupedAllocations.flatMap(
           (allocation) =>
             allocation.states?.toArray?.() || allocation.states || [],
@@ -189,11 +190,11 @@ export default class ExecController extends Controller {
       allocation = this.allocations.findBy('shortId', this.allocationShortId);
     } else {
       let allocationPool = this.taskGroupName
-        ? this.allocations.filterBy('taskGroupName', this.taskGroupName)
+        ? this.allocations.filter(alloc => alloc.taskGroupName === this.taskGroupName)
         : this.allocations;
       allocation = allocationPool.find((allocation) =>
         allocation.states
-          .filterBy('isActive')
+          .filter(state => state.isActive)
           .mapBy('name')
           .includes(this.taskName),
       );

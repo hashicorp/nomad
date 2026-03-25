@@ -244,7 +244,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('model.allocations.@each.isScheduled')
   get scheduledAllocations() {
-    return this.model.allocations.filterBy('isScheduled');
+    return this.model.allocations.filter(alloc => alloc.isScheduled);
   }
 
   @computed('model.nodes.@each.resources')

@@ -447,7 +447,7 @@ module(
 
       await Promise.all(
         this.job.allocations
-          .filterBy('clientStatus', 'failed')
+          .filter(el => el.clientStatus === 'failed')
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
@@ -540,7 +540,7 @@ module(
 
       await Promise.all(
         this.job.allocations
-          .filterBy('clientStatus', 'running')
+          .filter(el => el.clientStatus === 'running')
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: null, Canary: true });
@@ -565,7 +565,7 @@ module(
 
       await Promise.all(
         this.job.allocations
-          .filterBy('clientStatus', 'running')
+          .filter(el => el.clientStatus === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
@@ -578,7 +578,7 @@ module(
 
       await Promise.all(
         this.job.allocations
-          .filterBy('clientStatus', 'running')
+          .filter(el => el.clientStatus === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: true, Canary: true });
@@ -591,7 +591,7 @@ module(
 
       await Promise.all(
         this.job.allocations
-          .filterBy('clientStatus', 'running')
+          .filter(el => el.clientStatus === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('clientStatus', 'failed');

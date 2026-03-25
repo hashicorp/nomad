@@ -38,12 +38,12 @@ export async function expectStartRequest(assert, server, job) {
 
   await waitUntil(() => {
     return server.pretender.handledRequests
-      .filterBy('method', 'POST')
+      .filter(req => req.method === 'POST')
       .some((req) => isStartRequest(req, expectedUpdateURL, expectedRunURL));
   });
 
   const request = server.pretender.handledRequests
-    .filterBy('method', 'POST')
+    .filter(req => req.method === 'POST')
     .find((req) => isStartRequest(req, expectedUpdateURL, expectedRunURL));
 
   assert.ok(request, 'POST URL was made correctly');
@@ -76,7 +76,7 @@ export function expectDeleteRequest(assert, server, job) {
 
   assert.ok(
     server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
+      .filter(req => req.method === 'DELETE')
       .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly',
   );
@@ -87,7 +87,7 @@ export function expectPurgeRequest(assert, server, job) {
 
   assert.ok(
     server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
+      .filter(req => req.method === 'DELETE')
       .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly',
   );

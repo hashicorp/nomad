@@ -29,7 +29,7 @@ export default class OptimizeRoute extends Route {
       this.store.findAll('namespace'),
       ...jobs
         .filter((job) => job)
-        .filterBy('isPartial')
+        .filter(job => job.isPartial)
         .map((j) => j.reload()),
     ]);
 

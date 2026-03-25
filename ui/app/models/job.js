@@ -38,7 +38,7 @@ export default class Job extends Model {
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
   get expectedRunningAllocCount() {
     if (this.type === 'system' || this.type === 'sysbatch') {
-      return this.allocations.filterBy('nodeID').uniqBy('nodeID').length;
+      return this.allocations.filter(alloc => alloc.nodeID).uniqBy('nodeID').length;
     } else {
       return this.groupCountSum;
     }
@@ -508,7 +508,7 @@ export default class Job extends Model {
   @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
     return this.versions
-      .filterBy('stable')
+      .filter(version => version.stable)
       .sortBy('number')
       .reverse()
       .slice(1)[0];
@@ -596,7 +596,8 @@ export default class Job extends Model {
       return null;
     }
 
-    const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+    let failureEvaluations = evaluations;
+    failureEvaluations = failureEvaluations.filter(evaluation => evaluation.hasPlacementFailures);
     if (failureEvaluations) {
       const sortedFailureEvaluations = failureEvaluations.sortBy('modifyIndex');
       return sortedFailureEvaluations[sortedFailureEvaluations.length - 1];

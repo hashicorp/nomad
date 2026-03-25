@@ -59,12 +59,12 @@ export default class Node extends Model {
 
   @computed('allocations.@each.clientStatus')
   get completeAllocations() {
-    return this.allocations.filterBy('clientStatus', 'complete');
+    return this.allocations.filter(alloc => alloc.clientStatus === 'complete');
   }
 
   @computed('allocations.@each.isRunning')
   get runningAllocations() {
-    return this.allocations.filterBy('isRunning');
+    return this.allocations.filter(alloc => alloc.isRunning);
   }
 
   @computed('allocations.@each.{isMigrating,isRunning}')
@@ -76,9 +76,9 @@ export default class Node extends Model {
 
   @computed('allocations.@each.{isMigrating,isRunning,modifyTime}')
   get lastMigrateTime() {
-    const allocation = this.allocations
-      .filterBy('isRunning', false)
-      .filterBy('isMigrating')
+    let allocation = this.allocations
+      .filter(alloc => alloc.isRunning === false)
+      .filter(alloc => alloc.isMigrating)
       .sortBy('modifyTime')
       .reverse()[0];
     if (allocation) {
@@ -94,12 +94,12 @@ export default class Node extends Model {
 
   @computed('drivers.@each.detected')
   get detectedDrivers() {
-    return this.drivers.filterBy('detected');
+    return this.drivers.filter(driver => driver.detected);
   }
 
   @computed('detectedDrivers.@each.healthy')
   get unhealthyDrivers() {
-    return this.detectedDrivers.filterBy('healthy', false);
+    return this.detectedDrivers.filter(driver => driver.healthy === false);
   }
 
   @computed('unhealthyDrivers.@each.name')

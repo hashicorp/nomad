@@ -92,9 +92,9 @@ export default class AllocationsController extends Controller.extend(
     }
 
     if (healths.length === 1 && healths[0] === 'true')
-      return listToFilter.filterBy('healthy');
+      return listToFilter.filter(item => item.healthy);
     if (healths.length === 1 && healths[0] === 'false')
-      return listToFilter.filterBy('healthy', false);
+      return listToFilter.filter(item => item.healthy === false);
     return listToFilter;
   }
 
