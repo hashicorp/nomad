@@ -258,7 +258,7 @@ export default class KeyboardService extends Service {
           };
         }
       })
-      .compact();
+      .filter(val => val !== undefined && val !== null);
 
     if (type === 'main') {
       this.navLinks = links;

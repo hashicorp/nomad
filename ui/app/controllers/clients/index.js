@@ -189,7 +189,7 @@ export default class IndexController extends Controller.extend(
   @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
     const classes = Array.from(new Set(this.nodes.mapBy('nodeClass')))
-      .compact()
+      .filter(val => val !== undefined && val !== null)
       .without('');
 
     // Remove any invalid node classes from the query param/selection
@@ -208,7 +208,7 @@ export default class IndexController extends Controller.extend(
   get optionsDatacenter() {
     const datacenters = Array.from(
       new Set(this.nodes.mapBy('datacenter')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -224,7 +224,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionVersion')
   get optionsVersion() {
-    const versions = Array.from(new Set(this.nodes.mapBy('version'))).compact();
+    const versions = Array.from(new Set(this.nodes.mapBy('version'))).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {

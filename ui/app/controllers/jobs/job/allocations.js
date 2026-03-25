@@ -202,7 +202,7 @@ export default class AllocationsController extends Controller.extend(
           .map((allocation) => this.clientKeyForAllocation(allocation))
           .filter(Boolean),
       ),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {
@@ -220,7 +220,7 @@ export default class AllocationsController extends Controller.extend(
   get optionsTaskGroups() {
     const taskGroups = Array.from(
       new Set(this.model.allocations.mapBy('taskGroupName')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of task groups changes.
     scheduleOnce('actions', this, () => {
@@ -238,7 +238,7 @@ export default class AllocationsController extends Controller.extend(
   get optionsVersions() {
     const versions = Array.from(
       new Set(this.model.allocations.mapBy('jobVersion')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of versions changes.
     scheduleOnce('actions', this, () => {

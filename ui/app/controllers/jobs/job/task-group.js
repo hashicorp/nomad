@@ -171,7 +171,7 @@ export default class TaskGroupController extends Controller.extend(
           .map((allocation) => this.clientKeyForAllocation(allocation))
           .filter(Boolean),
       ),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {

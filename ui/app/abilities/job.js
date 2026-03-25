@@ -79,7 +79,7 @@ export default class Job extends AbstractAbility {
         return namespace.Capabilities;
       })
       .flat()
-      .compact();
+      .filter(val => val !== undefined && val !== null);
 
     // Check for requested permissions
     return allNamespacePolicies.some((policy) => {

@@ -54,7 +54,7 @@ export default class JobsJobVariablesRoute extends Route {
         ...groupVariablesPromises,
         ...taskVariablesPromises,
       ]),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     return { variables, job: this.modelFor('jobs.job') };
   }

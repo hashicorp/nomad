@@ -122,7 +122,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes', 'nodes.[]', 'selectionClass')
   get optionsClass() {
     const classes = Array.from(new Set(this.model.nodes.mapBy('nodeClass')))
-      .compact()
+      .filter(val => val !== undefined && val !== null)
       .without('');
 
     // Remove any invalid node classes from the query param/selection
@@ -141,7 +141,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   get optionsDatacenter() {
     const datacenters = Array.from(
       new Set(this.model.nodes.mapBy('datacenter')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -182,7 +182,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   get optionsVersion() {
     const versions = Array.from(
       new Set(this.model.nodes.mapBy('version')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -239,7 +239,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
-    return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).compact();
+    return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).filter(val => val !== undefined && val !== null);
   }
 
   @computed('model.allocations.@each.isScheduled')

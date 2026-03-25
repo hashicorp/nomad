@@ -155,7 +155,7 @@ export default class ClientsController extends Controller.extend(
   get optionsDatacenter() {
     const datacenters = Array.from(
       new Set(this.nodes.mapBy('datacenter')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', this, () => {
@@ -173,7 +173,7 @@ export default class ClientsController extends Controller.extend(
   get optionsClientClass() {
     const clientClasses = Array.from(
       new Set(this.nodes.mapBy('nodeClass')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', this, () => {

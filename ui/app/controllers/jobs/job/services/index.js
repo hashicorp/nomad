@@ -42,7 +42,7 @@ export default class JobsJobServicesIndexController extends Controller.extend(
     return this.tasks
       .map((t) => (t.services || []).toArray())
       .flat()
-      .compact()
+      .filter(val => val !== undefined && val !== null)
       .map((service) => {
         service.level = 'task';
         return service;
@@ -54,7 +54,7 @@ export default class JobsJobServicesIndexController extends Controller.extend(
     return this.taskGroups
       .map((g) => (g.services || []).toArray())
       .flat()
-      .compact()
+      .filter(val => val !== undefined && val !== null)
       .map((service) => {
         service.level = 'group';
         return service;

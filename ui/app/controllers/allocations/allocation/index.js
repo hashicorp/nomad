@@ -70,7 +70,7 @@ export default class IndexController extends Controller.extend(
     return this.get('tasks')
       .map((t) => ((t && t.services) || []).toArray())
       .flat()
-      .compact();
+      .filter(val => val !== undefined && val !== null);
   }
 
   @computed('model.taskGroup.services.@each.name')

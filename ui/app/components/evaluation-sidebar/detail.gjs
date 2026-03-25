@@ -74,7 +74,7 @@ export default class EvaluationSidebarDetail extends Component {
     return this.hierarchy
       ?.descendants()
       .map((detail) => detail.children)
-      .compact();
+      .filter(val => val !== undefined && val !== null);
   }
 
   get parentEvaluation() {

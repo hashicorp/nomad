@@ -126,7 +126,7 @@ export default class SystemService extends Service {
     return PromiseArray.create({
       promise: this.store
         .findAll('namespace')
-        .then((namespaces) => namespaces.compact()),
+        .then((namespaces) => namespaces.filter(val => val !== undefined && val !== null)),
     });
   }
 

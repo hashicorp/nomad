@@ -154,7 +154,7 @@ export default class OptimizeController extends Controller {
     const allDatacenters = new Set(datacenterList);
 
     // Remove any invalid datacenters from the query param/selection
-    const availableDatacenters = Array.from(allDatacenters).compact();
+    const availableDatacenters = Array.from(allDatacenters).filter(val => val !== undefined && val !== null);
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpDatacenter = serialize(

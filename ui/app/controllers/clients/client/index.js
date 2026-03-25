@@ -289,7 +289,7 @@ export default class ClientController extends Controller.extend(
           .filter((a) => ns.length === 0 || ns.includes(a.namespace))
           .mapBy('plainJobId'),
       ),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of jobs changes.
     scheduleOnce('actions', this, () => {
@@ -304,7 +304,7 @@ export default class ClientController extends Controller.extend(
   get optionsNamespace() {
     const ns = Array.from(
       new Set(this.model.allocations.mapBy('namespace')),
-    ).compact();
+    ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of namespaces changes.
     scheduleOnce('actions', this, () => {

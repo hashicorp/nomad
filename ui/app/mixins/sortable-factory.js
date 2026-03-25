@@ -65,7 +65,7 @@ export default function sortableFactory(properties, fromSortableMixin) {
           this.set('_sortableFactoryWarningPrinted', true);
         }
 
-        const sorted = this.listToSort.compact().sortBy(this.sortProperty);
+        const sorted = this.listToSort.filter(val => val !== undefined && val !== null).sortBy(this.sortProperty);
         if (this.sortDescending) {
           return sorted.reverse();
         }
