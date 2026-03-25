@@ -24,9 +24,7 @@ module('Acceptance | sentinel policies', function (hooks) {
     window.sessionStorage.clear();
     allScenarios.policiesTestCluster(this.server, { sentinel: true });
     await Tokens.visit();
-    const managementToken = this.server.db.tokens.findBy({
-      type: 'management',
-    });
+    const managementToken = this.server.db.tokens.find(el => el.type === 'management');
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
     await Administration.visitSentinelPolicies();
@@ -76,9 +74,7 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('Edit Sentinel Policy: Description and Enforcement Level', async function (assert) {
-    const policy = this.server.db.sentinelPolicies.findBy({
-      name: 'policy-1',
-    });
+    const policy = this.server.db.sentinelPolicies.find(el => el.name === 'policy-1');
     await click('[data-test-sentinel-policy-name="policy-1"]');
     assert.deepEqual(
       currentURL(),
@@ -108,9 +104,7 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('Edit Sentinel Policy: Scope', async function (assert) {
-    const policy = this.server.db.sentinelPolicies.findBy({
-      name: 'host-volume-policy',
-    });
+    const policy = this.server.db.sentinelPolicies.find(el => el.name === 'host-volume-policy');
     await click('[data-test-sentinel-policy-name="host-volume-policy"]');
     assert.deepEqual(
       currentURL(),
@@ -130,9 +124,7 @@ module('Acceptance | sentinel policies', function (hooks) {
       .dom(policyRow.querySelector('[data-test-sentinel-policy-scope]'))
       .hasText('submit-host-volume');
 
-    const policyCsi = this.server.db.sentinelPolicies.findBy({
-      name: 'csi-volume-policy',
-    });
+    const policyCsi = this.server.db.sentinelPolicies.find(el => el.name === 'csi-volume-policy');
     await click('[data-test-sentinel-policy-name="csi-volume-policy"]');
     assert.deepEqual(
       currentURL(),

@@ -125,5 +125,5 @@ export default function formatDuration(
   }
 
   // When the duration is 0, show 0 in terms of `units`
-  return pluralizeUnits(0, allUnits.findBy('suffix', units), longForm);
+  return pluralizeUnits(0, allUnits.find(el => el.suffix === units), longForm);
 }

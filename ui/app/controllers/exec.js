@@ -124,7 +124,7 @@ export default class ExecController extends Controller {
 
     return names
       .map((name) => {
-        const hydratedTaskGroup = taskGroups.findBy('name', name);
+        const hydratedTaskGroup = taskGroups.find(el => el.name === name);
         if (hydratedTaskGroup) {
           return hydratedTaskGroup;
         }
@@ -187,7 +187,7 @@ export default class ExecController extends Controller {
     let allocation;
 
     if (this.allocationShortId) {
-      allocation = this.allocations.findBy('shortId', this.allocationShortId);
+      allocation = this.allocations.find(el => el.shortId === this.allocationShortId);
     } else {
       let allocationPool = this.taskGroupName
         ? this.allocations.filter(alloc => alloc.taskGroupName === this.taskGroupName)

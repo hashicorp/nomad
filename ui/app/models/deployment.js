@@ -53,10 +53,7 @@ export default class Deployment extends Model {
 
   @computed('versionNumber', 'job.versions.content.@each.number')
   get version() {
-    return (this.get('job.versions') || []).findBy(
-      'number',
-      this.versionNumber,
-    );
+    return (this.get('job.versions') || []).find(el => el.number === this.versionNumber);
   }
 
   // Dependent keys can only go one level past an @each so an alias is needed

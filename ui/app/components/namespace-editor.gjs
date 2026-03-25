@@ -66,7 +66,7 @@ export default class NamespaceEditor extends Component {
         this.store
           .peekAll('namespace')
           .filter((existingNamespace) => existingNamespace !== namespace)
-          .findBy('name', namespace.name)
+          .find(el => el.name === namespace.name)
       ) {
         throw new Error(
           `A namespace with name ${namespace.name} already exists.`,

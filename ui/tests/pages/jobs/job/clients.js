@@ -38,7 +38,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().findBy('id', id).sort();
+    return this.sortOptions.toArray().find(el => el.id === id).sort();
   },
 
   facets: {

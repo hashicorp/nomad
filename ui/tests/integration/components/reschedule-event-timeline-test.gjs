@@ -122,9 +122,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       rescheduleSuccess: false,
     });
 
-    const lastAllocation = this.server.schema.allocations.findBy({
-      nextAllocation: undefined,
-    });
+    const lastAllocation = this.server.schema.allocations.find(el => el.nextAllocation === undefined);
     lastAllocation.update({
       followupEvalId: this.server.create('evaluation', {
         waitUntil: moment().add(2, 'hours').toDate(),
@@ -165,7 +163,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     const allocation = this.store
       .peekAll('allocation')
-      .findBy('id', originalAllocation.id);
+      .find(el => el.id === originalAllocation.id);
     const state = new TrackedObject({ allocation });
     await render(
       <template>

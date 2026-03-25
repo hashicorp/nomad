@@ -797,13 +797,9 @@ module('Acceptance | jobs list', function (hooks) {
       noFailedPlacements: true,
     });
 
-    const allocID = this.server.db.allocations.findBy({
-      jobId: 'time-based-job',
-    }).id;
-    const groupID = this.server.db.taskGroups.findBy({
-      jobId: 'time-based-job',
-    }).id;
-    const task = this.server.db.tasks.findBy({ taskGroupID: groupID });
+    const allocID = this.server.db.allocations.find(el => el.jobId === 'time-based-job').id;
+    const groupID = this.server.db.taskGroups.find(el => el.jobId === 'time-based-job').id;
+    const task = this.server.db.tasks.find(el => el.taskGroupID === groupID);
 
     await JobsList.visit();
 
@@ -1117,8 +1113,7 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
-          let existingJobToUpdate = this.server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5,
+          let existingJobToUpdate = this.server.db.jobs.find((job) => job.modifyIndex === 5,
           );
           this.server.db.jobs.update(existingJobToUpdate.id, {
             modifyIndex: 12,
@@ -1227,8 +1222,7 @@ module('Acceptance | jobs list', function (hooks) {
             );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
-          let existingJobToUpdate = this.server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5,
+          let existingJobToUpdate = this.server.db.jobs.find((job) => job.modifyIndex === 5,
           );
           this.server.db.jobs.update(existingJobToUpdate.id, {
             modifyIndex: 12,

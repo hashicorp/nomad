@@ -149,12 +149,8 @@ module('Acceptance | variables', function (hooks) {
     const variablesToken = this.server.db.tokens.find(VARIABLE_TOKEN_ID);
 
     const variableLinkedJob = this.server.db.jobs[0];
-    const variableLinkedGroup = this.server.db.taskGroups.findBy({
-      jobId: variableLinkedJob.id,
-    });
-    const variableLinkedTask = this.server.db.tasks.findBy({
-      taskGroupId: variableLinkedGroup.id,
-    });
+    const variableLinkedGroup = this.server.db.taskGroups.find(el => el.jobId === variableLinkedJob.id);
+    const variableLinkedTask = this.server.db.tasks.find(el => el.taskGroupId === variableLinkedGroup.id);
     let variableLinkedTaskAlloc = this.server.db.allocations;
     variableLinkedTaskAlloc = variableLinkedTaskAlloc
       .filter(alloc => alloc.taskGroup === variableLinkedGroup.name)
@@ -1103,8 +1099,8 @@ module('Acceptance | variables', function (hooks) {
       // Create a variable for each task
 
       this.server.db.tasks.forEach((task) => {
-        let groupName = this.server.db.taskGroups.findBy(
-          (group) => group.id === task.taskGroupId,
+        let groupName = this.server.db.taskGroups.find(
+          (group) => group.id === task.taskGroupId
         ).name;
         this.server.create('variable', {
           id: `nomad/jobs/test-job/${groupName}/${task.name}`,

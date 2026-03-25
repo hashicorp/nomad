@@ -37,7 +37,7 @@ export default create({
     }),
 
     metricFor(id) {
-      return this.metrics.toArray().findBy('id', id);
+      return this.metrics.toArray().find(el => el.id === id);
     },
 
     notification: text('[data-test-deployment-notification]'),

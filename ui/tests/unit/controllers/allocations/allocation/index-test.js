@@ -43,57 +43,57 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
 
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupFakePy.refID)
+          .find(el => el.refID === groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
         groupFakePy.statuses['success'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupFakePy.refID)
+          .find(el => el.refID === groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
         groupFakePy.statuses['failure'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupFakePy.refID)
+          .find(el => el.refID === groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
         groupFakePy.statuses['pending'],
       );
 
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskFakePy.refID)
+          .find(el => el.refID === taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
         taskFakePy.statuses['success'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskFakePy.refID)
+          .find(el => el.refID === taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
         taskFakePy.statuses['failure'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskFakePy.refID)
+          .find(el => el.refID === taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
         taskFakePy.statuses['pending'],
       );
 
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', pender.refID)
+          .find(el => el.refID === pender.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
         pender.statuses['success'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', pender.refID)
+          .find(el => el.refID === pender.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
         pender.statuses['failure'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', pender.refID)
+          .find(el => el.refID === pender.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
         pender.statuses['pending'],
       );
@@ -124,38 +124,38 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
 
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupDupe.refID)
+          .find(el => el.refID === groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
         groupDupe.statuses['success'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupDupe.refID)
+          .find(el => el.refID === groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
         groupDupe.statuses['failure'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', groupDupe.refID)
+          .find(el => el.refID === groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
         groupDupe.statuses['pending'],
       );
 
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskDupe.refID)
+          .find(el => el.refID === taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
         taskDupe.statuses['success'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskDupe.refID)
+          .find(el => el.refID === taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
         taskDupe.statuses['failure'],
       );
       assert.deepEqual(
         controller.servicesWithHealthChecks
-          .findBy('refID', taskDupe.refID)
+          .find(el => el.refID === taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
         taskDupe.statuses['pending'],
       );

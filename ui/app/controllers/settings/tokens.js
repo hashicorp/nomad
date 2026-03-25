@@ -88,7 +88,7 @@ export default class Tokens extends Controller {
 
   get defaultJWTAuthMethod() {
     return (
-      this.JWTAuthMethods.findBy('default', true) || this.JWTAuthMethods[0]
+      this.JWTAuthMethods.find(el => el.default === true) || this.JWTAuthMethods[0]
     );
   }
 

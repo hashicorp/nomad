@@ -80,10 +80,7 @@ export default class Task extends Fragment {
       if (this._job.parent.get('plainId')) {
         jobID = this._job.parent.get('plainId');
       }
-      return this._job.variables?.findBy(
-        'path',
-        `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`,
-      );
+      return this._job.variables?.find(el => el.path === `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`);
     }
   }
 
@@ -101,9 +98,6 @@ export default class Task extends Fragment {
     if (parentID) {
       jobID = parentID;
     }
-    return await this._job.variables?.findBy(
-      'path',
-      `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`,
-    );
+    return await this._job.variables?.find(el => el.path === `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`);
   }
 }

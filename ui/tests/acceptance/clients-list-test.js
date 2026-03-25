@@ -209,7 +209,7 @@ module('Acceptance | clients list', function (hooks) {
     let discoClient = this.owner
       .lookup('service:store')
       .peekAll('node')
-      .findBy('modifyIndex', 5);
+      .find(el => el.modifyIndex === 5);
     discoClient.set('status', 'disconnected');
 
     await settled();

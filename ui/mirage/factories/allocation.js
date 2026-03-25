@@ -48,9 +48,7 @@ export default Factory.extend({
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
-      const taskGroup = server.db.taskGroups.findBy({
-        name: allocation.taskGroup,
-      });
+      const taskGroup = server.db.taskGroups.find(el => el.name === allocation.taskGroup);
       const resources = taskGroup.taskIds.map((id) => {
         const task = server.db.tasks.find(id);
         return server.create('task-resource', {
@@ -73,9 +71,7 @@ export default Factory.extend({
 
   withoutTaskWithPorts: trait({
     afterCreate(allocation, server) {
-      const taskGroup = server.db.taskGroups.findBy({
-        name: allocation.taskGroup,
-      });
+      const taskGroup = server.db.taskGroups.find(el => el.name === allocation.taskGroup);
       const resources = taskGroup.taskIds.map((id) => {
         const task = server.db.tasks.find(id);
         return server.create('task-resource', {
@@ -200,7 +196,7 @@ export default Factory.extend({
       ? server.db.nodes.find(allocation.nodeId)
       : pickOne(server.db.nodes);
     const taskGroup = allocation.taskGroup
-      ? server.db.taskGroups.findBy({ name: allocation.taskGroup })
+      ? server.db.taskGroups.find(el => el.name === allocation.taskGroup)
       : pickOne(server.db.taskGroups.where({ jobId: job.id }));
 
     allocation.update({

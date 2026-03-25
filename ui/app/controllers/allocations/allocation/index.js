@@ -235,7 +235,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('activeServiceID', 'servicesWithHealthChecks.[]')
   get activeService() {
-    return this.servicesWithHealthChecks.findBy('refID', this.activeServiceID);
+    return this.servicesWithHealthChecks.find(el => el.refID === this.activeServiceID);
   }
 
   @action closeSidebar() {

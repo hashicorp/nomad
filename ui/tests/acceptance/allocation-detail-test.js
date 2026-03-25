@@ -146,7 +146,7 @@ module('Acceptance | allocation detail', function (hooks) {
       .where({ allocationId: allocation.id })
       .sortBy('name')
       .find((taskState) => {
-        const task = this.server.db.tasks.findBy({ name: taskState.name });
+        const task = this.server.db.tasks.find(el => el.name === taskState.name);
         return (
           task.Lifecycle &&
           task.Lifecycle.Hook === 'prestart' &&
@@ -283,7 +283,7 @@ module('Acceptance | allocation detail', function (hooks) {
     });
 
     const taskState = allocation.taskStates.models.sortBy('name')[0];
-    const task = this.server.schema.tasks.findBy({ name: taskState.name });
+    const task = this.server.schema.tasks.find(el => el.name === taskState.name);
     task.update('kind', 'connect-proxy:task');
     task.save();
 
@@ -326,9 +326,7 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('services are listed', async function (assert) {
-    const taskGroup = this.server.schema.taskGroups.findBy({
-      name: allocation.taskGroup,
-    });
+    const taskGroup = this.server.schema.taskGroups.find(el => el.name === allocation.taskGroup);
 
     assert.deepEqual(Allocation.services.length, taskGroup.services.length);
 
@@ -582,7 +580,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     allocation = this.server.create('allocation', 'preempted');
     const preempter = this.server.schema.find(
       'allocation',
-      allocation.preemptedByAllocation,
+      allocation.preemptedByAllocation
     );
     const preempterJob = this.server.schema.find('job', preempter.jobId);
     const preempterClient = this.server.schema.find('node', preempter.nodeId);
@@ -778,11 +776,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
 
   test('Allocation has a list of services with active checks', async function (assert) {
     faker.seed(1);
-    const runningAlloc = this.server.db.allocations.findBy({
-      jobId: 'service-haver',
-      forceRunningClientStatus: true,
-      clientStatus: 'running',
-    });
+    const runningAlloc = this.server.db.allocations.find(el => el.jobId === 'service-haver' && el.forceRunningClientStatus === true && el.clientStatus === 'running');
     await Allocation.visit({ id: runningAlloc.id });
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();

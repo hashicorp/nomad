@@ -30,13 +30,13 @@ export default class TaskPrimaryMetric extends Component {
 
   get data() {
     if (!this.tracker) return [];
-    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+    const task = this.tracker.tasks.find(el => el.task === this.taskState.name);
     return task && task[this.metric];
   }
 
   get reservedAmount() {
     if (!this.tracker) return null;
-    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+    const task = this.tracker.tasks.find(el => el.task === this.taskState.name);
     if (this.metric === 'cpu') return task.reservedCPU;
     if (this.metric === 'memory') return task.reservedMemory;
     return null;

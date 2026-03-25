@@ -759,12 +759,9 @@ export default class Job extends Model {
   @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
     if (this.parent.get('id')) {
-      return this.variables?.findBy(
-        'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
-      );
+      return this.variables?.find(el => el.path === `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`);
     } else {
-      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+      return this.variables?.find(el => el.path === `nomad/jobs/${this.plainId}`);
     }
   }
 
@@ -772,12 +769,9 @@ export default class Job extends Model {
   async getPathLinkedVariable() {
     await this.variables;
     if (this.parent.get('id')) {
-      return this.variables?.findBy(
-        'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
-      );
+      return this.variables?.find(el => el.path === `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`);
     } else {
-      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+      return this.variables?.find(el => el.path === `nomad/jobs/${this.plainId}`);
     }
   }
 }

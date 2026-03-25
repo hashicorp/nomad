@@ -56,7 +56,7 @@ export default class TaskSubRow extends Component {
 
   get taskStats() {
     if (!this.stats) return undefined;
-    return this.stats.tasks.findBy('task', this.task.name);
+    return this.stats.tasks.find(el => el.task === this.task.name);
   }
 
   get cpu() {

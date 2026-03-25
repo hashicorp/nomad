@@ -88,7 +88,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -104,7 +104,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -126,7 +126,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -146,7 +146,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -170,7 +170,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -189,7 +189,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const mirageJob = makeMirageJob(this.server, { createAllocations: true });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -216,7 +216,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -234,7 +234,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
@@ -255,7 +255,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const fullId = JSON.stringify([mirageJob.name, 'default']);
     await this.store.findRecord('job', fullId);
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
     this.server.db.jobs.update(mirageJob.id, {
       activeDeployment: true,
       noDeployments: true,
@@ -280,13 +280,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
-<<<<<<< Updated upstream
-        .filterBy('method', 'POST')
-        .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
-=======
         .filter(el => el.method === 'POST')
         .find(el => el.url === `/v1/deployment/promote/${deployment.get('id')}`),
->>>>>>> Stashed changes
       'A promote POST request was made',
     );
   });
@@ -305,7 +300,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const fullId = JSON.stringify([mirageJob.name, 'default']);
     await this.store.findRecord('job', fullId);
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
     this.server.db.jobs.update(mirageJob.id, {
       activeDeployment: true,
       noDeployments: true,
@@ -343,7 +338,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
     const deployment = await job.get('latestDeployment');
 
     const state = new TrackedObject(commonProperties(job));
@@ -355,13 +350,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
-<<<<<<< Updated upstream
-        .filterBy('method', 'POST')
-        .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
-=======
         .filter(el => el.method === 'POST')
         .find(el => el.url === `/v1/deployment/fail/${deployment.get('id')}`),
->>>>>>> Stashed changes
       'A fail POST request was made',
     );
   });
@@ -375,7 +365,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);

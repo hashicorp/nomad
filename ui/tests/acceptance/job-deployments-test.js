@@ -30,14 +30,8 @@ module('Acceptance | job deployments', function (hooks) {
     job = this.server.create('job');
     deployments = this.server.schema.deployments.where({ jobId: job.id });
     sortedDeployments = deployments.sort((a, b) => {
-      const aVersion = this.server.db.jobVersions.findBy({
-        jobId: a.jobId,
-        version: a.versionNumber,
-      });
-      const bVersion = this.server.db.jobVersions.findBy({
-        jobId: b.jobId,
-        version: b.versionNumber,
-      });
+      const aVersion = this.server.db.jobVersions.find(el => el.jobId === a.jobId && el.version === a.versionNumber);
+      const bVersion = this.server.db.jobVersions.find(el => el.jobId === b.jobId && el.version === b.versionNumber);
       if (aVersion.submitTime < bVersion.submitTime) {
         return 1;
       } else if (aVersion.submitTime > bVersion.submitTime) {
@@ -67,10 +61,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const version = this.server.db.jobVersions.findBy({
-      jobId: deployment.jobId,
-      version: deployment.versionNumber,
-    });
+    const version = this.server.db.jobVersions.find(el => el.jobId === deployment.jobId && el.version === deployment.versionNumber);
     const deploymentRow = Deployments.deployments.objectAt(0);
 
     assert.ok(
@@ -281,7 +272,7 @@ module('Acceptance | job deployments', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(el => el.status === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

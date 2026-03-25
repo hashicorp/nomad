@@ -338,7 +338,7 @@ moduleForJob(
         assert.deepEqual(
           this.server.pretender.handledRequests
             .filter((request) => !request.url.includes('policy'))
-            .findBy('status', 404).url,
+            .find(el => el.status === 404).url,
           '/v1/job/not-a-real-job',
           'A request to the nonexistent job is made',
         );
@@ -851,15 +851,9 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
   });
 
   test('Start Job depends on the job being stopped', async function (assert) {
-    const restartableJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'restartable-job',
-    );
-    const revertableJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job',
-    );
-    const nonRevertableJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job',
-    );
+    const restartableJob = this.server.db.jobs.find((j) => j.name === 'restartable-job');
+    const revertableJob = this.server.db.jobs.find((j) => j.name === 'revertable-job');
+    const nonRevertableJob = this.server.db.jobs.find((j) => j.name === 'non-revertable-job');
     await JobDetail.visit({ id: restartableJob.id });
 
     assert.ok(JobDetail.start.isPresent);
@@ -881,11 +875,9 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
   });
 
   test('A revertable job depends on having stable job versions', async function (assert) {
-    const revertableJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job',
+    const revertableJob = this.server.db.jobs.find((j) => j.name === 'revertable-job',
     );
-    const nonRevertableJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job',
+    const nonRevertableJob = this.server.db.jobs.find((j) => j.name === 'non-revertable-job',
     );
     await JobDetail.visit({ id: revertableJob.id });
 
@@ -901,18 +893,14 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
   });
 
   test('A batch job with a previous version can be reverted', async function (assert) {
-    const revertableSystemJob = this.server.db.jobs.findBy(
-      (j) => j.name === 'revertable-batch-job',
-    );
+    const revertableSystemJob = this.server.db.jobs.find((j) => j.name === 'revertable-batch-job');
     await JobDetail.visit({ id: revertableSystemJob.id });
     assert.ok(JobDetail.revert.isPresent);
     assert.deepEqual(JobDetail.revert.text, 'Revert to last version (v0)');
   });
 
   test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {
-    const job = this.server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job',
-    );
+    const job = this.server.db.jobs.find((j) => j.name === 'non-revertable-job');
     await JobDetail.visit({ id: job.id });
     await JobDetail.editAndResubmit.click();
     assert.deepEqual(

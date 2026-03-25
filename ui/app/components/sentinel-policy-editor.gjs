@@ -69,7 +69,7 @@ export default class SentinelPolicyEditor extends Component {
         this.store
           .peekAll('sentinel-policy')
           .filter((existingPolicy) => existingPolicy !== policy)
-          .findBy('name', policy.name)
+          .find(el => el.name === policy.name)
       ) {
         throw new Error(
           `A sentinel policy with name ${policy.name} already exists.`,

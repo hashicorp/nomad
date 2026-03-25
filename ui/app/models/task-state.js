@@ -35,7 +35,7 @@ export default class TaskState extends Fragment {
   @computed('name', 'allocation.taskGroup.tasks.[]')
   get task() {
     const tasks = this.get('allocation.taskGroup.tasks');
-    return tasks && tasks.findBy('name', this.name);
+    return tasks && tasks.find(el => el.name === this.name);
   }
 
   @alias('task.driver') driver;
@@ -45,7 +45,7 @@ export default class TaskState extends Fragment {
   @computed('task.driver', 'allocation.node.drivers.[]')
   get driverStatus() {
     const nodeDrivers = this.get('allocation.node.drivers') || [];
-    return nodeDrivers.findBy('name', this.get('task.driver'));
+    return nodeDrivers.find(el => el.name === this.get('task.driver'));
   }
 
   @fragment('resources') resources;

@@ -82,7 +82,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', 'parent');
+    const job = this.store.peekAll('job').find(el => el.plainId === 'parent');
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -129,7 +129,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', 'parent');
+    const job = this.store.peekAll('job').find(el => el.plainId === 'parent');
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -152,7 +152,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -173,7 +173,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -197,7 +197,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -219,7 +219,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -246,7 +246,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     });
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').find(el => el.plainId === mirageJob.id);
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -269,7 +269,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await this.store.findAll('job');
 
-    const job = this.store.peekAll('job').findBy('plainId', 'parent');
+    const job = this.store.peekAll('job').find(el => el.plainId === 'parent');
 
     this.setProperties(commonProperties(job));
     await renderPeriodic.call(this);
@@ -296,7 +296,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
       await this.store.findAll('job');
 
-      const job = this.store.peekAll('job').findBy('plainId', 'parent');
+      const job = this.store.peekAll('job').find(el => el.plainId === 'parent');
 
       this.setProperties(commonProperties(job));
       await renderPeriodic.call(this);

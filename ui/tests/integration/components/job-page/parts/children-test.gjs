@@ -47,7 +47,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await this.store.findAll('job');
 
-    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
+    const parent = this.store.peekAll('job').find(el => el.plainId === 'parent');
     const children = parent.get('children');
 
     this.setProperties(props(parent, children));
@@ -84,7 +84,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await this.store.findAll('job');
 
-    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
+    const parent = this.store.peekAll('job').find(el => el.plainId === 'parent');
     const children = parent.get('children');
 
     this.setProperties(props(parent, children));
@@ -132,7 +132,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
 
     await this.store.findAll('job');
 
-    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
+    const parent = this.store.peekAll('job').find(el => el.plainId === 'parent');
     const children = parent.get('children');
 
     this.setProperties(props(parent, children));

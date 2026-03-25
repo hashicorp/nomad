@@ -49,7 +49,7 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     );
     assert.ok(
       find('.ember-power-select-trigger').textContent.includes(
-        props.options.findBy('key', props.selection).label,
+        props.options.find(el => el.key === props.selection).label,
       ),
     );
     assert.notOk(find('[data-test-dropdown-options]'));
@@ -102,7 +102,7 @@ module('Integration | Component | single-select dropdown', function (hooks) {
       </template>,
     );
 
-    const option = props.options.findBy('key', 'terraform');
+    const option = props.options.find(el => el.key === 'terraform');
     await selectChoose('[data-test-single-select-dropdown]', option.label);
 
     assert.ok(props.onSelect.calledWith(option.key));

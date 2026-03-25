@@ -28,7 +28,7 @@ export function editableVariableLink(
   [path],
   { existingPaths, namespace = 'default' },
 ) {
-  if (existingPaths.findBy('path', path)) {
+  if (existingPaths.find(el => el.path === path)) {
     return {
       route: 'variables.variable.edit',
       model: `${path}@${namespace}`,

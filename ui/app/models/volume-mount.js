@@ -16,7 +16,7 @@ export default class VolumeMount extends Fragment {
 
   @computed('task.taskGroup.volumes.@each.name', 'volume')
   get volumeDeclaration() {
-    return this.task.taskGroup.volumes.findBy('name', this.volume);
+    return this.task.taskGroup.volumes.find(el => el.name === this.volume);
   }
 
   @equal('volumeDeclaration.type', 'csi') isCSI;

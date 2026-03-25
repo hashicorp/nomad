@@ -176,7 +176,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(el => el.status === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

@@ -166,7 +166,7 @@ export default class Allocation extends Model {
   @computed('taskGroupName', 'job.taskGroups.[]')
   get jobTaskGroup() {
     const taskGroups = this.get('job.taskGroups');
-    return taskGroups && taskGroups.findBy('name', this.taskGroupName);
+    return taskGroups && taskGroups.find(el => el.name === this.taskGroupName);
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;

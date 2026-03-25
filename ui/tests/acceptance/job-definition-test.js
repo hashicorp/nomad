@@ -80,10 +80,7 @@ module('Acceptance | job definition', function (hooks) {
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
     const requests = this.server.pretender.handledRequests;
-    const jobSubmission = requests.findBy(
-      'url',
-      `/v1/job/${job.id}/submission?version=1`,
-    ).responseText;
+    const jobSubmission = requests.find(el => el.url === `/v1/job/${job.id}/submission?version=1`).responseText;
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
@@ -120,7 +117,7 @@ module('Acceptance | job definition', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(el => el.status === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

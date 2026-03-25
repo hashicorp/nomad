@@ -120,7 +120,7 @@ module('Acceptance | topology', function (hooks) {
 
     await Topology.visit();
     const requests = this.server.pretender.handledRequests;
-    assert.ok(requests.findBy('url', '/v1/nodes?resources=true'));
+    assert.ok(requests.find(el => el.url === '/v1/nodes?resources=true'));
 
     const allocationsRequest = requests.find((req) =>
       req.url.startsWith('/v1/allocations'),

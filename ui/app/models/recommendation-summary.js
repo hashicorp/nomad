@@ -32,7 +32,7 @@ export default class RecommendationSummary extends Model {
     const taskGroups = get(this, 'job.taskGroups');
 
     if (taskGroups) {
-      return taskGroups.findBy('name', this.taskGroupName);
+      return taskGroups.find(el => el.name === this.taskGroupName);
     } else {
       return undefined;
     }

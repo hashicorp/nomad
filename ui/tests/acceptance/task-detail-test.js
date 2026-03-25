@@ -258,7 +258,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(el => el.status === 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made',
     );
@@ -485,7 +485,7 @@ module('Acceptance | proxy task detail', function (hooks) {
     });
 
     const taskState = allocation.taskStates.models[0];
-    const task = this.server.schema.tasks.findBy({ name: taskState.name });
+    const task = this.server.schema.tasks.find(el => el.name === taskState.name);
     task.update('kind', 'connect-proxy:task');
     task.save();
 

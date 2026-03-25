@@ -26,15 +26,9 @@ export default class TaskGroup extends Fragment {
   @computed('job.{variables,parent,plainId}', 'name')
   get pathLinkedVariable() {
     if (this.job.parent.get('id')) {
-      return this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
-      );
+      return this.job.variables?.find(el => el.path === `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`);
     } else {
-      return this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`,
-      );
+      return this.job.variables?.find(el => el.path === `nomad/jobs/${this.job.plainId}/${this.name}`);
     }
   }
 
@@ -42,15 +36,9 @@ export default class TaskGroup extends Fragment {
   async getPathLinkedVariable() {
     await this.job.variables;
     if (this.job.parent.get('id')) {
-      return await this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
-      );
+      return await this.job.variables?.find(el => el.path === `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`);
     } else {
-      return await this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`,
-      );
+      return await this.job.variables?.find(el => el.path === `nomad/jobs/${this.job.plainId}/${this.name}`);
     }
   }
 
@@ -102,7 +90,7 @@ export default class TaskGroup extends Fragment {
     const placementFailures = this.get(
       'job.latestFailureEvaluation.failedTGAllocs',
     );
-    return placementFailures && placementFailures.findBy('name', this.name);
+    return placementFailures && placementFailures.find(el => el.name === this.name);
   }
 
   @computed('summary.{queuedAllocs,startingAllocs}')
@@ -114,15 +102,12 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.taskGroupSummaries.[]', 'name')
   get summary() {
-    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
+    return maybe(this.get('job.taskGroupSummaries')).find(el => el.name === this.name);
   }
 
   @computed('job.scaleState.taskGroupScales.[]', 'name')
   get scaleState() {
-    return maybe(this.get('job.scaleState.taskGroupScales')).findBy(
-      'name',
-      this.name,
-    );
+    return maybe(this.get('job.scaleState.taskGroupScales')).find(el => el.name === this.name);
   }
 
   scale(count, message) {

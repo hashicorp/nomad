@@ -48,7 +48,7 @@ export default class AgentSerializer extends ApplicationSerializer {
     return super.normalizeSingleResponse(
       store,
       typeClass,
-      hash.findBy('Name', id),
+      hash.find(el => el.Name === id),
       id,
       ...args,
     );

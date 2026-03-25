@@ -29,7 +29,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
     const reload = job.get('isPartial') ? job.reload() : resolve();
     return reload
       .then(() => {
-        const taskGroup = job.get('taskGroups').findBy('name', name);
+        const taskGroup = job.get('taskGroups').find(el => el.name === name);
         if (!taskGroup) {
           const err = new Error(
             `Task group ${name} for job ${job.get('name')} not found`,

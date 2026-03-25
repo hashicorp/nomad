@@ -24,9 +24,7 @@ module('Acceptance | roles', function (hooks) {
     window.sessionStorage.clear();
     allScenarios.rolesTestCluster(this.server);
     await Tokens.visit();
-    const managementToken = this.server.db.tokens.findBy({
-      type: 'management',
-    });
+    const managementToken = this.server.db.tokens.find(el => el.type === 'management');
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
     await Administration.visitRoles();
@@ -68,7 +66,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles have policies lists', async function (assert) {
-    const role = this.server.db.roles.findBy({ name: 'reader' });
+    const role = this.server.db.roles.find(el => el.name === 'reader');
     const roleRow = find(`[data-test-role-row="${role.name}"]`);
     const rolePoliciesCell = roleRow.querySelector('[data-test-role-policies]');
     const policiesCellTags = rolePoliciesCell
@@ -84,7 +82,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Name and Description', async function (assert) {
-    const role = this.server.db.roles.findBy({ name: 'reader' });
+    const role = this.server.db.roles.find(el => el.name === 'reader');
     await click('[data-test-role-name="reader"] a');
     assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
 
@@ -117,7 +115,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Policies', async function (assert) {
-    const role = this.server.db.roles.findBy({ name: 'reader' });
+    const role = this.server.db.roles.find(el => el.name === 'reader');
     await click('[data-test-role-name="reader"] a');
     assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
 
@@ -221,7 +219,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Tokens', async function (assert) {
-    const role = this.server.db.roles.findBy({ name: 'reader' });
+    const role = this.server.db.roles.find(el => el.name === 'reader');
 
     await click('[data-test-role-name="reader"] a');
     assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
@@ -257,7 +255,7 @@ module('Acceptance | roles', function (hooks) {
       );
   });
   test('Edit Role: Deletion', async function (assert) {
-    const role = this.server.db.roles.findBy({ name: 'reader' });
+    const role = this.server.db.roles.find(el => el.name === 'reader');
     await click('[data-test-role-name="reader"] a');
     assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
     const deleteButton = find('[data-test-delete-role] button');

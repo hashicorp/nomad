@@ -64,7 +64,7 @@ export default class TaskRoute extends Route {
     // Let the allocation route handle the 404 error.
     if (!allocation) return;
 
-    const task = allocation.get('states').findBy('name', name);
+    const task = allocation.get('states').find(el => el.name === name);
 
     if (!task) {
       const err = new Error(

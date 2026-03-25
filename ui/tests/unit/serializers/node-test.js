@@ -73,7 +73,7 @@ module('Unit | Serializer | Node', function (hooks) {
     );
 
     assert.notOk(
-      this.store.peekAll('node').findBy('id', '1'),
+      this.store.peekAll('node').find(el => el.id === '1'),
       'Record One is no longer found',
     );
   });

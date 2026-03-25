@@ -32,7 +32,7 @@ export default create({
   }),
 
   tabFor(id) {
-    return this.tabs.toArray().findBy('id', id);
+    return this.tabs.toArray().find(el => el.id === id);
   },
 
   recommendations: collection(
@@ -75,7 +75,7 @@ export default create({
   }),
 
   statFor(id) {
-    return this.stats.toArray().findBy('id', id);
+    return this.stats.toArray().find(el => el.id === id);
   },
 
   packStats: collection('[data-test-pack-stat]', {
@@ -84,7 +84,7 @@ export default create({
   }),
 
   packStatFor(id) {
-    return this.packStats.toArray().findBy('id', id);
+    return this.packStats.toArray().find(el => el.id === id);
   },
 
   statusModes: {

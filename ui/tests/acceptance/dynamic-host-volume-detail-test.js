@@ -134,10 +134,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assignAlloc(volume, allocation);
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = this.server.db.taskGroups.findBy({
-      name: allocation.taskGroup,
-      jobId: allocation.jobId,
-    });
+    const taskGroup = this.server.db.taskGroups.find(el => el.name === allocation.taskGroup && el.jobId === allocation.jobId);
 
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);

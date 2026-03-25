@@ -157,7 +157,7 @@ export default Factory.extend({
       { nodeId: node.id },
     );
     const nodePool = node.nodePool
-      ? server.db.nodePools.findBy({ name: node.nodePool })
+      ? server.db.nodePools.find(el => el.name === node.nodePool)
       : pickOne(server.db.nodePools, (pool) => pool.name !== 'all');
 
     node.update({

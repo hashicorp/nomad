@@ -390,7 +390,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @action
   handleTopoVizDataError(errors) {
-    const pre09NodesError = errors.findBy('type', 'filtered-nodes');
+    const pre09NodesError = errors.find(el => el.type === 'filtered-nodes');
     if (pre09NodesError) {
       this.pre09Nodes = pre09NodesError.context;
     }

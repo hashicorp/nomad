@@ -45,7 +45,7 @@ export default Factory.extend({
       });
     }
 
-    if (server.db.jobs.findBy({ id: 'service-haver' })) {
+    if (server.db.jobs.find(el => el.id === 'service-haver')) {
       if (!service.jobId) {
         service.update({
           jobId: 'service-haver',

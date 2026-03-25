@@ -187,10 +187,7 @@ module('Acceptance | client detail', function (hooks) {
       .reverse()[0];
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = this.server.db.taskGroups.findBy({
-      name: allocation.taskGroup,
-      jobId: allocation.jobId,
-    });
+    const taskGroup = this.server.db.taskGroups.find(el => el.name === allocation.taskGroup && el.jobId === allocation.jobId);
 
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
@@ -559,7 +556,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(el => el.status === 404).url,
       '/v1/node/not-a-real-node',
       'A request to the nonexistent node is made',
     );

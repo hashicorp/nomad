@@ -56,7 +56,7 @@ export default class PolicyEditor extends Component {
         this.store
           .peekAll('policy')
           .filter((existingPolicy) => existingPolicy !== policy)
-          .findBy('name', policy.name)
+          .find(el => el.name === policy.name)
       ) {
         throw new Error(`A policy with name ${policy.name} already exists.`);
       }

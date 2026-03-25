@@ -27,7 +27,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
       const job = this.server.create('job', { createAllocations: false });
       const group = job.taskGroups.models[0];
       job.jobScale.taskGroupScales.models
-        .findBy('name', group.name)
+        .find(el => el.name === group.name)
         .update({ events });
 
       const jobModel = await this.store.find(
@@ -35,7 +35,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         JSON.stringify([job.id, 'default']),
       );
       await jobModel.get('scaleState');
-      return jobModel.taskGroups.findBy('name', group.name);
+      return jobModel.taskGroups.find(el => el.name === group.name);
     };
   });
 

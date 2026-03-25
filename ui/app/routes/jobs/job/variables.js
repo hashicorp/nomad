@@ -38,10 +38,10 @@ export default class JobsJobVariablesRoute extends Route {
         path: 'nomad/jobs',
       })
       .then((variables) => {
-        return variables.findBy('path', 'nomad/jobs');
+        return variables.find(el => el.path === 'nomad/jobs');
       })
       .catch((e) => {
-        if (e.errors?.findBy('status', 404)) {
+        if (e.errors?.find(el => el.status === 404)) {
           return null;
         }
         throw e;
