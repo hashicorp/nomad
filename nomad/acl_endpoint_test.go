@@ -4410,6 +4410,9 @@ func TestACL_Login(t *testing.T) {
 // to prepare for a subsequent OIDCCompleteAuth call.
 func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOIDCCompleteAuthRequest, opts ...capOIDC.Option) {
 	t.Helper()
+	// make sure the cache is clean first
+	cache.LoadAndDelete(req.ClientNonce)
+
 	opts = append(opts,
 		capOIDC.WithNonce(req.ClientNonce),
 		capOIDC.WithState(req.State),
@@ -4417,14 +4420,13 @@ func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOID
 			return time.Now().Add(time.Minute) // expire in the future
 		}),
 	)
-	oidcReq, err := capOIDC.NewRequest(
-		time.Second, "http://127.0.0.1:4649/oidc/callback",
-		opts...,
-	)
+	_, err := cache.LoadOrAdd(req.ClientNonce, func() (*capOIDC.Req, error) {
+		return capOIDC.NewRequest(
+			time.Second, "http://127.0.0.1:4649/oidc/callback",
+			opts...,
+		)
+	})
 	must.NoError(t, err)
-	// make sure the cache is clean first
-	cache.LoadAndDelete(req.ClientNonce)
-	must.NoError(t, cache.Store(oidcReq))
 }
 
 func TestACL_ClientIntroductionToken(t *testing.T) {
