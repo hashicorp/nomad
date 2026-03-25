@@ -234,8 +234,16 @@ proto: ## Generate protobuf bindings
 	@echo "==> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
+# the update-changelog script mutates the local git filesystem,
+# so clone into a temp dir for a fresh worktree.
+.PHONY: changelog
+changelog: tmp := $(shell mktemp -d /tmp/nomad-changelog-XXXXX)
+changelog: script := $(PWD)/scripts/release/update-changelog
 changelog: ## Generate changelog from entries
-	./scripts/release/update-changelog
+	@git clone $(PWD) $(tmp)
+	@echo "==> Running changelog script"
+	@cd $(tmp) && $(script)
+	@rm -rf $(tmp)
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
