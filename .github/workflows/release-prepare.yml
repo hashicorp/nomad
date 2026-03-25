@@ -80,6 +80,7 @@ jobs:
       - name: Update changelog
         id: changelog # output: contents, file
         env:
+          CI: true
           NEW_VERSION: ${{ inputs.version }}
           ALLOW_DIRTY_WORKTREE: true
           DEBUG: ${{ runner.debug }}
