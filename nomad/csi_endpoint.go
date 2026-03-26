@@ -1039,28 +1039,22 @@ func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.A
 }
 
 func (v *CSIVolume) resolveClaimNodePool(args *structs.CSIVolumeClaimRequest) (string, error) {
-	identity := args.GetIdentity()
-
-	pool, err := resolveCallerNodePool(v.srv, v.ctx, identity)
+	pool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
 	if err == nil {
 		return pool, nil
 	}
 
-	if args.AllocationID != "" {
-		if alloc, lookupErr := v.srv.State().AllocByID(nil, args.AllocationID); lookupErr == nil && alloc != nil && alloc.NodeID != "" {
-			if node, lookupErr := v.srv.State().NodeByID(nil, alloc.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
-				return node.NodePool, nil
-			}
-		}
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return "", structs.ErrPermissionDenied
 	}
 
-	if args.NodeID != "" {
-		if node, lookupErr := v.srv.State().NodeByID(nil, args.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
-			return node.NodePool, nil
-		}
+	nodeID, err := resolveNodeIDForAllocID(snap, args.AllocationID)
+	if err == nil {
+		return resolveNodePoolForNodeID(snap, nodeID)
 	}
 
-	return "", err
+	return resolveNodePoolForNodeID(snap, args.NodeID)
 }
 
 func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaimRequest) error {
@@ -1094,10 +1088,10 @@ func (v *CSIVolume) authorizeUnpublish(
 	// safely match the node ID for client RPCs because we may not have the node
 	// ID anymore, so fall back to the claim's node context when needed.
 	pool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if err != nil && args.Claim != nil && args.Claim.NodeID != "" {
-		if node, lookupErr := v.srv.State().NodeByID(nil, args.Claim.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
-			pool = node.NodePool
-			err = nil
+	if err != nil && args.Claim != nil {
+		snap, snapErr := v.srv.State().Snapshot()
+		if snapErr == nil {
+			pool, err = resolveNodePoolForNodeID(snap, args.Claim.NodeID)
 		}
 	}
 
