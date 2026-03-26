@@ -58,13 +58,13 @@ rules:
       # Authorization can be done after forwarding by resolving the caller's
       # node pool before checking AllowClientOp.
       - pattern-not-inside: |
-          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          aclObj, err := $RECV.AuthenticateClientOnly($CTX, args)
           ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
+          if done, err := $RECV.forward($METHOD, ...); done {
             return err
           }
           ...
-          callerPool, err := resolveCallerNodePool($A.$B, $A.ctx, args.GetIdentity())
+          callerPool, err := resolveCallerNodePool(..., ..., args.GetIdentity())
           ...
           if err != nil {
             return err
