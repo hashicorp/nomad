@@ -8641,11 +8641,11 @@ func TestJob_TagVersion(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	state := s1.fsm.State()
+	store := s1.fsm.State()
 
 	job := mock.Job()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
-	must.Nil(t, err)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	must.NoError(t, err)
 
 	// Tag the job version
 	tagVersionReq := &structs.JobApplyTagRequest{
@@ -8661,40 +8661,59 @@ func TestJob_TagVersion(t *testing.T) {
 	}
 
 	// Expect failure for request with an invalid token
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+	invalidToken := mock.CreatePolicyAndToken(t, store, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	tagVersionReq.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &invalidResp)
-	must.NotNil(t, err)
-	must.StrContains(t, err.Error(), "Permission denied")
+	must.ErrorContains(t, err, "Permission denied")
 
 	// Tagging a job with a management token should succeed
 	tagVersionReq.AuthToken = root.SecretID
 	var resp structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
-	// Looking up the job with a valid token should succeed
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	// Tagging the job with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, store, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	tagVersionReq.AuthToken = validToken.SecretID
 	var resp2 structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp2)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
-	// Looking up the job with a valid fine-grain token should succeed
-	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	// Tagging the job with a valid fine-grain token should succeed
+	validFineGrainToken := mock.CreatePolicyAndToken(t, store, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityTagJobVersion}))
 	tagVersionReq.AuthToken = validFineGrainToken.SecretID
 	var resp3 structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp3)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	must.Eq(t, "release", resp3.Name)
 	must.Eq(t, "Release version tag", resp3.Description)
 	must.NotNil(t, resp3.TaggedTime)
+
+	// update the job
+	job, _ = store.JobByID(nil, job.Namespace, job.ID)
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].Resources.CPU++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1100, nil, job))
+
+	// Tag again, this time for the latest version
+	tagVersionReq.Latest = true
+	tagVersionReq.Tag.Name = "next release"
+
+	var resp4 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp4)
+	must.NoError(t, err)
+	must.Eq(t, "next release", resp4.Name)
+	must.Eq(t, "Release version tag", resp4.Description)
+	must.NotNil(t, resp4.TaggedTime)
+
+	job, _ = store.JobVersionByTagName(nil, job.Namespace, job.ID, resp4.Name)
+	must.Eq(t, uint64(1), job.Version)
 }
 
 func TestIntegration_SystemDeploymentHealth(t *testing.T) {

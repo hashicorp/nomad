@@ -4848,6 +4848,14 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *structs.JobApplyTagRequest) error {
 	jobID := req.JobID
 	jobVersion := req.Version
+	if jobVersion == 0 && req.Latest {
+		job, err := s.JobByID(nil, namespace, jobID)
+		if err != nil {
+			return err
+		}
+		jobVersion = job.Version
+	}
+
 	tag := req.Tag
 	name := req.Name
 
