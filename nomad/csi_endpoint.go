@@ -1083,26 +1083,29 @@ func (v *CSIVolume) authorizeUnpublish(
 	}
 
 	allowByNamespace := allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()
-
-	// this RPC is called by both clients and by `nomad volume detach`. we can't
-	// safely match the node ID for client RPCs because we may not have the node
-	// ID anymore, so fall back to the claim's node context when needed.
-	pool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if err != nil && args.Claim != nil {
-		snap, snapErr := v.srv.State().Snapshot()
-		if snapErr == nil {
-			pool, err = resolveNodePoolForNodeID(snap, args.Claim.NodeID)
-		}
-	}
-
-	if err != nil {
-		if !allowByNamespace {
-			return structs.ErrPermissionDenied
-		}
+	if allowByNamespace {
 		return nil
 	}
 
-	if !aclObj.AllowClientOp(pool) && !allowByNamespace {
+	callerPool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
+	if !aclObj.AllowClientOp(callerPool) {
+		return structs.ErrPermissionDenied
+	}
+
+	if args.Claim == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	claimPool, err := resolveNodePoolForNodeID(snap, args.Claim.NodeID)
+	if err != nil || claimPool != callerPool {
 		return structs.ErrPermissionDenied
 	}
 
