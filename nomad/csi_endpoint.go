@@ -453,9 +453,9 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	if err != nil {
 		return err
 	}
-	pool := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) {
-		return structs.ErrPermissionDenied
+
+	if err := v.authorizeClaim(aclObj, args); err != nil {
+		return err
 	}
 
 	if args.VolumeID == "" {
@@ -692,13 +692,8 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	if err != nil {
 		return err
 	}
-	// this RPC is called by both clients and by `nomad volume detach`. we can't
-	// safely match the node ID for client RPCs because we may not have the node
-	// ID anymore
-	pool := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) &&
-		!(allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()) {
-		return structs.ErrPermissionDenied
+	if err := v.authorizeUnpublish(aclObj, args, allowVolume); err != nil {
+		return err
 	}
 
 	if args.VolumeID == "" {
@@ -1020,6 +1015,8 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		State:        claim.State,
 		WriteRequest: structs.WriteRequest{
 			Namespace: vol.Namespace,
+			Region:    v.srv.Region(),
+			AuthToken: v.srv.getLeaderAcl(),
 		},
 	}
 	_, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
@@ -1028,6 +1025,93 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		return err
 	}
 	vol.ModifyIndex = index
+	return nil
+}
+
+func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.AuthenticatedIdentity) bool {
+	if aclObj.AllowServerOp() || aclObj.IsManagement() {
+		return true
+	}
+
+	return identity != nil &&
+		identity.GetACLToken() != nil &&
+		identity.GetACLToken().AccessorID == structs.LeaderACLToken.AccessorID
+}
+
+func (v *CSIVolume) resolveClaimNodePool(args *structs.CSIVolumeClaimRequest) (string, error) {
+	identity := args.GetIdentity()
+
+	pool, err := resolveCallerNodePool(v.srv, v.ctx, identity)
+	if err == nil {
+		return pool, nil
+	}
+
+	if args.AllocationID != "" {
+		if alloc, lookupErr := v.srv.State().AllocByID(nil, args.AllocationID); lookupErr == nil && alloc != nil && alloc.NodeID != "" {
+			if node, lookupErr := v.srv.State().NodeByID(nil, alloc.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
+				return node.NodePool, nil
+			}
+		}
+	}
+
+	if args.NodeID != "" {
+		if node, lookupErr := v.srv.State().NodeByID(nil, args.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
+			return node.NodePool, nil
+		}
+	}
+
+	return "", err
+}
+
+func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaimRequest) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	pool, err := v.resolveClaimNodePool(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowClientOp(pool) {
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
+}
+
+func (v *CSIVolume) authorizeUnpublish(
+	aclObj *acl.ACL,
+	args *structs.CSIVolumeUnpublishRequest,
+	allowVolume func(*acl.ACL, string) bool,
+) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	allowByNamespace := allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()
+
+	// this RPC is called by both clients and by `nomad volume detach`. we can't
+	// safely match the node ID for client RPCs because we may not have the node
+	// ID anymore, so fall back to the claim's node context when needed.
+	pool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
+	if err != nil && args.Claim != nil && args.Claim.NodeID != "" {
+		if node, lookupErr := v.srv.State().NodeByID(nil, args.Claim.NodeID); lookupErr == nil && node != nil && node.NodePool != "" {
+			pool = node.NodePool
+			err = nil
+		}
+	}
+
+	if err != nil {
+		if !allowByNamespace {
+			return structs.ErrPermissionDenied
+		}
+		return nil
+	}
+
+	if !aclObj.AllowClientOp(pool) && !allowByNamespace {
+		return structs.ErrPermissionDenied
+	}
+
 	return nil
 }
 
