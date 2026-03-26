@@ -10,18 +10,18 @@ import (
 // resolveCallerNodePool determines the node pool of the caller.
 //
 // it returns the resolved node pool name. if no pool can be resolved it returns
-// structs.NodePoolDefault.
-func resolveCallerNodePool(s *Server, ctx *RPCContext, identity *structs.AuthenticatedIdentity) string {
+// a permission denied error.
+func resolveCallerNodePool(s *Server, ctx *RPCContext, identity *structs.AuthenticatedIdentity) (string, error) {
 	// 1) Use workload identity claims if present (no state lookup)
 	if identity != nil && identity.Claims != nil {
 		if identity.Claims.IsNode() {
 			if p := identity.Claims.NodeIdentityClaims.NodePool; p != "" {
-				return p
+				return p, nil
 			}
 		}
 		if identity.Claims.IsNodeIntroduction() {
 			if p := identity.Claims.NodeIntroductionIdentityClaims.NodePool; p != "" {
-				return p
+				return p, nil
 			}
 		}
 	}
@@ -29,14 +29,14 @@ func resolveCallerNodePool(s *Server, ctx *RPCContext, identity *structs.Authent
 	snap, err := s.fsm.State().Snapshot()
 	if err != nil {
 		// fail fast if we can't get the state; this means other lookups would
-		// fail anyway
-		return structs.NodePoolDefault
+		// fail anyway and we should return an error
+		return "", structs.ErrPermissionDenied
 	}
 
 	// 2) If RPC context has a NodeID (connected client), prefer that.
 	if ctx != nil && ctx.NodeID != "" && s != nil {
 		if node, err := snap.NodeByID(nil, ctx.NodeID); err == nil && node != nil && node.NodePool != "" {
-			return node.NodePool
+			return node.NodePool, nil
 		}
 	}
 
@@ -44,10 +44,9 @@ func resolveCallerNodePool(s *Server, ctx *RPCContext, identity *structs.Authent
 	// node.
 	if identity != nil && identity.ClientID != "" && s != nil {
 		if node, err := snap.NodeByID(nil, identity.ClientID); err == nil && node != nil && node.NodePool != "" {
-			return node.NodePool
+			return node.NodePool, nil
 		}
 	}
 
-	// fallback to default node pool
-	return structs.NodePoolDefault
+	return "", structs.ErrPermissionDenied
 }

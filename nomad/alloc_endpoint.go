@@ -170,8 +170,8 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				}
 				// Resolve the caller's node pool and require the caller to be both
 				// in the same node pool and allowed as a client in that pool.
-				callerPool := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-				if callerPool != nodePool || !aclObj.AllowClientOp(callerPool) {
+				callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
+				if err != nil || callerPool != nodePool || !aclObj.AllowClientOp(callerPool) {
 					// If the caller is not the same node-pool client, fall back to
 					// checking namespace permissions.
 					if !allowNsOp(aclObj, out.Namespace) {
@@ -211,8 +211,8 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	if !a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args) {
-		return structs.ErrPermissionDenied
+	if err := a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args); err != nil {
+		return err
 	}
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
@@ -461,8 +461,8 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
-	if !a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args) {
-		return structs.ErrPermissionDenied
+	if err := a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args); err != nil {
+		return err
 	}
 
 	if len(args.Identities) == 0 {

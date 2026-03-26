@@ -51,8 +51,8 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	if !s.srv.AllowClientOpInCallerPool(s.ctx, aclObj, args) {
-		return structs.ErrPermissionDenied
+	if err := s.srv.AllowClientOpInCallerPool(s.ctx, aclObj, args); err != nil {
+		return err
 	}
 
 	// Nomad service registrations can only be used once all servers, in the
@@ -127,12 +127,15 @@ func (s *ServiceRegistration) DeleteByID(
 
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
-		acl.NamespaceCapabilitySubmitJob,
-		acl.NamespaceCapabilityDeleteServiceRegistration,
-	) &&
-		!aclObj.AllowClientOp(resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())) {
-		return structs.ErrPermissionDenied
+	} else {
+		pool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
+		if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
+			acl.NamespaceCapabilitySubmitJob,
+			acl.NamespaceCapabilityDeleteServiceRegistration,
+		) &&
+			(err != nil || !aclObj.AllowClientOp(pool)) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Update via Raft.

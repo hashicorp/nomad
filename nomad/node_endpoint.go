@@ -682,7 +682,10 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
 	} else {
-		pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+		pool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+		if err != nil {
+			return err
+		}
 		if !(aclObj.AllowClientOp(pool) || aclObj.AllowServerOp()) {
 			return structs.ErrPermissionDenied
 		}
@@ -1004,8 +1007,8 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 
 	// If the ACL object has client operations allowed, check if the identity
 	// matches the node being drained. This allows nodes to drain themselves.
-	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
-	if aclObj.AllowClientOp(pool) {
+	pool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if err == nil && aclObj.AllowClientOp(pool) {
 
 		identity := args.GetIdentity()
 
@@ -1219,8 +1222,8 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
-	if !aclObj.AllowClientOp(pool) && !aclObj.AllowNodeRead() {
+	pool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if (err != nil || !aclObj.AllowClientOp(pool)) && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1380,7 +1383,10 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	pool := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	pool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
+	if err != nil {
+		return err
+	}
 	if !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
@@ -1527,8 +1533,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	if !n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args) {
-		return structs.ErrPermissionDenied
+	if err := n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args); err != nil {
+		return err
 	}
 
 	// Ensure at least a single alloc
@@ -1982,8 +1988,8 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
-	if !n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args) {
-		return structs.ErrPermissionDenied
+	if err := n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args); err != nil {
+		return err
 	}
 
 	if len(args.NodeEvents) == 0 {
