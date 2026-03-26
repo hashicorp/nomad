@@ -2505,6 +2505,89 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateDrain_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	node1 := mock.Node()
+	node1.NodePool = "pool-a"
+	must.NoError(t, node1.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node1))
+
+	node2 := mock.Node()
+	node2.NodePool = "pool-b"
+	must.NoError(t, node2.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, node2))
+
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID: node2.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			AuthToken: node1.SecretID,
+			Region:    "global",
+		},
+	}
+
+	var resp structs.NodeDrainUpdateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+
+	dereg.NodeID = node1.ID
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+	must.NoError(t, err)
+}
+
+// TestClientEndpoint_GetNode asserts the ability to request node details.
+func TestClientEndpoint_GetClientAllocs_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	node1 := mock.Node()
+	node1.NodePool = "pool-a"
+	must.NoError(t, node1.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node1))
+
+	node2 := mock.Node()
+	node2.NodePool = "pool-b"
+	must.NoError(t, node2.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, node2))
+
+	get := &structs.NodeSpecificRequest{
+		NodeID:   node1.ID,
+		SecretID: node1.SecretID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node1.SecretID,
+		},
+	}
+
+	var resp structs.NodeClientAllocsResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp))
+
+	get.NodeID = node2.ID
+	get.SecretID = node2.SecretID
+	err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
 func TestClientEndpoint_GetNode(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2578,6 +2661,47 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	if resp2.Node != nil {
 		t.Fatalf("unexpected node")
 	}
+}
+
+func TestClientEndpoint_GetNode_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	node1 := mock.Node()
+	node1.NodePool = "pool-a"
+	must.NoError(t, node1.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node1))
+
+	node2 := mock.Node()
+	node2.NodePool = "pool-b"
+	must.NoError(t, node2.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, node2))
+
+	get := &structs.NodeSpecificRequest{
+		NodeID: node1.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node1.SecretID,
+		},
+	}
+
+	var resp structs.SingleNodeResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp))
+	must.NotNil(t, resp.Node)
+	must.Eq(t, node1.ID, resp.Node.ID)
+
+	get.NodeID = node2.ID
+	err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp)
+	must.NoError(t, err)
+	must.NotNil(t, resp.Node)
+	must.Eq(t, node2.ID, resp.Node.ID)
 }
 
 func TestClientEndpoint_GetNode_ACL(t *testing.T) {

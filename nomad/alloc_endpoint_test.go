@@ -1043,6 +1043,68 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	}
 }
 
+func TestAllocEndpoint_GetAllocs_NodePoolACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+
+	node := mock.Node()
+	node.NodePool = "pool-a"
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 101, []*structs.NodePool{
+		{Name: "pool-a"},
+		{Name: "pool-b"},
+	}))
+
+	samePoolAlloc := mock.Alloc()
+	samePoolAlloc.NodeID = node.ID
+	samePoolAlloc.Job.NodePool = "pool-a"
+
+	otherPoolAlloc := mock.Alloc()
+	otherPoolAlloc.NodeID = node.ID
+	otherPoolAlloc.Job.NodePool = "pool-b"
+
+	must.NoError(t, state.UpsertJobSummary(102, mock.JobSummary(samePoolAlloc.JobID)))
+	must.NoError(t, state.UpsertJobSummary(103, mock.JobSummary(otherPoolAlloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 104, nil, samePoolAlloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 105, nil, otherPoolAlloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 106, []*structs.Allocation{samePoolAlloc, otherPoolAlloc}))
+
+	t.Run("same pool allocs allowed", func(t *testing.T) {
+		get := &structs.AllocsGetRequest{
+			AllocIDs: []string{samePoolAlloc.ID},
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				AuthToken: node.SecretID,
+			},
+		}
+
+		var resp structs.AllocsGetResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp))
+		must.Eq(t, uint64(106), resp.Index)
+		must.Len(t, 1, resp.Allocs)
+		must.Eq(t, samePoolAlloc.ID, resp.Allocs[0].ID)
+	})
+
+	t.Run("cross pool allocs denied", func(t *testing.T) {
+		get := &structs.AllocsGetRequest{
+			AllocIDs: []string{otherPoolAlloc.ID},
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				AuthToken: node.SecretID,
+			},
+		}
+
+		var resp structs.AllocsGetResponse
+		must.EqError(t, msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp), structs.ErrPermissionDenied.Error())
+	})
+}
+
 func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -1875,6 +1937,84 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 	must.Eq(t, *req.Identities[1], resp.Rejections[0].WorkloadIdentityRequest)
 	must.Eq(t, structs.WIRejectionReasonMissingAlloc, resp.Rejections[0].Reason)
 	must.Len(t, 1, resp.SignedIdentities)
+}
+
+func TestAlloc_SignIdentities_NodePoolACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	t.Cleanup(cleanupS1)
+	codec := rpcClient(t, s1)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
+	state := s1.fsm.State()
+
+	node := mock.Node()
+	node.NodePool = "pool-a"
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 101, []*structs.NodePool{
+		{Name: "pool-a"},
+		{Name: "pool-b"},
+	}))
+
+	makeAlloc := func(nodePool string) *structs.Allocation {
+		alloc := mock.Alloc()
+		alloc.NodeID = node.ID
+		alloc.Job.NodePool = nodePool
+		alloc.Job.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{
+			{
+				Name:     "alt",
+				Audience: []string{"test"},
+			},
+		}
+		return alloc
+	}
+
+	samePoolAlloc := makeAlloc("pool-a")
+	otherPoolAlloc := makeAlloc("pool-b")
+
+	must.NoError(t, state.UpsertJobSummary(102, mock.JobSummary(samePoolAlloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 103, nil, samePoolAlloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{samePoolAlloc}))
+
+	must.NoError(t, state.UpsertJobSummary(105, mock.JobSummary(otherPoolAlloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 106, nil, otherPoolAlloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 107, []*structs.Allocation{otherPoolAlloc}))
+
+	newReq := func(allocID string) *structs.AllocIdentitiesRequest {
+		return &structs.AllocIdentitiesRequest{
+			Identities: []*structs.WorkloadIdentityRequest{
+				{
+					AllocID: allocID,
+					WIHandle: structs.WIHandle{
+						WorkloadIdentifier: "web",
+						IdentityName:       "alt",
+					},
+				},
+			},
+			QueryOptions: structs.QueryOptions{
+				Region:     "global",
+				Namespace:  structs.DefaultNamespace,
+				AllowStale: true,
+				AuthToken:  node.SecretID,
+			},
+		}
+	}
+
+	t.Run("same pool identities allowed", func(t *testing.T) {
+		req := newReq(samePoolAlloc.ID)
+		var resp structs.AllocIdentitiesResponse
+
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", req, &resp))
+		must.Len(t, 0, resp.Rejections)
+		must.Len(t, 1, resp.SignedIdentities)
+	})
+
+	t.Run("cross pool identities denied", func(t *testing.T) {
+		req := newReq(otherPoolAlloc.ID)
+		var resp structs.AllocIdentitiesResponse
+
+		must.EqError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", req, &resp), structs.ErrPermissionDenied.Error())
+	})
 }
 
 // TestAlloc_SignIdentities_Blocking asserts that if a server is behind the
