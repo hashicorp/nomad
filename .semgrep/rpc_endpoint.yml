@@ -55,8 +55,8 @@ rules:
           ...
 
       # Pattern used by endpoints that are used only for client-to-server.
-      # Authorization can be done after forwarding via a helper that resolves
-      # the caller's node pool before checking AllowClientOp.
+      # Authorization can be done after forwarding by resolving the caller's
+      # node pool before checking AllowClientOp.
       - pattern-not-inside: |
           aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
@@ -64,8 +64,14 @@ rules:
             return err
           }
           ...
-          if err := $A.$B.AllowClientOpInCallerPool($A.ctx, aclObj, args); err != nil {
+          callerPool, err := resolveCallerNodePool($A.$B, $A.ctx, args.GetIdentity())
+          ...
+          if err != nil {
             return err
+          }
+          ...
+          if !aclObj.AllowClientOp(callerPool) {
+            return structs.ErrPermissionDenied
           }
           ...
 
@@ -150,7 +156,7 @@ rules:
       - pattern: |
           aclObj == nil
 
-    message: "RPC method ACL check $ACL_CHECK appears to bypass authorization by first checking for nil ACLs"
+    message: "RPC method ACL check appears to bypass authorization by first checking for nil ACLs"
     languages:
       - "go"
     severity: "WARNING"
