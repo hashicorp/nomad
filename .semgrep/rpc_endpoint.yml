@@ -106,10 +106,10 @@ rules:
             - pattern-not: '"ACL.UpsertOneTimeToken"'
             - pattern-not: '"ACL.ExchangeOneTimeToken"'
             - pattern-not: '"ACL.WhoAmI"'
-            - pattern-not: '"structs.ACLListAuthMethodsRPCMethod"'
-            - pattern-not: '"structs.ACLOIDCAuthURLRPCMethod"'
-            - pattern-not: '"structs.ACLOIDCCompleteAuthRPCMethod"'
-            - pattern-not: '"structs.ACLLoginRPCMethod"'
+            - pattern-not: "structs.ACLListAuthMethodsRPCMethod"
+            - pattern-not: "structs.ACLOIDCAuthURLRPCMethod"
+            - pattern-not: "structs.ACLOIDCCompleteAuthRPCMethod"
+            - pattern-not: "structs.ACLLoginRPCMethod"
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
