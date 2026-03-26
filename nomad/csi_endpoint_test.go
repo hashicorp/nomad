@@ -15,7 +15,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
@@ -781,10 +780,10 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			if tc.expectedErrMsg == "" {
 				must.NoError(t, err)
-				assert.Len(t, vol.ReadAllocs, 1)
+				must.Eq(t, 1, len(vol.ReadAllocs))
 			} else {
 				must.Error(t, err)
-				assert.Len(t, vol.ReadAllocs, 2)
+				must.Eq(t, 2, len(vol.ReadAllocs))
 				test.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
 					test.Sprintf("error %v did not contain %q", err, tc.expectedErrMsg))
 				claim = vol.PastClaims[alloc.ID]
@@ -795,6 +794,226 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		})
 	}
 
+}
+
+func TestCSIVolumeEndpoint_Claim_SamePoolClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	nodeA.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	nodeB.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, nodeB))
+
+	allocA := mock.BatchAlloc()
+	allocA.NodeID = nodeA.ID
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, allocA.Job))
+	must.NoError(t, state.UpsertJobSummary(1004, mock.JobSummary(allocA.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{allocA}))
+
+	allocB := mock.BatchAlloc()
+	allocB.NodeID = nodeB.ID
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1006, nil, allocB.Job))
+	must.NoError(t, state.UpsertJobSummary(1007, mock.JobSummary(allocB.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1008, []*structs.Allocation{allocB}))
+
+	t.Run("same-pool client allowed", func(t *testing.T) {
+		samePoolVolID := uuid.Generate()
+		must.NoError(t, state.UpsertCSIVolume(1009, []*structs.CSIVolume{{
+			ID:        samePoolVolID,
+			Namespace: structs.DefaultNamespace,
+			PluginID:  "minnie",
+			Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+			RequestedCapabilities: []*structs.CSIVolumeCapability{{
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+			}},
+		}}))
+
+		req := &structs.CSIVolumeClaimRequest{
+			VolumeID:       samePoolVolID,
+			AllocationID:   allocA.ID,
+			NodeID:         nodeA.ID,
+			Claim:          structs.CSIVolumeClaimWrite,
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+				AuthToken: nodeA.SecretID,
+			},
+		}
+		var resp structs.CSIVolumeClaimResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", req, &resp))
+	})
+
+}
+
+func TestCSIVolumeEndpoint_Unpublish_NodePoolScoped(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, shutdown := TestACLServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+
+	policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+	nsToken := mock.CreatePolicyAndToken(t, state, 1000, "csi-unpublish", policy)
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	nodeA.Attributes["nomad.version"] = "0.11.0"
+	nodeA.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	nodeA.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID:                 "minnie",
+			Healthy:                  true,
+			ControllerInfo:           &structs.CSIControllerInfo{SupportsAttachDetach: true},
+			RequiresControllerPlugin: true,
+		},
+	}
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	nodeB.Attributes["nomad.version"] = "0.11.0"
+	nodeB.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, nodeB))
+
+	volID := uuid.Generate()
+	must.NoError(t, state.UpsertCSIVolume(1003, []*structs.CSIVolume{{
+		ID:                 volID,
+		Namespace:          structs.DefaultNamespace,
+		PluginID:           "minnie",
+		Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
+		ControllerRequired: true,
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	}}))
+
+	allocA := mock.BatchAlloc()
+	allocA.NodeID = nodeA.ID
+	allocA.ClientStatus = structs.AllocClientStatusRunning
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, allocA.Job))
+
+	allocB := mock.BatchAlloc()
+	allocB.NodeID = nodeB.ID
+	allocB.ClientStatus = structs.AllocClientStatusRunning
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1005, nil, allocB.Job))
+
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{allocA, allocB}))
+
+	now := time.Now().UnixNano()
+	claimA := &structs.CSIVolumeClaim{
+		AllocationID:   allocA.ID,
+		NodeID:         nodeA.ID,
+		ExternalNodeID: "i-example-a",
+		Mode:           structs.CSIVolumeClaimRead,
+		State:          structs.CSIVolumeClaimStateTaken,
+	}
+	must.NoError(t, state.CSIVolumeClaim(1007, now, structs.DefaultNamespace, volID, claimA))
+
+	claimB := &structs.CSIVolumeClaim{
+		AllocationID:   allocB.ID,
+		NodeID:         nodeB.ID,
+		ExternalNodeID: "i-example-b",
+		Mode:           structs.CSIVolumeClaimRead,
+		State:          structs.CSIVolumeClaimStateTaken,
+	}
+	must.NoError(t, state.CSIVolumeClaim(1008, now, structs.DefaultNamespace, volID, claimB))
+
+	newReq := func(authToken string, claim *structs.CSIVolumeClaim) *structs.CSIVolumeUnpublishRequest {
+		return &structs.CSIVolumeUnpublishRequest{
+			VolumeID: volID,
+			Claim:    claim,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+				AuthToken: authToken,
+			},
+		}
+	}
+
+	t.Run("same-pool client allowed", func(t *testing.T) {
+		req := newReq(nodeA.SecretID, &structs.CSIVolumeClaim{
+			AllocationID:   allocA.ID,
+			NodeID:         nodeA.ID,
+			ExternalNodeID: "i-example-a",
+			Mode:           structs.CSIVolumeClaimRead,
+			State:          structs.CSIVolumeClaimStateControllerDetached,
+		})
+
+		var resp structs.CSIVolumeUnpublishResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req, &resp))
+	})
+
+	t.Run("client token allowed when claim node provides authorization context", func(t *testing.T) {
+		req := newReq(nodeA.SecretID, &structs.CSIVolumeClaim{
+			AllocationID:   allocA.ID,
+			NodeID:         nodeB.ID,
+			ExternalNodeID: "i-example-b",
+			Mode:           structs.CSIVolumeClaimRead,
+			State:          structs.CSIVolumeClaimStateControllerDetached,
+		})
+
+		var resp structs.CSIVolumeUnpublishResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req, &resp))
+	})
+
+	t.Run("namespace token remains allowed", func(t *testing.T) {
+		req := newReq(nsToken.SecretID, &structs.CSIVolumeClaim{
+			AllocationID:   allocB.ID,
+			NodeID:         nodeB.ID,
+			ExternalNodeID: "i-example-b",
+			Mode:           structs.CSIVolumeClaimRead,
+			State:          structs.CSIVolumeClaimStateControllerDetached,
+		})
+
+		var resp structs.CSIVolumeUnpublishResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req, &resp))
+	})
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {

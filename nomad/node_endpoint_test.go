@@ -2548,7 +2548,8 @@ func TestClientEndpoint_UpdateDrain_NodePoolScopedClientAuth(t *testing.T) {
 	must.NoError(t, err)
 }
 
-// TestClientEndpoint_GetNode asserts the ability to request node details.
+// TestClientEndpoint_GetClientAllocs_NodePoolScopedClientAuth asserts that a
+// client can fetch allocs for a node in its own pool but not across pools.
 func TestClientEndpoint_GetClientAllocs_NodePoolScopedClientAuth(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2586,6 +2587,47 @@ func TestClientEndpoint_GetClientAllocs_NodePoolScopedClientAuth(t *testing.T) {
 	get.SecretID = node2.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+// TestClientEndpoint_UpdateStatus_NodePoolScopedClientAuth documents the
+// current compatibility behavior for client-authenticated status updates.
+func TestClientEndpoint_UpdateStatus_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	nodeA.Status = structs.NodeStatusInit
+	must.NoError(t, nodeA.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	nodeB.Status = structs.NodeStatusInit
+	must.NoError(t, nodeB.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, nodeB))
+
+	req := &structs.NodeUpdateStatusRequest{
+		NodeID: nodeA.ID,
+		Status: structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{
+			AuthToken: nodeA.SecretID,
+			Region:    "global",
+		},
+	}
+
+	var resp structs.NodeUpdateResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp))
+
+	req.NodeID = nodeB.ID
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp))
 }
 
 func TestClientEndpoint_GetNode(t *testing.T) {
@@ -3647,6 +3689,133 @@ func TestNode_UpdateAlloc(t *testing.T) {
 		}
 	}
 	must.Eq(t, 1, foundCount, must.Sprint("Should create exactly one eval for failed allocs"))
+}
+
+// TestNode_UpdateAlloc_NodePoolScopedClientAuth asserts that client-originated
+// alloc updates are limited to nodes in the caller's pool.
+func TestNode_UpdateAlloc_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	must.NoError(t, nodeA.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	must.NoError(t, nodeB.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, nodeB))
+
+	allocA := mock.Alloc()
+	allocA.NodeID = nodeA.ID
+	must.NoError(t, state.UpsertJobSummary(3, mock.JobSummary(allocA.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 4, nil, allocA.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{allocA}))
+
+	allocB := mock.Alloc()
+	allocB.NodeID = nodeB.ID
+	must.NoError(t, state.UpsertJobSummary(6, mock.JobSummary(allocB.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 7, nil, allocB.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 8, []*structs.Allocation{allocB}))
+
+	t.Run("same-pool update allowed", func(t *testing.T) {
+		update := allocA.Copy()
+		update.ClientStatus = structs.AllocClientStatusFailed
+		req := &structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{update},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: nodeA.SecretID,
+			},
+		}
+
+		var resp structs.GenericResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp))
+		must.Positive(t, resp.Index)
+	})
+
+	t.Run("cross-pool update denied", func(t *testing.T) {
+		update := allocB.Copy()
+		update.ClientStatus = structs.AllocClientStatusFailed
+		req := &structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{update},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: nodeA.SecretID,
+			},
+		}
+
+		var resp structs.GenericResponse
+		must.EqError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp), structs.ErrPermissionDenied.Error())
+	})
+}
+
+// TestNode_EmitEvents_NodePoolScopedClientAuth asserts that client-originated
+// node events are limited to nodes in the caller's pool.
+func TestNode_EmitEvents_NodePoolScopedClientAuth(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+
+	state := s1.fsm.State()
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	must.NoError(t, nodeA.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	must.NoError(t, nodeB.ComputeClass())
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, nodeB))
+
+	t.Run("same-pool emit allowed", func(t *testing.T) {
+		req := &structs.EmitNodeEventsRequest{
+			NodeEvents: map[string][]*structs.NodeEvent{
+				nodeA.ID: {
+					structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage("same-pool"),
+				},
+			},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: nodeA.SecretID,
+			},
+		}
+
+		var resp structs.EmitNodeEventsResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", req, &resp))
+	})
+
+	t.Run("cross-pool emit denied", func(t *testing.T) {
+		req := &structs.EmitNodeEventsRequest{
+			NodeEvents: map[string][]*structs.NodeEvent{
+				nodeB.ID: {
+					structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage("cross-pool"),
+				},
+			},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: nodeA.SecretID,
+			},
+		}
+
+		var resp structs.EmitNodeEventsResponse
+		must.EqError(t, msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", req, &resp), structs.ErrPermissionDenied.Error())
+	})
 }
 
 func TestNode_UpdateAlloc_NodeNotReady(t *testing.T) {

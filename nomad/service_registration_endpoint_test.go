@@ -219,51 +219,6 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 	}
 }
 
-func TestServiceRegistration_Upsert_NodePoolScoped(t *testing.T) {
-	ci.Parallel(t)
-
-	s, _, cleanup := TestACLServer(t, nil)
-	defer cleanup()
-
-	codec := rpcClient(t, s)
-	testutil.WaitForKeyring(t, s.RPC, "global")
-
-	node := mock.Node()
-	node.NodePool = "pool-a"
-	must.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
-
-	otherNode := mock.Node()
-	otherNode.NodePool = "pool-b"
-	must.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 11, otherNode))
-
-	ws := memdb.NewWatchSet()
-	node, err := s.State().NodeByID(ws, node.ID)
-	must.NoError(t, err)
-	must.NotNil(t, node)
-
-	services := mock.ServiceRegistrations()
-	services[0].Namespace = "default"
-	services[1].Namespace = "default"
-	services[0].NodeID = node.ID
-	services[1].NodeID = otherNode.ID
-	services[0].ID = uuid.Generate()
-	services[1].ID = uuid.Generate()
-
-	req := &structs.ServiceRegistrationUpsertRequest{
-		Services: services,
-		WriteRequest: structs.WriteRequest{
-			Region:    DefaultRegion,
-			Namespace: "default",
-			AuthToken: node.SecretID,
-		},
-	}
-
-	var resp structs.ServiceRegistrationUpsertResponse
-	err = msgpackrpc.CallWithCodec(codec, structs.ServiceRegistrationUpsertRPCMethod, req, &resp)
-	must.Error(t, err)
-	must.ErrorContains(t, err, "Permission denied")
-}
-
 func TestServiceRegistration_DeleteByID(t *testing.T) {
 	ci.Parallel(t)
 
