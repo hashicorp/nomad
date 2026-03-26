@@ -682,14 +682,20 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
 	} else {
+		if aclObj.IsManagement() || aclObj.AllowServerOp() {
+			goto VERIFY_ARGS
+		}
+
 		pool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
 		if err != nil {
 			return err
 		}
-		if !(aclObj.AllowClientOp(pool) || aclObj.AllowServerOp()) {
+		if !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 	}
+
+VERIFY_ARGS:
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -739,6 +745,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if err != nil {
 		return fmt.Errorf("failed to query node pool: %v", err)
 	}
+	nodePoolExists := nodePool != nil || node.NodePool == structs.NodePoolDefault
 
 	// Only perform the node identity work if all the servers meet the minimum
 	// version that supports it.
@@ -750,7 +757,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		// Track the TTL that will be used for the node identity.
 		var identityTTL time.Duration
 
-		if nodePool == nil {
+		if !nodePoolExists {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else if nodePool == nil {
 			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
 		} else {
 			identityTTL = nodePool.NodeIdentityTTL
@@ -802,9 +811,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 				args.Status = structs.NodeStatusInit
 			}
 
-			// Keep the node in the initialing status if it's in a node pool
-			// that doesn't exist.
-			if nodePool == nil {
+			// Keep the node in the initializing status if it's in a non-default
+			// node pool that doesn't exist.
+			if !nodePoolExists {
 				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 				if !node.HasEvent(NodeWaitingForNodePool) {
