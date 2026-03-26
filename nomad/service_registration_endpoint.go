@@ -51,8 +51,20 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	if err := s.srv.AllowClientOpInCallerPool(s.ctx, aclObj, args); err != nil {
+	callerPool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
+	if err != nil || !aclObj.AllowClientOp(callerPool) {
+		return structs.ErrPermissionDenied
+	}
+
+	snap, err := s.srv.State().Snapshot()
+	if err != nil {
 		return err
+	}
+	for _, service := range args.Services {
+		pool, err := resolveNodePoolForNodeID(snap, service.NodeID)
+		if err != nil || pool != callerPool {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Nomad service registrations can only be used once all servers, in the
@@ -127,13 +139,27 @@ func (s *ServiceRegistration) DeleteByID(
 
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else {
-		pool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
-		if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
-			acl.NamespaceCapabilitySubmitJob,
-			acl.NamespaceCapabilityDeleteServiceRegistration,
-		) &&
-			(err != nil || !aclObj.AllowClientOp(pool)) {
+	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityDeleteServiceRegistration,
+	) {
+		callerPool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
+		if err != nil || !aclObj.AllowClientOp(callerPool) {
+			return structs.ErrPermissionDenied
+		}
+
+		snap, err := s.srv.State().Snapshot()
+		if err != nil {
+			return err
+		}
+
+		registration, err := snap.GetServiceRegistrationByID(nil, args.RequestNamespace(), args.ID)
+		if err != nil || registration == nil {
+			return structs.ErrPermissionDenied
+		}
+
+		pool, err := resolveNodePoolForNodeID(snap, registration.NodeID)
+		if err != nil || pool != callerPool {
 			return structs.ErrPermissionDenied
 		}
 	}

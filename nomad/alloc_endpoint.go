@@ -211,8 +211,12 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	if err := a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args); err != nil {
+	callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
+	if err != nil {
 		return err
+	}
+	if !aclObj.AllowClientOp(callerPool) {
+		return structs.ErrPermissionDenied
 	}
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
@@ -236,6 +240,14 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					// We don't have the alloc yet
 					thresholdMet = false
 					break
+				}
+
+				nodePool := structs.NodePoolDefault
+				if out.Job != nil {
+					nodePool = out.Job.NodePool
+				}
+				if callerPool != nodePool {
+					return structs.ErrPermissionDenied
 				}
 
 				// Store the pointer
@@ -461,8 +473,12 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
-	if err := a.srv.AllowClientOpInCallerPool(a.ctx, aclObj, args); err != nil {
+	callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
+	if err != nil {
 		return err
+	}
+	if !aclObj.AllowClientOp(callerPool) {
+		return structs.ErrPermissionDenied
 	}
 
 	if len(args.Identities) == 0 {
@@ -498,6 +514,14 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 					// Alloc may have been GC'd and therefore should not be able to get
 					// identities signed.
 					continue
+				}
+
+				nodePool := structs.NodePoolDefault
+				if out.Job != nil {
+					nodePool = out.Job.NodePool
+				}
+				if callerPool != nodePool {
+					return structs.ErrPermissionDenied
 				}
 
 				// Keep the alloc around so we can skip the statestore lookup later
