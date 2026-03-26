@@ -30,6 +30,8 @@ type ServiceRegistrationHandler struct {
 	// AllocRegistrationsFn allows injecting return values for the
 	// AllocRegistrations function.
 	AllocRegistrationsFn func(allocID string) (*serviceregistration.AllocRegistration, error)
+
+	UniversalWatcher serviceregistration.CheckWatcher
 }
 
 // NewServiceRegistrationHandler returns a ready to use
@@ -42,7 +44,7 @@ func NewServiceRegistrationHandler(log hclog.Logger) *ServiceRegistrationHandler
 }
 
 func (h *ServiceRegistrationHandler) CheckWatcher(_ string) serviceregistration.CheckWatcher {
-	return nil
+	return h.UniversalWatcher
 }
 
 func (h *ServiceRegistrationHandler) RegisterWorkload(services *serviceregistration.WorkloadServices) error {
