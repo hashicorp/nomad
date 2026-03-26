@@ -75,6 +75,24 @@ rules:
           }
           ...
 
+      # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization may combine caller-pool resolution failure and the
+      # AllowClientOp check in a single condition before additional target
+      # validation.
+      - pattern-not-inside: |
+          aclObj, err := $RECV.AuthenticateClientOnly($CTX, args)
+          ...
+          if done, err := $RECV.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          callerPool, err := resolveCallerNodePool(..., ..., args.GetIdentity())
+          ...
+          if err != nil || !aclObj.AllowClientOp(callerPool) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
       # Pattern used by CSI endpoints that perform their own client/server or
       # namespace-based authorization after forwarding.
       - pattern-not-inside: |
