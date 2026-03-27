@@ -54,21 +54,6 @@ rules:
           }
           ...
 
-      # Pattern used by endpoints that are used only for client-to-server.
-      # Authorization can be done after forwarding via a helper that resolves
-      # the caller's node pool before checking AllowClientOp.
-      - pattern-not-inside: |
-          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
-          ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          if err := $A.$B.AllowClientOpInCallerPool($A.ctx, aclObj, args); err != nil {
-            return err
-          }
-          ...
-
       # Pattern used by CSI endpoints that perform their own client/server or
       # namespace-based authorization after forwarding.
       - pattern-not-inside: |
