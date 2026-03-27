@@ -1006,9 +1006,10 @@ func (a *ACL) AllowServerOp() bool {
 // AllowClientOp checks if client-only operations are allowed for the given node
 // pool
 func (a *ACL) AllowClientOp(pool string) bool {
-	if a == nil {
+	if a == nil || pool == "" {
 		return false
 	}
+
 	// return early if ACLs are disabled
 	if a.aclsDisabled {
 		return true

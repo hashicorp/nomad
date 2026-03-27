@@ -1242,7 +1242,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 		if err != nil {
 			return err
 		}
-		if targetNode == nil || targetNode.NodePool == "" || !aclObj.AllowClientOp(targetNode.NodePool) {
+		if targetNode == nil || !aclObj.AllowClientOp(targetNode.NodePool) {
 			return structs.ErrPermissionDenied
 		}
 	}
