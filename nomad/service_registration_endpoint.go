@@ -51,18 +51,13 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	callerPool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
-	if err != nil || !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
-	}
-
 	snap, err := s.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 	for _, service := range args.Services {
-		pool, err := resolveNodePoolForNodeID(snap, service.NodeID)
-		if err != nil || pool != callerPool {
+		pool, ok := lookupNodePoolForNodeID(snap, service.NodeID)
+		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -143,11 +138,6 @@ func (s *ServiceRegistration) DeleteByID(
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityDeleteServiceRegistration,
 	) {
-		callerPool, err := resolveCallerNodePool(s.srv, s.ctx, args.GetIdentity())
-		if err != nil || !aclObj.AllowClientOp(callerPool) {
-			return structs.ErrPermissionDenied
-		}
-
 		snap, err := s.srv.State().Snapshot()
 		if err != nil {
 			return err
@@ -158,8 +148,8 @@ func (s *ServiceRegistration) DeleteByID(
 			return structs.ErrPermissionDenied
 		}
 
-		pool, err := resolveNodePoolForNodeID(snap, registration.NodeID)
-		if err != nil || pool != callerPool {
+		pool, ok := lookupNodePoolForNodeID(snap, registration.NodeID)
+		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 	}

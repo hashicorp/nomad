@@ -168,10 +168,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				if out.Job != nil {
 					nodePool = out.Job.NodePool
 				}
-				// Resolve the caller's node pool and require the caller to be both
-				// in the same node pool and allowed as a client in that pool.
-				callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-				if err != nil || callerPool != nodePool || !aclObj.AllowClientOp(callerPool) {
+				// If the caller is not a client for the allocation's node pool,
+				// fall back to checking namespace permissions.
+				if !aclObj.AllowClientOp(nodePool) {
 					// If the caller is not the same node-pool client, fall back to
 					// checking namespace permissions.
 					if !allowNsOp(aclObj, out.Namespace) {
@@ -211,11 +210,6 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
-	callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-	if err != nil || !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
-	}
-
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
 	// Setup the blocking query. We wait for at least one of the requested
@@ -243,7 +237,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 				if out.Job != nil {
 					nodePool = out.Job.NodePool
 				}
-				if callerPool != nodePool {
+				if !aclObj.AllowClientOp(nodePool) {
 					return structs.ErrPermissionDenied
 				}
 
@@ -470,11 +464,6 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
-	callerPool, err := resolveCallerNodePool(a.srv, a.ctx, args.GetIdentity())
-	if err != nil || !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
-	}
-
 	if len(args.Identities) == 0 {
 		// Client bug. Fail loudly instead of letting clients waste time with
 		// noops.
@@ -514,7 +503,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 				if out.Job != nil {
 					nodePool = out.Job.NodePool
 				}
-				if callerPool != nodePool {
+				if !aclObj.AllowClientOp(nodePool) {
 					return structs.ErrPermissionDenied
 				}
 

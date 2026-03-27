@@ -1038,35 +1038,31 @@ func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.A
 		identity.GetACLToken().AccessorID == structs.LeaderACLToken.AccessorID
 }
 
-func (v *CSIVolume) resolveClaimNodePool(args *structs.CSIVolumeClaimRequest) (string, error) {
-	pool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if err == nil {
-		return pool, nil
-	}
-
-	snap, err := v.srv.State().Snapshot()
-	if err != nil {
-		return "", structs.ErrPermissionDenied
-	}
-
-	nodeID, err := resolveNodeIDForAllocID(snap, args.AllocationID)
-	if err == nil {
-		return resolveNodePoolForNodeID(snap, nodeID)
-	}
-
-	return resolveNodePoolForNodeID(snap, args.NodeID)
-}
-
 func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaimRequest) error {
 	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
 		return nil
 	}
 
-	pool, err := v.resolveClaimNodePool(args)
+	snap, err := v.srv.State().Snapshot()
 	if err != nil {
-		return err
+		return structs.ErrPermissionDenied
 	}
-	if !aclObj.AllowClientOp(pool) {
+
+	pool := ""
+	if args.AllocationID != "" {
+		alloc, err := snap.AllocByID(memdb.NewWatchSet(), args.AllocationID)
+		if err == nil && alloc != nil && alloc.NodeID != "" {
+			if resolvedPool, ok := lookupNodePoolForNodeID(snap, alloc.NodeID); ok {
+				pool = resolvedPool
+			}
+		}
+	}
+	if pool == "" {
+		if resolvedPool, ok := lookupNodePoolForNodeID(snap, args.NodeID); ok {
+			pool = resolvedPool
+		}
+	}
+	if pool == "" || !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1087,14 +1083,6 @@ func (v *CSIVolume) authorizeUnpublish(
 		return nil
 	}
 
-	callerPool, err := resolveCallerNodePool(v.srv, v.ctx, args.GetIdentity())
-	if err != nil {
-		return structs.ErrPermissionDenied
-	}
-	if !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
-	}
-
 	if args.Claim == nil {
 		return structs.ErrPermissionDenied
 	}
@@ -1104,8 +1092,8 @@ func (v *CSIVolume) authorizeUnpublish(
 		return err
 	}
 
-	claimPool, err := resolveNodePoolForNodeID(snap, args.Claim.NodeID)
-	if err != nil || claimPool != callerPool {
+	claimPool, ok := lookupNodePoolForNodeID(snap, args.Claim.NodeID)
+	if !ok || !aclObj.AllowClientOp(claimPool) {
 		return structs.ErrPermissionDenied
 	}
 

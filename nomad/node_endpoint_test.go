@@ -3069,17 +3069,6 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 		t.Fatalf("unexpected node %#v", resp3.Allocs)
 	}
 
-	// Lookup a node from another pool using this client's token.
-	otherNode := mock.Node()
-	otherNode.NodePool = "other-pool"
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 101, otherNode))
-
-	get.NodeID = otherNode.ID
-	get.SecretID = otherNode.SecretID
-	var resp5 structs.NodeClientAllocsResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp5)
-	must.EqError(t, err, structs.ErrPermissionDenied.Error())
-
 	// Close the connection and check that we remove the client connections
 	require.Nil(codec.Close())
 	testutil.WaitForResult(func() (bool, error) {
@@ -3158,6 +3147,19 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	if len(resp2.Allocs) != 1 || resp2.Allocs[alloc.ID] != 100 {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
+
+	otherNode := mock.Node()
+	otherNode.NodePool = "other-pool"
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 101, otherNode))
+
+	req.NodeID = otherNode.ID
+	req.SecretID = otherNode.SecretID
+	var deniedResp structs.NodeClientAllocsResponse
+	deniedErr := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &deniedResp)
+	must.EqError(t, deniedErr, structs.ErrPermissionDenied.Error())
+
+	req.NodeID = node.ID
+	req.SecretID = node.SecretID
 
 	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
 	if err != nil {
