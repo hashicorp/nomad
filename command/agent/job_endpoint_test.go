@@ -3578,6 +3578,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
+		Version: (uint64(10)),
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)
@@ -3844,6 +3845,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
+		Version: uint64(10),
 	}
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
