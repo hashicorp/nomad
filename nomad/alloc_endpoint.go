@@ -163,11 +163,15 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 					out = out.Sanitize()
 				}
 				reply.Alloc = out
-				// Re-check namespace in case it differs from request.
-				nodePool := structs.NodePoolDefault
-				if out.Job != nil {
-					nodePool = out.Job.NodePool
+
+				// Re-check namespace in case it differs from request. Fail
+				// closed if the job is missing, since we cannot determine the
+				// allocation's node pool for client-scoped ACL checks.
+				if out.Job == nil {
+					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
+
+				nodePool := out.Job.NodePool
 				// If the caller is not a client for the allocation's node pool,
 				// fall back to checking namespace permissions.
 				if !aclObj.AllowClientOp(nodePool) {
@@ -233,10 +237,13 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					break
 				}
 
-				nodePool := structs.NodePoolDefault
-				if out.Job != nil {
-					nodePool = out.Job.NodePool
+				// Fail closed if the job is missing, since we cannot determine
+				// the allocation's node pool for client-scoped ACL checks.
+				if out.Job == nil {
+					return structs.ErrPermissionDenied
 				}
+
+				nodePool := out.Job.NodePool
 				if !aclObj.AllowClientOp(nodePool) {
 					return structs.ErrPermissionDenied
 				}
