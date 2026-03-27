@@ -176,7 +176,7 @@ export default class TopoViz extends Component {
       selectedKey: null,
       heightScale: scaleLinear()
         .range([15, 40])
-        .domain(extent(nodeContainers.mapBy('memory'))),
+        .domain(extent(nodeContainers.map(el => el.memory))),
     };
     this.topology = topology;
 

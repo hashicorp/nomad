@@ -58,7 +58,7 @@ export default create({
   isEmptyDirectory: isPresent('[data-test-empty-directory]'),
 
   directoryEntryNames() {
-    return this.directoryEntries.toArray().mapBy('name');
+    return this.directoryEntries.toArray().map(item => item.name);
   },
 
   hasEmptyState: isPresent('[data-test-not-running]'),

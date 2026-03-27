@@ -547,7 +547,7 @@ export default class Job extends Model {
   @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups
-      .mapBy('drivers')
+      .map(drv => drv.drivers)
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
@@ -562,7 +562,7 @@ export default class Job extends Model {
   @computed('allocations', 'allocationsUnhealthyDrivers.[]')
   get unhealthyDrivers() {
     return this.allocations
-      .mapBy('unhealthyDrivers')
+      .map(drv => drv.unhealthyDrivers)
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;

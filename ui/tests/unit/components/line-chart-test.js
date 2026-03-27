@@ -29,12 +29,12 @@ module('Unit | Component | line-chart', function (hooks) {
     let [xDomainLow, xDomainHigh] = chart.xScale.domain();
     assert.deepEqual(
       xDomainLow,
-      Math.min(...data.mapBy('foo')),
+      Math.min(...data.map(item => item.foo)),
       'Domain lower bound is the lowest foo value',
     );
     assert.deepEqual(
       xDomainHigh,
-      Math.max(...data.mapBy('foo')),
+      Math.max(...data.map(item => item.foo)),
       'Domain upper bound is the highest foo value',
     );
 
@@ -58,7 +58,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.deepEqual(yDomainLow, 0, 'Domain lower bound is always 0');
     assert.deepEqual(
       yDomainHigh,
-      Math.max(...data.mapBy('bar')),
+      Math.max(...data.map(item => item.bar)),
       'Domain upper bound is the highest bar value',
     );
 

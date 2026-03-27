@@ -20,7 +20,7 @@ export default class JobsJobVariablesController extends Controller {
   @alias('model.variables') variables;
 
   get firstFewTaskGroupNames() {
-    return this.job.taskGroups.slice(0, 2).mapBy('name');
+    return this.job.taskGroups.slice(0, 2).map(item => item.name);
   }
 
   get firstFewTaskNames() {

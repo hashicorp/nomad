@@ -23,14 +23,14 @@ export default class JobStatusLatestDeployment extends Component {
   get healthyAllocs() {
     const summaries = get(this.deployment, 'taskGroupSummaries') || [];
     return summaries
-      .mapBy('healthyAllocs')
+      .map(el => el.healthyAllocs)
       .reduce((sum, count) => sum + count, 0);
   }
 
   get desiredTotal() {
     const summaries = get(this.deployment, 'taskGroupSummaries') || [];
     return summaries
-      .mapBy('desiredTotal')
+      .map(el => el.desiredTotal)
       .reduce((sum, count) => sum + count, 0);
   }
 

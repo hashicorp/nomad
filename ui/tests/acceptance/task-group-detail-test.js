@@ -87,8 +87,8 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function (assert) {
-    const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
-    const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
+    const totalCPU = tasks.map(res => res.resources?.CPU).reduce(sum, 0);
+    const totalMemory = tasks.map(res => res.resources?.MemoryMB).reduce(sum, 0);
     const totalMemoryMax = tasks
       .map((t) => t.resources.MemoryMaxMB || t.resources.MemoryMB)
       .reduce(sum, 0);
@@ -428,7 +428,7 @@ module('Acceptance | task group detail', function (hooks) {
     );
 
     tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
-    const taskNames = tasks.mapBy('name');
+    const taskNames = tasks.map(item => item.name);
 
     // This is thoroughly tested in allocation detail tests, so this mostly checks what’s different
 
@@ -575,7 +575,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.ok(
       this.server.pretender.handledRequests
         .filter(req => req.status === 200)
-        .mapBy('url')
+        .map(item => item.url)
         .includes(`/v1/job/${job.id}`),
       'A request to the job is made and succeeds',
     );
@@ -731,7 +731,7 @@ module('Acceptance | task group detail', function (hooks) {
               (alloc) =>
                 alloc.jobId == job.id && alloc.taskGroup == taskGroup.name,
             )
-            .mapBy('nodeId')
+            .map(node => node.nodeId)
             .map((id) => id.split('-')[0]),
         ),
       ).sort();

@@ -188,7 +188,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
-    const classes = Array.from(new Set(this.nodes.mapBy('nodeClass')))
+    const classes = Array.from(new Set(this.nodes.map(node => node.nodeClass)))
       .filter(val => val !== undefined && val !== null)
       .without('');
 
@@ -207,7 +207,7 @@ export default class IndexController extends Controller.extend(
   @computed('nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter')),
+      new Set(this.nodes.map(dc => dc.datacenter)),
     ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid datacenters from the query param/selection
@@ -224,7 +224,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionVersion')
   get optionsVersion() {
-    const versions = Array.from(new Set(this.nodes.mapBy('version'))).filter(val => val !== undefined && val !== null);
+    const versions = Array.from(new Set(this.nodes.map(v => v.version))).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -242,8 +242,8 @@ export default class IndexController extends Controller.extend(
   get optionsVolume() {
     const flatten = (acc, val) => acc.concat(val.toArray());
 
-    const allVolumes = this.nodes.mapBy('hostVolumes').reduce(flatten, []);
-    const volumes = Array.from(new Set(allVolumes.mapBy('name')));
+    const allVolumes = this.nodes.map(vol => vol.hostVolumes).reduce(flatten, []);
+    const volumes = Array.from(new Set(allVolumes.map(item => item.name)));
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects

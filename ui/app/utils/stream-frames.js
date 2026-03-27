@@ -27,7 +27,7 @@ export function decode(chunk) {
     frames.forEach((frame) => (frame.Data = b64decode(frame.Data)));
     return {
       offset: frames[frames.length - 1].Offset,
-      message: frames.mapBy('Data').join(''),
+      message: frames.map(item => item.Data).join(''),
     };
   }
 

@@ -37,27 +37,27 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters.mapBy('name'), [
+    assert.deepEqual(topoViz.topology.datacenters.map(item => item.name), [
       'dc1',
       'dc2',
     ]);
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes.map(n => n.node), [
       nodes[0],
       nodes[2],
     ]);
-    assert.deepEqual(topoViz.topology.datacenters[1].nodes.mapBy('node'), [
+    assert.deepEqual(topoViz.topology.datacenters[1].nodes.map(n => n.node), [
       nodes[1],
     ]);
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[0].nodes[0].allocations.map(alloc => alloc.allocation),
       node0Allocs,
     );
     assert.deepEqual(
-      topoViz.topology.datacenters[1].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[1].nodes[0].allocations.map(alloc => alloc.allocation),
       node1Allocs,
     );
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[1].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[0].nodes[1].allocations.map(alloc => alloc.allocation),
       node2Allocs,
     );
   });
@@ -98,7 +98,7 @@ module('Unit | Component | TopoViz', function (hooks) {
     Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
       const [jobId, group] = JSON.parse(key);
       assert.deepEqual(
-        topoViz.topology.allocationIndex[key].mapBy('allocation'),
+        topoViz.topology.allocationIndex[key].map(alloc => alloc.allocation),
         allocations.filter(
           (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group,
         ),
@@ -222,11 +222,11 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes.map(n => n.node), [
       nodes[0],
     ]);
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[0].nodes[0].allocations.map(alloc => alloc.allocation),
       [allocations[0]],
     );
   });

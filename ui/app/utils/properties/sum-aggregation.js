@@ -13,7 +13,7 @@ import { computed } from '@ember/object';
 export default function sumAggregationProperty(listKey, propKey) {
   return computed(`${listKey}.@each.${propKey}`, function () {
     return this.get(listKey)
-      .mapBy(propKey)
+      .map(item => item[propKey])
       .reduce((sum, count) => sum + count, 0);
   });
 }

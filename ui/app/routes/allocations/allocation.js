@@ -26,9 +26,9 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       ).length;
 
       const anyTaskServicesAreNomad = model.states
-        .mapBy('task.services')
+        .map(t => t.task?.services)
         .filter(val => val !== undefined && val !== null)
-        .map((fragmentClass) => fragmentClass.mapBy('provider'))
+        .map((fragmentClass) => fragmentClass.map(item => item.provider))
         .flat()
         .some((provider) => provider === 'nomad');
 

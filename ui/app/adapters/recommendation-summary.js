@@ -23,10 +23,10 @@ export default class RecommendationSummaryAdapter extends ApplicationAdapter {
 
     const allRecommendationIds = snapshot
       .hasMany('recommendations')
-      .mapBy('id');
+      .map(item => item.id);
     const excludedRecommendationIds = (
       snapshot.hasMany('excludedRecommendations') || []
-    ).mapBy('id');
+    ).map(item => item.id);
     const includedRecommendationIds = allRecommendationIds.removeObjects(
       excludedRecommendationIds,
     );

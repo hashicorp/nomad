@@ -79,7 +79,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('totalAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.totalAllocs')
+        .map(sum => sum.summary?.totalAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'totalAllocs is the sum of all group totalAllocs',
     );
@@ -88,7 +88,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('queuedAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.queuedAllocs')
+        .map(sum => sum.summary?.queuedAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'queuedAllocs is the sum of all group queuedAllocs',
     );
@@ -97,7 +97,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('startingAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.startingAllocs')
+        .map(sum => sum.summary?.startingAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'startingAllocs is the sum of all group startingAllocs',
     );
@@ -106,7 +106,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('runningAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.runningAllocs')
+        .map(sum => sum.summary?.runningAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'runningAllocs is the sum of all group runningAllocs',
     );
@@ -115,7 +115,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('completeAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.completeAllocs')
+        .map(sum => sum.summary?.completeAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'completeAllocs is the sum of all group completeAllocs',
     );
@@ -124,7 +124,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('failedAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.failedAllocs')
+        .map(sum => sum.summary?.failedAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'failedAllocs is the sum of all group failedAllocs',
     );
@@ -133,7 +133,7 @@ module('Unit | Model | job', function (hooks) {
       job.get('lostAllocs'),
       job
         .get('taskGroups')
-        .mapBy('summary.lostAllocs')
+        .map(sum => sum.summary?.lostAllocs)
         .reduce((sum, allocs) => sum + allocs, 0),
       'lostAllocs is the sum of all group lostAllocs',
     );
@@ -224,14 +224,14 @@ module('Unit | Model | job', function (hooks) {
 
     // Job's actions mapped by task.name return 1.1, 1.1, 3.1, 3.2
     assert.deepEqual(
-      job.get('actions').mapBy('task.name').length,
+      job.get('actions').map(t => t.task?.name).length,
       4,
       'Job action fragments surface their task properties',
     );
     assert.deepEqual(
       job
         .get('actions')
-        .mapBy('task.name')
+        .map(t => t.task?.name)
         .filter((name) => name === '1.1').length,
       2,
       'Two of the job actions are from task 1.1',
@@ -239,7 +239,7 @@ module('Unit | Model | job', function (hooks) {
     assert.deepEqual(
       job
         .get('actions')
-        .mapBy('task.name')
+        .map(t => t.task?.name)
         .filter((name) => name === '3.1').length,
       1,
       'One of the job actions is from task 3.1',
@@ -247,7 +247,7 @@ module('Unit | Model | job', function (hooks) {
     assert.deepEqual(
       job
         .get('actions')
-        .mapBy('task.name')
+        .map(t => t.task?.name)
         .filter((name) => name === '3.2').length,
       1,
       'One of the job actions is from task 3.2',

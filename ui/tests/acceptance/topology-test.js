@@ -78,11 +78,11 @@ module('Acceptance | topology', function (hooks) {
 
     const nodeResources = this.server.schema.nodes
       .all()
-      .models.mapBy('nodeResources');
+      .models.map(res => res.nodeResources);
     const taskResources = scheduledAllocs
-      .mapBy('taskResources.models')
+      .map(res => res.taskResources?.models)
       .flat()
-      .mapBy('resources');
+      .map(res => res.resources);
 
     const totalMem = sumResources(nodeResources, 'Memory.MemoryMB');
     const totalCPU = sumResources(nodeResources, 'Cpu.CpuShares');
@@ -162,7 +162,7 @@ module('Acceptance | topology', function (hooks) {
     }
 
     const dcIndex = nodes
-      .mapBy('datacenter')
+      .map(dc => dc.datacenter)
       .uniq()
       .sort()
       .indexOf(node.datacenter);
@@ -183,7 +183,7 @@ module('Acceptance | topology', function (hooks) {
 
     assert.deepEqual(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
 
-    const uniqueClients = allocs.mapBy('nodeId').uniq();
+    const uniqueClients = allocs.map(node => node.nodeId).uniq();
     assert.deepEqual(
       Topology.allocInfoPanel.siblingAllocs,
       `Sibling Allocations: ${allocs.length}`,
@@ -238,11 +238,11 @@ module('Acceptance | topology', function (hooks) {
     await Topology.visit();
     await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
     const firstAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+      Topology.allocInfoPanel.charts[0].areas.map(item => item.taskName);
 
     await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
     const secondAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+      Topology.allocInfoPanel.charts[0].areas.map(item => item.taskName);
 
     assert.notDeepEqual(firstAllocationTaskNames, secondAllocationTaskNames);
   });
@@ -286,9 +286,9 @@ module('Acceptance | topology', function (hooks) {
     );
 
     const taskResources = allocs
-      .mapBy('taskResources.models')
+      .map(res => res.taskResources?.models)
       .flat()
-      .mapBy('resources');
+      .map(res => res.resources);
     const reservedMem = sumResources(taskResources, 'Memory.MemoryMB');
     const reservedCPU = sumResources(taskResources, 'Cpu.CpuShares');
 

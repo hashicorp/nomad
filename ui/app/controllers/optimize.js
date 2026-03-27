@@ -90,7 +90,7 @@ export default class OptimizeController extends Controller {
     });
 
     // Unset the namespace selection if it was server-side deleted
-    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+    if (!availableNamespaces.map(el => el.key).includes(this.qpNamespace)) {
       scheduleOnce('actions', this, () => {
         // eslint-disable-next-line ember/no-side-effects
         this.qpNamespace = '*';
@@ -171,7 +171,7 @@ export default class OptimizeController extends Controller {
     const hasPrefix = /.[-._]/;
 
     // Collect and count all the prefixes
-    const allNames = this.summaries.mapBy('job.name');
+    const allNames = this.summaries.map(el => el.job?.name);
     const nameHistogram = allNames.reduce((hist, name) => {
       if (hasPrefix.test(name)) {
         const prefix = name.match(/(.+?)[-._]/)[1];
@@ -190,7 +190,7 @@ export default class OptimizeController extends Controller {
     const prefixes = nameTable.filter((name) => name.count > 1);
 
     // Remove any invalid prefixes from the query param/selection
-    const availablePrefixes = prefixes.mapBy('prefix');
+    const availablePrefixes = prefixes.map(el => el.prefix);
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpPrefix = serialize(

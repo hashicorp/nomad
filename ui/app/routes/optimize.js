@@ -24,7 +24,7 @@ export default class OptimizeRoute extends Route {
 
   async model() {
     const summaries = await this.store.findAll('recommendation-summary');
-    const jobs = await RSVP.all(summaries.mapBy('job'));
+    const jobs = await RSVP.all(summaries.map(el => el.job));
     const [namespaces] = await RSVP.all([
       this.store.findAll('namespace'),
       ...jobs

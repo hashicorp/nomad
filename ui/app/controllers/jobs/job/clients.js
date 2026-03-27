@@ -154,7 +154,7 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionDatacenter', 'nodes')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter')),
+      new Set(this.nodes.map(dc => dc.datacenter)),
     ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of datacenters changes.
@@ -172,7 +172,7 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionClientClass', 'nodes')
   get optionsClientClass() {
     const clientClasses = Array.from(
-      new Set(this.nodes.mapBy('nodeClass')),
+      new Set(this.nodes.map(node => node.nodeClass)),
     ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of datacenters changes.

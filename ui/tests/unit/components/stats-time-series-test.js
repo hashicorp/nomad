@@ -77,7 +77,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
 
     assert.deepEqual(
       +chart.xScale(narrowData, 0).domain()[0],
-      +moment(Math.max(...narrowData.mapBy('timestamp')))
+      +moment(Math.max(...narrowData.map(item => item.timestamp)))
         .subtract(5, 'm')
         .toDate(),
       'The lower bound of the xScale is 5 minutes ago',
@@ -89,7 +89,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
 
     assert.deepEqual(
       +chart.xScale(wideData, 0).domain()[0],
-      Math.min(...wideData.mapBy('timestamp')),
+      Math.min(...wideData.map(item => item.timestamp)),
       'The lower bound of the xScale is the oldest timestamp in the dataset',
     );
   });
@@ -99,8 +99,8 @@ module('Unit | Component | stats-time-series', function (hooks) {
 
     assert.deepEqual(
       [
-        Math.min(...wideData.mapBy('percent')),
-        Math.max(...wideData.mapBy('percent')),
+        Math.min(...wideData.map(item => item.percent)),
+        Math.max(...wideData.map(item => item.percent)),
       ],
       [0.3, 0.9],
       'The bounds of the value prop of the dataset is narrower than 0 - 1',

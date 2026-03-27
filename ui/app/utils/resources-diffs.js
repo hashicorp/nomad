@@ -83,9 +83,9 @@ class ResourceDiffs {
   get recommended() {
     if (this.included.length) {
       return (
-        this.included.mapBy('value').reduce(sumAggregate, 0) +
+        this.included.map(el => el.value).reduce(sumAggregate, 0) +
         this.excluded
-          .mapBy(`task.${this.baseTaskPropertyName}`)
+          .map(item => item.task[this.baseTaskPropertyName])
           .reduce(sumAggregate, 0)
       );
     } else {

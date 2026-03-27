@@ -291,7 +291,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.class,
     paramName: 'class',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('nodeClass'))).sort();
+      return Array.from(new Set(nodes.map(node => node.nodeClass))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -377,7 +377,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.datacenter,
     paramName: 'dc',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('datacenter'))).sort();
+      return Array.from(new Set(nodes.map(dc => dc.datacenter))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -393,7 +393,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.version,
     paramName: 'version',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('version'))).sort();
+      return Array.from(new Set(nodes.map(v => v.version))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -411,7 +411,7 @@ module('Acceptance | clients list', function (hooks) {
     expectedOptions(nodes) {
       const flatten = (acc, val) => acc.concat(Object.keys(val));
       return Array.from(
-        new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])),
+        new Set(nodes.map(vol => vol.hostVolumes).reduce(flatten, [])),
       );
     },
     async beforeEach() {

@@ -29,7 +29,7 @@ export default class Service extends Fragment {
   get mostRecentChecks() {
     // Get unique check names, then get the most recent one
     return this.get('healthChecks')
-      .mapBy('Check')
+      .map(item => item.Check)
       .uniq()
       .map((name) => {
         return this.get('healthChecks')
@@ -44,7 +44,7 @@ export default class Service extends Fragment {
   get mostRecentCheckStatus() {
     // Get unique check names, then get the most recent one
     return this.get('mostRecentChecks')
-      .mapBy('Status')
+      .map(item => item.Status)
       .reduce((acc, curr) => {
         acc[curr] = (acc[curr] || 0) + 1;
         return acc;

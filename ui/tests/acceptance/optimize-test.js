@@ -21,14 +21,14 @@ let managementToken, clientToken;
 
 function getLatestRecommendationSubmitTimeForJob(job) {
   const tasks = job.taskGroups.models
-    .mapBy('tasks.models')
+    .map(t => t.tasks?.models)
     .reduce((tasks, taskModels) => tasks.concat(taskModels), []);
   const recommendations = tasks.reduce(
     (recommendations, task) =>
       recommendations.concat(task.recommendations.models),
     [],
   );
-  return Math.max(...recommendations.mapBy('submitTime'));
+  return Math.max(...recommendations.map(item => item.submitTime));
 }
 
 module('Acceptance | optimize', function (hooks) {
@@ -76,13 +76,13 @@ module('Acceptance | optimize', function (hooks) {
     const nextTaskGroup = this.job2.taskGroups.models[0];
 
     const currentTaskGroupHasCPURecommendation = currentTaskGroup.tasks.models
-      .mapBy('recommendations.models')
+      .map(rec => rec.recommendations?.models)
       .flat()
       .find((r) => r.resource === 'CPU');
 
     const currentTaskGroupHasMemoryRecommendation =
       currentTaskGroup.tasks.models
-        .mapBy('recommendations.models')
+        .map(rec => rec.recommendations?.models)
         .flat()
         .find((r) => r.resource === 'MemoryMB');
 
@@ -133,7 +133,7 @@ module('Acceptance | optimize', function (hooks) {
       [],
     );
     const latestSubmitTime = Math.max(
-      ...currentRecommendations.mapBy('submitTime'),
+      ...currentRecommendations.map(item => item.submitTime),
     );
 
     Optimize.recommendationSummaries[0].as((summary) => {
@@ -250,18 +250,18 @@ module('Acceptance | optimize', function (hooks) {
       'toggling recommendations doesn’t affect the summary table diffs',
     );
 
-    const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
+    const currentTaskIds = currentTaskGroup.tasks.models.map(item => item.id);
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
     const cpuRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'CPU' })
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => item.id);
 
     const memoryRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'MemoryMB' })
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => item.id);
 
     const appliedIds = toggledAnything
       ? cpuRecommendationIds
@@ -375,13 +375,13 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.visit();
 
     const currentTaskGroup = this.job1.taskGroups.models[0];
-    const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
+    const currentTaskIds = currentTaskGroup.tasks.models.map(item => item.id);
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
     const idsBeforeDismissal = this.server.schema.recommendations
       .all()
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => item.id);
 
     await Optimize.card.dismissButton.click();
 
@@ -684,7 +684,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'dc',
     expectedOptions(jobs) {
       const allDatacenters = new Set(
-        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), []),
+        jobs.map(dc => dc.datacenters).reduce((acc, val) => acc.concat(val), []),
       );
       return Array.from(allDatacenters).sort();
     },
@@ -799,8 +799,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
+        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
 
@@ -851,8 +851,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
+        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
 
@@ -889,8 +889,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
+        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
 

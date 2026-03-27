@@ -78,7 +78,7 @@ module('Unit | Adapter | Node', function (hooks) {
 
     await settled();
     assert.deepEqual(
-      this.store.peekAll('allocation').mapBy('id').sort(),
+      this.store.peekAll('allocation').map(item => item.id).sort(),
       ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
       'All allocations for the first and second node are in the store',
     );
@@ -88,7 +88,7 @@ module('Unit | Adapter | Node', function (hooks) {
     // Reload the related allocations now that one was removed server-side
     await run(() => findHasMany(node, 'allocations'));
     assert.deepEqual(
-      this.store.peekAll('allocation').mapBy('id').sort(),
+      this.store.peekAll('allocation').map(item => item.id).sort(),
       ['node-1-2', 'node-2-1', 'node-2-2'],
       'The deleted allocation is removed from the store and the allocations associated with the other node are untouched',
     );

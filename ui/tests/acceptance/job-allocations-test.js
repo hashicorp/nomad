@@ -224,7 +224,7 @@ module('Acceptance | job allocations', function (hooks) {
         new Set(
           allocs
             .filter((alloc) => alloc.jobId == job.id)
-            .mapBy('nodeId')
+            .map(node => node.nodeId)
             .map((id) => id.split('-')[0]),
         ),
       ).sort();
@@ -245,7 +245,7 @@ module('Acceptance | job allocations', function (hooks) {
     expectedOptions(allocs) {
       return Array.from(
         new Set(
-          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'),
+          allocs.filter((alloc) => alloc.jobId == job.id).map(tg => tg.taskGroup),
         ),
       ).sort();
     },

@@ -71,7 +71,7 @@ module('Acceptance | reverse proxy', function (hooks) {
     // Make sure that server received the header
     assert.ok(
       this.server.pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map(req => req.requestHeaders)
         .every((headers) => headers['X-Nomad-Token'] === secretId),
       'The token header is always present',
     );

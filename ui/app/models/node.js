@@ -104,7 +104,7 @@ export default class Node extends Model {
 
   @computed('unhealthyDrivers.@each.name')
   get unhealthyDriverNames() {
-    return this.unhealthyDrivers.mapBy('name');
+    return this.unhealthyDrivers.map(item => item.name);
   }
 
   // A status attribute that includes states not included in node status.

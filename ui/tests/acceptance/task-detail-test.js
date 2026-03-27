@@ -277,7 +277,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.ok(
       this.server.pretender.handledRequests
         .filter(req => req.status === 200)
-        .mapBy('url')
+        .map(item => item.url)
         .includes(`/v1/allocation/${allocation.id}`),
       'A request to the allocation is made successfully',
     );

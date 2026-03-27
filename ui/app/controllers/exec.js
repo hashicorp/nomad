@@ -65,7 +65,7 @@ export default class ExecController extends Controller {
     const jobPlainId = this.model?.plainId;
     const jobNamespace =
       this.model?.get?.('namespace.id') || this.namespace || 'default';
-    const taskGroupNames = (this.model?.taskGroups || []).mapBy('name');
+    const taskGroupNames = (this.model?.taskGroups || []).map(item => item.name);
 
     const allocations =
       this.fallbackAllocations || this.store.peekAll('allocation');
@@ -195,7 +195,7 @@ export default class ExecController extends Controller {
       allocation = allocationPool.find((allocation) =>
         allocation.states
           .filter(state => state.isActive)
-          .mapBy('name')
+          .map(item => item.name)
           .includes(this.taskName),
       );
     }

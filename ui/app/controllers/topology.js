@@ -121,7 +121,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('model.nodes', 'nodes.[]', 'selectionClass')
   get optionsClass() {
-    const classes = Array.from(new Set(this.model.nodes.mapBy('nodeClass')))
+    const classes = Array.from(new Set(this.model.nodes.map(node => node.nodeClass)))
       .filter(val => val !== undefined && val !== null)
       .without('');
 
@@ -140,7 +140,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes', 'nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.model.nodes.mapBy('datacenter')),
+      new Set(this.model.nodes.map(dc => dc.datacenter)),
     ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid datacenters from the query param/selection
@@ -181,7 +181,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes', 'nodes.[]', 'selectionVersion')
   get optionsVersion() {
     const versions = Array.from(
-      new Set(this.model.nodes.mapBy('version')),
+      new Set(this.model.nodes.map(v => v.version)),
     ).filter(val => val !== undefined && val !== null);
 
     // Remove any invalid versions from the query param/selection
@@ -239,7 +239,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
-    return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).filter(val => val !== undefined && val !== null);
+    return Array.from(new Set(this.model.nodes.map(dc => dc.datacenter))).filter(val => val !== undefined && val !== null);
   }
 
   @computed('model.allocations.@each.isScheduled')
@@ -250,7 +250,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes.@each.resources')
   get totalMemory() {
     const mibs = this.model.nodes
-      .mapBy('resources.memory')
+      .map(res => res.resources?.memory)
       .reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
@@ -258,7 +258,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('model.nodes.@each.resources')
   get totalCPU() {
     return this.model.nodes
-      .mapBy('resources.cpu')
+      .map(res => res.resources?.cpu)
       .reduce((sum, cpu) => sum + (cpu || 0), 0);
   }
 
@@ -285,7 +285,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedMemory() {
     const mibs = this.scheduledAllocations
-      .mapBy('allocatedResources.memory')
+      .map(res => res.allocatedResources?.memory)
       .reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
@@ -293,7 +293,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedCPU() {
     return this.scheduledAllocations
-      .mapBy('allocatedResources.cpu')
+      .map(res => res.allocatedResources?.cpu)
       .reduce(sumAggregator, 0);
   }
 
@@ -349,10 +349,10 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
       node.memory * 1024 * 1024,
     );
     const totalReservedMemory = node.allocations
-      .mapBy('memory')
+      .map(item => item.memory)
       .reduce(sumAggregator, 0);
     const totalReservedCPU = node.allocations
-      .mapBy('cpu')
+      .map(item => item.cpu)
       .reduce(sumAggregator, 0);
 
     return {
@@ -371,7 +371,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('siblingAllocations.@each.node')
   get uniqueActiveAllocationNodes() {
-    return this.siblingAllocations.mapBy('node.id').uniq();
+    return this.siblingAllocations.map(n => n.node?.id).uniq();
   }
 
   @action

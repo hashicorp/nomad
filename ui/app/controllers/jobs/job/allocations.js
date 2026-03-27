@@ -219,7 +219,7 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionTaskGroup')
   get optionsTaskGroups() {
     const taskGroups = Array.from(
-      new Set(this.model.allocations.mapBy('taskGroupName')),
+      new Set(this.model.allocations.map(tg => tg.taskGroupName)),
     ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of task groups changes.
@@ -237,7 +237,7 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionVersion')
   get optionsVersions() {
     const versions = Array.from(
-      new Set(this.model.allocations.mapBy('jobVersion')),
+      new Set(this.model.allocations.map(job => job.jobVersion)),
     ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of versions changes.

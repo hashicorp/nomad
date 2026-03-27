@@ -12,7 +12,7 @@ export default function messageFromAdapterError(error, actionMessage) {
   }
 
   if (error.errors?.length) {
-    return error.errors.mapBy('detail').join('\n\n');
+    return error.errors.map(el => el.detail).join('\n\n');
   }
 
   return 'Unknown Error';

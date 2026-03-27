@@ -71,7 +71,7 @@ export default class TokenService extends Service {
       this.secret = token.secret;
       return token;
     } catch (e) {
-      const errors = e.errors ? e.errors.mapBy('detail') : [];
+      const errors = e.errors ? e.errors.map(el => el.detail) : [];
       if (errors.find((error) => error === 'ACL token not found')) {
         this.set('tokenNotFound', true);
       }

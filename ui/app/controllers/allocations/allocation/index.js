@@ -62,7 +62,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.states.@each.task')
   get tasks() {
-    return this.get('model.states').mapBy('task') || [];
+    return this.get('model.states').map(t => t.task) || [];
   }
 
   @computed('tasks.@each.services')
@@ -105,7 +105,7 @@ export default class IndexController extends Controller.extend(
         .sortBy('Timestamp')
         .reverse()
         .uniqBy('Check')
-        .mapBy('Status')
+        .map(item => item.Status)
         .reduce((acc, curr) => {
           acc[curr] = (acc[curr] || 0) + 1;
           return acc;

@@ -45,12 +45,12 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
     return {
       data: Object.values(slugToSummaryObject).map((summaryObject) => {
         const latest = Math.max(
-          ...summaryObject.recommendations.mapBy('SubmitTime'),
+          ...summaryObject.recommendations.map(item => item.SubmitTime),
         );
 
         return {
           type: 'recommendation-summary',
-          id: summaryObject.recommendations.mapBy('ID').sort().join('-'),
+          id: summaryObject.recommendations.map(item => item.ID).sort().join('-'),
           attributes: {
             ...summaryObject.attributes,
             submitTime: new Date(Math.floor(latest / 1000000)),

@@ -105,7 +105,7 @@ export default function formatDuration(
   // Get the count of each time unit that Moment handles
   allUnits
     .filter(unit => unit.inMoment)
-    .mapBy('name')
+    .map(item => item.name)
     .forEach((unit) => {
       durationParts[unit] = momentDuration[unit]();
     });

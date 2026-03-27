@@ -43,7 +43,7 @@ export default class DistributionBar extends Component {
 
   get _data() {
     const data = copy(this.data, true);
-    const sum = data.mapBy('value').reduce(sumAggregate, 0);
+    const sum = data.map(el => el.value).reduce(sumAggregate, 0);
 
     return data.map(
       ({ label, value, className, layers, legendLink, help }, index) => ({
@@ -56,7 +56,7 @@ export default class DistributionBar extends Component {
         index,
         percent: value / sum,
         offset:
-          data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
+          data.slice(0, index).map(el => el.value).reduce(sumAggregate, 0) / sum,
       }),
     );
   }

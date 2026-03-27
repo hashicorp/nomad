@@ -287,7 +287,7 @@ export default class ClientController extends Controller.extend(
       new Set(
         this.model.allocations
           .filter((a) => ns.length === 0 || ns.includes(a.namespace))
-          .mapBy('plainJobId'),
+          .map(item => item.plainJobId),
       ),
     ).filter(val => val !== undefined && val !== null);
 
@@ -303,7 +303,7 @@ export default class ClientController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionNamespace')
   get optionsNamespace() {
     const ns = Array.from(
-      new Set(this.model.allocations.mapBy('namespace')),
+      new Set(this.model.allocations.map(ns => ns.namespace)),
     ).filter(val => val !== undefined && val !== null);
 
     // Update query param when the list of namespaces changes.

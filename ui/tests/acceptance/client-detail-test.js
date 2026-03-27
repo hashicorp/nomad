@@ -1276,7 +1276,7 @@ module('Acceptance | client detail', function (hooks) {
     facet: ClientDetail.facets.job,
     paramName: 'job',
     expectedOptions(allocs) {
-      return Array.from(new Set(allocs.mapBy('jobId'))).sort();
+      return Array.from(new Set(allocs.map(job => job.jobId))).sort();
     },
     async beforeEach() {
       this.server.create('node-pool');
@@ -1397,7 +1397,7 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
     facet: ClientDetail.facets.namespace,
     paramName: 'namespace',
     expectedOptions(allocs) {
-      return Array.from(new Set(allocs.mapBy('namespace'))).sort();
+      return Array.from(new Set(allocs.map(ns => ns.namespace))).sort();
     },
     async beforeEach() {
       await ClientDetail.visit({ id: node.id });

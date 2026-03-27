@@ -48,7 +48,7 @@ export default class IndexController extends Controller {
     });
 
     // Unset the namespace selection if it was server-side deleted
-    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+    if (!availableNamespaces.map(el => el.key).includes(this.qpNamespace)) {
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
       scheduleOnce('actions', this, () => {
         // eslint-disable-next-line ember/no-side-effects
