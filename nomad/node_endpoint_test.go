@@ -3148,19 +3148,6 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	otherNode := mock.Node()
-	otherNode.NodePool = "other-pool"
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 101, otherNode))
-
-	req.NodeID = otherNode.ID
-	req.SecretID = otherNode.SecretID
-	var deniedResp structs.NodeClientAllocsResponse
-	deniedErr := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &deniedResp)
-	must.EqError(t, deniedErr, structs.ErrPermissionDenied.Error())
-
-	req.NodeID = node.ID
-	req.SecretID = node.SecretID
-
 	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)

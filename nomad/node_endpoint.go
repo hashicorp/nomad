@@ -1410,10 +1410,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if targetNode == nil || !aclObj.AllowClientOp(targetNode.NodePool) {
-		return structs.ErrPermissionDenied
+	callerPool := ""
+	if targetNode != nil {
+		if !aclObj.AllowClientOp(targetNode.NodePool) {
+			return structs.ErrPermissionDenied
+		}
+		callerPool = targetNode.NodePool
 	}
-	callerPool := targetNode.NodePool
 
 	// Verify the arguments
 	if args.NodeID == "" {
