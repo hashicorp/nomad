@@ -40,8 +40,8 @@ rules:
 
       # Pattern used by endpoints that are used only for client-to-server.
       # Authorization can be done after forwarding, but must check the
-      # AllowClientOp policy; the AllowClientOp condition is left open so that
-      # additional ACL checks can be made (ex. to scope to a given node/pool).
+      # AllowClientOp policy; the check may appear directly or as part of a
+      # broader condition that scopes access to a given node or pool.
       - pattern-not-inside: |
           aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
@@ -50,6 +50,18 @@ rules:
           }
           ...
           if !aclObj.AllowClientOp(...) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if ... || !aclObj.AllowClientOp(...) {
             return structs.ErrPermissionDenied
           }
           ...
