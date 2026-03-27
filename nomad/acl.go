@@ -12,19 +12,6 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 	return s.auth.Authenticate(ctx, args)
 }
 
-func (s *Server) AllowClientOpInCallerPool(ctx *RPCContext, aclObj *acl.ACL, args structs.RequestWithIdentity) error {
-	pool, err := resolveCallerNodePool(s, ctx, args.GetIdentity())
-	if err != nil {
-		return err
-	}
-
-	if !aclObj.AllowClientOp(pool) {
-		return structs.ErrPermissionDenied
-	}
-
-	return nil
-}
-
 func (s *Server) AuthenticateServerOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
 	return s.auth.AuthenticateServerOnly(ctx, args)
 }

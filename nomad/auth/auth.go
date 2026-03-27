@@ -234,25 +234,22 @@ func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, 
 	}
 
 	if identity.ClientID != "" {
-		pool := ""
 		if claims := identity.GetClaims(); claims != nil && claims.NodeIdentityClaims != nil {
-			pool = claims.NodeIdentityClaims.NodePool
+			return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
 		}
-		if pool == "" {
-			snap, err := s.getState().Snapshot()
-			if err != nil {
-				return nil, structs.ErrPermissionDenied
-			}
-			node, err := snap.NodeByID(nil, identity.ClientID)
-			if err != nil {
-				return nil, err
-			}
-			if node == nil {
-				return nil, structs.ErrPermissionDenied
-			}
-			pool = node.NodePool
+
+		snap, err := s.getState().Snapshot()
+		if err != nil {
+			return nil, structs.ErrPermissionDenied
 		}
-		return acl.NewClientACL(pool), nil
+		node, err := snap.NodeByID(nil, identity.ClientID)
+		if err != nil {
+			return nil, err
+		}
+		if node == nil {
+			return nil, structs.ErrPermissionDenied
+		}
+		return acl.NewClientACL(node.NodePool), nil
 	}
 	claims := identity.GetClaims()
 	if claims != nil {
@@ -413,21 +410,19 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 	if identity.Claims != nil && identity.Claims.NodeIdentityClaims != nil {
 		return acl.NewClientACL(identity.Claims.NodeIdentityClaims.NodePool), nil
 	}
-	if identity.ClientID != "" {
-		snap, err := s.getState().Snapshot()
-		if err != nil {
-			return nil, structs.ErrPermissionDenied
-		}
-		node, err := snap.NodeByID(nil, identity.ClientID)
-		if err != nil {
-			return nil, err
-		}
-		if node == nil {
-			return nil, structs.ErrPermissionDenied
-		}
-		return acl.NewClientACL(node.NodePool), nil
+
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return nil, structs.ErrPermissionDenied
 	}
-	return acl.ClientACL, nil
+	node, err := snap.NodeByID(nil, identity.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	if node == nil {
+		return nil, structs.ErrPermissionDenied
+	}
+	return acl.NewClientACL(node.NodePool), nil
 }
 
 // verifyTLS is a helper function that performs TLS verification, if required,
