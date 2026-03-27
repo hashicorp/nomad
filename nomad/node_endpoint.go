@@ -1233,22 +1233,18 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 		return err
 	}
 
-	targetNode, err := n.srv.State().NodeByID(nil, args.NodeID)
-	if err != nil {
-		return err
-	}
-	targetPool := ""
-	if targetNode != nil {
-		targetPool = targetNode.NodePool
-	}
-
-	clientAllowed := targetPool != "" && aclObj.AllowClientOp(targetPool)
-	if !clientAllowed && !aclObj.AllowNodeRead() {
-		return structs.ErrPermissionDenied
-	}
-
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID")
+	}
+
+	if !aclObj.AllowNodeRead() {
+		targetNode, err := n.srv.State().NodeByID(nil, args.NodeID)
+		if err != nil {
+			return err
+		}
+		if targetNode == nil || targetNode.NodePool == "" || !aclObj.AllowClientOp(targetNode.NodePool) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
