@@ -1149,12 +1149,12 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Payload:        job.Payload,
 		Meta:           job.Meta,
 		VaultNamespace: *job.VaultNamespace,
+		Version:        *job.Version,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 		UI:             ApiJobUIConfigToStructs(job.UI),
 		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
-
 	// Update has been pushed into the task groups. stagger and max_parallel are
 	// preserved at the job level, but all other values are discarded. The job.Update
 	// api value is merged into TaskGroups already in api.Canonicalize
