@@ -383,6 +383,8 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		return nil, structs.ErrPermissionDenied
 	}
 
+	var pool string
+
 	// If the auth token is a UUID, we treat it as a node secret ID. Otherwise,
 	// we assume it's a node identity claim. Anything outside these cases is not
 	// permitted when using this method.
@@ -395,6 +397,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 			return nil, structs.ErrPermissionDenied
 		}
 		identity.ClientID = node.ID
+		pool = node.NodePool
 	} else {
 		claims, err := s.VerifyClaim(authToken)
 		if err != nil {
@@ -411,18 +414,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		return acl.NewClientACL(identity.Claims.NodeIdentityClaims.NodePool), nil
 	}
 
-	snap, err := s.getState().Snapshot()
-	if err != nil {
-		return nil, structs.ErrPermissionDenied
-	}
-	node, err := snap.NodeByID(nil, identity.ClientID)
-	if err != nil {
-		return nil, err
-	}
-	if node == nil {
-		return nil, structs.ErrPermissionDenied
-	}
-	return acl.NewClientACL(node.NodePool), nil
+	return acl.NewClientACL(pool), nil
 }
 
 // verifyTLS is a helper function that performs TLS verification, if required,
