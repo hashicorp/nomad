@@ -1247,16 +1247,15 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 		return structs.ErrPermissionDenied
 	}
 
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Verify the arguments
-			if args.NodeID == "" {
-				return fmt.Errorf("missing node ID")
-			}
-
 			// Look for the node
 			out, err := state.NodeByID(ws, args.NodeID)
 			if err != nil {
