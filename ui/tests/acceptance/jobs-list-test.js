@@ -83,7 +83,7 @@ module('Acceptance | jobs list', function (hooks) {
       `["${job.id}","${job.namespace}"]`,
     );
 
-    const jobRow = JobsList.jobs.objectAt(0);
+    const jobRow = JobsList.jobs[0];
 
     assert.deepEqual(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
@@ -102,7 +102,7 @@ module('Acceptance | jobs list', function (hooks) {
     const job = this.server.db.jobs[0];
 
     await JobsList.visit();
-    await JobsList.jobs.objectAt(0).clickName();
+    await JobsList.jobs[0].clickName();
 
     assert.deepEqual(currentURL(), `/jobs/${job.id}@default`);
   });
@@ -201,7 +201,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit({ namespace: '*' });
 
-    const jobRow = JobsList.jobs.objectAt(0);
+    const jobRow = JobsList.jobs[0];
     assert.deepEqual(jobRow.namespace, job.namespaceId);
   });
 
@@ -225,7 +225,7 @@ module('Acceptance | jobs list', function (hooks) {
       'One job in the default namespace',
     );
     assert.deepEqual(
-      JobsList.jobs.objectAt(0).name,
+      JobsList.jobs[0].name,
       job1.name,
       'The correct job is shown',
     );
@@ -239,7 +239,7 @@ module('Acceptance | jobs list', function (hooks) {
       `One job in the ${secondNamespace.name} namespace`,
     );
     assert.deepEqual(
-      JobsList.jobs.objectAt(0).name,
+      JobsList.jobs[0].name,
       job2.name,
       'The correct job is shown',
     );
@@ -414,7 +414,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
 
     await JobsList.facets.status.toggle();
-    await JobsList.facets.status.options.objectAt(1).toggle();
+    await JobsList.facets.status.options[1].toggle();
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.deepEqual(
       JobsList.emptyState.headline,
@@ -2081,7 +2081,7 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.label];
@@ -2106,8 +2106,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.label);
     await option2.toggle();
@@ -2133,8 +2133,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.label);
     await option2.toggle();

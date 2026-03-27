@@ -814,7 +814,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option = facet.options.objectAt(1);
+      const option = facet.options[1];
       const selection = option.key;
       await option.select();
 
@@ -840,7 +840,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 0);
 
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       const optionKey = option.key;
       await option.toggle();
 
@@ -869,7 +869,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 1);
 
-      const option1 = facet.options.objectAt(0);
+      const option1 = facet.options[0];
       const option1Key = option1.key;
       await option1.toggle();
       selection.push(option1Key);
@@ -879,7 +879,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       }
       await waitUntil(() => facet.options.length > 1);
 
-      const option2 = facet.options.objectAt(1);
+      const option2 = facet.options[1];
       const option2Key = option2.key;
       await option2.toggle();
       selection.push(option2Key);
@@ -907,7 +907,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 1);
 
-      const option1 = facet.options.objectAt(0);
+      const option1 = facet.options[0];
       const option1Key = option1.key;
       await option1.toggle();
       selection.push(option1Key);
@@ -917,7 +917,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       }
       await waitUntil(() => facet.options.length > 1);
 
-      const option2 = facet.options.objectAt(1);
+      const option2 = facet.options[1];
       const option2Key = option2.key;
       await option2.toggle();
       selection.push(option2Key);

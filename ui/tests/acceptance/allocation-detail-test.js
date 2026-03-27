@@ -109,12 +109,12 @@ module('Acceptance | allocation detail', function (hooks) {
       'Two resource utilization graphs',
     );
     assert.deepEqual(
-      Allocation.resourceCharts.objectAt(0).name,
+      Allocation.resourceCharts[0].name,
       'CPU',
       'First chart is CPU',
     );
     assert.deepEqual(
-      Allocation.resourceCharts.objectAt(1).name,
+      Allocation.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory',
     );
@@ -243,7 +243,7 @@ module('Acceptance | allocation detail', function (hooks) {
       .where({ allocationId: allocation.id })
       .sortBy('name')[0];
 
-    await Allocation.tasks.objectAt(0).clickLink();
+    await Allocation.tasks[0].clickLink();
 
     // Make sure the allocation is pending in order to ensure there are no tasks
     assert.deepEqual(
@@ -253,7 +253,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
-    await Allocation.tasks.objectAt(0).clickRow();
+    await Allocation.tasks[0].clickRow();
 
     assert.deepEqual(
       currentURL(),
@@ -645,7 +645,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
       .map((id) => this.server.schema.find('allocation', id))
       .sortBy('modifyIndex')
       .reverse()[0];
-    const preemptionRow = Allocation.preemptions.objectAt(0);
+    const preemptionRow = Allocation.preemptions[0];
 
     assert.deepEqual(
       Allocation.preemptions.length,

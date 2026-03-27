@@ -82,7 +82,7 @@ module('Acceptance | servers list', function (hooks) {
 
     await ServersList.visit();
 
-    const agentRow = ServersList.servers.objectAt(0);
+    const agentRow = ServersList.servers[0];
 
     assert.deepEqual(agentRow.name, agent.name, 'Name');
     assert.deepEqual(
@@ -106,7 +106,7 @@ module('Acceptance | servers list', function (hooks) {
     const agent = this.server.db.agents[0];
 
     await ServersList.visit();
-    await ServersList.servers.objectAt(0).clickRow();
+    await ServersList.servers[0].clickRow();
 
     assert.deepEqual(
       currentURL(),
@@ -137,17 +137,17 @@ module('Acceptance | servers list', function (hooks) {
     this.server.db.agents[2].member.Tags.region = 'galactic';
     await ServersList.visit();
     assert.deepEqual(
-      ServersList.servers.objectAt(0).leader,
+      ServersList.servers[0].leader,
       'True (galactic)',
       'Leadership is shown for the galactic region',
     );
     assert.deepEqual(
-      ServersList.servers.objectAt(1).leader,
+      ServersList.servers[1].leader,
       'True (global)',
       'Leadership is shown for the global region',
     );
     assert.deepEqual(
-      ServersList.servers.objectAt(2).leader,
+      ServersList.servers[2].leader,
       'False',
       'Non-leader servers are shown',
     );

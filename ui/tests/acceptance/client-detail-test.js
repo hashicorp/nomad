@@ -107,7 +107,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
     assert.ok(ClientDetail.clientId.includes(node.id), 'Title includes id');
     assert.deepEqual(
-      ClientDetail.statusLight.objectAt(0).id,
+      ClientDetail.statusLight[0].id,
       node.status,
       'Title includes status light',
     );
@@ -143,12 +143,12 @@ module('Acceptance | client detail', function (hooks) {
       'Two resource utilization graphs',
     );
     assert.deepEqual(
-      ClientDetail.resourceCharts.objectAt(0).name,
+      ClientDetail.resourceCharts[0].name,
       'CPU',
       'First chart is CPU',
     );
     assert.deepEqual(
-      ClientDetail.resourceCharts.objectAt(1).name,
+      ClientDetail.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory',
     );
@@ -198,7 +198,7 @@ module('Acceptance | client detail', function (hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    const allocationRow = ClientDetail.allocations.objectAt(0);
+    const allocationRow = ClientDetail.allocations[0];
 
     assert.deepEqual(
       allocationRow.shortId,
@@ -273,7 +273,7 @@ module('Acceptance | client detail', function (hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    const allocationRow = ClientDetail.allocations.objectAt(0);
+    const allocationRow = ClientDetail.allocations[0];
     const allocation = this.server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
@@ -297,7 +297,7 @@ module('Acceptance | client detail', function (hooks) {
       .reverse()[0];
 
     await ClientDetail.visit({ id: node.id });
-    await ClientDetail.allocations.objectAt(0).visit();
+    await ClientDetail.allocations[0].visit();
 
     assert.deepEqual(
       currentURL(),
@@ -312,7 +312,7 @@ module('Acceptance | client detail', function (hooks) {
     const allocation = this.server.db.allocations.where({ nodeId: node.id })[0];
     const job = this.server.db.jobs.find(allocation.jobId);
 
-    await ClientDetail.allocations.objectAt(0).visitJob();
+    await ClientDetail.allocations[0].visitJob();
 
     assert.deepEqual(
       currentURL(),
@@ -403,7 +403,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.notOk(ClientDetail.emptyMetaMessage, 'Meta attributes is not empty');
 
     const firstMetaKey = Object.keys(node.meta)[0];
-    const firstMetaAttribute = ClientDetail.metaAttributes.objectAt(0);
+    const firstMetaAttribute = ClientDetail.metaAttributes[0];
     assert.deepEqual(
       firstMetaAttribute.key,
       firstMetaKey,
@@ -587,7 +587,7 @@ module('Acceptance | client detail', function (hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    const eventRow = ClientDetail.events.objectAt(0);
+    const eventRow = ClientDetail.events[0];
     assert.deepEqual(
       eventRow.time,
       moment(event.time).format("MMM DD, 'YY HH:mm:ss ZZ"),
@@ -620,7 +620,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
 
     drivers.forEach((driver, index) => {
-      const driverHead = ClientDetail.driverHeads.objectAt(index);
+      const driverHead = ClientDetail.driverHeads[index];
 
       assert.deepEqual(
         driverHead.name,
@@ -674,8 +674,8 @@ module('Acceptance | client detail', function (hooks) {
       .sortBy('Name')[0];
 
     await ClientDetail.visit({ id: node.id });
-    const driverHead = ClientDetail.driverHeads.objectAt(0);
-    const driverBody = ClientDetail.driverBodies.objectAt(0);
+    const driverHead = ClientDetail.driverHeads[0];
+    const driverBody = ClientDetail.driverBodies[0];
 
     assert.notOk(
       driverBody.descriptionIsShown,
@@ -708,7 +708,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
 
     assert.deepEqual(
-      ClientDetail.statusLight.objectAt(0).id,
+      ClientDetail.statusLight[0].id,
       'ineligible',
       'Title status light is in the ineligible state',
     );
@@ -933,8 +933,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.deadlineOptions.open();
     const optionsCount =
       ClientDetail.drainPopover.deadlineOptions.options.length;
-    await ClientDetail.drainPopover.deadlineOptions.options
-      .objectAt(optionsCount - 1)
+    await ClientDetail.drainPopover.deadlineOptions.options[optionsCount - 1]
       .choose();
     await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
     await ClientDetail.drainPopover.submit();
@@ -1005,8 +1004,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.drainPopover.deadlineOptions.open();
     const optionsCount =
       ClientDetail.drainPopover.deadlineOptions.options.length;
-    await ClientDetail.drainPopover.deadlineOptions.options
-      .objectAt(optionsCount - 1)
+    await ClientDetail.drainPopover.deadlineOptions.options[optionsCount - 1]
       .choose();
     await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
     await ClientDetail.drainPopover.forceDrainToggle.toggle();
@@ -1321,7 +1319,7 @@ module('Acceptance | client detail', function (hooks) {
     await ClientDetail.visit({ id: node.id });
     const statusFacet = ClientDetail.facets.status;
     await statusFacet.toggle();
-    await statusFacet.options.objectAt(0).toggle();
+    await statusFacet.options[0].toggle();
 
     assert.true(ClientDetail.emptyAllocations.isVisible);
     assert.deepEqual(ClientDetail.emptyAllocations.headline, 'No Matches');
@@ -1413,8 +1411,8 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
 
     // Select both namespaces.
     await nsFacet.toggle();
-    await nsFacet.options.objectAt(0).toggle();
-    await nsFacet.options.objectAt(1).toggle();
+    await nsFacet.options[0].toggle();
+    await nsFacet.options[1].toggle();
     await jobFacet.toggle();
 
     assert.deepEqual(
@@ -1424,7 +1422,7 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
 
     // Select juse one namespace.
     await nsFacet.toggle();
-    await nsFacet.options.objectAt(1).toggle(); // deselect second option
+    await nsFacet.options[1].toggle(); // deselect second option
     await jobFacet.toggle();
 
     assert.deepEqual(
@@ -1462,7 +1460,7 @@ function testFacet(
     await beforeEach.call(this);
 
     await facet.toggle();
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.key];
@@ -1486,8 +1484,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();
@@ -1513,8 +1511,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();

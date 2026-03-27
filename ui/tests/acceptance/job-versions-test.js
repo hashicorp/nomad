@@ -80,7 +80,7 @@ module('Acceptance | job versions', function (hooks) {
     const formattedSubmitTime = moment(version.submitTime / 1000000).format(
       "MMM DD, 'YY HH:mm:ss ZZ",
     );
-    const versionRow = Versions.versions.objectAt(0);
+    const versionRow = Versions.versions[0];
 
     assert.ok(
       versionRow.text.includes(`Version #${version.version}`),

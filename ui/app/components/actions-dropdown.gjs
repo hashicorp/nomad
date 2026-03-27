@@ -7,7 +7,6 @@ import Component from '@glimmer/component';
 import { array, concat, fn, get, hash } from '@ember/helper';
 import { on } from '@ember/modifier';
 import { eq } from 'ember-truth-helpers';
-import { objectAt } from '@nullvoxpopuli/ember-composable-helpers';
 import keyboardShortcut from 'nomad-ui/modifiers/keyboard-shortcut';
 import {
   HdsDropdown,
@@ -72,7 +71,7 @@ export default class ActionsDropdown extends Component {
                 this.nomadActions.runAction
                 (hash
                   action=actionC
-                  allocID=(get (objectAt 0 actionC.allocations) "id")
+                  allocID=actionC.allocations.[0].id
                 )
               )
             }}
@@ -82,7 +81,7 @@ export default class ActionsDropdown extends Component {
                 this.nomadActions.runAction
                 (hash
                   action=actionC
-                  allocID=(get (objectAt 0 actionC.allocations) "id")
+                  allocID=actionC.allocations.[0].id
                 )
               )
             }}

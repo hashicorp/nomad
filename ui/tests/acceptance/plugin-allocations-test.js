@@ -111,7 +111,7 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       await option.toggle();
 
       const selection = [option.key];
@@ -134,8 +134,8 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();
@@ -160,8 +160,8 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();

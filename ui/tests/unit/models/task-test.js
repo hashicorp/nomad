@@ -61,23 +61,23 @@ module('Unit | Model | task', function (hooks) {
       }),
     );
 
-    let tg = job.get('taskGroups').objectAt(0);
+    let tg = job.get('taskGroups')[0];
     let expected = [{ a: 'b', c: 'd' }, { a: 'b' }, { a: 'b' }, { a: 'b' }];
 
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        tg.get('tasks').objectAt(i).get('mergedMeta'),
+        tg.get('tasks')[i].get('mergedMeta'),
         exp,
         'mergedMeta is merged with task meta',
       );
     });
 
-    tg = job.get('taskGroups').objectAt(1);
+    tg = job.get('taskGroups')[1];
     expected = [{ c: 'd' }, {}, {}, {}];
 
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        tg.get('tasks').objectAt(i).get('mergedMeta'),
+        tg.get('tasks')[i].get('mergedMeta'),
         exp,
         'mergedMeta is merged with job meta',
       );

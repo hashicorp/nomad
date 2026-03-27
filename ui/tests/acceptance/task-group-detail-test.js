@@ -291,7 +291,7 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
-    const allocationRow = TaskGroup.allocations.objectAt(0);
+    const allocationRow = TaskGroup.allocations[0];
 
     assert.deepEqual(
       allocationRow.shortId,
@@ -342,7 +342,7 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     const allocation = allocations.sortBy('name')[0];
-    const allocationRow = TaskGroup.allocations.objectAt(0);
+    const allocationRow = TaskGroup.allocations[0];
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
@@ -780,7 +780,7 @@ function testFacet(
     let option;
     await beforeEach.call(this);
     await facet.toggle();
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.key];
@@ -804,8 +804,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();
@@ -831,8 +831,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();

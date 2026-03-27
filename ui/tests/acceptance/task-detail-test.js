@@ -141,12 +141,12 @@ module('Acceptance | task detail', function (hooks) {
       'Two resource utilization graphs',
     );
     assert.deepEqual(
-      Task.resourceCharts.objectAt(0).name,
+      Task.resourceCharts[0].name,
       'CPU',
       'First chart is CPU',
     );
     assert.deepEqual(
-      Task.resourceCharts.objectAt(1).name,
+      Task.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory',
     );
@@ -237,7 +237,7 @@ module('Acceptance | task detail', function (hooks) {
 
   test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = this.server.db.taskEvents.where({ taskStateId: task.id })[0];
-    const recentEvent = Task.events.objectAt(Task.events.length - 1);
+    const recentEvent = Task.events[Task.events.length - 1];
 
     assert.deepEqual(
       recentEvent.time,

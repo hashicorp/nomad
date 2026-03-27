@@ -63,7 +63,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const controllerHealthStr =
       plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
@@ -88,7 +88,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.deepEqual(pluginRow.id, plugin.id);
@@ -105,13 +105,13 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    await PluginsList.plugins.objectAt(0).clickName();
+    await PluginsList.plugins[0].clickName();
     assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
 
     await PluginsList.visit();
     assert.deepEqual(currentURL(), '/storage/plugins');
 
-    await PluginsList.plugins.objectAt(0).clickRow();
+    await PluginsList.plugins[0].clickRow();
     assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
   });
 

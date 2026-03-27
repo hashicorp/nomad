@@ -93,7 +93,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
-          PluginDetail.controllerAllocations.objectAt(idx).id,
+          PluginDetail.controllerAllocations[idx].id,
           allocation.allocID,
         );
       });
@@ -108,7 +108,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
-          PluginDetail.nodeAllocations.objectAt(idx).id,
+          PluginDetail.nodeAllocations[idx].id,
           allocation.allocID,
         );
       });
@@ -131,7 +131,7 @@ module('Acceptance | plugin detail', function (hooks) {
 
     await PluginDetail.visit({ id: plugin.id });
 
-    PluginDetail.controllerAllocations.objectAt(0).as((allocationRow) => {
+    PluginDetail.controllerAllocations[0].as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -204,7 +204,7 @@ module('Acceptance | plugin detail', function (hooks) {
       .reverse()[0];
 
     await PluginDetail.visit({ id: plugin.id });
-    await PluginDetail.controllerAllocations.objectAt(0).visit();
+    await PluginDetail.controllerAllocations[0].visit();
 
     assert.deepEqual(currentURL(), `/allocations/${controller.allocID}`);
   });

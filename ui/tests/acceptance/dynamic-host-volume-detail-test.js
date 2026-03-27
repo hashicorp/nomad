@@ -118,7 +118,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
         .forEach((allocation, idx) => {
           assert.deepEqual(
             allocation.id,
-            VolumeDetail.allocations.objectAt(idx).id,
+            VolumeDetail.allocations[idx].id,
           );
         });
       await percySnapshot(assert);
@@ -144,7 +144,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    VolumeDetail.allocations.objectAt(0).as((allocationRow) => {
+    VolumeDetail.allocations[0].as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -215,7 +215,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assignAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    await VolumeDetail.allocations.objectAt(0).visit();
+    await VolumeDetail.allocations[0].visit();
 
     assert.deepEqual(currentURL(), `/allocations/${allocation.id}`);
   });
@@ -233,19 +233,19 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   test('Capabilities table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(0).accessMode,
+      VolumeDetail.capabilities[0].accessMode,
       'single-node-writer',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(0).attachmentMode,
+      VolumeDetail.capabilities[0].attachmentMode,
       'file-system',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(1).accessMode,
+      VolumeDetail.capabilities[1].accessMode,
       'single-node-reader-only',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(1).attachmentMode,
+      VolumeDetail.capabilities[1].attachmentMode,
       'block-device',
     );
   });

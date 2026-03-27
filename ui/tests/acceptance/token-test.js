@@ -180,7 +180,7 @@ module('Acceptance | tokens', function (hooks) {
       'Each policy associated with the token is listed',
     );
 
-    const policyElement = Tokens.policies.objectAt(0);
+    const policyElement = Tokens.policies[0];
 
     assert.deepEqual(policyElement.name, policy.name, 'Policy Name');
     assert.deepEqual(

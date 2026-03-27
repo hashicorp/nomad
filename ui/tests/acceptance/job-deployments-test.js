@@ -62,7 +62,7 @@ module('Acceptance | job deployments', function (hooks) {
 
     const deployment = sortedDeployments.models[0];
     const version = this.server.db.jobVersions.find(el => el.jobId === deployment.jobId && el.version === deployment.versionNumber);
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
 
     assert.ok(
       deploymentRow.text.includes(deployment.id.split('-')[0]),
@@ -105,7 +105,7 @@ module('Acceptance | job deployments', function (hooks) {
 
     await Deployments.visit({ id: job.id });
 
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     assert.ok(
       deploymentRow.promotionIsRequired,
       'Requires Promotion badge found',
@@ -115,7 +115,7 @@ module('Acceptance | job deployments', function (hooks) {
   test('each deployment item can be opened to show details', async function (assert) {
     await Deployments.visit({ id: job.id });
 
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     assert.notOk(deploymentRow.hasDetails, 'No deployment body');
 
     await deploymentRow.toggle();
@@ -126,7 +126,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
       (id) => this.server.db.deploymentTaskGroupSummaries.find(id),
     );
@@ -177,7 +177,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
       (id) => this.server.db.deploymentTaskGroupSummaries.find(id),
     );
@@ -240,7 +240,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
 
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
@@ -257,7 +257,7 @@ module('Acceptance | job deployments', function (hooks) {
     );
 
     const allocation = allocations[0];
-    const allocationRow = deploymentRow.allocations.objectAt(0);
+    const allocationRow = deploymentRow.allocations[0];
 
     assert.deepEqual(
       allocationRow.shortId,

@@ -69,7 +69,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
 
-    const nodeRow = ClientsList.nodes.objectAt(0);
+    const nodeRow = ClientsList.nodes[0];
     const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     assert.deepEqual(nodeRow.id, node.id.split('-')[0], 'ID');
@@ -110,7 +110,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
 
-    const nodeRow = ClientsList.nodes.objectAt(0);
+    const nodeRow = ClientsList.nodes[0];
 
     assert.deepEqual(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.deepEqual(
@@ -234,7 +234,7 @@ module('Acceptance | clients list', function (hooks) {
     const node = this.server.db.nodes[0];
 
     await ClientsList.visit();
-    await ClientsList.nodes.objectAt(0).clickRow();
+    await ClientsList.nodes[0].clickRow();
 
     assert.deepEqual(currentURL(), `/clients/${node.id}`);
   });
@@ -439,7 +439,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
     await ClientsList.facets.state.toggle();
-    await ClientsList.facets.state.options.objectAt(1).toggle();
+    await ClientsList.facets.state.options[1].toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
     assert.deepEqual(
       ClientsList.empty.headline,
@@ -492,7 +492,7 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
 
       await facet.toggle();
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       await option.toggle();
 
       const selection = [option.key];
@@ -516,8 +516,8 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();
@@ -543,8 +543,8 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();

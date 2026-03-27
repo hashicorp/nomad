@@ -197,7 +197,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     const allocation = this.server.db.allocations
       .sortBy('modifyIndex')
       .reverse()[0];
-    const allocationRow = Job.allocations.objectAt(0);
+    const allocationRow = Job.allocations[0];
 
     assert.deepEqual(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
     assert.deepEqual(
