@@ -100,7 +100,7 @@ func TestACLManagement(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.True(t, acl.AllowServerOp())
-	must.True(t, acl.AllowClientOp("my-pool"))
+	must.False(t, acl.AllowClientOp("my-pool"))
 }
 
 func TestACLMerge(t *testing.T) {
@@ -225,8 +225,8 @@ func TestACLAllowClientOp_NodePoolScoped(t *testing.T) {
 		acl, err := NewACL(true, nil)
 		must.NoError(t, err)
 
-		must.True(t, acl.AllowClientOp("my-pool"))
-		must.True(t, acl.AllowClientOp("other-pool"))
+		must.False(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
 	})
 
 	t.Run("acls disabled", func(t *testing.T) {
@@ -234,23 +234,33 @@ func TestACLAllowClientOp_NodePoolScoped(t *testing.T) {
 		must.True(t, ACLsDisabledACL.AllowClientOp("other-pool"))
 	})
 
-	t.Run("matching node pool allows client op", func(t *testing.T) {
-		p, err := Parse(readAll, PolicyParseStrict)
+	t.Run("matching client pool allows client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
 		must.NoError(t, err)
 
-		acl, err := NewACL(false, []*Policy{p})
-		must.NoError(t, err)
+		acl.client = PolicyWrite
+		acl.pool = "my-pool"
 
 		must.True(t, acl.AllowClientOp("my-pool"))
 		must.False(t, acl.AllowClientOp("other-pool"))
 	})
 
-	t.Run("node pool deny denies client op", func(t *testing.T) {
-		p, err := Parse(denyAll, PolicyParseStrict)
+	t.Run("client deny denies client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
 		must.NoError(t, err)
 
-		acl, err := NewACL(false, []*Policy{p})
+		acl.client = PolicyDeny
+		acl.pool = "my-pool"
+
+		must.False(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
+	})
+
+	t.Run("empty client pool denies client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
 		must.NoError(t, err)
+
+		acl.client = PolicyWrite
 
 		must.False(t, acl.AllowClientOp("my-pool"))
 		must.False(t, acl.AllowClientOp("other-pool"))

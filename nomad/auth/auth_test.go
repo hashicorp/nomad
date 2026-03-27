@@ -127,7 +127,7 @@ func TestAuthenticateDefault(t *testing.T) {
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -382,7 +382,9 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
-				must.Eq(t, acl.ClientACL, aclObj)
+				must.NotNil(t, aclObj)
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -674,7 +676,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -697,7 +699,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -744,7 +746,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -835,7 +837,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -851,7 +854,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -916,7 +920,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -932,7 +937,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -952,10 +958,10 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
 				must.NoError(t, err)
-
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp("default"))
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{

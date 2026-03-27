@@ -234,7 +234,25 @@ func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, 
 	}
 
 	if identity.ClientID != "" {
-		return acl.ClientACL, nil
+		pool := ""
+		if claims := identity.GetClaims(); claims != nil && claims.NodeIdentityClaims != nil {
+			pool = claims.NodeIdentityClaims.NodePool
+		}
+		if pool == "" {
+			snap, err := s.getState().Snapshot()
+			if err != nil {
+				return nil, structs.ErrPermissionDenied
+			}
+			node, err := snap.NodeByID(nil, identity.ClientID)
+			if err != nil {
+				return nil, err
+			}
+			if node == nil {
+				return nil, structs.ErrPermissionDenied
+			}
+			pool = node.NodePool
+		}
+		return acl.NewClientACL(pool), nil
 	}
 	claims := identity.GetClaims()
 	if claims != nil {
@@ -349,10 +367,6 @@ func (s *Authenticator) AuthenticateNodeIdentityGenerator(ctx RPCContext, args s
 // by making a request to a client that's forwarded. It should also not be used
 // with Node.Register or NodeUpdateStatus, which should use
 // AuthenticateNodeIdentityGenerator.
-//
-// The returned ACL object is always a acl.ClientACL but in the future this
-// could be extended to allow clients access only to their own pool and
-// associated namespaces, etc.
 func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
 
 	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
@@ -396,6 +410,23 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		identity.Claims = claims
 	}
 
+	if identity.Claims != nil && identity.Claims.NodeIdentityClaims != nil {
+		return acl.NewClientACL(identity.Claims.NodeIdentityClaims.NodePool), nil
+	}
+	if identity.ClientID != "" {
+		snap, err := s.getState().Snapshot()
+		if err != nil {
+			return nil, structs.ErrPermissionDenied
+		}
+		node, err := snap.NodeByID(nil, identity.ClientID)
+		if err != nil {
+			return nil, err
+		}
+		if node == nil {
+			return nil, structs.ErrPermissionDenied
+		}
+		return acl.NewClientACL(node.NodePool), nil
+	}
 	return acl.ClientACL, nil
 }
 
@@ -580,6 +611,9 @@ func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL,
 	// up in the future, we will want to modify this section to perform similar
 	// work that is done for workload claims.
 	if claims.IsNode() {
+		if claims.NodeIdentityClaims != nil {
+			return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
+		}
 		return acl.ClientACL, nil
 	}
 
