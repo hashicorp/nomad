@@ -144,6 +144,7 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
+	must.False(t, acl.AllowClientOp("my-pool"))
 
 	// Merge read + blank
 	p3, err := Parse("", PolicyParseStrict)
