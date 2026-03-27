@@ -55,41 +55,17 @@ rules:
           ...
 
       # Pattern used by endpoints that are used only for client-to-server.
-      # Authorization can be done after forwarding by resolving the caller's
-      # node pool before checking AllowClientOp.
+      # Authorization can be done after forwarding via a helper that resolves
+      # the caller's node pool before checking AllowClientOp.
       - pattern-not-inside: |
-          aclObj, err := $RECV.AuthenticateClientOnly($CTX, args)
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
-          if done, err := $RECV.forward($METHOD, ...); done {
+          if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          callerPool, err := resolveCallerNodePool(..., ..., args.GetIdentity())
-          ...
-          if err != nil {
+          if err := $A.$B.AllowClientOpInCallerPool($A.ctx, aclObj, args); err != nil {
             return err
-          }
-          ...
-          if !aclObj.AllowClientOp(callerPool) {
-            return structs.ErrPermissionDenied
-          }
-          ...
-
-      # Pattern used by endpoints that are used only for client-to-server.
-      # Authorization may combine caller-pool resolution failure and the
-      # AllowClientOp check in a single condition before additional target
-      # validation.
-      - pattern-not-inside: |
-          aclObj, err := $RECV.AuthenticateClientOnly($CTX, args)
-          ...
-          if done, err := $RECV.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          callerPool, err := resolveCallerNodePool(..., ..., args.GetIdentity())
-          ...
-          if err != nil || !aclObj.AllowClientOp(callerPool) {
-            return structs.ErrPermissionDenied
           }
           ...
 

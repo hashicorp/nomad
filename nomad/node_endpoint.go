@@ -1399,12 +1399,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
+	if err := n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args); err != nil {
+		return err
+	}
+
 	callerPool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
 	if err != nil {
 		return err
-	}
-	if !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
 	}
 
 	// Verify the arguments
@@ -1553,12 +1554,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
+	if err := n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args); err != nil {
+		return err
+	}
+
 	callerPool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
 	if err != nil {
 		return err
-	}
-	if !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
 	}
 
 	// Ensure at least a single alloc
@@ -2015,12 +2017,13 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
+	if err := n.srv.AllowClientOpInCallerPool(n.ctx, aclObj, args); err != nil {
+		return err
+	}
+
 	callerPool, err := resolveCallerNodePool(n.srv, n.ctx, args.GetIdentity())
 	if err != nil {
 		return err
-	}
-	if !aclObj.AllowClientOp(callerPool) {
-		return structs.ErrPermissionDenied
 	}
 
 	if len(args.NodeEvents) == 0 {

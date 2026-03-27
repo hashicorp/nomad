@@ -13,10 +13,6 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 }
 
 func (s *Server) AllowClientOpInCallerPool(ctx *RPCContext, aclObj *acl.ACL, args structs.RequestWithIdentity) error {
-	if aclObj == nil {
-		return structs.ErrPermissionDenied
-	}
-
 	pool, err := resolveCallerNodePool(s, ctx, args.GetIdentity())
 	if err != nil {
 		return err
