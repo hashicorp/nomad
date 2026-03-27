@@ -1052,13 +1052,13 @@ func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaim
 	if args.AllocationID != "" {
 		alloc, err := snap.AllocByID(memdb.NewWatchSet(), args.AllocationID)
 		if err == nil && alloc != nil && alloc.NodeID != "" {
-			if resolvedPool, ok := lookupNodePoolForNodeID(snap, alloc.NodeID); ok {
+			if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), alloc.NodeID); err == nil && ok {
 				pool = resolvedPool
 			}
 		}
 	}
 	if pool == "" {
-		if resolvedPool, ok := lookupNodePoolForNodeID(snap, args.NodeID); ok {
+		if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID); err == nil && ok {
 			pool = resolvedPool
 		}
 	}
@@ -1092,8 +1092,8 @@ func (v *CSIVolume) authorizeUnpublish(
 		return err
 	}
 
-	claimPool, ok := lookupNodePoolForNodeID(snap, args.Claim.NodeID)
-	if !ok || !aclObj.AllowClientOp(claimPool) {
+	claimPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.Claim.NodeID)
+	if err != nil || !ok || !aclObj.AllowClientOp(claimPool) {
 		return structs.ErrPermissionDenied
 	}
 

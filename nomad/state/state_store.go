@@ -1695,6 +1695,23 @@ func (s *StateStore) NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, 
 	return nil, nil
 }
 
+// NodePoolByNodeID determines the node pool for a given node ID.
+func (s *StateStore) NodePoolByNodeID(ws memdb.WatchSet, nodeID string) (string, bool, error) {
+	if nodeID == "" {
+		return "", false, nil
+	}
+
+	node, err := s.NodeByID(ws, nodeID)
+	if err != nil {
+		return "", false, err
+	}
+	if node == nil || node.NodePool == "" {
+		return "", false, nil
+	}
+
+	return node.NodePool, true, nil
+}
+
 // NodesByIDPrefix is used to lookup nodes by prefix
 func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()

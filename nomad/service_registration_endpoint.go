@@ -56,7 +56,10 @@ func (s *ServiceRegistration) Upsert(
 		return err
 	}
 	for _, service := range args.Services {
-		pool, ok := lookupNodePoolForNodeID(snap, service.NodeID)
+		pool, ok, err := snap.NodePoolByNodeID(nil, service.NodeID)
+		if err != nil {
+			return err
+		}
 		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
@@ -148,7 +151,10 @@ func (s *ServiceRegistration) DeleteByID(
 			return structs.ErrPermissionDenied
 		}
 
-		pool, ok := lookupNodePoolForNodeID(snap, registration.NodeID)
+		pool, ok, err := snap.NodePoolByNodeID(nil, registration.NodeID)
+		if err != nil {
+			return err
+		}
 		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
