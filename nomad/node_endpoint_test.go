@@ -1914,6 +1914,9 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Len(out.Events, 4)
 }
 
+// TestClientEndpoint_UpdatedDrainAndCompleted asserts that drain metadata
+// is properly persisted in Node.LastDrain as the node drain is updated and
+// completes.
 func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
