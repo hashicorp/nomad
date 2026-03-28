@@ -73,7 +73,7 @@
     "d3-shape": "^3.0.1",
     "d3-time-format": "^4.0.0",
     "d3-transition": "^3.0.1",
-    "dompurify": "^3.2.5",
+    "dompurify": "^3.3.2",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^7.0.0",
     "ember-auto-import": "^2.4.0",
