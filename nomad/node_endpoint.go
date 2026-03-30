@@ -1010,6 +1010,25 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	return nil
 }
 
+// authenticatedNodeID returns the authenticated node ID for client and node
+// identity based requests.
+func authenticatedNodeID(identity *structs.AuthenticatedIdentity) string {
+	if identity == nil {
+		return ""
+	}
+
+	if identity.ClientID != "" {
+		return identity.ClientID
+	}
+
+	identityClaims := identity.GetClaims()
+	if identityClaims != nil && identityClaims.IsNode() {
+		return identityClaims.NodeIdentityClaims.NodeID
+	}
+
+	return ""
+}
+
 // checkNodeDrainAuth is a helper function to provide the authentication logic
 // for the UpdateDrain RPC.
 func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrainRequest) error {
@@ -1018,17 +1037,19 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 		return nil
 	}
 
-	identity := args.GetIdentity()
-
-	if identity.ClientID == args.NodeID {
-		pool, _, _ := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
-		if aclObj.AllowClientOp(pool) {
-			return nil
-		}
+	if authenticatedNodeID(args.GetIdentity()) != args.NodeID {
+		return structs.ErrPermissionDenied
 	}
 
-	// either we didn't match the node ID or we didn't match the pool!
-	return structs.ErrPermissionDenied
+	pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if !ok || !aclObj.AllowClientOp(pool) {
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
 }
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
