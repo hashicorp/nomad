@@ -596,10 +596,10 @@ func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL,
 	// up in the future, we will want to modify this section to perform similar
 	// work that is done for workload claims.
 	if claims.IsNode() {
-		if claims.NodeIdentityClaims != nil {
-			return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
+		if claims.NodeIdentityClaims == nil || claims.NodeIdentityClaims.NodePool == "" {
+			return nil, fmt.Errorf("node identity claims missing node pool")
 		}
-		return acl.ClientACL, nil
+		return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
 	}
 
 	policies, err := s.ResolvePoliciesForClaims(claims)
