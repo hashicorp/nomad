@@ -232,9 +232,10 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					return err
 				}
 				if out == nil {
-					// We don't have the alloc yet
-					thresholdMet = false
-					break
+					// The alloc may have been GC'd or purged. Continue so we can
+					// potentially satisfy the query with partial results from the
+					// remaining allocs.
+					continue
 				}
 
 				// Fail closed if the job is missing, since we cannot determine
@@ -506,11 +507,12 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 					continue
 				}
 
-				nodePool := structs.NodePoolDefault
-				if out.Job != nil {
-					nodePool = out.Job.NodePool
+				// Fail closed if the job is missing, since we cannot determine
+				// the allocation's node pool for client-scoped ACL checks.
+				if out.Job == nil {
+					return structs.ErrPermissionDenied
 				}
-				if !aclObj.AllowClientOp(nodePool) {
+				if !aclObj.AllowClientOp(out.Job.NodePool) {
 					return structs.ErrPermissionDenied
 				}
 
