@@ -10,7 +10,7 @@ rules:
             return err
           }
       # Pattern used by typical endpoints that take an auth token or workload
-      # identity. Some of these endpoints have no context for Authenticate
+      # identity. Some of these endpoints have no context for Authenticate.
       - pattern-not-inside: |
           authErr := $A.$B.Authenticate(...)
           ...
@@ -26,24 +26,25 @@ rules:
       # forwarding to prevent the risk of confused deputy when RPCs are
       # forwarded.
       - pattern-not-inside: |
-
           aclObj, err := $A.srv.AuthenticateServerOnly($A.ctx, args)
           ...
           if err != nil || !aclObj.AllowServerOp() {
             return structs.ErrPermissionDenied
           }
-
+          ...
           if done, err := $A.srv.forward($METHOD, ...); done {
             return err
           }
           ...
 
-      # Pattern used by endpoints that are used only for client-to-server.
-      # Authorization can be done after forwarding, but must check the
-      # AllowClientOp policy; the check may appear directly or as part of a
-      # broader condition that scopes access to a given node or pool.
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize using client ACLs.
       - pattern-not-inside: |
           aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
@@ -57,11 +58,65 @@ rules:
       - pattern-not-inside: |
           aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
           if ... || !aclObj.AllowClientOp(...) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize based on the authenticated node identity rather than pool.
+      - pattern-not-inside: |
+          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if authenticatedNodeID(args.GetIdentity()) == "" {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      - pattern-not-inside: |
+          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if authenticatedNodeID(args.GetIdentity()) != ... {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      - pattern-not-inside: |
+          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if ... != authenticatedNodeID(args.GetIdentity()) {
             return structs.ErrPermissionDenied
           }
           ...
@@ -137,7 +192,7 @@ rules:
     severity: "WARNING"
     paths:
       include:
-        - "nomad/*_endpoint.go"
+        - "**/nomad/*_endpoint.go"
 
   # ACL objects should never be nil-checked in RPC handlers before checking
   # authorization, as nil ACLs are always programmer errors.
@@ -153,4 +208,4 @@ rules:
     severity: "WARNING"
     paths:
       include:
-        - "nomad/*_endpoint.go"
+        - "**/nomad/*_endpoint.go"
