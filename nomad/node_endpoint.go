@@ -690,11 +690,11 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		if err != nil {
 			return err
 		}
-		node, err := snap.NodeByID(memdb.NewWatchSet(), args.NodeID)
+		pool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID)
 		if err != nil {
 			return err
 		}
-		if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -1217,11 +1217,11 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	}
 
 	if !aclObj.AllowNodeRead() {
-		targetNode, err := n.srv.State().NodeByID(nil, args.NodeID)
+		pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
 		if err != nil {
 			return err
 		}
-		if targetNode == nil || !aclObj.AllowClientOp(targetNode.NodePool) {
+		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -1380,16 +1380,16 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	targetNode, err := n.srv.State().NodeByID(nil, args.NodeID)
+	pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
 	if err != nil {
 		return err
 	}
 	callerPool := ""
-	if targetNode != nil {
-		if !aclObj.AllowClientOp(targetNode.NodePool) {
+	if ok {
+		if !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
-		callerPool = targetNode.NodePool
+		callerPool = pool
 	}
 
 	// Verify the arguments
@@ -1557,7 +1557,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if node == nil {
 		return fmt.Errorf("node %s not found", targetNodeID)
 	}
-	if !aclObj.AllowClientOp(node.NodePool) {
+	pool, ok, err := n.srv.State().NodePoolByNodeID(nil, targetNodeID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve node %s: %v", targetNodeID, err)
+	}
+	if !ok || !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 	if node.UnresponsiveStatus() {
@@ -2002,16 +2006,16 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 			return fmt.Errorf("no node events given for node %q", nodeID)
 		}
 
-		node, err := n.srv.State().NodeByID(nil, nodeID)
+		pool, ok, err := n.srv.State().NodePoolByNodeID(nil, nodeID)
 		if err != nil {
 			return err
 		}
-		if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+		if !ok || !aclObj.AllowClientOp(pool) {
 			return structs.ErrPermissionDenied
 		}
 		if callerPool == "" {
-			callerPool = node.NodePool
-		} else if node.NodePool != callerPool {
+			callerPool = pool
+		} else if pool != callerPool {
 			return structs.ErrPermissionDenied
 		}
 	}
