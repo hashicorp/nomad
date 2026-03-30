@@ -82,7 +82,6 @@ func (s *Server) nodeEvent(me serf.MemberEvent) {
 func (s *Server) maybeBootstrap() {
 
 	if s.config.BootstrapExpect == 0 {
-		s.bootstrapped.Store(true)
 		return
 	}
 

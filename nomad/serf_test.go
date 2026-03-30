@@ -427,7 +427,7 @@ func TestNomad_BadExpect(t *testing.T) {
 
 // TestNomad_NonBootstraping_ShouldntBootstap asserts that if BootstrapExpect is zero,
 // the server shouldn't bootstrap
-func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
+func TestNomad_NonBootstraping_ShouldntBootstrap(t *testing.T) {
 	ci.Parallel(t)
 
 	dir := t.TempDir()
