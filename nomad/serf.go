@@ -34,7 +34,7 @@ func (s *Server) serfEventHandler() {
 		case e := <-s.eventCh:
 			switch e.EventType() {
 			case serf.EventMemberJoin:
-				s.nodeJoin(e.(serf.MemberEvent))
+				s.nodeEvent(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberLeave, serf.EventMemberFailed:
 				s.nodeFailed(e.(serf.MemberEvent))
@@ -42,7 +42,11 @@ func (s *Server) serfEventHandler() {
 			case serf.EventMemberReap:
 				s.peersCache.PeerDelete(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
+			case serf.EventMemberUpdate:
+				// We don't currently need to reconcile member updates
+				// so just skip calling localMemberEvent
+				s.nodeEvent(e.(serf.MemberEvent))
+			case serf.EventUser, serf.EventQuery: // Ignore
 			default:
 				s.logger.Warn("unhandled serf event", "event", log.Fmt("%#v", e))
 			}
@@ -53,22 +57,22 @@ func (s *Server) serfEventHandler() {
 	}
 }
 
-// nodeJoin is used to handle join events on the serf cluster
-func (s *Server) nodeJoin(me serf.MemberEvent) {
+// nodeEvent is used to handle join/update events on the serf cluster
+func (s *Server) nodeEvent(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		ok, parts := peers.IsNomadServer(m)
 		if !ok {
 			s.logger.Warn("non-server in gossip pool", "member", m.Name)
 			continue
 		}
-		s.logger.Info("adding server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
+		s.logger.Info("adding/updating server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
-		// A peer is joining, so we should update the cache to reflect its
-		// status.
+		// A peer has joined or updated, so we should update the cache to
+		// reflect its status.
 		s.peersCache.UpdatePeerSet(parts, s.Region())
 
 		// If we still expecting to bootstrap, may need to handle this
-		if s.config.BootstrapExpect != 0 && !s.bootstrapped.Load() {
+		if me.EventType() == serf.EventMemberJoin && !s.bootstrapped.Load() {
 			s.maybeBootstrap()
 		}
 	}
@@ -77,8 +81,8 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 // maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 
-	// redundant check to ease testing
 	if s.config.BootstrapExpect == 0 {
+		s.bootstrapped.Store(true)
 		return
 	}
 
