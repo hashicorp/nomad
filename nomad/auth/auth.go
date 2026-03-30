@@ -407,12 +407,11 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 			return nil, structs.ErrPermissionDenied
 		}
 		identity.ClientID = claims.NodeIdentityClaims.NodeID
-		identity.Claims = claims
+identity.ClientID = claims.NodeIdentityClaims.NodeID
+identity.Claims = claims
+pool = identity.Claims.NodeIdentityClaims.NodePool
 	}
 
-	if identity.Claims != nil && identity.Claims.NodeIdentityClaims != nil {
-		return acl.NewClientACL(identity.Claims.NodeIdentityClaims.NodePool), nil
-	}
 
 	return acl.NewClientACL(pool), nil
 }
