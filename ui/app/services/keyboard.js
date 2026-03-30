@@ -270,14 +270,14 @@ export default class KeyboardService extends Service {
   /**
    * Removes links associated with a specific nav.
    * guidFor is necessary because willDestroy runs async;
-   * it can happen after the next page's did-insert, so we .reject() instead of resetting to [].
+   * it can happen after the next page's did-insert, so we .filter() instead of resetting to [].
    *
    * @param {HTMLElement} element
    */
   @action
   unregisterSubnav(element) {
-    this.subnavLinks = this.subnavLinks.reject(
-      (link) => link.parent === guidFor(element),
+    this.subnavLinks = this.subnavLinks.filter(
+      (link) => link.parent !== guidFor(element),
     );
   }
 

@@ -57,8 +57,8 @@ export default class ResourcesDiffs {
   }
 
   get includedRecommendations() {
-    return this.recommendations.reject((r) =>
-      this.excludedRecommendations.includes(r),
+    return this.recommendations.filter((r) =>
+      !this.excludedRecommendations.includes(r),
     );
   }
 }

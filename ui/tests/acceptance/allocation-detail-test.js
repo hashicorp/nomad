@@ -726,8 +726,8 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       forceRunningClientStatus: true,
       clientStatus: 'running',
     });
-    const otherAlloc = this.server.db.allocations.reject(
-      (j) => j.jobId !== job.id,
+    const otherAlloc = this.server.db.allocations.filter(
+      (j) => j.jobId === job.id,
     );
 
     this.server.db.serviceFragments.update({
