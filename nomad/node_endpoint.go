@@ -682,7 +682,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
 	} else {
-		if aclObj.IsManagement() || aclObj.AllowServerOp() {
+		if aclObj.AllowServerOp() {
 			goto VERIFY_ARGS
 		}
 

@@ -1029,7 +1029,7 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 }
 
 func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.AuthenticatedIdentity) bool {
-	if aclObj.AllowServerOp() || aclObj.IsManagement() {
+	if aclObj.AllowServerOp() {
 		return true
 	}
 
