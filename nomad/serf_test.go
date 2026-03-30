@@ -468,7 +468,7 @@ func TestNomad_serfEventHandler_peers(t *testing.T) {
 
 	testChan := make(chan serf.Event, 10)
 	s1, cleanupS1 := TestServer(t, func(c *Config) {})
-	defer cleanupS1()
+	t.Cleanup(cleanupS1)
 
 	s1.eventCh = testChan
 
