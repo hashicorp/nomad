@@ -72,7 +72,7 @@ export default class Tokens extends Controller {
   }
 
   get nonTokenAuthMethods() {
-    return this.authMethods.rejectBy('type', 'JWT');
+    return this.authMethods.filter(el => el.type !== 'JWT');
   }
 
   get JWTAuthMethods() {

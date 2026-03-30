@@ -623,9 +623,8 @@ class MockRecommendationSummary {
   @action
   toggleAllRecommendationsForResource(resource, enabled) {
     if (enabled) {
-      this.excludedRecommendations = this.excludedRecommendations.rejectBy(
-        'resource',
-        resource,
+      this.excludedRecommendations = this.excludedRecommendations.filter(
+        el => el.resource !== resource
       );
     } else {
       this.excludedRecommendations.pushObjects(

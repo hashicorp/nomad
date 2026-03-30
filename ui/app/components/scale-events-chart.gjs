@@ -35,7 +35,7 @@ export default class ScaleEventsChart extends Component {
   }
 
   get annotations() {
-    return this.args.events.rejectBy('hasCount').map((ev, index) => ({
+    return this.args.events.filter(el => !el.hasCount).map((ev, index) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
       event: cloneScaleEvent(ev, index),
