@@ -1531,9 +1531,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-	_, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if err != nil {
+	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1986,9 +1986,9 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-	_, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if err != nil {
+	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
 
