@@ -194,9 +194,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
 
-    const allocation = this.server.db.allocations
-      .sortBy('modifyIndex')
-      .reverse()[0];
+    const allocation = [...this.server.db.allocations]
+      .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))[0];
     const allocationRow = Job.allocations[0];
 
     assert.deepEqual(allocationRow.shortId, allocation.id.split('-')[0], 'ID');

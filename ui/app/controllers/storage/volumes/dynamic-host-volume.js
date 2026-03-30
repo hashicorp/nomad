@@ -52,7 +52,7 @@ export default class DynamicHostVolumeController extends Controller {
       return [];
     }
 
-    return allocations.sortBy('modifyIndex').reverse();
+    return [...allocations].sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
   }
 
   @action gotoAllocation(allocation) {

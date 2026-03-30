@@ -114,7 +114,7 @@ export default class TaskGroupController extends Controller.extend(
   @computed('model.scaleState.events.@each.time', function () {
     const events = get(this, 'model.scaleState.events');
     if (events) {
-      return events.sortBy('time').reverse();
+      return [...events].sort((a, b) => (b.time || 0) - (a.time || 0));
     }
     return [];
   })

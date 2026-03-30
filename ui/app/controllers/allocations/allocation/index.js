@@ -57,7 +57,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.allocatedResources.ports.@each.label')
   get ports() {
-    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+    return [...(this.get('model.allocatedResources.ports') || [])].sort((a, b) => a.label?.localeCompare(b.label) || 0);
   }
 
   @computed('model.states.@each.task')
@@ -75,7 +75,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.taskGroup.services.@each.name')
   get groupServices() {
-    return (this.get('model.taskGroup.services') || []).sortBy('name');
+    return [...(this.get('model.taskGroup.services') || [])].sort((a, b) => a.name?.localeCompare(b.name) || 0);
   }
 
   @union('taskServices', 'groupServices') services;
@@ -101,9 +101,8 @@ export default class IndexController extends Controller.extend(
         ...existingHealthChecks,
         ...discoveredHealthChecks,
       ]);
-      const mostRecentCheckStatus = healthChecks
-        .sortBy('Timestamp')
-        .reverse()
+      const mostRecentCheckStatus = [...healthChecks]
+        .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
         .uniqBy('Check')
         .map(item => item.Status)
         .reduce((acc, curr) => {

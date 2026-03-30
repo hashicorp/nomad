@@ -47,8 +47,7 @@ module(
 
       const failedEvaluation = job.evaluations
         .filter(el => el.hasPlacementFailures)
-        .sortBy('modifyIndex')
-        .reverse()
+        .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))
         .get('firstObject');
       const failedTGAllocs = failedEvaluation.get('failedTGAllocs');
 

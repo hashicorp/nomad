@@ -150,7 +150,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       </template>,
     );
 
-    const sortedChildren = parent.get('children').sortBy('name');
+    const sortedChildren = [...parent.get('children')].sort((a, b) => a.name?.localeCompare(b.name) || 0);
     const childRows = findAll('[data-test-job-name]');
 
     sortedChildren.reverse().forEach((child, index) => {

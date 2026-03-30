@@ -32,12 +32,11 @@ export default class Service extends Fragment {
       .map(item => item.Check)
       .uniq()
       .map((name) => {
-        return this.get('healthChecks')
-          .sortBy('Timestamp')
-          .reverse()
+        return [...this.get('healthChecks')]
+          .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
           .find((x) => x.Check === name);
       })
-      .sortBy('Check');
+      .sort((a, b) => a.Check?.localeCompare(b.Check) || 0);
   }
 
   @computed('mostRecentChecks.[]')

@@ -46,7 +46,7 @@ module('Integration | Component | line-chart', function (hooks) {
       </template>,
     );
 
-    const sortedAnnotations = annotations.sortBy('x');
+    const sortedAnnotations = [...annotations].sort((a, b) => (a.x || 0) - (b.x || 0));
     findAll('[data-test-annotation]').forEach((annotation, index) => {
       const datum = sortedAnnotations[index];
       assert.deepEqual(
@@ -96,7 +96,7 @@ module('Integration | Component | line-chart', function (hooks) {
       </template>,
     );
 
-    const sortedAnnotations = annotations.sortBy('x').reverse();
+    const sortedAnnotations = [...annotations].sort((a, b) => (b.x || 0) - (a.x || 0));
     findAll('[data-test-annotation]').forEach((annotation, index) => {
       const datum = sortedAnnotations[index];
       assert.deepEqual(
@@ -197,9 +197,8 @@ module('Integration | Component | line-chart', function (hooks) {
     );
 
     const annotationElements = findAll('[data-test-annotation]');
-    annotations
-      .sortBy('y')
-      .reverse()
+    [...annotations]
+      .sort((a, b) => (b.y || 0) - (a.y || 0))
       .forEach((annotation, index) => {
         assert.deepEqual(
           annotationElements[index].textContent.trim(),

@@ -76,7 +76,7 @@ module('Acceptance | job versions', function (hooks) {
   });
 
   test('each version mentions the version number, the stability, and the submitted time', async function (assert) {
-    const version = versions.sortBy('submitTime').reverse()[0];
+    const version = [...versions].sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0))[0];
     const formattedSubmitTime = moment(version.submitTime / 1000000).format(
       "MMM DD, 'YY HH:mm:ss ZZ",
     );

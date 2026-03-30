@@ -495,9 +495,8 @@ export default class Job extends Model {
 
   @computed('versions.@each.stable')
   get hasStableNonCurrentVersion() {
-    const nonCurrentVersions = this.versions
-      .sortBy('number')
-      .reverse()
+    const nonCurrentVersions = [...this.versions]
+      .sort((a, b) => (b.number || 0) - (a.number || 0))
       .slice(1);
 
     const versions =
@@ -507,16 +506,15 @@ export default class Job extends Model {
 
   @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
-    return this.versions
+    return [...this.versions]
       .filter(version => version.stable)
-      .sortBy('number')
-      .reverse()
+      .sort((a, b) => (b.number || 0) - (a.number || 0))
       .slice(1)[0];
   }
 
   @computed('versions.[]', 'aggregateAllocStatus.label')
   get latestVersion() {
-    return this.versions.sortBy('number').reverse().slice(1)[0];
+    return [...this.versions].sort((a, b) => (b.number || 0) - (a.number || 0)).slice(1)[0];
   }
 
   get actions() {
@@ -585,7 +583,7 @@ export default class Job extends Model {
     if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
-    const sortedEvaluations = evaluations.sortBy('modifyIndex');
+    const sortedEvaluations = [...evaluations].sort((a, b) => (a.modifyIndex || 0) - (b.modifyIndex || 0));
     return sortedEvaluations[sortedEvaluations.length - 1];
   }
 
@@ -599,7 +597,7 @@ export default class Job extends Model {
     let failureEvaluations = evaluations;
     failureEvaluations = failureEvaluations.filter(evaluation => evaluation.hasPlacementFailures);
     if (failureEvaluations) {
-      const sortedFailureEvaluations = failureEvaluations.sortBy('modifyIndex');
+      const sortedFailureEvaluations = [...failureEvaluations].sort((a, b) => (a.modifyIndex || 0) - (b.modifyIndex || 0));
       return sortedFailureEvaluations[sortedFailureEvaluations.length - 1];
     }
 

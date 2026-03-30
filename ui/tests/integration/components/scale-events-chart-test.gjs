@@ -71,7 +71,7 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   });
 
   test('clicking an annotation presents details for the event', async function (assert) {
-    const annotation = events.filter(el => !el.hasCount).sortBy('time').reverse()[0];
+    const annotation = events.filter(el => !el.hasCount).sort((a, b) => (b.time || 0) - (a.time || 0))[0];
 
     this.set('events', events);
     await render(

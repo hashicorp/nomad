@@ -12,12 +12,12 @@ export default class IndexController extends Controller {
 
   @computed('model.controllers.@each.updateTime')
   get sortedControllers() {
-    return this.model.controllers.sortBy('updateTime').reverse();
+    return [...this.model.controllers].sort((a, b) => (b.updateTime || 0) - (a.updateTime || 0));
   }
 
   @computed('model.nodes.@each.updateTime')
   get sortedNodes() {
-    return this.model.nodes.sortBy('updateTime').reverse();
+    return [...this.model.nodes].sort((a, b) => (b.updateTime || 0) - (a.updateTime || 0));
   }
 
   get topControllers() {

@@ -168,7 +168,7 @@ export default class TopoViz extends Component {
     // Turn hash of datacenters into a sorted array
     const datacenters = Object.keys(datacentersMap)
       .map((key) => ({ name: key, nodes: datacentersMap[key] }))
-      .sortBy('name');
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0);
 
     const topology = {
       datacenters,

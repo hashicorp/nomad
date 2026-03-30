@@ -179,10 +179,9 @@ moduleForJob(
     }),
   {
     'the default sort is submitTime descending': async function (job, assert) {
-      const mostRecentLaunch = this.server.db.jobs
-        .where({ parentId: job.id })
-        .sortBy('submitTime')
-        .reverse()[0];
+      const mostRecentLaunch = [...this.server.db.jobs
+        .where({ parentId: job.id })]
+        .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0))[0];
 
       assert.ok(JobDetail.jobsHeader.hasSubmitTime);
       assert.deepEqual(
@@ -232,10 +231,9 @@ moduleForJob(
     }),
   {
     'the default sort is submitTime descending': async function (job, assert) {
-      const mostRecentLaunch = this.server.db.jobs
-        .where({ parentId: job.id })
-        .sortBy('submitTime')
-        .reverse()[0];
+      const mostRecentLaunch = [...this.server.db.jobs
+        .where({ parentId: job.id })]
+        .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0))[0];
 
       assert.ok(JobDetail.jobsHeader.hasSubmitTime);
       assert.deepEqual(

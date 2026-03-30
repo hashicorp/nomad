@@ -199,7 +199,7 @@ export default class OptimizeController extends Controller {
     });
 
     // Sort, format, and include the count in the label
-    return prefixes.sortBy('prefix').map((name) => ({
+    return [...prefixes].sort((a, b) => a.prefix?.localeCompare(b.prefix) || 0).map((name) => ({
       key: name.prefix,
       label: `${name.prefix} (${name.count})`,
     }));

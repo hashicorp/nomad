@@ -112,9 +112,8 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
       await VolumeDetail.visit({ id: `${volume.id}@default` });
 
       assert.deepEqual(VolumeDetail.allocations.length, allocations.length);
-      allocations
-        .sortBy('modifyIndex')
-        .reverse()
+      [...allocations]
+        .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))
         .forEach((allocation, idx) => {
           assert.deepEqual(
             allocation.id,

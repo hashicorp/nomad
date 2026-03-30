@@ -43,7 +43,7 @@ export default class OptimizeRoute extends Route {
     );
 
     return {
-      summaries: summaries.sortBy('submitTime').reverse(),
+      summaries: [...summaries].sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0)),
       namespaces,
     };
   }

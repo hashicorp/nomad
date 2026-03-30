@@ -24,7 +24,14 @@ export default class ChartPrimitiveHAnnotations extends Component {
 
     if (!annotations || !annotations.length) return null;
 
-    const sortedAnnotations = annotations.sortBy(prop).reverse();
+    const sortedAnnotations = [...annotations].sort((a, b) => {
+      const aVal = a[prop];
+      const bVal = b[prop];
+      if (typeof aVal === 'string') {
+        return bVal?.localeCompare(aVal) || 0;
+      }
+      return (bVal || 0) - (aVal || 0);
+    });
 
     return sortedAnnotations.map((annotation) => {
       const y = scale(annotation[prop]);

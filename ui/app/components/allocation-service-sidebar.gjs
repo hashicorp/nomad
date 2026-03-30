@@ -87,10 +87,9 @@ export default class AllocationServiceSidebar extends Component {
     // Only get the most recent check for each check.
     return (this.args.service.healthChecks || [])
       .filter(el => el.Alloc === allocID)
-      .sortBy('Timestamp')
-      .reverse()
+      .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
       .uniqBy('Check')
-      .sortBy('Check');
+      .sort((a, b) => a.Check?.localeCompare(b.Check) || 0);
   }
 
   checksForName = (checkName) => {

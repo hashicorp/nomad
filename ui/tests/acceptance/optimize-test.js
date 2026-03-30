@@ -794,9 +794,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const selection = option.key;
       await option.select();
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.map(task => task.taskId).uniq())
@@ -846,9 +845,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       const selection = [optionKey];
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.map(task => task.taskId).uniq())
@@ -884,9 +882,8 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await option2.toggle();
       selection.push(option2Key);
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.map(task => task.taskId).uniq())

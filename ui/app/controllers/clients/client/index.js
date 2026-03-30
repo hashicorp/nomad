@@ -154,17 +154,17 @@ export default class ClientController extends Controller.extend(
 
   @computed('model.events.@each.time')
   get sortedEvents() {
-    return this.get('model.events').sortBy('time').reverse();
+    return [...this.get('model.events')].sort((a, b) => (b.time || 0) - (a.time || 0));
   }
 
   @computed('model.drivers.@each.name')
   get sortedDrivers() {
-    return this.get('model.drivers').sortBy('name');
+    return [...this.get('model.drivers')].sort((a, b) => a.name?.localeCompare(b.name) || 0);
   }
 
   @computed('model.hostVolumes.@each.name')
   get sortedHostVolumes() {
-    return this.model.hostVolumes.sortBy('name');
+    return [...this.model.hostVolumes].sort((a, b) => a.name?.localeCompare(b.name) || 0);
   }
 
   @(task(function* (value) {

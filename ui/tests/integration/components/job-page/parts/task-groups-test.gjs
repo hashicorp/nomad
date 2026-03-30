@@ -82,7 +82,7 @@ module(
       });
 
       const taskGroups = await job.get('taskGroups');
-      const taskGroup = taskGroups.sortBy('name').reverse().get('firstObject');
+      const taskGroup = [...taskGroups].sort((a, b) => b.name?.localeCompare(a.name) || 0).get('firstObject');
 
       this.setProperties(props(job));
 

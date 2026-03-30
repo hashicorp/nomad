@@ -121,7 +121,7 @@ module('Acceptance | plugin allocations', function (hooks) {
       ];
       const expectedAllocations = allAllocations
         .filter((allocation) => filter(allocation, selection))
-        .sortBy('updateTime');
+        .sort((a, b) => (a.updateTime || 0) - (b.updateTime || 0));
 
       PluginAllocations.allocations.forEach((allocation, index) => {
         assert.deepEqual(allocation.id, expectedAllocations[index].allocID);
@@ -147,7 +147,7 @@ module('Acceptance | plugin allocations', function (hooks) {
       ];
       const expectedAllocations = allAllocations
         .filter((allocation) => filter(allocation, selection))
-        .sortBy('updateTime');
+        .sort((a, b) => (a.updateTime || 0) - (b.updateTime || 0));
 
       PluginAllocations.allocations.forEach((allocation, index) => {
         assert.deepEqual(allocation.id, expectedAllocations[index].allocID);

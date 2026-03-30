@@ -14,7 +14,7 @@ export default class ScaleEventsChart extends Component {
   @tracked activeEvent = null;
 
   get data() {
-    const data = this.args.events.filter(el => el.hasCount).sortBy('time');
+    const data = this.args.events.filter(el => el.hasCount).sort((a, b) => (a.time || 0) - (b.time || 0));
 
     // Extend the domain of the chart to the current time.
     data.push({
@@ -23,7 +23,7 @@ export default class ScaleEventsChart extends Component {
     });
 
     // Make sure the domain of the chart includes the first annotation.
-    const firstAnnotation = this.annotations.sortBy('time')[0];
+    const firstAnnotation = [...this.annotations].sort((a, b) => (a.time || 0) - (b.time || 0))[0];
     if (firstAnnotation && firstAnnotation.time < data[0].time) {
       data.unshift({
         time: firstAnnotation.time,

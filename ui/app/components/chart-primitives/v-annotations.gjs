@@ -34,10 +34,14 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
     if (!annotations || !annotations.length) return null;
 
-    let sortedAnnotations = annotations.sortBy(prop);
-    if (timeseries) {
-      sortedAnnotations = sortedAnnotations.reverse();
-    }
+    let sortedAnnotations = [...annotations].sort((a, b) => {
+      const aVal = a[prop];
+      const bVal = b[prop];
+      if (typeof aVal === 'string') {
+        return timeseries ? bVal?.localeCompare(aVal) || 0 : aVal?.localeCompare(bVal) || 0;
+      }
+      return timeseries ? (bVal || 0) - (aVal || 0) : (aVal || 0) - (bVal || 0);
+    });
 
     let prevX = 0;
     let prevHigh = false;

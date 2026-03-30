@@ -164,10 +164,19 @@ export default class IndexController extends Controller {
   }
 
   get sortedCSIVolumes() {
-    let sorted = this.filteredCSIVolumes.sortBy(this.csiSortProperty);
-    if (this.csiSortDescending) {
-      sorted.reverse();
-    }
+    const sorted = [...this.filteredCSIVolumes].sort((a, b) => {
+      const aVal = a[this.csiSortProperty];
+      const bVal = b[this.csiSortProperty];
+
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = aVal?.localeCompare(bVal) || 0;
+      } else {
+        comparison = (aVal || 0) - (bVal || 0);
+      }
+
+      return this.csiSortDescending ? -comparison : comparison;
+    });
     return sorted;
   }
 
@@ -193,10 +202,19 @@ export default class IndexController extends Controller {
   }
 
   get sortedDynamicHostVolumes() {
-    let sorted = this.filteredDynamicHostVolumes.sortBy(this.dhvSortProperty);
-    if (this.dhvSortDescending) {
-      sorted.reverse();
-    }
+    const sorted = [...this.filteredDynamicHostVolumes].sort((a, b) => {
+      const aVal = a[this.dhvSortProperty];
+      const bVal = b[this.dhvSortProperty];
+
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = aVal?.localeCompare(bVal) || 0;
+      } else {
+        comparison = (aVal || 0) - (bVal || 0);
+      }
+
+      return this.dhvSortDescending ? -comparison : comparison;
+    });
     return sorted;
   }
 

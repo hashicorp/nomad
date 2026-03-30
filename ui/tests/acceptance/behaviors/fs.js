@@ -27,7 +27,21 @@ const fileSort = (prop, files) => {
     }
   });
 
-  return dir.sortBy(prop).concat(file.sortBy(prop));
+  return [...dir].sort((a, b) => {
+    const aVal = a[prop];
+    const bVal = b[prop];
+    if (typeof aVal === 'string') {
+      return aVal?.localeCompare(bVal) || 0;
+    }
+    return (aVal || 0) - (bVal || 0);
+  }).concat([...file].sort((a, b) => {
+    const aVal = a[prop];
+    const bVal = b[prop];
+    if (typeof aVal === 'string') {
+      return aVal?.localeCompare(bVal) || 0;
+    }
+    return (aVal || 0) - (bVal || 0);
+  }));
 };
 
 export default function browseFilesystem({

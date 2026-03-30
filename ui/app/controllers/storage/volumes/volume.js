@@ -45,12 +45,12 @@ export default class VolumeController extends Controller {
 
   @computed('model.readAllocations.@each.modifyIndex')
   get sortedReadAllocations() {
-    return this.model.readAllocations.sortBy('modifyIndex').reverse();
+    return [...this.model.readAllocations].sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
   }
 
   @computed('model.writeAllocations.@each.modifyIndex')
   get sortedWriteAllocations() {
-    return this.model.writeAllocations.sortBy('modifyIndex').reverse();
+    return [...this.model.writeAllocations].sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
   }
 
   @action

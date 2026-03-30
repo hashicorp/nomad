@@ -65,10 +65,20 @@ export default function sortableFactory(properties, fromSortableMixin) {
           this.set('_sortableFactoryWarningPrinted', true);
         }
 
-        const sorted = this.listToSort.filter(val => val !== undefined && val !== null).sortBy(this.sortProperty);
-        if (this.sortDescending) {
-          return sorted.reverse();
-        }
+        const filtered = this.listToSort.filter(val => val !== undefined && val !== null);
+        const sorted = [...filtered].sort((a, b) => {
+          const aVal = a[this.sortProperty];
+          const bVal = b[this.sortProperty];
+
+          let comparison = 0;
+          if (typeof aVal === 'string' && typeof bVal === 'string') {
+            comparison = aVal?.localeCompare(bVal) || 0;
+          } else {
+            comparison = (aVal || 0) - (bVal || 0);
+          }
+
+          return this.sortDescending ? -comparison : comparison;
+        });
         return sorted;
       },
     ),

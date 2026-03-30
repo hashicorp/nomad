@@ -142,9 +142,9 @@ module('Acceptance | allocation detail', function (hooks) {
 
     await Allocation.lifecycleChart.tasks[0].visit();
 
-    const prestartEphemeralTask = this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    const prestartEphemeralTask = [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0)
       .find((taskState) => {
         const task = this.server.db.tasks.find(el => el.name === taskState.name);
         return (
@@ -189,9 +189,9 @@ module('Acceptance | allocation detail', function (hooks) {
 
     // Set the expected task states.
     const states = ['running', 'pending', 'dead'];
-    this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0)
       .forEach((task, i) => {
         this.server.db.taskStates.update(task.id, { state: states[i] });
       });
@@ -199,9 +199,9 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.visit({ id: allocation.id });
 
     Allocation.tasks.forEach((taskRow, i) => {
-      const task = this.server.db.taskStates
-        .where({ allocationId: allocation.id })
-        .sortBy('name')[i];
+      const task = [...this.server.db.taskStates
+        .where({ allocationId: allocation.id })]
+        .sort((a, b) => a.name?.localeCompare(b.name) || 0)[i];
       const events = this.server.db.taskEvents.where({ taskStateId: task.id });
       const event = events[events.length - 1];
 
@@ -239,9 +239,9 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('each task row should link to the task detail page', async function (assert) {
-    const task = this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')[0];
+    const task = [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0)[0];
 
     await Allocation.tasks[0].clickLink();
 
@@ -282,7 +282,7 @@ module('Acceptance | allocation detail', function (hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.taskStates.models.sortBy('name')[0];
+    const taskState = [...allocation.taskStates.models].sort((a, b) => a.name?.localeCompare(b.name) || 0)[0];
     const task = this.server.schema.tasks.find(el => el.name === taskState.name);
     task.update('kind', 'connect-proxy:task');
     task.save();
@@ -313,7 +313,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('ports are listed', async function (assert) {
     const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
-    allServerPorts.sortBy('Label').forEach((serverPort, index) => {
+    [...allServerPorts].sort((a, b) => a.Label?.localeCompare(b.Label) || 0).forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];
 
       assert.strictEqual(renderedPort.name, serverPort.Label);
@@ -330,7 +330,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.deepEqual(Allocation.services.length, taskGroup.services.length);
 
-    taskGroup.services.models.sortBy('name').forEach((serverService, index) => {
+    [...taskGroup.services.models].sort((a, b) => a.name?.localeCompare(b.name) || 0).forEach((serverService, index) => {
       const renderedService = Allocation.services[index];
 
       assert.deepEqual(renderedService.name, serverService.name);
@@ -643,8 +643,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
 
     const preemption = allocation.preemptedAllocations
       .map((id) => this.server.schema.find('allocation', id))
-      .sortBy('modifyIndex')
-      .reverse()[0];
+      .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))[0];
     const preemptionRow = Allocation.preemptions[0];
 
     assert.deepEqual(

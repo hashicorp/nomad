@@ -20,8 +20,20 @@ export default class VariablesVariableIndexController extends Controller {
   @service notifications;
 
   get sortedKeyValues() {
-    const sorted = this.model.keyValues.sortBy(this.sortProperty);
-    return this.sortDescending ? sorted : sorted.reverse();
+    const sorted = [...this.model.keyValues].sort((a, b) => {
+      const aVal = a[this.sortProperty];
+      const bVal = b[this.sortProperty];
+
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = aVal?.localeCompare(bVal) || 0;
+      } else {
+        comparison = (aVal || 0) - (bVal || 0);
+      }
+
+      return this.sortDescending ? comparison : -comparison;
+    });
+    return sorted;
   }
 
   @tracked isDeleting = false;

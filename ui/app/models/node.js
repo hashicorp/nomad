@@ -79,8 +79,7 @@ export default class Node extends Model {
     let allocation = this.allocations
       .filter(alloc => alloc.isRunning === false)
       .filter(alloc => alloc.isMigrating)
-      .sortBy('modifyTime')
-      .reverse()[0];
+      .sort((a, b) => (b.modifyTime || 0) - (a.modifyTime || 0))[0];
     if (allocation) {
       return allocation.modifyTime;
     }

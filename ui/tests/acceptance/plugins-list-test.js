@@ -44,7 +44,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const sortedPlugins = this.server.db.csiPlugins.sortBy('id');
+    const sortedPlugins = [...this.server.db.csiPlugins].sort((a, b) => a.id?.localeCompare(b.id) || 0);
     assert.deepEqual(PluginsList.plugins.length, PluginsList.pageSize);
     PluginsList.plugins.forEach((plugin, index) => {
       assert.deepEqual(

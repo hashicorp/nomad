@@ -19,7 +19,7 @@ export default class ServerController extends Controller {
         name,
         value: tags[name],
       }))
-      .sortBy('name');
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0);
   }
 
   @action

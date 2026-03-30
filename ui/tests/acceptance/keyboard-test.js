@@ -313,9 +313,8 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: '0' });
       await triggerEvent('.page-layout', 'keydown', { key: '1' });
 
-      const clickedJob = this.server.db.jobs
-        .sortBy('modifyIndex')
-        .reverse()[0].id;
+      const clickedJob = [...this.server.db.jobs]
+        .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))[0].id;
       assert.deepEqual(
         currentURL(),
         `/jobs/${clickedJob}@default`,
@@ -325,7 +324,7 @@ module('Acceptance | keyboard', function (hooks) {
     test('Multi-Table Nav', async function (assert) {
       this.server.createList('job', 3, { createRecommendations: true });
       await visit(
-        `/jobs/${this.server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`,
+        `/jobs/${[...this.server.db.jobs].sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0))[0].id}@default`,
       );
       const numberOfGroups = findAll('.task-group-row').length;
       const numberOfAllocs = findAll('.allocation-row').length;

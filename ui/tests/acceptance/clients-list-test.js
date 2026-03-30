@@ -47,7 +47,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.deepEqual(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
-    const sortedNodes = this.server.db.nodes.sortBy('modifyIndex').reverse();
+    const sortedNodes = [...this.server.db.nodes].sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
 
     ClientsList.nodes.forEach((node, index) => {
       assert.deepEqual(
@@ -498,8 +498,7 @@ module('Acceptance | clients list', function (hooks) {
       const selection = [option.key];
       const expectedNodes = this.server.db.nodes
         .filter((node) => filter(node, selection))
-        .sortBy('modifyIndex')
-        .reverse();
+        .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
 
       ClientsList.nodes.forEach((node, index) => {
         assert.deepEqual(
@@ -525,8 +524,7 @@ module('Acceptance | clients list', function (hooks) {
 
       const expectedNodes = this.server.db.nodes
         .filter((node) => filter(node, selection))
-        .sortBy('modifyIndex')
-        .reverse();
+        .sort((a, b) => (b.modifyIndex || 0) - (a.modifyIndex || 0));
 
       ClientsList.nodes.forEach((node, index) => {
         assert.deepEqual(

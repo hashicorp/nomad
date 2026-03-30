@@ -36,7 +36,7 @@ export default class NetworkSerializer extends ApplicationSerializer {
       isDynamic: true,
     }));
 
-    hash.Ports = reservedPorts.concat(dynamicPorts).sortBy('name');
+    hash.Ports = reservedPorts.concat(dynamicPorts).sort((a, b) => a.name?.localeCompare(b.name) || 0);
 
     return super.normalize(...arguments);
   }

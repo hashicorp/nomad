@@ -58,7 +58,7 @@ module('Acceptance | server detail', function (hooks) {
   test('the server detail page should list all tags for the server', async function (assert) {
     const tags = Object.keys(agent.member.Tags)
       .map((name) => ({ name, value: agent.member.Tags[name] }))
-      .sortBy('name');
+      .sort((a, b) => a.name?.localeCompare(b.name) || 0);
 
     assert.deepEqual(ServerDetail.tags.length, tags.length, '# of tags');
     ServerDetail.tags.forEach((tagRow, index) => {

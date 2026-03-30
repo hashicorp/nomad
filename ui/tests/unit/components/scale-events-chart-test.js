@@ -31,12 +31,12 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     const chart = this.createComponent({ events });
 
     assert.deepEqual(chart.data.length, events.length + 1);
-    assert.deepEqual(chart.data.slice(0, events.length), events.sortBy('time'));
+    assert.deepEqual(chart.data.slice(0, events.length), [...events].sort((a, b) => (a.time || 0) - (b.time || 0)));
 
     const appendedDatum = chart.data[chart.data.length - 1];
     assert.deepEqual(
       appendedDatum.count,
-      events.sortBy('time').lastObject.count,
+      [...events].sort((a, b) => (a.time || 0) - (b.time || 0)).lastObject.count,
     );
     assert.deepEqual(+appendedDatum.time, +this.refTime);
   });
