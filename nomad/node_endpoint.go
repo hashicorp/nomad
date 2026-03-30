@@ -1019,37 +1019,16 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 	}
 
 	identity := args.GetIdentity()
-	if identity == nil {
-		return structs.ErrPermissionDenied
-	}
 
-	// Nodes may drain themselves when authenticated as clients. Match the
-	// authenticated node identity first, then authorize against that node's
-	// pool.
-	nodeID := identity.ClientID
-	if nodeID == "" {
-		identityClaims := identity.GetClaims()
-		if identityClaims.IsNode() {
-			nodeID = identityClaims.NodeIdentityClaims.NodeID
+	if identity.ClientID == args.NodeID {
+		pool, _, _ := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
+		if aclObj.AllowClientOp(pool) {
+			return nil
 		}
 	}
-	if nodeID == "" || nodeID != args.NodeID {
-		return structs.ErrPermissionDenied
-	}
 
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-	node, err := snap.NodeByID(memdb.NewWatchSet(), nodeID)
-	if err != nil {
-		return err
-	}
-	if node == nil || !aclObj.AllowClientOp(node.NodePool) {
-		return structs.ErrPermissionDenied
-	}
-
-	return nil
+	// either we didn't match the node ID or we didn't match the pool!
+	return structs.ErrPermissionDenied
 }
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
