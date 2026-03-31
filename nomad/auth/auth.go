@@ -217,9 +217,9 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 	return nil
 }
 
-// ResolveACL is an authentication wrapper that handles resolving ACL tokens,
-// Workload Identities, or client secrets into acl.ACL objects. Exclusively
-// server-to-server or client-to-server requests should be using
+// ResolveACL is an authentication wrapper that handles resolving ACL
+// tokens, Workload Identities, or client secrets into acl.ACL objects.
+// Exclusively server-to-server or client-to-server requests should be using
 // AuthenticateServerOnly or AuthenticateClientOnly unless they use the
 // AuthenticateNodeIdentityGenerator function.
 func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
@@ -233,24 +233,10 @@ func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, 
 		return acl.ACLsDisabledACL, nil
 	}
 
-	if identity.ClientID != "" {
-		if claims := identity.GetClaims(); claims != nil && claims.NodeIdentityClaims != nil {
-			return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
-		}
-
-		snap, err := s.getState().Snapshot()
-		if err != nil {
-			return nil, structs.ErrPermissionDenied
-		}
-		node, err := snap.NodeByID(nil, identity.ClientID)
-		if err != nil {
-			return nil, err
-		}
-		if node == nil {
-			return nil, structs.ErrPermissionDenied
-		}
-		return acl.NewClientACL(node.NodePool), nil
+	if aclObj, err := s.ResolveClientIdentityACL(identity); aclObj != nil || err != nil {
+		return aclObj, err
 	}
+
 	claims := identity.GetClaims()
 	if claims != nil {
 		return s.resolveClaims(claims)
@@ -330,7 +316,7 @@ func (s *Authenticator) AuthenticateNodeIdentityGenerator(ctx RPCContext, args s
 	// identity. Anything outside these cases is not supported and no identity
 	// will be set.
 	if helper.IsUUID(authToken) {
-		if leaderAcl := s.getLeaderACL(); leaderAcl != "" && authToken == leaderAcl {
+		if leaderACL := s.getLeaderACL(); leaderACL != "" && authToken == leaderACL {
 			identity.ACLToken = structs.LeaderACLToken
 		} else {
 			node, err := s.getState().NodeBySecretID(nil, authToken)
@@ -383,8 +369,6 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		return nil, structs.ErrPermissionDenied
 	}
 
-	var pool string
-
 	// If the auth token is a UUID, we treat it as a node secret ID. Otherwise,
 	// we assume it's a node identity claim. Anything outside these cases is not
 	// permitted when using this method.
@@ -397,22 +381,19 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 			return nil, structs.ErrPermissionDenied
 		}
 		identity.ClientID = node.ID
-		pool = node.NodePool
 	} else {
 		claims, err := s.VerifyClaim(authToken)
 		if err != nil {
 			return nil, err
 		}
-		if !claims.IsNode() {
+		if !claims.IsNode() || claims.NodeIdentityClaims == nil {
 			return nil, structs.ErrPermissionDenied
 		}
 		identity.ClientID = claims.NodeIdentityClaims.NodeID
-		identity.ClientID = claims.NodeIdentityClaims.NodeID
 		identity.Claims = claims
-		pool = identity.Claims.NodeIdentityClaims.NodePool
 	}
 
-	return acl.NewClientACL(pool), nil
+	return s.ResolveClientIdentityACL(identity)
 }
 
 // verifyTLS is a helper function that performs TLS verification, if required,
@@ -567,6 +548,63 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 	}
 
 	return nil, errors.New("failed to determine claim type")
+}
+
+// ResolveClientIdentityACL resolves a client ACL from an authenticated node
+// identity or client secret based identity. It returns (nil, nil) if the
+// identity does not represent a client.
+func (s *Authenticator) ResolveClientIdentityACL(identity *structs.AuthenticatedIdentity) (*acl.ACL, error) {
+	if identity == nil || identity.ClientID == "" {
+		return nil, nil
+	}
+	if claims := identity.GetClaims(); claims != nil {
+		if !claims.IsNode() || claims.NodeIdentityClaims == nil || claims.NodeIdentityClaims.NodePool == "" {
+			return nil, structs.ErrPermissionDenied
+		}
+		return acl.NewClientACL(claims.NodeIdentityClaims.NodePool), nil
+	}
+
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return nil, structs.ErrPermissionDenied
+	}
+	node, err := snap.NodeByID(nil, identity.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	if node == nil {
+		return nil, structs.ErrPermissionDenied
+	}
+	return acl.NewClientACL(node.NodePool), nil
+}
+
+// AuthenticatedNodeID returns the authenticated node ID for client and node
+// identity based requests.
+func AuthenticatedNodeID(identity *structs.AuthenticatedIdentity) string {
+	if identity == nil {
+		return ""
+	}
+
+	if identity.ClientID != "" {
+		return identity.ClientID
+	}
+
+	claims := identity.GetClaims()
+	if claims != nil && claims.IsNode() && claims.NodeIdentityClaims != nil {
+		return claims.NodeID
+	}
+
+	return ""
+}
+
+// AuthorizeSameNode returns ErrPermissionDenied unless the authenticated
+// identity represents the same node as targetNodeID.
+func AuthorizeSameNode(identity *structs.AuthenticatedIdentity, targetNodeID string) error {
+	if AuthenticatedNodeID(identity) != targetNodeID {
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
 }
 
 func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClaims) error {

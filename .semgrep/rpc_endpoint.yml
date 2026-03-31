@@ -119,6 +119,31 @@ rules:
           }
           ...
 
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize using client ACLs plus a same-node identity check after
+      # loading the target node from state.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          node, err := $A.$B.State().NodeByID(nil, ...)
+          ...
+          if !aclObj.AllowClientOp(node.NodePool) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if err := auth.AuthorizeSameNode(args.GetIdentity(), ...); err != nil {
+            return err
+          }
+          ...
+
       # Pattern used by CSI endpoints that perform their own client/server or
       # namespace-based authorization after forwarding.
       - pattern-not-inside: |

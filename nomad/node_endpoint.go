@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -686,8 +687,10 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			goto VERIFY_ARGS
 		}
 
-		if authNodeID := authenticatedNodeID(args.GetIdentity()); authNodeID != "" && authNodeID != args.NodeID {
-			return structs.ErrPermissionDenied
+		if authNodeID := auth.AuthenticatedNodeID(args.GetIdentity()); authNodeID != "" {
+			if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1002,25 +1005,6 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	return nil
 }
 
-// authenticatedNodeID returns the authenticated node ID for client and node
-// identity based requests.
-func authenticatedNodeID(identity *structs.AuthenticatedIdentity) string {
-	if identity == nil {
-		return ""
-	}
-
-	if identity.ClientID != "" {
-		return identity.ClientID
-	}
-
-	identityClaims := identity.GetClaims()
-	if identityClaims != nil && identityClaims.IsNode() {
-		return identityClaims.NodeIdentityClaims.NodeID
-	}
-
-	return ""
-}
-
 // checkNodeDrainAuth is a helper function to provide the authentication logic
 // for the UpdateDrain RPC.
 func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrainRequest) error {
@@ -1029,8 +1013,8 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 		return nil
 	}
 
-	if authenticatedNodeID(args.GetIdentity()) != args.NodeID {
-		return structs.ErrPermissionDenied
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
 	}
 
 	return nil
@@ -1385,6 +1369,10 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
+	if args.NodeID == "" {
+		return errors.New("missing node ID")
+	}
+
 	pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
 	if err != nil {
 		return err
@@ -1397,9 +1385,25 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		callerPool = pool
 	}
 
-	// Verify the arguments
-	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID")
+	node, err := n.srv.State().NodeByID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node != nil {
+		if args.SecretID == "" {
+			return fmt.Errorf("missing node secret ID for client status update")
+		} else if args.SecretID != node.SecretID {
+			return fmt.Errorf("node secret ID does not match")
+		}
+
+		// We have a valid node connection, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client. We only
+		// cache the connection if it is not being forwarded from another
+		// server.
+		if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
+			n.ctx.NodeID = args.NodeID
+			n.srv.addNodeConn(n.ctx)
+		}
 	}
 
 	// numOldAllocs is used to detect if there is a garbage collection event
@@ -1423,19 +1427,6 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			if node != nil {
 				if node.NodePool != callerPool {
 					return structs.ErrPermissionDenied
-				}
-				if args.SecretID == "" {
-					return fmt.Errorf("missing node secret ID for client status update")
-				} else if args.SecretID != node.SecretID {
-					return fmt.Errorf("node secret ID does not match")
-				}
-
-				// We have a valid node connection, so add the mapping to cache the
-				// connection and allow the server to send RPCs to the client. We only cache
-				// the connection if it is not being forwarded from another server.
-				if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
-					n.ctx.NodeID = args.NodeID
-					n.srv.addNodeConn(n.ctx)
 				}
 
 				var err error
@@ -1564,8 +1555,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if !aclObj.AllowClientOp(node.NodePool) {
 		return structs.ErrPermissionDenied
 	}
-	if authenticatedNodeID(args.GetIdentity()) != targetNodeID {
-		return structs.ErrPermissionDenied
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), targetNodeID); err != nil {
+		return err
 	}
 	if node.UnresponsiveStatus() {
 		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", targetNodeID, node.Status)
@@ -2002,7 +1993,7 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 		return fmt.Errorf("no node events given")
 	}
 
-	callerNodeID := authenticatedNodeID(args.GetIdentity())
+	callerNodeID := auth.AuthenticatedNodeID(args.GetIdentity())
 	if callerNodeID == "" {
 		return structs.ErrPermissionDenied
 	}
