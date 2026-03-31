@@ -38,7 +38,15 @@ export default class Job extends Model {
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
   get expectedRunningAllocCount() {
     if (this.type === 'system' || this.type === 'sysbatch') {
-      return this.allocations.filter(alloc => alloc.nodeID).uniqBy('nodeID').length;
+      return this.allocations.filter(alloc => alloc.nodeID).reduce(
+        (unique, item) => {
+          if (!unique.find(i => item.nodeID === i.nodeID)) {
+            unique.push(item);
+          }
+          return unique;
+        },
+        []
+      ).length;
     } else {
       return this.groupCountSum;
     }

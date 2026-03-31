@@ -88,7 +88,15 @@ export default class AllocationServiceSidebar extends Component {
     return (this.args.service.healthChecks || [])
       .filter(el => el.Alloc === allocID)
       .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
-      .uniqBy('Check')
+      .reduce(
+        (unique, item) => {
+          if (!unique.find(i => item.Check === i.Check)) {
+            unique.push(item);
+          }
+          return unique;
+        },
+        []
+      )
       .sort((a, b) => a.Check?.localeCompare(b.Check) || 0);
   }
 

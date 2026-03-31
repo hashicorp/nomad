@@ -800,7 +800,15 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const recommendationTaskGroups = this.server.schema.tasks
         .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
-        .uniqBy('id')
+        .reduce(
+          (unique, item) => {
+            if (!unique.find(i => item.id === i.id)) {
+              unique.push(item);
+            }
+            return unique;
+          },
+          []
+        )
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
@@ -851,7 +859,15 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const recommendationTaskGroups = this.server.schema.tasks
         .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
-        .uniqBy('id')
+        .reduce(
+          (unique, item) => {
+            if (!unique.find(i => item.id === i.id)) {
+              unique.push(item);
+            }
+            return unique;
+          },
+          []
+        )
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
@@ -888,7 +904,15 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const recommendationTaskGroups = this.server.schema.tasks
         .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
-        .uniqBy('id')
+        .reduce(
+          (unique, item) => {
+            if (!unique.find(i => item.id === i.id)) {
+              unique.push(item);
+            }
+            return unique;
+          },
+          []
+        )
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {

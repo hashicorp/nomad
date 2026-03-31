@@ -103,7 +103,15 @@ export default class IndexController extends Controller.extend(
       ]);
       const mostRecentCheckStatus = [...healthChecks]
         .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
-        .uniqBy('Check')
+        .reduce(
+          (unique, item) => {
+            if (!unique.find(i => item.Check === i.Check)) {
+              unique.push(item);
+            }
+            return unique;
+          },
+          []
+        )
         .map(item => item.Status)
         .reduce((acc, curr) => {
           acc[curr] = (acc[curr] || 0) + 1;
