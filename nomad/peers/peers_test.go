@@ -117,7 +117,7 @@ func TestIsNomadServer(t *testing.T) {
 func Test_NewPartsCache(t *testing.T) {
 	ci.Parallel(t)
 
-	partsCache := NewPeerCache()
+	partsCache := NewPeerCache("default")
 	must.NotNil(t, partsCache)
 	must.MapLen(t, 0, partsCache.allPeers)
 	must.MapLen(t, 0, partsCache.alivePeers)
@@ -127,7 +127,7 @@ func Test_NewPartsCache(t *testing.T) {
 func TestPartsCache_LocalPeer(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.Nil(t, peerCache.LocalPeer("127.0.0.1:4647"))
 
 	euw1Peers := []*Parts{
@@ -148,7 +148,7 @@ func TestPartsCache_LocalPeer(t *testing.T) {
 func TestPartsCache_LocalPeersServerInfo(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.Nil(t, peerCache.LocalPeer("127.0.0.1:4647"))
 
 	euw1Peers := []*Parts{
@@ -175,7 +175,7 @@ func TestPartsCache_LocalPeersServerInfo(t *testing.T) {
 func TestPartsCache_LocalPeers(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.SliceEmpty(t, peerCache.LocalPeers())
 
 	euw1Peers := []*Parts{
@@ -194,7 +194,7 @@ func TestPartsCache_LocalPeers(t *testing.T) {
 func TestPartsCache_RegionNum(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.SliceEmpty(t, peerCache.LocalPeers())
 
 	peers := []*Parts{
@@ -213,7 +213,7 @@ func TestPartsCache_RegionNum(t *testing.T) {
 func TestPartsCache_RegionPeers(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.SliceEmpty(t, peerCache.LocalPeers())
 	must.Nil(t, peerCache.RegionPeers("euw1"))
 
@@ -233,7 +233,7 @@ func TestPartsCache_RegionPeers(t *testing.T) {
 func TestPartsCache_RegionNames(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.SliceEmpty(t, peerCache.LocalPeers())
 
 	peers := []*Parts{
@@ -252,7 +252,7 @@ func TestPartsCache_RegionNames(t *testing.T) {
 func TestPartsCache_PeerSet(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.MapLen(t, 0, peerCache.allPeers)
 
 	// Add an initial set of peers in the same region.
@@ -315,7 +315,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 func TestPartsCache_PeerDelete(t *testing.T) {
 	ci.Parallel(t)
 
-	peerCache := NewPeerCache()
+	peerCache := NewPeerCache("euw1")
 	must.MapLen(t, 0, peerCache.allPeers)
 
 	// Add an initial set of peers in the same region.
@@ -332,25 +332,8 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 	must.MapLen(t, 1, peerCache.allPeers)
 	must.Len(t, 3, peerCache.allPeers["euw1"])
 
-	// Create a serf.MemberEvent to delete the second peer.
-	event := serf.MemberEvent{
-		Members: []serf.Member{
-			{
-				Name:   partsList[1].Name,
-				Status: serf.StatusLeft,
-				Tags: map[string]string{
-					"role":   "nomad",
-					"region": "euw1",
-					"dc":     "east-aws",
-					"port":   "10000",
-					"build":  "1.2.3",
-					"vsn":    "1",
-				},
-			},
-		},
-	}
+	peerCache.PeerDelete(partsList[1])
 
-	peerCache.PeerDelete(event)
 	must.MapLen(t, 1, peerCache.allPeers)
 	must.Len(t, 2, peerCache.allPeers["euw1"])
 
@@ -358,38 +341,10 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 		must.NotEq(t, partsList[1].Name, p.Name)
 	}
 
-	// Delete the remaining peers.
-	event = serf.MemberEvent{
-		Members: []serf.Member{
-			{
-				Name:   partsList[0].Name,
-				Status: serf.StatusLeft,
-				Tags: map[string]string{
-					"role":   "nomad",
-					"region": "euw1",
-					"dc":     "east-aws",
-					"port":   "10000",
-					"build":  "1.2.3",
-					"vsn":    "1",
-				},
-			},
-			{
-				Name:   partsList[2].Name,
-				Status: serf.StatusLeft,
-				Tags: map[string]string{
-					"role":   "nomad",
-					"region": "euw1",
-					"dc":     "east-aws",
-					"port":   "10000",
-					"build":  "1.2.3",
-					"vsn":    "1",
-				},
-			},
-		},
-	}
-
-	peerCache.PeerDelete(event)
+	peerCache.PeerDelete(partsList[0])
+	peerCache.PeerDelete(partsList[2])
 	must.MapLen(t, 0, peerCache.allPeers)
+	must.MapLen(t, 0, peerCache.localPeers)
 }
 
 func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
@@ -593,7 +548,7 @@ func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			peerCache := NewPeerCache()
+			peerCache := NewPeerCache("euw1")
 
 			for _, p := range tc.inputParts {
 				peerCache.UpdatePeerSet(p, "euw1")

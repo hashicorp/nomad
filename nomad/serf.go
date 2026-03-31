@@ -37,15 +37,14 @@ func (s *Server) serfEventHandler() {
 		case e := <-s.eventCh:
 			switch e.EventType() {
 			case serf.EventMemberJoin:
-				s.nodeEvent(e.(serf.MemberEvent))
+				s.updatePeer(e.(serf.MemberEvent))
+				s.maybeBootstrap()
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberFailed:
-				s.nodeFailed(e.(serf.MemberEvent))
+			case serf.EventMemberFailed, serf.EventMemberUpdate:
+				s.updatePeer(e.(serf.MemberEvent))
 			case serf.EventMemberLeave, serf.EventMemberReap:
-				s.peersCache.PeerDelete(e.(serf.MemberEvent))
+				s.deletePeer(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberUpdate:
-				s.nodeEvent(e.(serf.MemberEvent))
 			case serf.EventUser, serf.EventQuery: // Ignore
 			default:
 				s.logger.Warn("unhandled serf event", "event", log.Fmt("%#v", e))
@@ -57,31 +56,38 @@ func (s *Server) serfEventHandler() {
 	}
 }
 
-// nodeEvent is used to handle join/update events on the serf cluster
-func (s *Server) nodeEvent(me serf.MemberEvent) {
+// updatePeer is used to handle join/update events on the serf cluster
+func (s *Server) updatePeer(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		ok, parts := peers.IsNomadServer(m)
 		if !ok {
 			s.logger.Warn("non-server in gossip pool", "member", m.Name)
 			continue
 		}
-		s.logger.Info("adding/updating server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
+		s.logger.Info("server event", "type", me.EventType().String(), "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
-		// A peer has joined or updated, so we should update the cache to
-		// reflect its status.
 		s.peersCache.UpdatePeerSet(parts, s.Region())
+	}
+}
 
-		// If we still expecting to bootstrap, may need to handle this
-		if me.EventType() == serf.EventMemberJoin && !s.bootstrapped.Load() {
-			s.maybeBootstrap()
+// deletePeer is used to delete a peer from the cache when nodes leave or are reaped
+func (s *Server) deletePeer(me serf.MemberEvent) {
+	for _, m := range me.Members {
+		ok, parts := peers.IsNomadServer(m)
+		if !ok {
+			s.logger.Warn("non-server in gossip pool", "member", m.Name)
+			continue
 		}
+		s.logger.Info("server event", "type", me.EventType().String(), "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
+
+		s.peersCache.PeerDelete(parts)
 	}
 }
 
 // maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 
-	if s.config.BootstrapExpect == 0 {
+	if s.config.BootstrapExpect == 0 && !s.bootstrapped.Load() {
 		return
 	}
 
@@ -220,21 +226,6 @@ func (s *Server) maybeBootstrap() {
 
 	// Bootstrapping complete, or failed for some reason, don't enter this again
 	s.bootstrapped.Store(true)
-}
-
-// nodeFailed is used to handle fail events on the serf cluster
-func (s *Server) nodeFailed(me serf.MemberEvent) {
-	for _, m := range me.Members {
-		ok, parts := peers.IsNomadServer(m)
-		if !ok {
-			continue
-		}
-		s.logger.Info("removing server", "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
-
-		// The peer is failed, so we should update the cache to reflect its
-		// status.
-		s.peersCache.UpdatePeerSet(parts, s.Region())
-	}
 }
 
 // localMemberEvent is used to reconcile Serf events with the
