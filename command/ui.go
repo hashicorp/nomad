@@ -191,7 +191,12 @@ func (c *UiCommand) Run(args []string) int {
 		case contexts.Allocs:
 			url.Path = fmt.Sprintf("ui/allocations/%s", fullID)
 		case contexts.Jobs:
-			url.Path = fmt.Sprintf("ui/jobs/%s", fullID)
+			ns := c.clientConfig().Namespace
+			if ns != "" {
+				url.Path = fmt.Sprintf("ui/jobs/%s@%s", fullID, ns)
+			} else {
+				url.Path = fmt.Sprintf("ui/jobs/%s", fullID)
+			}
 		default:
 			c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 			return 1
