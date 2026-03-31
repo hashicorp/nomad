@@ -1373,16 +1373,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return errors.New("missing node ID")
 	}
 
-	pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
+	callerPool, err := n.srv.ResolveAuthorizedClientNodePoolByNodeID(aclObj, args.NodeID)
 	if err != nil {
 		return err
-	}
-	callerPool := ""
-	if ok {
-		if !aclObj.AllowClientOp(pool) {
-			return structs.ErrPermissionDenied
-		}
-		callerPool = pool
 	}
 
 	node, err := n.srv.State().NodeByID(nil, args.NodeID)

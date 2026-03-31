@@ -164,22 +164,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				}
 				reply.Alloc = out
 
-				// Re-check namespace in case it differs from request. Fail
-				// closed if the job is missing, since we cannot determine the
-				// allocation's node pool for client-scoped ACL checks.
-				if out.Job == nil {
+				// Re-check namespace in case it differs from request.
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, allowNsOp); err != nil {
 					return structs.NewErrUnknownAllocation(args.AllocID)
-				}
-
-				nodePool := out.Job.NodePool
-				// If the caller is not a client for the allocation's node pool,
-				// fall back to checking namespace permissions.
-				if !aclObj.AllowClientOp(nodePool) {
-					// If the caller is not the same node-pool client, fall back to
-					// checking namespace permissions.
-					if !allowNsOp(aclObj, out.Namespace) {
-						return structs.NewErrUnknownAllocation(args.AllocID)
-					}
 				}
 
 				reply.Index = out.ModifyIndex
@@ -204,13 +191,12 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
 	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
+		return err
+	}
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
-	}
-
-	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
-		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
@@ -240,14 +226,13 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 
 				// It shouldn't be possible to have an alloc with a nil job, but
 				// let's not block the node from getting other allocs if that's
-				// the case
+				// the case.
 				if out.Job == nil {
 					continue
 				}
 
-				nodePool := out.Job.NodePool
-				if !aclObj.AllowClientOp(nodePool) {
-					return structs.ErrPermissionDenied
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+					return err
 				}
 
 				// Store the pointer
@@ -463,13 +448,12 @@ func (a *Alloc) GetServiceRegistrations(
 func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *structs.AllocIdentitiesResponse) error {
 
 	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
+		return err
+	}
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
-	}
-
-	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
-		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
 
@@ -508,13 +492,8 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 					continue
 				}
 
-				// Fail closed if the job is missing, since we cannot determine
-				// the allocation's node pool for client-scoped ACL checks.
-				if out.Job == nil {
-					return structs.ErrPermissionDenied
-				}
-				if !aclObj.AllowClientOp(out.Job.NodePool) {
-					return structs.ErrPermissionDenied
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+					return err
 				}
 
 				// Keep the alloc around so we can skip the statestore lookup later

@@ -144,6 +144,58 @@ rules:
           }
           ...
 
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize allocations using a helper from the auth package.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if err := $A.$B.AuthorizeClientAllocation(aclObj, ..., ...); err != nil {
+            return err
+          }
+          ...
+
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize node-pool scoped access through auth helpers.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if _, err := $A.$B.ResolveAuthorizedClientNodePoolByNodeID(aclObj, ...); err != nil {
+            return err
+          }
+          ...
+
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if _, err := $A.$B.ResolveAuthorizedClientNodePoolByServiceRegistrationID(aclObj, ..., ...); err != nil {
+            return err
+          }
+          ...
+
       # Pattern used by CSI endpoints that perform their own client/server or
       # namespace-based authorization after forwarding.
       - pattern-not-inside: |

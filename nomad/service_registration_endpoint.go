@@ -41,27 +41,18 @@ func (s *ServiceRegistration) Upsert(
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
 	aclObj, err := s.srv.AuthenticateClientOnly(s.ctx, args)
+	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
+		return err
+	}
 	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	snap, err := s.srv.State().Snapshot()
-	if err != nil {
-		return err
-	}
 	for _, service := range args.Services {
-		pool, ok, err := snap.NodePoolByNodeID(nil, service.NodeID)
-		if err != nil {
+		if _, err := s.srv.ResolveAuthorizedClientNodePoolByNodeID(aclObj, service.NodeID); err != nil {
 			return err
-		}
-		if !ok || !aclObj.AllowClientOp(pool) {
-			return structs.ErrPermissionDenied
 		}
 	}
 
@@ -141,22 +132,12 @@ func (s *ServiceRegistration) DeleteByID(
 		acl.NamespaceCapabilitySubmitJob,
 		acl.NamespaceCapabilityDeleteServiceRegistration,
 	) {
-		snap, err := s.srv.State().Snapshot()
-		if err != nil {
+		if _, err := s.srv.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			aclObj,
+			args.RequestNamespace(),
+			args.ID,
+		); err != nil {
 			return err
-		}
-
-		registration, err := snap.GetServiceRegistrationByID(nil, args.RequestNamespace(), args.ID)
-		if err != nil || registration == nil {
-			return structs.ErrPermissionDenied
-		}
-
-		pool, ok, err := snap.NodePoolByNodeID(nil, registration.NodeID)
-		if err != nil {
-			return err
-		}
-		if !ok || !aclObj.AllowClientOp(pool) {
-			return structs.ErrPermissionDenied
 		}
 	}
 

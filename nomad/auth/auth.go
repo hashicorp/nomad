@@ -591,7 +591,7 @@ func AuthenticatedNodeID(identity *structs.AuthenticatedIdentity) string {
 
 	claims := identity.GetClaims()
 	if claims != nil && claims.IsNode() && claims.NodeIdentityClaims != nil {
-		return claims.NodeID
+		return claims.NodeIdentityClaims.NodeID
 	}
 
 	return ""
@@ -605,6 +605,86 @@ func AuthorizeSameNode(identity *structs.AuthenticatedIdentity, targetNodeID str
 	}
 
 	return nil
+}
+
+func resolveAuthorizedClientNodePoolByNodeID(snap *state.StateSnapshot, aclObj *acl.ACL, nodeID string) (string, error) {
+	if nodeID == "" {
+		return "", nil
+	}
+
+	pool, ok, err := snap.NodePoolByNodeID(nil, nodeID)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", nil
+	}
+	if !aclObj.AllowClientOp(pool) {
+		return "", structs.ErrPermissionDenied
+	}
+
+	return pool, nil
+}
+
+// ResolveAuthorizedClientNodePoolByNodeID resolves the node pool for nodeID
+// and returns it if aclObj is authorized for that pool. It returns an empty
+// pool and nil error if the node does not exist yet, which allows callers to
+// continue handling blocking-query flows that may legitimately observe a
+// missing node.
+func (s *Authenticator) ResolveAuthorizedClientNodePoolByNodeID(aclObj *acl.ACL, nodeID string) (string, error) {
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return "", err
+	}
+
+	return resolveAuthorizedClientNodePoolByNodeID(snap, aclObj, nodeID)
+}
+
+// AuthorizeClientAllocation returns ErrPermissionDenied unless aclObj is
+// authorized for alloc's node pool. If allowNsOp is provided, callers may
+// fall back to namespace-based authorization when client-scoped authorization
+// does not apply.
+func (s *Authenticator) AuthorizeClientAllocation(
+	aclObj *acl.ACL,
+	alloc *structs.Allocation,
+	allowNsOp func(*acl.ACL, string) bool,
+) error {
+	if alloc == nil || alloc.Job == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	if aclObj.AllowClientOp(alloc.Job.NodePool) {
+		return nil
+	}
+
+	if allowNsOp != nil && allowNsOp(aclObj, alloc.Namespace) {
+		return nil
+	}
+
+	return structs.ErrPermissionDenied
+}
+
+// ResolveAuthorizedClientNodePoolByServiceRegistrationID resolves the node pool
+// for the node backing a service registration and returns it if aclObj is
+// authorized for that pool.
+func (s *Authenticator) ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+	aclObj *acl.ACL,
+	namespace, id string,
+) (string, error) {
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return "", err
+	}
+
+	registration, err := snap.GetServiceRegistrationByID(nil, namespace, id)
+	if err != nil {
+		return "", err
+	}
+	if registration == nil {
+		return "", structs.ErrPermissionDenied
+	}
+
+	return resolveAuthorizedClientNodePoolByNodeID(snap, aclObj, registration.NodeID)
 }
 
 func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClaims) error {
