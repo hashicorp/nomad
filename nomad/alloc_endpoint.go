@@ -238,10 +238,11 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					continue
 				}
 
-				// Fail closed if the job is missing, since we cannot determine
-				// the allocation's node pool for client-scoped ACL checks.
+				// It shouldn't be possible to have an alloc with a nil job, but
+				// let's not block the node from getting other allocs if that's
+				// the case
 				if out.Job == nil {
-					return structs.ErrPermissionDenied
+					continue
 				}
 
 				nodePool := out.Job.NodePool
