@@ -454,8 +454,10 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	if err := v.authorizeClaim(aclObj, args); err != nil {
-		return err
+	if !(args.Claim == structs.CSIVolumeClaimGC && aclObj.AllowServerOp()) {
+		if err := v.authorizeClaim(aclObj, args); err != nil {
+			return err
+		}
 	}
 
 	if args.VolumeID == "" {
@@ -1048,8 +1050,21 @@ func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaim
 		return structs.ErrPermissionDenied
 	}
 
-	pool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID)
-	if err != nil || !ok || !aclObj.AllowClientOp(pool) {
+	pool := ""
+	if args.AllocationID != "" {
+		alloc, err := snap.AllocByID(memdb.NewWatchSet(), args.AllocationID)
+		if err == nil && alloc != nil && alloc.NodeID != "" {
+			if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), alloc.NodeID); err == nil && ok {
+				pool = resolvedPool
+			}
+		}
+	}
+	if pool == "" {
+		if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID); err == nil && ok {
+			pool = resolvedPool
+		}
+	}
+	if pool == "" || !aclObj.AllowClientOp(pool) {
 		return structs.ErrPermissionDenied
 	}
 
