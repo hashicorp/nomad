@@ -27,7 +27,10 @@ const (
 	peerRetryBase = 1 * time.Second
 )
 
-// serfEventHandler is used to handle events from the serf cluster
+// serfEventHandler is used to handle events from the serf cluster.
+// It handles updating the cache of server peers for various member states
+// and notifies the main leader loop to add or remove raft peers when
+// nodes join/leave/reap via localMemberEvent.
 func (s *Server) serfEventHandler() {
 	for {
 		select {
@@ -36,15 +39,12 @@ func (s *Server) serfEventHandler() {
 			case serf.EventMemberJoin:
 				s.nodeEvent(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberLeave, serf.EventMemberFailed:
+			case serf.EventMemberFailed:
 				s.nodeFailed(e.(serf.MemberEvent))
-				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberReap:
+			case serf.EventMemberLeave, serf.EventMemberReap:
 				s.peersCache.PeerDelete(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
 			case serf.EventMemberUpdate:
-				// We don't currently need to reconcile member updates
-				// so just skip calling localMemberEvent
 				s.nodeEvent(e.(serf.MemberEvent))
 			case serf.EventUser, serf.EventQuery: // Ignore
 			default:

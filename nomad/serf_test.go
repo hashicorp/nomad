@@ -538,7 +538,7 @@ func TestNomad_serfEventHandler_peers(t *testing.T) {
 				Name:   "test1",
 				Addr:   net.IP{},
 				Port:   0,
-				Status: serf.StatusLeaving,
+				Status: serf.StatusLeft,
 				Tags: map[string]string{
 					"region": "test",
 					"role":   "nomad",
