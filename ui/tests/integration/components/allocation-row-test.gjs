@@ -154,7 +154,7 @@ module('Integration | Component | allocation row', function (hooks) {
 
     const allocations = this.store.peekAll('allocation');
 
-    for (const allocation of allocations.toArray()) {
+    for (const allocation of [...allocations]) {
       this.set('allocation', allocation);
       await render(
         <template>

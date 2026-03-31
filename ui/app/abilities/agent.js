@@ -17,8 +17,7 @@ export default class Client extends AbstractAbility {
 
   @computed('token.selfTokenPolicies.[]')
   get policiesIncludeAgentReadOrWrite() {
-    const policies = (get(this, 'token.selfTokenPolicies') || [])
-      .toArray()
+    const policies = [...(get(this, 'token.selfTokenPolicies') || [])]
       .map((policy) => get(policy, 'rulesJSON.Agent.Policy'))
       .filter(val => val !== undefined && val !== null);
 

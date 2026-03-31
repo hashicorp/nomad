@@ -16,7 +16,7 @@ export default class RegionSwitcher extends Component {
   @service token;
 
   get sortedRegions() {
-    return this.system.regions.toArray().sort();
+    return [...this.system.regions].sort();
   }
 
   gotoRegion = async (region) => {

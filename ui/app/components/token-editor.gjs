@@ -38,8 +38,8 @@ export default class TokenEditor extends Component {
 
   constructor() {
     super(...arguments);
-    this.tokenPolicies = this.args.token.policies.toArray() || [];
-    this.tokenRoles = this.args.token.roles.toArray() || [];
+    this.tokenPolicies = [...this.args.token.policies] || [];
+    this.tokenRoles = [...this.args.token.roles] || [];
     if (this.args.token.isNew) {
       this.args.token.expirationTTL = 'never';
     }

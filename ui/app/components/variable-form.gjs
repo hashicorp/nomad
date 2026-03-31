@@ -257,7 +257,7 @@ export default class VariableForm extends Component {
         if (this.namespaceOptions) {
           this.setModelProperty('namespace', this.variableNamespace);
         } else {
-          const [namespace] = this.store.peekAll('namespace').toArray();
+          const [namespace] = [...this.store.peekAll('namespace')];
           this.setModelProperty('namespace', namespace.id);
         }
       }
@@ -782,8 +782,8 @@ function normalizeCollection(value) {
     return value;
   }
 
-  if (typeof value.toArray === 'function') {
-    return value.toArray();
+  if (value?.slice) {
+    return value.slice();
   }
 
   if (typeof value[Symbol.iterator] === 'function') {

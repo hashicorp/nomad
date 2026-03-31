@@ -171,8 +171,7 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
 
-        const legendItem = JobDetail.allocationsSummary.legend.clickableItems
-          .toArray()
+        const legendItem = [...JobDetail.allocationsSummary.legend.clickableItems]
           .find((item) => item.label !== 'queued');
 
         const status = legendItem.label;

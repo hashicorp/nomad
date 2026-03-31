@@ -38,8 +38,8 @@ export default class Token extends Model {
    */
   get combinedPolicies() {
     return [
-      ...this.policies.toArray(),
-      ...this.roles.map((role) => role.policies.toArray()).flat(),
+      ...this.policies,
+      ...this.roles.map((role) => [...role.policies]).flat(),
     ].uniq();
   }
 }

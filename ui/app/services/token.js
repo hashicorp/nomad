@@ -106,10 +106,10 @@ export default class TokenService extends Service {
             .map((role) => {
               return role.policies;
             })
-            .map((policies) => policies.toArray())
+            .map((policies) => [...policies])
             .flat();
         }
-        return [...tokenPolicies.toArray(), ...rolePolicies];
+        return [...tokenPolicies, ...rolePolicies];
       } else {
         let policy = yield this.store.findRecord('policy', 'anonymous');
         return [policy];

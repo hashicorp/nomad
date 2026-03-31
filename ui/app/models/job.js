@@ -522,7 +522,7 @@ export default class Job extends Model {
       return acc.concat(
         taskGroup.tasks
           .map((task) => {
-            return task.get('actions')?.toArray() || [];
+            return [...(task.get('actions') || [])];
           })
           .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), []),
       );
@@ -570,8 +570,7 @@ export default class Job extends Model {
 
   @computed('evaluations.@each.isBlocked')
   get hasBlockedEvaluation() {
-    return this.evaluations
-      .toArray()
+    return [...this.evaluations]
       .some((evaluation) => evaluation.get('isBlocked'));
   }
 

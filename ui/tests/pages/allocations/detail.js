@@ -66,7 +66,7 @@ export default create({
   }),
 
   firstUnhealthyTask() {
-    return this.tasks.toArray().find(el => el.hasUnhealthyDriver);
+    return [...this.tasks].find(el => el.hasUnhealthyDriver);
   },
 
   hasRescheduleEvents: isPresent('[data-test-reschedule-events]'),

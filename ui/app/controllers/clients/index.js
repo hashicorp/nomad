@@ -240,7 +240,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionVolume')
   get optionsVolume() {
-    const flatten = (acc, val) => acc.concat(val.toArray());
+    const flatten = (acc, val) => acc.concat([...val]);
 
     const allVolumes = this.nodes.map(vol => vol.hostVolumes).reduce(flatten, []);
     const volumes = Array.from(new Set(allVolumes.map(item => item.name)));

@@ -28,7 +28,7 @@ export default class RoleEditor extends Component {
 
   constructor() {
     super(...arguments);
-    this.rolePolicies = this.args.role.policies.toArray() || [];
+    this.rolePolicies = [...this.args.role.policies] || [];
   }
 
   updateRoleName = ({ target: { value } }) => {

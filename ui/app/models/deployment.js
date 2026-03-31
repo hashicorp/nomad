@@ -27,8 +27,7 @@ export default class Deployment extends Model {
   get requiresPromotion() {
     return (
       this.status === 'running' &&
-      this.taskGroupSummaries
-        .toArray()
+      [...this.taskGroupSummaries]
         .some(
           (summary) =>
             summary.get('requiresPromotion') && !summary.get('promoted'),
@@ -38,8 +37,7 @@ export default class Deployment extends Model {
 
   @computed('taskGroupSummaries.@each.autoPromote')
   get isAutoPromoted() {
-    return this.taskGroupSummaries
-      .toArray()
+    return [...this.taskGroupSummaries]
       .every((summary) => summary.get('autoPromote'));
   }
 

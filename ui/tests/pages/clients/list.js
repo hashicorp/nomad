@@ -47,7 +47,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().find(el => el.id === id).sort();
+    return [...this.sortOptions].find(el => el.id === id).sort();
   },
 
   nodes: collection('[data-test-client-node-row]', {

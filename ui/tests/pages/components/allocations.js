@@ -53,7 +53,7 @@ export default function (
     }),
 
     [lookupKey]: function (id) {
-      return this[propKey].toArray().find((allocation) => allocation.id === id);
+      return [...this[propKey]].find((allocation) => allocation.id === id);
     },
   };
 }

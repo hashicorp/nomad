@@ -32,10 +32,10 @@ export default (scope) => ({
   },
 
   visitSlice: async function (label) {
-    await this.slices.toArray().find(el => el.label === label).click();
+    await [...this.slices].find(el => el.label === label).click();
   },
 
   visitLegend: async function (label) {
-    await this.legend.clickableItems.toArray().find(el => el.label === label).click();
+    await [...this.legend.clickableItems].find(el => el.label === label).click();
   },
 });

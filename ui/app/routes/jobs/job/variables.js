@@ -23,7 +23,7 @@ export default class JobsJobVariablesRoute extends Route {
     /** @type {JobModel} */
     let job = this.modelFor('jobs.job');
     let taskGroups = job.taskGroups;
-    let tasks = taskGroups.map((tg) => tg.tasks.toArray()).flat();
+    let tasks = taskGroups.map((tg) => [...tg.tasks]).flat();
 
     let jobVariablePromise = job.getPathLinkedVariable();
     let groupVariablesPromises = taskGroups.map((tg) =>

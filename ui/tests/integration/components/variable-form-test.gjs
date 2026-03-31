@@ -267,7 +267,7 @@ module('Integration | Component | variable-form', function (hooks) {
         namespace: this.server.db.namespaces[2].id,
       });
 
-      const existingVariables = this.server.db.variables.toArray();
+      const existingVariables = [...this.server.db.variables];
 
       await render(
         <template>

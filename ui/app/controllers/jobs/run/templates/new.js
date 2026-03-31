@@ -66,7 +66,7 @@ export default class JobsRunTemplatesNewController extends Controller {
       if (this.namespaceOptions) {
         this.model.set('namespace', this.templateNamespace);
       } else {
-        const [namespace] = this.store.peekAll('namespace').toArray();
+        const [namespace] = [...this.store.peekAll('namespace')];
         this.model.set('namespace', namespace.id);
       }
     }

@@ -70,7 +70,7 @@ export default class AllocationsController extends Controller.extend(
 
   @computed('model.{controllers.[],nodes.[]}')
   get combinedAllocations() {
-    return this.model.controllers.toArray().concat(this.model.nodes.toArray());
+    return [...this.model.controllers].concat([...this.model.nodes]);
   }
 
   @computed(

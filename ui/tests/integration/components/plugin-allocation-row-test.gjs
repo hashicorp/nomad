@@ -119,7 +119,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       `/v1/allocation/${storageController.allocID}`,
     );
 
-    this.set('plugin', pluginRecord.get('controllers').toArray()[1]);
+    this.set('plugin', [...pluginRecord.get('controllers')][1]);
     await settled();
 
     const latestAllocationRequest = this.server.pretender.handledRequests

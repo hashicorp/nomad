@@ -45,7 +45,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().find(el => el.id === id).sort();
+    return [...this.sortOptions].find(el => el.id === id).sort();
   },
 
   error: error(),

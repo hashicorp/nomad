@@ -108,8 +108,7 @@ export default class SystemService extends Service {
   }
 
   get hasNonDefaultRegion() {
-    return this.get('regions')
-      .toArray()
+    return [...this.get('regions')]
       .some((region) => region !== 'global');
   }
 
@@ -136,7 +135,7 @@ export default class SystemService extends Service {
       return this._shouldShowNamespacesOverride;
     }
 
-    const namespaces = this.namespaces.toArray();
+    const namespaces = [...this.namespaces];
     return (
       namespaces.length &&
       namespaces.some((namespace) => namespace.get('id') !== 'default')

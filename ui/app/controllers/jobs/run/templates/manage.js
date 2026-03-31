@@ -13,7 +13,7 @@ export default class JobsRunTemplatesManageController extends Controller {
   @service router;
 
   get templates() {
-    return [...this.model.variables.toArray(), ...this.model.default];
+    return [...this.model.variables, ...this.model.default];
   }
 
   @tracked selectedTemplate = null;

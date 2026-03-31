@@ -68,7 +68,7 @@ export default class IndexController extends Controller.extend(
   @computed('tasks.@each.services')
   get taskServices() {
     return this.get('tasks')
-      .map((t) => ((t && t.services) || []).toArray())
+      .map((t) => [...((t && t.services) || [])])
       .flat()
       .filter(val => val !== undefined && val !== null);
   }

@@ -144,8 +144,8 @@ function normalizeCollection(value) {
     return [...value];
   }
 
-  if (typeof value.toArray === 'function') {
-    return value.toArray();
+  if (value?.slice) {
+    return value.slice();
   }
 
   if (typeof value[Symbol.iterator] === 'function') {

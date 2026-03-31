@@ -39,7 +39,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().find(el => el.id === id).sort();
+    return [...this.sortOptions].find(el => el.id === id).sort();
   },
 
   directoryEntries: collection('[data-test-entry]', {
@@ -58,7 +58,7 @@ export default create({
   isEmptyDirectory: isPresent('[data-test-empty-directory]'),
 
   directoryEntryNames() {
-    return this.directoryEntries.toArray().map(item => item.name);
+    return [...this.directoryEntries].map(item => item.name);
   },
 
   hasEmptyState: isPresent('[data-test-not-running]'),

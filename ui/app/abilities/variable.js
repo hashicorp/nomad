@@ -140,8 +140,7 @@ export default class Variable extends AbstractAbility {
     capabilities = [],
     path,
   ) {
-    const policyList =
-      typeof policies?.toArray === 'function' ? policies.toArray() : policies;
+    const policyList = policies?.slice();
 
     const variableCapabilitiesAmongNamespaces = policyList
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
@@ -219,8 +218,7 @@ export default class Variable extends AbstractAbility {
   @computed('token.selfTokenPolicies.[]', 'namespace')
   get allVariablePathRules() {
     const policies = get(this, 'token.selfTokenPolicies') || [];
-    const policyList =
-      typeof policies?.toArray === 'function' ? policies.toArray() : policies;
+    const policyList = policies?.slice();
 
     return policyList.flatMap((policy) => {
       const namespaces = get(policy, 'rulesJSON.Namespaces') || [];

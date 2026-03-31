@@ -31,8 +31,7 @@ export default class Abstract extends Ability {
   get rulesForNamespace() {
     let namespace = this._namespace;
     const policies = this.get('token.selfTokenPolicies') || [];
-    const policyList =
-      typeof policies.toArray === 'function' ? policies.toArray() : policies;
+    const policyList = policies?.slice();
 
     return policyList.reduce((rules, policy) => {
       let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
@@ -56,8 +55,7 @@ export default class Abstract extends Ability {
   @computed('token.selfTokenPolicies.[]')
   get capabilitiesForAllNamespaces() {
     const policies = this.get('token.selfTokenPolicies') || [];
-    const policyList =
-      typeof policies.toArray === 'function' ? policies.toArray() : policies;
+    const policyList = policies.slice?.() ?? policies;
 
     return policyList.reduce((allCapabilities, policy) => {
       (get(policy, 'rulesJSON.Namespaces') || []).forEach(
