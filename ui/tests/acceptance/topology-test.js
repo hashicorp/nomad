@@ -161,9 +161,7 @@ module('Acceptance | topology', function (hooks) {
       }
     }
 
-    const dcIndex = nodes
-      .map(dc => dc.datacenter)
-      .uniq()
+    const dcIndex = [...new Set(nodes.map(dc => dc.datacenter))]
       .sort()
       .indexOf(node.datacenter);
     let nodeIndex = nodes;
@@ -183,7 +181,7 @@ module('Acceptance | topology', function (hooks) {
 
     assert.deepEqual(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
 
-    const uniqueClients = allocs.map(node => node.nodeId).uniq();
+    const uniqueClients = [...new Set(allocs.map(node => node.nodeId))];
     assert.deepEqual(
       Topology.allocInfoPanel.siblingAllocs,
       `Sibling Allocations: ${allocs.length}`,

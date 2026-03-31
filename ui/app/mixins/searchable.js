@@ -142,7 +142,7 @@ export default Mixin.create({
         );
       }
 
-      return results.filter((item) => !isDestroyedRecord(item)).uniq();
+      return [...new Set(results.filter((item) => !isDestroyedRecord(item)))];
     },
   ),
 });

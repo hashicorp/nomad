@@ -37,9 +37,9 @@ export default class Token extends Model {
    * Combined policies directly on the token, and policies inferred from token's role[s]
    */
   get combinedPolicies() {
-    return [
+    return [...new Set([
       ...this.policies,
       ...this.roles.map((role) => [...role.policies]).flat(),
-    ].uniq();
+    ])];
   }
 }

@@ -371,7 +371,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @computed('siblingAllocations.@each.node')
   get uniqueActiveAllocationNodes() {
-    return this.siblingAllocations.map(n => n.node?.id).uniq();
+    return [...new Set(this.siblingAllocations.map(n => n.node?.id))];
   }
 
   @action

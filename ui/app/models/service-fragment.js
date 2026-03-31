@@ -28,10 +28,9 @@ export default class Service extends Fragment {
   @computed('healthChecks.[]')
   get mostRecentChecks() {
     // Get unique check names, then get the most recent one
-    return this.get('healthChecks')
-      .map(item => item.Check)
-      .uniq()
-      .map((name) => {
+    const checks = this.get('healthChecks')
+      .map(item => item.Check);
+    return [...new Set(checks)].map((name) => {
         return [...this.get('healthChecks')]
           .sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0))
           .find((x) => x.Check === name);

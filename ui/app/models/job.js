@@ -544,13 +544,13 @@ export default class Job extends Model {
 
   @computed('taskGroups.@each.drivers')
   get drivers() {
-    return this.taskGroups
+    const drivers = this.taskGroups
       .map(drv => drv.drivers)
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
-      }, [])
-      .uniq();
+      }, []);
+    return [...new Set(drivers)];
   }
 
   @mapBy('allocations', 'unhealthyDrivers') allocationsUnhealthyDrivers;
@@ -559,13 +559,13 @@ export default class Job extends Model {
   // has many allocations. This can lead to making an API request for many nodes.
   @computed('allocations', 'allocationsUnhealthyDrivers.[]')
   get unhealthyDrivers() {
-    return this.allocations
+    const drivers = this.allocations
       .map(drv => drv.unhealthyDrivers)
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
-      }, [])
-      .uniq();
+      }, []);
+    return [...new Set(drivers)];
   }
 
   @computed('evaluations.@each.isBlocked')

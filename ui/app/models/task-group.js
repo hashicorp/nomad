@@ -62,7 +62,7 @@ export default class TaskGroup extends Fragment {
 
   @computed('tasks.@each.driver')
   get drivers() {
-    return this.tasks.map(drv => drv.driver).uniq();
+    return [...new Set(this.tasks.map(drv => drv.driver))];
   }
 
   @computed('job.allocations.{@each.taskGroup,isFulfilled}', 'name')

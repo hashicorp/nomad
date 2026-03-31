@@ -798,7 +798,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
@@ -849,7 +849,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
@@ -886,7 +886,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
         .sort((a, b) => (b.submitTime || 0) - (a.submitTime || 0));
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.map(task => task.taskId).uniq())
+        .find([...new Set(sortedRecommendations.map(task => task.taskId))])
         .models.map(tg => tg.taskGroup)
         .uniqBy('id')
         .filter((group) => filter(group, selection));
