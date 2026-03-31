@@ -2545,7 +2545,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, shutdown := TestServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 
