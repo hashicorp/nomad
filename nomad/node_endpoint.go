@@ -1531,14 +1531,14 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
 		return err
 	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
@@ -1560,6 +1560,9 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 	if node == nil {
 		return fmt.Errorf("node %s not found", targetNodeID)
+	}
+	if !aclObj.AllowClientOp(node.NodePool) {
+		return structs.ErrPermissionDenied
 	}
 	if authenticatedNodeID(args.GetIdentity()) != targetNodeID {
 		return structs.ErrPermissionDenied
@@ -1985,14 +1988,14 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
 	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
 	if len(args.NodeEvents) == 0 {
@@ -2007,6 +2010,14 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	for nodeID, events := range args.NodeEvents {
 		if len(events) == 0 {
 			return fmt.Errorf("no node events given for node %q", nodeID)
+		}
+
+		node, err := n.srv.State().NodeByID(nil, nodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+			return structs.ErrPermissionDenied
 		}
 		if nodeID != callerNodeID {
 			return structs.ErrPermissionDenied

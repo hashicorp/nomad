@@ -72,32 +72,20 @@ rules:
           ...
 
       # Pattern used by endpoints that are used only for client-to-server and
-      # authorize based on the authenticated node identity rather than pool.
+      # authorize using client ACLs plus a same-node identity check.
       - pattern-not-inside: |
-          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
-          ...
-          if err != nil {
-            return structs.ErrPermissionDenied
-          }
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          if authenticatedNodeID(args.GetIdentity()) == "" {
-            return structs.ErrPermissionDenied
-          }
-          ...
-
-      - pattern-not-inside: |
-          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
-          ...
           if err != nil {
             return structs.ErrPermissionDenied
           }
           ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
+          if !aclObj.AllowClientOp(...) {
+            return structs.ErrPermissionDenied
           }
           ...
           if authenticatedNodeID(args.GetIdentity()) != ... {
@@ -105,18 +93,28 @@ rules:
           }
           ...
 
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize using client ACLs plus a same-node identity check.
       - pattern-not-inside: |
-          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
-          ...
-          if err != nil {
-            return structs.ErrPermissionDenied
-          }
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          if ... != authenticatedNodeID(args.GetIdentity()) {
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if callerNodeID == "" {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if nodeID != callerNodeID {
             return structs.ErrPermissionDenied
           }
           ...
@@ -177,10 +175,10 @@ rules:
             - pattern-not: '"ACL.UpsertOneTimeToken"'
             - pattern-not: '"ACL.ExchangeOneTimeToken"'
             - pattern-not: '"ACL.WhoAmI"'
-            - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
-            - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
-            - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
-            - pattern-not: 'structs.ACLLoginRPCMethod'
+            - pattern-not: "structs.ACLListAuthMethodsRPCMethod"
+            - pattern-not: "structs.ACLOIDCAuthURLRPCMethod"
+            - pattern-not: "structs.ACLOIDCCompleteAuthRPCMethod"
+            - pattern-not: "structs.ACLLoginRPCMethod"
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
