@@ -87,7 +87,7 @@ func (s *Server) deletePeer(me serf.MemberEvent) {
 // maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 
-	if s.config.BootstrapExpect == 0 && !s.bootstrapped.Load() {
+	if s.config.BootstrapExpect == 0 || s.bootstrapped.Load() {
 		return
 	}
 
