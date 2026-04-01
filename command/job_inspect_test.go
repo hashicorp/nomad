@@ -6,7 +6,6 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -74,8 +73,8 @@ func TestInspectCommand_HCLOutput(t *testing.T) {
 	srv, _, url := testServer(t, true, func(c *agent.Config) {
 		c.DevMode = true
 	})
-	//srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+
+	t.Cleanup(srv.Shutdown)
 
 	ui := cli.NewMockUi()
 	cmd := &JobInspectCommand{
@@ -102,9 +101,7 @@ func TestInspectCommand_HCLOutput(t *testing.T) {
 	must.NoError(t, err)
 
 	// change job priority and re-register job to trigger version #1
-	priority, err := strconv.Atoi("87")
-	must.NoError(t, err)
-	job.Priority = &priority
+	*job.Priority = 87
 	newBytes, err := json.Marshal(job)
 	must.NoError(t, err)
 	_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
@@ -126,7 +123,6 @@ func TestInspectCommand_HCLOutput(t *testing.T) {
 	_, _, err = client.Jobs().Register(stateJob, nil)
 	must.NoError(t, err)
 
-	// Failed on both -json and -t options are specified
 	code := cmd.Run([]string{"-address=" + url, "-hcl", "-version=" + "3", *job.Name})
 	s := ui.OutputWriter.String()
 	must.StrContains(t, s, `"Priority":87`)
@@ -135,6 +131,7 @@ func TestInspectCommand_HCLOutput(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 }
+
 func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
