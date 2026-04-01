@@ -3061,12 +3061,11 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp3.Allocs)
 	}
 
-	// Lookup non-existing node
+	// Lookup non-existing node. This now fails closed because same-node
+	// authorization is enforced even when the node no longer exists in state.
 	get.NodeID = uuid.Generate()
 	var resp4 structs.NodeClientAllocsResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4))
-	must.Eq(t, 100, resp4.Index)
-	must.Eq(t, 0, len(resp4.Allocs))
+	must.ErrorContains(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4), "Permission denied")
 
 	// Close the connection and check that we remove the client connections
 	must.Nil(t, codec.Close())

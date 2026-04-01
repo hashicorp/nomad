@@ -1375,11 +1375,12 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if node != nil {
-		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
-			return err
-		}
 
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
+	}
+
+	if node != nil {
 		// We have a valid node connection, so add the mapping to cache the
 		// connection and allow the server to send RPCs to the client. We only
 		// cache the connection if it is not being forwarded from another
