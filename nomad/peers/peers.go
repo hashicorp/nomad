@@ -264,7 +264,7 @@ func (p *PeerCache) RegionPeers(region string) []*Parts {
 
 // UpdatePeerSet adds or updates the given parts in the cache. This should be
 // called when a new peer is detected or an existing peer changes is status.
-func (p *PeerCache) UpdatePeerSet(parts *Parts, localRegion string) {
+func (p *PeerCache) UpdatePeerSet(parts *Parts) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 

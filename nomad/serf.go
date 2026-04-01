@@ -66,7 +66,7 @@ func (s *Server) updatePeer(me serf.MemberEvent) {
 		}
 		s.logger.Info("server event", "type", me.EventType().String(), "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
-		s.peersCache.UpdatePeerSet(parts, s.Region())
+		s.peersCache.UpdatePeerSet(parts)
 	}
 }
 

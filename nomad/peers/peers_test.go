@@ -137,7 +137,7 @@ func TestPartsCache_LocalPeer(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.Eq(t, euw1Peers[0], peerCache.LocalPeer(raft.ServerAddress(euw1Peers[0].Addr.String())))
@@ -158,7 +158,7 @@ func TestPartsCache_LocalPeersServerInfo(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	expected := make([]*structs.NodeServerInfo, 0, len(euw1Peers))
@@ -185,7 +185,7 @@ func TestPartsCache_LocalPeers(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.SliceLen(t, 3, peerCache.LocalPeers())
@@ -204,7 +204,7 @@ func TestPartsCache_RegionNum(t *testing.T) {
 	}
 
 	for _, p := range peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.Eq(t, 3, peerCache.RegionNum())
@@ -224,7 +224,7 @@ func TestPartsCache_RegionPeers(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.SliceLen(t, 3, peerCache.RegionPeers("euw1"))
@@ -243,7 +243,7 @@ func TestPartsCache_RegionNames(t *testing.T) {
 	}
 
 	for _, p := range peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.SliceContainsAll(t, []string{"euw1", "euw2", "euw3"}, peerCache.RegionNames())
@@ -263,7 +263,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	}
 
 	for _, p := range euw1Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.MapLen(t, 1, peerCache.allPeers)
@@ -280,7 +280,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	}
 
 	for _, p := range euw2Peers {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.MapLen(t, 2, peerCache.allPeers)
@@ -292,7 +292,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	changedPeer := euw2Peers[1].Copy()
 	changedPeer.Status = serf.StatusFailed
 
-	peerCache.UpdatePeerSet(changedPeer, "euw1")
+	peerCache.UpdatePeerSet(changedPeer)
 	must.MapLen(t, 2, peerCache.allPeers)
 	must.Len(t, 3, peerCache.allPeers["euw1"])
 	must.Len(t, 3, peerCache.allPeers["euw2"])
@@ -303,7 +303,7 @@ func TestPartsCache_PeerSet(t *testing.T) {
 	changedPeerEuw1 := euw1Peers[2].Copy()
 	changedPeerEuw1.Status = serf.StatusFailed
 
-	peerCache.UpdatePeerSet(changedPeerEuw1, "euw1")
+	peerCache.UpdatePeerSet(changedPeerEuw1)
 	must.MapLen(t, 2, peerCache.allPeers)
 	must.Len(t, 3, peerCache.allPeers["euw1"])
 	must.Len(t, 3, peerCache.allPeers["euw2"])
@@ -326,7 +326,7 @@ func TestPartsCache_PeerDelete(t *testing.T) {
 	}
 
 	for _, p := range partsList {
-		peerCache.UpdatePeerSet(p, "euw1")
+		peerCache.UpdatePeerSet(p)
 	}
 
 	must.MapLen(t, 1, peerCache.allPeers)
@@ -551,7 +551,7 @@ func TestPartsCache_ServersMeetMinimumVersion(t *testing.T) {
 			peerCache := NewPeerCache("euw1")
 
 			for _, p := range tc.inputParts {
-				peerCache.UpdatePeerSet(p, "euw1")
+				peerCache.UpdatePeerSet(p)
 			}
 
 			result := peerCache.ServersMeetMinimumVersion(
