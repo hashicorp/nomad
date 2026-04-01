@@ -1347,7 +1347,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	// This RPC is only ever called by Nomad clients, so we can use the tightly
 	// scoped AuthenticateClientOnly method to authenticate and authorize the
 	// request.
-	aclObj, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
+	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
@@ -1371,20 +1371,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return errors.New("missing node ID")
 	}
 
-	callerPool, err := n.srv.ResolveAuthorizedClientNodePoolByNodeID(aclObj, args.NodeID)
-	if err != nil {
-		return err
-	}
-
 	node, err := n.srv.State().NodeByID(nil, args.NodeID)
 	if err != nil {
 		return err
 	}
 	if node != nil {
-		if args.SecretID == "" {
-			return fmt.Errorf("missing node secret ID for client status update")
-		} else if args.SecretID != node.SecretID {
-			return fmt.Errorf("node secret ID does not match")
+		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+			return err
 		}
 
 		// We have a valid node connection, so add the mapping to cache the
@@ -1416,10 +1409,6 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			var allocs []*structs.Allocation
 			if node != nil {
-				if node.NodePool != callerPool {
-					return structs.ErrPermissionDenied
-				}
-
 				var err error
 				allocs, err = state.AllocsByNode(ws, args.NodeID)
 				if err != nil {
