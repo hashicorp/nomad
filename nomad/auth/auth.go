@@ -691,7 +691,7 @@ func (s *Authenticator) ResolveAuthorizedClientNodePoolByServiceRegistrationID(
 	aclObj *acl.ACL,
 	namespace, id string,
 ) (string, error) {
-	if aclObj == nil || !aclObj.AllowAgentRead() && !aclObj.AllowServerOp() && !aclObj.AllowNodeRead() {
+	if aclObj == nil || !(aclObj.AllowAgentRead() || aclObj.AllowServerOp() || aclObj.AllowNodeRead()) {
 		return "", structs.ErrPermissionDenied
 	}
 

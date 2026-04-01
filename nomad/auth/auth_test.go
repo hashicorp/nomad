@@ -1743,6 +1743,25 @@ func TestResolveAuthorizedClientNodePoolHelpers(t *testing.T) {
 		)
 		must.ErrorIs(t, err, structs.ErrPermissionDenied)
 		must.Eq(t, "", pool)
+
+		pool, err = auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			nil,
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
+
+		denyACL, err := acl.NewACL(false, nil)
+		must.NoError(t, err)
+
+		pool, err = auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			denyACL,
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
 	})
 }
 
