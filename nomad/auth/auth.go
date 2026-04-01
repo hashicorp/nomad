@@ -607,6 +607,26 @@ func AuthorizeSameNode(identity *structs.AuthenticatedIdentity, targetNodeID str
 	return nil
 }
 
+// AuthorizeSameNodeServiceRegistrations returns ErrPermissionDenied unless the
+// authenticated identity represents the same node as every service
+// registration's NodeID.
+func AuthorizeSameNodeServiceRegistrations(
+	identity *structs.AuthenticatedIdentity,
+	services []*structs.ServiceRegistration,
+) error {
+	for _, service := range services {
+		if service == nil {
+			return structs.ErrPermissionDenied
+		}
+		if err := AuthorizeSameNode(identity, service.NodeID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ResolveAuthorizedClientNodePoolByNodeID resolves the node pool for nodeID
 func resolveAuthorizedClientNodePoolByNodeID(snap *state.StateSnapshot, aclObj *acl.ACL, nodeID string) (string, error) {
 	if nodeID == "" {
 		return "", nil

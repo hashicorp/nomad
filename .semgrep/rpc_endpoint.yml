@@ -196,6 +196,24 @@ rules:
           }
           ...
 
+      # Pattern used by endpoints that are used only for client-to-server and
+      # authorize same-node service registration upserts through auth helpers.
+      - pattern-not-inside: |
+          ..., err := $A.$B.AuthenticateClientOnly($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if err != nil {
+            return structs.ErrPermissionDenied
+          }
+          ...
+          if err := auth.AuthorizeSameNodeServiceRegistrations(args.GetIdentity(), args.Services); err != nil {
+            return err
+          }
+          ...
+
       # Pattern used by CSI endpoints that perform their own client/server or
       # namespace-based authorization after forwarding.
       - pattern-not-inside: |

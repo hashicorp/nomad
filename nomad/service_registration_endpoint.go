@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -40,7 +41,7 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
-	aclObj, err := s.srv.AuthenticateClientOnly(s.ctx, args)
+	_, err := s.srv.AuthenticateClientOnly(s.ctx, args)
 	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
 		return err
 	}
@@ -50,10 +51,8 @@ func (s *ServiceRegistration) Upsert(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	for _, service := range args.Services {
-		if _, err := s.srv.ResolveAuthorizedClientNodePoolByNodeID(aclObj, service.NodeID); err != nil {
-			return err
-		}
+	if err := auth.AuthorizeSameNodeServiceRegistrations(args.GetIdentity(), args.Services); err != nil {
+		return err
 	}
 
 	// Nomad service registrations can only be used once all servers, in the
