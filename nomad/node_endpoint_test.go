@@ -1652,6 +1652,10 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 			name: "leader acl token authenticated",
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
+				if !srv.config.ACLEnabled {
+					t.Skip("leader ACL token is only meaningful when ACLs are enabled")
+				}
+
 				node := mock.Node()
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, srv.raft.LastIndex(), node))
 

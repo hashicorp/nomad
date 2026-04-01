@@ -687,10 +687,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			goto VERIFY_ARGS
 		}
 
-		if authNodeID := auth.AuthenticatedNodeID(args.GetIdentity()); authNodeID != "" {
-			if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
-				return err
-			}
+		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+			return err
 		}
 	}
 
