@@ -126,6 +126,7 @@ func Job() *structs.Job {
 						Meta: map[string]string{
 							"foo": "bar",
 						},
+						ShutdownDelay: time.Second,
 					},
 				},
 				Meta: map[string]string{

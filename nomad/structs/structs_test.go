@@ -642,10 +642,8 @@ func TestJob_Warnings(t *testing.T) {
 						Name: "web",
 						Tasks: []*Task{
 							{
-								Name: "api",
-								Services: []*Service{
-									{Name: "api"},
-								},
+								Name:     "api",
+								Services: []*Service{{Name: "api"}},
 							},
 						},
 					},
@@ -664,9 +662,7 @@ func TestJob_Warnings(t *testing.T) {
 							{
 								Name:          "api",
 								ShutdownDelay: time.Second,
-								Services: []*Service{
-									{Name: "api"},
-								},
+								Services:      []*Service{{Name: "api"}},
 							},
 						},
 					},
@@ -680,15 +676,9 @@ func TestJob_Warnings(t *testing.T) {
 				Type: JobTypeService,
 				TaskGroups: []*TaskGroup{
 					{
-						Name: "web",
-						Services: []*Service{
-							{Name: "web"},
-						},
-						Tasks: []*Task{
-							{
-								Name: "api",
-							},
-						},
+						Name:     "web",
+						Services: []*Service{{Name: "web"}},
+						Tasks:    []*Task{{Name: "api"}},
 					},
 				},
 			},
