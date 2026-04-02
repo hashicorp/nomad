@@ -524,7 +524,6 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 			AllocID: allocID,
 			Task:    "taskname",
 		},
-		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{
 				Name:      "taskname-service",

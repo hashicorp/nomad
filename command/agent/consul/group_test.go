@@ -85,7 +85,7 @@ func TestConsul_Connect(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
+	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc)))
 
 	require.Eventually(t, func() bool {
 		services, err := consulClient.Agent().Services()

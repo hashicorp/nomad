@@ -32,7 +32,7 @@ func (cw *mockCheckWatcher) Run(_ context.Context) {
 	// Run runs async; just assume it ran
 }
 
-func (cw *mockCheckWatcher) Watch(_, _, _ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
+func (cw *mockCheckWatcher) Watch(_ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
 	cw.lock.Lock()
 	defer cw.lock.Unlock()
 	cw.watchCalls++
@@ -64,7 +64,7 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 			name: "registration disabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      false,
-				CheckWatcher: new(mockCheckWatcher),
+				CheckWatcher: &mockCheckWatcher{},
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{},
@@ -76,7 +76,7 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 			name: "registration enabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				CheckWatcher: &mockCheckWatcher{},
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationUpsertRPCMethod: 1},

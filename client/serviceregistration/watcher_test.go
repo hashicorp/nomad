@@ -36,20 +36,16 @@ type fakeWorkloadRestarter struct {
 
 	// check to re-Watch on restarts
 	check     *structs.ServiceCheck
-	allocID   string
-	taskName  string
 	checkName string
 
 	lock sync.Mutex
 }
 
 // newFakeCheckRestart creates a new mock WorkloadRestarter.
-func newFakeWorkloadRestarter(w *UniversalCheckWatcher, allocID, taskName, checkName string, c *structs.ServiceCheck) *fakeWorkloadRestarter {
+func newFakeWorkloadRestarter(w *UniversalCheckWatcher, checkName string, c *structs.ServiceCheck) *fakeWorkloadRestarter {
 	return &fakeWorkloadRestarter{
 		watcher:   w,
 		check:     c,
-		allocID:   allocID,
-		taskName:  taskName,
 		checkName: checkName,
 	}
 }
@@ -71,7 +67,7 @@ func (c *fakeWorkloadRestarter) Restart(_ context.Context, event *structs.TaskEv
 	c.restarts = append(c.restarts, restart)
 
 	// Re-Watch the check just like TaskRunner
-	c.watcher.Watch(c.allocID, c.taskName, c.checkName, c.check, c)
+	c.watcher.Watch(c.checkName, c.check, c)
 	return nil
 }
 
@@ -80,9 +76,10 @@ func (c *fakeWorkloadRestarter) String() string {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	s := fmt.Sprintf("%s %s %s restarts:\n", c.allocID, c.taskName, c.checkName)
+	s := fmt.Sprintf("%s restarts:\n", c.checkName)
 	for _, r := range c.restarts {
-		s += fmt.Sprintf("%s - %s: %s (failure: %t)\n", r.timestamp, r.source, r.reason, r.failure)
+		restart := fmt.Sprintf("%s - %s: %s (failure: %t)\n", r.timestamp, r.source, r.reason, r.failure)
+		s = fmt.Sprintf("%s%s", s, restart)
 	}
 	return s
 }
@@ -177,8 +174,8 @@ func TestCheckWatcher_SkipUnwatched(t *testing.T) {
 	getter := new(fakeCheckStatusGetter)
 
 	cw := NewCheckWatcher(logger, getter)
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check)
+	cw.Watch("testcheck1", check, restarter1)
 
 	// Check should have been dropped as it's not watched
 	enqueued := len(cw.checkUpdateCh)
@@ -197,14 +194,14 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	getter.add("testcheck2", "passing", now)
 
 	check1 := testCheck()
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 
 	check2 := testCheck()
 	check2.CheckRestart.Limit = 1
 	check2.CheckRestart.Grace = 0
-	restarter2 := newFakeWorkloadRestarter(cw, "testalloc2", "testtask2", "testcheck2", check2)
-	cw.Watch("testalloc2", "testtask2", "testcheck2", check2, restarter2)
+	restarter2 := newFakeWorkloadRestarter(cw, "testcheck2", check2)
+	cw.Watch("testcheck2", check2, restarter2)
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -227,8 +224,8 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 	getter.add("testcheck1", "critical", now)
 
 	check1 := testCheck()
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -254,8 +251,8 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 0
 	check1.CheckRestart.IgnoreWarnings = true
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -275,8 +272,8 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 
 	check1 := testCheck()
 	check1.CheckRestart.Grace = 0
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 
 	// Check flaps and is never failing for the full 200ms needed to restart
 	now := time.Now()
@@ -308,8 +305,8 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1
 	check1.CheckRestart.Grace = 100 * time.Millisecond
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 	cw.Unwatch("testcheck1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
@@ -339,20 +336,20 @@ func TestCheckWatcher_MultipleChecks(t *testing.T) {
 	check1 := testCheck()
 	check1.Name = "testcheck1"
 	check1.CheckRestart.Limit = 1
-	restarter1 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
-	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+	restarter1 := newFakeWorkloadRestarter(cw, "testcheck1", check1)
+	cw.Watch("testcheck1", check1, restarter1)
 
 	check2 := testCheck()
 	check2.Name = "testcheck2"
 	check2.CheckRestart.Limit = 1
-	restarter2 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck2", check2)
-	cw.Watch("testalloc1", "testtask1", "testcheck2", check2, restarter2)
+	restarter2 := newFakeWorkloadRestarter(cw, "testcheck2", check2)
+	cw.Watch("testcheck2", check2, restarter2)
 
 	check3 := testCheck()
 	check3.Name = "testcheck3"
 	check3.CheckRestart.Limit = 1
-	restarter3 := newFakeWorkloadRestarter(cw, "testalloc1", "testtask1", "testcheck3", check3)
-	cw.Watch("testalloc1", "testtask1", "testcheck3", check3, restarter3)
+	restarter3 := newFakeWorkloadRestarter(cw, "testcheck3", check3)
+	cw.Watch("testcheck3", check3, restarter3)
 
 	// Run
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -386,11 +383,9 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 	n := cap(cw.checkUpdateCh) + 1
 	checks := make([]*structs.ServiceCheck, n)
 	restarters := make([]*fakeWorkloadRestarter, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		c := testCheck()
 		r := newFakeWorkloadRestarter(cw,
-			fmt.Sprintf("alloc%d", i),
-			fmt.Sprintf("task%d", i),
 			fmt.Sprintf("check%d", i),
 			c,
 		)
@@ -399,13 +394,12 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 	}
 
 	// Run
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go cw.Run(ctx)
 
 	// Watch
 	for _, r := range restarters {
-		cw.Watch(r.allocID, r.taskName, r.checkName, r.check, r)
+		cw.Watch(r.checkName, r.check, r)
 	}
 
 	// Make them all fail

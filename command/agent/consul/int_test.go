@@ -153,6 +153,8 @@ func TestConsul_Integration(t *testing.T) {
 		close(consulRan)
 	}()
 
+	sc := consul.NewServiceClientWrapper()
+	sc.AddClient("default", serviceClient)
 	// Create a closed channel to mock TaskCoordinator.startConditionForTask.
 	// Closed channel indicates this task is not blocked on prestart hooks.
 	closedCh := make(chan struct{})
@@ -162,7 +164,7 @@ func TestConsul_Integration(t *testing.T) {
 	config := &taskrunner.Config{
 		Alloc:               alloc,
 		ClientConfig:        conf,
-		ConsulServices:      serviceClient,
+		ConsulServices:      sc,
 		Task:                task,
 		TaskDir:             taskDir,
 		Logger:              logger,
@@ -172,7 +174,7 @@ func TestConsul_Integration(t *testing.T) {
 		DeviceManager:       devicemanager.NoopMockManager(),
 		DriverManager:       drivermanager.TestDriverManager(t),
 		StartConditionMetCh: closedCh,
-		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
+		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, sc, regMock.NewServiceRegistrationHandler(logger)),
 		Wranglers:           proclib.MockWranglers(t),
 		AllocHookResources:  cstructs.NewAllocHookResources(),
 	}
