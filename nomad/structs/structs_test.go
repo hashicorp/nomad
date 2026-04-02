@@ -683,6 +683,21 @@ func TestJob_Warnings(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "Group services with group-level shutdown delay (no warning)",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          "web",
+						Services:      []*Service{{Name: "web"}},
+						ShutdownDelay: pointer.Of(time.Second),
+						Tasks:         []*Task{{Name: "api"}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
