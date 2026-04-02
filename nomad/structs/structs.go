@@ -4888,9 +4888,6 @@ func (j *Job) serviceShutdownDelayWarningNeeded() bool {
 	for _, tg := range j.TaskGroups {
 		if len(tg.Services) > 0 {
 			hasServices = true
-			if tg.ShutdownDelay != nil && *tg.ShutdownDelay > 0 {
-				hasTaskServiceShutdownDelay = true
-			}
 		}
 
 		for _, t := range tg.Tasks {

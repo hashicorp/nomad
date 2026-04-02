@@ -131,7 +131,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			job := mock.Job()
 			job.TaskGroups[0].Services = []*structs.Service{tc.inputService}
 			job.TaskGroups[0].Tasks[0].Services = []*structs.Service{tc.inputService}
-			job.TaskGroups[0].ShutdownDelay = pointer.Of(time.Second)
+			job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 			warns, err := impl.Validate(job)
 

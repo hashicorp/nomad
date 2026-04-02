@@ -684,8 +684,8 @@ func TestJob_Warnings(t *testing.T) {
 			},
 		},
 		{
-			Name:     "Group services with group-level shutdown delay (no warning)",
-			Expected: []string{},
+			Name:     "Group services with group-level shutdown delay but no task-level shutdown delay set",
+			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
 			Job: &Job{
 				Type: JobTypeService,
 				TaskGroups: []*TaskGroup{
