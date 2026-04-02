@@ -632,6 +632,67 @@ func TestJob_Warnings(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "Services without task shutdown delay warning",
+			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						Tasks: []*Task{
+							{
+								Name: "api",
+								Services: []*Service{
+									{Name: "api"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Services with task shutdown delay no warning",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						Tasks: []*Task{
+							{
+								Name:          "api",
+								ShutdownDelay: time.Second,
+								Services: []*Service{
+									{Name: "api"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Group services without task shutdown delay warning",
+			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						Services: []*Service{
+							{Name: "web"},
+						},
+						Tasks: []*Task{
+							{
+								Name: "api",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

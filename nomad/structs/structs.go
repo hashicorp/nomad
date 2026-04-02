@@ -4879,6 +4879,33 @@ func (j *Job) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+func (j *Job) serviceShutdownDelayWarningNeeded() bool {
+	hasServices := false
+	hasTaskServiceShutdownDelay := false
+
+	// we have to check both group-level service definitions and task-level service
+	// definitions. However, only task level services can have shutdown delay.
+	for _, tg := range j.TaskGroups {
+		if len(tg.Services) > 0 {
+			hasServices = true
+		}
+
+		for _, t := range tg.Tasks {
+			if len(t.Services) == 0 {
+				continue
+			}
+
+			// we emit a warning in case *no* task has a shutdown delay set
+			hasServices = true
+			if t.ShutdownDelay > 0 {
+				hasTaskServiceShutdownDelay = true
+			}
+		}
+	}
+
+	return hasServices && !hasTaskServiceShutdownDelay
+}
+
 // Warnings returns a list of warnings that may be from dubious settings or
 // deprecation warnings.
 func (j *Job) Warnings() error {
@@ -4899,6 +4926,12 @@ func (j *Job) Warnings() error {
 			// Having no canaries implies auto-promotion since there are no canaries to promote.
 			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
 		}
+	}
+
+	// check if we have services with no shutdown delay set
+	if j.serviceShutdownDelayWarningNeeded() {
+		err := fmt.Errorf("services are defined in the job, but no task with services has shutdown_delay set")
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Check AutoPromote, should be all or none
