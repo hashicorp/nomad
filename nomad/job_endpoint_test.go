@@ -1975,6 +1975,7 @@ func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
 	submitNewJob := func() *structs.JobRegisterResponse {
 		job := mock.Job()
 		job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+		job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		req := &structs.JobRegisterRequest{
 			Job: job,
@@ -1987,20 +1988,20 @@ func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
 		// Fetch the response
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return &resp
 	}
 
 	// try default case: Memory oversubscription is disabled
 	resp := submitNewJob()
-	require.Contains(t, resp.Warnings, "Memory oversubscription is not enabled")
+	must.StrContains(t, resp.Warnings, "Memory oversubscription is not enabled")
 
 	// enable now and try again
 	s1.State().SchedulerSetConfig(100, &structs.SchedulerConfiguration{
 		MemoryOversubscriptionEnabled: true,
 	})
 	resp = submitNewJob()
-	require.Empty(t, resp.Warnings)
+	must.Eq(t, "", resp.Warnings)
 }
 
 func TestJobEndpoint_Register_ValidateMemoryMax_NodePool(t *testing.T) {
@@ -2083,6 +2084,7 @@ func TestJobEndpoint_Register_ValidateMemoryMax_NodePool(t *testing.T) {
 			// Create job with node_pool and memory_max.
 			job := mock.Job()
 			job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+			job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 			job.NodePool = tc.pool
 
 			req := &structs.JobRegisterRequest{
@@ -6496,21 +6498,24 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("plain job", func(t *testing.T) {
 		j := mock.Job()
-		require.NoError(t, validateJob(j))
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
+		must.NoError(t, validateJob(j))
 	})
 	t.Run("valid consul connect", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
 		tg.Networks[0].Mode = "bridge"
 
 		err := validateJob(j)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("valid consul connect with cni", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6522,6 +6527,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("consul connect but missing network", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6533,6 +6539,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("consul connect but non bridge network", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6657,7 +6664,6 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 
 func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -6667,6 +6673,7 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 	req := &structs.JobValidateRequest{
 		Job: job,
@@ -6679,16 +6686,16 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	// Attempt to update without providing a valid token
 	var resp structs.JobValidateResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
-	require.NotNil(err)
+	must.NotNil(t, err)
 
 	// Update with a valid token
 	req.AuthToken = root.SecretID
 	var validResp structs.JobValidateResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
-	require.Nil(err)
+	must.Nil(t, err)
 
-	require.Equal("", validResp.Error)
-	require.Equal("", validResp.Warnings)
+	must.Eq(t, "", validResp.Error)
+	must.Eq(t, "", validResp.Warnings)
 }
 
 func TestJobEndpoint_ValidateJob_PriorityNotOk(t *testing.T) {
