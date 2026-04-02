@@ -1506,7 +1506,7 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 		must.NoError(t, srv.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy}))
 		must.NoError(t, srv.State().UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
-		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wih, identity).
+		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wih, identity, mock.Namespace()).
 			WithTask(task).Build(time.Now())
 
 		testutil.WaitForKeyring(t, srv.RPC, "global")

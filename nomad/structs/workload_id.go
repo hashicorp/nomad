@@ -5,6 +5,7 @@ package structs
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -53,6 +54,8 @@ var (
 	// be safe to use in filenames.
 	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 
+	wIClaimPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
+
 	// MinNomadVersionVaultWID is the minimum version of Nomad that supports
 	// workload identities for Vault.
 	// "-a" is used here so that it is "less than" all pre-release versions of
@@ -100,7 +103,7 @@ type WorkloadIdentityClaimsBuilder struct {
 // allocation and identity request. Because it may be called with a denormalized
 // Allocation in the plan applier, the Job must be passed in as a separate
 // parameter.
-func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity) *WorkloadIdentityClaimsBuilder {
+func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity, ns *Namespace) *WorkloadIdentityClaimsBuilder {
 	tg := job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		return nil
@@ -109,13 +112,24 @@ func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, w
 		wid = DefaultWorkloadIdentity()
 	}
 
+	extras := maps.Clone(ns.RequiredExtraClaims)
+	if extras == nil {
+		extras = make(map[string]string)
+	}
+
+	for _, claim := range wid.ExtraClaims {
+		if value, ok := ns.OptionalExtraClaims[claim]; ok {
+			extras[claim] = value
+		}
+	}
+
 	return &WorkloadIdentityClaimsBuilder{
 		alloc:    alloc,
 		job:      job,
 		wihandle: wihandle,
 		wid:      wid,
 		tg:       tg,
-		extras:   map[string]string{},
+		extras:   extras,
 	}
 }
 
@@ -230,27 +244,50 @@ func (b *WorkloadIdentityClaimsBuilder) interpolate() {
 		return
 	}
 
-	r := strings.NewReplacer(
-		// attributes that always exist
-		"${job.region}", b.job.Region,
-		"${job.namespace}", b.job.Namespace,
-		"${job.id}", b.job.GetIDforWorkloadIdentity(),
-		"${job.node_pool}", b.job.NodePool,
-		"${group.name}", b.tg.Name,
-		"${alloc.id}", b.alloc.ID,
+	staticValues := map[string]string{
+		"${job.region}":      b.job.Region,
+		"${job.namespace}":   b.job.Namespace,
+		"${job.id}":          b.job.GetIDforWorkloadIdentity(),
+		"${job.node_pool}":   b.job.NodePool,
+		"${group.name}":      b.tg.Name,
+		"${alloc.id}":        b.alloc.ID,
+		"${node.id}":         strAttrGet(b.node, func(n *Node) string { return n.ID }),
+		"${node.datacenter}": strAttrGet(b.node, func(n *Node) string { return n.Datacenter }),
+		"${node.pool}":       strAttrGet(b.node, func(n *Node) string { return n.NodePool }),
+		"${node.class}":      strAttrGet(b.node, func(n *Node) string { return n.NodeClass }),
+		"${task.name}":       strAttrGet(b.task, func(t *Task) string { return t.Name }),
+		"${vault.cluster}":   strAttrGet(b.vault, func(v *Vault) string { return v.Cluster }),
+		"${vault.namespace}": strAttrGet(b.vault, func(v *Vault) string { return v.Namespace }),
+		"${vault.role}":      strAttrGet(b.vault, func(v *Vault) string { return v.Role }),
+	}
 
-		// attributes that conditionally exist
-		"${node.id}", strAttrGet(b.node, func(n *Node) string { return n.ID }),
-		"${node.datacenter}", strAttrGet(b.node, func(n *Node) string { return n.Datacenter }),
-		"${node.pool}", strAttrGet(b.node, func(n *Node) string { return n.NodePool }),
-		"${node.class}", strAttrGet(b.node, func(n *Node) string { return n.NodeClass }),
-		"${task.name}", strAttrGet(b.task, func(t *Task) string { return t.Name }),
-		"${vault.cluster}", strAttrGet(b.vault, func(v *Vault) string { return v.Cluster }),
-		"${vault.namespace}", strAttrGet(b.vault, func(v *Vault) string { return v.Namespace }),
-		"${vault.role}", strAttrGet(b.vault, func(v *Vault) string { return v.Role }),
-	)
 	for k, v := range b.extras {
-		b.extras[k] = r.Replace(v)
+		val := wIClaimPattern.ReplaceAllStringFunc(v, func(token string) string {
+			if val, ok := staticValues[token]; ok {
+				return val
+			}
+
+			return b.resolveDynamicToken(token)
+		})
+		b.extras[k] = val
+	}
+}
+
+func (b *WorkloadIdentityClaimsBuilder) resolveDynamicToken(token string) string {
+	path := strings.TrimSuffix(strings.TrimPrefix(token, "${"), "}")
+	switch {
+	case strings.HasPrefix(path, "job.meta."):
+		key := strings.TrimPrefix(path, "job.meta.")
+		if key == "" || b.job == nil || b.job.Meta == nil {
+			return token
+		}
+		value, ok := b.job.Meta[key]
+		if !ok {
+			return token
+		}
+		return value
+	default:
+		return token
 	}
 }
 

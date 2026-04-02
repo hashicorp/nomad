@@ -685,7 +685,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
 
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 	e := srv.encrypter
@@ -721,7 +721,7 @@ func TestEncrypter_SignVerify_Issuer(t *testing.T) {
 
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 
@@ -750,7 +750,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 
