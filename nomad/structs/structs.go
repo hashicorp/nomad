@@ -4879,31 +4879,77 @@ func (j *Job) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-func (j *Job) serviceShutdownDelayWarningNeeded() bool {
-	hasServices := false
-	hasTaskServiceShutdownDelay := false
+func (j *Job) generateServiceShutdownDelayWarnings() []error {
+	var warnings []error
 
-	// we have to check both group-level service definitions and task-level service
-	// definitions. However, only task level services can have shutdown delay.
 	for _, tg := range j.TaskGroups {
-		if len(tg.Services) > 0 {
-			hasServices = true
+		warnings = append(warnings, generateTaskGroupServiceShutdownDelayWarnings(tg)...)
+	}
+
+	return warnings
+}
+
+func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
+	var warnings []error
+
+	// for every tg, we need to look at how services are defined.
+	//
+	// 1. if we have a service.task configured, we need to make sure that task
+	// has a shutdown_delay set.
+	// 2. if it's a connect service, we look at the task we're proxying.
+	// 3. if neither, we just check that at least one task-level service has a
+	// shutdown delay defined.
+	referencedTaskIDs := map[string]struct{}{}
+	hasUnscopedGroupService := false
+	hasAnyTaskServiceShutdownDelay := false
+	hasGroupShutdownDelay := tg.ShutdownDelay != nil && *tg.ShutdownDelay > 0
+
+	for _, s := range tg.Services {
+		if s.TaskName != "" {
+			referencedTaskIDs[s.TaskName] = struct{}{}
+			continue
 		}
 
-		for _, t := range tg.Tasks {
-			if len(t.Services) == 0 {
-				continue
+		if s.Connect != nil && s.Connect.SidecarTask != nil {
+			if s.Connect.SidecarTask.ShutdownDelay == nil || *s.Connect.SidecarTask.ShutdownDelay == 0 {
+				warnings = append(warnings, fmt.Errorf(
+					"service %q defines a sidecar task in Consul Connect definition, but the task has no shutdown_delay set",
+					s.Name))
 			}
+			continue
+		}
 
-			// we emit a warning in case *no* task has a shutdown delay set
-			hasServices = true
-			if t.ShutdownDelay > 0 {
-				hasTaskServiceShutdownDelay = true
-			}
+		hasUnscopedGroupService = true
+	}
+
+	// see if we should check any of the tasks referenced in the tg-level
+	// service definitions
+	for _, t := range tg.Tasks {
+		if _, ok := referencedTaskIDs[t.Name]; ok && t.ShutdownDelay == 0 {
+			warnings = append(warnings, fmt.Errorf(
+				"group %q references task %q in a service definition, but the task has no shutdown_delay set",
+				tg.Name, t.Name))
+		}
+
+		if len(t.Services) == 0 {
+			continue
+		}
+
+		if t.ShutdownDelay > 0 {
+			hasAnyTaskServiceShutdownDelay = true
+		} else {
+			warnings = append(warnings, fmt.Errorf(
+				"task %q in group %q defines services, but has no shutdown_delay set",
+				t.Name, tg.Name))
 		}
 	}
 
-	return hasServices && !hasTaskServiceShutdownDelay
+	if hasUnscopedGroupService && !hasGroupShutdownDelay && !hasAnyTaskServiceShutdownDelay {
+		warnings = append(warnings, fmt.Errorf(
+			"group %q defines services, but neither the group nor any task with services has shutdown_delay set", tg.Name))
+	}
+
+	return warnings
 }
 
 // Warnings returns a list of warnings that may be from dubious settings or
@@ -4929,10 +4975,7 @@ func (j *Job) Warnings() error {
 	}
 
 	// check if we have services with no shutdown delay set
-	if j.serviceShutdownDelayWarningNeeded() {
-		err := fmt.Errorf("services are defined in the job, but no task with services has shutdown_delay set")
-		mErr.Errors = append(mErr.Errors, err)
-	}
+	mErr.Errors = append(mErr.Errors, j.generateServiceShutdownDelayWarnings()...)
 
 	// Check AutoPromote, should be all or none
 	if hasAutoPromote && !allAutoPromote {

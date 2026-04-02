@@ -521,6 +521,61 @@ func TestJob_ValidateNullChar(t *testing.T) {
 func TestJob_Warnings(t *testing.T) {
 	ci.Parallel(t)
 
+	taskWithServices := func(delay time.Duration) []*Task {
+		return []*Task{{
+			Name:          "api",
+			ShutdownDelay: delay,
+			Services:      []*Service{{Name: "api"}},
+		}}
+	}
+
+	groupServiceJob := func(groupDelay *time.Duration) *Job {
+		return &Job{
+			Type: JobTypeService,
+			TaskGroups: []*TaskGroup{{
+				Name:          "web",
+				Services:      []*Service{{Name: "web"}},
+				ShutdownDelay: groupDelay,
+				Tasks:         []*Task{{Name: "api"}},
+			}},
+		}
+	}
+
+	referencedTaskServiceJob := func(delay time.Duration) *Job {
+		return &Job{
+			Type: JobTypeService,
+			TaskGroups: []*TaskGroup{{
+				Name: "web",
+				Services: []*Service{{
+					Name:     "web",
+					TaskName: "api",
+				}},
+				Tasks: []*Task{{
+					Name:          "api",
+					ShutdownDelay: delay,
+				}},
+			}},
+		}
+	}
+
+	connectSidecarServiceJob := func(delay *time.Duration) *Job {
+		return &Job{
+			Type: JobTypeService,
+			TaskGroups: []*TaskGroup{{
+				Name: "web",
+				Services: []*Service{{
+					Name: "web",
+					Connect: &ConsulConnect{
+						SidecarTask: &SidecarTask{
+							Name:          "sidecar",
+							ShutdownDelay: delay,
+						},
+					},
+				}},
+			}},
+		}
+	}
+
 	cases := []struct {
 		Name     string
 		Job      *Job
@@ -634,20 +689,13 @@ func TestJob_Warnings(t *testing.T) {
 		},
 		{
 			Name:     "Services without task shutdown delay warning",
-			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
+			Expected: []string{"task \"api\" in group \"web\" defines services, but has no shutdown_delay set"},
 			Job: &Job{
 				Type: JobTypeService,
-				TaskGroups: []*TaskGroup{
-					{
-						Name: "web",
-						Tasks: []*Task{
-							{
-								Name:     "api",
-								Services: []*Service{{Name: "api"}},
-							},
-						},
-					},
-				},
+				TaskGroups: []*TaskGroup{{
+					Name:  "web",
+					Tasks: taskWithServices(0),
+				}},
 			},
 		},
 		{
@@ -655,48 +703,41 @@ func TestJob_Warnings(t *testing.T) {
 			Expected: []string{},
 			Job: &Job{
 				Type: JobTypeService,
-				TaskGroups: []*TaskGroup{
-					{
-						Name: "web",
-						Tasks: []*Task{
-							{
-								Name:          "api",
-								ShutdownDelay: time.Second,
-								Services:      []*Service{{Name: "api"}},
-							},
-						},
-					},
-				},
+				TaskGroups: []*TaskGroup{{
+					Name:  "web",
+					Tasks: taskWithServices(time.Second),
+				}},
 			},
 		},
 		{
 			Name:     "Group services without task shutdown delay warning",
-			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
-			Job: &Job{
-				Type: JobTypeService,
-				TaskGroups: []*TaskGroup{
-					{
-						Name:     "web",
-						Services: []*Service{{Name: "web"}},
-						Tasks:    []*Task{{Name: "api"}},
-					},
-				},
-			},
+			Expected: []string{"group \"web\" defines services, but neither the group nor any task with services has shutdown_delay set"},
+			Job:      groupServiceJob(nil),
 		},
 		{
 			Name:     "Group services with group-level shutdown delay but no task-level shutdown delay set",
-			Expected: []string{"services are defined in the job, but no task with services has shutdown_delay set"},
-			Job: &Job{
-				Type: JobTypeService,
-				TaskGroups: []*TaskGroup{
-					{
-						Name:          "web",
-						Services:      []*Service{{Name: "web"}},
-						ShutdownDelay: pointer.Of(time.Second),
-						Tasks:         []*Task{{Name: "api"}},
-					},
-				},
-			},
+			Expected: []string{},
+			Job:      groupServiceJob(pointer.Of(time.Second)),
+		},
+		{
+			Name:     "Group service references task without shutdown delay warning",
+			Expected: []string{"group \"web\" references task \"api\" in a service definition, but the task has no shutdown_delay set"},
+			Job:      referencedTaskServiceJob(0),
+		},
+		{
+			Name:     "Group service references task with shutdown delay no warning",
+			Expected: []string{},
+			Job:      referencedTaskServiceJob(time.Second),
+		},
+		{
+			Name:     "Connect sidecar task without shutdown delay warning",
+			Expected: []string{"service \"web\" defines a sidecar task in Consul Connect definition, but the task has no shutdown_delay set"},
+			Job:      connectSidecarServiceJob(pointer.Of(time.Duration(0))),
+		},
+		{
+			Name:     "Connect sidecar task with shutdown delay no warning",
+			Expected: []string{},
+			Job:      connectSidecarServiceJob(pointer.Of(time.Second)),
 		},
 	}
 
