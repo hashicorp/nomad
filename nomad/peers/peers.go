@@ -152,6 +152,8 @@ func IsNomadServer(m serf.Member) (bool, *Parts) {
 // Returned peer objects are copies of the cached objects. This ensures that the
 // peer object is not mutated while being used by the caller.
 type PeerCache struct {
+	// region is the local region where the cache's server is located.
+	region string
 
 	// allPeers is a map of region names to the list of known server peers in
 	// that region. Peers stored here can be in failed states and is used for
@@ -174,8 +176,9 @@ type PeerCache struct {
 }
 
 // NewPeerCache returns a new instance of a PeerCache ready for use.
-func NewPeerCache() *PeerCache {
+func NewPeerCache(localRegion string) *PeerCache {
 	return &PeerCache{
+		region:     localRegion,
 		allPeers:   make(map[string][]*Parts),
 		alivePeers: make(map[string][]*Parts),
 		localPeers: make(map[raft.ServerAddress]*Parts),
@@ -261,7 +264,7 @@ func (p *PeerCache) RegionPeers(region string) []*Parts {
 
 // UpdatePeerSet adds or updates the given parts in the cache. This should be
 // called when a new peer is detected or an existing peer changes is status.
-func (p *PeerCache) UpdatePeerSet(parts *Parts, localRegion string) {
+func (p *PeerCache) UpdatePeerSet(parts *Parts) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
@@ -273,17 +276,17 @@ func (p *PeerCache) UpdatePeerSet(parts *Parts, localRegion string) {
 	switch parts.Status {
 	case serf.StatusAlive:
 		p.peerSetLocked(p.alivePeers, parts)
-		p.peerSetLocalLocked(parts, localRegion)
+		p.peerSetLocalLocked(parts)
 	default:
 		p.peerDeleteLocked(p.alivePeers, parts)
-		p.peerDeleteLocalLocked(parts, localRegion)
+		p.peerDeleteLocalLocked(parts)
 	}
 }
 
 // peerSetLocalLocked adds or updates the given parts in the local peers map if
 // it is in the local region. The caller must hold the peersLock.
-func (p *PeerCache) peerSetLocalLocked(parts *Parts, localRegion string) {
-	if parts.Region == localRegion {
+func (p *PeerCache) peerSetLocalLocked(parts *Parts) {
+	if parts.Region == p.region {
 		p.localPeers[raft.ServerAddress(parts.Addr.String())] = parts
 	}
 }
@@ -312,22 +315,22 @@ func (p *PeerCache) peerSetLocked(peers map[string][]*Parts, parts *Parts) {
 
 // PeerDelete removes the given members from the cache. This should be called
 // when a peer is reaped from the Serf cluster.
-func (p *PeerCache) PeerDelete(event serf.MemberEvent) {
+func (p *PeerCache) PeerDelete(parts *Parts) {
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
 
-	for _, m := range event.Members {
-		if ok, parts := IsNomadServer(m); ok {
-			p.peerDeleteLocked(p.allPeers, parts)
-			p.peerDeleteLocked(p.alivePeers, parts)
-		}
-	}
+	p.peerDeleteLocked(p.allPeers, parts)
+	p.peerDeleteLocked(p.alivePeers, parts)
+
+	// servers that are removed via "-prune force-leave" skip updating
+	// so cleanup the local peer cache here
+	p.peerDeleteLocalLocked(parts)
 }
 
 // peerDeleteLocalLocked removes the given parts from the local peers map if it
 // is in the local region. The caller must hold the peersLock.
-func (p *PeerCache) peerDeleteLocalLocked(parts *Parts, localRegion string) {
-	if parts.Region == localRegion {
+func (p *PeerCache) peerDeleteLocalLocked(parts *Parts) {
+	if parts.Region == p.region {
 		delete(p.localPeers, raft.ServerAddress(parts.Addr.String()))
 	}
 }

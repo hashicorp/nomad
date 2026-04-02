@@ -367,7 +367,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		rpcServer:               rpc.NewServer(),
 		streamingRpcs:           structs.NewStreamingRpcRegistry(),
 		nodeConns:               make(map[string][]*nodeConnState),
-		peersCache:              peers.NewPeerCache(),
+		peersCache:              peers.NewPeerCache(config.Region),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
 		reconcileCh:             make(chan serf.Member, 32),

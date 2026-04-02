@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"path"
 	"strings"
 	"testing"
@@ -427,7 +428,7 @@ func TestNomad_BadExpect(t *testing.T) {
 
 // TestNomad_NonBootstraping_ShouldntBootstap asserts that if BootstrapExpect is zero,
 // the server shouldn't bootstrap
-func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
+func TestNomad_NonBootstraping_ShouldntBootstrap(t *testing.T) {
 	ci.Parallel(t)
 
 	dir := t.TempDir()
@@ -461,4 +462,100 @@ func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
 	p, _ := s1.numPeers()
 	require.Zero(t, p, "number of peers in Raft")
 
+}
+
+func TestNomad_serfEventHandler_peers(t *testing.T) {
+
+	testChan := make(chan serf.Event, 10)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {})
+	t.Cleanup(cleanupS1)
+
+	s1.eventCh = testChan
+
+	// Add a serf member
+	testChan <- serf.MemberEvent{
+		Type: serf.EventMemberJoin,
+		Members: []serf.Member{
+			serf.Member{
+				Name:   "test1",
+				Addr:   net.IP{},
+				Port:   0,
+				Status: serf.StatusAlive,
+				Tags: map[string]string{
+					"region": "test",
+					"role":   "nomad",
+					"port":   "123",
+					"build":  "1.0.0",
+				},
+			},
+		},
+	}
+	testutil.WaitForResult(func() (bool, error) {
+		p := len(s1.peersCache.RegionPeers("test"))
+		if p != 1 {
+			return false, fmt.Errorf("%d", p)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("expected a peer in region 'test'")
+	})
+
+	// Update a serf member
+	testChan <- serf.MemberEvent{
+		Type: serf.EventMemberUpdate,
+		Members: []serf.Member{
+			serf.Member{
+				Name:   "test1",
+				Addr:   net.IP{},
+				Port:   0,
+				Status: serf.StatusAlive,
+				Tags: map[string]string{
+					"region": "test",
+					"role":   "nomad",
+					"port":   "123",
+					"build":  "2.0.0",
+				},
+			},
+		},
+	}
+	testutil.WaitForResult(func() (bool, error) {
+		build := s1.peersCache.RegionPeers("test")[0].Build.String()
+		if build != "2.0.0" {
+			return false, fmt.Errorf("%s", build)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("expected a peers version to be updated")
+	})
+
+	// Remove a serf member
+	testChan <- serf.MemberEvent{
+		Type: serf.EventMemberLeave,
+		Members: []serf.Member{
+			serf.Member{
+				Name:   "test1",
+				Addr:   net.IP{},
+				Port:   0,
+				Status: serf.StatusLeft,
+				Tags: map[string]string{
+					"region": "test",
+					"role":   "nomad",
+					"port":   "123",
+					"build":  "2.0.0",
+				},
+			},
+		},
+	}
+	testutil.WaitForResult(func() (bool, error) {
+		p := len(s1.peersCache.RegionPeers("test"))
+		if p != 0 {
+			return false, fmt.Errorf("%d", p)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("expected the peer to leave the cache")
+	})
 }
