@@ -21,7 +21,7 @@ const (
 	SecretsPluginDir = "secrets"
 
 	// The timeout for the plugin command before it is send SIGTERM
-	SecretsCmdTimeout = 10 * time.Second
+	SecretsCmdTimeout = 60 * time.Second
 
 	// The timeout before the command is sent SIGKILL after being SIGTERM'd
 	SecretsKillTimeout = 2 * time.Second
