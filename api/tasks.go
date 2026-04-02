@@ -1260,6 +1260,7 @@ type WorkloadIdentity struct {
 	Filepath     string        `hcl:"filepath,optional"`
 	ServiceName  string        `hcl:"service_name,optional"`
 	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+	ExtraClaims  []string      `mapstructure:"extra_claims" hcl:"extra_claims,optional"`
 }
 
 type Action struct {

@@ -294,9 +294,8 @@ type WorkloadIdentity struct {
 	// this identity (eg the JWT "exp" claim).
 	TTL time.Duration
 
-	// Note: ExtraClaims is available on config/WorkloadIdentity but not
-	// available here on jobspecs because that might allow a job author to
-	// escalate their privileges if they know what claim mappings to expect.
+	// ExtraClaims are additional claims to add to the workload identity token, which are set based on the configuration of the namespace
+	ExtraClaims []string
 }
 
 func DefaultWorkloadIdentity() *WorkloadIdentity {
@@ -339,6 +338,7 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		Filepath:     wi.Filepath,
 		ServiceName:  wi.ServiceName,
 		TTL:          wi.TTL,
+		ExtraClaims:  slices.Clone(wi.ExtraClaims),
 	}
 }
 
@@ -380,6 +380,10 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 	}
 
 	if wi.TTL != other.TTL {
+		return false
+	}
+
+	if !slices.Equal(wi.ExtraClaims, other.ExtraClaims) {
 		return false
 	}
 

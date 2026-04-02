@@ -1814,6 +1814,7 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		Filepath:     in.Filepath,
 		ServiceName:  in.ServiceName,
 		TTL:          in.TTL,
+		ExtraClaims:  slices.Clone(in.ExtraClaims),
 	}
 }
 
