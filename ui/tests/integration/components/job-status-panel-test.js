@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
@@ -452,7 +453,7 @@ module(
 
       await Promise.all(
         this.get('job.allocations')
-          .filterBy('clientStatus', 'failed')
+          .filter((item) => get(item, 'clientStatus') === 'failed')
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
@@ -552,7 +553,7 @@ module(
       // Set 3 allocations to health-pending canaries
       await Promise.all(
         this.get('job.allocations')
-          .filterBy('clientStatus', 'running')
+          .filter((item) => get(item, 'clientStatus') === 'running')
           .slice(0, 3)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: null, Canary: true });
@@ -580,7 +581,7 @@ module(
       // Fail the health check on 1 canary
       await Promise.all(
         this.get('job.allocations')
-          .filterBy('clientStatus', 'running')
+          .filter((item) => get(item, 'clientStatus') === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: false, Canary: true });
@@ -594,7 +595,7 @@ module(
       // That 1 passes its health checks, but two peers remain pending
       await Promise.all(
         this.get('job.allocations')
-          .filterBy('clientStatus', 'running')
+          .filter((item) => get(item, 'clientStatus') === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('deploymentStatus', { Healthy: true, Canary: true });
@@ -608,7 +609,7 @@ module(
       // Fail one of the running canaries, but dont specifically touch its deploymentStatus.health
       await Promise.all(
         this.get('job.allocations')
-          .filterBy('clientStatus', 'running')
+          .filter((item) => get(item, 'clientStatus') === 'running')
           .slice(0, 1)
           .map(async (a) => {
             await a.set('clientStatus', 'failed');

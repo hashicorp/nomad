@@ -4,6 +4,7 @@
  */
 
 // @ts-check
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
@@ -139,8 +140,19 @@ export default class JobStatusPanelSteadyComponent extends Component {
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
-      return this.args.job.allocations.filterBy('nodeID').uniqBy('nodeID')
-        .length;
+      return this.args.job.allocations
+        .filter((item) => get(item, 'nodeID'))
+        .reduce(
+          ([uniqArr, itemsSet, getterFn], item) => {
+            const val = getterFn(item);
+            if (!itemsSet.has(val)) {
+              itemsSet.add(val);
+              uniqArr.push(item);
+            }
+            return [uniqArr, itemsSet, getterFn];
+          },
+          [[], new Set(), (item) => get(item, 'nodeID')]
+        )[0].length;
     } else {
       return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
     }

@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { test } from 'qunit';
 import { currentURL, visit } from '@ember/test-helpers';
 
@@ -27,7 +29,9 @@ const fileSort = (prop, files) => {
     }
   });
 
-  return dir.sortBy(prop).concat(file.sortBy(prop));
+  return [...dir]
+    .sort((a, b) => compare(get(a, prop), get(b, prop)))
+    .concat([...file].sort((a, b) => compare(get(a, prop), get(b, prop))));
 };
 
 export default function browseFilesystem({
@@ -265,7 +269,7 @@ export default function browseFilesystem({
       'zzz-med-new-file',
     ]);
 
-    await FS.sortBy('Name');
+    await [...FS].sort((a, b) => compare(get(a, 'Name'), get(b, 'Name')));
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'zzz-med-new-file',
@@ -276,7 +280,7 @@ export default function browseFilesystem({
       'aaa-big-old-directory',
     ]);
 
-    await FS.sortBy('ModTime');
+    await [...FS].sort((a, b) => compare(get(a, 'ModTime'), get(b, 'ModTime')));
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'zzz-med-new-file',
@@ -287,7 +291,7 @@ export default function browseFilesystem({
       'aaa-big-old-directory',
     ]);
 
-    await FS.sortBy('ModTime');
+    await [...FS].sort((a, b) => compare(get(a, 'ModTime'), get(b, 'ModTime')));
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'aaa-big-old-directory',
@@ -298,7 +302,7 @@ export default function browseFilesystem({
       'zzz-med-new-file',
     ]);
 
-    await FS.sortBy('Size');
+    await [...FS].sort((a, b) => compare(get(a, 'Size'), get(b, 'Size')));
 
     assert.deepEqual(
       FS.directoryEntryNames(),
@@ -313,7 +317,7 @@ export default function browseFilesystem({
       'expected files to be sorted by descending size and directories to be sorted by descending name'
     );
 
-    await FS.sortBy('Size');
+    await [...FS].sort((a, b) => compare(get(a, 'Size'), get(b, 'Size')));
 
     assert.deepEqual(
       FS.directoryEntryNames(),

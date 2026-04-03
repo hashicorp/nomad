@@ -5,6 +5,8 @@
 
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import AdapterError from '@ember-data/adapter/error';
 import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -103,12 +105,12 @@ module('Acceptance | allocation detail', function (hooks) {
       'Two resource utilization graphs'
     );
     assert.equal(
-      Allocation.resourceCharts.objectAt(0).name,
+      Allocation.resourceCharts[0].name,
       'CPU',
       'First chart is CPU'
     );
     assert.equal(
-      Allocation.resourceCharts.objectAt(1).name,
+      Allocation.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory'
     );
@@ -136,11 +138,14 @@ module('Acceptance | allocation detail', function (hooks) {
 
     await Allocation.lifecycleChart.tasks[0].visit();
 
-    const prestartEphemeralTask = server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    const prestartEphemeralTask = [
+      ...server.db.taskStates.where({ allocationId: allocation.id }),
+    ]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))
       .find((taskState) => {
-        const task = server.db.tasks.findBy({ name: taskState.name });
+        const task = server.db.tasks.find((item) =>
+          get(item, { name: taskState.name })
+        );
         return (
           task.Lifecycle &&
           task.Lifecycle.Hook === 'prestart' &&
@@ -183,9 +188,8 @@ module('Acceptance | allocation detail', function (hooks) {
 
     // Set the expected task states.
     const states = ['running', 'pending', 'dead'];
-    server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    [...server.db.taskStates.where({ allocationId: allocation.id })]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))
       .forEach((task, i) => {
         server.db.taskStates.update(task.id, { state: states[i] });
       });
@@ -193,9 +197,9 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.visit({ id: allocation.id });
 
     Allocation.tasks.forEach((taskRow, i) => {
-      const task = server.db.taskStates
-        .where({ allocationId: allocation.id })
-        .sortBy('name')[i];
+      const task = [
+        ...server.db.taskStates.where({ allocationId: allocation.id }),
+      ].sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[i];
       const events = server.db.taskEvents.where({ taskStateId: task.id });
       const event = events[events.length - 1];
 
@@ -233,11 +237,11 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('each task row should link to the task detail page', async function (assert) {
-    const task = server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')[0];
+    const task = [
+      ...server.db.taskStates.where({ allocationId: allocation.id }),
+    ].sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[0];
 
-    await Allocation.tasks.objectAt(0).clickLink();
+    await Allocation.tasks[0].clickLink();
 
     // Make sure the allocation is pending in order to ensure there are no tasks
     assert.equal(
@@ -247,7 +251,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
-    await Allocation.tasks.objectAt(0).clickRow();
+    await Allocation.tasks[0].clickRow();
 
     assert.equal(
       currentURL(),
@@ -276,8 +280,12 @@ module('Acceptance | allocation detail', function (hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.taskStates.models.sortBy('name')[0];
-    const task = server.schema.tasks.findBy({ name: taskState.name });
+    const taskState = [...allocation.taskStates.models].sort((a, b) =>
+      compare(get(a, 'name'), get(b, 'name'))
+    )[0];
+    const task = server.schema.tasks.find((item) =>
+      get(item, { name: taskState.name })
+    );
     task.update('kind', 'connect-proxy:task');
     task.save();
 
@@ -307,32 +315,41 @@ module('Acceptance | allocation detail', function (hooks) {
   test('ports are listed', async function (assert) {
     const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
-    allServerPorts.sortBy('Label').forEach((serverPort, index) => {
-      const renderedPort = Allocation.ports[index];
+    [...allServerPorts]
+      .sort((a, b) => compare(get(a, 'Label'), get(b, 'Label')))
+      .forEach((serverPort, index) => {
+        const renderedPort = Allocation.ports[index];
 
-      assert.equal(renderedPort.name, serverPort.Label);
-      assert.equal(renderedPort.to, serverPort.To);
-      assert.equal(
-        renderedPort.address,
-        formatHost(serverPort.HostIP, serverPort.Value)
-      );
-    });
+        assert.equal(renderedPort.name, serverPort.Label);
+        assert.equal(renderedPort.to, serverPort.To);
+        assert.equal(
+          renderedPort.address,
+          formatHost(serverPort.HostIP, serverPort.Value)
+        );
+      });
   });
 
   test('services are listed', async function (assert) {
-    const taskGroup = server.schema.taskGroups.findBy({
-      name: allocation.taskGroup,
-    });
+    const taskGroup = server.schema.taskGroups.find((item) =>
+      get(item, {
+        name: allocation.taskGroup,
+      })
+    );
 
     assert.equal(Allocation.services.length, taskGroup.services.length);
 
-    taskGroup.services.models.sortBy('name').forEach((serverService, index) => {
-      const renderedService = Allocation.services[index];
+    [...taskGroup.services.models]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))
+      .forEach((serverService, index) => {
+        const renderedService = Allocation.services[index];
 
-      assert.equal(renderedService.name, serverService.name);
-      assert.equal(renderedService.port, serverService.portLabel);
-      assert.equal(renderedService.tags, (serverService.tags || []).join(' '));
-    });
+        assert.equal(renderedService.name, serverService.name);
+        assert.equal(renderedService.port, serverService.portLabel);
+        assert.equal(
+          renderedService.tags,
+          (serverService.tags || []).join(' ')
+        );
+      });
   });
 
   test('when the allocation is not found, an error message is shown, but the URL persists', async function (assert) {
@@ -610,11 +627,14 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     allocation = server.create('allocation', 'preempter');
     await Allocation.visit({ id: allocation.id });
 
-    const preemption = allocation.preemptedAllocations
-      .map((id) => server.schema.find('allocation', id))
-      .sortBy('modifyIndex')
+    const preemption = [
+      ...allocation.preemptedAllocations.map((id) =>
+        server.schema.find('allocation', id)
+      ),
+    ]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse()[0];
-    const preemptionRow = Allocation.preemptions.objectAt(0);
+    const preemptionRow = Allocation.preemptions[0];
 
     assert.equal(
       Allocation.preemptions.length,
@@ -695,7 +715,9 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       forceRunningClientStatus: true,
       clientStatus: 'running',
     });
-    const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
+    const otherAlloc = server.db.allocations.filter(function (...args) {
+      return !((j) => j.jobId !== job.id).apply(this, args);
+    });
 
     server.db.serviceFragments.update({
       healthChecks: [
@@ -743,11 +765,13 @@ module('Acceptance | allocation detail (services)', function (hooks) {
 
   test('Allocation has a list of services with active checks', async function (assert) {
     faker.seed(1);
-    const runningAlloc = server.db.allocations.findBy({
-      jobId: 'service-haver',
-      forceRunningClientStatus: true,
-      clientStatus: 'running',
-    });
+    const runningAlloc = server.db.allocations.find((item) =>
+      get(item, {
+        jobId: 'service-haver',
+        forceRunningClientStatus: true,
+        clientStatus: 'running',
+      })
+    );
     await Allocation.visit({ id: runningAlloc.id });
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();

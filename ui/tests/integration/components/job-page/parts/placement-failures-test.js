@@ -5,6 +5,8 @@
 
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import hbs from 'htmlbars-inline-precompile';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -48,9 +50,12 @@ module(
       <JobPage::Parts::PlacementFailures @job={{job}} />)
     `);
 
-      const failedEvaluation = this.get('job.evaluations')
-        .filterBy('hasPlacementFailures')
-        .sortBy('modifyIndex')
+      const failedEvaluation = [
+        ...this.get('job.evaluations').filter((item) =>
+          get(item, 'hasPlacementFailures')
+        ),
+      ]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse()
         .get('firstObject');
       const failedTGAllocs = failedEvaluation.get('failedTGAllocs');

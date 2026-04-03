@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import d3Format from 'd3-format';
@@ -29,12 +30,12 @@ module('Unit | Component | line-chart', function (hooks) {
     let [xDomainLow, xDomainHigh] = chart.xScale.domain();
     assert.equal(
       xDomainLow,
-      Math.min(...data.mapBy('foo')),
+      Math.min(...data.map((item) => get(item, 'foo'))),
       'Domain lower bound is the lowest foo value'
     );
     assert.equal(
       xDomainHigh,
-      Math.max(...data.mapBy('foo')),
+      Math.max(...data.map((item) => get(item, 'foo'))),
       'Domain upper bound is the highest foo value'
     );
 
@@ -58,7 +59,7 @@ module('Unit | Component | line-chart', function (hooks) {
     assert.equal(yDomainLow, 0, 'Domain lower bound is always 0');
     assert.equal(
       yDomainHigh,
-      Math.max(...data.mapBy('bar')),
+      Math.max(...data.map((item) => get(item, 'bar'))),
       'Domain upper bound is the highest bar value'
     );
 

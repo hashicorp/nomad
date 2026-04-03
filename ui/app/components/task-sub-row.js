@@ -4,6 +4,7 @@
  */
 
 // @ts-check
+import { get } from '@ember/object';
 import Ember from 'ember';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
@@ -58,7 +59,9 @@ export default class TaskSubRowComponent extends Component {
   get taskStats() {
     if (!this.stats) return undefined;
 
-    return this.stats.tasks.findBy('task', this.task.name);
+    return this.stats.tasks.find(
+      (item) => get(item, 'task') === this.task.name
+    );
   }
 
   @alias('taskStats.cpu.lastObject') cpu;

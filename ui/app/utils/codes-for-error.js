@@ -13,8 +13,7 @@ export default function codesForError(error) {
     });
   }
 
-  return codes
-    .compact()
-    .uniq()
-    .map((code) => '' + code);
+  return [
+    ...new Set(codes.filter((item) => item !== undefined && item !== null)),
+  ].map((code) => '' + code);
 }

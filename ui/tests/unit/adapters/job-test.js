@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { next } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
@@ -84,7 +85,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     await settled();
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}`],
       'The only request made is /job/:id'
     );
@@ -102,7 +103,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}`],
       'The only request made is /job/:id with no namespace query param'
     );
@@ -120,7 +121,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}`],
       'The request made is /job/:id with no namespace query param'
     );
@@ -138,7 +139,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}?namespace=${jobNamespace}`],
       'The only request made is /job/:id?namespace=:namespace'
     );
@@ -155,7 +156,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     assert.notOk(
       pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map((item) => get(item, 'requestHeaders'))
         .some((headers) => headers['X-Nomad-Token']),
       'No token header present on either job request'
     );
@@ -174,7 +175,7 @@ module('Unit | Adapter | Job', function (hooks) {
 
     assert.ok(
       pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map((item) => get(item, 'requestHeaders'))
         .every((headers) => headers['X-Nomad-Token'] === secret),
       'The token header is present on both job requests'
     );
@@ -388,7 +389,8 @@ module('Unit | Adapter | Job', function (hooks) {
       'Two findRecord requests were made'
     );
     assert.equal(
-      pretender.requestReferences.mapBy('url').uniq().length,
+      [...new Set(pretender.requestReferences.map((item) => get(item, 'url')))]
+        .length,
       1,
       'The two requests have the same URL'
     );
@@ -439,7 +441,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}`, '/v1/jobs'],
       'No requests include the region query param'
     );
@@ -461,7 +463,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}?region=${region}`, `/v1/jobs?region=${region}`],
       'Requests include the region query param'
     );
@@ -484,7 +486,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.deepEqual(
-      pretender.handledRequests.mapBy('url'),
+      pretender.handledRequests.map((item) => get(item, 'url')),
       [`/v1/job/${jobName}`, '/v1/jobs'],
       'No requests include the region query param'
     );

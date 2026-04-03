@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
@@ -37,27 +38,34 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters.mapBy('name'), [
-      'dc1',
-      'dc2',
-    ]);
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
-      nodes[0],
-      nodes[2],
-    ]);
-    assert.deepEqual(topoViz.topology.datacenters[1].nodes.mapBy('node'), [
-      nodes[1],
-    ]);
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters.map((item) => get(item, 'name')),
+      ['dc1', 'dc2']
+    );
+    assert.deepEqual(
+      topoViz.topology.datacenters[0].nodes.map((item) => get(item, 'node')),
+      [nodes[0], nodes[2]]
+    );
+    assert.deepEqual(
+      topoViz.topology.datacenters[1].nodes.map((item) => get(item, 'node')),
+      [nodes[1]]
+    );
+    assert.deepEqual(
+      topoViz.topology.datacenters[0].nodes[0].allocations.map((item) =>
+        get(item, 'allocation')
+      ),
       node0Allocs
     );
     assert.deepEqual(
-      topoViz.topology.datacenters[1].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[1].nodes[0].allocations.map((item) =>
+        get(item, 'allocation')
+      ),
       node1Allocs
     );
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[1].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[0].nodes[1].allocations.map((item) =>
+        get(item, 'allocation')
+      ),
       node2Allocs
     );
   });
@@ -100,7 +108,9 @@ module('Unit | Component | TopoViz', function (hooks) {
     Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
       const [jobId, group] = JSON.parse(key);
       assert.deepEqual(
-        topoViz.topology.allocationIndex[key].mapBy('allocation'),
+        topoViz.topology.allocationIndex[key].map((item) =>
+          get(item, 'allocation')
+        ),
         allocations.filter(
           (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group
         )
@@ -224,11 +234,14 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
-      nodes[0],
-    ]);
     assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
+      topoViz.topology.datacenters[0].nodes.map((item) => get(item, 'node')),
+      [nodes[0]]
+    );
+    assert.deepEqual(
+      topoViz.topology.datacenters[0].nodes[0].allocations.map((item) =>
+        get(item, 'allocation')
+      ),
       [allocations[0]]
     );
   });

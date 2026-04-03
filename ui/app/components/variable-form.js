@@ -138,13 +138,15 @@ export default class VariableFormComponent extends Component {
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     const pathValue = trimPath([this.path]);
-    let existingVariable = existingVariables
-      .without(this.args.model)
-      .find(
-        (v) =>
-          v.path === pathValue &&
-          (v.namespace === this.variableNamespace || !this.variableNamespace)
-      );
+    let existingVariable = (
+      existingVariables.indexOf(this.args.model) > -1
+        ? existingVariables.filter((item) => item !== this.args.model)
+        : existingVariables
+    ).find(
+      (v) =>
+        v.path === pathValue &&
+        (v.namespace === this.variableNamespace || !this.variableNamespace)
+    );
     if (existingVariable) {
       return {
         path: existingVariable.path,

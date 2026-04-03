@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 import AdapterError from '@ember-data/adapter/error';
 import classic from 'ember-classic-decorator';
@@ -48,7 +49,7 @@ export default class AgentSerializer extends ApplicationSerializer {
     return super.normalizeSingleResponse(
       store,
       typeClass,
-      hash.findBy('Name', id),
+      hash.find((item) => get(item, 'Name') === id),
       id,
       ...args
     );

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
@@ -27,20 +28,18 @@ export default class Deployment extends Model {
   get requiresPromotion() {
     return (
       this.status === 'running' &&
-      this.taskGroupSummaries
-        .toArray()
-        .some(
-          (summary) =>
-            summary.get('requiresPromotion') && !summary.get('promoted')
-        )
+      [...this.taskGroupSummaries].some(
+        (summary) =>
+          summary.get('requiresPromotion') && !summary.get('promoted')
+      )
     );
   }
 
   @computed('taskGroupSummaries.@each.autoPromote')
   get isAutoPromoted() {
-    return this.taskGroupSummaries
-      .toArray()
-      .every((summary) => summary.get('autoPromote'));
+    return [...this.taskGroupSummaries].every((summary) =>
+      summary.get('autoPromote')
+    );
   }
 
   @attr('string') status;
@@ -53,9 +52,8 @@ export default class Deployment extends Model {
 
   @computed('versionNumber', 'job.versions.content.@each.number')
   get version() {
-    return (this.get('job.versions') || []).findBy(
-      'number',
-      this.versionNumber
+    return (this.get('job.versions') || []).find(
+      (item) => get(item, 'number') === this.versionNumber
     );
   }
 

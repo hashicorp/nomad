@@ -61,8 +61,8 @@ module('Acceptance | regions (only one)', function (hooks) {
     await JobsList.visit();
     assert.equal(currentURL(), '/jobs', 'No region query param');
 
-    const jobId = JobsList.jobs.objectAt(0).id;
-    await JobsList.jobs.objectAt(0).clickRow();
+    const jobId = JobsList.jobs[0].id;
+    await JobsList.jobs[0].clickRow();
     assert.equal(
       currentURL(),
       `/jobs/${jobId}@default`,
@@ -77,7 +77,7 @@ module('Acceptance | regions (only one)', function (hooks) {
     server.create('region', { id: 'global' });
 
     await JobsList.visit();
-    await JobsList.jobs.objectAt(0).clickRow();
+    await JobsList.jobs[0].clickRow();
     await Layout.gutter.visitClients();
     await Layout.gutter.visitServers();
     server.pretender.handledRequests
@@ -191,7 +191,7 @@ module('Acceptance | regions (many)', function (hooks) {
 
     await JobsList.visit({ region });
 
-    await JobsList.jobs.objectAt(0).clickRow();
+    await JobsList.jobs[0].clickRow();
     await Layout.gutter.visitClients();
     await Layout.gutter.visitServers();
 

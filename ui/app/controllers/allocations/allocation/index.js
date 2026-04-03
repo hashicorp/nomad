@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable ember/no-observers */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -53,25 +55,29 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @computed('model.allocatedResources.ports.@each.label')
   get ports() {
-    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+    return [...(this.get('model.allocatedResources.ports') || [])].sort(
+      (a, b) => compare(get(a, 'label'), get(b, 'label'))
+    );
   }
 
   @computed('model.states.@each.task')
   get tasks() {
-    return this.get('model.states').mapBy('task') || [];
+    return this.get('model.states').map((item) => get(item, 'task')) || [];
   }
 
   @computed('tasks.@each.services')
   get taskServices() {
     return this.get('tasks')
-      .map((t) => ((t && t.services) || []).toArray())
+      .map((t) => [...((t && t.services) || [])])
       .flat()
-      .compact();
+      .filter((item) => item !== undefined && item !== null);
   }
 
   @computed('model.taskGroup.services.@each.name')
   get groupServices() {
-    return (this.get('model.taskGroup.services') || []).sortBy('name');
+    return [...(this.get('model.taskGroup.services') || [])].sort((a, b) =>
+      compare(get(a, 'name'), get(b, 'name'))
+    );
   }
 
   @union('taskServices', 'groupServices') services;
@@ -93,9 +99,8 @@ export default class IndexController extends Controller.extend(Sortable) {
         });
       }
       // Contextualize healthchecks for the allocation we're in
-      service.healthChecks = service.healthChecks.filterBy(
-        'Alloc',
-        this.model.id
+      service.healthChecks = service.healthChecks.filter(
+        (item) => get(item, 'Alloc') === this.model.id
       );
       return service;
     });
@@ -179,7 +184,9 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @computed('activeServiceID', 'services')
   get activeService() {
-    return this.services.findBy('refID', this.activeServiceID);
+    return this.services.find(
+      (item) => get(item, 'refID') === this.activeServiceID
+    );
   }
 
   @action closeSidebar() {

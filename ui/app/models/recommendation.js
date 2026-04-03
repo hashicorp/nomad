@@ -21,7 +21,9 @@ export default class Recommendation extends Model {
   @attr('string') taskName;
 
   get task() {
-    return get(this, 'taskGroup.tasks').findBy('name', this.taskName);
+    return get(this, 'taskGroup.tasks').find(
+      (item) => get(item, 'name') === this.taskName
+    );
   }
 
   @attr('string') resource;

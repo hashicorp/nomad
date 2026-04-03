@@ -30,6 +30,7 @@ module.exports = {
   rules: {
     'ember/classic-decorator-hooks': 'error',
     'ember/classic-decorator-no-classic-methods': 'error',
+    'ember/no-array-prototype-extensions': 'error',
     'ember/no-get': 'off',
     'ember/no-mixins': 'off',
     'ember/no-classic-classes': 'off',

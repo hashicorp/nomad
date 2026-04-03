@@ -40,10 +40,9 @@ export default class Client extends AbstractAbility {
 
 function policiesIncludePermissions(policies = [], permissions = []) {
   // For each policy record, extract the Node policy
-  const nodePolicies = policies
-    .toArray()
+  const nodePolicies = [...policies]
     .map((policy) => get(policy, 'rulesJSON.Node.Policy'))
-    .compact();
+    .filter((item) => item !== undefined && item !== null);
 
   // Check for requested permissions
   return nodePolicies.some((policy) => permissions.includes(policy));

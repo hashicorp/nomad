@@ -213,7 +213,7 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    let err = error.errors?.objectAt(0);
+    let err = error.errors?.[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (

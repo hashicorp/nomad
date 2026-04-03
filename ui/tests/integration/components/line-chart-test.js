@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import {
   find,
   findAll,
@@ -49,7 +51,9 @@ module('Integration | Component | line-chart', function (hooks) {
       </LineChart>
     `);
 
-    const sortedAnnotations = annotations.sortBy('x');
+    const sortedAnnotations = [...annotations].sort((a, b) =>
+      compare(get(a, 'x'), get(b, 'x'))
+    );
     findAll('[data-test-annotation]').forEach((annotation, idx) => {
       const datum = sortedAnnotations[idx];
       assert.equal(
@@ -98,7 +102,9 @@ module('Integration | Component | line-chart', function (hooks) {
       </LineChart>
     `);
 
-    const sortedAnnotations = annotations.sortBy('x').reverse();
+    const sortedAnnotations = [...annotations]
+      .sort((a, b) => compare(get(a, 'x'), get(b, 'x')))
+      .reverse();
     findAll('[data-test-annotation]').forEach((annotation, idx) => {
       const datum = sortedAnnotations[idx];
       assert.equal(
@@ -200,8 +206,8 @@ module('Integration | Component | line-chart', function (hooks) {
     `);
 
     const annotationEls = findAll('[data-test-annotation]');
-    annotations
-      .sortBy('y')
+    [...annotations]
+      .sort((a, b) => compare(get(a, 'y'), get(b, 'y')))
       .reverse()
       .forEach((annotation, index) => {
         assert.equal(annotationEls[index].textContent.trim(), annotation.label);

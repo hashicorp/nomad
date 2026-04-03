@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import EmberError from '@ember/error';
@@ -30,7 +31,9 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
     const reload = job.get('isPartial') ? job.reload() : resolve();
     return reload
       .then(() => {
-        const taskGroup = job.get('taskGroups').findBy('name', name);
+        const taskGroup = job
+          .get('taskGroups')
+          .find((item) => get(item, 'name') === name);
         if (!taskGroup) {
           const err = new EmberError(
             `Task group ${name} for job ${job.get('name')} not found`

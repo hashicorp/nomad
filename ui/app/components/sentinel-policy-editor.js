@@ -5,6 +5,7 @@
 
 // @ts-check
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -60,7 +61,7 @@ export default class SentinelPolicyEditorComponent extends Component {
         this.store
           .peekAll('sentinel-policy')
           .filter((policy) => policy !== this.policy)
-          .findBy('name', this.policy.name)
+          .find((item) => get(item, 'name') === this.policy.name)
       ) {
         throw new Error(
           `A sentinel policy with name ${this.policy.name} already exists.`

@@ -107,9 +107,7 @@ export default class SystemService extends Service {
   }
 
   get hasNonDefaultRegion() {
-    return this.get('regions')
-      .toArray()
-      .some((region) => region !== 'global');
+    return [...this.get('regions')].some((region) => region !== 'global');
   }
 
   @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
@@ -125,13 +123,15 @@ export default class SystemService extends Service {
     return PromiseArray.create({
       promise: this.store
         .findAll('namespace')
-        .then((namespaces) => namespaces.compact()),
+        .then((namespaces) =>
+          namespaces.filter((item) => item !== undefined && item !== null)
+        ),
     });
   }
 
   @computed('namespaces.[]')
   get shouldShowNamespaces() {
-    const namespaces = this.namespaces.toArray();
+    const namespaces = [...this.namespaces];
     return (
       namespaces.length &&
       namespaces.some((namespace) => namespace.get('id') !== 'default')

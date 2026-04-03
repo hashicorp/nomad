@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 
@@ -13,13 +14,13 @@ export default class JobStatusLatestDeploymentComponent extends Component {
   get healthyAllocs() {
     return this.deployment
       .get('taskGroupSummaries')
-      .mapBy('healthyAllocs')
+      .map((item) => get(item, 'healthyAllocs'))
       .reduce((sum, count) => sum + count, 0);
   }
   get desiredTotal() {
     return this.deployment
       .get('taskGroupSummaries')
-      .mapBy('desiredTotal')
+      .map((item) => get(item, 'desiredTotal'))
       .reduce((sum, count) => sum + count, 0);
   }
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { TextDecoderLite } from 'text-encoder-lite';
 import base64js from 'base64-js';
 
@@ -18,7 +19,13 @@ const decoder = new TextDecoderLite('utf-8');
  *                 object represents.
  */
 export function decode(chunk) {
-  const lines = chunk.replace(/\}\{/g, '}\n{').split('\n').without('');
+  const lines =
+    chunk.replace(/\}\{/g, '}\n{').split('\n').indexOf('') > -1
+      ? chunk
+          .replace(/\}\{/g, '}\n{')
+          .split('\n')
+          .filter((item) => item !== '')
+      : chunk.replace(/\}\{/g, '}\n{').split('\n');
   const frames = lines
     .map((line) => JSON.parse(line))
     .filter((frame) => frame.Data);
@@ -27,7 +34,7 @@ export function decode(chunk) {
     frames.forEach((frame) => (frame.Data = b64decode(frame.Data)));
     return {
       offset: frames[frames.length - 1].Offset,
-      message: frames.mapBy('Data').join(''),
+      message: frames.map((item) => get(item, 'Data')).join(''),
     };
   }
 

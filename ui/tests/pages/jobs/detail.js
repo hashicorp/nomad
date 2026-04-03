@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   create,
@@ -32,7 +33,7 @@ export default create({
   }),
 
   tabFor(id) {
-    return this.tabs.toArray().findBy('id', id);
+    return [...this.tabs].find((item) => get(item, 'id') === id);
   },
 
   recommendations: collection(
@@ -75,7 +76,7 @@ export default create({
   }),
 
   statFor(id) {
-    return this.stats.toArray().findBy('id', id);
+    return [...this.stats].find((item) => get(item, 'id') === id);
   },
 
   packStats: collection('[data-test-pack-stat]', {
@@ -84,7 +85,7 @@ export default create({
   }),
 
   packStatFor(id) {
-    return this.packStats.toArray().findBy('id', id);
+    return [...this.packStats].find((item) => get(item, 'id') === id);
   },
 
   statusModes: {

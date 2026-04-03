@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Ember from 'ember';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
@@ -49,7 +50,9 @@ export default class TaskRow extends Component {
   get taskStats() {
     if (!this.stats) return undefined;
 
-    return this.get('stats.tasks').findBy('task', this.get('task.name'));
+    return this.get('stats.tasks').find(
+      (item) => get(item, 'task') === this.get('task.name')
+    );
   }
 
   @alias('taskStats.cpu.lastObject') cpu;

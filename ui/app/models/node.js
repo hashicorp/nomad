@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
@@ -59,12 +61,14 @@ export default class Node extends Model {
 
   @computed('allocations.@each.clientStatus')
   get completeAllocations() {
-    return this.allocations.filterBy('clientStatus', 'complete');
+    return this.allocations.filter(
+      (item) => get(item, 'clientStatus') === 'complete'
+    );
   }
 
   @computed('allocations.@each.isRunning')
   get runningAllocations() {
-    return this.allocations.filterBy('isRunning');
+    return this.allocations.filter((item) => get(item, 'isRunning'));
   }
 
   @computed('allocations.@each.{isMigrating,isRunning}')
@@ -76,10 +80,12 @@ export default class Node extends Model {
 
   @computed('allocations.@each.{isMigrating,isRunning,modifyTime}')
   get lastMigrateTime() {
-    const allocation = this.allocations
-      .filterBy('isRunning', false)
-      .filterBy('isMigrating')
-      .sortBy('modifyTime')
+    const allocation = [
+      ...this.allocations
+        .filter((item) => get(item, 'isRunning') === false)
+        .filter((item) => get(item, 'isMigrating')),
+    ]
+      .sort((a, b) => compare(get(a, 'modifyTime'), get(b, 'modifyTime')))
       .reverse()[0];
     if (allocation) {
       return allocation.modifyTime;
@@ -94,17 +100,19 @@ export default class Node extends Model {
 
   @computed('drivers.@each.detected')
   get detectedDrivers() {
-    return this.drivers.filterBy('detected');
+    return this.drivers.filter((item) => get(item, 'detected'));
   }
 
   @computed('detectedDrivers.@each.healthy')
   get unhealthyDrivers() {
-    return this.detectedDrivers.filterBy('healthy', false);
+    return this.detectedDrivers.filter(
+      (item) => get(item, 'healthy') === false
+    );
   }
 
   @computed('unhealthyDrivers.@each.name')
   get unhealthyDriverNames() {
-    return this.unhealthyDrivers.mapBy('name');
+    return this.unhealthyDrivers.map((item) => get(item, 'name'));
   }
 
   // A status attribute that includes states not included in node status.

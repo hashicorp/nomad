@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
@@ -123,9 +124,11 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       rescheduleSuccess: false,
     });
 
-    const lastAllocation = server.schema.allocations.findBy({
-      nextAllocation: undefined,
-    });
+    const lastAllocation = server.schema.allocations.find((item) =>
+      get(item, {
+        nextAllocation: undefined,
+      })
+    );
     lastAllocation.update({
       followupEvalId: server.create('evaluation', {
         waitUntil: moment().add(2, 'hours').toDate(),

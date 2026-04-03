@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { compare } from '@ember/utils';
 import { get } from '@ember/object';
 import { currentURL, typeIn, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -81,11 +82,11 @@ module('Acceptance | topology', function (hooks) {
 
     const nodeResources = server.schema.nodes
       .all()
-      .models.mapBy('nodeResources');
+      .models.map((item) => get(item, 'nodeResources'));
     const taskResources = scheduledAllocs
-      .mapBy('taskResources.models')
+      .map((item) => get(item, 'taskResources.models'))
       .flat()
-      .mapBy('resources');
+      .map((item) => get(item, 'resources'));
 
     const totalMem = sumResources(nodeResources, 'Memory.MemoryMB');
     const totalCPU = sumResources(nodeResources, 'Cpu.CpuShares');
@@ -123,7 +124,9 @@ module('Acceptance | topology', function (hooks) {
 
     await Topology.visit();
     const requests = this.server.pretender.handledRequests;
-    assert.ok(requests.findBy('url', '/v1/nodes?resources=true'));
+    assert.ok(
+      requests.find((item) => get(item, 'url') === '/v1/nodes?resources=true')
+    );
 
     const allocationsRequest = requests.find((req) =>
       req.url.startsWith('/v1/allocations')
@@ -151,7 +154,9 @@ module('Acceptance | topology', function (hooks) {
     });
 
     // Get the first alloc of the first node that has an alloc
-    const sortedNodes = nodes.sortBy('datacenter');
+    const sortedNodes = [...nodes].sort((a, b) =>
+      compare(get(a, 'datacenter'), get(b, 'datacenter'))
+    );
     let node, alloc;
     for (let n of sortedNodes) {
       alloc = allocs.find((a) => a.nodeId === n.id);
@@ -161,13 +166,11 @@ module('Acceptance | topology', function (hooks) {
       }
     }
 
-    const dcIndex = nodes
-      .mapBy('datacenter')
-      .uniq()
+    const dcIndex = [...new Set(nodes.map((item) => get(item, 'datacenter')))]
       .sort()
       .indexOf(node.datacenter);
     const nodeIndex = nodes
-      .filterBy('datacenter', node.datacenter)
+      .filter((item) => get(item, 'datacenter') === node.datacenter)
       .indexOf(node);
 
     const reset = async () => {
@@ -182,7 +185,9 @@ module('Acceptance | topology', function (hooks) {
 
     assert.equal(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
 
-    const uniqueClients = allocs.mapBy('nodeId').uniq();
+    const uniqueClients = [
+      ...new Set(allocs.map((item) => get(item, 'nodeId'))),
+    ];
     assert.equal(
       Topology.allocInfoPanel.siblingAllocs,
       `Sibling Allocations: ${allocs.length}`
@@ -237,11 +242,15 @@ module('Acceptance | topology', function (hooks) {
     await Topology.visit();
     await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
     const firstAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+      Topology.allocInfoPanel.charts[0].areas.map((item) =>
+        get(item, 'taskName')
+      );
 
     await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
     const secondAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+      Topology.allocInfoPanel.charts[0].areas.map((item) =>
+        get(item, 'taskName')
+      );
 
     assert.notDeepEqual(firstAllocationTaskNames, secondAllocationTaskNames);
   });
@@ -249,7 +258,9 @@ module('Acceptance | topology', function (hooks) {
   test('when a node is selected, the info panel shows information on the node', async function (assert) {
     // A high node count is required for node selection
     const nodes = server.createList('node', 51);
-    const node = nodes.sortBy('datacenter')[0];
+    const node = [...nodes].sort((a, b) =>
+      compare(get(a, 'datacenter'), get(b, 'datacenter'))
+    )[0];
     server.createList('allocation', 5, { forceRunningClientStatus: true });
 
     const allocs = server.schema.allocations.where({ nodeId: node.id }).models;
@@ -280,9 +291,9 @@ module('Acceptance | topology', function (hooks) {
     );
 
     const taskResources = allocs
-      .mapBy('taskResources.models')
+      .map((item) => get(item, 'taskResources.models'))
       .flat()
-      .mapBy('resources');
+      .map((item) => get(item, 'resources'));
     const reservedMem = sumResources(taskResources, 'Memory.MemoryMB');
     const reservedCPU = sumResources(taskResources, 'Cpu.CpuShares');
 

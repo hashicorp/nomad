@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { equal, none } from '@ember/object/computed';
@@ -162,7 +163,10 @@ export default class Allocation extends Model {
   @computed('taskGroupName', 'job.taskGroups.[]')
   get jobTaskGroup() {
     const taskGroups = this.get('job.taskGroups');
-    return taskGroups && taskGroups.findBy('name', this.taskGroupName);
+    return (
+      taskGroups &&
+      taskGroups.find((item) => get(item, 'name') === this.taskGroupName)
+    );
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;

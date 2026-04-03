@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
@@ -86,7 +87,7 @@ export default class LineChart extends Component {
   get data() {
     if (!this.args.data) return [];
     if (this.args.dataProp) {
-      return this.args.data.mapBy(this.args.dataProp).flat();
+      return this.args.data.map((item) => get(item, this.args.dataProp)).flat();
     }
     return this.args.data;
   }
@@ -307,7 +308,7 @@ export default class LineChart extends Component {
           index: data.length - seriesIndex - 1,
         };
       })
-      .compact();
+      .filter((item) => item !== undefined && item !== null);
 
     // Of the selected data, determine which is closest
     const closestDatum = activeData

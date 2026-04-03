@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -78,15 +79,19 @@ export default class ExecController extends Controller {
     let allocation;
 
     if (this.allocationShortId) {
-      allocation = this.allocations.findBy('shortId', this.allocationShortId);
+      allocation = this.allocations.find(
+        (item) => get(item, 'shortId') === this.allocationShortId
+      );
     } else {
       let allocationPool = this.taskGroupName
-        ? this.allocations.filterBy('taskGroupName', this.taskGroupName)
+        ? this.allocations.filter(
+            (item) => get(item, 'taskGroupName') === this.taskGroupName
+          )
         : this.allocations;
       allocation = allocationPool.find((allocation) =>
         allocation.states
-          .filterBy('isActive')
-          .mapBy('name')
+          .filter((item) => get(item, 'isActive'))
+          .map((item) => get(item, 'name'))
           .includes(this.taskName)
       );
     }

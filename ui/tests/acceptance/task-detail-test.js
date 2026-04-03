@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
 import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -141,13 +142,9 @@ module('Acceptance | task detail', function (hooks) {
       2,
       'Two resource utilization graphs'
     );
+    assert.equal(Task.resourceCharts[0].name, 'CPU', 'First chart is CPU');
     assert.equal(
-      Task.resourceCharts.objectAt(0).name,
-      'CPU',
-      'First chart is CPU'
-    );
-    assert.equal(
-      Task.resourceCharts.objectAt(1).name,
+      Task.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory'
     );
@@ -238,7 +235,7 @@ module('Acceptance | task detail', function (hooks) {
 
   test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
-    const recentEvent = Task.events.objectAt(Task.events.length - 1);
+    const recentEvent = Task.events[Task.events.length - 1];
 
     assert.equal(
       recentEvent.time,
@@ -255,7 +252,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.equal(
       server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find((item) => get(item, 'status') === 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made'
     );
@@ -273,8 +270,8 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.ok(
       server.pretender.handledRequests
-        .filterBy('status', 200)
-        .mapBy('url')
+        .filter((item) => get(item, 'status') === 200)
+        .map((item) => get(item, 'url'))
         .includes(`/v1/allocation/${allocation.id}`),
       'A request to the allocation is made successfully'
     );
@@ -291,7 +288,9 @@ module('Acceptance | task detail', function (hooks) {
     await Task.restart.idle();
     await Task.restart.confirm();
 
-    const request = server.pretender.handledRequests.findBy('method', 'PUT');
+    const request = server.pretender.handledRequests.find(
+      (item) => get(item, 'method') === 'PUT'
+    );
     assert.equal(
       request.url,
       `/v1/client/allocation/${allocation.id}/restart`,
@@ -478,7 +477,9 @@ module('Acceptance | proxy task detail', function (hooks) {
     });
 
     const taskState = allocation.taskStates.models[0];
-    const task = server.schema.tasks.findBy({ name: taskState.name });
+    const task = server.schema.tasks.find((item) =>
+      get(item, { name: taskState.name })
+    );
     task.update('kind', 'connect-proxy:task');
     task.save();
 

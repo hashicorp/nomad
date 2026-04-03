@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import { collect } from '@ember/object/computed';
@@ -21,17 +22,18 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
 
-      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filterBy(
-        'provider',
-        'nomad'
+      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filter(
+        (item) => get(item, 'provider') === 'nomad'
       ).length;
 
       const anyTaskServicesAreNomad = model.states
-        .mapBy('task.services')
-        .compact()
-        .map((fragmentClass) => fragmentClass.mapBy('provider'))
+        .map((item) => get(item, 'task.services'))
+        .filter((item) => item !== undefined && item !== null)
+        .map((fragmentClass) =>
+          fragmentClass.map((item) => get(item, 'provider'))
+        )
         .flat()
-        .any((provider) => provider === 'nomad');
+        .some((provider) => provider === 'nomad');
 
       // Conditionally Long Poll /checks endpoint if alloc has nomad services
       if (anyGroupServicesAreNomad || anyTaskServicesAreNomad) {

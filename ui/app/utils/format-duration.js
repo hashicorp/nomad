@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import moment from 'moment';
 import { pluralize } from 'ember-inflector';
 
@@ -98,8 +99,8 @@ export default function formatDuration(
 
   // Get the count of each time unit that Moment handles
   allUnits
-    .filterBy('inMoment')
-    .mapBy('name')
+    .filter((item) => get(item, 'inMoment'))
+    .map((item) => get(item, 'name'))
     .forEach((unit) => {
       durationParts[unit] = momentDuration[unit]();
     });
@@ -119,5 +120,9 @@ export default function formatDuration(
   }
 
   // When the duration is 0, show 0 in terms of `units`
-  return pluralizeUnits(0, allUnits.findBy('suffix', units), longForm);
+  return pluralizeUnits(
+    0,
+    allUnits.find((item) => get(item, 'suffix') === units),
+    longForm
+  );
 }

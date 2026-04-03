@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { get } from '@ember/object';
@@ -16,7 +17,9 @@ export default class ScaleEventsChart extends Component {
   @tracked activeEvent = null;
 
   get data() {
-    const data = this.args.events.filterBy('hasCount').sortBy('time');
+    const data = [
+      ...this.args.events.filter((item) => get(item, 'hasCount')),
+    ].sort((a, b) => compare(get(a, 'time'), get(b, 'time')));
 
     // Extend the domain of the chart to the current time
     data.push({
@@ -25,7 +28,9 @@ export default class ScaleEventsChart extends Component {
     });
 
     // Make sure the domain of the chart includes the first annotation
-    const firstAnnotation = this.annotations.sortBy('time')[0];
+    const firstAnnotation = [...this.annotations].sort((a, b) =>
+      compare(get(a, 'time'), get(b, 'time'))
+    )[0];
     if (firstAnnotation && firstAnnotation.time < data[0].time) {
       data.unshift({
         time: firstAnnotation.time,
@@ -37,11 +42,13 @@ export default class ScaleEventsChart extends Component {
   }
 
   get annotations() {
-    return this.args.events.rejectBy('hasCount').map((ev) => ({
-      type: ev.error ? 'error' : 'info',
-      time: ev.time,
-      event: copy(ev),
-    }));
+    return this.args.events
+      .filter((item) => !get(item, 'hasCount'))
+      .map((ev) => ({
+        type: ev.error ? 'error' : 'info',
+        time: ev.time,
+        event: copy(ev),
+      }));
   }
 
   toggleEvent(ev) {

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -91,7 +92,9 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.ok(TopoVizNode.isPresent);
     assert.equal(
       TopoVizNode.memoryRects.length,
-      this.node.allocations.filterBy('allocation.isScheduled').length
+      this.node.allocations.filter((item) =>
+        get(item, 'allocation.isScheduled')
+      ).length
     );
     assert.ok(TopoVizNode.cpuRects.length);
 
@@ -119,7 +122,9 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     assert.ok(
       TopoVizNode.label.includes(
         `${
-          this.node.allocations.filterBy('allocation.isScheduled').length
+          this.node.allocations.filter((item) =>
+            get(item, 'allocation.isScheduled')
+          ).length
         } Allocs`
       )
     );

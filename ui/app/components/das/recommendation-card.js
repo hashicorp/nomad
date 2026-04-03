@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
@@ -138,13 +139,15 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   get allCpuToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'CPU')
-      .length;
+    return !this.args.summary.recommendations.filter(
+      (item) => get(item, 'resource') === 'CPU'
+    ).length;
   }
 
   get allMemoryToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'MemoryMB')
-      .length;
+    return !this.args.summary.recommendations.filter(
+      (item) => get(item, 'resource') === 'MemoryMB'
+    ).length;
   }
 
   get cannotAccept() {

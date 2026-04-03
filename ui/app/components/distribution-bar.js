@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-observers */
+import { get } from '@ember/object';
 import Component from '@ember/component';
 import { computed, set } from '@ember/object';
 import { observes } from '@ember-decorators/object';
@@ -37,7 +38,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   @computed('data')
   get _data() {
     const data = copy(this.data, true);
-    const sum = data.mapBy('value').reduce(sumAggregate, 0);
+    const sum = data.map((item) => get(item, 'value')).reduce(sumAggregate, 0);
 
     return data.map(
       ({ label, value, className, layers, legendLink, help }, index) => ({
@@ -50,7 +51,10 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
         index,
         percent: value / sum,
         offset:
-          data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
+          data
+            .slice(0, index)
+            .map((item) => get(item, 'value'))
+            .reduce(sumAggregate, 0) / sum,
       })
     );
   }

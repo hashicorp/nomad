@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -89,7 +91,11 @@ export default class OptimizeController extends Controller {
     });
 
     // Unset the namespace selection if it was server-side deleted
-    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+    if (
+      !availableNamespaces
+        .map((item) => get(item, 'key'))
+        .includes(this.qpNamespace)
+    ) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
         this.qpNamespace = '*';
@@ -113,11 +119,15 @@ export default class OptimizeController extends Controller {
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(
-      this.summaries.mapBy('job.datacenters').reduce(flatten, [])
+      this.summaries
+        .map((item) => get(item, 'job.datacenters'))
+        .reduce(flatten, [])
     );
 
     // Remove any invalid datacenters from the query param/selection
-    const availableDatacenters = Array.from(allDatacenters).compact();
+    const availableDatacenters = Array.from(allDatacenters).filter(
+      (item) => item !== undefined && item !== null
+    );
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpDatacenter = serialize(
@@ -134,7 +144,7 @@ export default class OptimizeController extends Controller {
     const hasPrefix = /.[-._]/;
 
     // Collect and count all the prefixes
-    const allNames = this.summaries.mapBy('job.name');
+    const allNames = this.summaries.map((item) => get(item, 'job.name'));
     const nameHistogram = allNames.reduce((hist, name) => {
       if (hasPrefix.test(name)) {
         const prefix = name.match(/(.+?)[-._]/)[1];
@@ -153,7 +163,7 @@ export default class OptimizeController extends Controller {
     const prefixes = nameTable.filter((name) => name.count > 1);
 
     // Remove any invalid prefixes from the query param/selection
-    const availablePrefixes = prefixes.mapBy('prefix');
+    const availablePrefixes = prefixes.map((item) => get(item, 'prefix'));
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
       this.qpPrefix = serialize(
@@ -162,10 +172,12 @@ export default class OptimizeController extends Controller {
     });
 
     // Sort, format, and include the count in the label
-    return prefixes.sortBy('prefix').map((name) => ({
-      key: name.prefix,
-      label: `${name.prefix} (${name.count})`,
-    }));
+    return [...prefixes]
+      .sort((a, b) => compare(get(a, 'prefix'), get(b, 'prefix')))
+      .map((name) => ({
+        key: name.prefix,
+        label: `${name.prefix} (${name.count})`,
+      }));
   }
 
   get filteredSummaries() {
@@ -233,9 +245,7 @@ export default class OptimizeController extends Controller {
     const currentSummaryIndex = this.filteredSummaries.indexOf(
       this.activeRecommendationSummary
     );
-    const nextSummary = this.filteredSummaries.objectAt(
-      currentSummaryIndex + 1
-    );
+    const nextSummary = this.filteredSummaries[currentSummaryIndex + 1];
 
     if (nextSummary) {
       this.transitionToSummary(nextSummary);
@@ -265,7 +275,7 @@ export default class OptimizeController extends Controller {
         !this.activeRecommendationSummary ||
         !this.filteredSummaries.includes(this.activeRecommendationSummary)
       ) {
-        const firstFilteredSummary = this.filteredSummaries.objectAt(0);
+        const firstFilteredSummary = this.filteredSummaries[0];
 
         if (firstFilteredSummary) {
           this.transitionToSummary(firstFilteredSummary);

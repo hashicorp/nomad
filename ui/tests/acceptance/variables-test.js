@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   currentRouteName,
   currentURL,
@@ -152,14 +153,18 @@ module('Acceptance | variables', function (hooks) {
     const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
 
     const variableLinkedJob = server.db.jobs[0];
-    const variableLinkedGroup = server.db.taskGroups.findBy({
-      jobId: variableLinkedJob.id,
-    });
-    const variableLinkedTask = server.db.tasks.findBy({
-      taskGroupId: variableLinkedGroup.id,
-    });
+    const variableLinkedGroup = server.db.taskGroups.find((item) =>
+      get(item, {
+        jobId: variableLinkedJob.id,
+      })
+    );
+    const variableLinkedTask = server.db.tasks.find((item) =>
+      get(item, {
+        taskGroupId: variableLinkedGroup.id,
+      })
+    );
     const variableLinkedTaskAlloc = server.db.allocations
-      .filterBy('taskGroup', variableLinkedGroup.name)
+      .filter((item) => get(item, 'taskGroup') === variableLinkedGroup.name)
       ?.find((alloc) => alloc.taskStateIds.length);
 
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -1105,8 +1110,8 @@ module('Acceptance | variables', function (hooks) {
       // Create a variable for each task
 
       server.db.tasks.forEach((task) => {
-        let groupName = server.db.taskGroups.findBy(
-          (group) => group.id === task.taskGroupId
+        let groupName = server.db.taskGroups.find((item) =>
+          get(item, (group) => group.id === task.taskGroupId)
         ).name;
         server.create('variable', {
           id: `nomad/jobs/test-job/${groupName}/${task.name}`,

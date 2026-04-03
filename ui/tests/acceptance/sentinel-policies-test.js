@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { findAll, fillIn, find, click, currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -24,8 +25,8 @@ module('Acceptance | sentinel policies', function (hooks) {
     window.sessionStorage.clear();
     allScenarios.policiesTestCluster(server, { sentinel: true });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -77,8 +78,8 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('Edit Sentinel Policy: Description and Enforcement Level', async function (assert) {
-    const policy = server.db.sentinelPolicies.findBy(
-      (sp) => sp.name === 'policy-1'
+    const policy = server.db.sentinelPolicies.find((item) =>
+      get(item, (sp) => sp.name === 'policy-1')
     );
     await click('[data-test-sentinel-policy-name="policy-1"]');
     assert.equal(
@@ -109,8 +110,8 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('Edit Sentinel Policy: Scope', async function (assert) {
-    const policy = server.db.sentinelPolicies.findBy(
-      (sp) => sp.name === 'host-volume-policy'
+    const policy = server.db.sentinelPolicies.find((item) =>
+      get(item, (sp) => sp.name === 'host-volume-policy')
     );
     await click('[data-test-sentinel-policy-name="host-volume-policy"]');
     assert.equal(
@@ -131,8 +132,8 @@ module('Acceptance | sentinel policies', function (hooks) {
       .dom(policyRow.querySelector('[data-test-sentinel-policy-scope]'))
       .hasText('submit-host-volume');
 
-    const policyCsi = server.db.sentinelPolicies.findBy(
-      (sp) => sp.name === 'csi-volume-policy'
+    const policyCsi = server.db.sentinelPolicies.find((item) =>
+      get(item, (sp) => sp.name === 'csi-volume-policy')
     );
     await click('[data-test-sentinel-policy-name="csi-volume-policy"]');
     assert.equal(

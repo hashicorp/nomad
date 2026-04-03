@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -36,7 +37,7 @@ export default class TaskGroupParent extends Component {
 
   @computed('taskGroup.allocations.@each.clientStatus')
   get hasPendingAllocations() {
-    return this.taskGroup.allocations.any(
+    return this.taskGroup.allocations.some(
       (allocation) => allocation.clientStatus === 'pending'
     );
   }
@@ -45,7 +46,7 @@ export default class TaskGroupParent extends Component {
   @computed('allocationTaskStatesRecordArrays.[]')
   get allocationTaskStates() {
     const flattenRecordArrays = (accumulator, recordArray) =>
-      accumulator.concat(recordArray.toArray());
+      accumulator.concat([...recordArray]);
     return this.allocationTaskStatesRecordArrays.reduce(
       flattenRecordArrays,
       []
@@ -71,7 +72,7 @@ export default class TaskGroupParent extends Component {
           taskState.task.taskGroup.name === this.taskGroup.name
         );
       })
-      .mapBy('name');
+      .map((item) => get(item, 'name'));
 
     return this.taskGroup.tasks.filter((task) =>
       activeTaskStateNames.includes(task.name)

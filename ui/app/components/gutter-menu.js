@@ -16,7 +16,7 @@ export default class GutterMenu extends Component {
 
   @computed('system.namespaces.@each.name')
   get sortedNamespaces() {
-    const namespaces = this.get('system.namespaces').toArray() || [];
+    const namespaces = [...this.get('system.namespaces')] || [];
 
     return namespaces.sort((a, b) => {
       const aName = a.get('name');

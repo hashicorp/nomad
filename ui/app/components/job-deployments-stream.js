@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
@@ -18,7 +20,11 @@ export default class JobDeploymentsStream extends Component {
 
   @computed('deployments.@each.versionSubmitTime')
   get sortedDeployments() {
-    return this.deployments.sortBy('versionSubmitTime').reverse();
+    return [...this.deployments]
+      .sort((a, b) =>
+        compare(get(a, 'versionSubmitTime'), get(b, 'versionSubmitTime'))
+      )
+      .reverse();
   }
 
   @computed('sortedDeployments.@each.version')
@@ -30,7 +36,7 @@ export default class JobDeploymentsStream extends Component {
       if (index === 0) {
         meta.showDate = true;
       } else {
-        const previousDeployment = deployments.objectAt(index - 1);
+        const previousDeployment = deployments[index - 1];
         const previousSubmitTime = previousDeployment.get('version.submitTime');
         const submitTime = deployment.get('submitTime');
         if (

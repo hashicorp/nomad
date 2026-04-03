@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   create,
@@ -168,7 +169,9 @@ export default create({
 
     setDeadline(label) {
       this.deadlineOptions.open();
-      this.deadlineOptions.options.toArray().findBy('label', label).choose();
+      [...this.deadlineOptions.options]
+        .find((item) => get(item, 'label') === label)
+        .choose();
     },
   },
 

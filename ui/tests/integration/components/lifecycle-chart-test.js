@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable qunit/no-conditional-assertions */
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -64,24 +65,30 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
 
     Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
 
-    assert.deepEqual(Chart.tasks.mapBy('name'), [
-      'prestart ephemeral: 0',
-      'prestart sidecar: 1',
-      'main one: 2',
-      'main two: 3',
-      'poststart sidecar: 4',
-      'poststart ephemeral: 5',
-      'poststop: 6',
-    ]);
-    assert.deepEqual(Chart.tasks.mapBy('lifecycle'), [
-      'Prestart Task',
-      'Sidecar Task',
-      'Main Task',
-      'Main Task',
-      'Sidecar Task',
-      'Poststart Task',
-      'Poststop Task',
-    ]);
+    assert.deepEqual(
+      Chart.tasks.map((item) => get(item, 'name')),
+      [
+        'prestart ephemeral: 0',
+        'prestart sidecar: 1',
+        'main one: 2',
+        'main two: 3',
+        'poststart sidecar: 4',
+        'poststart ephemeral: 5',
+        'poststop: 6',
+      ]
+    );
+    assert.deepEqual(
+      Chart.tasks.map((item) => get(item, 'lifecycle')),
+      [
+        'Prestart Task',
+        'Sidecar Task',
+        'Main Task',
+        'Main Task',
+        'Sidecar Task',
+        'Poststart Task',
+        'Poststop Task',
+      ]
+    );
 
     assert.ok(Chart.tasks[0].isPrestartEphemeral);
     assert.ok(Chart.tasks[1].isPrestartSidecar);

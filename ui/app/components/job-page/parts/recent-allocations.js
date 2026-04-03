@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -31,7 +33,10 @@ export default class RecentAllocations extends Component {
   get sortedAllocations() {
     return PromiseArray.create({
       promise: this.get('job.allocations').then((allocations) =>
-        allocations.sortBy('modifyIndex').reverse().slice(0, 5)
+        [...allocations]
+          .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
+          .reverse()
+          .slice(0, 5)
       ),
     });
   }

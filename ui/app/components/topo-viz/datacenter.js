@@ -3,13 +3,16 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 
 export default class TopoVizDatacenter extends Component {
   get scheduledAllocations() {
     return this.args.datacenter.nodes.reduce(
       (all, node) =>
-        all.concat(node.allocations.filterBy('allocation.isScheduled')),
+        all.concat(
+          node.allocations.filter((item) => get(item, 'allocation.isScheduled'))
+        ),
       []
     );
   }

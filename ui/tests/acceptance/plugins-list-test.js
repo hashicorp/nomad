@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -40,7 +42,9 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const sortedPlugins = server.db.csiPlugins.sortBy('id');
+    const sortedPlugins = [...server.db.csiPlugins].sort((a, b) =>
+      compare(get(a, 'id'), get(b, 'id'))
+    );
     assert.equal(PluginsList.plugins.length, PluginsList.pageSize);
     PluginsList.plugins.forEach((plugin, index) => {
       assert.equal(plugin.id, sortedPlugins[index].id, 'Plugins are ordered');
@@ -55,7 +59,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const controllerHealthStr =
       plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
@@ -80,7 +84,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(pluginRow.id, plugin.id);
@@ -97,13 +101,13 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    await PluginsList.plugins.objectAt(0).clickName();
+    await PluginsList.plugins[0].clickName();
     assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
 
     await PluginsList.visit();
     assert.equal(currentURL(), '/storage/plugins');
 
-    await PluginsList.plugins.objectAt(0).clickRow();
+    await PluginsList.plugins[0].clickRow();
     assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
   });
 

@@ -241,7 +241,7 @@ module('Integration | Component | variable-form', function (hooks) {
         namespace: server.db.namespaces[2].id,
       });
 
-      this.set('existingVariables', server.db.variables.toArray());
+      this.set('existingVariables', [...server.db.variables]);
 
       await render(
         hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`

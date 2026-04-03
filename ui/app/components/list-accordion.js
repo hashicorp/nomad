@@ -26,7 +26,9 @@ export default class ListAccordion extends Component {
     const startExpanded = this.startExpanded;
 
     const decoratedSource = this.source.map((item) => {
-      const cacheItem = stateCache.findBy(deepKey, get(item, key));
+      const cacheItem = stateCache.find(
+        (item) => get(item, deepKey) === get(item, key)
+      );
       return {
         item,
         isOpen: cacheItem ? !!cacheItem.isOpen : startExpanded,

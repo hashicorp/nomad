@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { findAll, fillIn, find, click, currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -24,8 +25,8 @@ module('Acceptance | roles', function (hooks) {
     window.sessionStorage.clear();
     allScenarios.rolesTestCluster(server);
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -69,7 +70,9 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles have policies lists', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = server.db.roles.find((item) =>
+      get(item, (r) => r.name === 'reader')
+    );
     const roleRow = find(`[data-test-role-row="${role.name}"]`);
     const rolePoliciesCell = roleRow.querySelector('[data-test-role-policies]');
     const policiesCellTags = rolePoliciesCell
@@ -86,7 +89,9 @@ module('Acceptance | roles', function (hooks) {
 
   test('Edit Role: Name and Description', async function (assert) {
     assert.expect(8);
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = server.db.roles.find((item) =>
+      get(item, (r) => r.name === 'reader')
+    );
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/administration/roles/${role.id}`);
 
@@ -119,7 +124,9 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Policies', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = server.db.roles.find((item) =>
+      get(item, (r) => r.name === 'reader')
+    );
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/administration/roles/${role.id}`);
 
@@ -218,7 +225,9 @@ module('Acceptance | roles', function (hooks) {
 
   test('Edit Role: Tokens', async function (assert) {
     assert.expect(10);
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = server.db.roles.find((item) =>
+      get(item, (r) => r.name === 'reader')
+    );
 
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/administration/roles/${role.id}`);
@@ -254,7 +263,9 @@ module('Acceptance | roles', function (hooks) {
       );
   });
   test('Edit Role: Deletion', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = server.db.roles.find((item) =>
+      get(item, (r) => r.name === 'reader')
+    );
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/administration/roles/${role.id}`);
     const deleteButton = find('[data-test-delete-role] button');

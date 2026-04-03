@@ -128,7 +128,7 @@ export default Mixin.create({
         );
       }
 
-      return results.uniq();
+      return [...new Set(results)];
     }
   ),
 });

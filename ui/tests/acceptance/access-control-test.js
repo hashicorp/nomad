@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { currentURL, triggerKeyEvent, click } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -49,8 +50,8 @@ module('Acceptance | access control', function (hooks) {
     assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
 
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -77,8 +78,8 @@ module('Acceptance | access control', function (hooks) {
   test('Access control does not show Sentinel Policies if they are not present in license', async function (assert) {
     allScenarios.policiesTestCluster(server);
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -90,8 +91,8 @@ module('Acceptance | access control', function (hooks) {
     assert.expect(2);
     allScenarios.policiesTestCluster(server, { sentinel: true });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -105,8 +106,8 @@ module('Acceptance | access control', function (hooks) {
 
   test('Access control index content', async function (assert) {
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
@@ -138,8 +139,8 @@ module('Acceptance | access control', function (hooks) {
 
   test('Access control subnav', async function (assert) {
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
+    const managementToken = server.db.tokens.find((item) =>
+      get(item, (t) => t.type === 'management')
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();

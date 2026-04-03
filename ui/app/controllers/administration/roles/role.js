@@ -46,7 +46,7 @@ export default class AccessControlRolesRoleController extends Controller {
 
   async refreshTokens() {
     this.tokens = this.store.peekAll('token').filter((token) =>
-      token.roles.any((role) => {
+      token.roles.some((role) => {
         return role.id === decodeURIComponent(this.role.id);
       })
     );

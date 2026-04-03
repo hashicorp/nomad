@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-controller-access-in-routes */
+import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import EmberError from '@ember/error';
@@ -18,7 +19,9 @@ export default class TaskRoute extends Route {
     // Let the allocation route handle the 404 error.
     if (!allocation) return;
 
-    const task = allocation.get('states').findBy('name', name);
+    const task = allocation
+      .get('states')
+      .find((item) => get(item, 'name') === name);
 
     if (!task) {
       const err = new EmberError(

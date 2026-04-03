@@ -141,8 +141,7 @@ export default class Variable extends AbstractAbility {
     capabilities = [],
     path
   ) {
-    const variableCapabilitiesAmongNamespaces = policies
-      .toArray()
+    const variableCapabilitiesAmongNamespaces = [...policies]
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
@@ -150,7 +149,7 @@ export default class Variable extends AbstractAbility {
         return namespace.Variables?.Paths;
       })
       .flat()
-      .compact()
+      .filter((item) => item !== undefined && item !== null)
       .filter((varsBlock = {}) => {
         if (!path || path === WILDCARD_GLOB) {
           return true;
@@ -162,7 +161,7 @@ export default class Variable extends AbstractAbility {
         return varsBlock.Capabilities;
       })
       .flat()
-      .compact();
+      .filter((item) => item !== undefined && item !== null);
 
     // Check for requested permissions
     return variableCapabilitiesAmongNamespaces.some((abilityList) => {
@@ -217,9 +216,8 @@ export default class Variable extends AbstractAbility {
    */
   @computed('token.selfTokenPolicies.[]', 'namespace')
   get allVariablePathRules() {
-    return (get(this, 'token.selfTokenPolicies') || [])
-      .toArray()
-      .flatMap((policy) => {
+    return [...(get(this, 'token.selfTokenPolicies') || [])].flatMap(
+      (policy) => {
         const namespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
         return namespaces.flatMap((namespace) => {
@@ -233,7 +231,8 @@ export default class Variable extends AbstractAbility {
 
           return pathNames;
         });
-      });
+      }
+    );
   }
 
   _nearestMatchingNamespace(policyNamespaces, namespace) {

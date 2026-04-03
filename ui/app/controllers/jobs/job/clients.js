@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { get } from '@ember/object';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -153,8 +154,8 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionDatacenter', 'nodes')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter'))
-    ).compact();
+      new Set(this.nodes.map((item) => get(item, 'datacenter')))
+    ).filter((item) => item !== undefined && item !== null);
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', () => {
@@ -171,8 +172,8 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionClientClass', 'nodes')
   get optionsClientClass() {
     const clientClasses = Array.from(
-      new Set(this.nodes.mapBy('nodeClass'))
-    ).compact();
+      new Set(this.nodes.map((item) => get(item, 'nodeClass')))
+    ).filter((item) => item !== undefined && item !== null);
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', () => {

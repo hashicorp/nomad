@@ -31,9 +31,8 @@ export default class Abstract extends Ability {
   get rulesForNamespace() {
     let namespace = this._namespace;
 
-    return (this.get('token.selfTokenPolicies') || [])
-      .toArray()
-      .reduce((rules, policy) => {
+    return [...(this.get('token.selfTokenPolicies') || [])].reduce(
+      (rules, policy) => {
         let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
         let matchingNamespace = this._findMatchingNamespace(
@@ -50,21 +49,24 @@ export default class Abstract extends Ability {
         }
 
         return rules;
-      }, []);
+      },
+      []
+    );
   }
 
   @computed('token.selfTokenPolicies.[]')
   get capabilitiesForAllNamespaces() {
-    return (this.get('token.selfTokenPolicies') || [])
-      .toArray()
-      .reduce((allCapabilities, policy) => {
+    return [...(this.get('token.selfTokenPolicies') || [])].reduce(
+      (allCapabilities, policy) => {
         (get(policy, 'rulesJSON.Namespaces') || []).forEach(
           ({ Capabilities }) => {
             allCapabilities = allCapabilities.concat(Capabilities);
           }
         );
         return allCapabilities;
-      }, []);
+      },
+      []
+    );
   }
 
   namespaceIncludesCapability(capability) {
@@ -87,7 +89,7 @@ export default class Abstract extends Ability {
   // Chooses the closest namespace as described at the bottom here:
   // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
   _findMatchingNamespace(policyNamespaces, namespace) {
-    let namespaceNames = policyNamespaces.mapBy('Name');
+    let namespaceNames = policyNamespaces.map((item) => get(item, 'Name'));
 
     if (namespaceNames.includes(namespace)) {
       return namespace;

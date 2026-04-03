@@ -5,6 +5,8 @@
 
 // @ts-check
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed, set } from '@ember/object';
@@ -118,8 +120,8 @@ export default class JobsIndexController extends Controller {
       } else {
         // cursorAt should be the highest modifyIndex from the previous query.
         // This will immediately fire the route model hook with the new cursorAt
-        this.cursorAt = prevPageToken
-          .sortBy('modifyIndex')
+        this.cursorAt = [...prevPageToken]
+          .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
           .get('lastObject').modifyIndex;
       }
     } else if (page === 'next') {
@@ -131,8 +133,8 @@ export default class JobsIndexController extends Controller {
       this.cursorAt = undefined;
     } else if (page === 'last') {
       let prevPageToken = await this.loadPreviousPageToken({ last: true });
-      this.cursorAt = prevPageToken
-        .sortBy('modifyIndex')
+      this.cursorAt = [...prevPageToken]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .get('lastObject').modifyIndex;
     }
   }
@@ -210,7 +212,7 @@ export default class JobsIndexController extends Controller {
    * @param {Error} e
    */
   notifyFetchError(e) {
-    const firstError = e.errors?.objectAt(0);
+    const firstError = e.errors?.[0];
     this.notifications.add({
       title: 'Error fetching jobs',
       message: `The backend returned an error with status ${firstError.status} while fetching jobs`,

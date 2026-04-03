@@ -5,6 +5,7 @@
 
 // @ts-check
 
+import { get } from '@ember/object';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
@@ -61,7 +62,7 @@ export default class NamespaceEditorComponent extends Component {
         this.store
           .peekAll('namespace')
           .filter((namespace) => namespace !== this.namespace)
-          .findBy('name', this.namespace.name)
+          .find((item) => get(item, 'name') === this.namespace.name)
       ) {
         throw new Error(
           `A namespace with name ${this.namespace.name} already exists.`

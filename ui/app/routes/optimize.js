@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Route from '@ember/routing/route';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
@@ -28,7 +29,7 @@ export default class OptimizeRoute extends Route {
       this.store.findAll('namespace'),
       ...jobs
         .filter((job) => job)
-        .filterBy('isPartial')
+        .filter((item) => get(item, 'isPartial'))
         .map((j) => j.reload()),
     ]);
 

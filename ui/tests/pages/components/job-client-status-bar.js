@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { attribute, clickable, collection } from 'ember-cli-page-object';
 
 export default (scope) => ({
@@ -32,10 +33,12 @@ export default (scope) => ({
   },
 
   visitSlice: async function (label) {
-    await this.slices.toArray().findBy('label', label).click();
+    await [...this.slices].find((item) => get(item, 'label') === label).click();
   },
 
   visitLegend: async function (label) {
-    await this.legend.clickableItems.toArray().findBy('label', label).click();
+    await [...this.legend.clickableItems]
+      .find((item) => get(item, 'label') === label)
+      .click();
   },
 });

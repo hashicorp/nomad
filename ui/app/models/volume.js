@@ -19,10 +19,7 @@ export default class Volume extends Model {
 
   @computed('writeAllocations.[]', 'readAllocations.[]')
   get allocations() {
-    return [
-      ...this.writeAllocations.toArray(),
-      ...this.readAllocations.toArray(),
-    ];
+    return [...[...this.writeAllocations], ...[...this.readAllocations]];
   }
 
   @attr('number') currentWriters;

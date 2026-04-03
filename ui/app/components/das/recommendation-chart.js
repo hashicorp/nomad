@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -339,12 +340,12 @@ export default class RecommendationChartComponent extends Component {
         recommended: this.args.recommendedValue,
       };
 
-      return Object.keys(statsWithCurrentAndRecommended)
-        .map((key) => ({
+      return [
+        ...Object.keys(statsWithCurrentAndRecommended).map((key) => ({
           label: statsKeyToLabel[key],
           value: statsWithCurrentAndRecommended[key],
-        }))
-        .sortBy('value');
+        })),
+      ].sort((a, b) => compare(get(a, 'value'), get(b, 'value')));
     } else {
       return [];
     }

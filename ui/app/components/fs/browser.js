@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { filterBy } from '@ember/object/computed';
@@ -57,8 +59,12 @@ export default class Browser extends Component {
     const directorySortProperty =
       sortProperty === 'Size' ? 'Name' : sortProperty;
 
-    const sortedDirectories = this.directories.sortBy(directorySortProperty);
-    const sortedFiles = this.files.sortBy(sortProperty);
+    const sortedDirectories = [...this.directories].sort((a, b) =>
+      compare(get(a, directorySortProperty), get(b, directorySortProperty))
+    );
+    const sortedFiles = [...this.files].sort((a, b) =>
+      compare(get(a, sortProperty), get(b, sortProperty))
+    );
 
     const sortedDirectoryEntries = sortedDirectories.concat(sortedFiles);
 

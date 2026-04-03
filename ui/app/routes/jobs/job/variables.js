@@ -5,6 +5,7 @@
 
 // @ts-check
 
+import { get } from '@ember/object';
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 // eslint-disable-next-line no-unused-vars
@@ -25,7 +26,7 @@ export default class JobsJobVariablesRoute extends Route {
     /** @type {JobModel} */
     let job = this.modelFor('jobs.job');
     let taskGroups = job.taskGroups;
-    let tasks = taskGroups.map((tg) => tg.tasks.toArray()).flat();
+    let tasks = taskGroups.map((tg) => [...tg.tasks]).flat();
 
     let jobVariablePromise = job.getPathLinkedVariable();
     let groupVariablesPromises = taskGroups.map((tg) =>
@@ -40,10 +41,10 @@ export default class JobsJobVariablesRoute extends Route {
         path: 'nomad/jobs',
       })
       .then((variables) => {
-        return variables.findBy('path', 'nomad/jobs');
+        return variables.find((item) => get(item, 'path') === 'nomad/jobs');
       })
       .catch((e) => {
-        if (e.errors?.findBy('status', 404)) {
+        if (e.errors?.find((item) => get(item, 'status') === 404)) {
           return null;
         }
         throw e;

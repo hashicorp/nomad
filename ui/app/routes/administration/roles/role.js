@@ -30,7 +30,7 @@ export default class AccessControlRolesRoleRoute extends Route.extend(
     return hash({
       role,
       tokens: this.store.peekAll('token').filter((token) => {
-        return token.roles.any((role) => {
+        return token.roles.some((role) => {
           return role.id === decodeURIComponent(params.id);
         });
       }),

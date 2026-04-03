@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { click, currentURL } from '@ember/test-helpers';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
@@ -83,9 +84,8 @@ module('Acceptance | job definition', function (hooks) {
     assert.expect(1);
 
     const requests = server.pretender.handledRequests;
-    const jobSubmission = requests.findBy(
-      'url',
-      `/v1/job/${job.id}/submission?version=1`
+    const jobSubmission = requests.find(
+      (item) => get(item, 'url') === `/v1/job/${job.id}/submission?version=1`
     ).responseText;
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
@@ -122,7 +122,7 @@ module('Acceptance | job definition', function (hooks) {
     assert.equal(
       server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find((item) => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );

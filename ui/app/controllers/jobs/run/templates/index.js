@@ -11,7 +11,7 @@ export default class JobsRunTemplatesIndexController extends Controller {
   @tracked selectedTemplate = null;
 
   get templates() {
-    return [...this.model.variables.toArray(), ...this.model.default];
+    return [...[...this.model.variables], ...this.model.default];
   }
 
   @action

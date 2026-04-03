@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import {
   currentURL,
   settled,
@@ -60,9 +62,12 @@ module('Acceptance | jobs list', function (hooks) {
 
     await percySnapshot(assert);
 
-    const sortedJobs = server.db.jobs
-      .sortBy('id')
-      .sortBy('modifyIndex')
+    const sortedJobs = [
+      ...[...server.db.jobs].sort((a, b) =>
+        compare(get(a, 'id'), get(b, 'id'))
+      ),
+    ]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
     assert.equal(JobsList.jobs.length, JobsList.pageSize);
     JobsList.jobs.forEach((job, index) => {
@@ -72,7 +77,9 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('each job row should contain information about the job', async function (assert) {
     server.createList('job', 2);
-    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+    const job = [...server.db.jobs]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
+      .reverse()[0];
 
     await JobsList.visit();
 
@@ -82,7 +89,7 @@ module('Acceptance | jobs list', function (hooks) {
       `["${job.id}","${job.namespace}"]`
     );
 
-    const jobRow = JobsList.jobs.objectAt(0);
+    const jobRow = JobsList.jobs[0];
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
@@ -101,7 +108,7 @@ module('Acceptance | jobs list', function (hooks) {
     const job = server.db.jobs[0];
 
     await JobsList.visit();
-    await JobsList.jobs.objectAt(0).clickName();
+    await JobsList.jobs[0].clickName();
 
     assert.equal(currentURL(), `/jobs/${job.id}@default`);
   });
@@ -196,11 +203,13 @@ module('Acceptance | jobs list', function (hooks) {
   test('when a cluster has namespaces, each job row includes the job namespace', async function (assert) {
     server.createList('namespace', 2);
     server.createList('job', 2);
-    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+    const job = [...server.db.jobs]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
+      .reverse()[0];
 
     await JobsList.visit({ namespace: '*' });
 
-    const jobRow = JobsList.jobs.objectAt(0);
+    const jobRow = JobsList.jobs[0];
     assert.equal(jobRow.namespace, job.namespaceId);
   });
 
@@ -219,11 +228,7 @@ module('Acceptance | jobs list', function (hooks) {
     const firstNamespace = server.db.namespaces[0];
     await JobsList.visit({ filter: `Namespace == ${firstNamespace.id}` });
     assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
-    assert.equal(
-      JobsList.jobs.objectAt(0).name,
-      job1.name,
-      'The correct job is shown'
-    );
+    assert.equal(JobsList.jobs[0].name, job1.name, 'The correct job is shown');
 
     const secondNamespace = server.db.namespaces[1];
     await JobsList.visit({ filter: `Namespace == ${secondNamespace.id}` });
@@ -233,11 +238,7 @@ module('Acceptance | jobs list', function (hooks) {
       1,
       `One job in the ${secondNamespace.name} namespace`
     );
-    assert.equal(
-      JobsList.jobs.objectAt(0).name,
-      job2.name,
-      'The correct job is shown'
-    );
+    assert.equal(JobsList.jobs[0].name, job2.name, 'The correct job is shown');
   });
 
   test('when accessing jobs is forbidden, show a message with a link to the tokens page', async function (assert) {
@@ -406,7 +407,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
 
     await JobsList.facets.status.toggle();
-    await JobsList.facets.status.options.objectAt(1).toggle();
+    await JobsList.facets.status.options[1].toggle();
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.equal(
       JobsList.emptyState.headline,
@@ -785,11 +786,17 @@ module('Acceptance | jobs list', function (hooks) {
       noFailedPlacements: true,
     });
 
-    const allocID = server.db.allocations.findBy({
-      jobId: 'time-based-job',
-    }).id;
-    const groupID = server.db.taskGroups.findBy({ jobId: 'time-based-job' }).id;
-    const task = server.db.tasks.findBy({ taskGroupID: groupID });
+    const allocID = server.db.allocations.find((item) =>
+      get(item, {
+        jobId: 'time-based-job',
+      })
+    ).id;
+    const groupID = server.db.taskGroups.find((item) =>
+      get(item, { jobId: 'time-based-job' })
+    ).id;
+    const task = server.db.tasks.find((item) =>
+      get(item, { taskGroupID: groupID })
+    );
 
     await JobsList.visit();
 
@@ -1103,8 +1110,8 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
-          let existingJobToUpdate = server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5
+          let existingJobToUpdate = server.db.jobs.find((item) =>
+            get(item, (job) => job.modifyIndex === 5)
           );
           server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
           await controller.watchJobIDs.perform(currentParams, 0);
@@ -1211,8 +1218,8 @@ module('Acceptance | jobs list', function (hooks) {
             );
 
           // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
-          let existingJobToUpdate = server.db.jobs.findBy(
-            (job) => job.modifyIndex === 5
+          let existingJobToUpdate = server.db.jobs.find((item) =>
+            get(item, (job) => job.modifyIndex === 5)
           );
           server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
           await controller.watchJobIDs.perform(currentParams, 0);
@@ -2069,13 +2076,14 @@ function testFacet(
     await beforeEach();
     await facet.toggle();
 
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.label];
-    const expectedJobs = server.db.jobs
-      .filter((job) => filter(job, selection))
-      .sortBy('modifyIndex')
+    const expectedJobs = [
+      ...server.db.jobs.filter((job) => filter(job, selection)),
+    ]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     JobsList.jobs.forEach((job, index) => {
@@ -2094,16 +2102,17 @@ function testFacet(
     await beforeEach();
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.label);
     await option2.toggle();
     selection.push(option2.label);
 
-    const expectedJobs = server.db.jobs
-      .filter((job) => filter(job, selection))
-      .sortBy('modifyIndex')
+    const expectedJobs = [
+      ...server.db.jobs.filter((job) => filter(job, selection)),
+    ]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     JobsList.jobs.forEach((job, index) => {
@@ -2121,8 +2130,8 @@ function testFacet(
     await beforeEach();
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.label);
     await option2.toggle();

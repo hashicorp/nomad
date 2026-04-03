@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import {
   visit,
@@ -181,8 +182,8 @@ module('Acceptance | namespaces', function (hooks) {
     // Standard namespace properly deletes
     await visit('/administration/namespaces');
 
-    let nonDefaultNamespace = server.db.namespaces.findBy(
-      (ns) => ns.name != 'default'
+    let nonDefaultNamespace = server.db.namespaces.find((item) =>
+      get(item, (ns) => ns.name != 'default')
     );
     const nonDefaultNsLink = [...findAll('[data-test-namespace-name]')].filter(
       (row) => row.textContent.includes(nonDefaultNamespace.name)

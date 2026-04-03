@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -84,12 +86,12 @@ module('Acceptance | plugin detail', function (hooks) {
       PluginDetail.controllerAllocations.length,
       plugin.controllers.length
     );
-    plugin.controllers.models
-      .sortBy('updateTime')
+    [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()
       .forEach((allocation, idx) => {
         assert.equal(
-          PluginDetail.controllerAllocations.objectAt(idx).id,
+          PluginDetail.controllerAllocations[idx].id,
           allocation.allocID
         );
       });
@@ -99,27 +101,26 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.equal(PluginDetail.nodeAllocations.length, plugin.nodes.length);
-    plugin.nodes.models
-      .sortBy('updateTime')
+    [...plugin.nodes.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
-          PluginDetail.nodeAllocations.objectAt(idx).id,
-          allocation.allocID
-        );
+        assert.equal(PluginDetail.nodeAllocations[idx].id, allocation.allocID);
       });
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {
-    const controller = plugin.controllers.models
-      .sortBy('updateTime')
+    const controller = [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()[0];
     const allocation = server.db.allocations.find(controller.allocID);
     const allocStats = server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = server.db.taskGroups.findBy({
-      name: allocation.taskGroup,
-      jobId: allocation.jobId,
-    });
+    const taskGroup = server.db.taskGroups.find((item) =>
+      get(item, {
+        name: allocation.taskGroup,
+        jobId: allocation.jobId,
+      })
+    );
 
     const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
@@ -130,7 +131,7 @@ module('Acceptance | plugin detail', function (hooks) {
 
     await PluginDetail.visit({ id: plugin.id });
 
-    PluginDetail.controllerAllocations.objectAt(0).as((allocationRow) => {
+    PluginDetail.controllerAllocations[0].as((allocationRow) => {
       assert.equal(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -198,12 +199,12 @@ module('Acceptance | plugin detail', function (hooks) {
   });
 
   test('each allocation should link to the allocation detail page', async function (assert) {
-    const controller = plugin.controllers.models
-      .sortBy('updateTime')
+    const controller = [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()[0];
 
     await PluginDetail.visit({ id: plugin.id });
-    await PluginDetail.controllerAllocations.objectAt(0).visit();
+    await PluginDetail.controllerAllocations[0].visit();
 
     assert.equal(currentURL(), `/allocations/${controller.allocID}`);
   });

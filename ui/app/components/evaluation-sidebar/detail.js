@@ -51,7 +51,7 @@ export default class Detail extends Component {
             return d.id;
           })
           .parentId((d) => d.previousEval)([
-          ...data.toArray(),
+          ...[...data],
           this.currentEvalDetail,
         ]);
       }
@@ -65,7 +65,7 @@ export default class Detail extends Component {
     return this.hierarchy
       ?.descendants()
       .map((d) => d.children)
-      .compact();
+      .filter((item) => item !== undefined && item !== null);
   }
 
   get parentEvaluation() {

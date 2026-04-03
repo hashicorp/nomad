@@ -35,8 +35,8 @@ export default class TokenEditorComponent extends Component {
   // when this renders, set up tokenPolicies
   constructor() {
     super(...arguments);
-    this.tokenPolicies = this.activeToken.policies.toArray() || [];
-    this.tokenRoles = this.activeToken.roles.toArray() || [];
+    this.tokenPolicies = [...this.activeToken.policies] || [];
+    this.tokenRoles = [...this.activeToken.roles] || [];
     if (this.activeToken.isNew) {
       this.activeToken.expirationTTL = 'never';
     }

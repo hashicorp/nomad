@@ -12,7 +12,7 @@ export default class OptimizeIndexRoute extends Route {
     const summaries = this.controllerFor('optimize').filteredSummaries;
 
     if (summaries.length) {
-      const firstSummary = summaries.objectAt(0);
+      const firstSummary = summaries[0];
 
       return this.transitionTo('optimize.summary', firstSummary.slug, {
         queryParams: {

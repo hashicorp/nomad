@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import d3Format from 'd3-format';
 
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
@@ -21,8 +22,12 @@ export default class ResourcesDiffs {
   }
 
   get cpu() {
-    const included = this.includedRecommendations.filterBy('resource', 'CPU');
-    const excluded = this.excludedRecommendations.filterBy('resource', 'CPU');
+    const included = this.includedRecommendations.filter(
+      (item) => get(item, 'resource') === 'CPU'
+    );
+    const excluded = this.excludedRecommendations.filter(
+      (item) => get(item, 'resource') === 'CPU'
+    );
 
     return new ResourceDiffs(
       this.model.reservedCPU,
@@ -35,13 +40,11 @@ export default class ResourcesDiffs {
   }
 
   get memory() {
-    const included = this.includedRecommendations.filterBy(
-      'resource',
-      'MemoryMB'
+    const included = this.includedRecommendations.filter(
+      (item) => get(item, 'resource') === 'MemoryMB'
     );
-    const excluded = this.excludedRecommendations.filterBy(
-      'resource',
-      'MemoryMB'
+    const excluded = this.excludedRecommendations.filter(
+      (item) => get(item, 'resource') === 'MemoryMB'
     );
 
     return new ResourceDiffs(
@@ -55,9 +58,12 @@ export default class ResourcesDiffs {
   }
 
   get includedRecommendations() {
-    return this.recommendations.reject((r) =>
-      this.excludedRecommendations.includes(r)
-    );
+    return this.recommendations.filter(function (...args) {
+      return !((r) => this.excludedRecommendations.includes(r)).apply(
+        this,
+        args
+      );
+    });
   }
 }
 
@@ -81,9 +87,11 @@ class ResourceDiffs {
   get recommended() {
     if (this.included.length) {
       return (
-        this.included.mapBy('value').reduce(sumAggregate, 0) +
+        this.included
+          .map((item) => get(item, 'value'))
+          .reduce(sumAggregate, 0) +
         this.excluded
-          .mapBy(`task.${this.baseTaskPropertyName}`)
+          .map((item) => get(item, `task.${this.baseTaskPropertyName}`))
           .reduce(sumAggregate, 0)
       );
     } else {

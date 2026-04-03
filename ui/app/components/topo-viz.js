@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, set } from '@ember/object';
@@ -144,9 +146,12 @@ export default class TopoViz extends Component {
     );
 
     // Turn hash of datacenters into a sorted array
-    const datacenters = Object.keys(datacentersMap)
-      .map((key) => ({ name: key, nodes: datacentersMap[key] }))
-      .sortBy('name');
+    const datacenters = [
+      ...Object.keys(datacentersMap).map((key) => ({
+        name: key,
+        nodes: datacentersMap[key],
+      })),
+    ].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
 
     const topology = {
       datacenters,
@@ -154,7 +159,7 @@ export default class TopoViz extends Component {
       selectedKey: null,
       heightScale: scaleLinear()
         .range([15, 40])
-        .domain(extent(nodeContainers.mapBy('memory'))),
+        .domain(extent(nodeContainers.map((item) => get(item, 'memory')))),
     };
     this.topology = topology;
 

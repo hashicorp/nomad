@@ -4,6 +4,7 @@
  */
 
 // @ts-check
+import { get } from '@ember/object';
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
@@ -62,15 +63,15 @@ export default class Tokens extends Controller {
   }
 
   get hasJWTAuthMethods() {
-    return this.authMethods.any((method) => method.type === 'JWT');
+    return this.authMethods.some((method) => method.type === 'JWT');
   }
 
   get nonTokenAuthMethods() {
-    return this.authMethods.rejectBy('type', 'JWT');
+    return this.authMethods.filter((item) => get(item, 'type') !== 'JWT');
   }
 
   get JWTAuthMethods() {
-    return this.authMethods.filterBy('type', 'JWT');
+    return this.authMethods.filter((item) => get(item, 'type') === 'JWT');
   }
 
   get JWTAuthMethodOptions() {
@@ -82,7 +83,8 @@ export default class Tokens extends Controller {
 
   get defaultJWTAuthMethod() {
     return (
-      this.JWTAuthMethods.findBy('default', true) || this.JWTAuthMethods[0]
+      this.JWTAuthMethods.find((item) => get(item, 'default') === true) ||
+      this.JWTAuthMethods[0]
     );
   }
 

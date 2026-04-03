@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
 import Component from '@glimmer/component';
 import { htmlSafe } from '@ember/template';
 import { action, get } from '@ember/object';
@@ -31,7 +32,9 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
     if (!annotations || !annotations.length) return null;
 
-    let sortedAnnotations = annotations.sortBy(prop);
+    let sortedAnnotations = [...annotations].sort((a, b) =>
+      compare(get(a, prop), get(b, prop))
+    );
     if (timeseries) {
       sortedAnnotations = sortedAnnotations.reverse();
     }

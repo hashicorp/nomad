@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable qunit/require-expect */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import {
@@ -316,7 +318,9 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: '0' });
       await triggerEvent('.page-layout', 'keydown', { key: '1' });
 
-      const clickedJob = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
+      const clickedJob = [...server.db.jobs]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
+        .reverse()[0].id;
       assert.equal(
         currentURL(),
         `/jobs/${clickedJob}@default`,
@@ -326,7 +330,13 @@ module('Acceptance | keyboard', function (hooks) {
     test('Multi-Table Nav', async function (assert) {
       server.createList('job', 3, { createRecommendations: true });
       await visit(
-        `/jobs/${server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`
+        `/jobs/${
+          [...server.db.jobs]
+            .sort((a, b) =>
+              compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))
+            )
+            .reverse()[0].id
+        }@default`
       );
       const numberOfGroups = findAll('.task-group-row').length;
       const numberOfAllocs = findAll('.allocation-row').length;

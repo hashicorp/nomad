@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
@@ -14,12 +16,12 @@ export default class ServerController extends Controller {
   @computed('model.tags')
   get sortedTags() {
     const tags = this.get('model.tags') || {};
-    return Object.keys(tags)
-      .map((name) => ({
+    return [
+      ...Object.keys(tags).map((name) => ({
         name,
         value: tags[name],
-      }))
-      .sortBy('name');
+      })),
+    ].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
   }
 
   @action

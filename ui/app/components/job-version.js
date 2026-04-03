@@ -5,6 +5,7 @@
 
 // @ts-check
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -67,7 +68,7 @@ export default class JobVersion extends Component {
     return (
       fieldChanges(diff) +
       taskGroups.reduce(arrayOfFieldChanges, 0) +
-      (taskGroups.mapBy('Tasks') || [])
+      (taskGroups.map((item) => get(item, 'Tasks')) || [])
         .reduce(flatten, [])
         .reduce(arrayOfFieldChanges, 0)
     );

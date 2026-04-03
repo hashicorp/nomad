@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -634,13 +635,14 @@ class MockRecommendationSummary {
   @action
   toggleAllRecommendationsForResource(resource, enabled) {
     if (enabled) {
-      this.excludedRecommendations = this.excludedRecommendations.rejectBy(
-        'resource',
-        resource
+      this.excludedRecommendations = this.excludedRecommendations.filter(
+        (item) => get(item, 'resource') !== resource
       );
     } else {
       this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource)
+        this.recommendations.filter(
+          (item) => get(item, 'resource') === resource
+        )
       );
     }
   }

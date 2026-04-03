@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import moment from 'moment';
 import d3TimeFormat from 'd3-time-format';
@@ -53,12 +54,12 @@ export default class StatsTimeSeries extends Component {
   }
 
   yScale(data, xAxisOffset) {
-    const yValues = (data || []).mapBy(
-      this.args.dataProp ? 'percentStack' : 'percent'
+    const yValues = (data || []).map((item) =>
+      get(item, this.args.dataProp ? 'percentStack' : 'percent')
     );
 
     let [low, high] = [0, 1];
-    if (yValues.compact().length) {
+    if (yValues.filter((item) => item !== undefined && item !== null).length) {
       [low, high] = d3Array.extent(yValues);
     }
 

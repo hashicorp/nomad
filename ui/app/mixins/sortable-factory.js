@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Mixin from '@ember/object/mixin';
 import Ember from 'ember';
 import { computed } from '@ember/object';
@@ -62,7 +64,14 @@ export default function sortableFactory(properties, fromSortableMixin) {
           this.set('_sortableFactoryWarningPrinted', true);
         }
 
-        const sorted = this.listToSort.compact().sortBy(this.sortProperty);
+        const sorted = [
+          ...this.listToSort.filter(
+            (item) => item !== undefined && item !== null
+          ),
+        ].sort((a, b) => {
+          const key = this.sortProperty;
+          return compare(get(a, key), get(b, key));
+        });
         if (this.sortDescending) {
           return sorted.reverse();
         }

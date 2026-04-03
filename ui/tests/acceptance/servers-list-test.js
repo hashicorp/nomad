@@ -80,7 +80,7 @@ module('Acceptance | servers list', function (hooks) {
 
     await ServersList.visit();
 
-    const agentRow = ServersList.servers.objectAt(0);
+    const agentRow = ServersList.servers[0];
 
     assert.equal(agentRow.name, agent.name, 'Name');
     assert.equal(
@@ -100,7 +100,7 @@ module('Acceptance | servers list', function (hooks) {
     const agent = server.db.agents[0];
 
     await ServersList.visit();
-    await ServersList.servers.objectAt(0).clickRow();
+    await ServersList.servers[0].clickRow();
 
     assert.equal(
       currentURL(),
@@ -131,17 +131,17 @@ module('Acceptance | servers list', function (hooks) {
     server.db.agents[2].member.Tags.region = 'galactic';
     await ServersList.visit();
     assert.equal(
-      ServersList.servers.objectAt(0).leader,
+      ServersList.servers[0].leader,
       'True (galactic)',
       'Leadership is shown for the galactic region'
     );
     assert.equal(
-      ServersList.servers.objectAt(1).leader,
+      ServersList.servers[1].leader,
       'True (global)',
       'Leadership is shown for the global region'
     );
     assert.equal(
-      ServersList.servers.objectAt(2).leader,
+      ServersList.servers[2].leader,
       'False',
       'Non-leader servers are shown'
     );

@@ -28,7 +28,9 @@ export default class Breadcrumbs extends Component {
   get breadcrumbs() {
     const breadcrumbs = this.path
       .split('/')
-      .reject(isEmpty)
+      .filter(function (...args) {
+        return !isEmpty.apply(this, args);
+      })
       .reduce((breadcrumbs, pathSegment, index) => {
         let breadcrumbPath;
 

@@ -691,12 +691,9 @@ module('Acceptance | job status panel', function (hooks) {
     this.store
       .peekAll('job')
       .objectAt(0)
-      .get('allocations')
-      .objectAt(0)
-      .get('states')
-      .objectAt(0)
-      .get('events')
-      .objectAt(0)
+      .get('allocations')[0]
+      .get('states')[0]
+      .get('events')[0]
       .set('type', 'Restarting');
 
     await settled();
@@ -711,12 +708,9 @@ module('Acceptance | job status panel', function (hooks) {
     this.store
       .peekAll('job')
       .objectAt(0)
-      .get('allocations')
-      .objectAt(1)
-      .get('states')
-      .objectAt(0)
-      .get('events')
-      .objectAt(0)
+      .get('allocations')[1]
+      .get('states')[0]
+      .get('events')[0]
       .set('type', 'Restarting');
 
     await settled();
@@ -732,8 +726,7 @@ module('Acceptance | job status panel', function (hooks) {
     this.store
       .peekAll('job')
       .objectAt(0)
-      .get('allocations')
-      .objectAt(0)
+      .get('allocations')[0]
       .get('followUpEvaluation')
       .set('content', { 'test-key': 'not-empty' });
 
@@ -929,12 +922,9 @@ module('Acceptance | job status panel', function (hooks) {
       this.store
         .peekAll('job')
         .objectAt(0)
-        .get('allocations')
-        .objectAt(0)
-        .get('states')
-        .objectAt(0)
-        .get('events')
-        .objectAt(0)
+        .get('allocations')[0]
+        .get('states')[0]
+        .get('events')[0]
         .set('type', 'Restarting');
 
       await settled();

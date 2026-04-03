@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   clickable,
@@ -37,7 +38,7 @@ export default create({
     }),
 
     metricFor(id) {
-      return this.metrics.toArray().findBy('id', id);
+      return [...this.metrics].find((item) => get(item, 'id') === id);
     },
 
     notification: text('[data-test-deployment-notification]'),

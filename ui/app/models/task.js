@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import {
@@ -80,9 +81,10 @@ export default class Task extends Fragment {
       if (this._job.parent.get('plainId')) {
         jobID = this._job.parent.get('plainId');
       }
-      return this._job.variables?.findBy(
-        'path',
-        `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
+      return this._job.variables?.find(
+        (item) =>
+          get(item, 'path') ===
+          `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
       );
     }
   }
@@ -101,9 +103,10 @@ export default class Task extends Fragment {
     if (parentID) {
       jobID = parentID;
     }
-    return await this._job.variables?.findBy(
-      'path',
-      `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
+    return await this._job.variables?.find(
+      (item) =>
+        get(item, 'path') ===
+        `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
     );
   }
 }
