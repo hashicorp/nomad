@@ -539,8 +539,10 @@ module('Acceptance | exec', function (hooks) {
 
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
-    let allocation = this.server.db.allocations.find(el => el.jobId === this.job.id,
-      taskGroup: taskGroup.name);
+    let allocation = this.server.db.allocations.findBy({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
 
     await settled();
 
