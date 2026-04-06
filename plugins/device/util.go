@@ -58,7 +58,7 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 		return nil
 	}
 	s := in.Shared.GetShared()
-	share := DeviceSharing(s)
+	share := DeviceSharing{s}
 	return &Device{
 		ID:         in.ID,
 		Healthy:    in.Healthy,
@@ -395,7 +395,7 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 func convertDeviceSharing(s *DeviceSharing) *proto.DeviceSharing {
 	var d *proto.DeviceSharing
 
-	switch *s {
+	switch s.Shared {
 	case "ineligible":
 		d = &proto.DeviceSharing{Shared: "ineligible"}
 	case "active":

@@ -3585,31 +3585,32 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
-// DeviceSharing is an enum string that parallels device.DeviceSharing
+// Shared is an enum string that parallels device.DeviceSharing.Shared
 // and reports on the presence and state of sharing subsystems on a
 // device
-type DeviceSharing string
+type Shared string
+
+// DeviceSharing mirrors the plugin.DeviceSharing struct found
+// on Devices.DetectedDevice. It holds a string enum that some
+// devices use to report the status and presenes of sharing
+// subsystems
+type DeviceSharing struct {
+	Shared string
+}
 
 const (
-	DeviceSharingIneligible DeviceSharing = "ineligible"
-	DeviceSharingUnset      DeviceSharing = ""
-	DeviceSharingActive     DeviceSharing = "active"
-	DeviceSharingInactive   DeviceSharing = "inactive"
+	DeviceSharingIneligible string = "ineligible"
+	DeviceSharingUnset      string = ""
+	DeviceSharingActive     string = "active"
+	DeviceSharingInactive   string = "inactive"
 )
 
-func (d DeviceSharing) Copy() DeviceSharing {
-	var copied DeviceSharing
-	switch d {
-	case DeviceSharingActive:
-		copied = DeviceSharingActive
-	case DeviceSharingInactive:
-		copied = DeviceSharingInactive
-	case DeviceSharingIneligible:
-		copied = DeviceSharingIneligible
-	default:
-		copied = DeviceSharingUnset
-	}
-	return copied
+func (d DeviceSharing) Copy() *DeviceSharing {
+	return &DeviceSharing{d.Shared}
+}
+
+func (d DeviceSharing) String() string {
+	return d.Shared
 }
 
 // NodeDevice is an instance of a particular device.
@@ -3628,9 +3629,10 @@ type NodeDevice struct {
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
 
-	// Shared is a string enum some devices use to report
-	/// status and presence of sharing subsystems
-	Shared DeviceSharing
+	// Shared holds a pointer to a DeviceSharing struct that mirrors
+	// the Shared filed on Devices.DetectedDevice and holds a string enum that
+	// some devices use to report status and presence of sharing subsystems
+	Shared *DeviceSharing
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {

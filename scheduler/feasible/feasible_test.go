@@ -3294,7 +3294,7 @@ func TestDeviceChecker(t *testing.T) {
 	}
 	makeDeviceSharable := func(device *structs.NodeDeviceResource) *structs.NodeDeviceResource {
 		for _, v := range device.Instances {
-			v.Shared = structs.DeviceSharingActive
+			v.Shared = &structs.DeviceSharing{Shared: "active"}
 		}
 		return device
 	}

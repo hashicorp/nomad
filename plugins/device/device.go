@@ -17,10 +17,10 @@ const (
 	// DeviceTypeGPU is a canonical device type for a GPU.
 	DeviceTypeGPU = "gpu"
 
-	SharingUnset      DeviceSharing = ""
-	SharingIneligible DeviceSharing = "ineligible"
-	SharingActive     DeviceSharing = "active"
-	SharingInactive   DeviceSharing = "inactive"
+	SharingUnset      string = ""
+	SharingIneligible string = "ineligible"
+	SharingActive     string = "active"
+	SharingInactive   string = "inactive"
 )
 
 var (
@@ -31,10 +31,12 @@ var (
 // DeviceSharing is an enum string that reports on the presence and
 // current state of sharing subsystems on the device
 
-type DeviceSharing string
+type DeviceSharing struct {
+	Shared string
+}
 
 func (s *DeviceSharing) String() string {
-	switch *s {
+	switch s.Shared {
 	case SharingInactive:
 		return "inactive"
 	case SharingIneligible:

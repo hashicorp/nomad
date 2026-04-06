@@ -132,7 +132,7 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			var shareable bool
 			// mark shareable if we find a single shareable device
 			for _, nodeDevice := range devInst.Device.Instances {
-				if nodeDevice.Shared == structs.DeviceSharingActive {
+				if nodeDevice.Shared.Shared == structs.DeviceSharingActive {
 					shareable = true
 					break
 				}
@@ -257,7 +257,7 @@ func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.Shar
 	for _, dev := range device.Instances {
 		// if the device has sharing active
 		if dev.ID == id {
-			if sharing.Enabled == true && dev.Shared == structs.DeviceSharingActive {
+			if sharing.Enabled == true && dev.Shared.String() == structs.DeviceSharingActive {
 				canShare = true
 			} else {
 				continue
