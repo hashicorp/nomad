@@ -171,7 +171,7 @@ func SharedNvidiaNode() *structs.Node {
 					Locality: &structs.NodeDeviceLocality{
 						PciBusID: "0000:02:00.1", // node 0
 					},
-					Shared: &structs.DeviceSharing{structs.DeviceSharingActive},
+					Shared: &structs.DeviceSharing{Shared: structs.DeviceSharingActive},
 				},
 				{
 					ID:      uuid.Generate(),
@@ -179,7 +179,7 @@ func SharedNvidiaNode() *structs.Node {
 					Locality: &structs.NodeDeviceLocality{
 						PciBusID: "0000:02:01.1", // node 0
 					},
-					Shared: &structs.DeviceSharing{structs.DeviceSharingActive},
+					Shared: &structs.DeviceSharing{Shared: structs.DeviceSharingActive},
 				},
 			},
 		},
