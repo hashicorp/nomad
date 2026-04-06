@@ -174,40 +174,17 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 
-			targetDevice := 0
 			n := devNode()
 			if tc.shared {
-				n.NodeResources.Devices = append(n.NodeResources.Devices, &NodeDeviceResource{
-					Type:   "gpu",
-					Vendor: "nvidia",
-					Name:   "1080ti",
-					Attributes: map[string]*psstructs.Attribute{
-						"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
-						"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
-						"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
-						"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
-					},
-					Instances: []*NodeDevice{
-						{
-							ID:      uuid.Generate(),
-							Healthy: true,
-							Shared:  &DeviceSharing{DeviceSharingActive},
-						},
-						{
-							ID:      uuid.Generate(),
-							Healthy: true,
-							Shared:  &DeviceSharing{DeviceSharingActive},
-						},
-					},
-				})
-				targetDevice = len(n.NodeResources.Devices) - 1
+				n.NodeResources.Devices[0].Instances[0].Shared = &DeviceSharing{DeviceSharingActive}
+				n.NodeResources.Devices[0].Instances[1].Shared = &DeviceSharing{DeviceSharingActive}
 			}
 			d := NewDeviceAccounter(n)
 			must.NotNil(t, d)
 			// Create two allocations, both with the same device
 			a1, a2 := nvidiaAlloc(), nvidiaAlloc()
 
-			nvidiaDev0ID := n.NodeResources.Devices[targetDevice].Instances[0].ID
+			nvidiaDev0ID := n.NodeResources.Devices[0].Instances[0].ID
 			a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
 			a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
 

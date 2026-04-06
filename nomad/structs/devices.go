@@ -146,7 +146,7 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 // instanceID is shared
 func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
 	for _, device := range accounterInst.Device.Instances {
-		if device.ID == instanceID {
+		if device.ID == instanceID && device.Shared != nil {
 			if device.Shared.String() == DeviceSharingActive {
 				return true
 			}
