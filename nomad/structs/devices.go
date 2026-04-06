@@ -46,6 +46,20 @@ func (dai *DeviceAccounterInstance) Copy() *DeviceAccounterInstance {
 	}
 }
 
+// GetSharedByID returns the underlying Shared string value of the instance
+// of the specific deviceID.
+//
+// If no instance matching the deviceID is found or if Shared is nil
+// an empty string, equivalent to DeviceSharingUnset is returned
+func (dai *DeviceAccounterInstance) GetSharedByID(instanceID string) string {
+	for _, instance := range dai.Device.Instances {
+		if instance.ID == instanceID && instance.Shared != nil {
+			return instance.Shared.String()
+		}
+	}
+	return ""
+}
+
 // NewDeviceAccounter returns a new device accounter. The node is used to
 // populate the set of available devices based on what healthy device instances
 // exist on the node.
@@ -125,7 +139,8 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 						if i, ok := devAccounter.Instances[instanceID]; ok {
 							// Mark that the device is in use
 							devAccounter.Instances[instanceID]++
-							if shared := isShared(instanceID, devAccounter); shared {
+							shared := devAccounter.GetSharedByID(instanceID)
+							if shared == DeviceSharingActive {
 								continue
 							}
 							if i != 0 {
@@ -139,20 +154,6 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	}
 
 	return
-}
-
-// isShared loops through the []*NodeDevices in DeviceAccounterInstance.Device
-// and returns a bool to indicate whether the device matching the supplied
-// instanceID is shared
-func isShared(instanceID string, accounterInst *DeviceAccounterInstance) bool {
-	for _, device := range accounterInst.Device.Instances {
-		if device.ID == instanceID && device.Shared != nil {
-			if device.Shared.String() == DeviceSharingActive {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // willingToShare is called in the loop that marks each reserved instance as used

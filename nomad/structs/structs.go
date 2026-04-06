@@ -3606,6 +3606,7 @@ const (
 )
 
 func (d DeviceSharing) Copy() *DeviceSharing {
+
 	return &DeviceSharing{d.Shared}
 }
 
@@ -3670,7 +3671,9 @@ func (n *NodeDevice) Copy() *NodeDevice {
 	// Copy the locality
 	nn.Locality = nn.Locality.Copy()
 	// copy sharing
-	nn.Shared = n.Shared.Copy()
+	if nn.Shared != nil {
+		nn.Shared = n.Shared.Copy()
+	}
 	return &nn
 }
 

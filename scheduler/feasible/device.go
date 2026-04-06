@@ -128,14 +128,14 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 		// Check if we have enough unused instances to use this
 		assignable := []string{}
 		willShare := make(map[string]bool)
+
 		for instanceID, v := range devInst.Instances {
 			var shareable bool
 			// mark shareable if we find a single shareable device
-			for _, nodeDevice := range devInst.Device.Instances {
-				if nodeDevice.Shared.Shared == structs.DeviceSharingActive {
-					shareable = true
-					break
-				}
+			shared := devInst.GetSharedByID(instanceID)
+			if shared == structs.DeviceSharingActive {
+				shareable = true
+				break
 			}
 
 			if v != 0 && !shareable {

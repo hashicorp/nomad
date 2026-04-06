@@ -2107,7 +2107,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 				//mark gpu as SharingActive on RankedNodes
 				for _, v := range tc.nodes {
 					newNode := v.Node.Copy()
-					newNode.NodeResources.Devices[0].Instances[0].Shared = structs.DeviceSharingActive
+					newNode.NodeResources.Devices[0].Instances[0].Shared = &structs.DeviceSharing{Shared: structs.DeviceSharingActive}
 					n = append(n, &RankedNode{
 						Node: newNode,
 					})
