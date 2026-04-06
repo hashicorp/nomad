@@ -92,6 +92,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'ember/no-array-prototype-extensions': 'error',
       'ember/no-at-ember-render-modifiers': 'off',
       'ember/no-runloop': 'off',
       'ember/no-mixins': 'off',

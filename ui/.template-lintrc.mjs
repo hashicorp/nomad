@@ -7,7 +7,7 @@ export default {
   extends: 'recommended',
   rules: {
     'require-presentational-children': 'off',
-    'no-array-prototype-extensions': 'off',
+    'no-array-prototype-extensions': 'error',
     'no-builtin-form-components': 'off',
     'no-at-ember-render-modifiers': 'off',
     'link-href-attributes': 'off',
