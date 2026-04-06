@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -150,7 +152,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
       </template>,
     );
 
-    const sortedChildren = parent.get('children').sortBy('name');
+    const sortedChildren = [...parent.get('children')].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
     const childRows = findAll('[data-test-job-name]');
 
     sortedChildren.reverse().forEach((child, index) => {

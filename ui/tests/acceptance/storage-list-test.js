@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL, visit } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -67,7 +69,7 @@ module('Acceptance | storage list', function (hooks) {
 
     await percySnapshot(assert);
 
-    const sortedVolumes = this.server.db.csiVolumes.sortBy('id');
+    const sortedVolumes = [...this.server.db.csiVolumes].sort((a, b) => compare(get(a, 'id'), get(b, 'id')));
 
     assert.deepEqual(StorageList.csiVolumes.length, StorageList.pageSize);
     StorageList.csiVolumes.forEach((volume, index) => {
@@ -92,7 +94,7 @@ module('Acceptance | storage list', function (hooks) {
 
     await StorageList.visit();
 
-    const volumeRow = StorageList.csiVolumes.objectAt(0);
+    const volumeRow = StorageList.csiVolumes[0];
 
     let controllerHealthStr = 'Node Only';
     if (volume.controllerRequired || volume.controllersExpected > 0) {
@@ -131,7 +133,7 @@ module('Acceptance | storage list', function (hooks) {
     });
 
     await StorageList.visit({ namespace: '*' });
-    await StorageList.csiVolumes.objectAt(0).clickName();
+    await StorageList.csiVolumes[0].clickName();
     assert.deepEqual(
       currentURL(),
       `/storage/volumes/csi/${volume.id}@${secondNamespace.id}`,
@@ -181,7 +183,7 @@ module('Acceptance | storage list', function (hooks) {
 
     await StorageList.visit({ namespace: '*' });
 
-    const volumeRow = StorageList.csiVolumes.objectAt(0);
+    const volumeRow = StorageList.csiVolumes[0];
     assert.deepEqual(volumeRow.namespace, volume.namespaceId);
   });
 
@@ -200,13 +202,13 @@ module('Acceptance | storage list', function (hooks) {
     const firstNamespace = this.server.db.namespaces[0];
     await StorageList.visit({ namespace: firstNamespace.id });
     assert.deepEqual(StorageList.csiVolumes.length, 1);
-    assert.deepEqual(StorageList.csiVolumes.objectAt(0).name, volume1.id);
+    assert.deepEqual(StorageList.csiVolumes[0].name, volume1.id);
 
     const secondNamespace = this.server.db.namespaces[1];
     await StorageList.visit({ namespace: secondNamespace.id });
 
     assert.deepEqual(StorageList.csiVolumes.length, 1);
-    assert.deepEqual(StorageList.csiVolumes.objectAt(0).name, volume2.id);
+    assert.deepEqual(StorageList.csiVolumes[0].name, volume2.id);
   });
 
   test('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function (assert) {
@@ -266,9 +268,9 @@ module('Acceptance | storage list', function (hooks) {
       const selection = option.label;
       await option.toggle();
 
-      const expectedVolumes = this.server.db.csiVolumes
-        .filter((volume) => filter(volume, selection))
-        .sortBy('id');
+      const expectedVolumes = [...this.server.db.csiVolumes
+        .filter((volume) => filter(volume, selection))]
+        .sort((a, b) => compare(get(a, 'id'), get(b, 'id')));
 
       StorageList.csiVolumes.forEach((volume, index) => {
         assert.deepEqual(
@@ -283,7 +285,7 @@ module('Acceptance | storage list', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option = facet.options.objectAt(1);
+      const option = facet.options[1];
       const label = option.label;
       await option.toggle();
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   clickable,
@@ -38,7 +39,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().findBy('id', id).sort();
+    return [...this.sortOptions].find(item => get(item, 'id') === id).sort();
   },
 
   facets: {

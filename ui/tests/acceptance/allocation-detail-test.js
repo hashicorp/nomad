@@ -4,6 +4,8 @@
  */
 
 /* Mirage fixtures are random so we can't expect a set number of assertions */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import AdapterError from '@ember-data/adapter/error';
 import { getPageTitle } from 'ember-page-title/test-support';
 import {
@@ -109,12 +111,12 @@ module('Acceptance | allocation detail', function (hooks) {
       'Two resource utilization graphs',
     );
     assert.deepEqual(
-      Allocation.resourceCharts.objectAt(0).name,
+      Allocation.resourceCharts[0].name,
       'CPU',
       'First chart is CPU',
     );
     assert.deepEqual(
-      Allocation.resourceCharts.objectAt(1).name,
+      Allocation.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory',
     );
@@ -142,11 +144,11 @@ module('Acceptance | allocation detail', function (hooks) {
 
     await Allocation.lifecycleChart.tasks[0].visit();
 
-    const prestartEphemeralTask = this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    const prestartEphemeralTask = [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))
       .find((taskState) => {
-        const task = this.server.db.tasks.findBy({ name: taskState.name });
+        const task = this.server.db.tasks.find(item => get(item, { name: taskState.name }));
         return (
           task.Lifecycle &&
           task.Lifecycle.Hook === 'prestart' &&
@@ -189,9 +191,9 @@ module('Acceptance | allocation detail', function (hooks) {
 
     // Set the expected task states.
     const states = ['running', 'pending', 'dead'];
-    this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')
+    [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))
       .forEach((task, i) => {
         this.server.db.taskStates.update(task.id, { state: states[i] });
       });
@@ -199,9 +201,9 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.visit({ id: allocation.id });
 
     Allocation.tasks.forEach((taskRow, i) => {
-      const task = this.server.db.taskStates
-        .where({ allocationId: allocation.id })
-        .sortBy('name')[i];
+      const task = [...this.server.db.taskStates
+        .where({ allocationId: allocation.id })]
+        .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[i];
       const events = this.server.db.taskEvents.where({ taskStateId: task.id });
       const event = events[events.length - 1];
 
@@ -239,11 +241,11 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('each task row should link to the task detail page', async function (assert) {
-    const task = this.server.db.taskStates
-      .where({ allocationId: allocation.id })
-      .sortBy('name')[0];
+    const task = [...this.server.db.taskStates
+      .where({ allocationId: allocation.id })]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[0];
 
-    await Allocation.tasks.objectAt(0).clickLink();
+    await Allocation.tasks[0].clickLink();
 
     // Make sure the allocation is pending in order to ensure there are no tasks
     assert.deepEqual(
@@ -253,7 +255,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
-    await Allocation.tasks.objectAt(0).clickRow();
+    await Allocation.tasks[0].clickRow();
 
     assert.deepEqual(
       currentURL(),
@@ -282,7 +284,7 @@ module('Acceptance | allocation detail', function (hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.taskStates.models.sortBy('name')[0];
+    const taskState = [...allocation.taskStates.models].sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[0];
     const task = this.server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();
@@ -313,7 +315,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('ports are listed', async function (assert) {
     const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
-    allServerPorts.sortBy('Label').forEach((serverPort, index) => {
+    [...allServerPorts].sort((a, b) => compare(get(a, 'Label'), get(b, 'Label'))).forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];
 
       assert.strictEqual(renderedPort.name, serverPort.Label);
@@ -332,7 +334,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
     assert.deepEqual(Allocation.services.length, taskGroup.services.length);
 
-    taskGroup.services.models.sortBy('name').forEach((serverService, index) => {
+    [...taskGroup.services.models].sort((a, b) => compare(get(a, 'name'), get(b, 'name'))).forEach((serverService, index) => {
       const renderedService = Allocation.services[index];
 
       assert.deepEqual(renderedService.name, serverService.name);
@@ -643,11 +645,11 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     allocation = this.server.create('allocation', 'preempter');
     await Allocation.visit({ id: allocation.id });
 
-    const preemption = allocation.preemptedAllocations
-      .map((id) => this.server.schema.find('allocation', id))
-      .sortBy('modifyIndex')
+    const preemption = [...allocation.preemptedAllocations
+      .map((id) => this.server.schema.find('allocation', id))]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse()[0];
-    const preemptionRow = Allocation.preemptions.objectAt(0);
+    const preemptionRow = Allocation.preemptions[0];
 
     assert.deepEqual(
       Allocation.preemptions.length,
@@ -728,8 +730,8 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       forceRunningClientStatus: true,
       clientStatus: 'running',
     });
-    const otherAlloc = this.server.db.allocations.reject(
-      (j) => j.jobId !== job.id,
+    const otherAlloc = this.server.db.allocations.filter(
+      function(...args) { return !((j) => j.jobId !== job.id).apply(this, args); },
     );
 
     this.server.db.serviceFragments.update({
@@ -778,11 +780,11 @@ module('Acceptance | allocation detail (services)', function (hooks) {
 
   test('Allocation has a list of services with active checks', async function (assert) {
     faker.seed(1);
-    const runningAlloc = this.server.db.allocations.findBy({
+    const runningAlloc = this.server.db.allocations.find(item => get(item, {
       jobId: 'service-haver',
       forceRunningClientStatus: true,
       clientStatus: 'running',
-    });
+    }));
     await Allocation.visit({ id: runningAlloc.id });
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();

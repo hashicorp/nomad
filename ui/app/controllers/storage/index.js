@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -48,7 +50,7 @@ export default class IndexController extends Controller {
     });
 
     // Unset the namespace selection if it was server-side deleted
-    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+    if (!availableNamespaces.map(item => get(item, 'key')).includes(this.qpNamespace)) {
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
       scheduleOnce('actions', this, () => {
         // eslint-disable-next-line ember/no-side-effects
@@ -164,7 +166,10 @@ export default class IndexController extends Controller {
   }
 
   get sortedCSIVolumes() {
-    let sorted = this.filteredCSIVolumes.sortBy(this.csiSortProperty);
+    let sorted = [...this.filteredCSIVolumes].sort((a, b) => {
+              const key = this.csiSortProperty;
+              return compare(get(a, key), get(b, key));
+            });
     if (this.csiSortDescending) {
       sorted.reverse();
     }
@@ -193,7 +198,10 @@ export default class IndexController extends Controller {
   }
 
   get sortedDynamicHostVolumes() {
-    let sorted = this.filteredDynamicHostVolumes.sortBy(this.dhvSortProperty);
+    let sorted = [...this.filteredDynamicHostVolumes].sort((a, b) => {
+              const key = this.dhvSortProperty;
+              return compare(get(a, key), get(b, key));
+            });
     if (this.dhvSortDescending) {
       sorted.reverse();
     }

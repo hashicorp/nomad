@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -111,7 +113,7 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       await option.toggle();
 
       const selection = [option.key];
@@ -119,9 +121,9 @@ module('Acceptance | plugin allocations', function (hooks) {
         ...plugin.controllers.models,
         ...plugin.nodes.models,
       ];
-      const expectedAllocations = allAllocations
-        .filter((allocation) => filter(allocation, selection))
-        .sortBy('updateTime');
+      const expectedAllocations = [...allAllocations
+        .filter((allocation) => filter(allocation, selection))]
+        .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')));
 
       PluginAllocations.allocations.forEach((allocation, index) => {
         assert.deepEqual(allocation.id, expectedAllocations[index].allocID);
@@ -134,8 +136,8 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();
@@ -145,9 +147,9 @@ module('Acceptance | plugin allocations', function (hooks) {
         ...plugin.controllers.models,
         ...plugin.nodes.models,
       ];
-      const expectedAllocations = allAllocations
-        .filter((allocation) => filter(allocation, selection))
-        .sortBy('updateTime');
+      const expectedAllocations = [...allAllocations
+        .filter((allocation) => filter(allocation, selection))]
+        .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')));
 
       PluginAllocations.allocations.forEach((allocation, index) => {
         assert.deepEqual(allocation.id, expectedAllocations[index].allocID);
@@ -160,8 +162,8 @@ module('Acceptance | plugin allocations', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();

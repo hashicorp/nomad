@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { currentURL, settled } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -87,8 +89,8 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function (assert) {
-    const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
-    const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
+    const totalCPU = tasks.map(item => get(item, 'resources.CPU')).reduce(sum, 0);
+    const totalMemory = tasks.map(item => get(item, 'resources.MemoryMB')).reduce(sum, 0);
     const totalMemoryMax = tasks
       .map((t) => t.resources.MemoryMaxMB || t.resources.MemoryMB)
       .reduce(sum, 0);
@@ -290,8 +292,8 @@ module('Acceptance | task group detail', function (hooks) {
   test('each allocation should show basic information about the allocation', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    const allocation = allocations.sortBy('modifyIndex').reverse()[0];
-    const allocationRow = TaskGroup.allocations.objectAt(0);
+    const allocation = [...allocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse()[0];
+    const allocationRow = TaskGroup.allocations[0];
 
     assert.deepEqual(
       allocationRow.shortId,
@@ -341,8 +343,8 @@ module('Acceptance | task group detail', function (hooks) {
   test('each allocation should show stats about the allocation', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    const allocation = allocations.sortBy('name')[0];
-    const allocationRow = TaskGroup.allocations.objectAt(0);
+    const allocation = [...allocations].sort((a, b) => compare(get(a, 'name'), get(b, 'name')))[0];
+    const allocationRow = TaskGroup.allocations[0];
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
@@ -428,7 +430,7 @@ module('Acceptance | task group detail', function (hooks) {
     );
 
     tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
-    const taskNames = tasks.mapBy('name');
+    const taskNames = tasks.map(item => get(item, 'name'));
 
     // This is thoroughly tested in allocation detail tests, so this mostly checks what’s different
 
@@ -552,7 +554,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );
@@ -574,8 +576,8 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.ok(
       this.server.pretender.handledRequests
-        .filterBy('status', 200)
-        .mapBy('url')
+        .filter(item => get(item, 'status') === 200)
+        .map(item => get(item, 'url'))
         .includes(`/v1/job/${job.id}`),
       'A request to the job is made and succeeds',
     );
@@ -632,7 +634,7 @@ module('Acceptance | task group detail', function (hooks) {
         this.server.create('scale-event', { count: 1, error: false }),
       ],
     });
-    const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
+    const scaleEvents = [...taskGroupScale.events.models].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).reverse();
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasScaleEvents);
@@ -679,7 +681,7 @@ module('Acceptance | task group detail', function (hooks) {
         this.server.create('scale-event', { count: 1, error: false }),
       ],
     });
-    const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
+    const scaleEvents = [...taskGroupScale.events.models].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).reverse();
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasScaleEvents);
@@ -731,7 +733,7 @@ module('Acceptance | task group detail', function (hooks) {
               (alloc) =>
                 alloc.jobId == job.id && alloc.taskGroup == taskGroup.name,
             )
-            .mapBy('nodeId')
+            .map(item => get(item, 'nodeId'))
             .map((id) => id.split('-')[0]),
         ),
       ).sort();
@@ -780,13 +782,13 @@ function testFacet(
     let option;
     await beforeEach.call(this);
     await facet.toggle();
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.key];
-    const expectedAllocs = this.server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+    const expectedAllocs = [...this.server.db.allocations
+      .filter((alloc) => filter(alloc, selection))]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     TaskGroup.allocations.forEach((alloc, index) => {
@@ -804,16 +806,16 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();
     selection.push(option2.key);
 
-    const expectedAllocs = this.server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+    const expectedAllocs = [...this.server.db.allocations
+      .filter((alloc) => filter(alloc, selection))]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     TaskGroup.allocations.forEach((alloc, index) => {
@@ -831,8 +833,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();

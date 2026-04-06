@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Route from '@ember/routing/route';
 import { service } from '@ember/service';
 import { collect } from '@ember/object/computed';
@@ -21,15 +22,12 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
 
-      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filterBy(
-        'provider',
-        'nomad',
-      ).length;
+      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filter(item => get(item, 'provider') === 'nomad').length;
 
       const anyTaskServicesAreNomad = model.states
-        .mapBy('task.services')
-        .compact()
-        .map((fragmentClass) => fragmentClass.mapBy('provider'))
+        .map(item => get(item, 'task.services'))
+        .filter(item => item !== undefined && item !== null)
+        .map((fragmentClass) => fragmentClass.map(item => get(item, 'provider')))
         .flat()
         .some((provider) => provider === 'nomad');
 

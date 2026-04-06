@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { equal, none } from '@ember/object/computed';
@@ -82,7 +83,7 @@ export default class Allocation extends Model {
 
   @computed('states.@each.hasRestartingEvent')
   get hasBeenRestarted() {
-    const states = this.states?.toArray?.() || this.states || [];
+    const states = [...this.states] || this.states || [];
     return states.some((state) => state?.hasRestartingEvent);
   }
 
@@ -166,7 +167,7 @@ export default class Allocation extends Model {
   @computed('taskGroupName', 'job.taskGroups.[]')
   get jobTaskGroup() {
     const taskGroups = this.get('job.taskGroups');
-    return taskGroups && taskGroups.findBy('name', this.taskGroupName);
+    return taskGroups && taskGroups.find(item => get(item, 'name') === this.taskGroupName);
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;

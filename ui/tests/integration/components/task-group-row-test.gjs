@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
@@ -76,12 +77,12 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    this.set('group', job.taskGroups.findBy('name', 'no-scaling'));
+    this.set('group', job.taskGroups.find(item => get(item, 'name') === 'no-scaling'));
 
     await renderComponent(this);
     assert.notOk(find('[data-test-scale]'));
 
-    this.set('group', job.taskGroups.findBy('name', 'scaling'));
+    this.set('group', job.taskGroups.find(item => get(item, 'name') === 'scaling'));
 
     await settled();
     assert.ok(find('[data-test-scale]'));
@@ -95,7 +96,7 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    this.set('group', job.taskGroups.findBy('name', 'scaling'));
+    this.set('group', job.taskGroups.find(item => get(item, 'name') === 'scaling'));
 
     await renderComponent(this);
     assert.strictEqual(
@@ -135,7 +136,7 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    const group = job.taskGroups.findBy('name', 'scaling');
+    const group = job.taskGroups.find(item => get(item, 'name') === 'scaling');
     group.set('count', group.scaling.max);
     this.set('group', group);
 
@@ -151,7 +152,7 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    const group = job.taskGroups.findBy('name', 'scaling');
+    const group = job.taskGroups.find(item => get(item, 'name') === 'scaling');
     group.set('count', group.scaling.min);
     this.set('group', group);
 
@@ -167,7 +168,7 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    this.set('group', job.taskGroups.findBy('name', 'scaling'));
+    this.set('group', job.taskGroups.find(item => get(item, 'name') === 'scaling'));
 
     await renderComponent(this);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
@@ -183,7 +184,7 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
 
     const job = await this.store.find('job', jobId);
-    this.set('group', job.taskGroups.findBy('name', 'scaling'));
+    this.set('group', job.taskGroups.find(item => get(item, 'name') === 'scaling'));
 
     await renderComponent(this);
     assert.ok(find('[data-test-scale="increment"]:disabled'));

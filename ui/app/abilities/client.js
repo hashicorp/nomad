@@ -40,7 +40,7 @@ export default class Client extends AbstractAbility {
 
 function policiesIncludePermissions(policies = [], permissions = []) {
   const policyList =
-    typeof policies?.toArray === 'function' ? policies.toArray() : policies;
+    typeof policies?.toArray === 'function' ? [...policies] : policies;
 
   // For each policy record, extract the Node policy
   const nodePolicies = policyList

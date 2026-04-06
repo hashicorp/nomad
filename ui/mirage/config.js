@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { createServer, Response } from 'miragejs';
 import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
@@ -513,7 +514,7 @@ export default function (config) {
             params.id,
             queryParams.namespace,
           );
-          return this.serialize(jobSummaries.findBy({ jobId }));
+          return this.serialize(jobSummaries.find(item => get(item, { jobId })));
         }),
       );
 
@@ -564,7 +565,7 @@ export default function (config) {
         '/job/:id/versions/:version/tag',
         function ({ jobVersions }, { params }) {
           return this.serialize(
-            jobVersions.findBy({ jobId: params.id, version: params.version }),
+            jobVersions.find(item => get(item, { jobId: params.id, version: params.version })),
           );
         },
       );
@@ -584,7 +585,7 @@ export default function (config) {
         '/job/:id/scale',
         withBlockingSupport(function ({ jobScales }, { params }) {
           // const obj = jobScales.findBy({ jobId: params.id });
-          return this.serialize(jobScales.findBy({ jobId: params.id }));
+          return this.serialize(jobScales.find(item => get(item, { jobId: params.id })));
         }),
       );
 
@@ -671,9 +672,9 @@ export default function (config) {
 
       this.get('/nodes', function ({ nodes }, req) {
         // authorize user permissions
-        const token = server.db.tokens.findBy({
+        const token = server.db.tokens.find(item => get(item, {
           secretId: getRequestHeader(req.requestHeaders, 'X-Nomad-Token'),
-        });
+        }));
 
         if (token) {
           const policyIds = token.policyIds || [];
@@ -852,7 +853,7 @@ export default function (config) {
             {},
             'specify a client or a server, not both',
           );
-        if (serverId && !agents.findBy({ name: serverId }))
+        if (serverId && !agents.find(item => get(item, { name: serverId })))
           return new Response(400, {}, 'specified server does not exist');
         if (clientId && !nodes.find(clientId))
           return new Response(400, {}, 'specified client does not exist');
@@ -971,7 +972,7 @@ export default function (config) {
 
       this.get('/acl/token/self', function ({ tokens }, req) {
         const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
-        const tokenForSecret = tokens.findBy({ secretId: secret });
+        const tokenForSecret = tokens.find(item => get(item, { secretId: secret }));
 
         // Return the token if it exists
         if (tokenForSecret) {
@@ -1002,7 +1003,7 @@ export default function (config) {
       this.get('/acl/token/:id', function ({ tokens }, req) {
         const token = tokens.find(req.params.id);
         const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
-        const tokenForSecret = tokens.findBy({ secretId: secret });
+        const tokenForSecret = tokens.find(item => get(item, { secretId: secret }));
 
         // Return the token only if the request header matches the token
         // or the token is of type management
@@ -1022,9 +1023,9 @@ export default function (config) {
         function ({ tokens }, { requestBody }) {
           const { OneTimeSecretID } = JSON.parse(requestBody);
 
-          const tokenForSecret = tokens.findBy({
+          const tokenForSecret = tokens.find(item => get(item, {
             oneTimeSecret: OneTimeSecretID,
-          });
+          }));
 
           // Return the token if it exists
           if (tokenForSecret) {
@@ -1039,9 +1040,9 @@ export default function (config) {
       );
 
       this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
-        const policy = policies.findBy({ name: req.params.id });
+        const policy = policies.find(item => get(item, { name: req.params.id }));
         const secret = getRequestHeader(req.requestHeaders, 'X-Nomad-Token');
-        const tokenForSecret = tokens.findBy({ secretId: secret });
+        const tokenForSecret = tokens.find(item => get(item, { secretId: secret }));
         if (req.params.id === 'anonymous') {
           if (policy) {
             return this.serialize(policy);
@@ -1076,7 +1077,7 @@ export default function (config) {
       });
 
       this.get('/acl/role/:id', function ({ roles }, req) {
-        const role = roles.findBy({ id: req.params.id });
+        const role = roles.find(item => get(item, { id: req.params.id }));
         return this.serialize(role);
       });
 
@@ -1146,7 +1147,7 @@ export default function (config) {
       });
 
       this.get('/sentinel/policy/:id', function ({ sentinelPolicies }, req) {
-        return this.serialize(sentinelPolicies.findBy({ name: req.params.id }));
+        return this.serialize(sentinelPolicies.find(item => get(item, { name: req.params.id })));
       });
 
       this.delete('/sentinel/policy/:id', function (schema, req) {
@@ -1603,7 +1604,7 @@ export default function (config) {
               namespace = null;
             }
 
-            const job = jobs.findBy({ id, namespace });
+            const job = jobs.find(item => get(item, { id, namespace }));
 
             if (!job) {
               return [];
@@ -1768,9 +1769,9 @@ export default function (config) {
           req.requestBody,
         );
 
-        const authMethod = schema.authMethods.findBy({
+        const authMethod = schema.authMethods.find(item => get(item, {
           name: AuthMethodName,
-        });
+        }));
 
         var authUrl = `/ui/oidc-mock?auth_method=${AuthMethodName}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`;
 
@@ -1796,9 +1797,9 @@ export default function (config) {
           const iss = body.Iss;
           const AuthMethodName = body.AuthMethodName;
 
-          const authMethod = schema.authMethods.findBy({
+          const authMethod = schema.authMethods.find(item => get(item, {
             name: AuthMethodName,
-          });
+          }));
 
           if (authMethod.issRequired && iss == null) {
             return new Response(
@@ -1807,9 +1808,9 @@ export default function (config) {
               'Issuer (iss) is required but missing',
             );
           }
-          const token = schema.tokens.findBy({
+          const token = schema.tokens.find(item => get(item, {
             id: code,
-          });
+          }));
 
           return new Response(
             200,

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
@@ -88,12 +90,12 @@ module('Acceptance | plugin detail', function (hooks) {
       PluginDetail.controllerAllocations.length,
       plugin.controllers.length,
     );
-    plugin.controllers.models
-      .sortBy('updateTime')
+    [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
-          PluginDetail.controllerAllocations.objectAt(idx).id,
+          PluginDetail.controllerAllocations[idx].id,
           allocation.allocID,
         );
       });
@@ -103,27 +105,27 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.deepEqual(PluginDetail.nodeAllocations.length, plugin.nodes.length);
-    plugin.nodes.models
-      .sortBy('updateTime')
+    [...plugin.nodes.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
-          PluginDetail.nodeAllocations.objectAt(idx).id,
+          PluginDetail.nodeAllocations[idx].id,
           allocation.allocID,
         );
       });
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {
-    const controller = plugin.controllers.models
-      .sortBy('updateTime')
+    const controller = [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()[0];
     const allocation = this.server.db.allocations.find(controller.allocID);
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = this.server.db.taskGroups.findBy({
+    const taskGroup = this.server.db.taskGroups.find(item => get(item, {
       name: allocation.taskGroup,
       jobId: allocation.jobId,
-    });
+    }));
 
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
@@ -134,7 +136,7 @@ module('Acceptance | plugin detail', function (hooks) {
 
     await PluginDetail.visit({ id: plugin.id });
 
-    PluginDetail.controllerAllocations.objectAt(0).as((allocationRow) => {
+    PluginDetail.controllerAllocations[0].as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -202,12 +204,12 @@ module('Acceptance | plugin detail', function (hooks) {
   });
 
   test('each allocation should link to the allocation detail page', async function (assert) {
-    const controller = plugin.controllers.models
-      .sortBy('updateTime')
+    const controller = [...plugin.controllers.models]
+      .sort((a, b) => compare(get(a, 'updateTime'), get(b, 'updateTime')))
       .reverse()[0];
 
     await PluginDetail.visit({ id: plugin.id });
-    await PluginDetail.controllerAllocations.objectAt(0).visit();
+    await PluginDetail.controllerAllocations[0].visit();
 
     assert.deepEqual(currentURL(), `/allocations/${controller.allocID}`);
   });

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
@@ -82,7 +84,7 @@ module(
       });
 
       const taskGroups = await job.get('taskGroups');
-      const taskGroup = taskGroups.sortBy('name').reverse().get('firstObject');
+      const taskGroup = [...taskGroups].sort((a, b) => compare(get(a, 'name'), get(b, 'name'))).reverse().get('firstObject');
 
       this.setProperties(props(job));
 

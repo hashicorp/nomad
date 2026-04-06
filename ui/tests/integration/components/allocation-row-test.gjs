@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import generateResources from '../../../mirage/data/generate-resources';
@@ -77,10 +78,7 @@ module('Integration | Component | allocation row', function (hooks) {
     );
 
     assert.deepEqual(
-      this.server.pretender.handledRequests.filterBy(
-        'url',
-        `/v1/client/allocation/${allocation.get('id')}/stats`,
-      ).length,
+      this.server.pretender.handledRequests.filter(item => get(item, 'url') === `/v1/client/allocation/${allocation.get('id')}/stats`).length,
       frames.length,
       'Requests continue to be made after malformed responses and server errors',
     );

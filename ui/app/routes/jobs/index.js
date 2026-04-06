@@ -211,7 +211,7 @@ export default class IndexRoute extends Route.extend(
     });
 
     const errorDetails = /** @type {any} */ (error).errors;
-    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    const errors = [...errorDetails] || errorDetails || [];
     let err = errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
@@ -287,7 +287,7 @@ export default class IndexRoute extends Route.extend(
 
     const jobs = model.jobs;
     const meta = jobs?.meta || {};
-    const jobsList = jobs?.toArray?.() || jobs;
+    const jobsList = [...jobs] || jobs;
 
     controller.set('nextToken', meta.nextToken || null);
     controller.set('jobQueryIndex', meta.index || 0);

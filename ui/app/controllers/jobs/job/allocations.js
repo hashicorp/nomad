@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { get } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -202,7 +203,7 @@ export default class AllocationsController extends Controller.extend(
           .map((allocation) => this.clientKeyForAllocation(allocation))
           .filter(Boolean),
       ),
-    ).compact();
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {
@@ -219,8 +220,8 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionTaskGroup')
   get optionsTaskGroups() {
     const taskGroups = Array.from(
-      new Set(this.model.allocations.mapBy('taskGroupName')),
-    ).compact();
+      new Set(this.model.allocations.map(item => get(item, 'taskGroupName'))),
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of task groups changes.
     scheduleOnce('actions', this, () => {
@@ -237,8 +238,8 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionVersion')
   get optionsVersions() {
     const versions = Array.from(
-      new Set(this.model.allocations.mapBy('jobVersion')),
-    ).compact();
+      new Set(this.model.allocations.map(item => get(item, 'jobVersion'))),
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of versions changes.
     scheduleOnce('actions', this, () => {

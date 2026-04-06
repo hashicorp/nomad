@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
@@ -71,7 +73,7 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   });
 
   test('clicking an annotation presents details for the event', async function (assert) {
-    const annotation = events.rejectBy('hasCount').sortBy('time').reverse()[0];
+    const annotation = [...events.filter(item => !get(item, 'hasCount'))].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).reverse()[0];
 
     this.set('events', events);
     await render(

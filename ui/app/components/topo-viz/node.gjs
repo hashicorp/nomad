@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { guidFor } from '@ember/object/internals';
@@ -80,7 +81,7 @@ export default class TopoVizNode extends Component {
     // Sort by the delta between memory and cpu percent. This creates the least amount of
     // drift between the positional alignment of an alloc's cpu and memory representations.
     return this.args.node.allocations
-      .filterBy('allocation.isScheduled')
+      .filter(item => get(item, 'allocation.isScheduled'))
       .sort((a, b) => {
         const deltaA = Math.abs(a.memoryPercent - a.cpuPercent);
         const deltaB = Math.abs(b.memoryPercent - b.cpuPercent);

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { next } from '@ember/runloop';
@@ -61,7 +62,7 @@ export default class FlexMasonry extends Component {
 
       // Second pass: assign an order to each element based on their column and position in the column
       columns
-        .mapBy('elements')
+        .map(item => get(item, 'elements'))
         .flat()
         .forEach((dc, index) => {
           dc.style.order = index;
@@ -81,7 +82,7 @@ export default class FlexMasonry extends Component {
       });
 
       // Set the max height of the container to the height of the tallest column
-      this.element.style.maxHeight = max(columns.mapBy('height')) + 1 + 'px';
+      this.element.style.maxHeight = max(columns.map(item => get(item, 'height'))) + 1 + 'px';
     });
   };
 

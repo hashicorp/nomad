@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
@@ -93,13 +95,13 @@ module('Acceptance | volume detail', function (hooks) {
       VolumeDetail.writeAllocations.length,
       writeAllocations.length,
     );
-    writeAllocations
-      .sortBy('modifyIndex')
+    [...writeAllocations]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
           allocation.id,
-          VolumeDetail.writeAllocations.objectAt(idx).id,
+          VolumeDetail.writeAllocations[idx].id,
         );
       });
   });
@@ -116,13 +118,13 @@ module('Acceptance | volume detail', function (hooks) {
       VolumeDetail.readAllocations.length,
       readAllocations.length,
     );
-    readAllocations
-      .sortBy('modifyIndex')
+    [...readAllocations]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
           allocation.id,
-          VolumeDetail.readAllocations.objectAt(idx).id,
+          VolumeDetail.readAllocations[idx].id,
         );
       });
   });
@@ -134,10 +136,10 @@ module('Acceptance | volume detail', function (hooks) {
     assignWriteAlloc(volume, allocation);
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = this.server.db.taskGroups.findBy({
+    const taskGroup = this.server.db.taskGroups.find(item => get(item, {
       name: allocation.taskGroup,
       jobId: allocation.jobId,
-    });
+    }));
 
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
@@ -148,7 +150,7 @@ module('Acceptance | volume detail', function (hooks) {
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
+    VolumeDetail.writeAllocations[0].as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -219,7 +221,7 @@ module('Acceptance | volume detail', function (hooks) {
     assignWriteAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    await VolumeDetail.writeAllocations.objectAt(0).visit();
+    await VolumeDetail.writeAllocations[0].visit();
 
     assert.deepEqual(currentURL(), `/allocations/${allocation.id}`);
   });

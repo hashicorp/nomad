@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { concat, fn } from '@ember/helper';
 import { LinkTo } from '@ember/routing';
 import Component from '@glimmer/component';
@@ -28,7 +30,7 @@ export default class RecentAllocations extends Component {
   get sortedAllocations() {
     return PromiseArray.create({
       promise: this.args.job.allocations.then((allocations) =>
-        allocations.sortBy('modifyIndex').reverse().slice(0, 5),
+        [...allocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse().slice(0, 5),
       ),
     });
   }

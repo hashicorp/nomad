@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
@@ -45,7 +46,7 @@ export default Factory.extend({
       });
     }
 
-    if (server.db.jobs.findBy({ id: 'service-haver' })) {
+    if (server.db.jobs.find(item => get(item, { id: 'service-haver' }))) {
       if (!service.jobId) {
         service.update({
           jobId: 'service-haver',

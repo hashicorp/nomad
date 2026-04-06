@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   clickable,
@@ -66,7 +67,7 @@ export default create({
   }),
 
   firstUnhealthyTask() {
-    return this.tasks.toArray().findBy('hasUnhealthyDriver');
+    return [...this.tasks].find(item => get(item, 'hasUnhealthyDriver'));
   },
 
   hasRescheduleEvents: isPresent('[data-test-reschedule-events]'),

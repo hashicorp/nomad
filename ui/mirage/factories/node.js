@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { assert } from '@ember/debug';
 import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
@@ -157,7 +158,7 @@ export default Factory.extend({
       { nodeId: node.id },
     );
     const nodePool = node.nodePool
-      ? server.db.nodePools.findBy({ name: node.nodePool })
+      ? server.db.nodePools.find(item => get(item, { name: node.nodePool }))
       : pickOne(server.db.nodePools, (pool) => pool.name !== 'all');
 
     node.update({

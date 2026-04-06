@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { currentURL, visit, waitUntil } from '@ember/test-helpers';
@@ -21,14 +23,14 @@ let managementToken, clientToken;
 
 function getLatestRecommendationSubmitTimeForJob(job) {
   const tasks = job.taskGroups.models
-    .mapBy('tasks.models')
+    .map(item => get(item, 'tasks.models'))
     .reduce((tasks, taskModels) => tasks.concat(taskModels), []);
   const recommendations = tasks.reduce(
     (recommendations, task) =>
       recommendations.concat(task.recommendations.models),
     [],
   );
-  return Math.max(...recommendations.mapBy('submitTime'));
+  return Math.max(...recommendations.map(item => get(item, 'submitTime')));
 }
 
 module('Acceptance | optimize', function (hooks) {
@@ -76,13 +78,13 @@ module('Acceptance | optimize', function (hooks) {
     const nextTaskGroup = this.job2.taskGroups.models[0];
 
     const currentTaskGroupHasCPURecommendation = currentTaskGroup.tasks.models
-      .mapBy('recommendations.models')
+      .map(item => get(item, 'recommendations.models'))
       .flat()
       .find((r) => r.resource === 'CPU');
 
     const currentTaskGroupHasMemoryRecommendation =
       currentTaskGroup.tasks.models
-        .mapBy('recommendations.models')
+        .map(item => get(item, 'recommendations.models'))
         .flat()
         .find((r) => r.resource === 'MemoryMB');
 
@@ -133,7 +135,7 @@ module('Acceptance | optimize', function (hooks) {
       [],
     );
     const latestSubmitTime = Math.max(
-      ...currentRecommendations.mapBy('submitTime'),
+      ...currentRecommendations.map(item => get(item, 'submitTime')),
     );
 
     Optimize.recommendationSummaries[0].as((summary) => {
@@ -250,18 +252,18 @@ module('Acceptance | optimize', function (hooks) {
       'toggling recommendations doesn’t affect the summary table diffs',
     );
 
-    const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
+    const currentTaskIds = currentTaskGroup.tasks.models.map(item => get(item, 'id'));
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
     const cpuRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'CPU' })
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => get(item, 'id'));
 
     const memoryRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'MemoryMB' })
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => get(item, 'id'));
 
     const appliedIds = toggledAnything
       ? cpuRecommendationIds
@@ -271,7 +273,7 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.card.acceptButton.click();
 
     const request = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
+      .filter(item => get(item, 'method') === 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
@@ -374,18 +376,18 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.visit();
 
     const currentTaskGroup = this.job1.taskGroups.models[0];
-    const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
+    const currentTaskIds = currentTaskGroup.tasks.models.map(item => get(item, 'id'));
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
     const idsBeforeDismissal = this.server.schema.recommendations
       .all()
       .models.filter(taskIdFilter)
-      .mapBy('id');
+      .map(item => get(item, 'id'));
 
     await Optimize.card.dismissButton.click();
 
     const request = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
+      .filter(item => get(item, 'method') === 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
@@ -682,7 +684,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'dc',
     expectedOptions(jobs) {
       const allDatacenters = new Set(
-        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), []),
+        jobs.map(item => get(item, 'datacenters')).reduce((acc, val) => acc.concat(val), []),
       );
       return Array.from(allDatacenters).sort();
     },
@@ -792,14 +794,21 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const selection = option.key;
       await option.select();
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => compare(get(a, 'submitTime'), get(b, 'submitTime')))
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
-        .uniqBy('id')
+        .find([...new Set(sortedRecommendations.map(item => get(item, 'taskId')))])
+        .models.map(item => get(item, 'taskGroup'))
+        .reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'id')])[0]
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
@@ -812,7 +821,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option = facet.options.objectAt(1);
+      const option = facet.options[1];
       const selection = option.key;
       await option.select();
 
@@ -838,20 +847,27 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 0);
 
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       const optionKey = option.key;
       await option.toggle();
 
       const selection = [optionKey];
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => compare(get(a, 'submitTime'), get(b, 'submitTime')))
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
-        .uniqBy('id')
+        .find([...new Set(sortedRecommendations.map(item => get(item, 'taskId')))])
+        .models.map(item => get(item, 'taskGroup'))
+        .reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'id')])[0]
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
@@ -867,7 +883,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 1);
 
-      const option1 = facet.options.objectAt(0);
+      const option1 = facet.options[0];
       const option1Key = option1.key;
       await option1.toggle();
       selection.push(option1Key);
@@ -877,19 +893,26 @@ module('Acceptance | optimize search and facets', function (hooks) {
       }
       await waitUntil(() => facet.options.length > 1);
 
-      const option2 = facet.options.objectAt(1);
+      const option2 = facet.options[1];
       const option2Key = option2.key;
       await option2.toggle();
       selection.push(option2Key);
 
-      const sortedRecommendations = this.server.db.recommendations
-        .sortBy('submitTime')
+      const sortedRecommendations = [...this.server.db.recommendations]
+        .sort((a, b) => compare(get(a, 'submitTime'), get(b, 'submitTime')))
         .reverse();
 
       const recommendationTaskGroups = this.server.schema.tasks
-        .find(sortedRecommendations.mapBy('taskId').uniq())
-        .models.mapBy('taskGroup')
-        .uniqBy('id')
+        .find([...new Set(sortedRecommendations.map(item => get(item, 'taskId')))])
+        .models.map(item => get(item, 'taskGroup'))
+        .reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'id')])[0]
         .filter((group) => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
@@ -905,7 +928,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await facet.toggle();
       await waitUntil(() => facet.options.length > 1);
 
-      const option1 = facet.options.objectAt(0);
+      const option1 = facet.options[0];
       const option1Key = option1.key;
       await option1.toggle();
       selection.push(option1Key);
@@ -915,7 +938,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       }
       await waitUntil(() => facet.options.length > 1);
 
-      const option2 = facet.options.objectAt(1);
+      const option2 = facet.options[1];
       const option2Key = option2.key;
       await option2.toggle();
       selection.push(option2Key);

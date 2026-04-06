@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, render, settled } from '@ember/test-helpers';
@@ -194,10 +196,10 @@ module('Integration | Component | job-page/service', function (hooks) {
     const state = new TrackedObject(commonProperties(job));
     await renderPage(state);
 
-    const allocation = this.server.db.allocations
-      .sortBy('modifyIndex')
+    const allocation = [...this.server.db.allocations]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse()[0];
-    const allocationRow = Job.allocations.objectAt(0);
+    const allocationRow = Job.allocations[0];
 
     assert.deepEqual(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
     assert.deepEqual(
@@ -280,8 +282,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
-        .filterBy('method', 'POST')
-        .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
+        .filter(item => get(item, 'method') === 'POST')
+        .find(item => get(item, 'url') === `/v1/deployment/promote/${deployment.get('id')}`),
       'A promote POST request was made',
     );
   });
@@ -350,8 +352,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       requests
-        .filterBy('method', 'POST')
-        .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
+        .filter(item => get(item, 'method') === 'POST')
+        .find(item => get(item, 'url') === `/v1/deployment/fail/${deployment.get('id')}`),
       'A fail POST request was made',
     );
   });

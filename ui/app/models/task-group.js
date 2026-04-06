@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
@@ -26,15 +27,9 @@ export default class TaskGroup extends Fragment {
   @computed('job.{variables,parent,plainId}', 'name')
   get pathLinkedVariable() {
     if (this.job.parent.get('id')) {
-      return this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
-      );
+      return this.job.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`);
     } else {
-      return this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`,
-      );
+      return this.job.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.job.plainId}/${this.name}`);
     }
   }
 
@@ -42,15 +37,9 @@ export default class TaskGroup extends Fragment {
   async getPathLinkedVariable() {
     await this.job.variables;
     if (this.job.parent.get('id')) {
-      return await this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
-      );
+      return await this.job.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`);
     } else {
-      return await this.job.variables?.findBy(
-        'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`,
-      );
+      return await this.job.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.job.plainId}/${this.name}`);
     }
   }
 
@@ -74,15 +63,12 @@ export default class TaskGroup extends Fragment {
 
   @computed('tasks.@each.driver')
   get drivers() {
-    return this.tasks.mapBy('driver').uniq();
+    return [...new Set(this.tasks.map(item => get(item, 'driver')))];
   }
 
   @computed('job.allocations.{@each.taskGroup,isFulfilled}', 'name')
   get allocations() {
-    return maybe(this.get('job.allocations')).filterBy(
-      'taskGroupName',
-      this.name,
-    );
+    return maybe(this.get('job.allocations')).filter(item => get(item, 'taskGroupName') === this.name);
   }
 
   @sumAggregation('tasks', 'reservedCPU') reservedCPU;
@@ -103,7 +89,7 @@ export default class TaskGroup extends Fragment {
     const placementFailures = this.get(
       'job.latestFailureEvaluation.failedTGAllocs',
     );
-    return placementFailures && placementFailures.findBy('name', this.name);
+    return placementFailures && placementFailures.find(item => get(item, 'name') === this.name);
   }
 
   @computed('summary.{queuedAllocs,startingAllocs}')
@@ -115,15 +101,12 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.taskGroupSummaries.[]', 'name')
   get summary() {
-    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
+    return maybe(this.get('job.taskGroupSummaries')).find(item => get(item, 'name') === this.name);
   }
 
   @computed('job.scaleState.taskGroupScales.[]', 'name')
   get scaleState() {
-    return maybe(this.get('job.scaleState.taskGroupScales')).findBy(
-      'name',
-      this.name,
-    );
+    return maybe(this.get('job.scaleState.taskGroupScales')).find(item => get(item, 'name') === this.name);
   }
 
   scale(count, message) {

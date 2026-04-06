@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import {
   attribute,
   collection,
@@ -39,7 +40,7 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().findBy('id', id).sort();
+    return [...this.sortOptions].find(item => get(item, 'id') === id).sort();
   },
 
   directoryEntries: collection('[data-test-entry]', {
@@ -58,7 +59,7 @@ export default create({
   isEmptyDirectory: isPresent('[data-test-empty-directory]'),
 
   directoryEntryNames() {
-    return this.directoryEntries.toArray().mapBy('name');
+    return [...this.directoryEntries].map(item => get(item, 'name'));
   },
 
   hasEmptyState: isPresent('[data-test-not-running]'),

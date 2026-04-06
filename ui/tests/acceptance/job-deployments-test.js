@@ -30,14 +30,14 @@ module('Acceptance | job deployments', function (hooks) {
     job = this.server.create('job');
     deployments = this.server.schema.deployments.where({ jobId: job.id });
     sortedDeployments = deployments.sort((a, b) => {
-      const aVersion = this.server.db.jobVersions.findBy({
+      const aVersion = this.server.db.jobVersions.find(item => get(item, {
         jobId: a.jobId,
         version: a.versionNumber,
-      });
-      const bVersion = this.server.db.jobVersions.findBy({
+      }));
+      const bVersion = this.server.db.jobVersions.find(item => get(item, {
         jobId: b.jobId,
         version: b.versionNumber,
-      });
+      }));
       if (aVersion.submitTime < bVersion.submitTime) {
         return 1;
       } else if (aVersion.submitTime > bVersion.submitTime) {
@@ -67,11 +67,11 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const version = this.server.db.jobVersions.findBy({
+    const version = this.server.db.jobVersions.find(item => get(item, {
       jobId: deployment.jobId,
       version: deployment.versionNumber,
-    });
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    }));
+    const deploymentRow = Deployments.deployments[0];
 
     assert.ok(
       deploymentRow.text.includes(deployment.id.split('-')[0]),
@@ -114,7 +114,7 @@ module('Acceptance | job deployments', function (hooks) {
 
     await Deployments.visit({ id: job.id });
 
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     assert.ok(
       deploymentRow.promotionIsRequired,
       'Requires Promotion badge found',
@@ -124,7 +124,7 @@ module('Acceptance | job deployments', function (hooks) {
   test('each deployment item can be opened to show details', async function (assert) {
     await Deployments.visit({ id: job.id });
 
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     assert.notOk(deploymentRow.hasDetails, 'No deployment body');
 
     await deploymentRow.toggle();
@@ -135,7 +135,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
       (id) => this.server.db.deploymentTaskGroupSummaries.find(id),
     );
@@ -186,7 +186,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
       (id) => this.server.db.deploymentTaskGroupSummaries.find(id),
     );
@@ -249,7 +249,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = Deployments.deployments.objectAt(0);
+    const deploymentRow = Deployments.deployments[0];
 
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
@@ -266,7 +266,7 @@ module('Acceptance | job deployments', function (hooks) {
     );
 
     const allocation = allocations[0];
-    const allocationRow = deploymentRow.allocations.objectAt(0);
+    const allocationRow = deploymentRow.allocations[0];
 
     assert.deepEqual(
       allocationRow.shortId,
@@ -281,7 +281,7 @@ module('Acceptance | job deployments', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

@@ -34,15 +34,15 @@ export default class JobsJobServicesIndexController extends Controller.extend(
 
   @computed('taskGroups.@each.tasks')
   get tasks() {
-    return this.taskGroups.map((group) => group.tasks.toArray()).flat();
+    return this.taskGroups.map((group) => [...group.tasks]).flat();
   }
 
   @computed('tasks.@each.services')
   get taskServices() {
     return this.tasks
-      .map((t) => (t.services || []).toArray())
+      .map((t) => [...t.services || []])
       .flat()
-      .compact()
+      .filter(item => item !== undefined && item !== null)
       .map((service) => {
         service.level = 'task';
         return service;
@@ -52,9 +52,9 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   @computed('model.taskGroup.services.@each.name', 'taskGroups')
   get groupServices() {
     return this.taskGroups
-      .map((g) => (g.services || []).toArray())
+      .map((g) => [...g.services || []])
       .flat()
-      .compact()
+      .filter(item => item !== undefined && item !== null)
       .map((service) => {
         service.level = 'group';
         return service;

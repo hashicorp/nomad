@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render, settled } from '@ember/test-helpers';
@@ -101,7 +102,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     assert.ok(
       this.server.pretender.handledRequests
-        .filterBy('method', 'POST')
+        .filter(item => get(item, 'method') === 'POST')
         .find((req) => req.url === expectedURL),
       'POST URL was correct',
     );

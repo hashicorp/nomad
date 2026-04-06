@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import {
   click,
   find,
@@ -46,7 +48,7 @@ module('Integration | Component | line-chart', function (hooks) {
       </template>,
     );
 
-    const sortedAnnotations = annotations.sortBy('x');
+    const sortedAnnotations = [...annotations].sort((a, b) => compare(get(a, 'x'), get(b, 'x')));
     findAll('[data-test-annotation]').forEach((annotation, index) => {
       const datum = sortedAnnotations[index];
       assert.deepEqual(
@@ -96,7 +98,7 @@ module('Integration | Component | line-chart', function (hooks) {
       </template>,
     );
 
-    const sortedAnnotations = annotations.sortBy('x').reverse();
+    const sortedAnnotations = [...annotations].sort((a, b) => compare(get(a, 'x'), get(b, 'x'))).reverse();
     findAll('[data-test-annotation]').forEach((annotation, index) => {
       const datum = sortedAnnotations[index];
       assert.deepEqual(
@@ -197,8 +199,8 @@ module('Integration | Component | line-chart', function (hooks) {
     );
 
     const annotationElements = findAll('[data-test-annotation]');
-    annotations
-      .sortBy('y')
+    [...annotations]
+      .sort((a, b) => compare(get(a, 'y'), get(b, 'y')))
       .reverse()
       .forEach((annotation, index) => {
         assert.deepEqual(

@@ -57,10 +57,10 @@ export default class JobStatusDeploymentHistory extends Component {
         .map((allocation) => {
           const states =
             allocation?.get?.('states') || allocation?.states || [];
-          const stateList = states?.toArray?.() || states || [];
+          const stateList = [...states] || states || [];
 
           return stateList
-            .map((state) => state?.events?.toArray?.() || state?.events || [])
+            .map((state) => [...state?.events] || state?.events || [])
             .flat();
         })
         .flat()

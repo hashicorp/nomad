@@ -151,7 +151,7 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
-      const errors = error.errors?.toArray?.() || error.errors || [];
+      const errors = [...error.errors] || error.errors || [];
       if (
         errors.some(
           (e) =>

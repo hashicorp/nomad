@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Service, { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias, reads } from '@ember/object/computed';
@@ -71,7 +72,7 @@ export default class TokenService extends Service {
       this.secret = token.secret;
       return token;
     } catch (e) {
-      const errors = e.errors ? e.errors.mapBy('detail') : [];
+      const errors = e.errors ? e.errors.map(item => get(item, 'detail')) : [];
       if (errors.find((error) => error === 'ACL token not found')) {
         this.set('tokenNotFound', true);
       }
@@ -106,10 +107,10 @@ export default class TokenService extends Service {
             .map((role) => {
               return role.policies;
             })
-            .map((policies) => policies.toArray())
+            .map((policies) => [...policies])
             .flat();
         }
-        return [...tokenPolicies.toArray(), ...rolePolicies];
+        return [...[...tokenPolicies], ...rolePolicies];
       } else {
         let policy = yield this.store.findRecord('policy', 'anonymous');
         return [policy];

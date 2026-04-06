@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL, settled } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -47,7 +49,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.deepEqual(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
-    const sortedNodes = this.server.db.nodes.sortBy('modifyIndex').reverse();
+    const sortedNodes = [...this.server.db.nodes].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
 
     ClientsList.nodes.forEach((node, index) => {
       assert.deepEqual(
@@ -69,7 +71,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
 
-    const nodeRow = ClientsList.nodes.objectAt(0);
+    const nodeRow = ClientsList.nodes[0];
     const allocations = this.server.db.allocations.where({ nodeId: node.id });
 
     assert.deepEqual(nodeRow.id, node.id.split('-')[0], 'ID');
@@ -110,7 +112,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
 
-    const nodeRow = ClientsList.nodes.objectAt(0);
+    const nodeRow = ClientsList.nodes[0];
 
     assert.deepEqual(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.deepEqual(
@@ -190,7 +192,7 @@ module('Acceptance | clients list', function (hooks) {
       'Ready Eligible Draining',
     );
 
-    await ClientsList.sortBy('status');
+    await [...ClientsList].sort((a, b) => compare(get(a, 'status'), get(b, 'status')));
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
@@ -209,7 +211,7 @@ module('Acceptance | clients list', function (hooks) {
     let discoClient = this.owner
       .lookup('service:store')
       .peekAll('node')
-      .findBy('modifyIndex', 5);
+      .find(item => get(item, 'modifyIndex') === 5);
     discoClient.set('status', 'disconnected');
 
     await settled();
@@ -234,7 +236,7 @@ module('Acceptance | clients list', function (hooks) {
     const node = this.server.db.nodes[0];
 
     await ClientsList.visit();
-    await ClientsList.nodes.objectAt(0).clickRow();
+    await ClientsList.nodes[0].clickRow();
 
     assert.deepEqual(currentURL(), `/clients/${node.id}`);
   });
@@ -291,7 +293,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.class,
     paramName: 'class',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('nodeClass'))).sort();
+      return Array.from(new Set(nodes.map(item => get(item, 'nodeClass')))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -377,7 +379,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.datacenter,
     paramName: 'dc',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('datacenter'))).sort();
+      return Array.from(new Set(nodes.map(item => get(item, 'datacenter')))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -393,7 +395,7 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.version,
     paramName: 'version',
     expectedOptions(nodes) {
-      return Array.from(new Set(nodes.mapBy('version'))).sort();
+      return Array.from(new Set(nodes.map(item => get(item, 'version')))).sort();
     },
     async beforeEach() {
       this.server.create('agent');
@@ -411,7 +413,7 @@ module('Acceptance | clients list', function (hooks) {
     expectedOptions(nodes) {
       const flatten = (acc, val) => acc.concat(Object.keys(val));
       return Array.from(
-        new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])),
+        new Set(nodes.map(item => get(item, 'hostVolumes')).reduce(flatten, [])),
       );
     },
     async beforeEach() {
@@ -439,7 +441,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
     await ClientsList.facets.state.toggle();
-    await ClientsList.facets.state.options.objectAt(1).toggle();
+    await ClientsList.facets.state.options[1].toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
     assert.deepEqual(
       ClientsList.empty.headline,
@@ -492,13 +494,13 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
 
       await facet.toggle();
-      option = facet.options.objectAt(0);
+      option = facet.options[0];
       await option.toggle();
 
       const selection = [option.key];
-      const expectedNodes = this.server.db.nodes
-        .filter((node) => filter(node, selection))
-        .sortBy('modifyIndex')
+      const expectedNodes = [...this.server.db.nodes
+        .filter((node) => filter(node, selection))]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse();
 
       ClientsList.nodes.forEach((node, index) => {
@@ -516,16 +518,16 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();
       selection.push(option2.key);
 
-      const expectedNodes = this.server.db.nodes
-        .filter((node) => filter(node, selection))
-        .sortBy('modifyIndex')
+      const expectedNodes = [...this.server.db.nodes
+        .filter((node) => filter(node, selection))]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse();
 
       ClientsList.nodes.forEach((node, index) => {
@@ -543,8 +545,8 @@ module('Acceptance | clients list', function (hooks) {
       await beforeEach.call(this);
       await facet.toggle();
 
-      const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1 = facet.options[0];
+      const option2 = facet.options[1];
       await option1.toggle();
       selection.push(option1.key);
       await option2.toggle();

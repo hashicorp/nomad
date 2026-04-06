@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
@@ -112,13 +114,13 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
       await VolumeDetail.visit({ id: `${volume.id}@default` });
 
       assert.deepEqual(VolumeDetail.allocations.length, allocations.length);
-      allocations
-        .sortBy('modifyIndex')
+      [...allocations]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse()
         .forEach((allocation, idx) => {
           assert.deepEqual(
             allocation.id,
-            VolumeDetail.allocations.objectAt(idx).id,
+            VolumeDetail.allocations[idx].id,
           );
         });
       await percySnapshot(assert);
@@ -134,10 +136,10 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assignAlloc(volume, allocation);
 
     const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = this.server.db.taskGroups.findBy({
+    const taskGroup = this.server.db.taskGroups.find(item => get(item, {
       name: allocation.taskGroup,
       jobId: allocation.jobId,
-    });
+    }));
 
     const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
@@ -147,7 +149,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    VolumeDetail.allocations.objectAt(0).as((allocationRow) => {
+    VolumeDetail.allocations[0].as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -218,7 +220,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assignAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    await VolumeDetail.allocations.objectAt(0).visit();
+    await VolumeDetail.allocations[0].visit();
 
     assert.deepEqual(currentURL(), `/allocations/${allocation.id}`);
   });
@@ -236,19 +238,19 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   test('Capabilities table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(0).accessMode,
+      VolumeDetail.capabilities[0].accessMode,
       'single-node-writer',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(0).attachmentMode,
+      VolumeDetail.capabilities[0].attachmentMode,
       'file-system',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(1).accessMode,
+      VolumeDetail.capabilities[1].accessMode,
       'single-node-reader-only',
     );
     assert.deepEqual(
-      VolumeDetail.capabilities.objectAt(1).attachmentMode,
+      VolumeDetail.capabilities[1].attachmentMode,
       'block-device',
     );
   });

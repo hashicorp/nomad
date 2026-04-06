@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/owner';
@@ -68,19 +69,19 @@ export default class Tokens extends Controller {
     }
 
     if (typeof methods?.any === 'function') {
-      return methods.any((method) => method.type === 'JWT');
+      return methods.some((method) => method.type === 'JWT');
     }
 
-    const methodList = methods?.toArray?.() || [];
+    const methodList = [...methods] || [];
     return methodList.some((method) => method.type === 'JWT');
   }
 
   get nonTokenAuthMethods() {
-    return this.authMethods.rejectBy('type', 'JWT');
+    return this.authMethods.filter(item => get(item, 'type') !== 'JWT');
   }
 
   get JWTAuthMethods() {
-    return this.authMethods.filterBy('type', 'JWT');
+    return this.authMethods.filter(item => get(item, 'type') === 'JWT');
   }
 
   get JWTAuthMethodOptions() {
@@ -92,7 +93,7 @@ export default class Tokens extends Controller {
 
   get defaultJWTAuthMethod() {
     return (
-      this.JWTAuthMethods.findBy('default', true) || this.JWTAuthMethods[0]
+      this.JWTAuthMethods.find(item => get(item, 'default') === true) || this.JWTAuthMethods[0]
     );
   }
 

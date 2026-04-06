@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed, set } from '@ember/object';
@@ -116,7 +118,7 @@ export default class JobsIndexController extends Controller {
       } else {
         // cursorAt should be the highest modifyIndex from the previous query.
         // This will immediately fire the route model hook with the new cursorAt
-        const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
+        const sortedPrevPage = [...prevPageToken].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')));
         this.cursorAt = prevPageToken
           ? sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex
           : undefined;
@@ -130,7 +132,7 @@ export default class JobsIndexController extends Controller {
       this.cursorAt = undefined;
     } else if (page === 'last') {
       let prevPageToken = await this.loadPreviousPageToken({ last: true });
-      const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
+      const sortedPrevPage = [...prevPageToken].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')));
       this.cursorAt = sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex;
     }
   }
@@ -209,7 +211,7 @@ export default class JobsIndexController extends Controller {
    */
   notifyFetchError(e) {
     const errorDetails = /** @type {any} */ (e).errors;
-    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    const errors = [...errorDetails] || errorDetails || [];
     const firstError = errors[0] || {};
     this.notifications.add({
       title: 'Error fetching jobs',

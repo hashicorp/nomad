@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias, equal } from '@ember/object/computed';
 import { attr } from '@ember-data/model';
@@ -16,7 +17,7 @@ export default class VolumeMount extends Fragment {
 
   @computed('task.taskGroup.volumes.@each.name', 'volume')
   get volumeDeclaration() {
-    return this.task.taskGroup.volumes.findBy('name', this.volume);
+    return this.task.taskGroup.volumes.find(item => get(item, 'name') === this.volume);
   }
 
   @equal('volumeDeclaration.type', 'csi') isCSI;

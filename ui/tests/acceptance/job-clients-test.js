@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -82,7 +84,7 @@ module('Acceptance | job clients', function (hooks) {
       'Clients are shown in a table',
     );
 
-    const clientIDs = clients.sortBy('id').map((c) => c.id);
+    const clientIDs = [...clients].sort((a, b) => compare(get(a, 'id'), get(b, 'id'))).map((c) => c.id);
     const clientsInTable = Clients.clients.map((c) => c.id).sort();
     assert.deepEqual(clientsInTable, clientIDs);
 
@@ -118,7 +120,7 @@ module('Acceptance | job clients', function (hooks) {
 
   test('clients table is sortable', async function (assert) {
     await Clients.visit({ id: job.id });
-    await Clients.sortBy('node.name');
+    await [...Clients].sort((a, b) => compare(get(a, 'node.name'), get(b, 'node.name')));
 
     assert.deepEqual(
       currentURL(),
@@ -126,7 +128,7 @@ module('Acceptance | job clients', function (hooks) {
       'the URL persists the sort parameter',
     );
 
-    const sortedClients = clients.sortBy('name').reverse();
+    const sortedClients = [...clients].sort((a, b) => compare(get(a, 'name'), get(b, 'name'))).reverse();
     Clients.clients.forEach((client, index) => {
       const shortId = sortedClients[index].id.split('-')[0];
       assert.deepEqual(
@@ -171,7 +173,7 @@ module('Acceptance | job clients', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

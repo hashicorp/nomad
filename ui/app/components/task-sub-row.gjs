@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { array, fn } from '@ember/helper';
 import { on } from '@ember/modifier';
@@ -56,7 +57,7 @@ export default class TaskSubRow extends Component {
 
   get taskStats() {
     if (!this.stats) return undefined;
-    return this.stats.tasks.findBy('task', this.task.name);
+    return this.stats.tasks.find(item => get(item, 'task') === this.task.name);
   }
 
   get cpu() {

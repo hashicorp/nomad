@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -56,7 +57,7 @@ export default class ExecController extends Controller {
   }
 
   get allocations() {
-    const relationshipAllocations = this.model?.allocations?.toArray?.() || [];
+    const relationshipAllocations = [...this.model?.allocations] || [];
     if (relationshipAllocations.length) {
       return relationshipAllocations;
     }
@@ -65,7 +66,7 @@ export default class ExecController extends Controller {
     const jobPlainId = this.model?.plainId;
     const jobNamespace =
       this.model?.get?.('namespace.id') || this.namespace || 'default';
-    const taskGroupNames = (this.model?.taskGroups || []).mapBy('name');
+    const taskGroupNames = (this.model?.taskGroups || []).map(item => get(item, 'name'));
 
     const allocations =
       this.fallbackAllocations || this.store.peekAll('allocation');
@@ -124,15 +125,15 @@ export default class ExecController extends Controller {
 
     return names
       .map((name) => {
-        const hydratedTaskGroup = taskGroups.findBy('name', name);
+        const hydratedTaskGroup = taskGroups.find(item => get(item, 'name') === name);
         if (hydratedTaskGroup) {
           return hydratedTaskGroup;
         }
 
-        const groupedAllocations = allocations.filterBy('taskGroupName', name);
+        const groupedAllocations = allocations.filter(item => get(item, 'taskGroupName') === name);
         const groupedStates = groupedAllocations.flatMap(
           (allocation) =>
-            allocation.states?.toArray?.() || allocation.states || [],
+            [...allocation.states] || allocation.states || [],
         );
         const taskNames = [
           ...new Set(groupedStates.map((state) => state?.name).filter(Boolean)),
@@ -186,15 +187,15 @@ export default class ExecController extends Controller {
     let allocation;
 
     if (this.allocationShortId) {
-      allocation = this.allocations.findBy('shortId', this.allocationShortId);
+      allocation = this.allocations.find(item => get(item, 'shortId') === this.allocationShortId);
     } else {
       let allocationPool = this.taskGroupName
-        ? this.allocations.filterBy('taskGroupName', this.taskGroupName)
+        ? this.allocations.filter(item => get(item, 'taskGroupName') === this.taskGroupName)
         : this.allocations;
       allocation = allocationPool.find((allocation) =>
         allocation.states
-          .filterBy('isActive')
-          .mapBy('name')
+          .filter(item => get(item, 'isActive'))
+          .map(item => get(item, 'name'))
           .includes(this.taskName),
       );
     }

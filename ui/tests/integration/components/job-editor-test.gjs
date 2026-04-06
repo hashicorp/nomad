@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render, waitUntil } from '@ember/test-helpers';
@@ -133,7 +134,7 @@ module('Integration | Component | job-editor', function (hooks) {
     cm.setValue(spec);
     await Editor.plan();
 
-    const requests = this.server.pretender.handledRequests.mapBy('url');
+    const requests = this.server.pretender.handledRequests.map(item => get(item, 'url'));
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
       'JSON job spec is not parsed',
@@ -151,7 +152,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
-    const requests = this.server.pretender.handledRequests.mapBy('url');
+    const requests = this.server.pretender.handledRequests.map(item => get(item, 'url'));
     assert.ok(
       requests.includes('/v1/jobs/parse?namespace=*'),
       'HCL job spec is parsed first',
@@ -386,8 +387,8 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
-      .mapBy('url');
+      .filter(item => get(item, 'method') === 'POST')
+      .map(item => get(item, 'url'));
     assert.ok(
       requests.includes(`/v1/job/${newJobName}`),
       'A request was made to job update',
@@ -408,8 +409,8 @@ module('Integration | Component | job-editor', function (hooks) {
     await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
-      .filterBy('method', 'POST')
-      .mapBy('url');
+      .filter(item => get(item, 'method') === 'POST')
+      .map(item => get(item, 'url'));
     assert.ok(
       requests.includes('/v1/jobs'),
       'A request was made to job create',

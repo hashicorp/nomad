@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { get } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
@@ -188,9 +189,11 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
-    const classes = Array.from(new Set(this.nodes.mapBy('nodeClass')))
-      .compact()
-      .without('');
+    const classes = (Array.from(new Set(this.nodes.map(item => get(item, 'nodeClass'))))
+      .filter(item => item !== undefined && item !== null)
+      .indexOf('') > -1 ? Array.from(new Set(this.nodes.map(item => get(item, 'nodeClass'))))
+      .filter(item => item !== undefined && item !== null).filter(item => item !== '') : Array.from(new Set(this.nodes.map(item => get(item, 'nodeClass'))))
+      .filter(item => item !== undefined && item !== null));
 
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -207,8 +210,8 @@ export default class IndexController extends Controller.extend(
   @computed('nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter')),
-    ).compact();
+      new Set(this.nodes.map(item => get(item, 'datacenter'))),
+    ).filter(item => item !== undefined && item !== null);
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -224,7 +227,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionVersion')
   get optionsVersion() {
-    const versions = Array.from(new Set(this.nodes.mapBy('version'))).compact();
+    const versions = Array.from(new Set(this.nodes.map(item => get(item, 'version')))).filter(item => item !== undefined && item !== null);
 
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', this, () => {
@@ -240,10 +243,10 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionVolume')
   get optionsVolume() {
-    const flatten = (acc, val) => acc.concat(val.toArray());
+    const flatten = (acc, val) => acc.concat([...val]);
 
-    const allVolumes = this.nodes.mapBy('hostVolumes').reduce(flatten, []);
-    const volumes = Array.from(new Set(allVolumes.mapBy('name')));
+    const allVolumes = this.nodes.map(item => get(item, 'hostVolumes')).reduce(flatten, []);
+    const volumes = Array.from(new Set(allVolumes.map(item => get(item, 'name'))));
 
     scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects

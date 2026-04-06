@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { on } from '@ember/modifier';
 import { hash } from '@ember/helper';
@@ -56,7 +57,7 @@ export default class PolicyEditor extends Component {
         this.store
           .peekAll('policy')
           .filter((existingPolicy) => existingPolicy !== policy)
-          .findBy('name', policy.name)
+          .find(item => get(item, 'name') === policy.name)
       ) {
         throw new Error(`A policy with name ${policy.name} already exists.`);
       }

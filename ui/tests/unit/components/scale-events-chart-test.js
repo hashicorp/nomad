@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import sinon from 'sinon';
@@ -31,12 +33,12 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     const chart = this.createComponent({ events });
 
     assert.deepEqual(chart.data.length, events.length + 1);
-    assert.deepEqual(chart.data.slice(0, events.length), events.sortBy('time'));
+    assert.deepEqual(chart.data.slice(0, events.length), [...events].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))));
 
     const appendedDatum = chart.data[chart.data.length - 1];
     assert.deepEqual(
       appendedDatum.count,
-      events.sortBy('time').lastObject.count,
+      [...events].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).lastObject.count,
     );
     assert.deepEqual(+appendedDatum.time, +this.refTime);
   });
@@ -58,7 +60,7 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     assert.deepEqual(chart.data.length, annotationOutside.length + 1);
     assert.deepEqual(
       chart.data.slice(1, annotationOutside.length),
-      annotationOutside.filterBy('hasCount'),
+      annotationOutside.filter(item => get(item, 'hasCount')),
     );
 
     const appendedDatum = chart.data[0];
@@ -70,7 +72,7 @@ module('Unit | Component | scale-events-chart', function (hooks) {
     assert.deepEqual(chart.data.length, annotationOutside.length);
     assert.deepEqual(
       chart.data.slice(0, annotationOutside.length - 1),
-      annotationOutside.filterBy('hasCount'),
+      annotationOutside.filter(item => get(item, 'hasCount')),
     );
   });
 });

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL, click } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -67,7 +69,7 @@ module('Acceptance | job allocations', function (hooks) {
       'Allocations are shown in a table',
     );
 
-    const sortedAllocations = allocations.sortBy('modifyIndex').reverse();
+    const sortedAllocations = [...allocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
 
     Allocations.allocations.forEach((allocation, index) => {
       const shortId = sortedAllocations[index].id.split('-')[0];
@@ -116,14 +118,14 @@ module('Acceptance | job allocations', function (hooks) {
     }).models;
 
     await Allocations.visit({ id: job.id });
-    await Allocations.sortBy('taskGroupName');
+    await [...Allocations].sort((a, b) => compare(get(a, 'taskGroupName'), get(b, 'taskGroupName')));
 
     assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/allocations?sort=taskGroupName`,
       'the URL persists the sort parameter',
     );
-    const sortedAllocations = allocations.sortBy('taskGroup').reverse();
+    const sortedAllocations = [...allocations].sort((a, b) => compare(get(a, 'taskGroup'), get(b, 'taskGroup'))).reverse();
     Allocations.allocations.forEach((allocation, index) => {
       const shortId = sortedAllocations[index].id.split('-')[0];
       assert.deepEqual(
@@ -176,7 +178,7 @@ module('Acceptance | job allocations', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );
@@ -224,7 +226,7 @@ module('Acceptance | job allocations', function (hooks) {
         new Set(
           allocs
             .filter((alloc) => alloc.jobId == job.id)
-            .mapBy('nodeId')
+            .map(item => get(item, 'nodeId'))
             .map((id) => id.split('-')[0]),
         ),
       ).sort();
@@ -245,7 +247,7 @@ module('Acceptance | job allocations', function (hooks) {
     expectedOptions(allocs) {
       return Array.from(
         new Set(
-          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'),
+          allocs.filter((alloc) => alloc.jobId == job.id).map(item => get(item, 'taskGroup')),
         ),
       ).sort();
     },
@@ -292,13 +294,13 @@ function testFacet(
     await beforeEach.call(this);
 
     await facet.toggle();
-    option = facet.options.objectAt(0);
+    option = facet.options[0];
     await option.toggle();
 
     const selection = [option.key];
-    const expectedAllocs = this.server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+    const expectedAllocs = [...this.server.db.allocations
+      .filter((alloc) => filter(alloc, selection))]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     Allocations.allocations.forEach((alloc, index) => {
@@ -316,16 +318,16 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();
     selection.push(option2.key);
 
-    const expectedAllocs = this.server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+    const expectedAllocs = [...this.server.db.allocations
+      .filter((alloc) => filter(alloc, selection))]
+      .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
       .reverse();
 
     Allocations.allocations.forEach((alloc, index) => {
@@ -343,8 +345,8 @@ function testFacet(
     await beforeEach.call(this);
     await facet.toggle();
 
-    const option1 = facet.options.objectAt(0);
-    const option2 = facet.options.objectAt(1);
+    const option1 = facet.options[0];
+    const option2 = facet.options[1];
     await option1.toggle();
     selection.push(option1.key);
     await option2.toggle();

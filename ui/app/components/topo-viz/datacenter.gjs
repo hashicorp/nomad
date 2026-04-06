@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import formatBytes from 'nomad-ui/helpers/format-bytes';
 import formatHertz from 'nomad-ui/helpers/format-hertz';
@@ -13,7 +14,7 @@ export default class TopoVizDatacenter extends Component {
   get scheduledAllocations() {
     return this.args.datacenter.nodes.reduce(
       (all, node) =>
-        all.concat(node.allocations.filterBy('allocation.isScheduled')),
+        all.concat(node.allocations.filter(item => get(item, 'allocation.isScheduled'))),
       [],
     );
   }

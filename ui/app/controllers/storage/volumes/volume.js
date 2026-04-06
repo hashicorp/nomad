@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -45,12 +47,12 @@ export default class VolumeController extends Controller {
 
   @computed('model.readAllocations.@each.modifyIndex')
   get sortedReadAllocations() {
-    return this.model.readAllocations.sortBy('modifyIndex').reverse();
+    return [...this.model.readAllocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
   }
 
   @computed('model.writeAllocations.@each.modifyIndex')
   get sortedWriteAllocations() {
-    return this.model.writeAllocations.sortBy('modifyIndex').reverse();
+    return [...this.model.writeAllocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
   }
 
   @action

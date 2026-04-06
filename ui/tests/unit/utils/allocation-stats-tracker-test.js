@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import EmberObject from '@ember/object';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
@@ -147,7 +148,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
       'tasks matches lengths with the allocation task group',
     );
     allocation.taskGroup.tasks.forEach((task) => {
-      const trackerTask = tracker.get('tasks').findBy('task', task.name);
+      const trackerTask = tracker.get('tasks').find(item => get(item, 'task') === task.name);
       assert.deepEqual(
         trackerTask.reservedCPU,
         task.reservedCPU,
@@ -528,34 +529,34 @@ module('Unit | Util | AllocationStatsTracker', function () {
     });
 
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'service').cpu[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'service').cpu[0].timestamp,
       +makeDate(refDate + 11),
       'Old frames are removed in favor of newer ones',
     );
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'service').memory[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'service').memory[0].timestamp,
       +makeDate(refDate + 11),
       'Old frames are removed in favor of newer ones',
     );
 
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'log-shipper').cpu[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'log-shipper').cpu[0].timestamp,
       +makeDate(refDate + 110),
       'Old frames are removed in favor of newer ones',
     );
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'log-shipper').memory[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'log-shipper').memory[0].timestamp,
       +makeDate(refDate + 110),
       'Old frames are removed in favor of newer ones',
     );
 
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'sidecar').cpu[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'sidecar').cpu[0].timestamp,
       +makeDate(refDate + 1100),
       'Old frames are removed in favor of newer ones',
     );
     assert.deepEqual(
-      +tracker.get('tasks').findBy('task', 'sidecar').memory[0].timestamp,
+      +tracker.get('tasks').find(item => get(item, 'task') === 'sidecar').memory[0].timestamp,
       +makeDate(refDate + 1100),
       'Old frames are removed in favor of newer ones',
     );

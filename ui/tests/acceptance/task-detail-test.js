@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -141,12 +142,12 @@ module('Acceptance | task detail', function (hooks) {
       'Two resource utilization graphs',
     );
     assert.deepEqual(
-      Task.resourceCharts.objectAt(0).name,
+      Task.resourceCharts[0].name,
       'CPU',
       'First chart is CPU',
     );
     assert.deepEqual(
-      Task.resourceCharts.objectAt(1).name,
+      Task.resourceCharts[1].name,
       'Memory',
       'Second chart is Memory',
     );
@@ -237,7 +238,7 @@ module('Acceptance | task detail', function (hooks) {
 
   test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = this.server.db.taskEvents.where({ taskStateId: task.id })[0];
-    const recentEvent = Task.events.objectAt(Task.events.length - 1);
+    const recentEvent = Task.events[Task.events.length - 1];
 
     assert.deepEqual(
       recentEvent.time,
@@ -258,7 +259,7 @@ module('Acceptance | task detail', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made',
     );
@@ -276,8 +277,8 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.ok(
       this.server.pretender.handledRequests
-        .filterBy('status', 200)
-        .mapBy('url')
+        .filter(item => get(item, 'status') === 200)
+        .map(item => get(item, 'url'))
         .includes(`/v1/allocation/${allocation.id}`),
       'A request to the allocation is made successfully',
     );

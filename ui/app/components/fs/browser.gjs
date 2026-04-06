@@ -24,7 +24,7 @@ export default class Browser extends Component {
 
   get directoryEntriesArray() {
     return (
-      this.args.directoryEntries?.toArray?.() ||
+      [...this.args.directoryEntries] ||
       this.args.directoryEntries ||
       []
     );

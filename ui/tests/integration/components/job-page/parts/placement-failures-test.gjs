@@ -4,6 +4,8 @@
  */
 
 /* Mirage fixtures are random so we can't expect a set number of assertions */
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -45,9 +47,9 @@ module(
         <template><JobPagePartsPlacementFailures @job={{job}} /></template>,
       );
 
-      const failedEvaluation = job.evaluations
-        .filterBy('hasPlacementFailures')
-        .sortBy('modifyIndex')
+      const failedEvaluation = [...job.evaluations
+        .filter(item => get(item, 'hasPlacementFailures'))]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse()
         .get('firstObject');
       const failedTGAllocs = failedEvaluation.get('failedTGAllocs');

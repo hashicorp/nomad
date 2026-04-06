@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import ApplicationAdapter from './application';
 import classic from 'ember-classic-decorator';
 
@@ -23,10 +24,10 @@ export default class RecommendationSummaryAdapter extends ApplicationAdapter {
 
     const allRecommendationIds = snapshot
       .hasMany('recommendations')
-      .mapBy('id');
+      .map(item => get(item, 'id'));
     const excludedRecommendationIds = (
       snapshot.hasMany('excludedRecommendations') || []
-    ).mapBy('id');
+    ).map(item => get(item, 'id'));
     const includedRecommendationIds = allRecommendationIds.removeObjects(
       excludedRecommendationIds,
     );

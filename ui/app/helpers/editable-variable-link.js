@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// eslint-disable-next-line no-unused-vars
+ 
+import { get } from '@ember/object';
 import VariableModel from '../models/variable';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
@@ -28,7 +29,7 @@ export function editableVariableLink(
   [path],
   { existingPaths, namespace = 'default' },
 ) {
-  if (existingPaths.findBy('path', path)) {
+  if (existingPaths.find(item => get(item, 'path') === path)) {
     return {
       route: 'variables.variable.edit',
       model: `${path}@${namespace}`,

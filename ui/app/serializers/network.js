@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import ApplicationSerializer from './application';
 import { isIPv6 } from 'is-ip';
 import classic from 'ember-classic-decorator';
@@ -36,7 +38,7 @@ export default class NetworkSerializer extends ApplicationSerializer {
       isDynamic: true,
     }));
 
-    hash.Ports = reservedPorts.concat(dynamicPorts).sortBy('name');
+    hash.Ports = [...reservedPorts.concat(dynamicPorts)].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
 
     return super.normalize(...arguments);
   }

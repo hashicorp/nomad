@@ -54,7 +54,7 @@ export default class IndexController extends Controller {
     }
 
     if (typeof events?.toArray === 'function') {
-      return events.toArray().reverse();
+      return [...events].reverse();
     }
 
     return [];

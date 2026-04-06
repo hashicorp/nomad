@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import {
@@ -313,8 +315,8 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: '0' });
       await triggerEvent('.page-layout', 'keydown', { key: '1' });
 
-      const clickedJob = this.server.db.jobs
-        .sortBy('modifyIndex')
+      const clickedJob = [...this.server.db.jobs]
+        .sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')))
         .reverse()[0].id;
       assert.deepEqual(
         currentURL(),
@@ -325,7 +327,7 @@ module('Acceptance | keyboard', function (hooks) {
     test('Multi-Table Nav', async function (assert) {
       this.server.createList('job', 3, { createRecommendations: true });
       await visit(
-        `/jobs/${this.server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`,
+        `/jobs/${[...this.server.db.jobs].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse()[0].id}@default`,
       );
       const numberOfGroups = findAll('.task-group-row').length;
       const numberOfAllocs = findAll('.allocation-row').length;

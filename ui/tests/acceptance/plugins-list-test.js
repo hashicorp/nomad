@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -44,7 +46,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const sortedPlugins = this.server.db.csiPlugins.sortBy('id');
+    const sortedPlugins = [...this.server.db.csiPlugins].sort((a, b) => compare(get(a, 'id'), get(b, 'id')));
     assert.deepEqual(PluginsList.plugins.length, PluginsList.pageSize);
     PluginsList.plugins.forEach((plugin, index) => {
       assert.deepEqual(
@@ -63,7 +65,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const controllerHealthStr =
       plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
@@ -88,7 +90,7 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    const pluginRow = PluginsList.plugins.objectAt(0);
+    const pluginRow = PluginsList.plugins[0];
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.deepEqual(pluginRow.id, plugin.id);
@@ -105,13 +107,13 @@ module('Acceptance | plugins list', function (hooks) {
 
     await PluginsList.visit();
 
-    await PluginsList.plugins.objectAt(0).clickName();
+    await PluginsList.plugins[0].clickName();
     assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
 
     await PluginsList.visit();
     assert.deepEqual(currentURL(), '/storage/plugins');
 
-    await PluginsList.plugins.objectAt(0).clickRow();
+    await PluginsList.plugins[0].clickRow();
     assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
   });
 

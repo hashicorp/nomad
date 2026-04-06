@@ -43,7 +43,7 @@ export default class TaskGroupParent extends Component {
 
   get hasPendingAllocations() {
     const allocations =
-      this.args.taskGroup?.allocations?.toArray?.() ||
+      [...this.args.taskGroup?.allocations] ||
       this.args.taskGroup?.allocations;
 
     return (allocations || []).some(
@@ -53,12 +53,12 @@ export default class TaskGroupParent extends Component {
 
   get allocationTaskStates() {
     const allocations =
-      this.args.taskGroup?.allocations?.toArray?.() ||
+      [...this.args.taskGroup?.allocations] ||
       this.args.taskGroup?.allocations;
 
     return (allocations || []).reduce((accumulator, allocation) => {
       const states =
-        allocation?.states?.toArray?.() || allocation?.states || [];
+        [...allocation?.states] || allocation?.states || [];
       return accumulator.concat(states);
     }, []);
   }

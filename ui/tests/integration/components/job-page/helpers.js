@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { click, find, waitFor, waitUntil } from '@ember/test-helpers';
 
 export function jobURL(job, path = '') {
@@ -38,12 +39,12 @@ export async function expectStartRequest(assert, server, job) {
 
   await waitUntil(() => {
     return server.pretender.handledRequests
-      .filterBy('method', 'POST')
+      .filter(item => get(item, 'method') === 'POST')
       .some((req) => isStartRequest(req, expectedUpdateURL, expectedRunURL));
   });
 
   const request = server.pretender.handledRequests
-    .filterBy('method', 'POST')
+    .filter(item => get(item, 'method') === 'POST')
     .find((req) => isStartRequest(req, expectedUpdateURL, expectedRunURL));
 
   assert.ok(request, 'POST URL was made correctly');
@@ -76,7 +77,7 @@ export function expectDeleteRequest(assert, server, job) {
 
   assert.ok(
     server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
+      .filter(item => get(item, 'method') === 'DELETE')
       .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly',
   );
@@ -87,7 +88,7 @@ export function expectPurgeRequest(assert, server, job) {
 
   assert.ok(
     server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
+      .filter(item => get(item, 'method') === 'DELETE')
       .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly',
   );

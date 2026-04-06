@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
@@ -38,7 +40,14 @@ export default class Job extends Model {
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
   get expectedRunningAllocCount() {
     if (this.type === 'system' || this.type === 'sysbatch') {
-      return this.allocations.filterBy('nodeID').uniqBy('nodeID').length;
+      return this.allocations.filter(item => get(item, 'nodeID')).reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'nodeID')])[0].length;
     } else {
       return this.groupCountSum;
     }
@@ -327,9 +336,8 @@ export default class Job extends Model {
       return false;
     }
     const pendingAllocs =
-      this.allocations
-        .filter((alloc) => alloc.clientStatus === 'pending')
-        .toArray?.() ||
+      [...this.allocations
+        .filter((alloc) => alloc.clientStatus === 'pending')] ||
       this.allocations.filter((alloc) => alloc.clientStatus === 'pending');
 
     return pendingAllocs.some((alloc) => alloc.hasPausedTask);
@@ -495,28 +503,28 @@ export default class Job extends Model {
 
   @computed('versions.@each.stable')
   get hasStableNonCurrentVersion() {
-    const nonCurrentVersions = this.versions
-      .sortBy('number')
+    const nonCurrentVersions = [...this.versions]
+      .sort((a, b) => compare(get(a, 'number'), get(b, 'number')))
       .reverse()
       .slice(1);
 
     const versions =
-      nonCurrentVersions?.toArray?.() || nonCurrentVersions || [];
+      [...nonCurrentVersions] || nonCurrentVersions || [];
     return versions.some((version) => version.get('stable'));
   }
 
   @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
-    return this.versions
-      .filterBy('stable')
-      .sortBy('number')
+    return [...this.versions
+      .filter(item => get(item, 'stable'))]
+      .sort((a, b) => compare(get(a, 'number'), get(b, 'number')))
       .reverse()
       .slice(1)[0];
   }
 
   @computed('versions.[]', 'aggregateAllocStatus.label')
   get latestVersion() {
-    return this.versions.sortBy('number').reverse().slice(1)[0];
+    return [...this.versions].sort((a, b) => compare(get(a, 'number'), get(b, 'number'))).reverse().slice(1)[0];
   }
 
   get actions() {
@@ -524,7 +532,7 @@ export default class Job extends Model {
       return acc.concat(
         taskGroup.tasks
           .map((task) => {
-            return task.get('actions')?.toArray() || [];
+            return [...task.get('actions')] || [];
           })
           .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), []),
       );
@@ -546,13 +554,12 @@ export default class Job extends Model {
 
   @computed('taskGroups.@each.drivers')
   get drivers() {
-    return this.taskGroups
-      .mapBy('drivers')
+    return [...new Set(this.taskGroups
+      .map(item => get(item, 'drivers'))
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
-      }, [])
-      .uniq();
+      }, []))];
   }
 
   @mapBy('allocations', 'unhealthyDrivers') allocationsUnhealthyDrivers;
@@ -561,19 +568,17 @@ export default class Job extends Model {
   // has many allocations. This can lead to making an API request for many nodes.
   @computed('allocations', 'allocationsUnhealthyDrivers.[]')
   get unhealthyDrivers() {
-    return this.allocations
-      .mapBy('unhealthyDrivers')
+    return [...new Set(this.allocations
+      .map(item => get(item, 'unhealthyDrivers'))
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
-      }, [])
-      .uniq();
+      }, []))];
   }
 
   @computed('evaluations.@each.isBlocked')
   get hasBlockedEvaluation() {
-    return this.evaluations
-      .toArray()
+    return [...this.evaluations]
       .some((evaluation) => evaluation.get('isBlocked'));
   }
 
@@ -585,7 +590,7 @@ export default class Job extends Model {
     if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
-    const sortedEvaluations = evaluations.sortBy('modifyIndex');
+    const sortedEvaluations = [...evaluations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')));
     return sortedEvaluations[sortedEvaluations.length - 1];
   }
 
@@ -596,9 +601,9 @@ export default class Job extends Model {
       return null;
     }
 
-    const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+    const failureEvaluations = evaluations.filter(item => get(item, 'hasPlacementFailures'));
     if (failureEvaluations) {
-      const sortedFailureEvaluations = failureEvaluations.sortBy('modifyIndex');
+      const sortedFailureEvaluations = [...failureEvaluations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex')));
       return sortedFailureEvaluations[sortedFailureEvaluations.length - 1];
     }
 
@@ -758,12 +763,9 @@ export default class Job extends Model {
   @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
     if (this.parent.get('id')) {
-      return this.variables?.findBy(
-        'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
-      );
+      return this.variables?.find(item => get(item, 'path') === `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`);
     } else {
-      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+      return this.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.plainId}`);
     }
   }
 
@@ -771,12 +773,9 @@ export default class Job extends Model {
   async getPathLinkedVariable() {
     await this.variables;
     if (this.parent.get('id')) {
-      return this.variables?.findBy(
-        'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
-      );
+      return this.variables?.find(item => get(item, 'path') === `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`);
     } else {
-      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+      return this.variables?.find(item => get(item, 'path') === `nomad/jobs/${this.plainId}`);
     }
   }
 }

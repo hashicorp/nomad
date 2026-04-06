@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable ember/no-observers */
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -57,25 +59,25 @@ export default class IndexController extends Controller.extend(
 
   @computed('model.allocatedResources.ports.@each.label')
   get ports() {
-    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+    return ([...this.get('model.allocatedResources.ports') || []]).sort((a, b) => compare(get(a, 'label'), get(b, 'label')));
   }
 
   @computed('model.states.@each.task')
   get tasks() {
-    return this.get('model.states').mapBy('task') || [];
+    return this.get('model.states').map(item => get(item, 'task')) || [];
   }
 
   @computed('tasks.@each.services')
   get taskServices() {
     return this.get('tasks')
-      .map((t) => ((t && t.services) || []).toArray())
+      .map((t) => [...(t && t.services) || []])
       .flat()
-      .compact();
+      .filter(item => item !== undefined && item !== null);
   }
 
   @computed('model.taskGroup.services.@each.name')
   get groupServices() {
-    return (this.get('model.taskGroup.services') || []).sortBy('name');
+    return ([...this.get('model.taskGroup.services') || []]).sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
   }
 
   @union('taskServices', 'groupServices') services;
@@ -86,10 +88,7 @@ export default class IndexController extends Controller.extend(
     const checks = Object.values(this.model.healthChecks || {});
 
     return this.services.map((service) => {
-      const existingHealthChecks = (service.healthChecks || []).filterBy(
-        'Alloc',
-        allocId,
-      );
+      const existingHealthChecks = (service.healthChecks || []).filter(item => get(item, 'Alloc') === allocId);
 
       const discoveredHealthChecks = checks.filter((check) => {
         const refPrefix = check.Task || check.Group.split('.')[1].split('[')[0];
@@ -104,8 +103,15 @@ export default class IndexController extends Controller.extend(
       const mostRecentCheckStatus = healthChecks
         .sortBy('Timestamp')
         .reverse()
-        .uniqBy('Check')
-        .mapBy('Status')
+        .reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'Check')])[0]
+        .map(item => get(item, 'Status'))
         .reduce((acc, curr) => {
           acc[curr] = (acc[curr] || 0) + 1;
           return acc;
@@ -235,7 +241,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('activeServiceID', 'servicesWithHealthChecks.[]')
   get activeService() {
-    return this.servicesWithHealthChecks.findBy('refID', this.activeServiceID);
+    return this.servicesWithHealthChecks.find(item => get(item, 'refID') === this.activeServiceID);
   }
 
   @action closeSidebar() {

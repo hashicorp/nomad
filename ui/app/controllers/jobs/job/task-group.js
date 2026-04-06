@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { compare } from '@ember/utils';
 import { service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
@@ -114,14 +115,14 @@ export default class TaskGroupController extends Controller.extend(
   @computed('model.scaleState.events.@each.time', function () {
     const events = get(this, 'model.scaleState.events');
     if (events) {
-      return events.sortBy('time').reverse();
+      return [...events].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).reverse();
     }
     return [];
   })
   sortedScaleEvents;
 
   @computed('sortedScaleEvents.@each.hasCount', function () {
-    const countEventsCount = this.sortedScaleEvents.filterBy('hasCount').length;
+    const countEventsCount = this.sortedScaleEvents.filter(item => get(item, 'hasCount')).length;
     return (
       countEventsCount > 1 &&
       countEventsCount >= this.sortedScaleEvents.length / 2
@@ -171,7 +172,7 @@ export default class TaskGroupController extends Controller.extend(
           .map((allocation) => this.clientKeyForAllocation(allocation))
           .filter(Boolean),
       ),
-    ).compact();
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', this, () => {

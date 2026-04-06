@@ -25,7 +25,7 @@ export default function (
     }),
 
     [lookupKey]: function (name) {
-      return this[propKey].toArray().find((tg) => tg.name === name);
+      return [...this[propKey]].find((tg) => tg.name === name);
     },
   };
 }

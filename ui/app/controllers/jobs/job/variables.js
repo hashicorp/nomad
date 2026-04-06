@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
 // eslint-disable-next-line no-unused-vars
@@ -20,7 +21,7 @@ export default class JobsJobVariablesController extends Controller {
   @alias('model.variables') variables;
 
   get firstFewTaskGroupNames() {
-    return this.job.taskGroups.slice(0, 2).mapBy('name');
+    return this.job.taskGroups.slice(0, 2).map(item => get(item, 'name'));
   }
 
   get firstFewTaskNames() {

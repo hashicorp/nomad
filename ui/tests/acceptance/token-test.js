@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { getPageTitle } from 'ember-page-title/test-support';
 import {
   currentURL,
@@ -180,7 +181,7 @@ module('Acceptance | tokens', function (hooks) {
       'Each policy associated with the token is listed',
     );
 
-    const policyElement = Tokens.policies.objectAt(0);
+    const policyElement = Tokens.policies[0];
 
     assert.deepEqual(policyElement.name, policy.name, 'Policy Name');
     assert.deepEqual(
@@ -935,9 +936,9 @@ module('Acceptance | tokens', function (hooks) {
       let token;
 
       // User with 1 role, containing 1 policy, and no direct policies
-      token = this.server.db.tokens.findBy({
+      token = this.server.db.tokens.find(item => get(item, {
         name: 'High Level Role Token',
-      });
+      }));
       await Tokens.secret(token.secretId).submit();
       await waitUntil(
         () => findAll('[data-test-role-policies] li').length === 1,
@@ -955,9 +956,9 @@ module('Acceptance | tokens', function (hooks) {
       await Tokens.clear();
 
       // User with 1 role, containing 2 policies, and a direct policy
-      token = this.server.db.tokens.findBy({
+      token = this.server.db.tokens.find(item => get(item, {
         name: 'Policy And Role Token',
-      });
+      }));
       await Tokens.secret(token.secretId).submit();
       await waitUntil(
         () => findAll('[data-test-role-policies] li').length === 2,
@@ -982,9 +983,9 @@ module('Acceptance | tokens', function (hooks) {
       await Tokens.clear();
 
       // User with 2 roles, each containing 1 policy, and one of the policies is also directly on their token
-      token = this.server.db.tokens.findBy({
+      token = this.server.db.tokens.find(item => get(item, {
         name: 'Multi Role And Policy Token',
-      });
+      }));
       await Tokens.secret(token.secretId).submit();
       await waitUntil(() => findAll('[data-test-token-role]').length === 2);
       await waitUntil(() => findAll('[data-test-token-policy]').length === 2);
@@ -1005,9 +1006,9 @@ module('Acceptance | tokens', function (hooks) {
 
       // Head back and sign in as Clientless Role Token
       await Tokens.visit();
-      let token = this.server.db.tokens.findBy({
+      let token = this.server.db.tokens.find(item => get(item, {
         name: 'Clientless Role Token',
-      });
+      }));
       await Tokens.secret(token.secretId).submit();
 
       await visit('/clients');
@@ -1022,9 +1023,9 @@ module('Acceptance | tokens', function (hooks) {
       // Sign out, and sign back in as a high-level role token
       await Tokens.visit();
       await Tokens.clear();
-      token = this.server.db.tokens.findBy({
+      token = this.server.db.tokens.find(item => get(item, {
         name: 'High Level Role Token',
-      });
+      }));
       await Tokens.secret(token.secretId).submit();
 
       await visit('/jobs');
@@ -1042,9 +1043,9 @@ module('Acceptance | tokens', function (hooks) {
       faker.seed(1);
       allScenarios.rolesTestCluster(this.server);
       await Tokens.visit();
-      const managementToken = this.server.db.tokens.findBy({
+      const managementToken = this.server.db.tokens.find(item => get(item, {
         type: 'management',
-      });
+      }));
       const { secretId } = managementToken;
       await Tokens.secret(secretId).submit();
       await Administration.visitTokens();
@@ -1068,9 +1069,9 @@ module('Acceptance | tokens', function (hooks) {
     test('Tokens index, management token handling', async function (assert) {
       // two management tokens, one of which is yours; yours cannot be deleted or clicked into.
       assert.dom('[data-test-token-type="management"]').exists({ count: 2 });
-      const managementToken = this.server.db.tokens.findBy({
+      const managementToken = this.server.db.tokens.find(item => get(item, {
         type: 'management',
-      });
+      }));
       const managementTokenRow = [...findAll('[data-test-token-row]')].find(
         (row) => row.textContent.includes(managementToken.name),
       );
@@ -1135,9 +1136,9 @@ module('Acceptance | tokens', function (hooks) {
           { count: numberOfTokens },
           'Number of tokens matches number in db',
         );
-      const tokenToDelete = this.server.db.tokens.findBy({
+      const tokenToDelete = this.server.db.tokens.find(item => get(item, {
         type: 'client',
-      });
+      }));
       const tokenRowToDelete = [...findAll('[data-test-token-row]')].find(
         (row) => row.textContent.includes(tokenToDelete.name),
       );
@@ -1161,9 +1162,9 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Tokens index, clicking into a token page', async function (assert) {
-      const tokenToClick = this.server.db.tokens.findBy({
+      const tokenToClick = this.server.db.tokens.find(item => get(item, {
         type: 'client',
-      });
+      }));
       const tokenRowToClick = [...findAll('[data-test-token-row]')].find(
         (row) => row.textContent.includes(tokenToClick.name),
       );
@@ -1177,9 +1178,9 @@ module('Acceptance | tokens', function (hooks) {
 
     test('Tokens index, roles and policies attached to a token show up as links', async function (assert) {
       // Staying on the index page, Rows should have a Roles column with either "No Roles" or a bunch of links to roles. Ditto policies.
-      const tokenWithRolesAndPolicies = this.server.db.tokens.findBy({
+      const tokenWithRolesAndPolicies = this.server.db.tokens.find(item => get(item, {
         name: 'Multi Role And Policy Token',
-      });
+      }));
       const tokenRowWithRolesAndPolicies = [
         ...findAll('[data-test-token-row]'),
       ].find((row) => row.textContent.includes(tokenWithRolesAndPolicies.name));
@@ -1201,9 +1202,9 @@ module('Acceptance | tokens', function (hooks) {
       assert.deepEqual(rolesCellTags.length, 2);
       assert.deepEqual(policiesCellTags.length, 1);
 
-      const policyLessToken = this.server.db.tokens.findBy({
+      const policyLessToken = this.server.db.tokens.find(item => get(item, {
         name: 'High Level Role Token',
-      });
+      }));
       const policyLessTokenRow = [...findAll('[data-test-token-row]')].find(
         (row) => row.textContent.includes(policyLessToken.name),
       );
@@ -1227,7 +1228,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Token page, general', async function (assert) {
-      const token = this.server.db.tokens.findBy({ id: 'cl4y-t0k3n' });
+      const token = this.server.db.tokens.find(item => get(item, { id: 'cl4y-t0k3n' }));
       await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);
@@ -1308,7 +1309,7 @@ module('Acceptance | tokens', function (hooks) {
       );
     });
     test('Token name can be edited', async function (assert) {
-      const token = this.server.db.tokens.findBy({ id: 'cl4y-t0k3n' });
+      const token = this.server.db.tokens.find(item => get(item, { id: 'cl4y-t0k3n' }));
       await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       await fillIn('[data-test-token-name-input]', 'Mud-Token');
@@ -1319,7 +1320,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Token policies and roles can be edited', async function (assert) {
-      const token = this.server.db.tokens.findBy({ id: 'cl4y-t0k3n' });
+      const token = this.server.db.tokens.find(item => get(item, { id: 'cl4y-t0k3n' }));
       await visit(`/administration/tokens/${token.id}`);
 
       // The policies/roles belonging to this token are checked
@@ -1374,9 +1375,9 @@ module('Acceptance | tokens', function (hooks) {
 
       await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
-      const clayToken = this.server.db.tokens.findBy({
+      const clayToken = this.server.db.tokens.find(item => get(item, {
         id: 'cl4y-t0k3n',
-      });
+      }));
       const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
         row.textContent.includes(clayToken.name),
       );
@@ -1394,7 +1395,7 @@ module('Acceptance | tokens', function (hooks) {
       assert.deepEqual(rolesCellTags.length, 1);
     });
     test('Token can be deleted', async function (assert) {
-      const token = this.server.db.tokens.findBy({ id: 'cl4y-t0k3n' });
+      const token = this.server.db.tokens.find(item => get(item, { id: 'cl4y-t0k3n' }));
       await visit(`/administration/tokens/${token.id}`);
 
       const deleteButton = find('[data-test-delete-token] button');
@@ -1485,9 +1486,9 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      const token = this.server.db.tokens.findBy({
+      const token = this.server.db.tokens.find(item => get(item, {
         name: 'Capt. Steven Hiller',
-      });
+      }));
       assert.false(token.global);
     });
   });
@@ -1555,9 +1556,9 @@ module('Tokens and Regions', function (hooks) {
     await click('[data-test-token-type="management"]');
     await click('[data-test-token-save]');
 
-    let globalToken = this.server.db.tokens.findBy({
+    let globalToken = this.server.db.tokens.find(item => get(item, {
       name: 'Thomas J. Whitmore',
-    });
+    }));
     assert.ok(globalToken.global, 'Token has Global set to true');
     assert.dom('.flash-message.alert-success').exists();
     let tokenRequest = this.server.pretender.handledRequests.find((req) => {
@@ -1595,9 +1596,9 @@ module('Tokens and Regions', function (hooks) {
     await click('[data-test-token-type="management"]');
     await click('[data-test-token-save]');
     assert.dom('.flash-message.alert-success').exists();
-    let token = this.server.db.tokens.findBy({
+    let token = this.server.db.tokens.find(item => get(item, {
       name: 'David Levinson',
-    });
+    }));
 
     assert.notOk(token.global, 'Token is not global');
     const tokenRequest = this.server.pretender.handledRequests.find((req) => {
@@ -1631,7 +1632,7 @@ module('Tokens and Regions', function (hooks) {
 
     await click('[data-test-token-save]');
     assert.dom('.flash-message.alert-success').exists();
-    let token = this.server.db.tokens.findBy({ name: 'Russell Casse' });
+    let token = this.server.db.tokens.find(item => get(item, { name: 'Russell Casse' }));
     assert.notOk(token.global, 'Token is not global');
     const tokenRequest = this.server.pretender.handledRequests.find((req) => {
       return req.url.includes('acl/token') && req.method === 'POST';

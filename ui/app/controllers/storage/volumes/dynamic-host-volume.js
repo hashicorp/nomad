@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -52,7 +54,7 @@ export default class DynamicHostVolumeController extends Controller {
       return [];
     }
 
-    return allocations.sortBy('modifyIndex').reverse();
+    return [...allocations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
   }
 
   @action gotoAllocation(allocation) {

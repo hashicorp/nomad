@@ -59,7 +59,7 @@ export default class EvaluationSidebarDetail extends Component {
           .stratify()
           .id((detail) => detail.id)
           .parentId((detail) => detail.previousEval)([
-          ...data.toArray(),
+          ...[...data],
           this.currentEvalDetail,
         ]);
       }
@@ -74,7 +74,7 @@ export default class EvaluationSidebarDetail extends Component {
     return this.hierarchy
       ?.descendants()
       .map((detail) => detail.children)
-      .compact();
+      .filter(item => item !== undefined && item !== null);
   }
 
   get parentEvaluation() {

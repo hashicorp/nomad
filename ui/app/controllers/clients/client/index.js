@@ -5,6 +5,8 @@
 
 /* eslint-disable ember/no-observers */
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
@@ -149,22 +151,22 @@ export default class ClientController extends Controller.extend(
 
   @computed('model.allocations.@each.wasPreempted')
   get preemptions() {
-    return this.model.allocations.filterBy('wasPreempted');
+    return this.model.allocations.filter(item => get(item, 'wasPreempted'));
   }
 
   @computed('model.events.@each.time')
   get sortedEvents() {
-    return this.get('model.events').sortBy('time').reverse();
+    return [...this.get('model.events')].sort((a, b) => compare(get(a, 'time'), get(b, 'time'))).reverse();
   }
 
   @computed('model.drivers.@each.name')
   get sortedDrivers() {
-    return this.get('model.drivers').sortBy('name');
+    return [...this.get('model.drivers')].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
   }
 
   @computed('model.hostVolumes.@each.name')
   get sortedHostVolumes() {
-    return this.model.hostVolumes.sortBy('name');
+    return [...this.model.hostVolumes].sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
   }
 
   @(task(function* (value) {
@@ -287,9 +289,9 @@ export default class ClientController extends Controller.extend(
       new Set(
         this.model.allocations
           .filter((a) => ns.length === 0 || ns.includes(a.namespace))
-          .mapBy('plainJobId'),
+          .map(item => get(item, 'plainJobId')),
       ),
-    ).compact();
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of jobs changes.
     scheduleOnce('actions', this, () => {
@@ -303,8 +305,8 @@ export default class ClientController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionNamespace')
   get optionsNamespace() {
     const ns = Array.from(
-      new Set(this.model.allocations.mapBy('namespace')),
-    ).compact();
+      new Set(this.model.allocations.map(item => get(item, 'namespace'))),
+    ).filter(item => item !== undefined && item !== null);
 
     // Update query param when the list of namespaces changes.
     scheduleOnce('actions', this, () => {

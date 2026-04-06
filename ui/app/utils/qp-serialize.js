@@ -13,7 +13,7 @@ export const serialize = (val) => {
 
 export const deserialize = (str) => {
   try {
-    return JSON.parse(str).compact().without('');
+    return (JSON.parse(str).filter(item => item !== undefined && item !== null).indexOf('') > -1 ? JSON.parse(str).filter(item => item !== undefined && item !== null).filter(item => item !== '') : JSON.parse(str).filter(item => item !== undefined && item !== null));
   } catch {
     return [];
   }

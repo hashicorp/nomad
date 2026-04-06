@@ -4,6 +4,7 @@
  */
 
 // Tests for non-UI behaviour.
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -71,7 +72,7 @@ module('Acceptance | reverse proxy', function (hooks) {
     // Make sure that server received the header
     assert.ok(
       this.server.pretender.handledRequests
-        .mapBy('requestHeaders')
+        .map(item => get(item, 'requestHeaders'))
         .every((headers) => headers['X-Nomad-Token'] === secretId),
       'The token header is always present',
     );

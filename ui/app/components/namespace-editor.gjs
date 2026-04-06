@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { on } from '@ember/modifier';
@@ -66,7 +67,7 @@ export default class NamespaceEditor extends Component {
         this.store
           .peekAll('namespace')
           .filter((existingNamespace) => existingNamespace !== namespace)
-          .findBy('name', namespace.name)
+          .find(item => get(item, 'name') === namespace.name)
       ) {
         throw new Error(
           `A namespace with name ${namespace.name} already exists.`,
@@ -109,11 +110,11 @@ export default class NamespaceEditor extends Component {
     const capabilities = namespace.capabilities
       ? {
           DisabledTaskDrivers:
-            namespace.capabilities.DisabledTaskDrivers?.toArray?.() ||
+            [...namespace.capabilities.DisabledTaskDrivers] ||
             namespace.capabilities.DisabledTaskDrivers ||
             [],
           EnabledTaskDrivers:
-            namespace.capabilities.EnabledTaskDrivers?.toArray?.() ||
+            [...namespace.capabilities.EnabledTaskDrivers] ||
             namespace.capabilities.EnabledTaskDrivers ||
             [],
         }
@@ -123,11 +124,11 @@ export default class NamespaceEditor extends Component {
       ? {
           Default: namespace.nodePoolConfiguration.Default,
           Allowed:
-            namespace.nodePoolConfiguration.Allowed?.toArray?.() ||
+            [...namespace.nodePoolConfiguration.Allowed] ||
             namespace.nodePoolConfiguration.Allowed ||
             null,
           Disallowed:
-            namespace.nodePoolConfiguration.Disallowed?.toArray?.() ||
+            [...namespace.nodePoolConfiguration.Disallowed] ||
             namespace.nodePoolConfiguration.Disallowed ||
             null,
         }

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Service from '@ember/service';
 import { service } from '@ember/service';
 import { timeout, restartableTask } from 'ember-concurrency';
@@ -207,7 +208,7 @@ export default class KeyboardService extends Service {
   }
 
   recomputeEnumeratedCommands() {
-    this.keyCommands.filterBy('enumerated').forEach((command, iter) => {
+    this.keyCommands.filter(item => get(item, 'enumerated')).forEach((command, iter) => {
       command.pattern = this.cleanPattern(iter);
     });
   }
@@ -217,7 +218,7 @@ export default class KeyboardService extends Service {
       commands.forEach((command) => {
         if (command.exclusive) {
           this.removeCommands(
-            this.keyCommands.filterBy('label', command.label),
+            this.keyCommands.filter(item => get(item, 'label') === command.label),
           );
         }
         this.keyCommands.pushObject(command);
@@ -258,7 +259,7 @@ export default class KeyboardService extends Service {
           };
         }
       })
-      .compact();
+      .filter(item => item !== undefined && item !== null);
 
     if (type === 'main') {
       this.navLinks = links;
@@ -276,8 +277,8 @@ export default class KeyboardService extends Service {
    */
   @action
   unregisterSubnav(element) {
-    this.subnavLinks = this.subnavLinks.reject(
-      (link) => link.parent === guidFor(element),
+    this.subnavLinks = this.subnavLinks.filter(
+      function(...args) { return !((link) => link.parent === guidFor(element)).apply(this, args); },
     );
   }
 

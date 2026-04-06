@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -40,7 +42,7 @@ module('Acceptance | job evaluations', function (hooks) {
       'All evaluations are listed',
     );
 
-    const sortedEvaluations = evaluations.sortBy('modifyIndex').reverse();
+    const sortedEvaluations = [...evaluations].sort((a, b) => compare(get(a, 'modifyIndex'), get(b, 'modifyIndex'))).reverse();
 
     Evaluations.evaluations.forEach((evaluation, index) => {
       const shortId = sortedEvaluations[index].id.split('-')[0];
@@ -55,14 +57,14 @@ module('Acceptance | job evaluations', function (hooks) {
   });
 
   test('evaluations table is sortable', async function (assert) {
-    await Evaluations.sortBy('priority');
+    await [...Evaluations].sort((a, b) => compare(get(a, 'priority'), get(b, 'priority')));
 
     assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/evaluations?sort=priority`,
       'the URL persists the sort parameter',
     );
-    const sortedEvaluations = evaluations.sortBy('priority').reverse();
+    const sortedEvaluations = [...evaluations].sort((a, b) => compare(get(a, 'priority'), get(b, 'priority'))).reverse();
     Evaluations.evaluations.forEach((evaluation, index) => {
       const shortId = sortedEvaluations[index].id.split('-')[0];
       assert.deepEqual(
@@ -79,7 +81,7 @@ module('Acceptance | job evaluations', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

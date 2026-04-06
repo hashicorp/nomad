@@ -32,7 +32,7 @@ export default class RecommendationSummary extends Model {
     const taskGroups = get(this, 'job.taskGroups');
 
     if (taskGroups) {
-      return taskGroups.findBy('name', this.taskGroupName);
+      return taskGroups.find(item => get(item, 'name') === this.taskGroupName);
     } else {
       return undefined;
     }
@@ -51,13 +51,10 @@ export default class RecommendationSummary extends Model {
   @action
   toggleAllRecommendationsForResource(resource, enabled) {
     if (enabled) {
-      this.excludedRecommendations = this.excludedRecommendations.rejectBy(
-        'resource',
-        resource,
-      );
+      this.excludedRecommendations = this.excludedRecommendations.filter(item => get(item, 'resource') !== resource);
     } else {
       this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource),
+        this.recommendations.filter(item => get(item, 'resource') === resource),
       );
     }
   }

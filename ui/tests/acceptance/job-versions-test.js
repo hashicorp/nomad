@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import {
   currentURL,
   click,
@@ -76,11 +78,11 @@ module('Acceptance | job versions', function (hooks) {
   });
 
   test('each version mentions the version number, the stability, and the submitted time', async function (assert) {
-    const version = versions.sortBy('submitTime').reverse()[0];
+    const version = [...versions].sort((a, b) => compare(get(a, 'submitTime'), get(b, 'submitTime'))).reverse()[0];
     const formattedSubmitTime = moment(version.submitTime / 1000000).format(
       "MMM DD, 'YY HH:mm:ss ZZ",
     );
-    const versionRow = Versions.versions.objectAt(0);
+    const versionRow = Versions.versions[0];
 
     assert.ok(
       versionRow.text.includes(`Version #${version.version}`),
@@ -188,7 +190,7 @@ module('Acceptance | job versions', function (hooks) {
     assert.deepEqual(
       this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
+        .find(item => get(item, 'status') === 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made',
     );

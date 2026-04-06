@@ -82,7 +82,7 @@ export default class TaskGroups extends Component {
 }
 
 function sortItems(items, sortProperty, sortDescending = true) {
-  const normalizedItems = (items?.toArray?.() || items || []).filter(Boolean);
+  const normalizedItems = ([...items] || items || []).filter(Boolean);
 
   if (!sortProperty) {
     return normalizedItems;

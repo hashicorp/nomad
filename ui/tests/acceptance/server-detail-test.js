@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
@@ -56,9 +58,9 @@ module('Acceptance | server detail', function (hooks) {
   });
 
   test('the server detail page should list all tags for the server', async function (assert) {
-    const tags = Object.keys(agent.member.Tags)
-      .map((name) => ({ name, value: agent.member.Tags[name] }))
-      .sortBy('name');
+    const tags = [...Object.keys(agent.member.Tags)
+      .map((name) => ({ name, value: agent.member.Tags[name] }))]
+      .sort((a, b) => compare(get(a, 'name'), get(b, 'name')));
 
     assert.deepEqual(ServerDetail.tags.length, tags.length, '# of tags');
     ServerDetail.tags.forEach((tagRow, index) => {

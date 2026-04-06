@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { assert } from '@ember/debug';
@@ -30,13 +31,13 @@ export default class TaskPrimaryMetric extends Component {
 
   get data() {
     if (!this.tracker) return [];
-    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+    const task = this.tracker.tasks.find(item => get(item, 'task') === this.taskState.name);
     return task && task[this.metric];
   }
 
   get reservedAmount() {
     if (!this.tracker) return null;
-    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+    const task = this.tracker.tasks.find(item => get(item, 'task') === this.taskState.name);
     if (this.metric === 'cpu') return task.reservedCPU;
     if (this.metric === 'memory') return task.reservedMemory;
     return null;

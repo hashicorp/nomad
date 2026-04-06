@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -65,7 +66,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       assert.notOk(phase.isActive);
     });
 
-    assert.deepEqual(Chart.tasks.mapBy('name'), [
+    assert.deepEqual(Chart.tasks.map(item => get(item, 'name')), [
       'prestart ephemeral: 0',
       'prestart sidecar: 1',
       'main one: 2',
@@ -74,7 +75,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       'poststart ephemeral: 5',
       'poststop: 6',
     ]);
-    assert.deepEqual(Chart.tasks.mapBy('lifecycle'), [
+    assert.deepEqual(Chart.tasks.map(item => get(item, 'lifecycle')), [
       'Prestart Task',
       'Sidecar Task',
       'Main Task',

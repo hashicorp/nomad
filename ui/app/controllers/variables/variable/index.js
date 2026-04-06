@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
+import { compare } from '@ember/utils';
 import Controller from '@ember/controller';
 import { set, action } from '@ember/object';
 import { task } from 'ember-concurrency';
@@ -20,7 +22,10 @@ export default class VariablesVariableIndexController extends Controller {
   @service notifications;
 
   get sortedKeyValues() {
-    const sorted = this.model.keyValues.sortBy(this.sortProperty);
+    const sorted = [...this.model.keyValues].sort((a, b) => {
+              const key = this.sortProperty;
+              return compare(get(a, key), get(b, key));
+            });
     return this.sortDescending ? sorted : sorted.reverse();
   }
 

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { compare } from '@ember/utils';
+import { get } from '@ember/object';
 import Component from '@glimmer/component';
 import { service } from '@ember/service';
 import { LinkTo } from '@ember/routing';
@@ -39,10 +41,7 @@ export default class AllocationServiceSidebar extends Component {
   }
 
   get address() {
-    const port = this.args.allocation?.allocatedResources?.ports?.findBy(
-      'label',
-      this.args.service?.portLabel,
-    );
+    const port = this.args.allocation?.allocatedResources?.ports?.find(item => get(item, 'label') === this.args.service?.portLabel);
 
     if (port) {
       return `${port.hostIp}:${port.value}`;
@@ -53,7 +52,7 @@ export default class AllocationServiceSidebar extends Component {
 
   get aggregateStatus() {
     if (this.args.allocation?.clientStatus !== 'running') return 'Unknown';
-    const checks = this.checks?.toArray?.() || this.checks || [];
+    const checks = [...this.checks] || this.checks || [];
     return checks.some((check) => check.Status === 'failure')
       ? 'Unhealthy'
       : 'Healthy';
@@ -88,12 +87,19 @@ export default class AllocationServiceSidebar extends Component {
     // Our UI checks run every 2 seconds; but a check itself may only update every, say, minute.
     // Therefore, we'll have duplicate checks in a service's healthChecks array.
     // Only get the most recent check for each check.
-    return (this.args.service.healthChecks || [])
-      .filterBy('Alloc', allocID)
-      .sortBy('Timestamp')
+    return [...[...(this.args.service.healthChecks || [])
+      .filter(item => get(item, 'Alloc') === allocID)]
+      .sort((a, b) => compare(get(a, 'Timestamp'), get(b, 'Timestamp')))
       .reverse()
-      .uniqBy('Check')
-      .sortBy('Check');
+      .reduce(([uniqArr, itemsSet, getterFn], item) => {
+          const val = getterFn(item);
+          if (!itemsSet.has(val)) {
+            itemsSet.add(val);
+            uniqArr.push(item);
+          }
+          return [uniqArr, itemsSet, getterFn];
+        }, [[], new Set(), (item) => get(item, 'Check')])[0]]
+      .sort((a, b) => compare(get(a, 'Check'), get(b, 'Check')));
   }
 
   checksForName = (checkName) => {

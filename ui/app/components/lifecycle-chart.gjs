@@ -145,7 +145,7 @@ function normalizeCollection(value) {
   }
 
   if (typeof value.toArray === 'function') {
-    return value.toArray();
+    return [...value];
   }
 
   if (typeof value[Symbol.iterator] === 'function') {

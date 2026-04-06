@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+import { get } from '@ember/object';
 import Controller from '@ember/controller';
 import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -70,7 +71,7 @@ export default class AllocationsController extends Controller.extend(
 
   @computed('model.{controllers.[],nodes.[]}')
   get combinedAllocations() {
-    return this.model.controllers.toArray().concat(this.model.nodes.toArray());
+    return [...this.model.controllers].concat([...this.model.nodes]);
   }
 
   @computed(
@@ -92,9 +93,9 @@ export default class AllocationsController extends Controller.extend(
     }
 
     if (healths.length === 1 && healths[0] === 'true')
-      return listToFilter.filterBy('healthy');
+      return listToFilter.filter(item => get(item, 'healthy'));
     if (healths.length === 1 && healths[0] === 'false')
-      return listToFilter.filterBy('healthy', false);
+      return listToFilter.filter(item => get(item, 'healthy') === false);
     return listToFilter;
   }
 
