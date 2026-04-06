@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -139,7 +140,8 @@ func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
-	if state, when := rt.SetRestartTriggered(false).GetState(); state != structs.TaskRestarting && when != 0 {
+	must.NoError(t, rt.SetRestartTriggered(false))
+	if state, when := rt.GetState(); state != structs.TaskRestarting && when != 0 {
 		t.Fatalf("expect restart immediately, got %v %v", state, when)
 	}
 }
@@ -149,10 +151,12 @@ func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 1
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
-	if state, when := rt.SetRestartTriggered(true).GetState(); state != structs.TaskRestarting || when == 0 {
+	must.NoError(t, rt.SetRestartTriggered(true))
+	if state, when := rt.GetState(); state != structs.TaskRestarting || when == 0 {
 		t.Fatalf("expect restart got %v %v", state, when)
 	}
-	if state, when := rt.SetRestartTriggered(true).GetState(); state != structs.TaskNotRestarting || when != 0 {
+	must.NoError(t, rt.SetRestartTriggered(true))
+	if state, when := rt.GetState(); state != structs.TaskNotRestarting || when != 0 {
 		t.Fatalf("expect failed got %v %v", state, when)
 	}
 }

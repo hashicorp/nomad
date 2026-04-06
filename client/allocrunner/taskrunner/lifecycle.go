@@ -80,11 +80,12 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 		return te.ErrTaskNotRunning
 	}
 
+	if err := tr.restartTracker.SetRestartTriggered(failure); err != nil {
+		return err
+	}
+
 	// Emit the event since it may take a long time to kill
 	tr.EmitEvent(event)
-
-	// Tell the restart tracker that a restart triggered the exit
-	tr.restartTracker.SetRestartTriggered(failure)
 
 	// Signal a restart to unblock tasks that are in the "dead" state, but
 	// don't block since the channel is buffered. Only one signal is enough to

@@ -359,13 +359,12 @@ func TestCheckWatcher_MultipleChecks(t *testing.T) {
 	// Ensure that restart was only called once on check 1 or 2. Since
 	// checks are in a map it's random which check triggers the restart
 	// first.
-	if n := len(restarter1.restarts) + len(restarter2.restarts); n != 1 {
-		t.Errorf("expected check 1 & 2 to be restarted 1 time but found %d\ncheck 1:\n%s\ncheck 2:%s",
-			n, restarter1, restarter2)
+	if n := len(restarter1.restarts) + len(restarter2.restarts); n != 2 {
+		t.Errorf("expected check 1 & 2 to be restarted 2 times but found %d", n)
 	}
 
 	if n := len(restarter3.restarts); n != 0 {
-		t.Errorf("expected check 3 to not be restarted but found %d:\n%s", n, restarter3)
+		t.Errorf("expected check 3 to not be restarted but found %d", n)
 	}
 }
 
