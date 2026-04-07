@@ -4931,10 +4931,6 @@ func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
 				tg.Name, t.Name))
 		}
 
-		if len(t.Services) == 0 {
-			continue
-		}
-
 		if t.ShutdownDelay > 0 {
 			hasAnyTaskServiceShutdownDelay = true
 		} else {
