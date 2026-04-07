@@ -235,7 +235,7 @@ func TestAllocRunningSince(t *testing.T) {
 			},
 		}
 
-		startedAt, ok := allocRunningSince(alloc)
+		startedAt, ok := allocFullyRunningSince(alloc)
 		must.True(t, ok)
 		must.Eq(t, now.Add(-5*time.Minute), startedAt)
 	})
@@ -244,7 +244,7 @@ func TestAllocRunningSince(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.TaskStates = nil
 
-		_, ok := allocRunningSince(alloc)
+		_, ok := allocFullyRunningSince(alloc)
 		must.False(t, ok)
 	})
 
@@ -260,7 +260,7 @@ func TestAllocRunningSince(t *testing.T) {
 			},
 		}
 
-		_, ok := allocRunningSince(alloc)
+		_, ok := allocFullyRunningSince(alloc)
 		must.False(t, ok)
 	})
 
@@ -272,7 +272,7 @@ func TestAllocRunningSince(t *testing.T) {
 			},
 		}
 
-		_, ok := allocRunningSince(alloc)
+		_, ok := allocFullyRunningSince(alloc)
 		must.False(t, ok)
 	})
 }

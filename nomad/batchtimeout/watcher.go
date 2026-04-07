@@ -21,6 +21,11 @@ type RaftApplier interface {
 	ApplyPlanResults(req *structs.ApplyPlanResultsRequest) (uint64, error)
 }
 
+// Watcher scans running batch and sysbatch allocations for max_run_duration
+// violations and stops expired allocations via plan results.
+//
+// The watcher is leader-managed. The enabled flag tracks desired state, while
+// running indicates whether the background watch loop is currently active.
 type Watcher struct {
 	logger       log.Logger
 	raft         RaftApplier
@@ -45,6 +50,8 @@ func NewWatcher(logger log.Logger, raft RaftApplier, scanInterval time.Duration)
 	}
 }
 
+// SetEnabled updates the desired watcher state and starts or stops the
+// background loop as needed.
 func (w *Watcher) SetEnabled(enabled bool, st *state.StateStore) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -54,17 +61,25 @@ func (w *Watcher) SetEnabled(enabled bool, st *state.StateStore) {
 	}
 
 	if enabled {
-		w.enabled = true
-		if w.running || w.state == nil {
-			return
-		}
-
-		w.stopCh = make(chan struct{})
-		w.running = true
-		go w.watch(w.stopCh)
+		w.enableLocked()
 		return
 	}
 
+	w.disableLocked()
+}
+
+func (w *Watcher) enableLocked() {
+	w.enabled = true
+	if w.running || w.state == nil {
+		return
+	}
+
+	w.stopCh = make(chan struct{})
+	w.running = true
+	go w.watch(w.stopCh)
+}
+
+func (w *Watcher) disableLocked() {
 	w.enabled = false
 	if !w.running {
 		return
@@ -81,6 +96,8 @@ func (w *Watcher) watch(stopCh <-chan struct{}) {
 	defer w.markStopped(stopCh)
 
 	for {
+		// Scan immediately so leadership changes do not wait a full interval
+		// before enforcing timeouts.
 		w.scan(time.Now().UTC())
 
 		select {
@@ -97,16 +114,14 @@ func (w *Watcher) markStopped(stopCh <-chan struct{}) {
 
 	if w.stopCh == stopCh {
 		w.stopCh = nil
+		w.running = false
 	}
-	w.running = false
 }
 
+// scan evaluates all allocations in state and stops any that have exceeded
+// max_run_duration.
 func (w *Watcher) scan(now time.Time) {
-	w.mu.Lock()
-	st := w.state
-	enabled := w.enabled
-	w.mu.Unlock()
-
+	st, enabled := w.snapshot()
 	if !enabled || st == nil {
 		return
 	}
@@ -154,35 +169,42 @@ func (w *Watcher) scan(now time.Time) {
 	w.logger.Debug("stopped timed out allocations", "count", len(stopped))
 }
 
+func (w *Watcher) snapshot() (*state.StateStore, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return w.state, w.enabled
+}
+
 func shouldStopAlloc(now time.Time, alloc *structs.Allocation) bool {
+	// Allocation must exist and still be actively running.
 	if alloc == nil || alloc.Job == nil {
 		return false
 	}
-
 	if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 		return false
 	}
-
 	if alloc.ClientStatus != structs.AllocClientStatusRunning {
 		return false
 	}
-
 	if alloc.ClientTerminalStatus() || alloc.ServerTerminalStatus() {
 		return false
 	}
 
+	// Job and task group must opt into max_run_duration and support timeout
+	// enforcement.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
 		return false
 	}
-
 	switch alloc.Job.Type {
 	case structs.JobTypeBatch, structs.JobTypeSysBatch:
 	default:
 		return false
 	}
 
-	startedAt, ok := allocRunningSince(alloc)
+	// Allocation must be fully running and past its deadline.
+	startedAt, ok := allocFullyRunningSince(alloc)
 	if !ok {
 		return false
 	}
@@ -190,7 +212,10 @@ func shouldStopAlloc(now time.Time, alloc *structs.Allocation) bool {
 	return !startedAt.Add(*tg.MaxRunDuration).After(now)
 }
 
-func allocRunningSince(alloc *structs.Allocation) (time.Time, bool) {
+// allocFullyRunningSince returns the latest StartedAt timestamp across all task
+// states, but only when every known task state is running with a non-zero start
+// time.
+func allocFullyRunningSince(alloc *structs.Allocation) (time.Time, bool) {
 	var latest time.Time
 
 	for _, ts := range alloc.TaskStates {
