@@ -43,6 +43,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/auth"
+	"github.com/hashicorp/nomad/nomad/batchtimeout"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
@@ -228,6 +229,10 @@ type Server struct {
 	// deploymentWatcher is used to watch deployments and their allocations and
 	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
+
+	// batchTimeoutWatcher is used to stop batch and sysbatch allocations that
+	// exceed their configured max_run_duration.
+	batchTimeoutWatcher *batchtimeout.Watcher
 
 	// nodeDrainer is used to drain allocations from nodes.
 	nodeDrainer *drainer.NodeDrainer
@@ -526,6 +531,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
 	go s.evalBroker.enabledNotifier.Run()
+
+	// Setup the batch timeout watcher.
+	s.setupBatchTimeoutWatcher()
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()
@@ -1184,6 +1192,11 @@ func (s *Server) setupVolumeWatcher() error {
 
 // setupNodeDrainer creates a node drainer which will be enabled when a server
 // becomes a leader.
+func (s *Server) setupBatchTimeoutWatcher() {
+	shim := batchTimeoutRaftShim{s}
+	s.batchTimeoutWatcher = batchtimeout.NewWatcher(s.logger, shim, 0)
+}
+
 func (s *Server) setupNodeDrainer() {
 	// Create a shim around Raft requests
 	shim := drainerShim{s}
