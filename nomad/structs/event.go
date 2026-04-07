@@ -141,6 +141,14 @@ type EvaluationEvent struct {
 // Allocs embedded Job has been removed to reduce size.
 type AllocationEvent struct {
 	Allocation *Allocation
+
+	// Timeout indicates the allocation was stopped because it exceeded its
+	// configured max_run_duration.
+	Timeout bool `json:",omitempty"`
+
+	// TimeoutReason is a human-readable explanation for timeout-triggered
+	// allocation stops.
+	TimeoutReason string `json:",omitempty"`
 }
 
 // DeploymentEvent holds a newly updated Deployment.

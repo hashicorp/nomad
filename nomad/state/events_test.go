@@ -538,6 +538,54 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	must.Len(t, 1, evals)
 	must.Len(t, 1, jobs)
 	must.Len(t, 1, deploys)
+
+	for _, e := range allocs {
+		allocEvent := e.Payload.(*structs.AllocationEvent)
+		must.False(t, allocEvent.Timeout)
+		must.Eq(t, "", allocEvent.TimeoutReason)
+	}
+}
+
+func TestEventFromChange_AllocationTimeoutFields(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	timeoutAlloc := mock.Alloc()
+	timeoutAlloc.ClientStatus = structs.AllocClientStatusComplete
+	timeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	timeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  timeoutAlloc,
+	})
+	must.True(t, ok)
+
+	timeoutPayload, ok := timeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.True(t, timeoutPayload.Timeout)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusComplete, timeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.Allocation.ClientDescription)
+
+	nonTimeoutAlloc := mock.Alloc()
+	nonTimeoutAlloc.ClientStatus = structs.AllocClientStatusFailed
+	nonTimeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	nonTimeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  nonTimeoutAlloc,
+	})
+	must.True(t, ok)
+
+	nonTimeoutPayload, ok := nonTimeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.False(t, nonTimeoutPayload.Timeout)
+	must.Eq(t, "", nonTimeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusFailed, nonTimeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, nonTimeoutPayload.Allocation.ClientDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
