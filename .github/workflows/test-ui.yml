@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - "ui/**"
+      - ".npmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   push:
     branches:
       - main
@@ -10,6 +14,10 @@ on:
       - test-ui
     paths:
       - "ui/**"
+      - ".npmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
 
 jobs:
   pre-test:
