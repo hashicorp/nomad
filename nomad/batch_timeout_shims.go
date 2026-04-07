@@ -14,7 +14,7 @@ type batchTimeoutRaftShim struct {
 
 var _ batchtimeout.RaftApplier = batchTimeoutRaftShim{}
 
-func (b batchTimeoutRaftShim) UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
-	_, index, err := b.s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, req)
+func (b batchTimeoutRaftShim) ApplyPlanResults(req *structs.ApplyPlanResultsRequest) (uint64, error) {
+	_, index, err := b.s.raftApply(structs.ApplyPlanResultsRequestType, req)
 	return index, err
 }

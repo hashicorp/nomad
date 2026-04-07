@@ -4,11 +4,14 @@
 package batchtimeout
 
 import (
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
@@ -272,4 +275,113 @@ func TestAllocRunningSince(t *testing.T) {
 		_, ok := allocRunningSince(alloc)
 		must.False(t, ok)
 	})
+}
+
+func TestWatcherSetEnabled(t *testing.T) {
+	t.Parallel()
+
+	raft := &mockRaftApplier{}
+	w := NewWatcher(hclog.NewNullLogger(), raft, time.Hour)
+
+	st := state.TestStateStore(t)
+
+	w.SetEnabled(true, st)
+	must.True(t, w.enabled)
+	must.True(t, w.running)
+	must.NotNil(t, w.stopCh)
+
+	firstStopCh := w.stopCh
+
+	w.SetEnabled(true, st)
+	must.True(t, w.running)
+	must.Eq(t, firstStopCh, w.stopCh)
+
+	w.SetEnabled(false, st)
+	must.False(t, w.enabled)
+}
+
+func TestWatcherScanAppliesTimedOutAllocs(t *testing.T) {
+	t.Parallel()
+
+	st := state.TestStateStore(t)
+	raft := &mockRaftApplier{}
+	w := NewWatcher(hclog.NewNullLogger(), raft, time.Hour)
+	w.state = st
+	w.enabled = true
+
+	batchAlloc := mock.Alloc()
+	batchAlloc.Job.Type = structs.JobTypeBatch
+	batchAlloc.Job.TaskGroups[0].MaxRunDuration = pointer.Of(5 * time.Minute)
+	batchAlloc.ClientStatus = structs.AllocClientStatusRunning
+	batchAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	batchAlloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now().UTC().Add(-10 * time.Minute),
+		},
+	}
+
+	sysbatchAlloc := mock.SysBatchAlloc()
+	sysbatchAlloc.Job.TaskGroups[0].MaxRunDuration = pointer.Of(5 * time.Minute)
+	sysbatchAlloc.ClientStatus = structs.AllocClientStatusRunning
+	sysbatchAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	sysbatchAlloc.TaskStates = map[string]*structs.TaskState{
+		"ping-example": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now().UTC().Add(-10 * time.Minute),
+		},
+	}
+
+	okAlloc := mock.Alloc()
+	okAlloc.Job.Type = structs.JobTypeBatch
+	okAlloc.Job.TaskGroups[0].MaxRunDuration = pointer.Of(30 * time.Minute)
+	okAlloc.ClientStatus = structs.AllocClientStatusRunning
+	okAlloc.DesiredStatus = structs.AllocDesiredStatusRun
+	okAlloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now().UTC().Add(-10 * time.Minute),
+		},
+	}
+
+	must.NoError(t, st.UpsertJob(structs.MsgTypeTestSetup, 100, nil, batchAlloc.Job))
+	must.NoError(t, st.UpsertJob(structs.MsgTypeTestSetup, 101, nil, sysbatchAlloc.Job))
+	must.NoError(t, st.UpsertJob(structs.MsgTypeTestSetup, 102, nil, okAlloc.Job))
+	must.NoError(t, st.UpsertAllocs(structs.MsgTypeTestSetup, 103, []*structs.Allocation{
+		batchAlloc,
+		sysbatchAlloc,
+		okAlloc,
+	}))
+
+	w.scan(time.Now().UTC())
+
+	must.NotNil(t, raft.lastReq)
+	must.SliceLen(t, 2, raft.lastReq.AllocsStopped)
+
+	got := map[string]*structs.AllocationDiff{}
+	for _, diff := range raft.lastReq.AllocsStopped {
+		got[diff.ID] = diff
+	}
+
+	must.MapContainsKey(t, got, batchAlloc.ID)
+	must.MapContainsKey(t, got, sysbatchAlloc.ID)
+	must.MapNotContainsKey(t, got, okAlloc.ID)
+
+	must.Eq(t, timeoutDescription, got[batchAlloc.ID].DesiredDescription)
+	must.Eq(t, structs.AllocClientStatusFailed, got[batchAlloc.ID].ClientStatus)
+	must.Eq(t, timeoutDescription, got[sysbatchAlloc.ID].DesiredDescription)
+	must.Eq(t, structs.AllocClientStatusFailed, got[sysbatchAlloc.ID].ClientStatus)
+}
+
+type mockRaftApplier struct {
+	mu      sync.Mutex
+	lastReq *structs.ApplyPlanResultsRequest
+}
+
+func (m *mockRaftApplier) ApplyPlanResults(req *structs.ApplyPlanResultsRequest) (uint64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.lastReq = req
+	return 1, nil
 }
