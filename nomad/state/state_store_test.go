@@ -177,7 +177,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	timeoutStoppedAlloc.JobID = job.ID
 	timeoutStoppedAllocDiff := &structs.AllocationDiff{
 		ID:                 timeoutStoppedAlloc.ID,
-		DesiredDescription: "allocation exceeded max_run_duration",
+		DesiredDescription: structs.AllocTimeoutReasonMaxRunDuration,
 		ClientStatus:       structs.AllocClientStatusFailed,
 	}
 	preemptedAlloc := mock.Alloc()

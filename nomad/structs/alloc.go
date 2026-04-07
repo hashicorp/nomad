@@ -20,6 +20,10 @@ const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
 	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
+
+	// AllocTimeoutReasonMaxRunDuration is the reason used when an allocation is
+	// stopped because it exceeded its configured max_run_duration.
+	AllocTimeoutReasonMaxRunDuration = "allocation exceeded max_run_duration"
 )
 
 const (

@@ -367,9 +367,9 @@ func TestWatcherScanAppliesTimedOutAllocs(t *testing.T) {
 	must.MapContainsKey(t, got, sysbatchAlloc.ID)
 	must.MapNotContainsKey(t, got, okAlloc.ID)
 
-	must.Eq(t, timeoutDescription, got[batchAlloc.ID].DesiredDescription)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, got[batchAlloc.ID].DesiredDescription)
 	must.Eq(t, structs.AllocClientStatusFailed, got[batchAlloc.ID].ClientStatus)
-	must.Eq(t, timeoutDescription, got[sysbatchAlloc.ID].DesiredDescription)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, got[sysbatchAlloc.ID].DesiredDescription)
 	must.Eq(t, structs.AllocClientStatusFailed, got[sysbatchAlloc.ID].ClientStatus)
 }
 
