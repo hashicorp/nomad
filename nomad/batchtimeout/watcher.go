@@ -15,8 +15,6 @@ import (
 
 const (
 	defaultScanInterval = 5 * time.Second
-
-	timeoutDescription = "allocation exceeded max_run_duration"
 )
 
 type RaftApplier interface {
@@ -134,7 +132,7 @@ func (w *Watcher) scan(now time.Time) {
 
 		stopped = append(stopped, &structs.AllocationDiff{
 			ID:                 alloc.ID,
-			DesiredDescription: timeoutDescription,
+			DesiredDescription: structs.AllocTimeoutReasonMaxRunDuration,
 			ClientStatus:       structs.AllocClientStatusFailed,
 		})
 	}
