@@ -737,8 +737,14 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			return nil
 		}
 
-		return structs.NewTaskEvent(structs.TaskKilling).
+		event := structs.NewTaskEvent(structs.TaskKilling).
 			SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+
+		if ar.state.MaxRunDurationExceeded {
+			event.SetDisplayMessage(structs.AllocTimeoutReasonMaxRunDuration)
+		}
+
+		return event
 	}
 
 	// Kill leader first, synchronously
@@ -809,6 +815,23 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
+	// Skip poststop tasks entirely when max_run_duration has been exceeded so
+	// they are not started after the allocation has timed out.
+	if ar.state.MaxRunDurationExceeded {
+		for name, tr := range ar.tasks {
+			if !tr.IsPoststopTask() {
+				continue
+			}
+
+			state := tr.TaskState()
+			if state != nil {
+				states[name] = state
+			}
+		}
+
+		return states
+	}
+
 	// Perform no action on post stop tasks, but retain their states if they exist. This
 	// commonly happens at the time of alloc GC from the client node.
 	for name, tr := range ar.tasks {
@@ -845,7 +868,10 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	}
 
 	// Compute the ClientStatus
-	if ar.state.ClientStatus != "" {
+	if ar.state.MaxRunDurationExceeded {
+		a.ClientStatus = structs.AllocClientStatusComplete
+		a.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+	} else if ar.state.ClientStatus != "" {
 		// The client status is being forced
 		a.ClientStatus, a.ClientDescription = ar.state.ClientStatus, ar.state.ClientDescription
 	} else {
@@ -983,7 +1009,7 @@ func (ar *allocRunner) AllocState() *state.State {
 	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
 	// won't be set as it is not the canonical source of TaskStates.
 	if len(state.TaskStates) == 0 {
-		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
+		state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
 		for k, tr := range ar.tasks {
 			state.TaskStates[k] = tr.TaskState()
 		}
@@ -1079,6 +1105,27 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {
 	return ar.allocBroadcaster.Listen()
+}
+
+func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
+	now := time.Now()
+
+	if ar.isShuttingDown() {
+		return
+	}
+
+	if now.Before(deadline) {
+		return
+	}
+
+	ar.stateLock.Lock()
+	ar.state.MaxRunDurationExceeded = true
+	ar.state.ClientStatus = structs.AllocClientStatusComplete
+	ar.state.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+	ar.stateLock.Unlock()
+
+	ar.logger.Debug("allocation exceeded max_run_duration, killing tasks", "deadline", deadline)
+	ar.killTasks()
 }
 
 func (ar *allocRunner) destroyImpl() {
@@ -1255,8 +1302,8 @@ func (ar *allocRunner) Shutdown() {
 	go func() {
 		ar.logger.Trace("shutting down")
 
-		// Shutdown tasks gracefully if they were run
-		wg := sync.WaitGroup{}
+		// Shutdown task runners
+		var wg sync.WaitGroup
 		for _, tr := range ar.tasks {
 			wg.Add(1)
 			go func(tr *taskrunner.TaskRunner) {
