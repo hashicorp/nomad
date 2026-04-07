@@ -240,7 +240,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	must.NoError(t, err)
 	test.Eq(t, timeoutStoppedAllocDiff.DesiredDescription, updatedTimeoutStoppedAlloc.DesiredDescription)
 	test.Eq(t, structs.AllocDesiredStatusStop, updatedTimeoutStoppedAlloc.DesiredStatus)
-	test.Eq(t, timeoutStoppedAlloc.ClientStatus, updatedTimeoutStoppedAlloc.ClientStatus)
+	test.Eq(t, timeoutStoppedAllocDiff.ClientStatus, updatedTimeoutStoppedAlloc.ClientStatus)
 	test.Eq(t, planModifyIndex, updatedTimeoutStoppedAlloc.AllocModifyIndex)
 	test.Eq(t, job.TaskGroups, updatedTimeoutStoppedAlloc.Job.TaskGroups)
 
