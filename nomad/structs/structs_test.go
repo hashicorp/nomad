@@ -1544,6 +1544,81 @@ func TestTaskGroup_Validate(t *testing.T) {
 			jobType: JobTypeSystem,
 		},
 		{
+			name: "invalid max run duration for service job",
+			tg: &TaskGroup{
+				Name:           "web",
+				Count:          1,
+				MaxRunDuration: pointer.Of(5 * time.Minute),
+				Tasks: []*Task{
+					{Name: "web"},
+				},
+			},
+			expErr: []string{
+				`Job type "service" does not allow max_run_duration`,
+			},
+			jobType: JobTypeService,
+		},
+		{
+			name: "invalid non-positive max run duration for batch job",
+			tg: &TaskGroup{
+				Name:           "web",
+				Count:          1,
+				MaxRunDuration: pointer.Of(time.Duration(0)),
+				Tasks: []*Task{
+					{Name: "web"},
+				},
+			},
+			expErr: []string{
+				"MaxRunDuration must be greater than zero",
+			},
+			jobType: JobTypeBatch,
+		},
+		{
+			name: "valid max run duration for batch job",
+			tg: &TaskGroup{
+				Name:           "web",
+				Count:          1,
+				MaxRunDuration: pointer.Of(5 * time.Minute),
+				Tasks: []*Task{
+					{
+						Name:      "web",
+						Driver:    "mock_driver",
+						Resources: DefaultResources(),
+						LogConfig: DefaultLogConfig(),
+					},
+				},
+				RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+			},
+			jobType: JobTypeBatch,
+		},
+		{
+			name: "valid max run duration for sysbatch job",
+			tg: &TaskGroup{
+				Name:           "web",
+				Count:          1,
+				MaxRunDuration: pointer.Of(5 * time.Minute),
+				Tasks: []*Task{
+					{
+						Name:      "web",
+						Driver:    "mock_driver",
+						Resources: DefaultResources(),
+						LogConfig: DefaultLogConfig(),
+					},
+				},
+				RestartPolicy: &RestartPolicy{
+					Attempts:        0,
+					Interval:        5 * time.Second,
+					Delay:           5 * time.Second,
+					Mode:            RestartPolicyModeFail,
+					RenderTemplates: false,
+				},
+				EphemeralDisk: DefaultEphemeralDisk(),
+			},
+			jobType: JobTypeSysBatch,
+		},
+		{
 			name: "duplicated por label",
 			tg: &TaskGroup{
 				Networks: []*NetworkResource{

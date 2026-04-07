@@ -412,6 +412,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the deployment watcher, since we are now the leader
 	s.deploymentWatcher.SetEnabled(true, s.State())
 
+	// Enable the batch timeout watcher, since we are now the leader
+	s.batchTimeoutWatcher.SetEnabled(true, s.State())
+
 	// Enable the NodeDrainer
 	s.nodeDrainer.SetEnabled(true, s.State())
 
