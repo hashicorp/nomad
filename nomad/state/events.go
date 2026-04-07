@@ -357,12 +357,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		// remove job info to help keep size of alloc event down
 		alloc.Job = nil
 
+		allocEvent := &structs.AllocationEvent{Allocation: alloc}
+		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+			alloc.DesiredDescription == structs.AllocTimeoutReasonMaxRunDuration {
+			allocEvent.Timeout = true
+			allocEvent.TimeoutReason = alloc.DesiredDescription
+		}
+
 		return structs.Event{
 			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload:    &structs.AllocationEvent{Allocation: alloc},
+			Payload:    allocEvent,
 		}, true
 	case "jobs":
 		after, ok := change.After.(*structs.Job)

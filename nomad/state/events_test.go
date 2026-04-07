@@ -538,6 +538,57 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	must.Len(t, 1, evals)
 	must.Len(t, 1, jobs)
 	must.Len(t, 1, deploys)
+
+	for _, e := range allocs {
+		allocEvent := e.Payload.(*structs.AllocationEvent)
+		must.False(t, allocEvent.Timeout)
+		must.Eq(t, "", allocEvent.TimeoutReason)
+	}
+}
+
+func TestEventsFromChanges_ApplyPlanResultsRequestType_TimeoutStoppedAlloc(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	mockJob := mock.Job()
+	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, mockJob))
+
+	stoppedAlloc := mock.Alloc()
+	stoppedAlloc.Job = mockJob
+	stoppedAlloc.JobID = mockJob.ID
+
+	must.NoError(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{stoppedAlloc}))
+
+	msgType := structs.ApplyPlanResultsRequestType
+	req := &structs.ApplyPlanResultsRequest{
+		AllocsStopped: []*structs.AllocationDiff{{
+			ID:                 stoppedAlloc.ID,
+			DesiredDescription: structs.AllocTimeoutReasonMaxRunDuration,
+			ClientStatus:       structs.AllocClientStatusFailed,
+		}},
+		Job: mockJob,
+	}
+
+	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))
+
+	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
+	must.Len(t, 2, events)
+
+	var allocEvent *structs.AllocationEvent
+	for _, e := range events {
+		must.Eq(t, structs.TypePlanResult, e.Type)
+		if e.Topic == structs.TopicAllocation {
+			allocEvent = e.Payload.(*structs.AllocationEvent)
+		}
+	}
+
+	must.NotNil(t, allocEvent)
+	must.True(t, allocEvent.Timeout)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.TimeoutReason)
+	must.Eq(t, structs.AllocDesiredStatusStop, allocEvent.Allocation.DesiredStatus)
+	must.Eq(t, structs.AllocClientStatusFailed, allocEvent.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.Allocation.DesiredDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
