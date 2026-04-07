@@ -171,6 +171,15 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 		DesiredDescription: "desired desc",
 		ClientStatus:       structs.AllocClientStatusLost,
 	}
+
+	timeoutStoppedAlloc := mock.Alloc()
+	timeoutStoppedAlloc.Job = job
+	timeoutStoppedAlloc.JobID = job.ID
+	timeoutStoppedAllocDiff := &structs.AllocationDiff{
+		ID:                 timeoutStoppedAlloc.ID,
+		DesiredDescription: "allocation exceeded max_run_duration",
+		ClientStatus:       structs.AllocClientStatusFailed,
+	}
 	preemptedAlloc := mock.Alloc()
 	preemptedAlloc.Job = job
 	preemptedAlloc.JobID = job.ID
@@ -181,7 +190,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, job))
 	must.NoError(t, state.UpsertAllocs(
-		structs.MsgTypeTestSetup, 999, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+		structs.MsgTypeTestSetup, 999, []*structs.Allocation{stoppedAlloc, timeoutStoppedAlloc, preemptedAlloc}))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
 	mJob := job.Copy()
@@ -198,7 +207,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
 		AllocsUpdated:   []*structs.Allocation{alloc},
-		AllocsStopped:   []*structs.AllocationDiff{stoppedAllocDiff},
+		AllocsStopped:   []*structs.AllocationDiff{stoppedAllocDiff, timeoutStoppedAllocDiff},
 		Job:             mJob,
 		EvalID:          eval.ID,
 		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
@@ -226,6 +235,14 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	test.Eq(t, planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
 	test.Eq(t, planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
 	test.Eq(t, job.TaskGroups, updatedStoppedAlloc.Job.TaskGroups)
+
+	updatedTimeoutStoppedAlloc, err := state.AllocByID(ws, timeoutStoppedAlloc.ID)
+	must.NoError(t, err)
+	test.Eq(t, timeoutStoppedAllocDiff.DesiredDescription, updatedTimeoutStoppedAlloc.DesiredDescription)
+	test.Eq(t, structs.AllocDesiredStatusStop, updatedTimeoutStoppedAlloc.DesiredStatus)
+	test.Eq(t, timeoutStoppedAlloc.ClientStatus, updatedTimeoutStoppedAlloc.ClientStatus)
+	test.Eq(t, planModifyIndex, updatedTimeoutStoppedAlloc.AllocModifyIndex)
+	test.Eq(t, job.TaskGroups, updatedTimeoutStoppedAlloc.Job.TaskGroups)
 
 	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
 	must.NoError(t, err)

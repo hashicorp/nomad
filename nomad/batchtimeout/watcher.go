@@ -4,11 +4,11 @@
 package batchtimeout
 
 import (
+	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -20,7 +20,7 @@ const (
 )
 
 type RaftApplier interface {
-	UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error)
+	ApplyPlanResults(req *structs.ApplyPlanResultsRequest) (uint64, error)
 }
 
 type Watcher struct {
@@ -28,7 +28,11 @@ type Watcher struct {
 	raft         RaftApplier
 	state        *state.StateStore
 	scanInterval time.Duration
-	enabled      bool
+
+	mu      sync.Mutex
+	enabled bool
+	stopCh  chan struct{}
+	running bool
 }
 
 func NewWatcher(logger log.Logger, raft RaftApplier, scanInterval time.Duration) *Watcher {
@@ -44,43 +48,78 @@ func NewWatcher(logger log.Logger, raft RaftApplier, scanInterval time.Duration)
 }
 
 func (w *Watcher) SetEnabled(enabled bool, st *state.StateStore) {
-	w.enabled = enabled
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if st != nil {
 		w.state = st
 	}
 
-	if enabled && w.state != nil {
-		go w.watch()
-	}
-}
-
-func (w *Watcher) watch() {
-	ticker := time.NewTicker(w.scanInterval)
-	defer ticker.Stop()
-
-	for {
-		if !w.enabled {
+	if enabled {
+		w.enabled = true
+		if w.running || w.state == nil {
 			return
 		}
 
-		w.scan(time.Now().UTC())
-
-		<-ticker.C
-	}
-}
-
-func (w *Watcher) scan(now time.Time) {
-	if w.state == nil {
+		w.stopCh = make(chan struct{})
+		w.running = true
+		go w.watch(w.stopCh)
 		return
 	}
 
-	iter, err := w.state.Allocs(nil, state.SortDefault)
+	w.enabled = false
+	if !w.running {
+		return
+	}
+
+	close(w.stopCh)
+	w.stopCh = nil
+	w.running = false
+}
+
+func (w *Watcher) watch(stopCh <-chan struct{}) {
+	ticker := time.NewTicker(w.scanInterval)
+	defer ticker.Stop()
+	defer w.markStopped(stopCh)
+
+	for {
+		w.scan(time.Now().UTC())
+
+		select {
+		case <-ticker.C:
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+func (w *Watcher) markStopped(stopCh <-chan struct{}) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.stopCh == stopCh {
+		w.stopCh = nil
+	}
+	w.running = false
+}
+
+func (w *Watcher) scan(now time.Time) {
+	w.mu.Lock()
+	st := w.state
+	enabled := w.enabled
+	w.mu.Unlock()
+
+	if !enabled || st == nil {
+		return
+	}
+
+	iter, err := st.Allocs(nil, state.SortDefault)
 	if err != nil {
 		w.logger.Warn("failed to iterate allocations", "error", err)
 		return
 	}
 
-	transitions := make(map[string]*structs.DesiredTransition)
+	var stopped []*structs.AllocationDiff
 
 	for {
 		raw := iter.Next()
@@ -93,25 +132,28 @@ func (w *Watcher) scan(now time.Time) {
 			continue
 		}
 
-		transitions[alloc.ID] = &structs.DesiredTransition{
-			NoShutdownDelay: pointer.Of(false),
-		}
+		stopped = append(stopped, &structs.AllocationDiff{
+			ID:                 alloc.ID,
+			DesiredDescription: timeoutDescription,
+			ClientStatus:       structs.AllocClientStatusFailed,
+		})
 	}
 
-	if len(transitions) == 0 {
+	if len(stopped) == 0 {
 		return
 	}
 
-	req := &structs.AllocUpdateDesiredTransitionRequest{
-		Allocs: transitions,
+	req := &structs.ApplyPlanResultsRequest{
+		AllocsStopped: stopped,
+		UpdatedAt:     now.UnixNano(),
 	}
 
-	if _, err := w.raft.UpdateAllocDesiredTransition(req); err != nil {
-		w.logger.Warn("failed to stop timed out allocations", "error", err, "count", len(transitions))
+	if _, err := w.raft.ApplyPlanResults(req); err != nil {
+		w.logger.Warn("failed to stop timed out allocations", "error", err, "count", len(stopped))
 		return
 	}
 
-	w.logger.Debug("stopped timed out allocations", "count", len(transitions))
+	w.logger.Debug("stopped timed out allocations", "count", len(stopped))
 }
 
 func shouldStopAlloc(now time.Time, alloc *structs.Allocation) bool {
