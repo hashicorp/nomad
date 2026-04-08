@@ -56,8 +56,16 @@ type RunnerUpdateHook interface {
 }
 
 type RunnerUpdateRequest struct {
-	Alloc    *structs.Allocation
-	AllocEnv *taskenv.TaskEnv
+	Alloc      *structs.Allocation
+	AllocEnv   *taskenv.TaskEnv
+	TaskStates map[string]*structs.TaskState
+}
+
+// A RunnerTaskStateHook is notified when task state changes are synchronized
+// into the alloc runner's client allocation view.
+type RunnerTaskStateHook interface {
+	RunnerHook
+	TaskStateUpdated(*RunnerUpdateRequest) error
 }
 
 // A RunnerTaskRestartHook is executed just before the allocation runner is
