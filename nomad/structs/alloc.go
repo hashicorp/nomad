@@ -361,6 +361,87 @@ func (a *Allocation) TerminalStatus() bool {
 	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
 }
 
+// MaxRunDuration returns the configured max_run_duration for the allocation's
+// task group, if any.
+func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
+	if a == nil || a.Job == nil {
+		return 0, false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
+		return 0, false
+	}
+
+	switch a.Job.Type {
+	case JobTypeBatch, JobTypeSysBatch:
+		return *tg.MaxRunDuration, true
+	default:
+		return 0, false
+	}
+}
+
+// FullyRunningSince returns the latest StartedAt timestamp across all task
+// states, but only when every known task state is running with a non-zero start
+// time.
+func (a *Allocation) FullyRunningSince() (time.Time, bool) {
+	if a == nil {
+		return time.Time{}, false
+	}
+
+	var latest time.Time
+
+	for _, ts := range a.TaskStates {
+		if ts == nil || ts.State != TaskStateRunning || ts.StartedAt.IsZero() {
+			return time.Time{}, false
+		}
+		if ts.StartedAt.After(latest) {
+			latest = ts.StartedAt
+		}
+	}
+
+	if latest.IsZero() {
+		return time.Time{}, false
+	}
+
+	return latest, true
+}
+
+// MaxRunDurationDeadline returns the deadline at which the allocation should be
+// considered timed out based on max_run_duration.
+func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
+	maxRunDuration, ok := a.MaxRunDuration()
+	if !ok {
+		return time.Time{}, false
+	}
+
+	startedAt, ok := a.FullyRunningSince()
+	if !ok {
+		return time.Time{}, false
+	}
+
+	return startedAt.Add(maxRunDuration), true
+}
+
+// MaxRunDurationExpired returns whether the allocation has exceeded its
+// configured max_run_duration.
+func (a *Allocation) MaxRunDurationExpired(now time.Time) bool {
+	if a == nil || a.DesiredStatus != AllocDesiredStatusRun || a.ClientStatus != AllocClientStatusRunning {
+		return false
+	}
+
+	if a.ClientTerminalStatus() || a.ServerTerminalStatus() {
+		return false
+	}
+
+	deadline, ok := a.MaxRunDurationDeadline()
+	if !ok {
+		return false
+	}
+
+	return !deadline.After(now)
+}
+
 // ServerTerminalStatus returns true if the desired state of the allocation is terminal
 func (a *Allocation) ServerTerminalStatus() bool {
 	switch a.DesiredStatus {
