@@ -34,7 +34,6 @@
     "jobspec2/...",
     "lib/...",
     "nomad/auth/...",
-    "nomad/batchtimeout/...",
     "nomad/deploymentwatcher/...",
     "nomad/drainer/...",
     "nomad/reporting/...",
