@@ -20,8 +20,8 @@ type State struct {
 	ClientDescription string
 
 	// MaxRunDurationExceeded indicates the allocation exceeded its configured
-	// max_run_duration and should be reported as failed regardless of task exit
-	// status.
+	// max_run_duration and should be reported as complete with a timeout reason
+	// regardless of task exit status.
 	MaxRunDurationExceeded bool
 
 	// DeploymentStatus captures the status of the deployment

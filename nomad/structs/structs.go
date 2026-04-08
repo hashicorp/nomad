@@ -6940,6 +6940,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
+	if tg.MaxRunDuration != nil {
+		ntg.MaxRunDuration = tg.MaxRunDuration
+	}
+
 	return ntg
 }
 

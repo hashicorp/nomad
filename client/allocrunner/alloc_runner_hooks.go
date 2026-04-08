@@ -111,6 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newMaxRunDurationHook(hookLogger, alloc, ar),
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,
@@ -224,8 +225,9 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 	).SetAllocDir(ar.allocDir.AllocDirPath()).Build()
 
 	req := &interfaces.RunnerUpdateRequest{
-		Alloc:    update,
-		AllocEnv: allocEnv,
+		Alloc:      update,
+		AllocEnv:   allocEnv,
+		TaskStates: ar.AllocState().TaskStates,
 	}
 
 	var merr multierror.Error
