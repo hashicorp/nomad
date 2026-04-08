@@ -152,6 +152,9 @@ type allocRunner struct {
 	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
+	// maxRunDurationHook handles max_run_duration updates from task state changes.
+	maxRunDurationHook *maxRunDurationHook
+
 	// hookResources holds the output from allocrunner hooks so that later
 	// allocrunner hooks or task runner hooks can read them
 	hookResources *cstructs.AllocHookResources
@@ -702,13 +705,9 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			Alloc:      hookAlloc,
 			TaskStates: states,
 		}
-		for _, hook := range ar.runnerHooks {
-			h, ok := hook.(interfaces.RunnerTaskStateHook)
-			if !ok {
-				continue
-			}
-			if err := h.TaskStateUpdated(req); err != nil {
-				ar.logger.Error("error running task state hook", "hook", h.Name(), "error", err)
+		if ar.maxRunDurationHook != nil {
+			if err := ar.maxRunDurationHook.TaskStateUpdated(req); err != nil {
+				ar.logger.Error("error running max run duration hook", "hook", ar.maxRunDurationHook.Name(), "error", err)
 			}
 		}
 

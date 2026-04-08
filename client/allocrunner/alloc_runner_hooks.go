@@ -107,11 +107,12 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
+	ar.maxRunDurationHook = newMaxRunDurationHook(hookLogger, alloc, ar)
 
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newMaxRunDurationHook(hookLogger, alloc, ar),
+		ar.maxRunDurationHook,
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,

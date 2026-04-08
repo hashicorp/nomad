@@ -51,11 +51,10 @@ func newMaxRunDurationHook(
 }
 
 var (
-	_ interfaces.RunnerPrerunHook    = (*maxRunDurationHook)(nil)
-	_ interfaces.RunnerUpdateHook    = (*maxRunDurationHook)(nil)
-	_ interfaces.RunnerTaskStateHook = (*maxRunDurationHook)(nil)
-	_ interfaces.RunnerPostrunHook   = (*maxRunDurationHook)(nil)
-	_ interfaces.ShutdownHook        = (*maxRunDurationHook)(nil)
+	_ interfaces.RunnerPrerunHook  = (*maxRunDurationHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*maxRunDurationHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*maxRunDurationHook)(nil)
+	_ interfaces.ShutdownHook      = (*maxRunDurationHook)(nil)
 )
 
 func (h *maxRunDurationHook) Name() string {
