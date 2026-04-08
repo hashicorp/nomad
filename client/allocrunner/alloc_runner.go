@@ -1105,7 +1105,12 @@ func (ar *allocRunner) resetMaxRunTimer() {
 }
 
 func (ar *allocRunner) resetMaxRunTimerWithAlloc(alloc *structs.Allocation) {
-	ar.resetMaxRunTimer()
+	ar.maxRunTimerLock.Lock()
+	if ar.maxRunTimer != nil {
+		ar.maxRunTimer.Stop()
+		ar.maxRunTimer = nil
+	}
+	ar.maxRunTimerLock.Unlock()
 
 	if alloc == nil || alloc.TerminalStatus() || alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 		return
@@ -1131,8 +1136,19 @@ func (ar *allocRunner) resetMaxRunTimerWithAlloc(alloc *structs.Allocation) {
 	go func(t *time.Timer) {
 		select {
 		case <-t.C:
+			ar.maxRunTimerLock.Lock()
+			if ar.maxRunTimer != t {
+				ar.maxRunTimerLock.Unlock()
+				return
+			}
+			ar.maxRunTimer = nil
+			ar.maxRunTimerLock.Unlock()
+
 			ar.enforceMaxRunDuration()
 		case <-ar.waitCh:
+			ar.maxRunTimerLock.Lock()
+			ar.maxRunTimerLock.Unlock()
+
 			if !t.Stop() {
 				select {
 				case <-t.C:
@@ -1159,7 +1175,7 @@ func (ar *allocRunner) enforceMaxRunDuration() {
 
 	ar.stateLock.Lock()
 	ar.state.MaxRunDurationExceeded = true
-	ar.state.ClientStatus = structs.AllocClientStatusFailed
+	ar.state.ClientStatus = structs.AllocClientStatusComplete
 	ar.state.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
 	ar.stateLock.Unlock()
 
