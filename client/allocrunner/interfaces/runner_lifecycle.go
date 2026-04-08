@@ -61,13 +61,6 @@ type RunnerUpdateRequest struct {
 	TaskStates map[string]*structs.TaskState
 }
 
-// A RunnerTaskStateHook is notified when task state changes are synchronized
-// into the alloc runner's client allocation view.
-type RunnerTaskStateHook interface {
-	RunnerHook
-	TaskStateUpdated(*RunnerUpdateRequest) error
-}
-
 // A RunnerTaskRestartHook is executed just before the allocation runner is
 // going to restart all tasks.
 type RunnerTaskRestartHook interface {
