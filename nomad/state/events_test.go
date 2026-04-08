@@ -557,15 +557,16 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType_TimeoutStoppedAlloc(t *te
 	stoppedAlloc := mock.Alloc()
 	stoppedAlloc.Job = mockJob
 	stoppedAlloc.JobID = mockJob.ID
+	stoppedAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
 
 	must.NoError(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{stoppedAlloc}))
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
 		AllocsStopped: []*structs.AllocationDiff{{
-			ID:                 stoppedAlloc.ID,
-			DesiredDescription: structs.AllocTimeoutReasonMaxRunDuration,
-			ClientStatus:       structs.AllocClientStatusFailed,
+			ID:                stoppedAlloc.ID,
+			ClientStatus:      structs.AllocClientStatusFailed,
+			ClientDescription: structs.AllocTimeoutReasonMaxRunDuration,
 		}},
 		Job: mockJob,
 	}
@@ -588,7 +589,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType_TimeoutStoppedAlloc(t *te
 	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.TimeoutReason)
 	must.Eq(t, structs.AllocDesiredStatusStop, allocEvent.Allocation.DesiredStatus)
 	must.Eq(t, structs.AllocClientStatusFailed, allocEvent.Allocation.ClientStatus)
-	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.Allocation.DesiredDescription)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.Allocation.ClientDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {

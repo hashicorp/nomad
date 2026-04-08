@@ -131,6 +131,10 @@ type allocRunner struct {
 	// and serializes Shutdown/Destroy calls.
 	destroyedLock sync.Mutex
 
+	// maxRunTimer is used to enforce task group max_run_duration locally.
+	maxRunTimer     *time.Timer
+	maxRunTimerLock sync.Mutex
+
 	// Alloc captures the allocation being run.
 	alloc     *structs.Allocation
 	allocLock sync.RWMutex
@@ -372,6 +376,7 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 func (ar *allocRunner) Run() {
 	// Close the wait channel on return
 	defer close(ar.waitCh)
+	defer ar.stopMaxRunTimer()
 
 	// Start the task state update handler
 	go ar.handleTaskStateUpdates()
@@ -472,6 +477,8 @@ func (ar *allocRunner) GetAllocDir() allocdir.Interface {
 // Restore state from database. Must be called after NewAllocRunner but before
 // Run.
 func (ar *allocRunner) Restore() error {
+	defer ar.resetMaxRunTimer()
+
 	// Retrieve deployment status to avoid reseting it across agent
 	// restarts. Once a deployment status is set Nomad no longer monitors
 	// alloc health, so we must persist deployment state across restarts.
@@ -689,6 +696,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
 
+		ar.resetMaxRunTimerWithAlloc(calloc)
+
 		// Update the server
 		ar.stateUpdater.AllocStateUpdated(calloc)
 
@@ -845,7 +854,10 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	}
 
 	// Compute the ClientStatus
-	if ar.state.ClientStatus != "" {
+	if ar.state.MaxRunDurationExceeded {
+		a.ClientStatus = structs.AllocClientStatusFailed
+		a.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+	} else if ar.state.ClientStatus != "" {
 		// The client status is being forced
 		a.ClientStatus, a.ClientDescription = ar.state.ClientStatus, ar.state.ClientDescription
 	} else {
@@ -1056,6 +1068,7 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 	// Update ar.alloc
 	ar.setAlloc(update)
+	ar.resetMaxRunTimer()
 
 	// Run update hooks if not stopping or dead
 	if !update.TerminalStatus() {
@@ -1079,6 +1092,79 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {
 	return ar.allocBroadcaster.Listen()
+}
+
+func (ar *allocRunner) resetMaxRunTimer() {
+	ar.maxRunTimerLock.Lock()
+	defer ar.maxRunTimerLock.Unlock()
+
+	if ar.maxRunTimer != nil {
+		ar.maxRunTimer.Stop()
+		ar.maxRunTimer = nil
+	}
+}
+
+func (ar *allocRunner) resetMaxRunTimerWithAlloc(alloc *structs.Allocation) {
+	ar.resetMaxRunTimer()
+
+	if alloc == nil || alloc.TerminalStatus() || alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+		return
+	}
+
+	deadline, ok := alloc.MaxRunDurationDeadline()
+	if !ok {
+		return
+	}
+
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		go ar.enforceMaxRunDuration()
+		return
+	}
+
+	timer := time.NewTimer(remaining)
+
+	ar.maxRunTimerLock.Lock()
+	ar.maxRunTimer = timer
+	ar.maxRunTimerLock.Unlock()
+
+	go func(t *time.Timer) {
+		select {
+		case <-t.C:
+			ar.enforceMaxRunDuration()
+		case <-ar.waitCh:
+			if !t.Stop() {
+				select {
+				case <-t.C:
+				default:
+				}
+			}
+		}
+	}(timer)
+}
+
+func (ar *allocRunner) stopMaxRunTimer() {
+	ar.resetMaxRunTimer()
+}
+
+func (ar *allocRunner) enforceMaxRunDuration() {
+	if ar.isShuttingDown() {
+		return
+	}
+
+	alloc := ar.Alloc()
+	if alloc == nil || !alloc.MaxRunDurationExpired(time.Now().UTC()) {
+		return
+	}
+
+	ar.stateLock.Lock()
+	ar.state.MaxRunDurationExceeded = true
+	ar.state.ClientStatus = structs.AllocClientStatusFailed
+	ar.state.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+	ar.stateLock.Unlock()
+
+	ar.logger.Debug("allocation exceeded max_run_duration, shutting down tasks")
+	ar.Shutdown()
 }
 
 func (ar *allocRunner) destroyImpl() {

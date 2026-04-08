@@ -4346,7 +4346,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				}
 			default:
 				alloc.ClientStatus = exist.ClientStatus
-				alloc.ClientDescription = exist.ClientDescription
+				if alloc.ClientDescription == "" {
+					alloc.ClientDescription = exist.ClientDescription
+				}
 			}
 
 			// The job has been denormalized so re-attach the original job
