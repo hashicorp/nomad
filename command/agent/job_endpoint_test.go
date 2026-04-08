@@ -2834,6 +2834,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					ProgressDeadline: pointer.Of(5 * time.Minute),
 					AutoRevert:       pointer.Of(true),
 				},
+				MaxRunDuration: pointer.Of(10 * time.Second),
 				Meta: map[string]string{
 					"key": "value",
 				},
@@ -3275,6 +3276,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					AutoPromote:      false,
 					Canary:           1,
 				},
+				MaxRunDuration: pointer.Of(10 * time.Second),
 				Meta: map[string]string{
 					"key": "value",
 				},
