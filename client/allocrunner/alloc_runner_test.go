@@ -2717,7 +2717,7 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	})
 }
 
-func TestAllocRunner_MaxRunDuration_PreservesOriginalJobAcrossAllocUpdatesWithoutJob(t *testing.T) {
+func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossAllocUpdatesWithoutJob(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()

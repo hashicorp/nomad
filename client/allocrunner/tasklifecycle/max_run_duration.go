@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,18 +27,15 @@ type MaxRunDuration struct {
 	alloc  *structs.Allocation
 	timer  *time.Timer
 	setter MaxRunDurationSetter
-	logger hclog.Logger
 }
 
 func NewMaxRunDuration(
-	logger hclog.Logger,
 	alloc *structs.Allocation,
 	setter MaxRunDurationSetter,
 ) *MaxRunDuration {
 	return &MaxRunDuration{
 		alloc:  alloc,
 		setter: setter,
-		logger: logger.Named("max_run_duration"),
 	}
 }
 
