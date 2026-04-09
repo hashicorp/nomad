@@ -359,6 +359,13 @@ type PreemptionConfig struct {
 	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
 }
 
+const (
+	QueueTypeDynamicPriority = "dynamicPriority"
+
+	DynamicCalcInterval = "calc_interval"
+	DynamicMaxAge       = "max_age"
+)
+
 type BatchQueue struct {
 	Type        string         `hcl:"type"`
 	TenantType  string         `hcl:"tenant_type"`
@@ -394,13 +401,12 @@ func (b *BatchQueue) Validate() error {
 		return nil
 	}
 
-	// TODO: lots of magic strings here
 	switch b.Type {
-	case "dynamicPriority":
-		if err := validateDuration(b.Config["calc_interval"]); err != nil {
+	case QueueTypeDynamicPriority:
+		if err := validateDuration(b.Config[DynamicCalcInterval]); err != nil {
 			return fmt.Errorf("failed to parse calc_interval: %v", err)
 		}
-		if err := validateDuration(b.Config["max_age"]); err != nil {
+		if err := validateDuration(b.Config[DynamicMaxAge]); err != nil {
 			return fmt.Errorf("failed to parse max_age: %v", err)
 		}
 	default:
