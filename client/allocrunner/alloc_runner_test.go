@@ -2702,13 +2702,16 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		state := ar.AllocState()
 		if state == nil {
-			return false, fmt.Errorf("No alloc state")
+			return false, fmt.Errorf("no alloc state")
 		}
 		if state.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
 		}
 		if state.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
 			return false, fmt.Errorf("got description %q; want %q", state.ClientDescription, structs.AllocTimeoutReasonMaxRunDuration)
+		}
+		if !state.MaxRunDurationExceeded {
+			return false, fmt.Errorf("max run duration was not marked exceeded")
 		}
 		return true, nil
 	}, func(err error) {
@@ -2717,7 +2720,7 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	})
 }
 
-func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossAllocUpdatesWithoutJob(t *testing.T) {
+func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossPartialAllocUpdate(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2743,7 +2746,7 @@ func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossAllocUpdatesWithoutJob(
 	testutil.WaitForResult(func() (bool, error) {
 		state := ar.AllocState()
 		if state == nil {
-			return false, fmt.Errorf("No alloc state")
+			return false, fmt.Errorf("no alloc state")
 		}
 		if state.ClientStatus != structs.AllocClientStatusRunning {
 			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusRunning)
@@ -2761,7 +2764,7 @@ func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossAllocUpdatesWithoutJob(
 	testutil.WaitForResult(func() (bool, error) {
 		state := ar.AllocState()
 		if state == nil {
-			return false, fmt.Errorf("No alloc state")
+			return false, fmt.Errorf("no alloc state")
 		}
 		if state.ClientStatus != structs.AllocClientStatusComplete {
 			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
@@ -2769,10 +2772,13 @@ func TestAllocRunner_MaxRunDuration_PreservesConfigAcrossAllocUpdatesWithoutJob(
 		if state.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
 			return false, fmt.Errorf("got description %q; want %q", state.ClientDescription, structs.AllocTimeoutReasonMaxRunDuration)
 		}
+		if !state.MaxRunDurationExceeded {
+			return false, fmt.Errorf("max run duration was not marked exceeded")
+		}
 		return true, nil
 	}, func(err error) {
 		state := ar.AllocState()
-		t.Fatalf("timed out waiting for alloc runner max_run_duration enforcement after alloc update without job: %v; state=%#v", err, state)
+		t.Fatalf("timed out waiting for alloc runner max_run_duration enforcement after partial alloc update: %v; state=%#v", err, state)
 	})
 }
 
