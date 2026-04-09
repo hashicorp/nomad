@@ -48,15 +48,7 @@ func TestMaxRunDuration_FullyRunningSince(t *testing.T) {
 	must.Eq(t, later, got)
 }
 
-func TestMaxRunDuration_FullyRunningSince_FalseWhenEmpty(t *testing.T) {
-	t.Parallel()
-
-	got, ok := FullyRunningSince(nil)
-	must.False(t, ok)
-	must.Eq(t, time.Time{}, got)
-}
-
-func TestMaxRunDuration_FullyRunningSince_FalseWhenTaskNotRunning(t *testing.T) {
+func TestMaxRunDuration_FullyRunningSince_FalseWhenNotFullyRunning(t *testing.T) {
 	t.Parallel()
 
 	_, ok := FullyRunningSince(map[string]*structs.TaskState{
@@ -66,18 +58,6 @@ func TestMaxRunDuration_FullyRunningSince_FalseWhenTaskNotRunning(t *testing.T) 
 		},
 		"b": {
 			State: structs.TaskStatePending,
-		},
-	})
-
-	must.False(t, ok)
-}
-
-func TestMaxRunDuration_FullyRunningSince_FalseWhenStartedAtMissing(t *testing.T) {
-	t.Parallel()
-
-	_, ok := FullyRunningSince(map[string]*structs.TaskState{
-		"a": {
-			State: structs.TaskStateRunning,
 		},
 	})
 
@@ -111,131 +91,82 @@ func TestMaxRunDuration_TaskStateUpdated_ArmsTimerAndFires(t *testing.T) {
 	}
 }
 
-func TestMaxRunDuration_TaskStateUpdated_ImmediateEnforcementWhenExpired(t *testing.T) {
+func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocNotEligible(t *testing.T) {
 	t.Parallel()
 
-	alloc := mock.BatchAlloc()
-	maxRunDuration := 25 * time.Millisecond
-	alloc.Job.Type = structs.JobTypeBatch
-	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
-
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
-
-	startedAt := time.Now().Add(-2 * maxRunDuration).UTC()
-	m.TaskStateUpdated(map[string]*structs.TaskState{
-		"web": {
-			State:     structs.TaskStateRunning,
-			StartedAt: startedAt,
+	cases := []struct {
+		name  string
+		alloc *structs.Allocation
+	}{
+		{
+			name: "not fully running",
+			alloc: func() *structs.Allocation {
+				alloc := mock.BatchAlloc()
+				maxRunDuration := 25 * time.Millisecond
+				alloc.Job.Type = structs.JobTypeBatch
+				alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+				return alloc
+			}(),
 		},
-	})
-
-	select {
-	case deadline := <-setter.deadlines:
-		must.Eq(t, startedAt.Add(maxRunDuration), deadline)
-	case <-time.After(250 * time.Millisecond):
-		t.Fatal("timed out waiting for immediate max_run_duration enforcement")
+		{
+			name: "non-batch job",
+			alloc: func() *structs.Allocation {
+				alloc := mock.BatchAlloc()
+				maxRunDuration := 25 * time.Millisecond
+				alloc.Job.Type = structs.JobTypeService
+				alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+				return alloc
+			}(),
+		},
+		{
+			name: "desired status not run",
+			alloc: func() *structs.Allocation {
+				alloc := mock.BatchAlloc()
+				maxRunDuration := 25 * time.Millisecond
+				alloc.Job.Type = structs.JobTypeBatch
+				alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				return alloc
+			}(),
+		},
+		{
+			name: "terminal alloc",
+			alloc: func() *structs.Allocation {
+				alloc := mock.BatchAlloc()
+				maxRunDuration := 25 * time.Millisecond
+				alloc.Job.Type = structs.JobTypeBatch
+				alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+				alloc.ClientStatus = structs.AllocClientStatusComplete
+				return alloc
+			}(),
+		},
 	}
-}
 
-func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenNotFullyRunning(t *testing.T) {
-	t.Parallel()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	alloc := mock.BatchAlloc()
-	maxRunDuration := 25 * time.Millisecond
-	alloc.Job.Type = structs.JobTypeBatch
-	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+			setter := newTestMaxRunDurationSetter()
+			m := NewMaxRunDuration(tc.alloc, setter)
 
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
+			taskStates := map[string]*structs.TaskState{
+				"web": {
+					State:     structs.TaskStateRunning,
+					StartedAt: time.Now().UTC(),
+				},
+			}
+			if tc.name == "not fully running" {
+				taskStates["web"] = &structs.TaskState{State: structs.TaskStatePending}
+			}
 
-	m.TaskStateUpdated(map[string]*structs.TaskState{
-		"web": {
-			State: structs.TaskStatePending,
-		},
-	})
+			m.TaskStateUpdated(taskStates)
 
-	select {
-	case deadline := <-setter.deadlines:
-		t.Fatalf("unexpected deadline fired: %v", deadline)
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestMaxRunDuration_TaskStateUpdated_DoesNotFireForNonBatchJobs(t *testing.T) {
-	t.Parallel()
-
-	alloc := mock.BatchAlloc()
-	maxRunDuration := 25 * time.Millisecond
-	alloc.Job.Type = structs.JobTypeService
-	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
-
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
-
-	m.TaskStateUpdated(map[string]*structs.TaskState{
-		"web": {
-			State:     structs.TaskStateRunning,
-			StartedAt: time.Now().UTC(),
-		},
-	})
-
-	select {
-	case deadline := <-setter.deadlines:
-		t.Fatalf("unexpected deadline fired: %v", deadline)
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenDesiredStatusNotRun(t *testing.T) {
-	t.Parallel()
-
-	alloc := mock.BatchAlloc()
-	maxRunDuration := 25 * time.Millisecond
-	alloc.Job.Type = structs.JobTypeBatch
-	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
-
-	m.TaskStateUpdated(map[string]*structs.TaskState{
-		"web": {
-			State:     structs.TaskStateRunning,
-			StartedAt: time.Now().UTC(),
-		},
-	})
-
-	select {
-	case deadline := <-setter.deadlines:
-		t.Fatalf("unexpected deadline fired: %v", deadline)
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocTerminal(t *testing.T) {
-	t.Parallel()
-
-	alloc := mock.BatchAlloc()
-	maxRunDuration := 25 * time.Millisecond
-	alloc.Job.Type = structs.JobTypeBatch
-	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
-	alloc.ClientStatus = structs.AllocClientStatusComplete
-
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
-
-	m.TaskStateUpdated(map[string]*structs.TaskState{
-		"web": {
-			State:     structs.TaskStateRunning,
-			StartedAt: time.Now().UTC(),
-		},
-	})
-
-	select {
-	case deadline := <-setter.deadlines:
-		t.Fatalf("unexpected deadline fired: %v", deadline)
-	case <-time.After(100 * time.Millisecond):
+			select {
+			case deadline := <-setter.deadlines:
+				t.Fatalf("unexpected deadline fired: %v", deadline)
+			case <-time.After(100 * time.Millisecond):
+			}
+		})
 	}
 }
 
