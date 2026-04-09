@@ -224,6 +224,10 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
+	// BatchQueue specifies the batch queue for this scheduler configuration
+	// which defines the behavior for scheduling batch job evaluations.
+	BatchQueue BatchQueue `hcl:"batch_queue"`
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
 
@@ -286,6 +290,11 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 	if poolConfig.SchedulerAlgorithm != "" {
 		schedConfig.SchedulerAlgorithm = poolConfig.SchedulerAlgorithm
 	}
+
+	if poolConfig.BatchQueue.Type != "" {
+		schedConfig.BatchQueue = poolConfig.BatchQueue
+	}
+
 	if poolConfig.MemoryOversubscriptionEnabled != nil {
 		schedConfig.MemoryOversubscriptionEnabled = *poolConfig.MemoryOversubscriptionEnabled
 	}
@@ -308,6 +317,10 @@ func (s *SchedulerConfiguration) Validate() error {
 	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
 	default:
 		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
+	}
+
+	if err := s.BatchQueue.Validate(); err != nil {
+		return err
 	}
 
 	return nil
@@ -344,6 +357,65 @@ type PreemptionConfig struct {
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
 	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
+}
+
+type BatchQueue struct {
+	Type        string         `hcl:"type"`
+	TenantType  string         `hcl:"tenant_type"`
+	MetadataKey string         `hcl:"metadata_key"`
+	Config      map[string]any `hcl:"config"` // TODO: not sure yet how to handle this any blob
+}
+
+type DynamicQueueConfig struct {
+	CalcInterval time.Duration
+	MaxAge       time.Duration
+	MaxSize      int
+	AgeWeight    int
+	UsageWeight  int
+	SizeWeight   int
+}
+
+func validateDuration(val any) error {
+	switch t := val.(type) {
+	case string:
+		if _, err := time.ParseDuration(t); err != nil {
+			return err
+		}
+	case int, nil:
+	default:
+		return fmt.Errorf("value not a duration: %v", val)
+	}
+
+	return nil
+}
+
+func (b *BatchQueue) Validate() error {
+	if b.Type == "" {
+		return nil
+	}
+
+	// TODO: lots of magic strings here
+	switch b.Type {
+	case "dynamicPriority":
+		if err := validateDuration(b.Config["calc_interval"]); err != nil {
+			return fmt.Errorf("failed to parse calc_interval: %v", err)
+		}
+		if err := validateDuration(b.Config["max_age"]); err != nil {
+			return fmt.Errorf("failed to parse max_age: %v", err)
+		}
+	default:
+		return fmt.Errorf("unsupported batch queue type: %s", b.Type)
+	}
+
+	if b.TenantType != "namespace" && b.TenantType != "metadata" {
+		return fmt.Errorf("unsupported tenant type: %s", b.TenantType)
+	}
+
+	if b.TenantType == "metadata" && b.MetadataKey == "" {
+		return fmt.Errorf("metadata key must be specified if using metadata tenency")
+	}
+
+	return nil
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the

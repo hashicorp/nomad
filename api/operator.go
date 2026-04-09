@@ -174,6 +174,13 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig
 
+	// BatchQueue specifies the configuration of the batch jobs queue
+	// use to control queueing and scheduling of batch jobs.
+	//
+	// "Scheduling" in this context refers to releasing evaluations
+	// to the eval broker for scheduling with a worker.
+	BatchQueue BatchQueue
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
 
@@ -231,6 +238,15 @@ type PreemptionConfig struct {
 	SysBatchSchedulerEnabled bool
 	BatchSchedulerEnabled    bool
 	ServiceSchedulerEnabled  bool
+}
+
+// BatchQueue is the configuration for a batch job queue used to control scheduling
+// of batch jobs.
+type BatchQueue struct {
+	Type        string
+	TenantType  string
+	MetadataKey string
+	Config      map[string]any
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.

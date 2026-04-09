@@ -76,8 +76,7 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 
 	schedConfig := resp.SchedulerConfig
 
-	// Output the information.
-	o.Ui.Output(formatKV([]string{
+	out := []string{
 		fmt.Sprintf("Scheduler Algorithm|%s", schedConfig.SchedulerAlgorithm),
 		fmt.Sprintf("Memory Oversubscription|%v", schedConfig.MemoryOversubscriptionEnabled),
 		fmt.Sprintf("Reject Job Registration|%v", schedConfig.RejectJobRegistration),
@@ -87,8 +86,29 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 		fmt.Sprintf("Preemption Batch Scheduler|%v", schedConfig.PreemptionConfig.BatchSchedulerEnabled),
 		fmt.Sprintf("Preemption SysBatch Scheduler|%v", schedConfig.PreemptionConfig.SysBatchSchedulerEnabled),
 		fmt.Sprintf("Node Limit For Feasibility Checks|%v", schedConfig.NodeLimitForFeasibilityChecks),
+		fmt.Sprintf("Batch Queue Type|%v", schedConfig.BatchQueue.Type),
 		fmt.Sprintf("Modify Index|%v", resp.SchedulerConfig.ModifyIndex),
-	}))
+	}
+
+	if schedConfig.BatchQueue.Type != "" {
+		out = append(out, fmt.Sprintf("Batch Queue Tenant Type|%v", schedConfig.BatchQueue.TenantType))
+
+		// only append metadata key if it's set
+		if schedConfig.BatchQueue.TenantType == "metadata" {
+			out = append(out, fmt.Sprintf("Batch Queue Metadata Key|%v", schedConfig.BatchQueue.MetadataKey))
+		}
+
+		conf := ""
+		for k, v := range schedConfig.BatchQueue.Config {
+			conf = fmt.Sprintf("%s%s", conf, fmt.Sprintf("%v:%v ", k, v))
+		}
+		out = append(out, fmt.Sprintf("Batch Queue Config|%v", conf))
+	}
+
+	out = append(out, fmt.Sprintf("Modify Index|%v", resp.SchedulerConfig.ModifyIndex))
+
+	// Output the information.
+	o.Ui.Output(formatKV(out))
 	return 0
 }
 
