@@ -2696,9 +2696,6 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	must.NoError(t, err)
 	ar := arIface.(*allocRunner)
 
-	ar.setAlloc(ar.Alloc().Copy())
-	ar.alloc.Job.TaskGroups[0].MaxRunDuration = nil
-
 	go ar.Run()
 	defer destroy(ar)
 
