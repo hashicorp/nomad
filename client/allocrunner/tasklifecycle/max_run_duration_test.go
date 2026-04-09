@@ -91,6 +91,53 @@ func TestMaxRunDuration_TaskStateUpdated_ArmsTimerAndFires(t *testing.T) {
 	}
 }
 
+func TestMaxRunDuration_TaskStateUpdated_PreservesDeadlineWhenOneTaskFinishesEarly(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	maxRunDuration := 50 * time.Millisecond
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "web2"
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
+
+	setter := newTestMaxRunDurationSetter()
+	m := NewMaxRunDuration(alloc, setter)
+
+	startedAt := time.Now().UTC()
+	m.TaskStateUpdated(map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: startedAt,
+		},
+		"web2": {
+			State:     structs.TaskStateRunning,
+			StartedAt: startedAt,
+		},
+	})
+
+	m.TaskStateUpdated(map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: startedAt,
+		},
+		"web2": {
+			State:      structs.TaskStateDead,
+			StartedAt:  startedAt,
+			FinishedAt: startedAt.Add(2 * time.Millisecond),
+		},
+	})
+
+	select {
+	case deadline := <-setter.deadlines:
+		must.Eq(t, startedAt.Add(maxRunDuration), deadline)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for max_run_duration deadline after one task finished early")
+	}
+}
+
 func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocNotEligible(t *testing.T) {
 	t.Parallel()
 

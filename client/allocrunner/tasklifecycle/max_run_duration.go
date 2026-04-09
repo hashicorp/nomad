@@ -24,9 +24,11 @@ type MaxRunDurationSetter interface {
 type MaxRunDuration struct {
 	mu sync.Mutex
 
-	alloc  *structs.Allocation
-	timer  *time.Timer
-	setter MaxRunDurationSetter
+	alloc       *structs.Allocation
+	deadline    time.Time
+	hasDeadline bool
+	timer       *time.Timer
+	setter      MaxRunDurationSetter
 }
 
 func NewMaxRunDuration(
@@ -54,7 +56,8 @@ func (m *MaxRunDuration) TaskStateUpdated(taskStates map[string]*structs.TaskSta
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.resetTimerLocked(taskStates)
+	m.updateDeadlineLocked(taskStates)
+	m.resetTimerLocked()
 }
 
 // Stop cancels any active timer.
@@ -65,25 +68,35 @@ func (m *MaxRunDuration) Stop() {
 	m.stopTimerLocked()
 }
 
-func (m *MaxRunDuration) resetTimerLocked(taskStates map[string]*structs.TaskState) {
-	m.stopTimerLocked()
-
+func (m *MaxRunDuration) updateDeadlineLocked(taskStates map[string]*structs.TaskState) {
 	if m.alloc == nil {
+		m.deadline = time.Time{}
+		m.hasDeadline = false
 		return
 	}
 
 	// Only running allocations with a valid max_run_duration and a fully
-	// running task set should have an active timer.
+	// running task set should establish a deadline.
 	if m.alloc.TerminalStatus() {
+		m.deadline = time.Time{}
+		m.hasDeadline = false
 		return
 	}
 
 	if m.alloc.DesiredStatus != "" && m.alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+		m.deadline = time.Time{}
+		m.hasDeadline = false
 		return
 	}
 
 	maxRunDuration, ok := m.alloc.MaxRunDuration()
 	if !ok {
+		m.deadline = time.Time{}
+		m.hasDeadline = false
+		return
+	}
+
+	if m.hasDeadline {
 		return
 	}
 
@@ -92,7 +105,18 @@ func (m *MaxRunDuration) resetTimerLocked(taskStates map[string]*structs.TaskSta
 		return
 	}
 
-	deadline := startedAt.Add(maxRunDuration)
+	m.deadline = startedAt.Add(maxRunDuration)
+	m.hasDeadline = true
+}
+
+func (m *MaxRunDuration) resetTimerLocked() {
+	m.stopTimerLocked()
+
+	if !m.hasDeadline {
+		return
+	}
+
+	deadline := m.deadline
 	remaining := time.Until(deadline)
 	if remaining <= 0 {
 		go m.setter.EnforceMaxRunDurationTimeout(deadline)
