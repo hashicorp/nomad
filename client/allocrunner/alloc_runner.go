@@ -152,8 +152,9 @@ type allocRunner struct {
 	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
-	// maxRunDurationHook handles max_run_duration updates from task state changes.
-	maxRunDurationHook *maxRunDurationHook
+	// maxRunDuration coordinates alloc-level max_run_duration enforcement from
+	// authoritative alloc and task state updates.
+	maxRunDuration *tasklifecycle.MaxRunDuration
 
 	// hookResources holds the output from allocrunner hooks so that later
 	// allocrunner hooks or task runner hooks can read them
@@ -295,6 +296,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	)
 
 	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
+	ar.maxRunDuration = tasklifecycle.NewMaxRunDuration(ar.logger, ar.alloc, ar)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
@@ -409,6 +411,10 @@ func (ar *allocRunner) Run() {
 
 	if ar.isShuttingDown() {
 		return
+	}
+
+	if ar.maxRunDuration != nil {
+		ar.maxRunDuration.Stop()
 	}
 
 	// Run the postrun hooks
@@ -694,21 +700,27 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 
 		hookAlloc := calloc
 		if hookAlloc != nil {
-			hookAlloc = hookAlloc.Copy()
 			serverAlloc := ar.Alloc()
-			hookAlloc.Job = serverAlloc.Job
-			hookAlloc.TaskGroup = serverAlloc.TaskGroup
-			hookAlloc.DesiredStatus = serverAlloc.DesiredStatus
+			hookAlloc = &structs.Allocation{
+				ID:                calloc.ID,
+				TaskStates:        calloc.TaskStates,
+				ClientStatus:      calloc.ClientStatus,
+				ClientDescription: calloc.ClientDescription,
+				DeploymentStatus:  calloc.DeploymentStatus,
+				NetworkStatus:     calloc.NetworkStatus,
+				Job:               serverAlloc.Job,
+				TaskGroup:         serverAlloc.TaskGroup,
+				DesiredStatus:     serverAlloc.DesiredStatus,
+			}
 		}
 
 		req := &interfaces.RunnerUpdateRequest{
 			Alloc:      hookAlloc,
 			TaskStates: states,
 		}
-		if ar.maxRunDurationHook != nil {
-			if err := ar.maxRunDurationHook.TaskStateUpdated(req); err != nil {
-				ar.logger.Error("error running max run duration hook", "hook", ar.maxRunDurationHook.Name(), "error", err)
-			}
+		if ar.maxRunDuration != nil {
+			ar.maxRunDuration.SetAlloc(req.Alloc)
+			ar.maxRunDuration.TaskStateUpdated(req.TaskStates)
 		}
 
 		// Update the server
@@ -1014,7 +1026,7 @@ func (ar *allocRunner) AllocState() *state.State {
 	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
 	// won't be set as it is not the canonical source of TaskStates.
 	if len(state.TaskStates) == 0 {
-		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
+		state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
 		for k, tr := range ar.tasks {
 			state.TaskStates[k] = tr.TaskState()
 		}
@@ -1324,7 +1336,12 @@ func (ar *allocRunner) Shutdown() {
 		ar.logger.Trace("shutting down")
 
 		// Shutdown tasks gracefully if they were run
-		wg := sync.WaitGroup{}
+		if ar.maxRunDuration != nil {
+			ar.maxRunDuration.Stop()
+		}
+
+		// Shutdown task runners
+		var wg sync.WaitGroup
 		for _, tr := range ar.tasks {
 			wg.Add(1)
 			go func(tr *taskrunner.TaskRunner) {
