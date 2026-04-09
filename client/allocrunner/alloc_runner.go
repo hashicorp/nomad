@@ -1094,22 +1094,8 @@ func (ar *allocRunner) handleAllocUpdates() {
 // If there is already a pending update it will be discarded and replaced by
 // the latest update.
 func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
-	current := ar.Alloc()
-
 	// Detect Stop updates
-	stopping := !current.TerminalStatus() && update.TerminalStatus()
-
-	if update.Job == nil && current != nil && current.Job != nil {
-		update = update.Copy()
-		update.Job = current.Job.Copy()
-		if update.TaskGroup == "" {
-			update.TaskGroup = current.TaskGroup
-		}
-		if update.DesiredStatus == "" {
-			update.DesiredStatus = current.DesiredStatus
-		}
-
-	}
+	stopping := !ar.Alloc().TerminalStatus() && update.TerminalStatus()
 
 	// Update ar.alloc
 	ar.setAlloc(update)
@@ -1142,12 +1128,10 @@ func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
 	now := time.Now().UTC()
 
 	if ar.isShuttingDown() {
-
 		return
 	}
 
 	if now.Before(deadline) {
-
 		return
 	}
 
