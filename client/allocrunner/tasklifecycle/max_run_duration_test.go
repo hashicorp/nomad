@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -94,7 +93,7 @@ func TestMaxRunDuration_TaskStateUpdated_ArmsTimerAndFires(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	startedAt := time.Now().UTC()
 	m.TaskStateUpdated(map[string]*structs.TaskState{
@@ -121,7 +120,7 @@ func TestMaxRunDuration_TaskStateUpdated_ImmediateEnforcementWhenExpired(t *test
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	startedAt := time.Now().Add(-2 * maxRunDuration).UTC()
 	m.TaskStateUpdated(map[string]*structs.TaskState{
@@ -148,7 +147,7 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenNotFullyRunning(t *testi
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {
@@ -172,7 +171,7 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireForNonBatchJobs(t *testing.T
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {
@@ -198,7 +197,7 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenDesiredStatusNotRun(t *t
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {
@@ -224,7 +223,7 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocTerminal(t *testing
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {
@@ -249,7 +248,7 @@ func TestMaxRunDuration_SetAlloc_UsesLatestAllocConfig(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &initial
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	updated := alloc.Copy()
 	latest := 40 * time.Millisecond
@@ -281,7 +280,7 @@ func TestMaxRunDuration_Stop_CancelsTimer(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(log.NewNullLogger(), alloc, setter)
+	m := NewMaxRunDuration(alloc, setter)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {

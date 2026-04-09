@@ -296,7 +296,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	)
 
 	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
-	ar.maxRunDuration = tasklifecycle.NewMaxRunDuration(ar.logger, ar.alloc, ar)
+	ar.maxRunDuration = tasklifecycle.NewMaxRunDuration(ar.alloc, ar)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
