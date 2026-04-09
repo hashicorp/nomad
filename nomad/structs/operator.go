@@ -363,7 +363,7 @@ type BatchQueue struct {
 	Type        string         `hcl:"type"`
 	TenantType  string         `hcl:"tenant_type"`
 	MetadataKey string         `hcl:"metadata_key"`
-	Config      map[string]any `hcl:"config"` // TODO: not sure yet how to handle this any blob
+	Config      map[string]any `hcl:"config"`
 }
 
 type DynamicQueueConfig struct {
