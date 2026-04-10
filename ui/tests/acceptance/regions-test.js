@@ -22,6 +22,7 @@ module('Acceptance | regions (only one)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    window.localStorage.clear();
     server.create('agent');
     server.create('node-pool');
     server.create('node');
@@ -106,7 +107,11 @@ module('Acceptance | regions (many)', function (hooks) {
   });
 
   test('the region switcher is rendered in the nav bar and the region is in the page title', async function (assert) {
+    let managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
     await JobsList.visit();
+    await settled();
 
     assert.ok(
       Layout.navbar.regionSwitcher.isPresent,
@@ -144,6 +149,110 @@ module('Acceptance | regions (many)', function (hooks) {
       window.localStorage.nomadActiveRegion,
       newRegion,
       'New region in localStorage'
+    );
+  });
+
+  test('switching regions on a query-param-only transition refreshes the active route model', async function (assert) {
+    const newRegion = server.db.regions[1].id;
+
+    await JobsList.visit();
+
+    const jobsRequestsBeforeSwitch = server.pretender.handledRequests.filter(
+      (request) => request.url.includes('/v1/jobs')
+    ).length;
+
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
+    await settled();
+
+    const jobsRequestsAfterSwitch = server.pretender.handledRequests.filter(
+      (request) => request.url.includes('/v1/jobs')
+    );
+
+    assert.ok(
+      jobsRequestsAfterSwitch.length > jobsRequestsBeforeSwitch,
+      'Jobs model request is issued again after region query-param switch'
+    );
+
+    assert.ok(
+      jobsRequestsAfterSwitch
+        .slice(jobsRequestsBeforeSwitch)
+        .some((request) => request.url.includes(`region=${newRegion}`)),
+      'Refreshed jobs request uses the selected region'
+    );
+  });
+
+  test('switching regions on job detail reloads job, allocations, and evaluations', async function (assert) {
+    const newRegion = server.db.regions[1].id;
+
+    await JobsList.visit();
+    const jobId = JobsList.jobs.objectAt(0).id;
+    await JobsList.jobs.objectAt(0).clickRow();
+    await settled();
+
+    const isForJobPath = (request, path) => {
+      const url = new URL(request.url, window.location.origin);
+      return url.pathname === `/v1/job/${jobId}${path}`;
+    };
+
+    const jobRequestsBeforeSwitch = server.pretender.handledRequests.filter(
+      (request) => isForJobPath(request, '')
+    ).length;
+
+    const allocationRequestsBeforeSwitch =
+      server.pretender.handledRequests.filter((request) =>
+        isForJobPath(request, '/allocations')
+      ).length;
+
+    const evaluationRequestsBeforeSwitch =
+      server.pretender.handledRequests.filter((request) =>
+        isForJobPath(request, '/evaluations')
+      ).length;
+
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
+    await settled();
+
+    const jobRequestsAfterSwitch = server.pretender.handledRequests.filter(
+      (request) => isForJobPath(request, '')
+    );
+    const allocationRequestsAfterSwitch =
+      server.pretender.handledRequests.filter((request) =>
+        isForJobPath(request, '/allocations')
+      );
+    const evaluationRequestsAfterSwitch =
+      server.pretender.handledRequests.filter((request) =>
+        isForJobPath(request, '/evaluations')
+      );
+
+    assert.ok(
+      jobRequestsAfterSwitch.length > jobRequestsBeforeSwitch,
+      'Job record is fetched again after switching regions on job detail'
+    );
+    assert.ok(
+      allocationRequestsAfterSwitch.length > allocationRequestsBeforeSwitch,
+      'Job allocations are fetched again after switching regions on job detail'
+    );
+    assert.ok(
+      evaluationRequestsAfterSwitch.length > evaluationRequestsBeforeSwitch,
+      'Job evaluations are fetched again after switching regions on job detail'
+    );
+
+    assert.ok(
+      jobRequestsAfterSwitch
+        .slice(jobRequestsBeforeSwitch)
+        .some((request) => request.url.includes(`region=${newRegion}`)),
+      'Refetched job request includes selected region'
+    );
+    assert.ok(
+      allocationRequestsAfterSwitch
+        .slice(allocationRequestsBeforeSwitch)
+        .some((request) => request.url.includes(`region=${newRegion}`)),
+      'Refetched allocations request includes selected region'
+    );
+    assert.ok(
+      evaluationRequestsAfterSwitch
+        .slice(evaluationRequestsBeforeSwitch)
+        .some((request) => request.url.includes(`region=${newRegion}`)),
+      'Refetched evaluations request includes selected region'
     );
   });
 
