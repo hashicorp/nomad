@@ -546,50 +546,46 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	}
 }
 
-func TestEventsFromChanges_ApplyPlanResultsRequestType_TimeoutStoppedAlloc(t *testing.T) {
+func TestEventFromChange_AllocationTimeoutFields(t *testing.T) {
 	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
-	mockJob := mock.Job()
-	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, mockJob))
+	timeoutAlloc := mock.Alloc()
+	timeoutAlloc.ClientStatus = structs.AllocClientStatusComplete
+	timeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
 
-	stoppedAlloc := mock.Alloc()
-	stoppedAlloc.Job = mockJob
-	stoppedAlloc.JobID = mockJob.ID
-	stoppedAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+	timeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  timeoutAlloc,
+	})
+	must.True(t, ok)
 
-	must.NoError(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{stoppedAlloc}))
+	timeoutPayload, ok := timeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.True(t, timeoutPayload.Timeout)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusComplete, timeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.Allocation.ClientDescription)
 
-	msgType := structs.ApplyPlanResultsRequestType
-	req := &structs.ApplyPlanResultsRequest{
-		AllocsStopped: []*structs.AllocationDiff{{
-			ID:                stoppedAlloc.ID,
-			ClientStatus:      structs.AllocClientStatusFailed,
-			ClientDescription: structs.AllocTimeoutReasonMaxRunDuration,
-		}},
-		Job: mockJob,
-	}
+	nonTimeoutAlloc := mock.Alloc()
+	nonTimeoutAlloc.ClientStatus = structs.AllocClientStatusFailed
+	nonTimeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
 
-	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))
+	nonTimeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  nonTimeoutAlloc,
+	})
+	must.True(t, ok)
 
-	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	must.Len(t, 2, events)
-
-	var allocEvent *structs.AllocationEvent
-	for _, e := range events {
-		must.Eq(t, structs.TypePlanResult, e.Type)
-		if e.Topic == structs.TopicAllocation {
-			allocEvent = e.Payload.(*structs.AllocationEvent)
-		}
-	}
-
-	must.NotNil(t, allocEvent)
-	must.True(t, allocEvent.Timeout)
-	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.TimeoutReason)
-	must.Eq(t, structs.AllocDesiredStatusStop, allocEvent.Allocation.DesiredStatus)
-	must.Eq(t, structs.AllocClientStatusFailed, allocEvent.Allocation.ClientStatus)
-	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, allocEvent.Allocation.ClientDescription)
+	nonTimeoutPayload, ok := nonTimeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.False(t, nonTimeoutPayload.Timeout)
+	must.Eq(t, "", nonTimeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusFailed, nonTimeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, nonTimeoutPayload.Allocation.ClientDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {

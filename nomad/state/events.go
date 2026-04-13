@@ -358,7 +358,8 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		alloc.Job = nil
 
 		allocEvent := &structs.AllocationEvent{Allocation: alloc}
-		if alloc.ClientDescription == structs.AllocTimeoutReasonMaxRunDuration {
+		if alloc.ClientStatus == structs.AllocClientStatusComplete &&
+			alloc.ClientDescription == structs.AllocTimeoutReasonMaxRunDuration {
 			allocEvent.Timeout = true
 			allocEvent.TimeoutReason = alloc.ClientDescription
 		}
