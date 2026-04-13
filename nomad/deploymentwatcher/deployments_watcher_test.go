@@ -791,7 +791,7 @@ func TestWatcher_PauseDeployment_IgnoreProgressDeadline(t *testing.T) {
 // is reset
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	ci.Parallel(t)
-	w, m, getLogs := logRecorderTestDeploymentWatcher(t)
+	w, m := defaultTestDeploymentWatcher(t)
 
 	// Create a job and a deployment
 	j := mock.Job()

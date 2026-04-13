@@ -4773,13 +4773,15 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.ModifyTime = u.UpdatedAt
 
 	// check each TaskGroup for ProgressDeadline and reset RequireProgressBy
-	// to u.UpdatedAt + ProgressDeadline
+	// to u.UpdatedAt + ProgressDeadline if neither equal 0
 	for _, dState := range copy.TaskGroups {
 		if dState == nil {
 			continue
 		}
-		updateTime := time.Unix(0, u.UpdatedAt)
-		dState.RequireProgressBy = updateTime.Add(dState.ProgressDeadline)
+		if u.UpdatedAt != 0 && dState.ProgressDeadline != 0 {
+			updateTime := time.Unix(0, u.UpdatedAt)
+			dState.RequireProgressBy = updateTime.Add(dState.ProgressDeadline)
+		}
 	}
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
