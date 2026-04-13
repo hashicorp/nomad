@@ -888,11 +888,16 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 
 // getDeploymentStatusUpdate returns a deployment status update
 func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *structs.DeploymentStatusUpdate {
+	// only pass UpdatedAt value for paused deployments
+	var updatedAt int64
+	if status == structs.DeploymentStatusPaused || status == structs.DeploymentStatusRunning {
+		updatedAt = time.Now().UTC().UnixNano()
+	}
 	return &structs.DeploymentStatusUpdate{
 		DeploymentID:      w.deploymentID,
 		Status:            status,
 		StatusDescription: desc,
-		UpdatedAt:         time.Now().UTC().UnixNano(),
+		UpdatedAt:         updatedAt,
 	}
 }
 
