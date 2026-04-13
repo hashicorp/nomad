@@ -1024,7 +1024,6 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	ws := memdb.NewWatchSet()
 
 	followupEvalsToCancel := []string{}
-
 	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
 		if existing, _ := n.state.AllocByID(ws, alloc.ID); existing != nil {
@@ -1041,19 +1040,13 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 		}
 	}
 
-	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsAndEvalsFromClient(msgType, index, req); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
-	// Update any evals that were added by the RPC handler
-	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
-			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
-			return err
-		}
-	}
+	// Handle any evals that were added by the RPC handler
+	n.handleUpsertedEvals(req.Evals)
 
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.

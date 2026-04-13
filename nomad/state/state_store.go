@@ -4004,20 +4004,49 @@ func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpdateAllocsAndEvalsFromClient(msgType structs.MessageType, index uint64,
+	req structs.AllocUpdateRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+	s.logger.Error("UpdateAllocsAndEvalsFromClient", "allocs", len(req.Alloc), "evals", len(req.Evals), "namespace", req.Alloc[0].Namespace)
+	allocs := req.Alloc
+	evals := req.Evals
 
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
 
+	completeAllocs := []structs.Allocation{}
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
 		nodeIDs.Insert(alloc.NodeID)
-		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
-			return err
+
+		ca, err := s.nestedUpdateAllocFromClient(txn, index, alloc)
+		if err != nil {
+			return fmt.Errorf("updating alloc failed: %v", err)
 		}
+		completeAllocs = append(completeAllocs, ca)
+	}
+
+	if len(req.Evals) > 0 {
+		err := s.UpsertEvalsTxn(index, evals, txn)
+		if err != nil {
+			return fmt.Errorf("upserting evals failed: %v", err)
+		}
+	}
+
+	jobs := map[structs.NamespacedID]string{}
+	for _, alloc := range completeAllocs {
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
+			Namespace: alloc.Namespace,
+		}
+		jobs[tuple] = ""
+	}
+
+	s.logger.Error("updating job", "jobs", len(jobs))
+	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
+		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
 	// Update the indexes
@@ -4035,17 +4064,22 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	return txn.Commit()
 }
 
-// nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
-func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *structs.Allocation) error {
+// nestedUpdateAllocFromClient is used to nest an update of an allocation with
+//
+//	client status.
+//
+// It returns an allocation fully populated with the values from the state store.
+func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
+	alloc *structs.Allocation) (structs.Allocation, error) {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
-		return fmt.Errorf("alloc lookup failed: %v", err)
+		return structs.Allocation{}, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Nothing to do if this does not exist
 	if existing == nil {
-		return nil
+		return structs.Allocation{}, nil
 	}
 	exist := existing.(*structs.Allocation)
 
@@ -4085,51 +4119,35 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	copyAlloc.ModifyTime = alloc.ModifyTime
 
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating deployment: %v", err)
+		return structs.Allocation{}, fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating job summary: %v", err)
+		return structs.Allocation{}, fmt.Errorf("error updating job summary: %v", err)
 	}
 
 	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return err
+		return structs.Allocation{}, fmt.Errorf("error updating enterprise features: %v", err)
 	}
 
 	if err := s.updatePluginForTerminalAlloc(index, copyAlloc, txn); err != nil {
-		return err
+		return structs.Allocation{}, fmt.Errorf("error updating plugin for terminal alloc: %v", err)
 	}
 
 	if err := s.cancelFollowupEvalsForReconnect(txn, index, copyAlloc, alloc); err != nil {
-		return err
+		return structs.Allocation{}, err
 	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
-		return fmt.Errorf("alloc insert failed: %v", err)
-	}
-
-	// Set the job's status
-	forceStatus := ""
-	if !copyAlloc.TerminalStatus() {
-		forceStatus = structs.JobStatusRunning
-	}
-
-	tuple := structs.NamespacedID{
-		ID:        exist.JobID,
-		Namespace: exist.Namespace,
-	}
-	jobs := map[structs.NamespacedID]string{tuple: forceStatus}
-
-	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
-		return fmt.Errorf("setting job status failed: %v", err)
+		return structs.Allocation{}, fmt.Errorf("alloc insert failed: %v", err)
 	}
 
 	if err := s.deregisterServicesForTerminalAllocs(txn, index, copyAlloc); err != nil {
-		return err
+		return structs.Allocation{}, fmt.Errorf("error deregistering services for terminal allocs: %v", err)
 	}
 
-	return nil
+	return *copyAlloc, nil
 }
 
 // cancelFollowupEvalsForReconnect cancels any follow-up evals for an allocation
@@ -5381,13 +5399,13 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 	jobs map[structs.NamespacedID]string, evalDelete bool) error {
 	for tuple, forceStatus := range jobs {
-
 		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
 
 		if existing == nil {
+			s.logger.Error("esta monda no existe????", "job_id", tuple.ID)
 			continue
 		}
 
@@ -5520,6 +5538,7 @@ func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64,
 func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (string, error) {
 	// System, Periodic and Parameterized jobs are running until explicitly
 	// stopped.
+	s.logger.Error("get job status", "job_status", job.Status)
 	if job.Type == structs.JobTypeSystem ||
 		job.IsParameterized() ||
 		job.IsPeriodic() {
@@ -5534,9 +5553,18 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
+	jAlloc := []structs.Allocation{}
 	// If there is a non-terminal allocation, the job is running.
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
+		jAlloc = append(jAlloc, *alloc.(*structs.Allocation))
 		if !alloc.(*structs.Allocation).TerminalStatus() {
+			/* s.logger.Error("**** job running", "allocs", func() []string {
+				ids := make([]string, len(jAlloc))
+				for i, a := range jAlloc {
+					ids[i] = a.ID + ":" + a.ClientStatus
+				}
+				return ids
+			}()) */
 			return structs.JobStatusRunning, nil
 		}
 	}
@@ -5546,13 +5574,30 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
+	jEvals := []structs.Evaluation{}
 	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
 		eval := raw.(*structs.Evaluation)
+		jEvals = append(jEvals, *eval)
 		if eval.JobID != job.ID {
 			continue
 		}
 		if !eval.TerminalStatus() {
+			/* s.logger.Error("**** job pending")
+			s.logger.Error("a", "allocs", func() []string {
+				ids := make([]string, len(jAlloc))
+				for i, a := range jAlloc {
+					ids[i] = a.ID + ":" + a.ClientStatus
+				}
+				return ids
+			}())
+			s.logger.Error("e", "evals", func() []string {
+				ids := make([]string, len(jEvals))
+				for i, e := range jEvals {
+					ids[i] = e.ID + ":" + e.Status
+				}
+				return ids
+			}()) */
 			return structs.JobStatusPending, nil
 		}
 		hasEval = true
@@ -5562,12 +5607,29 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// and all evals are terminal. In the event a jobs allocs and evals
 	// are all GC'd, we don't want the job to be marked pending.
 	if evalDelete || hasEval || job.Stop {
+		s.logger.Error("**** job dead")
 		return structs.JobStatusDead, nil
 	}
 
 	// There are no allocs/evals yet, which can happen for new job submissions,
 	// running new versions of a job, or reverting. This will happen if
 	// the evaluation is persisted after the job is persisted.
+
+	/* 	s.logger.Error("**** job pending by default")
+	   	s.logger.Error("a", "allocs", func() []string {
+	   		ids := make([]string, len(jAlloc))
+	   		for i, a := range jAlloc {
+	   			ids[i] = a.ID + ":" + a.ClientStatus
+	   		}
+	   		return ids
+	   	}())
+	   	s.logger.Error("e", "evals", func() []string {
+	   		ids := make([]string, len(jEvals))
+	   		for i, e := range jEvals {
+	   			ids[i] = e.ID + ":" + e.Status
+	   		}
+	   		return ids
+	   	}()) */
 	return structs.JobStatusPending, nil
 }
 
