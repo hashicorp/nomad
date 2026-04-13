@@ -33,7 +33,7 @@ func TestMaxRunDuration_FullyRunningSince(t *testing.T) {
 	earlier := now.Add(-2 * time.Second)
 	later := now.Add(-1 * time.Second)
 
-	got, ok := FullyRunningSince(map[string]*structs.TaskState{
+	got, ok := structs.FullyRunningSince(map[string]*structs.TaskState{
 		"a": {
 			State:     structs.TaskStateRunning,
 			StartedAt: earlier,
@@ -51,7 +51,7 @@ func TestMaxRunDuration_FullyRunningSince(t *testing.T) {
 func TestMaxRunDuration_FullyRunningSince_FalseWhenNotFullyRunning(t *testing.T) {
 	t.Parallel()
 
-	_, ok := FullyRunningSince(map[string]*structs.TaskState{
+	_, ok := structs.FullyRunningSince(map[string]*structs.TaskState{
 		"a": {
 			State:     structs.TaskStateRunning,
 			StartedAt: time.Now().Add(-time.Second).UTC(),

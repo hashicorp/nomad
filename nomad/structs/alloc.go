@@ -384,14 +384,14 @@ func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
 // FullyRunningSince returns the latest StartedAt timestamp across all task
 // states, but only when every known task state is running with a non-zero start
 // time.
-func (a *Allocation) FullyRunningSince() (time.Time, bool) {
-	if a == nil {
+func FullyRunningSince(taskStates map[string]*TaskState) (time.Time, bool) {
+	if len(taskStates) == 0 {
 		return time.Time{}, false
 	}
 
 	var latest time.Time
 
-	for _, ts := range a.TaskStates {
+	for _, ts := range taskStates {
 		if ts == nil || ts.State != TaskStateRunning || ts.StartedAt.IsZero() {
 			return time.Time{}, false
 		}
@@ -407,6 +407,14 @@ func (a *Allocation) FullyRunningSince() (time.Time, bool) {
 	return latest, true
 }
 
+func (a *Allocation) fullyRunningSince() (time.Time, bool) {
+	if a == nil {
+		return time.Time{}, false
+	}
+
+	return FullyRunningSince(a.TaskStates)
+}
+
 // MaxRunDurationDeadline returns the deadline at which the allocation should be
 // considered timed out based on max_run_duration.
 func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
@@ -415,7 +423,7 @@ func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	startedAt, ok := a.FullyRunningSince()
+	startedAt, ok := a.fullyRunningSince()
 	if !ok {
 		return time.Time{}, false
 	}
