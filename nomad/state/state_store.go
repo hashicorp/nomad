@@ -4113,9 +4113,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
 
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
-	if alloc.ClientDescription != "" {
-		copyAlloc.ClientDescription = alloc.ClientDescription
-	}
+	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
 	copyAlloc.NetworkStatus = alloc.NetworkStatus
 
@@ -4333,22 +4331,12 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
 
-			// If the scheduler is marking this allocation as lost, unknown, or another
-			// explicit terminal client status, preserve the scheduler-provided status
-			// and description instead of reusing the existing allocation values.
-			switch alloc.ClientStatus {
-			case structs.AllocClientStatusLost,
-				structs.AllocClientStatusUnknown,
-				structs.AllocClientStatusFailed,
-				structs.AllocClientStatusComplete:
-				if alloc.ClientDescription == "" {
-					alloc.ClientDescription = exist.ClientDescription
-				}
-			default:
+			// If the scheduler is marking this allocation as lost or unknown we do not
+			// want to reuse the status of the existing allocation.
+			if alloc.ClientStatus != structs.AllocClientStatusLost &&
+				alloc.ClientStatus != structs.AllocClientStatusUnknown {
 				alloc.ClientStatus = exist.ClientStatus
-				if alloc.ClientDescription == "" {
-					alloc.ClientDescription = exist.ClientDescription
-				}
+				alloc.ClientDescription = exist.ClientDescription
 			}
 
 			// The job has been denormalized so re-attach the original job

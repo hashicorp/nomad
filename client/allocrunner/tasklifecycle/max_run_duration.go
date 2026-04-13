@@ -56,7 +56,7 @@ func (m *MaxRunDuration) TaskStateUpdated(taskStates map[string]*structs.TaskSta
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.updateDeadlineLocked(taskStates)
+	m.setDeadline(taskStates)
 	m.resetTimerLocked()
 }
 
@@ -68,7 +68,7 @@ func (m *MaxRunDuration) Stop() {
 	m.stopTimerLocked()
 }
 
-func (m *MaxRunDuration) updateDeadlineLocked(taskStates map[string]*structs.TaskState) {
+func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 	if m.alloc == nil {
 		m.deadline = time.Time{}
 		m.hasDeadline = false
@@ -100,7 +100,7 @@ func (m *MaxRunDuration) updateDeadlineLocked(taskStates map[string]*structs.Tas
 		return
 	}
 
-	startedAt, ok := FullyRunningSince(taskStates)
+	startedAt, ok := structs.FullyRunningSince(taskStates)
 	if !ok {
 		return
 	}
@@ -153,29 +153,4 @@ func (m *MaxRunDuration) stopTimerLocked() {
 		}
 	}
 	m.timer = nil
-}
-
-// FullyRunningSince returns the latest StartedAt timestamp across all task
-// states, but only when every known task state is running with a non-zero
-// start time.
-func FullyRunningSince(taskStates map[string]*structs.TaskState) (time.Time, bool) {
-	if len(taskStates) == 0 {
-		return time.Time{}, false
-	}
-
-	var latest time.Time
-	for _, ts := range taskStates {
-		if ts == nil || ts.State != structs.TaskStateRunning || ts.StartedAt.IsZero() {
-			return time.Time{}, false
-		}
-		if ts.StartedAt.After(latest) {
-			latest = ts.StartedAt
-		}
-	}
-
-	if latest.IsZero() {
-		return time.Time{}, false
-	}
-
-	return latest, true
 }
