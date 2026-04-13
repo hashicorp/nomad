@@ -67,7 +67,10 @@ export default class StatsTrackersRegistryService extends Service {
 
       // Replace stale/mismatched trackers instead of mutating an already-used
       // tracker during render.
-      if (cachedTracker.poll && typeof cachedTracker.poll.cancelAll === 'function') {
+      if (
+        cachedTracker.poll &&
+        typeof cachedTracker.poll.cancelAll === 'function'
+      ) {
         cachedTracker.poll.cancelAll();
       }
       if (
