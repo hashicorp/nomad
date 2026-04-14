@@ -56,9 +56,8 @@ type RunnerUpdateHook interface {
 }
 
 type RunnerUpdateRequest struct {
-	Alloc      *structs.Allocation
-	AllocEnv   *taskenv.TaskEnv
-	TaskStates map[string]*structs.TaskState
+	Alloc    *structs.Allocation
+	AllocEnv *taskenv.TaskEnv
 }
 
 // A RunnerTaskRestartHook is executed just before the allocation runner is

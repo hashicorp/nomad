@@ -710,13 +710,9 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			DesiredStatus:     ar.Alloc().DesiredStatus,
 		}
 
-		req := &interfaces.RunnerUpdateRequest{
-			Alloc:      hookAlloc,
-			TaskStates: states,
-		}
 		if ar.maxRunDuration != nil {
-			ar.maxRunDuration.SetAlloc(req.Alloc)
-			ar.maxRunDuration.TaskStateUpdated(req.TaskStates)
+			ar.maxRunDuration.SetAlloc(hookAlloc)
+			ar.maxRunDuration.TaskStateUpdated(states)
 		}
 
 		// Update the server
@@ -1121,7 +1117,7 @@ func (ar *allocRunner) Listener() *cstructs.AllocListener {
 }
 
 func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
-	now := time.Now().UTC()
+	now := time.Now()
 
 	if ar.isShuttingDown() {
 		return
