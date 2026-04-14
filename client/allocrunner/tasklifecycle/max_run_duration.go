@@ -83,6 +83,9 @@ func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 		return
 	}
 
+	// DesiredStatus defaults to the zero value for normal running allocations.
+	// Treat an empty status the same as "run" and only clear the deadline when
+	// the alloc is explicitly marked with a non-run desired status.
 	if m.alloc.DesiredStatus != "" && m.alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 		m.deadline = time.Time{}
 		m.hasDeadline = false
