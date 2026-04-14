@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type MaxRunDurationSetter interface {
-	EnforceMaxRunDurationTimeout(time.Time)
-}
+type MaxRunDurationTimeoutFn func(time.Time)
 
 // MaxRunDuration coordinates local enforcement of task group
 // `max_run_duration`.
@@ -24,21 +22,14 @@ type MaxRunDurationSetter interface {
 type MaxRunDuration struct {
 	mu sync.Mutex
 
-	alloc       *structs.Allocation
-	deadline    time.Time
-	hasDeadline bool
-	timer       *time.Timer
-	setter      MaxRunDurationSetter
+	alloc     *structs.Allocation
+	deadline  time.Time
+	timer     *time.Timer
+	onTimeout MaxRunDurationTimeoutFn
 }
 
-func NewMaxRunDuration(
-	alloc *structs.Allocation,
-	setter MaxRunDurationSetter,
-) *MaxRunDuration {
-	return &MaxRunDuration{
-		alloc:  alloc,
-		setter: setter,
-	}
+func NewMaxRunDuration(onTimeout MaxRunDurationTimeoutFn) *MaxRunDuration {
+	return &MaxRunDuration{onTimeout: onTimeout}
 }
 
 // SetAlloc updates the authoritative allocation used for
@@ -71,7 +62,6 @@ func (m *MaxRunDuration) Stop() {
 func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 	if m.alloc == nil {
 		m.deadline = time.Time{}
-		m.hasDeadline = false
 		return
 	}
 
@@ -79,7 +69,6 @@ func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 	// running task set should establish a deadline.
 	if m.alloc.TerminalStatus() {
 		m.deadline = time.Time{}
-		m.hasDeadline = false
 		return
 	}
 
@@ -88,18 +77,16 @@ func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 	// the alloc is explicitly marked with a non-run desired status.
 	if m.alloc.DesiredStatus != "" && m.alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 		m.deadline = time.Time{}
-		m.hasDeadline = false
 		return
 	}
 
 	maxRunDuration, ok := m.alloc.MaxRunDuration()
 	if !ok {
 		m.deadline = time.Time{}
-		m.hasDeadline = false
 		return
 	}
 
-	if m.hasDeadline {
+	if !m.deadline.IsZero() {
 		return
 	}
 
@@ -109,20 +96,19 @@ func (m *MaxRunDuration) setDeadline(taskStates map[string]*structs.TaskState) {
 	}
 
 	m.deadline = startedAt.Add(maxRunDuration)
-	m.hasDeadline = true
 }
 
 func (m *MaxRunDuration) resetTimerLocked() {
 	m.stopTimerLocked()
 
-	if !m.hasDeadline {
+	if m.deadline.IsZero() {
 		return
 	}
 
 	deadline := m.deadline
 	remaining := time.Until(deadline)
 	if remaining <= 0 {
-		go m.setter.EnforceMaxRunDurationTimeout(deadline)
+		go m.onTimeout(deadline)
 		return
 	}
 
@@ -140,7 +126,7 @@ func (m *MaxRunDuration) resetTimerLocked() {
 		m.timer = nil
 		m.mu.Unlock()
 
-		m.setter.EnforceMaxRunDurationTimeout(deadline)
+		m.onTimeout(deadline)
 	}(timer, deadline)
 }
 

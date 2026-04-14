@@ -12,18 +12,11 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-type testMaxRunDurationSetter struct {
-	deadlines chan time.Time
-}
-
-func newTestMaxRunDurationSetter() *testMaxRunDurationSetter {
-	return &testMaxRunDurationSetter{
-		deadlines: make(chan time.Time, 8),
-	}
-}
-
-func (s *testMaxRunDurationSetter) EnforceMaxRunDurationTimeout(deadline time.Time) {
-	s.deadlines <- deadline
+func newTestMaxRunDurationCallback() (func(time.Time), chan time.Time) {
+	deadlines := make(chan time.Time, 8)
+	return func(deadline time.Time) {
+		deadlines <- deadline
+	}, deadlines
 }
 
 func TestMaxRunDuration_FullyRunningSince(t *testing.T) {
@@ -72,8 +65,9 @@ func TestMaxRunDuration_TaskStateUpdated_ArmsTimerAndFires(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
+	onTimeout, deadlines := newTestMaxRunDurationCallback()
+	m := NewMaxRunDuration(onTimeout)
+	m.SetAlloc(alloc)
 
 	startedAt := time.Now().UTC()
 	m.TaskStateUpdated(map[string]*structs.TaskState{
@@ -84,7 +78,7 @@ func TestMaxRunDuration_TaskStateUpdated_ArmsTimerAndFires(t *testing.T) {
 	})
 
 	select {
-	case deadline := <-setter.deadlines:
+	case deadline := <-deadlines:
 		must.Eq(t, startedAt.Add(maxRunDuration), deadline)
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timed out waiting for max_run_duration deadline")
@@ -103,8 +97,9 @@ func TestMaxRunDuration_TaskStateUpdated_PreservesDeadlineWhenOneTaskFinishesEar
 	task2.Name = "web2"
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
 
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
+	onTimeout, deadlines := newTestMaxRunDurationCallback()
+	m := NewMaxRunDuration(onTimeout)
+	m.SetAlloc(alloc)
 
 	startedAt := time.Now().UTC()
 	m.TaskStateUpdated(map[string]*structs.TaskState{
@@ -131,7 +126,7 @@ func TestMaxRunDuration_TaskStateUpdated_PreservesDeadlineWhenOneTaskFinishesEar
 	})
 
 	select {
-	case deadline := <-setter.deadlines:
+	case deadline := <-deadlines:
 		must.Eq(t, startedAt.Add(maxRunDuration), deadline)
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timed out waiting for max_run_duration deadline after one task finished early")
@@ -193,8 +188,9 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocNotEligible(t *test
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			setter := newTestMaxRunDurationSetter()
-			m := NewMaxRunDuration(tc.alloc, setter)
+			onTimeout, deadlines := newTestMaxRunDurationCallback()
+			m := NewMaxRunDuration(onTimeout)
+			m.SetAlloc(tc.alloc)
 
 			taskStates := map[string]*structs.TaskState{
 				"web": {
@@ -209,7 +205,7 @@ func TestMaxRunDuration_TaskStateUpdated_DoesNotFireWhenAllocNotEligible(t *test
 			m.TaskStateUpdated(taskStates)
 
 			select {
-			case deadline := <-setter.deadlines:
+			case deadline := <-deadlines:
 				t.Fatalf("unexpected deadline fired: %v", deadline)
 			case <-time.After(100 * time.Millisecond):
 			}
@@ -225,8 +221,9 @@ func TestMaxRunDuration_SetAlloc_UsesLatestAllocConfig(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	alloc.Job.TaskGroups[0].MaxRunDuration = &initial
 
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
+	onTimeout, deadlines := newTestMaxRunDurationCallback()
+	m := NewMaxRunDuration(onTimeout)
+	m.SetAlloc(alloc)
 
 	updated := alloc.Copy()
 	latest := 40 * time.Millisecond
@@ -242,7 +239,7 @@ func TestMaxRunDuration_SetAlloc_UsesLatestAllocConfig(t *testing.T) {
 	})
 
 	select {
-	case deadline := <-setter.deadlines:
+	case deadline := <-deadlines:
 		must.Eq(t, startedAt.Add(latest), deadline)
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timed out waiting for updated max_run_duration deadline")
@@ -257,8 +254,9 @@ func TestMaxRunDuration_Stop_CancelsTimer(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
-	setter := newTestMaxRunDurationSetter()
-	m := NewMaxRunDuration(alloc, setter)
+	onTimeout, deadlines := newTestMaxRunDurationCallback()
+	m := NewMaxRunDuration(onTimeout)
+	m.SetAlloc(alloc)
 
 	m.TaskStateUpdated(map[string]*structs.TaskState{
 		"web": {
@@ -270,7 +268,7 @@ func TestMaxRunDuration_Stop_CancelsTimer(t *testing.T) {
 	m.Stop()
 
 	select {
-	case deadline := <-setter.deadlines:
+	case deadline := <-deadlines:
 		t.Fatalf("unexpected deadline fired after stop: %v", deadline)
 	case <-time.After(250 * time.Millisecond):
 	}
