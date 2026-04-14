@@ -90,7 +90,16 @@ func (l *LibcontainerExecutor) catchSignals() {
 	defer signal.Stop(l.sigChan)
 	defer close(l.sigChan)
 
-	signal.Notify(l.sigChan, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
+	signal.Notify(
+		l.sigChan,
+		syscall.SIGHUP,
+		syscall.SIGQUIT,
+		syscall.SIGTERM,
+		syscall.SIGINT,
+		syscall.SIGSEGV,
+		syscall.SIGPIPE,
+	)
+
 	for {
 		signal := <-l.sigChan
 		if signal == syscall.SIGTERM || signal == syscall.SIGINT {
