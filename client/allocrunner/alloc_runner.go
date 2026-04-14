@@ -698,18 +698,16 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
 
-		hookAlloc := calloc
-		serverAlloc := ar.Alloc()
-		hookAlloc = &structs.Allocation{
+		hookAlloc := &structs.Allocation{
 			ID:                calloc.ID,
 			TaskStates:        calloc.TaskStates,
 			ClientStatus:      calloc.ClientStatus,
 			ClientDescription: calloc.ClientDescription,
 			DeploymentStatus:  calloc.DeploymentStatus,
 			NetworkStatus:     calloc.NetworkStatus,
-			Job:               serverAlloc.Job,
-			TaskGroup:         serverAlloc.TaskGroup,
-			DesiredStatus:     serverAlloc.DesiredStatus,
+			Job:               ar.Alloc().Job,
+			TaskGroup:         ar.Alloc().TaskGroup,
+			DesiredStatus:     ar.Alloc().DesiredStatus,
 		}
 
 		req := &interfaces.RunnerUpdateRequest{
