@@ -97,7 +97,7 @@ func (l *LibcontainerExecutor) catchSignals() {
 		syscall.SIGTERM,
 		syscall.SIGINT,
 		syscall.SIGSEGV,
-		syscall.SIGPIPE
+		syscall.SIGPIPE,
 	)
 
 	for {
