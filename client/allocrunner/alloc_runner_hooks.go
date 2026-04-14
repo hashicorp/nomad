@@ -224,9 +224,8 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 	).SetAllocDir(ar.allocDir.AllocDirPath()).Build()
 
 	req := &interfaces.RunnerUpdateRequest{
-		Alloc:      update,
-		AllocEnv:   allocEnv,
-		TaskStates: ar.AllocState().TaskStates,
+		Alloc:    update,
+		AllocEnv: allocEnv,
 	}
 
 	var merr multierror.Error
