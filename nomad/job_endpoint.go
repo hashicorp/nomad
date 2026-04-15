@@ -1091,7 +1091,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			structs.JobRegisterRequest{
 				Job:            job,
 				EnforceIndex:   true,
-				JobModifyIndex: job.ModifyIndex,
+				JobModifyIndex: job.JobModifyIndex,
 				PolicyOverride: args.PolicyOverride,
 				WriteRequest:   args.WriteRequest,
 			},
