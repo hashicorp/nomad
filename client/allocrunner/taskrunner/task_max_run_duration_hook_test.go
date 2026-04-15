@@ -102,7 +102,7 @@ func TestTaskMaxRunDurationHook_Update_ArmsWhenTaskStartsRunning(t *testing.T) {
 	must.True(t, hook.hasMaxRunDuration)
 	must.Eq(t, maxRunDuration, hook.maxRunDuration)
 	must.False(t, hook.deadline.IsZero())
-	must.True(t, hook.deadline.After(startedAt))
+	must.Eq(t, startedAt.Add(maxRunDuration), hook.deadline)
 }
 
 func TestTaskMaxRunDurationHook_Update_RearmsOnDurationChange(t *testing.T) {
@@ -141,6 +141,7 @@ func TestTaskMaxRunDurationHook_Update_RearmsOnDurationChange(t *testing.T) {
 
 	must.NotNil(t, hook.timer)
 	must.Eq(t, latest, hook.maxRunDuration)
+	must.Eq(t, startedAt.Add(latest), hook.deadline)
 	must.True(t, hook.deadline.Before(initialDeadline))
 }
 
@@ -213,6 +214,9 @@ func TestTaskMaxRunDurationHook_Exited_CancelsTimer(t *testing.T) {
 	defer hook.mu.Unlock()
 
 	must.Nil(t, hook.timer)
+	must.True(t, hook.deadline.IsZero())
+	must.Zero(t, hook.maxRunDuration)
+	must.False(t, hook.hasMaxRunDuration)
 }
 
 func TestTaskMaxRunDurationHook_CurrentDeadline_IgnoresNonRunningTask(t *testing.T) {

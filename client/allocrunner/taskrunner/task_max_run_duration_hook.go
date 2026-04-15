@@ -122,18 +122,20 @@ func (h *taskMaxRunDurationHook) resetTimer() {
 }
 
 func (h *taskMaxRunDurationHook) stopTimer() {
-	if h.timer == nil {
-		return
-	}
-
-	if !h.timer.Stop() {
-		select {
-		case <-h.timer.C:
-		default:
+	if h.timer != nil {
+		if !h.timer.Stop() {
+			select {
+			case <-h.timer.C:
+			default:
+			}
 		}
+
+		h.timer = nil
 	}
 
-	h.timer = nil
+	h.deadline = time.Time{}
+	h.maxRunDuration = 0
+	h.hasMaxRunDuration = false
 }
 
 func (h *taskMaxRunDurationHook) currentDeadline() (time.Time, time.Duration, bool) {

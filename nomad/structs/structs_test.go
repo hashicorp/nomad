@@ -1709,6 +1709,32 @@ func TestTaskGroup_Validate(t *testing.T) {
 			jobType: JobTypeBatch,
 		},
 		{
+			name: "invalid task max run duration for lifecycle task",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:           "web",
+						Driver:         "mock_driver",
+						Resources:      DefaultResources(),
+						LogConfig:      DefaultLogConfig(),
+						MaxRunDuration: pointer.Of(5 * time.Minute),
+						Lifecycle: &TaskLifecycleConfig{
+							Hook: TaskLifecycleHookPrestart,
+						},
+					},
+				},
+				RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+			},
+			expErr: []string{
+				"Lifecycle tasks may not have max_run_duration",
+			},
+			jobType: JobTypeBatch,
+		},
+		{
 			name: "duplicated por label",
 			tg: &TaskGroup{
 				Networks: []*NetworkResource{

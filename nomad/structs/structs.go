@@ -8179,6 +8179,9 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		default:
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow max_run_duration", jobType))
 		}
+		if t.Lifecycle != nil {
+			mErr.Errors = append(mErr.Errors, errors.New("Lifecycle tasks may not have max_run_duration"))
+		}
 	}
 
 	// Validate the resources.
