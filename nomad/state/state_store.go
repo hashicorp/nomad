@@ -39,6 +39,12 @@ const (
 )
 
 const (
+	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
+	// enforcing the job modify index during registers.
+	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
+)
+
+const (
 	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
 	// is set to ineligible due to multiple plan failures.
 	// This is a preventive measure to signal scheduler workers to not consider
@@ -1801,17 +1807,33 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	var existingJob *structs.Job
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	var existingJob *structs.Job
 	if existing != nil {
-		job.CreateIndex = existing.(*structs.Job).CreateIndex
-		job.ModifyIndex = index
-
 		existingJob = existing.(*structs.Job)
+	}
+
+	if req != nil && req.EnforceIndex {
+		jmi := req.JobModifyIndex
+		if existingJob != nil {
+			if jmi == 0 {
+				return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
+			} else if jmi != existingJob.JobModifyIndex {
+				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
+					RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
+			}
+		} else if jmi != 0 {
+			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
+		}
+	}
+
+	// Setup the indexes correctly
+	if existingJob != nil {
+		job.CreateIndex = existingJob.CreateIndex
+		job.ModifyIndex = index
 
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should

@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	nomadState "github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	nomadVersion "github.com/hashicorp/nomad/version"
@@ -1518,7 +1519,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), nomadState.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1570,7 +1571,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), nomadState.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1587,7 +1588,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), nomadState.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 

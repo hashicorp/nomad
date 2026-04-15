@@ -30,10 +30,6 @@ import (
 )
 
 const (
-	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
-	// enforcing the job modify index during registers.
-	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
-
 	// DispatchPayloadSizeLimit is the maximum size of the uncompressed input
 	// data payload.
 	DispatchPayloadSizeLimit = 16 * 1024
@@ -231,13 +227,13 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 		jmi := args.JobModifyIndex
 		if existingJob != nil {
 			if jmi == 0 {
-				return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
+				return fmt.Errorf("%s 0: job already exists", state.RegisterEnforceIndexErrPrefix)
 			} else if jmi != existingJob.JobModifyIndex {
 				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
+					state.RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
 			}
 		} else if jmi != 0 {
-			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
+			return fmt.Errorf("%s %d: job does not exist", state.RegisterEnforceIndexErrPrefix, jmi)
 		}
 	}
 
@@ -1081,7 +1077,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		if args.JobModifyIndex > 0 {
 			if args.JobModifyIndex != job.JobModifyIndex {
 				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
+					state.RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
 			}
 		}
 
