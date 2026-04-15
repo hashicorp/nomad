@@ -774,6 +774,7 @@ type Task struct {
 	RestartPolicy   *RestartPolicy         `hcl:"restart,block"`
 	Meta            map[string]string      `hcl:"meta,block"`
 	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
+	MaxRunDuration  *time.Duration         `mapstructure:"max_run_duration" hcl:"max_run_duration,optional"`
 	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
 	Vault           *Vault                 `hcl:"vault,block"`

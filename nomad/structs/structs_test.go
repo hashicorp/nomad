@@ -1619,6 +1619,96 @@ func TestTaskGroup_Validate(t *testing.T) {
 			jobType: JobTypeSysBatch,
 		},
 		{
+			name: "valid task max run duration for batch job",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:           "web",
+						Driver:         "mock_driver",
+						Resources:      DefaultResources(),
+						LogConfig:      DefaultLogConfig(),
+						MaxRunDuration: pointer.Of(5 * time.Minute),
+					},
+				},
+				RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+			},
+			jobType: JobTypeBatch,
+		},
+		{
+			name: "valid task max run duration for sysbatch job",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:           "web",
+						Driver:         "mock_driver",
+						Resources:      DefaultResources(),
+						LogConfig:      DefaultLogConfig(),
+						MaxRunDuration: pointer.Of(5 * time.Minute),
+					},
+				},
+				RestartPolicy: &RestartPolicy{
+					Attempts:        0,
+					Interval:        5 * time.Second,
+					Delay:           5 * time.Second,
+					Mode:            RestartPolicyModeFail,
+					RenderTemplates: false,
+				},
+				EphemeralDisk: DefaultEphemeralDisk(),
+			},
+			jobType: JobTypeSysBatch,
+		},
+		{
+			name: "invalid task max run duration for service job",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:           "web",
+						Driver:         "mock_driver",
+						Resources:      DefaultResources(),
+						LogConfig:      DefaultLogConfig(),
+						MaxRunDuration: pointer.Of(5 * time.Minute),
+					},
+				},
+				RestartPolicy: NewRestartPolicy(JobTypeService),
+				EphemeralDisk: DefaultEphemeralDisk(),
+			},
+			expErr: []string{
+				`Job type "service" does not allow max_run_duration`,
+			},
+			jobType: JobTypeService,
+		},
+		{
+			name: "invalid non-positive task max run duration for batch job",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:           "web",
+						Driver:         "mock_driver",
+						Resources:      DefaultResources(),
+						LogConfig:      DefaultLogConfig(),
+						MaxRunDuration: pointer.Of(time.Duration(0)),
+					},
+				},
+				RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+			},
+			expErr: []string{
+				"MaxRunDuration must be greater than zero",
+			},
+			jobType: JobTypeBatch,
+		},
+		{
 			name: "duplicated por label",
 			tg: &TaskGroup{
 				Networks: []*NetworkResource{

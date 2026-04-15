@@ -116,6 +116,60 @@ func TestMaxRunDurationHook_Update_RearmsOnDurationChange(t *testing.T) {
 	}
 }
 
+func TestMaxRunDurationHook_TaskLevelOverride_DisablesAllocTimer(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	groupMaxRunDuration := 25 * time.Millisecond
+	taskMaxRunDuration := 50 * time.Millisecond
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &groupMaxRunDuration
+	alloc.Job.TaskGroups[0].Tasks[0].MaxRunDuration = &taskMaxRunDuration
+
+	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
+	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+
+	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+
+	select {
+	case deadline := <-deadlines:
+		t.Fatalf("unexpected alloc-level deadline fired with task-level override: %v", deadline)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestMaxRunDurationHook_TaskLevelOverride_DisablesAllocTimerWithMultipleTaskOverrides(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	groupMaxRunDuration := 25 * time.Millisecond
+	taskOneMaxRunDuration := 50 * time.Millisecond
+	taskTwoMaxRunDuration := 60 * time.Millisecond
+
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	secondTask := mainTask.Copy()
+	secondTask.Name = "worker"
+
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &groupMaxRunDuration
+	mainTask.MaxRunDuration = &taskOneMaxRunDuration
+	secondTask.MaxRunDuration = &taskTwoMaxRunDuration
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, secondTask}
+
+	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
+	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+
+	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+
+	select {
+	case deadline := <-deadlines:
+		t.Fatalf("unexpected alloc-level deadline fired with multiple task-level overrides: %v", deadline)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
 func TestMaxRunDurationHook_DoesNotFireWhenAllocNotEligible(t *testing.T) {
 	ci.Parallel(t)
 

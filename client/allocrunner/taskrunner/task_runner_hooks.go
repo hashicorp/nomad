@@ -63,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
+		newTaskMaxRunDurationHook(tr, hookLogger),
 		newConsulHook(hookLogger, tr),
 	}
 	// If Vault is enabled, add the hook
@@ -493,6 +494,7 @@ func (tr *TaskRunner) stop() error {
 			end := time.Now()
 			tr.logger.Trace("finished stop hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
+
 	}
 
 	return merr.ErrorOrNil()

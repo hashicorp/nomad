@@ -362,7 +362,9 @@ func (a *Allocation) TerminalStatus() bool {
 }
 
 // MaxRunDuration returns the configured max_run_duration for the allocation's
-// task group, if any.
+// task group, if any. If any task in the group has a task-level
+// max_run_duration configured, the task-group timer is disabled and task-level
+// timers are expected to enforce the timeout instead.
 func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
 	if a == nil || a.Job == nil {
 		return 0, false
@@ -371,6 +373,12 @@ func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
 		return 0, false
+	}
+
+	for _, task := range tg.Tasks {
+		if task != nil && task.MaxRunDuration != nil && *task.MaxRunDuration > 0 {
+			return 0, false
+		}
 	}
 
 	switch a.Job.Type {

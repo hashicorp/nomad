@@ -6868,8 +6868,9 @@ type TaskGroup struct {
 	ShutdownDelay *time.Duration
 
 	// MaxRunDuration is the maximum amount of time a batch or sysbatch task
-	// group allocation may run after entering the running state before Nomad
-	// stops it.
+	// group allocation may run after allocation creation before Nomad stops it.
+	// Task-level max_run_duration overrides this setting for the individual task
+	// and is timed from the task's own running state.
 	MaxRunDuration *time.Duration
 
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
@@ -7879,6 +7880,11 @@ type Task struct {
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
 
+	// MaxRunDuration is the maximum amount of time a batch or sysbatch task
+	// may run after the actual task enters the running state before Nomad
+	// stops it. This overrides the task group's MaxRunDuration for this task.
+	MaxRunDuration *time.Duration
+
 	// VolumeMounts is a list of Volume name <-> mount configurations that will be
 	// attached to this task.
 	VolumeMounts []*VolumeMount
@@ -8002,6 +8008,10 @@ func (t *Task) Copy() *Task {
 	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
+	if nt.MaxRunDuration != nil {
+		maxRunDuration := *nt.MaxRunDuration
+		nt.MaxRunDuration = &maxRunDuration
+	}
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
 	nt.Actions = helper.CopySlice(nt.Actions)
@@ -8159,6 +8169,16 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	}
 	if t.ShutdownDelay < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
+	}
+	if t.MaxRunDuration != nil {
+		if *t.MaxRunDuration <= 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("MaxRunDuration must be greater than zero"))
+		}
+		switch jobType {
+		case JobTypeBatch, JobTypeSysBatch:
+		default:
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow max_run_duration", jobType))
+		}
 	}
 
 	// Validate the resources.
