@@ -1,0 +1,3 @@
+```release-note:bug
+scaling: fix issue where it would revert a job
+```
