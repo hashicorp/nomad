@@ -166,7 +166,7 @@
   },
   "optionalDependencies": {
     "@babel/plugin-transform-member-expression-literals": "^7.16.7",
-    "babel-loader": "^10.0.0",
+    "babel-loader": "^10.1.1",
     "ember-cli-get-component-path-option": "^1.0.0",
     "ember-cli-string-utils": "^1.1.0"
   },
