@@ -4897,11 +4897,10 @@ func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
 	// 1. if we have a service.task configured, we need to make sure that task
 	// has a shutdown_delay set.
 	// 2. if it's a connect service, we look at the task we're proxying.
-	// 3. if neither, we just check that at least one task-level service has a
-	// shutdown delay defined.
+	// 3. if neither, at least one task should have a shutdown delay defined.
 	referencedTaskIDs := map[string]struct{}{}
 	hasUnscopedGroupService := false
-	hasAnyTaskServiceShutdownDelay := false
+	anyTaskHasShutdownDelay := false
 	hasGroupShutdownDelay := tg.ShutdownDelay != nil && *tg.ShutdownDelay > 0
 
 	for _, s := range tg.Services {
@@ -4922,8 +4921,6 @@ func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
 		hasUnscopedGroupService = true
 	}
 
-	// see if we should check any of the tasks referenced in the tg-level
-	// service definitions
 	for _, t := range tg.Tasks {
 		if _, ok := referencedTaskIDs[t.Name]; ok && t.ShutdownDelay == 0 {
 			warnings = append(warnings, fmt.Errorf(
@@ -4932,17 +4929,17 @@ func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
 		}
 
 		if t.ShutdownDelay > 0 {
-			hasAnyTaskServiceShutdownDelay = true
-		} else {
+			anyTaskHasShutdownDelay = true
+		} else if len(t.Services) > 0 {
 			warnings = append(warnings, fmt.Errorf(
 				"task %q in group %q defines services, but has no shutdown_delay set",
 				t.Name, tg.Name))
 		}
 	}
 
-	if hasUnscopedGroupService && !hasGroupShutdownDelay && !hasAnyTaskServiceShutdownDelay {
+	if hasUnscopedGroupService && !hasGroupShutdownDelay && !anyTaskHasShutdownDelay {
 		warnings = append(warnings, fmt.Errorf(
-			"group %q defines services, but neither the group nor any task with services has shutdown_delay set", tg.Name))
+			"group %q defines services, but neither the group nor any of its tasks have shutdown_delay set", tg.Name))
 	}
 
 	return warnings
