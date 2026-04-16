@@ -9010,6 +9010,10 @@ type ChangeScript struct {
 	// FailOnError indicates whether a task should fail in case script execution
 	// fails or log script failure and don't interrupt the task
 	FailOnError bool
+	// RunOnFirstRender indicates that the script should also be triggered
+	// after the initial template render, not only on subsequent re-renders.
+	// The script will execute once the task reaches the running state.
+	RunOnFirstRender bool
 }
 
 func (cs *ChangeScript) Equal(o *ChangeScript) bool {
@@ -9025,6 +9029,8 @@ func (cs *ChangeScript) Equal(o *ChangeScript) bool {
 		return false
 	case cs.FailOnError != o.FailOnError:
 		return false
+	case cs.RunOnFirstRender != o.RunOnFirstRender:
+		return false
 	}
 	return true
 }
@@ -9034,10 +9040,11 @@ func (cs *ChangeScript) Copy() *ChangeScript {
 		return nil
 	}
 	return &ChangeScript{
-		Command:     cs.Command,
-		Args:        slices.Clone(cs.Args),
-		Timeout:     cs.Timeout,
-		FailOnError: cs.FailOnError,
+		Command:          cs.Command,
+		Args:             slices.Clone(cs.Args),
+		Timeout:          cs.Timeout,
+		FailOnError:      cs.FailOnError,
+		RunOnFirstRender: cs.RunOnFirstRender,
 	}
 }
 

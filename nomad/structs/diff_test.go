@@ -8658,6 +8658,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "RunOnFirstRender",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Timeout",
 										Old:  "",
 										New:  "7",
@@ -8777,6 +8783,12 @@ func TestTaskDiff(t *testing.T) {
 									{
 										Type: DiffTypeDeleted,
 										Name: "FailOnError",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "RunOnFirstRender",
 										Old:  "false",
 										New:  "",
 									},

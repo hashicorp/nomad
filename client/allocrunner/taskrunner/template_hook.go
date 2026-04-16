@@ -226,6 +226,16 @@ func (h *templateHook) newManager(tmpls []*structs.Template) (manager *template.
 	return m, unblock, nil
 }
 
+func (h *templateHook) Poststart(_ context.Context, _ *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
+	h.managerLock.Lock()
+	defer h.managerLock.Unlock()
+
+	if h.templateManager != nil {
+		h.templateManager.RunFirstRenderScripts()
+	}
+	return nil
+}
+
 func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
