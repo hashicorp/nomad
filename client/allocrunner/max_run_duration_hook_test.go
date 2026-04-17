@@ -287,46 +287,24 @@ func TestMaxRunDurationHook_EmitMetrics(t *testing.T) {
 	err = hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
 
+	var metricKeySuffix string
+	for _, label := range baseLabels {
+		metricKeySuffix += ";" + label.Name + "=" + label.Value
+	}
+	metricKeySuffix += ";task_group=" + alloc.TaskGroup
+
+	configuredName := "nomad_test.client.allocs.max_run_duration.configured_seconds" + metricKeySuffix
+	remainingName := "nomad_test.client.allocs.max_run_duration.remaining_seconds" + metricKeySuffix
+
 	data := inMemorySink.Data()
+	must.Len(t, 1, data)
+	must.MapContainsKey(t, data[0].Gauges, configuredName)
+	must.MapContainsKey(t, data[0].Gauges, remainingName)
 
-	var configuredFound bool
-	for _, interval := range data {
-		for _, gauge := range interval.Gauges {
-			if gauge.Name != "nomad_test.client.allocs.max_run_duration.configured_seconds" {
-				continue
-			}
+	configuredGauge := data[0].Gauges[configuredName]
+	must.Eq(t, float32(maxRunDuration.Seconds()), configuredGauge.Value)
 
-			labels := make(map[string]string, len(gauge.Labels))
-			for _, label := range gauge.Labels {
-				labels[label.Name] = label.Value
-			}
-
-			if labels["node_id"] == "node-123" && labels["task_group"] == alloc.TaskGroup {
-				must.Eq(t, float32(maxRunDuration.Seconds()), gauge.Value)
-				configuredFound = true
-			}
-		}
-	}
-	must.True(t, configuredFound)
-
-	var remainingFound bool
-	for _, interval := range data {
-		for _, gauge := range interval.Gauges {
-			if gauge.Name != "nomad_test.client.allocs.max_run_duration.remaining_seconds" {
-				continue
-			}
-
-			labels := make(map[string]string, len(gauge.Labels))
-			for _, label := range gauge.Labels {
-				labels[label.Name] = label.Value
-			}
-
-			if labels["node_id"] == "node-123" && labels["task_group"] == alloc.TaskGroup {
-				must.Positive(t, gauge.Value)
-				must.LessEq(t, gauge.Value, float32(maxRunDuration.Seconds()))
-				remainingFound = true
-			}
-		}
-	}
-	must.True(t, remainingFound)
+	remainingGauge := data[0].Gauges[remainingName]
+	must.Positive(t, remainingGauge.Value)
+	must.LessEq(t, remainingGauge.Value, float32(maxRunDuration.Seconds()))
 }
