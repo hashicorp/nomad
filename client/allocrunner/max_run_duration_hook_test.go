@@ -235,6 +235,36 @@ func TestMaxRunDurationHook_Shutdown_CancelsTimer(t *testing.T) {
 	}
 }
 
+func TestMaxRunDurationHook_Prerun_ArmsTimerBeforeTasksAreFullyRunning(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	maxRunDuration := 50 * time.Millisecond
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	// Simulate the initial prerun state where tasks have not yet started and
+	// therefore no StartedAt timestamps are available to compute a fully-running
+	// deadline from task state.
+	for _, ts := range alloc.TaskStates {
+		ts.State = structs.TaskStatePending
+		ts.StartedAt = time.Time{}
+	}
+
+	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
+
+	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+
+	select {
+	case deadline := <-deadlines:
+		must.False(t, deadline.IsZero())
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for max_run_duration deadline before tasks were fully running")
+	}
+}
+
 func TestMaxRunDurationHook_EmitMetrics(t *testing.T) {
 	ci.Parallel(t)
 

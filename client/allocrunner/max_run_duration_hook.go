@@ -205,10 +205,9 @@ func (h *maxRunDurationHook) currentDeadline() (time.Time, time.Duration, bool) 
 		return time.Time{}, 0, false
 	}
 
-	deadline, ok := h.alloc.MaxRunDurationDeadline()
-	if !ok {
-		return time.Time{}, 0, false
+	if deadline, ok := h.alloc.MaxRunDurationDeadline(); ok {
+		return deadline, maxRunDuration, true
 	}
 
-	return deadline, maxRunDuration, true
+	return time.Now().Add(maxRunDuration), maxRunDuration, true
 }
