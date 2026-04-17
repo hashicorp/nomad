@@ -711,7 +711,7 @@ func TestJob_Warnings(t *testing.T) {
 		},
 		{
 			Name:     "Group services without task shutdown delay warning",
-			Expected: []string{"group \"web\" defines services, but neither the group nor any task with services has shutdown_delay set"},
+			Expected: []string{"group \"web\" defines services, but neither the group nor any of its tasks have shutdown_delay set"},
 			Job:      groupServiceJob(nil),
 		},
 		{
@@ -730,8 +730,8 @@ func TestJob_Warnings(t *testing.T) {
 			Job:      referencedTaskServiceJob(time.Second),
 		},
 		{
-			Name:     "Connect sidecar task without shutdown delay warning",
-			Expected: []string{"service \"web\" defines a sidecar task in Consul Connect definition, but the task has no shutdown_delay set"},
+			Name:     "Connect sidecar task without 0 shutdown delay no warning",
+			Expected: []string{},
 			Job:      connectSidecarServiceJob(pointer.Of(time.Duration(0))),
 		},
 		{
