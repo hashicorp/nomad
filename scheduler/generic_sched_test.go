@@ -3454,12 +3454,13 @@ func TestServiceSched_JobModify_MaxRunDuration_InPlace(t *testing.T) {
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerJobRegister,
-		JobID:       job.ID,
-		Status:      structs.EvalStatusPending,
+		Namespace:    structs.DefaultNamespace,
+		ID:           uuid.Generate(),
+		Priority:     50,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        job.ID,
+		Status:       structs.EvalStatusPending,
+		AnnotatePlan: true,
 	}
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
@@ -3484,7 +3485,7 @@ func TestServiceSched_JobModify_MaxRunDuration_InPlace(t *testing.T) {
 		planned = append(planned, allocList...)
 	}
 	must.SliceLen(t, 1, planned)
-	must.Nil(t, planned[0].Job)
+	must.Eq(t, job2, planned[0].Job)
 	must.NotNil(t, plan.Annotations)
 	must.NotNil(t, plan.Annotations.DesiredTGUpdates)
 	must.NotNil(t, plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name])
@@ -3503,7 +3504,8 @@ func TestServiceSched_JobModify_MaxRunDuration_InPlace(t *testing.T) {
 	maxRunDuration, ok := updatedAlloc.MaxRunDuration()
 	must.True(t, ok)
 	must.Eq(t, updatedMaxRunDuration, maxRunDuration)
-	must.Greater(t, updatedAlloc.AllocModifyIndex, alloc.AllocModifyIndex)
+	must.Eq(t, alloc.ID, planned[0].ID)
+	must.Eq(t, updatedAlloc.ID, planned[0].ID)
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
