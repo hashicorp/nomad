@@ -3423,6 +3423,91 @@ func TestServiceSched_JobModify_InPlace08(t *testing.T) {
 	must.NotNil(t, newAlloc.AllocatedResources)
 }
 
+func TestServiceSched_JobModify_MaxRunDuration_InPlace(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create a batch job with a running allocation
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	initialMaxRunDuration := 1 * time.Hour
+	job.TaskGroups[0].MaxRunDuration = &initialMaxRunDuration
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	alloc := mock.BatchAlloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = fmt.Sprintf("%s.%s[%d]", job.ID, job.TaskGroups[0].Name, 0)
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Update only max_run_duration
+	job2 := job.Copy()
+	updatedMaxRunDuration := 4 * time.Hour
+	job2.TaskGroups[0].MaxRunDuration = &updatedMaxRunDuration
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	must.NoError(t, err)
+
+	// Ensure a single plan
+	must.SliceLen(t, 1, h.Plans)
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	must.SliceLen(t, 0, update)
+
+	// Ensure the plan updated the existing alloc in place
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	must.SliceLen(t, 1, planned)
+	must.Nil(t, planned[0].Job)
+	must.NotNil(t, plan.Annotations)
+	must.NotNil(t, plan.Annotations.DesiredTGUpdates)
+	must.NotNil(t, plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name])
+	must.Eq(t, uint64(1), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].InPlaceUpdate)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].DestructiveUpdate)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].Place)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].Stop)
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out)
+
+	updatedAlloc := out[0]
+	maxRunDuration, ok := updatedAlloc.MaxRunDuration()
+	must.True(t, ok)
+	must.Eq(t, updatedMaxRunDuration, maxRunDuration)
+	must.Greater(t, updatedAlloc.AllocModifyIndex, alloc.AllocModifyIndex)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	ci.Parallel(t)
 

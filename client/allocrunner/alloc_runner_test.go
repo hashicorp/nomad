@@ -2720,6 +2720,80 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	})
 }
 
+func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	task.KillTimeout = 10 * time.Millisecond
+
+	initialMaxRunDuration := 75 * time.Millisecond
+	alloc.Job.TaskGroups[0].MaxRunDuration = &initialMaxRunDuration
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+		if state == nil {
+			return false, fmt.Errorf("no alloc state")
+		}
+		if state.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusRunning)
+		}
+		return true, nil
+	}, func(err error) {
+		state := ar.AllocState()
+		t.Fatalf("timed out waiting for alloc runner to start: %v; state=%#v", err, state)
+	})
+
+	time.Sleep(40 * time.Millisecond)
+
+	updatedAlloc := ar.Alloc().Copy()
+	updatedAlloc.AllocModifyIndex++
+	updatedMaxRunDuration := 200 * time.Millisecond
+	updatedAlloc.Job.TaskGroups[0].MaxRunDuration = &updatedMaxRunDuration
+	ar.Update(updatedAlloc)
+
+	time.Sleep(60 * time.Millisecond)
+
+	state := ar.AllocState()
+	must.NotNil(t, state)
+	must.False(t, state.MaxRunDurationExceeded)
+	must.Eq(t, structs.AllocClientStatusRunning, state.ClientStatus)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+		if state == nil {
+			return false, fmt.Errorf("no alloc state")
+		}
+		if state.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		if state.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+			return false, fmt.Errorf("got description %q; want %q", state.ClientDescription, structs.AllocTimeoutReasonMaxRunDuration)
+		}
+		if !state.MaxRunDurationExceeded {
+			return false, fmt.Errorf("max run duration was not marked exceeded")
+		}
+		return true, nil
+	}, func(err error) {
+		state := ar.AllocState()
+		t.Fatalf("timed out waiting for alloc runner max_run_duration enforcement after update: %v; state=%#v", err, state)
+	})
+}
+
 func TestAllocRunner_setHookStatsHandler(t *testing.T) {
 	ci.Parallel(t)
 

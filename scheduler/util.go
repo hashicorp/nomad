@@ -844,6 +844,22 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 			return false, true, nil
 		}
 
+		// max_run_duration-only updates. This field does not affect placement
+		// or allocated resources, so we can update the alloc in place without
+		// re-running feasibility.
+		if existingTG := existing.Job.LookupTaskGroup(newTG.Name); existingTG != nil {
+			oldMax, oldOK := existing.MaxRunDuration()
+			newAlloc := existing.Copy()
+			newAlloc.EvalID = evalID
+			newAlloc.Job = nil
+			newAlloc.Resources = nil
+
+			newMax, newOK := newAlloc.MaxRunDuration()
+			if oldOK != newOK || oldMax != newMax {
+				return false, false, newAlloc
+			}
+		}
+
 		// Set the existing node as the base set
 		stack.SetNodes([]*structs.Node{node})
 

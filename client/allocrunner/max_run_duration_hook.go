@@ -83,7 +83,7 @@ func (h *maxRunDurationHook) Shutdown() {
 }
 
 func (h *maxRunDurationHook) resetTimer() {
-	maxRunDuration, ok := h.currentMaxRunDuration()
+	deadline, maxRunDuration, ok := h.currentDeadline()
 	if !ok {
 		h.stopTimer()
 		h.deadline = time.Time{}
@@ -92,7 +92,7 @@ func (h *maxRunDurationHook) resetTimer() {
 		return
 	}
 
-	if h.hasMaxRunDuration && h.maxRunDuration == maxRunDuration && !h.deadline.IsZero() {
+	if h.hasMaxRunDuration && h.maxRunDuration == maxRunDuration && h.deadline.Equal(deadline) {
 		return
 	}
 
@@ -100,9 +100,8 @@ func (h *maxRunDurationHook) resetTimer() {
 
 	h.maxRunDuration = maxRunDuration
 	h.hasMaxRunDuration = true
-	h.deadline = time.Now().Add(maxRunDuration)
+	h.deadline = deadline
 
-	deadline := h.deadline
 	remaining := time.Until(deadline)
 
 	if remaining <= 0 {
@@ -146,14 +145,24 @@ func (h *maxRunDurationHook) stopTimer() {
 	h.timer = nil
 }
 
-func (h *maxRunDurationHook) currentMaxRunDuration() (time.Duration, bool) {
+func (h *maxRunDurationHook) currentDeadline() (time.Time, time.Duration, bool) {
 	if h.alloc.TerminalStatus() {
-		return 0, false
+		return time.Time{}, 0, false
 	}
 
 	if h.alloc.DesiredStatus != "" && h.alloc.DesiredStatus != structs.AllocDesiredStatusRun {
-		return 0, false
+		return time.Time{}, 0, false
 	}
 
-	return h.alloc.MaxRunDuration()
+	maxRunDuration, ok := h.alloc.MaxRunDuration()
+	if !ok {
+		return time.Time{}, 0, false
+	}
+
+	deadline, ok := h.alloc.MaxRunDurationDeadline()
+	if !ok {
+		return time.Time{}, 0, false
+	}
+
+	return deadline, maxRunDuration, true
 }
