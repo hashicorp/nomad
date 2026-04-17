@@ -24,9 +24,7 @@ export default function jsonToHcl(obj) {
     .map(([key, value]) => {
       // All values from the API are strings, but some contain JSON
       const hclValue =
-        typeof value === 'string'
-          ? convertStringValue(value)
-          : JSON.stringify(value); // Defensive: handle non-string values
+        typeof value === 'string' ? convertStringValue(value) : value; // Defensive: handle non-string values
 
       return `${key}=${hclValue}`;
     });
