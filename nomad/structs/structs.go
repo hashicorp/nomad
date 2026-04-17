@@ -4910,7 +4910,7 @@ func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
 		}
 
 		if s.Connect != nil && s.Connect.SidecarTask != nil {
-			if s.Connect.SidecarTask.ShutdownDelay == nil || *s.Connect.SidecarTask.ShutdownDelay == 0 {
+			if s.Connect.SidecarTask.ShutdownDelay == nil {
 				warnings = append(warnings, fmt.Errorf(
 					"service %q defines a sidecar task in Consul Connect definition, but the task has no shutdown_delay set",
 					s.Name))
