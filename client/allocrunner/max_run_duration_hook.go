@@ -100,6 +100,10 @@ func (h *maxRunDurationHook) resetTimer() {
 		return
 	}
 
+	prevMaxRunDuration := h.maxRunDuration
+	prevDeadline := h.deadline
+	hadMaxRunDuration := h.hasMaxRunDuration
+
 	h.stopTimer()
 
 	h.maxRunDuration = maxRunDuration
@@ -109,8 +113,24 @@ func (h *maxRunDurationHook) resetTimer() {
 
 	remaining := time.Until(deadline)
 
+	if hadMaxRunDuration {
+		h.logger.Debug("updated max_run_duration",
+			"task_group", h.alloc.TaskGroup,
+			"old_configured", prevMaxRunDuration,
+			"new_configured", maxRunDuration,
+			"old_deadline", prevDeadline,
+			"new_deadline", deadline,
+			"remaining", remaining,
+		)
+	}
+
 	if remaining <= 0 {
-		h.logger.Debug("allocation exceeded max_run_duration, enforcing immediately", "deadline", deadline)
+		h.logger.Debug("allocation exceeded max_run_duration, enforcing immediately",
+			"task_group", h.alloc.TaskGroup,
+			"configured", maxRunDuration,
+			"remaining", remaining,
+			"deadline", deadline,
+		)
 		go h.onTimeout(deadline)
 		return
 	}
@@ -118,7 +138,12 @@ func (h *maxRunDurationHook) resetTimer() {
 	timer := time.NewTimer(remaining)
 	h.timer = timer
 
-	h.logger.Trace("armed max_run_duration timer", "deadline", deadline, "remaining", remaining)
+	h.logger.Trace("armed max_run_duration timer",
+		"task_group", h.alloc.TaskGroup,
+		"configured", maxRunDuration,
+		"remaining", remaining,
+		"deadline", deadline,
+	)
 
 	go func(t *time.Timer, deadline time.Time) {
 		<-t.C
