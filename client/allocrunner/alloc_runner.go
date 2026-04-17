@@ -152,10 +152,6 @@ type allocRunner struct {
 	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
-	// maxRunDuration coordinates alloc-level max_run_duration enforcement from
-	// authoritative alloc and task state updates.
-	maxRunDuration *tasklifecycle.MaxRunDuration
-
 	// hookResources holds the output from allocrunner hooks so that later
 	// allocrunner hooks or task runner hooks can read them
 	hookResources *cstructs.AllocHookResources
@@ -296,7 +292,6 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	)
 
 	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
-	ar.maxRunDuration = tasklifecycle.NewMaxRunDuration(ar.EnforceMaxRunDurationTimeout)
 
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
@@ -411,10 +406,6 @@ func (ar *allocRunner) Run() {
 
 	if ar.isShuttingDown() {
 		return
-	}
-
-	if ar.maxRunDuration != nil {
-		ar.maxRunDuration.Stop()
 	}
 
 	// Run the postrun hooks
@@ -697,23 +688,6 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
-
-		hookAlloc := &structs.Allocation{
-			ID:                calloc.ID,
-			TaskStates:        calloc.TaskStates,
-			ClientStatus:      calloc.ClientStatus,
-			ClientDescription: calloc.ClientDescription,
-			DeploymentStatus:  calloc.DeploymentStatus,
-			NetworkStatus:     calloc.NetworkStatus,
-			Job:               ar.Alloc().Job,
-			TaskGroup:         ar.Alloc().TaskGroup,
-			DesiredStatus:     ar.Alloc().DesiredStatus,
-		}
-
-		if ar.maxRunDuration != nil {
-			ar.maxRunDuration.SetAlloc(hookAlloc)
-			ar.maxRunDuration.TaskStateUpdated(states)
-		}
 
 		// Update the server
 		ar.stateUpdater.AllocStateUpdated(calloc)
@@ -1310,11 +1284,6 @@ func (ar *allocRunner) Shutdown() {
 
 	go func() {
 		ar.logger.Trace("shutting down")
-
-		// Shutdown tasks gracefully if they were run
-		if ar.maxRunDuration != nil {
-			ar.maxRunDuration.Stop()
-		}
 
 		// Shutdown task runners
 		var wg sync.WaitGroup
