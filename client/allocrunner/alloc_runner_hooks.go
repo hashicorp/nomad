@@ -111,7 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newMaxRunDurationHook(hookLogger, alloc, ar.EnforceMaxRunDurationTimeout),
+		newMaxRunDurationHook(hookLogger, alloc, ar.clientBaseLabels, ar.EnforceMaxRunDurationTimeout),
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,

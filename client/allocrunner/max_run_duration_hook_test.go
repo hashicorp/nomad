@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -25,9 +26,10 @@ func newTestMaxRunDurationHookCallback() (func(time.Time), chan time.Time) {
 
 func newTestMaxRunDurationHook(
 	alloc *structs.Allocation,
+	baseLabels []metrics.Label,
 	onTimeout func(time.Time),
 ) *maxRunDurationHook {
-	hook := newMaxRunDurationHook(log.NewNullLogger(), alloc, onTimeout)
+	hook := newMaxRunDurationHook(log.NewNullLogger(), alloc, baseLabels, onTimeout)
 
 	h, ok := hook.(*maxRunDurationHook)
 	if !ok {
@@ -46,7 +48,7 @@ func TestMaxRunDurationHook_Prerun_ArmsTimerImmediately(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
 	err := hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
@@ -68,7 +70,7 @@ func TestMaxRunDurationHook_Update_DoesNotExtendDeadlineOnUnrelatedAllocChange(t
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
 	err := hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
@@ -97,7 +99,7 @@ func TestMaxRunDurationHook_Update_RearmsOnDurationChange(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &initial
 
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
 	err := hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
@@ -172,7 +174,7 @@ func TestMaxRunDurationHook_DoesNotFireWhenAllocNotEligible(t *testing.T) {
 			t.Parallel()
 
 			onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-			hook := newTestMaxRunDurationHook(tc.alloc, onTimeout)
+			hook := newTestMaxRunDurationHook(tc.alloc, nil, onTimeout)
 
 			err := hook.Prerun((*taskenv.TaskEnv)(nil))
 			must.NoError(t, err)
@@ -195,7 +197,7 @@ func TestMaxRunDurationHook_Postrun_CancelsTimer(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
 	err := hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
@@ -219,7 +221,7 @@ func TestMaxRunDurationHook_Shutdown_CancelsTimer(t *testing.T) {
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
-	hook := newTestMaxRunDurationHook(alloc, onTimeout)
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
 	err := hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
@@ -231,4 +233,70 @@ func TestMaxRunDurationHook_Shutdown_CancelsTimer(t *testing.T) {
 		t.Fatalf("unexpected deadline fired after shutdown: %v", deadline)
 	case <-time.After(250 * time.Millisecond):
 	}
+}
+
+func TestMaxRunDurationHook_EmitMetrics(t *testing.T) {
+	ci.Parallel(t)
+
+	inMemorySink := metrics.NewInmemSink(10*time.Millisecond, 50*time.Millisecond)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("nomad_test"), inMemorySink)
+	must.NoError(t, err)
+
+	alloc := mock.BatchAlloc()
+	maxRunDuration := 2 * time.Minute
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	baseLabels := []metrics.Label{
+		{Name: "node_id", Value: "node-123"},
+	}
+
+	onTimeout, _ := newTestMaxRunDurationHookCallback()
+	hook := newTestMaxRunDurationHook(alloc, baseLabels, onTimeout)
+
+	err = hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+
+	data := inMemorySink.Data()
+
+	var configuredFound bool
+	for _, interval := range data {
+		for _, gauge := range interval.Gauges {
+			if gauge.Name != "nomad_test.client.allocs.max_run_duration.configured_seconds" {
+				continue
+			}
+
+			labels := make(map[string]string, len(gauge.Labels))
+			for _, label := range gauge.Labels {
+				labels[label.Name] = label.Value
+			}
+
+			if labels["node_id"] == "node-123" && labels["task_group"] == alloc.TaskGroup {
+				must.Eq(t, float32(maxRunDuration.Seconds()), gauge.Value)
+				configuredFound = true
+			}
+		}
+	}
+	must.True(t, configuredFound)
+
+	var remainingFound bool
+	for _, interval := range data {
+		for _, gauge := range interval.Gauges {
+			if gauge.Name != "nomad_test.client.allocs.max_run_duration.remaining_seconds" {
+				continue
+			}
+
+			labels := make(map[string]string, len(gauge.Labels))
+			for _, label := range gauge.Labels {
+				labels[label.Name] = label.Value
+			}
+
+			if labels["node_id"] == "node-123" && labels["task_group"] == alloc.TaskGroup {
+				must.Positive(t, gauge.Value)
+				must.LessEq(t, gauge.Value, float32(maxRunDuration.Seconds()))
+				remainingFound = true
+			}
+		}
+	}
+	must.True(t, remainingFound)
 }

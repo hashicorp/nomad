@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,19 +31,22 @@ type maxRunDurationHook struct {
 	maxRunDuration    time.Duration
 	hasMaxRunDuration bool
 
-	onTimeout func(time.Time)
-	logger    hclog.Logger
+	onTimeout  func(time.Time)
+	logger     hclog.Logger
+	baseLabels []metrics.Label
 }
 
 func newMaxRunDurationHook(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
+	baseLabels []metrics.Label,
 	onTimeout func(time.Time),
 ) interfaces.RunnerHook {
 	return &maxRunDurationHook{
-		alloc:     alloc,
-		onTimeout: onTimeout,
-		logger:    logger.Named("max_run_duration"),
+		alloc:      alloc,
+		onTimeout:  onTimeout,
+		logger:     logger.Named("max_run_duration"),
+		baseLabels: baseLabels,
 	}
 }
 
@@ -101,6 +105,7 @@ func (h *maxRunDurationHook) resetTimer() {
 	h.maxRunDuration = maxRunDuration
 	h.hasMaxRunDuration = true
 	h.deadline = deadline
+	h.emitMetrics(maxRunDuration, deadline)
 
 	remaining := time.Until(deadline)
 
@@ -143,6 +148,22 @@ func (h *maxRunDurationHook) stopTimer() {
 	}
 
 	h.timer = nil
+}
+
+func (h *maxRunDurationHook) emitMetrics(maxRunDuration time.Duration, deadline time.Time) {
+	labels := h.baseLabels
+	labels = append(labels, metrics.Label{Name: "task_group", Value: h.alloc.TaskGroup})
+
+	metrics.SetGaugeWithLabels(
+		[]string{"client", "allocs", "max_run_duration", "configured_seconds"},
+		float32(maxRunDuration.Seconds()),
+		labels,
+	)
+	metrics.SetGaugeWithLabels(
+		[]string{"client", "allocs", "max_run_duration", "remaining_seconds"},
+		float32(time.Until(deadline).Seconds()),
+		labels,
+	)
 }
 
 func (h *maxRunDurationHook) currentDeadline() (time.Time, time.Duration, bool) {
