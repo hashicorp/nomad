@@ -107,6 +107,17 @@ $canceled: $dark;
     );
   }
 
+  &.reserved {
+    $reserved-base: lighten($orange, 20%);
+    background: repeating-linear-gradient(
+      -45deg,
+      $reserved-base,
+      $reserved-base 3px,
+      darken($reserved-base, 20%) 3px,
+      darken($reserved-base, 20%) 6px
+    );
+  }
+
   &.running {
     background: $running;
   }

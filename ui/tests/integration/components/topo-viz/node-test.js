@@ -443,4 +443,44 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
     assert.equal(TopoVizNode.emptyMessage, 'Empty Client');
   });
+
+  test('when the node has reserved resources, reserved segments are shown in the CPU and memory bars', async function (assert) {
+    const node = nodeGen('Node One', 'dc1', 1000, 1000);
+    node.node.reserved = { cpu: 100, memory: 200 };
+
+    this.setProperties(
+      props({
+        node: {
+          ...node,
+          allocations: [allocGen(node, 100, 100)],
+        },
+      })
+    );
+
+    await render(commonTemplate);
+
+    assert.ok(
+      TopoVizNode.reservedMemoryRect,
+      'reserved memory segment is rendered'
+    );
+    assert.ok(TopoVizNode.reservedCpuRect, 'reserved cpu segment is rendered');
+  });
+
+  test('when the node has no reserved resources, no reserved segments are shown', async function (assert) {
+    const node = nodeGen('Node One', 'dc1', 1000, 1000);
+
+    this.setProperties(
+      props({
+        node: {
+          ...node,
+          allocations: [allocGen(node, 100, 100)],
+        },
+      })
+    );
+
+    await render(commonTemplate);
+
+    assert.notOk(TopoVizNode.reservedMemoryRect, 'no reserved memory segment');
+    assert.notOk(TopoVizNode.reservedCpuRect, 'no reserved cpu segment');
+  });
 });

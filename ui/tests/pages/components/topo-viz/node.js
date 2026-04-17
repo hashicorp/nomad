@@ -47,6 +47,9 @@ export default (scope) => ({
     id: attribute('data-test-cpu-rect'),
   }),
 
+  reservedMemoryRect: isPresent('[data-test-reserved-memory]'),
+  reservedCpuRect: isPresent('[data-test-reserved-cpu]'),
+
   mouseout: triggerable('mouseout', '[data-test-topo-node-svg]'),
 
   emptyMessage: text('[data-test-empty-message]'),
