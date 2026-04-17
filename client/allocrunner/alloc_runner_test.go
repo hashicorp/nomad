@@ -497,6 +497,95 @@ func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
 
 }
 
+func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.LifecycleAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	alloc.Job.Type = structs.JobTypeBatch
+	maxRunDuration := 50 * time.Millisecond
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+	mainTask.KillTimeout = 10 * time.Millisecond
+
+	poststopTask := alloc.Job.TaskGroups[0].Tasks[1]
+	poststopTask.Name = "poststop"
+	poststopTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststop
+	poststopTask.Config["run_for"] = "10s"
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, poststopTask}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		mainTask.Name:     tr,
+		poststopTask.Name: tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("no updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+			return false, fmt.Errorf("expected poststop task to be pending not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("no updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
+		}
+
+		if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+			return false, fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+			return false, fmt.Errorf("expected poststop task to remain pending not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		last := upd.Last()
+		t.Fatalf("error waiting for max_run_duration state:\n%v\nlast=%#v", err, last)
+	})
+}
+
 func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 	ci.Parallel(t)
 

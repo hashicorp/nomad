@@ -815,6 +815,23 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
+	// Skip poststop tasks entirely when max_run_duration has been exceeded so
+	// they are not started after the allocation has timed out.
+	if ar.state.MaxRunDurationExceeded {
+		for name, tr := range ar.tasks {
+			if !tr.IsPoststopTask() {
+				continue
+			}
+
+			state := tr.TaskState()
+			if state != nil {
+				states[name] = state
+			}
+		}
+
+		return states
+	}
+
 	// Perform no action on post stop tasks, but retain their states if they exist. This
 	// commonly happens at the time of alloc GC from the client node.
 	for name, tr := range ar.tasks {
