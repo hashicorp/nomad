@@ -201,10 +201,7 @@ export default class TopoVizNode extends Component {
 
     const cpuRemainder = {
       x: cpuOffset * width + 0.5,
-      width: Math.max(
-        (1 - cpuReservedPercent) * width - cpuOffset * width,
-        0
-      ),
+      width: Math.max((1 - cpuReservedPercent) * width - cpuOffset * width, 0),
     };
     const memoryRemainder = {
       x: memoryOffset * width + 0.5,
