@@ -1,33 +1,3 @@
-## 2.0.0-rc.1 (April 17, 2026)
-
-FEATURES:
-
-* config: add nonproduction config option for server, license, and reporting config [[GH-27646](https://github.com/hashicorp/nomad/issues/27646)]
-* core (Enterprise): Enable parsing and reporting with IBM PAO licenses
-
-SECURITY:
-
-* build: upgrade Go to 1.26.2 [[GH-27831](https://github.com/hashicorp/nomad/issues/27831)]
-* ui: Increased the client-side generated OIDC nonce entropy to 256-bit. [[GH-27749](https://github.com/hashicorp/nomad/issues/27749)]
-
-IMPROVEMENTS:
-
-* build (Enterprise): Added support for ppc64le CPU architecture on Linux
-* build: Upgrade to Go 1.26 [[GH-27685](https://github.com/hashicorp/nomad/issues/27685)]
-* metrics: adds a metric for total agent http connections [[GH-26756](https://github.com/hashicorp/nomad/issues/26756)]
-* secrets: increase secrets plugin execution timeout to 60s [[GH-27779](https://github.com/hashicorp/nomad/issues/27779)]
-* server: Added support for raft-WAL logstore [[GH-27493](https://github.com/hashicorp/nomad/issues/27493)]
-* variables: Add variable events to the event stream [[GH-27637](https://github.com/hashicorp/nomad/issues/27637)]
-
-BUG FIXES:
-
-* agent: Fixed a potential panic in agents using systemd notification [[GH-27746](https://github.com/hashicorp/nomad/issues/27746)]
-* agent: fix api.Job.Version used in job PUT actions [[GH-27768](https://github.com/hashicorp/nomad/issues/27768)]
-* drivers: handle SIGPIPE in executor to handle possible write errors after client restart [[GH-27825](https://github.com/hashicorp/nomad/issues/27825)]
-* identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
-* oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
-* tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
-
 ## 1.11.3 (March 11, 2026)
 
 SECURITY:
