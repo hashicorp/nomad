@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -177,7 +176,7 @@ func TestTemplateHook_Prestart_Vault(t *testing.T) {
 	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
 		structs.VaultDefaultCluster: {
 			Name:    structs.VaultDefaultCluster,
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Addr:    defaultVaultServer.URL,
 		},
 	}

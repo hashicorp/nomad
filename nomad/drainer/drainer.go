@@ -10,7 +10,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -399,14 +398,14 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 	transitions := make(map[string]*structs.DesiredTransition, len(allocs))
 	for _, alloc := range allocs {
 		transitions[alloc.ID] = &structs.DesiredTransition{
-			Migrate: pointer.Of(true),
+			Migrate: new(true),
 		}
 
 		// When draining batch job allocations, the allocation should be
 		// be stopped. Setting this ensures the allocation is stopped in
 		// the migration process, but that a new allocation is not placed.
 		if alloc.Job.Type == structs.JobTypeBatch {
-			transitions[alloc.ID].MigrateDisablePlacement = pointer.Of(true)
+			transitions[alloc.ID].MigrateDisablePlacement = new(true)
 		}
 		jobs[alloc.JobNamespacedID()] = alloc.Job
 	}

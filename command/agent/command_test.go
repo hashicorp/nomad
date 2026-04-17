@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
@@ -430,7 +429,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					Artifact: &config.ArtifactConfig{
-						HTTPReadTimeout: pointer.Of("-10m"),
+						HTTPReadTimeout: new("-10m"),
 					},
 				},
 			},

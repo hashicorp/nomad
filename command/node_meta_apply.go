@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -123,7 +122,7 @@ func parseMapFromArgs(args []string) map[string]*string {
 		case 0:
 			// Nothing to do
 		case 1:
-			m[kv[0]] = pointer.Of("")
+			m[kv[0]] = new("")
 		default:
 			m[kv[0]] = &kv[1]
 		}

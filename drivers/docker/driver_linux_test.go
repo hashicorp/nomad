@@ -70,7 +70,7 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	cfg.PidsLimit = 3
 	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	must.NoError(t, err)
-	must.Eq(t, pointer.Of(int64(3)), opts.Host.PidsLimit)
+	must.Eq(t, new(int64(3)), opts.Host.PidsLimit)
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {

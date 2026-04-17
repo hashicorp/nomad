@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -104,8 +103,8 @@ func TestEnvoyBootstrapHook_decodeTriState(t *testing.T) {
 	ci.Parallel(t)
 
 	require.Equal(t, "", decodeTriState(nil))
-	require.Equal(t, "true", decodeTriState(pointer.Of(true)))
-	require.Equal(t, "false", decodeTriState(pointer.Of(false)))
+	require.Equal(t, "true", decodeTriState(new(true)))
+	require.Equal(t, "false", decodeTriState(new(false)))
 }
 
 var (

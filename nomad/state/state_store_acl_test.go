@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -61,7 +60,7 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	// long ago and therefore before all others coming in the tests. It should
 	// therefore always be the first out.
 	expiredLocalToken := mock.ACLToken()
-	expiredLocalToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-48 * time.Hour))
+	expiredLocalToken.ExpirationTime = new(expiryTimeThreshold.Add(-48 * time.Hour))
 
 	err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{expiredLocalToken})
 	must.NoError(t, err)
@@ -77,7 +76,7 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	// therefore always be the first out.
 	expiredGlobalToken := mock.ACLToken()
 	expiredGlobalToken.Global = true
-	expiredGlobalToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-48 * time.Hour))
+	expiredGlobalToken.ExpirationTime = new(expiryTimeThreshold.Add(-48 * time.Hour))
 
 	err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 30, []*structs.ACLToken{expiredGlobalToken})
 	must.NoError(t, err)
@@ -104,9 +103,9 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 			mockedToken.Global = global
 			if i%2 == 0 {
 				expiredTokens = append(expiredTokens, mockedToken)
-				mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
+				mockedToken.ExpirationTime = new(expiryTimeThreshold.Add(-24 * time.Hour))
 			} else {
-				mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(24 * time.Hour))
+				mockedToken.ExpirationTime = new(expiryTimeThreshold.Add(24 * time.Hour))
 			}
 			mixedTokens[i] = mockedToken
 		}

@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -152,14 +151,14 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 	if err != nil {
 		return nil, err
 	} else if noShutdownDelay == nil {
-		noShutdownDelay = pointer.Of(false)
+		noShutdownDelay = new(false)
 	}
 
 	reschedule, err := parseBool(req, "reschedule")
 	if err != nil {
 		return nil, err
 	} else if reschedule == nil {
-		reschedule = pointer.Of(false)
+		reschedule = new(false)
 	}
 
 	sr := &structs.AllocStopRequest{

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func assertQueryMeta(t *testing.T, qm *api.QueryMeta) {
@@ -31,18 +30,18 @@ func testJob() *api.Job {
 	task := api.NewTask("task1", "exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&api.Resources{
-			CPU:      pointer.Of(100),
-			MemoryMB: pointer.Of(256),
+			CPU:      new(100),
+			MemoryMB: new(256),
 		}).
 		SetLogConfig(&api.LogConfig{
-			MaxFiles:      pointer.Of(1),
-			MaxFileSizeMB: pointer.Of(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group := api.NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
-			SizeMB: pointer.Of(25),
+			SizeMB: new(25),
 		})
 
 	job := api.NewBatchJob("job1", "redis", "global", 1).

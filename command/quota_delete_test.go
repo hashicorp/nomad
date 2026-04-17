@@ -102,7 +102,7 @@ func testQuotaSpec() *api.QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &api.QuotaResources{
-					CPU: pointer.Of(100),
+					CPU: new(100),
 				},
 			},
 		},

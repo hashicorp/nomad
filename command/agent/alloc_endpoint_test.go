@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -731,7 +730,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
 		// Disable the schedulers
-		c.Server.NumSchedulers = pointer.Of(0)
+		c.Server.NumSchedulers = new(0)
 	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
@@ -1133,7 +1132,7 @@ func TestHTTP_ReadWsHandshake(t *testing.T) {
 // websocket that can cause a panic
 func TestHTTP_AllocsExecStream_SafeClose(t *testing.T) {
 	httpTest(t,
-		func(c *Config) { c.Server.NumSchedulers = pointer.Of(0) },
+		func(c *Config) { c.Server.NumSchedulers = new(0) },
 		func(s *TestAgent) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

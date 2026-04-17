@@ -3,8 +3,6 @@
 
 package config
 
-import "github.com/hashicorp/nomad/helper/pointer"
-
 const (
 	// LimitsNonStreamingConnsPerClient is the number of connections per
 	// peer to reserve for non-streaming RPC connections. Since streaming
@@ -50,9 +48,9 @@ type Limits struct {
 func DefaultLimits() Limits {
 	return Limits{
 		HTTPSHandshakeTimeout: "5s",
-		HTTPMaxConnsPerClient: pointer.Of(100),
+		HTTPMaxConnsPerClient: new(100),
 		RPCHandshakeTimeout:   "5s",
-		RPCMaxConnsPerClient:  pointer.Of(100),
+		RPCMaxConnsPerClient:  new(100),
 	}
 }
 
@@ -65,13 +63,13 @@ func (l *Limits) Merge(o Limits) Limits {
 		m.HTTPSHandshakeTimeout = o.HTTPSHandshakeTimeout
 	}
 	if o.HTTPMaxConnsPerClient != nil {
-		m.HTTPMaxConnsPerClient = pointer.Of(*o.HTTPMaxConnsPerClient)
+		m.HTTPMaxConnsPerClient = new(*o.HTTPMaxConnsPerClient)
 	}
 	if o.RPCHandshakeTimeout != "" {
 		m.RPCHandshakeTimeout = o.RPCHandshakeTimeout
 	}
 	if o.RPCMaxConnsPerClient != nil {
-		m.RPCMaxConnsPerClient = pointer.Of(*o.RPCMaxConnsPerClient)
+		m.RPCMaxConnsPerClient = new(*o.RPCMaxConnsPerClient)
 	}
 
 	return m
@@ -81,10 +79,10 @@ func (l *Limits) Merge(o Limits) Limits {
 func (l *Limits) Copy() Limits {
 	c := *l
 	if l.HTTPMaxConnsPerClient != nil {
-		c.HTTPMaxConnsPerClient = pointer.Of(*l.HTTPMaxConnsPerClient)
+		c.HTTPMaxConnsPerClient = new(*l.HTTPMaxConnsPerClient)
 	}
 	if l.RPCMaxConnsPerClient != nil {
-		c.RPCMaxConnsPerClient = pointer.Of(*l.RPCMaxConnsPerClient)
+		c.RPCMaxConnsPerClient = new(*l.RPCMaxConnsPerClient)
 	}
 	return c
 }

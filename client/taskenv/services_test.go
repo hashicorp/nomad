@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -290,17 +289,17 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				}},
 			},
 			Meta:        map[string]string{"${meta1}": "${meta2}"},
-			KillTimeout: pointer.Of(1 * time.Second),
+			KillTimeout: new(1 * time.Second),
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      1,
 				MaxFileSizeMB: 2,
 			},
-			ShutdownDelay: pointer.Of(2 * time.Second),
+			ShutdownDelay: new(2 * time.Second),
 			KillSignal:    "${signal1}",
 		},
 		Gateway: &structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:                  pointer.Of(3 * time.Second),
+				ConnectTimeout:                  new(3 * time.Second),
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 					"${bind1}": {
@@ -400,17 +399,17 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				}},
 			},
 			Meta:        map[string]string{"_meta1": "_meta2"},
-			KillTimeout: pointer.Of(1 * time.Second),
+			KillTimeout: new(1 * time.Second),
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      1,
 				MaxFileSizeMB: 2,
 			},
-			ShutdownDelay: pointer.Of(2 * time.Second),
+			ShutdownDelay: new(2 * time.Second),
 			KillSignal:    "_signal1",
 		},
 		Gateway: &structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:                  pointer.Of(3 * time.Second),
+				ConnectTimeout:                  new(3 * time.Second),
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 					"_bind1": {

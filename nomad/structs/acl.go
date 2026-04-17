@@ -22,7 +22,6 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"golang.org/x/crypto/blake2b"
@@ -739,7 +738,7 @@ func (a *ACLToken) Canonicalize() {
 		// If the user has not set the expiration time, but has provided a TTL, we
 		// calculate and populate the former filed.
 		if a.ExpirationTime == nil && a.ExpirationTTL != 0 {
-			a.ExpirationTime = pointer.Of(a.CreateTime.Add(a.ExpirationTTL))
+			a.ExpirationTime = new(a.CreateTime.Add(a.ExpirationTTL))
 		}
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"pgregory.net/rapid"
@@ -167,7 +166,7 @@ func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeR
 				if structs.ShouldDrainNode(node.Status) || node.DrainStrategy != nil {
 					taintedNodes[node.ID] = node
 					alloc.DesiredTransition = structs.DesiredTransition{
-						Migrate: pointer.Of(true),
+						Migrate: new(true),
 					}
 				}
 				if node.Status == structs.NodeStatusDisconnected {

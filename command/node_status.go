@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -981,9 +980,9 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	r := node.NodeResources
 	res := node.ReservedResources
 
-	total.CPU = pointer.Of[int](int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
-	total.MemoryMB = pointer.Of[int](int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
-	total.DiskMB = pointer.Of[int](int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
+	total.CPU = new(int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
+	total.MemoryMB = new(int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
+	total.DiskMB = new(int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
 	return total
 }
 

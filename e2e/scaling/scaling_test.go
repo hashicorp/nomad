@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/cluster3"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -50,7 +49,7 @@ func testScalingBasic(t *testing.T) {
 	// Simple scaling action.
 	testMeta := map[string]any{"scaling-e2e-test": "value"}
 	scaleResp, _, err := nomad.Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(3),
+		jobID, "horizontally_scalable", new(3),
 		"Nomad e2e testing", false, testMeta, nil)
 	must.NoError(t, err)
 	must.NotEq(t, "", scaleResp.EvalID)
@@ -63,11 +62,11 @@ func testScalingBasic(t *testing.T) {
 
 	// Attempt break break the policy min/max parameters.
 	_, _, err = nomad.Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(4),
+		jobID, "horizontally_scalable", new(4),
 		"Nomad e2e testing", false, nil, nil)
 	must.ErrorContains(t, err, "group count was greater than scaling policy maximum")
 	_, _, err = nomad.Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(1),
+		jobID, "horizontally_scalable", new(1),
 		"Nomad e2e testing", false, nil, nil)
 	must.ErrorContains(t, err, "group count was less than scaling policy minimum")
 
@@ -116,22 +115,22 @@ func testScalingNamespaces(t *testing.T) {
 
 	// We shouldn't be able to trigger scaling across the namespace boundary.
 	_, _, err = nomad.Jobs().Scale(
-		defaultJobID, "horizontally_scalable", pointer.Of(3),
+		defaultJobID, "horizontally_scalable", new(3),
 		"Nomad e2e testing", false, nil, &aWriteOpts)
 	must.ErrorContains(t, err, "not found")
 	_, _, err = nomad.Jobs().Scale(
-		aJobID, "horizontally_scalable", pointer.Of(3),
+		aJobID, "horizontally_scalable", new(3),
 		"Nomad e2e testing", false, nil, &defaultWriteOpts)
 	must.ErrorContains(t, err, "not found")
 
 	// We should be able to trigger scaling when using the correct namespace,
 	// duh.
 	_, _, err = nomad.Jobs().Scale(
-		defaultJobID, "horizontally_scalable", pointer.Of(3),
+		defaultJobID, "horizontally_scalable", new(3),
 		"Nomad e2e testing", false, nil, &defaultWriteOpts)
 	must.NoError(t, err)
 	_, _, err = nomad.Jobs().Scale(
-		aJobID, "horizontally_scalable", pointer.Of(3),
+		aJobID, "horizontally_scalable", new(3),
 		"Nomad e2e testing", false, nil, &aWriteOpts)
 	must.NoError(t, err)
 }
@@ -171,7 +170,7 @@ func testScalingSystemJob(t *testing.T) {
 
 	// Try to scale beyond 1
 	testMeta := map[string]any{"scaling-e2e-test": "value"}
-	scaleResp, _, err := nomad.Jobs().Scale(jobID, "system_job_group", pointer.Of(3),
+	scaleResp, _, err := nomad.Jobs().Scale(jobID, "system_job_group", new(3),
 		"Nomad e2e testing", false, testMeta, nil)
 
 	must.ErrorContains(t, err, "can only be scaled between 0 and 1")
@@ -192,7 +191,7 @@ func testScalingSystemJob(t *testing.T) {
 
 	// Scale down to 0
 	testMeta = map[string]any{"scaling-e2e-test": "value"}
-	scaleResp, _, err = nomad.Jobs().Scale(jobID, "system_job_group", pointer.Of(0),
+	scaleResp, _, err = nomad.Jobs().Scale(jobID, "system_job_group", new(0),
 		"Nomad e2e testing", false, testMeta, nil)
 	must.NoError(t, err)
 	must.NotEq(t, "", scaleResp.EvalID)
@@ -212,7 +211,7 @@ func testScalingSystemJob(t *testing.T) {
 
 	// Scale up to 1 again
 	testMeta = map[string]any{"scaling-e2e-test": "value"}
-	scaleResp, _, err = nomad.Jobs().Scale(jobID, "system_job_group", pointer.Of(1),
+	scaleResp, _, err = nomad.Jobs().Scale(jobID, "system_job_group", new(1),
 		"Nomad e2e testing", false, testMeta, nil)
 	must.NoError(t, err)
 	must.NotEq(t, "", scaleResp.EvalID)

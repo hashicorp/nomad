@@ -258,47 +258,47 @@ func DefaultArtifactConfig() *ArtifactConfig {
 	return &ArtifactConfig{
 		// Read timeout for HTTP operations. Must be long enough to
 		// accommodate large/slow downloads.
-		HTTPReadTimeout: pointer.Of("30m"),
+		HTTPReadTimeout: new("30m"),
 
 		// Maximum download size. Must be large enough to accommodate
 		// large downloads.
-		HTTPMaxSize: pointer.Of("100GB"),
+		HTTPMaxSize: new("100GB"),
 
 		// Timeout for GCS operations. Must be long enough to
 		// accommodate large/slow downloads.
-		GCSTimeout: pointer.Of("30m"),
+		GCSTimeout: new("30m"),
 
 		// Timeout for Git operations. Must be long enough to
 		// accommodate large/slow clones.
-		GitTimeout: pointer.Of("30m"),
+		GitTimeout: new("30m"),
 
 		// Timeout for Hg operations. Must be long enough to
 		// accommodate large/slow clones.
-		HgTimeout: pointer.Of("30m"),
+		HgTimeout: new("30m"),
 
 		// Timeout for S3 operations. Must be long enough to
 		// accommodate large/slow downloads.
-		S3Timeout: pointer.Of("30m"),
+		S3Timeout: new("30m"),
 
 		// DecompressionFileCountLimit limits the number of files decompressed
 		// for a single artifact. Must be large enough for payloads with lots
 		// of files.
-		DecompressionFileCountLimit: pointer.Of(4096),
+		DecompressionFileCountLimit: new(4096),
 
 		// DecompressionSizeLimit limits the amount of data decompressed for
 		// a single artifact. Must be large enough to accommodate large payloads.
-		DecompressionSizeLimit: pointer.Of("100GB"),
+		DecompressionSizeLimit: new("100GB"),
 
 		// Toggle for disabling artifact inspection
-		DisableArtifactInspection: pointer.Of(false),
+		DisableArtifactInspection: new(false),
 
 		// Toggle for disabling filesystem isolation, where available.
-		DisableFilesystemIsolation: pointer.Of(false),
+		DisableFilesystemIsolation: new(false),
 
 		// No Filesystem Isolation Extra Locations by default
 		FilesystemIsolationExtraPaths: nil,
 
 		// No environment variables are inherited from Client by default.
-		SetEnvironmentVariables: pointer.Of(""),
+		SetEnvironmentVariables: new(""),
 	}
 }

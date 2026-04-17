@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -661,7 +660,7 @@ func TestHTTP_AgentMonitorExport(t *testing.T) {
 func TestAgent_PprofRequest_Permissions(t *testing.T) {
 	ci.Parallel(t)
 
-	trueP, falseP := pointer.Of(true), pointer.Of(false)
+	trueP, falseP := new(true), new(false)
 	cases := []struct {
 		acl   *bool
 		debug *bool
@@ -669,7 +668,7 @@ func TestAgent_PprofRequest_Permissions(t *testing.T) {
 	}{
 		// manually set to false because test helpers
 		// enable to true by default
-		// enableDebug:       pointer.Of(false),
+		// enableDebug:       new(false),
 		{debug: nil, ok: false},
 		{debug: trueP, ok: true},
 		{debug: falseP, ok: false},
@@ -1792,7 +1791,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
+		c.Server.NumSchedulers = new(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
@@ -2112,7 +2111,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_NoACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
+		c.Server.NumSchedulers = new(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
@@ -2144,7 +2143,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
+		c.Server.NumSchedulers = new(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}

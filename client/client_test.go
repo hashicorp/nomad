@@ -32,7 +32,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -1560,7 +1559,7 @@ func TestClient_handleNodeUpdateResponse(t *testing.T) {
 			{RPCAdvertiseAddr: "10.0.0.2:4647", Datacenter: "dc1"},
 			{RPCAdvertiseAddr: "10.0.0.3:4647", Datacenter: "dc1"},
 		},
-		SignedIdentity: pointer.Of("node-identity"),
+		SignedIdentity: new("node-identity"),
 	}
 
 	// Perform the update and test the outcome.

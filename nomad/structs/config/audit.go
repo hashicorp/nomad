@@ -6,8 +6,6 @@ package config
 import (
 	"slices"
 	"time"
-
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // AuditConfig is the configuration specific to Audit Logging
@@ -87,7 +85,7 @@ func (a *AuditConfig) Copy() *AuditConfig {
 
 	// Copy bool pointers
 	if a.Enabled != nil {
-		nc.Enabled = pointer.Of(*a.Enabled)
+		nc.Enabled = new(*a.Enabled)
 	}
 
 	// Copy Sinks and Filters
@@ -102,7 +100,7 @@ func (a *AuditConfig) Merge(b *AuditConfig) *AuditConfig {
 	result := a.Copy()
 
 	if b.Enabled != nil {
-		result.Enabled = pointer.Of(*b.Enabled)
+		result.Enabled = new(*b.Enabled)
 	}
 
 	// Merge Sinks

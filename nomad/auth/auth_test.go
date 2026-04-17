@@ -21,7 +21,6 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1088,7 +1087,7 @@ func TestResolveACLToken(t *testing.T) {
 				// Create a mock token with an expiration time long in the
 				// past, and upsert.
 				token := mock.ACLToken()
-				token.ExpirationTime = pointer.Of(time.Date(
+				token.ExpirationTime = new(time.Date(
 					1970, time.January, 1, 0, 0, 0, 0, time.UTC))
 
 				err := auth.getState().UpsertACLTokens(
@@ -1400,7 +1399,7 @@ func TestResolveSecretToken(t *testing.T) {
 				// Create a mock token with an expiration time long in the
 				// past, and upsert.
 				token := mock.ACLToken()
-				token.ExpirationTime = pointer.Of(time.Date(
+				token.ExpirationTime = new(time.Date(
 					1970, time.January, 1, 0, 0, 0, 0, time.UTC))
 
 				err := auth.getState().UpsertACLTokens(

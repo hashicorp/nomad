@@ -94,7 +94,7 @@ func (u *UsersConfig) Validate() error {
 // DefaultUsersConfig returns the default users configuration.
 func DefaultUsersConfig() *UsersConfig {
 	return &UsersConfig{
-		MinDynamicUser: pointer.Of(80_000),
-		MaxDynamicUser: pointer.Of(89_999),
+		MinDynamicUser: new(80_000),
+		MaxDynamicUser: new(89_999),
 	}
 }

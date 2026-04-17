@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // UIConfig contains the operator configuration of the web UI
@@ -147,7 +145,7 @@ func DefaultUIConfig() *UIConfig {
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
-		ShowCLIHints:          pointer.Of(true),
+		ShowCLIHints:          new(true),
 	}
 }
 

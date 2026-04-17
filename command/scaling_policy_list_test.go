@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -34,9 +33,9 @@ func TestScalingPolicyListCommand_Run(t *testing.T) {
 	// Generate an example scaling policy.
 	scalingPolicy := api.ScalingPolicy{
 		Type:    api.ScalingPolicyTypeHorizontal,
-		Enabled: pointer.Of(true),
-		Min:     pointer.Of(int64(1)),
-		Max:     pointer.Of(int64(1)),
+		Enabled: new(true),
+		Min:     new(int64(1)),
+		Max:     new(int64(1)),
 	}
 
 	// Iterate the jobs, add the scaling policy and register.

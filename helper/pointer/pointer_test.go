@@ -15,7 +15,7 @@ func Test_Of(t *testing.T) {
 	ci.Parallel(t)
 
 	s := "hello"
-	sPtr := Of(s)
+	sPtr := new(s)
 
 	must.Eq(t, s, *sPtr)
 
@@ -27,9 +27,9 @@ func Test_Of(t *testing.T) {
 func Test_Copy(t *testing.T) {
 	ci.Parallel(t)
 
-	orig := Of(1)
+	orig := new(1)
 	dup := Copy(orig)
-	orig = Of(7)
+	orig = new(7)
 	must.EqOp(t, 7, *orig)
 	must.EqOp(t, 1, *dup)
 }

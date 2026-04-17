@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -443,7 +442,7 @@ func TestVaultClient_SetUserAgent(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := structsc.DefaultVaultConfig()
-	conf.Enabled = pointer.Of(true)
+	conf.Enabled = new(true)
 	logger := testlog.HCLogger(t)
 	c, err := NewVaultClient(conf, logger)
 	must.NoError(t, err)
@@ -488,7 +487,7 @@ func TestVaultClient_RenewalConcurrent(t *testing.T) {
 	// Start Vault client.
 	conf := structsc.DefaultVaultConfig()
 	conf.Addr = ts.URL
-	conf.Enabled = pointer.Of(true)
+	conf.Enabled = new(true)
 
 	vc, err := NewVaultClient(conf, testlog.HCLogger(t))
 	must.NoError(t, err)
@@ -544,7 +543,7 @@ func TestVaultClient_NamespaceReset(t *testing.T) {
 
 	conf := structsc.DefaultVaultConfig()
 	conf.Addr = ts.URL
-	conf.Enabled = pointer.Of(true)
+	conf.Enabled = new(true)
 
 	for _, ns := range []string{"", "foo"} {
 		conf.Namespace = ns

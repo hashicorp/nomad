@@ -127,7 +127,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	db := cstate.NewMemDB(logger)
 
 	if thisTask.Vault != nil {
-		clientConf.GetDefaultVault().Enabled = pointer.Of(true)
+		clientConf.GetDefaultVault().Enabled = new(true)
 	}
 
 	var vaultFunc vaultclient.VaultClientFunc
@@ -1121,7 +1121,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	maxTimeToFailDuration := time.Duration(testutil.TestMultiplier()) * time.Second
 
 	alloc := mock.Alloc()
-	alloc.DesiredTransition = structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
+	alloc.DesiredTransition = structs.DesiredTransition{NoShutdownDelay: new(true)}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Services[0].Tags = []string{"tag1"}
 	task.Services = task.Services[:1] // only need 1 for this test
@@ -2400,7 +2400,7 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 	}
 	conf.ClientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
 		structs.VaultDefaultCluster: {
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Addr:    vaultServer.URL,
 		},
 	}

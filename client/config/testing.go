@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
@@ -68,7 +67,7 @@ func TestClientConfig(t testing.TB) (*Config, func()) {
 	// Helps make sure we are respecting configured parent
 	conf.CgroupParent = "testing.slice"
 
-	conf.GetDefaultVault().Enabled = pointer.Of(false)
+	conf.GetDefaultVault().Enabled = new(false)
 	conf.DevMode = true
 
 	// Loosen GC threshold

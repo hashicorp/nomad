@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -23,7 +22,7 @@ func TestJobEndpointHook_VaultCE(t *testing.T) {
 
 	srv, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+		c.VaultConfigs[structs.VaultDefaultCluster].Enabled = new(true)
 		c.VaultConfigs[structs.VaultDefaultCluster].DefaultIdentity = &config.WorkloadIdentityConfig{
 			Name:     "vault_default",
 			Audience: []string{"vault.io"},
