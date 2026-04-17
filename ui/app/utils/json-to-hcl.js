@@ -20,9 +20,8 @@ export default function jsonToHcl(obj) {
   }
 
   const hclLines = Object.entries(obj)
-    .filter(([, value]) => value != null) // Skip undefined/null values
+    .filter(([, value]) => value != null)
     .map(([key, value]) => {
-      // All values from the API are strings, but some contain JSON
       const hclValue =
         typeof value === 'string' ? convertStringValue(value) : value; // Defensive: handle non-string values
 
@@ -41,9 +40,8 @@ function convertStringValue(value) {
   try {
     const parsed = JSON.parse(value);
     // Only preserve objects and arrays
-    // Arrays are objects in JavaScript: typeof [] === 'object'
     if (typeof parsed === 'object' && parsed !== null) {
-      return value; // Keep JSON objects/arrays as-is
+      return value;
     }
     // For JSON primitives (numbers, booleans, null), quote them
     return JSON.stringify(value);
