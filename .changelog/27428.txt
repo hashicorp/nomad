@@ -1,0 +1,3 @@
+```release-note:bug
+serf: Fix member info not getting updated when a server leaves and rejoins
+```
