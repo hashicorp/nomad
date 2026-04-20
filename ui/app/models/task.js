@@ -10,7 +10,7 @@ import {
   fragmentArray,
   fragmentOwner,
 } from 'ember-data-model-fragments/attributes';
-import { computed } from '@ember/object';
+import { computed, notifyPropertyChange } from '@ember/object';
 
 export default class Task extends Fragment {
   @fragmentOwner() taskGroup;
@@ -84,7 +84,7 @@ export default class Task extends Fragment {
     this._job = job;
     await this._job.variables;
     // pathLinkedVariable is consumed by a sync template condition, so notify after async load.
-    this.notifyPropertyChange('pathLinkedVariable');
+    notifyPropertyChange(this, 'pathLinkedVariable');
   }
 
   get pathLinkedVariable() {
