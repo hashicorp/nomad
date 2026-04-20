@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"maps"
 	"path"
 	"strings"
 	"testing"
@@ -64,6 +65,63 @@ func TestNomad_JoinPeer(t *testing.T) {
 		if local2 != 1 {
 			return false, fmt.Errorf("expected 1 local peer in %q, got %v",
 				s2.Region(), local2)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
+}
+
+func TestNomad_UpdatePeer(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	testutil.WaitForResult(func() (bool, error) {
+		numRegionPeers := len(s1.peersCache.RegionPeers(s1.Region()))
+		if numRegionPeers != 1 {
+			return false, fmt.Errorf("expected 1 peer in region %q, got %d",
+				s1.Region(), numRegionPeers)
+		}
+		numLocalPeers := len(s1.peersCache.LocalPeers())
+		if numLocalPeers != 1 {
+			return false, fmt.Errorf("expected 1 local peer, got %d", numLocalPeers)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
+
+	member := s1.serf.LocalMember()
+	updated := member
+	updated.Tags = maps.Clone(member.Tags)
+	updated.Tags["rpc_addr"] = "1.2.3.4"
+
+	s1.eventCh <- serf.MemberEvent{
+		Type:    serf.EventMemberUpdate,
+		Members: []serf.Member{updated},
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		regionPeers := s1.peersCache.RegionPeers(s1.Region())
+		numRegionPeers := len(regionPeers)
+		if numRegionPeers != 1 {
+			return false, fmt.Errorf("expected 1 peer in region %q after update, got %d",
+				s1.Region(), numRegionPeers)
+		}
+		regionMemberRPCAddr := regionPeers[0].RPCAddr.String()
+		if !strings.HasPrefix(regionMemberRPCAddr, "1.2.3.4:") {
+			return false, fmt.Errorf("expected RPCAddr 1.2.3.4:<port>, got %s", regionMemberRPCAddr)
+		}
+		localPeers := s1.peersCache.LocalPeers()
+		numLocalPeers := len(localPeers)
+		if numLocalPeers != 1 {
+			return false, fmt.Errorf("expected 1 local peer after update, got %d", numLocalPeers)
+		}
+		localMemberRPCAddr := localPeers[0].RPCAddr.String()
+		if !strings.HasPrefix(localMemberRPCAddr, "1.2.3.4:") {
+			return false, fmt.Errorf("expected RPCAddr 1.2.3.4:<port>, got %s", localMemberRPCAddr)
 		}
 		return true, nil
 	}, func(err error) {
