@@ -30,11 +30,4 @@ export default class TaskRoute extends Route {
 
     return task;
   }
-
-  async afterModel(model) {
-    if (model && model.task) {
-      // Preload the job's variables so pathLinkedVariable can work synchronously
-      await model.task.getPathLinkedVariable();
-    }
-  }
 }
