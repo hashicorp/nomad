@@ -17,6 +17,9 @@ export function setupPrimaryMetricMocks(hooks, tasks = []) {
     const trackerSignalPauseSpy = (this.trackerSignalPauseSpy = sinon.spy());
 
     const MockTracker = EmberObject.extend({
+      node: computed(function () {
+        return { id: 'test-node-id' };
+      }),
       poll: task(function* () {
         yield trackerPollSpy();
       }),
