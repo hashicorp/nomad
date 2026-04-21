@@ -943,7 +943,7 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-	n.logger.Error("applyUpdateEval", "index", index, "eval", req.Evals[0].ID, "eval_status", req.Evals[0].Status, "triggered_by", req.Evals[0].TriggeredBy)
+
 	return n.upsertEvals(msgType, index, req.Evals)
 }
 
