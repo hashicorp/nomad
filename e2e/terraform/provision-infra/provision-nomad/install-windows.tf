@@ -11,7 +11,7 @@ resource "null_resource" "install_nomad_binary_windows" {
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
     target_platform = "windows"
-    timeout         = "10m"
+    timeout         = "20m"
   }
 
   provisioner "file" {
@@ -39,7 +39,7 @@ resource "null_resource" "install_consul_configs_windows" {
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
     target_platform = "windows"
-    timeout         = "10m"
+    timeout         = "20m"
   }
 
   provisioner "remote-exec" {
@@ -69,7 +69,7 @@ resource "null_resource" "install_nomad_configs_windows" {
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
     target_platform = "windows"
-    timeout         = "10m"
+    timeout         = "20m"
   }
 
   provisioner "remote-exec" {
@@ -113,7 +113,7 @@ resource "null_resource" "restart_windows_services" {
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
     target_platform = "windows"
-    timeout         = "10m"
+    timeout         = "20m"
   }
 
   provisioner "remote-exec" {
