@@ -1,3 +1,25 @@
+## 1.10.10 Enterprise (April 21, 2026)
+
+FEATURES:
+
+* core (Enterprise): Enable parsing and reporting with IBM PAO licenses
+
+SECURITY:
+
+* build: upgrade Go to 1.26.2 [[GH-27831](https://github.com/hashicorp/nomad/issues/27831)]
+* ui: Increased the client-side generated OIDC nonce entropy to 256-bit. [[GH-27749](https://github.com/hashicorp/nomad/issues/27749)]
+
+IMPROVEMENTS:
+
+* build: Upgrade to Go 1.26 [[GH-27685](https://github.com/hashicorp/nomad/issues/27685)]
+
+BUG FIXES:
+
+* agent: Fixed a potential panic in agents using systemd notification [[GH-27746](https://github.com/hashicorp/nomad/issues/27746)]
+* agent: fix api.Job.Version used in job PUT actions [[GH-27768](https://github.com/hashicorp/nomad/issues/27768)]
+* drivers: handle SIGPIPE in executor to handle possible write errors after client restart [[GH-27825](https://github.com/hashicorp/nomad/issues/27825)]
+* oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
+
 ## 1.10.9 Enterprise (March 11, 2026)
 
 SECURITY:
