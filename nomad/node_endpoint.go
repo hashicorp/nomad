@@ -1519,6 +1519,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if len(args.Alloc) == 0 {
 		return fmt.Errorf("must update at least one allocation")
 	}
+
 	// Ensure the node is allowed to update allocs.
 	// The node needs to successfully heartbeat before updating its allocs.
 	nodeID := args.Alloc[0].NodeID
@@ -1546,7 +1547,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Update modified timestamp for client initiated allocation updates
 	now := time.Now()
 	var evals []*structs.Evaluation
-	n.logger.Error("Updating an alloc", "alloc_ID", args.Alloc[0].ID, "status", args.Alloc[0].ClientStatus)
 
 	for _, allocToUpdate := range args.Alloc {
 		evalTriggerBy := ""
