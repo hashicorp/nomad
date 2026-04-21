@@ -65,8 +65,13 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 
 	index++
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+
 	must.NoError(t, store.UpdateAllocsFromClient(
-		structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
+		structs.MsgTypeTestSetup, index, updateReq))
 
 	vol, _ = store.CSIVolumeDenormalize(nil, vol.Copy())
 	must.MapLen(t, 1, vol.ReadClaims)
