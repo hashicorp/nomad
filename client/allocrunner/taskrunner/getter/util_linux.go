@@ -47,7 +47,7 @@ func findHomeDir() string {
 
 // findConfigDir returns the config directory as provided by os.UserConfigDir. In
 // case os.UserConfigDir returns an error, the path is built if possible. Otherwise
-// a nonexistant path is returned.
+// a nonexistent path is returned.
 func findConfigDir() string {
 	config, err := os.UserConfigDir()
 	if err == nil {

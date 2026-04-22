@@ -323,7 +323,7 @@ func TestMonitor_MonitorBlockedEval(t *testing.T) {
 		t.Fatalf("eval monitor took too long")
 	}
 
-	// Verify status code is 0 since deployment was succesful.
+	// Verify status code is 0 since deployment was successful.
 	must.Zero(t, code)
 }
 

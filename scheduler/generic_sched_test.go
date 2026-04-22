@@ -7558,7 +7558,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	must.NoError(t, err)
 	must.Len(t, 5, out, must.Sprint("expected 5 placed allocations total"))
 
-	// Make sure they're still all on seperate clients
+	// Make sure they're still all on separate clients
 	seen = map[string]struct{}{}
 	for _, alloc := range out {
 		_, ok := seen[alloc.NodeID]

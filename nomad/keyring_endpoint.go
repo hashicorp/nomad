@@ -435,7 +435,7 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 // GetConfig for workload identities. This RPC is used to back an OIDC
 // Discovery endpoint.
 //
-// Unauthenticated because OIDC Discovery endpoints must be publically
+// Unauthenticated because OIDC Discovery endpoints must be publicly
 // available.
 func (k *Keyring) GetConfig(args *structs.GenericRequest, reply *structs.KeyringGetConfigResponse) error {
 
