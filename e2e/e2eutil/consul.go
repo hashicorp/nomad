@@ -9,6 +9,7 @@ import (
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
@@ -228,6 +229,7 @@ func CreateConsulToken(t *testing.T, client *capi.Client, namespace, policyID st
 	opts := &capi.WriteOptions{Namespace: namespace}
 
 	token, _, err := aclClient.TokenCreate(&capi.ACLToken{
+		Name:        uuid.Short(),
 		Policies:    []*capi.ACLTokenPolicyLink{{ID: policyID}},
 		Description: "An e2e test token",
 	}, opts)
