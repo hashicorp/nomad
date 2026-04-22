@@ -627,7 +627,7 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 
 	for _, e := range events {
 		must.Eq(t, 100, int(e.Index))
-		must.Eq(t, structs.TypeNodeDrain, e.Type)
+		must.Eq(t, structs.TypeNodeEligibilityUpdate, e.Type)
 		must.Eq(t, structs.TopicNode, e.Topic)
 		ne := e.Payload.(*structs.NodeStreamEvent)
 		must.Eq(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
