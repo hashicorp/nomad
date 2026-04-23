@@ -7,8 +7,6 @@ package cgroupslib
 
 import (
 	"sync"
-
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 var (
@@ -31,10 +29,10 @@ func detectMemorySwap() *uint64 {
 	case CG1:
 		err := WriteNomadCG1("memory", "memory.swappiness", "0")
 		if err == nil {
-			return new[uint64](0)
+			return new(uint64(0))
 		}
 		return nil
 	default:
-		return new[uint64](0)
+		return new(uint64(0))
 	}
 }
