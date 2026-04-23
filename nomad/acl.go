@@ -24,6 +24,25 @@ func (s *Server) AuthenticateClientOnly(ctx *RPCContext, args structs.RequestWit
 	return s.auth.AuthenticateClientOnly(ctx, args)
 }
 
+func (s *Server) ResolveAuthorizedClientNodePoolByNodeID(aclObj *acl.ACL, nodeID string) (string, error) {
+	return s.auth.ResolveAuthorizedClientNodePoolByNodeID(aclObj, nodeID)
+}
+
+func (s *Server) AuthorizeClientAllocation(
+	aclObj *acl.ACL,
+	alloc *structs.Allocation,
+	allowNsOp func(*acl.ACL, string) bool,
+) error {
+	return s.auth.AuthorizeClientAllocation(aclObj, alloc, allowNsOp)
+}
+
+func (s *Server) ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+	aclObj *acl.ACL,
+	namespace, id string,
+) (string, error) {
+	return s.auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(aclObj, namespace, id)
+}
+
 func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	return s.auth.ResolveACL(args)
 }

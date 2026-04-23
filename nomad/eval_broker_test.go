@@ -1570,7 +1570,7 @@ func TestEvalBroker_IntegrationTest(t *testing.T) {
 		statusReq := &structs.NodeUpdateStatusRequest{
 			NodeID:       node.ID,
 			Status:       status,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{Region: "global", AuthToken: node.SecretID},
 		}
 		var statusResp structs.NodeUpdateResponse
 		err = msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", statusReq, &statusResp)

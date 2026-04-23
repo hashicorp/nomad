@@ -1652,6 +1652,10 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 			name: "leader acl token authenticated",
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
+				if !srv.config.ACLEnabled {
+					t.Skip("leader ACL token is only meaningful when ACLs are enabled")
+				}
+
 				node := mock.Node()
 				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, srv.raft.LastIndex(), node))
 
@@ -2990,7 +2994,6 @@ func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
 
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2998,7 +3001,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Check that we have no client connections
-	require.Empty(s1.connectedNodes())
+	must.MapEmpty(t, s1.connectedNodes())
 
 	// The RPC is client only, so perform a test using the leader ACL token to
 	// ensure that even this powerful token cannot access the endpoint.
@@ -3016,7 +3019,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Create the register request
 	node := mock.Node()
 	state := s1.fsm.State()
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 98, node))
+	must.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 98, node))
 
 	// Inject fake evaluations
 	alloc := mock.Alloc()
@@ -3035,12 +3038,8 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 		},
 	}
 	var resp2 structs.NodeClientAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index != 100 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2))
+	must.Eq(t, 100, resp2.Index)
 
 	if len(resp2.Allocs) != 1 || resp2.Allocs[alloc.ID] != 100 {
 		t.Fatalf("bad: %#v", resp2.Allocs)
@@ -3048,32 +3047,28 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 
 	// Check that we have the client connections
 	nodes := s1.connectedNodes()
-	require.Len(nodes, 1)
-	require.Contains(nodes, node.ID)
+	must.MapLen(t, 1, nodes)
+	must.MapContainsKey(t, nodes, node.ID)
 
-	// Lookup node with bad SecretID
+	// Lookup node with bad SecretID. The RPC now authorizes based on the
+	// authenticated node identity, so SecretID is ignored here as long as the
+	// auth token still authenticates the same node.
 	get.SecretID = "foobarbaz"
 	var resp3 structs.NodeClientAllocsResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp3)
-	if err == nil || !strings.Contains(err.Error(), "does not match") {
-		t.Fatalf("err: %v", err)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp3))
+	must.Eq(t, 100, resp3.Index)
+	if len(resp3.Allocs) != 1 || resp3.Allocs[alloc.ID] != 100 {
+		t.Fatalf("bad: %#v", resp3.Allocs)
 	}
 
-	// Lookup non-existing node
+	// Lookup non-existing node. This now fails closed because same-node
+	// authorization is enforced even when the node no longer exists in state.
 	get.NodeID = uuid.Generate()
 	var resp4 structs.NodeClientAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp4.Index != 100 {
-		t.Fatalf("Bad index: %d %d", resp3.Index, 100)
-	}
-	if len(resp4.Allocs) != 0 {
-		t.Fatalf("unexpected node %#v", resp3.Allocs)
-	}
+	must.ErrorContains(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4), "Permission denied")
 
 	// Close the connection and check that we remove the client connections
-	require.Nil(codec.Close())
+	must.Nil(t, codec.Close())
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s1.connectedNodes()
 		return len(nodes) == 0, nil

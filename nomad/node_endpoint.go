@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -681,9 +682,17 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
-		return structs.ErrPermissionDenied
+	} else {
+		if aclObj.AllowServerOp() || args.GetIdentity().GetACLToken() == structs.LeaderACLToken {
+			goto VERIFY_ARGS
+		}
+
+		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+			return err
+		}
 	}
+
+VERIFY_ARGS:
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -733,6 +742,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	if err != nil {
 		return fmt.Errorf("failed to query node pool: %v", err)
 	}
+	nodePoolExists := nodePool != nil || node.NodePool == structs.NodePoolDefault
 
 	// Only perform the node identity work if all the servers meet the minimum
 	// version that supports it.
@@ -744,7 +754,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		// Track the TTL that will be used for the node identity.
 		var identityTTL time.Duration
 
-		if nodePool == nil {
+		if !nodePoolExists {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else if nodePool == nil {
 			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
 		} else {
 			identityTTL = nodePool.NodeIdentityTTL
@@ -796,9 +808,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 				args.Status = structs.NodeStatusInit
 			}
 
-			// Keep the node in the initialing status if it's in a node pool
-			// that doesn't exist.
-			if nodePool == nil {
+			// Keep the node in the initializing status if it's in a non-default
+			// node pool that doesn't exist.
+			if !nodePoolExists {
 				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 				if !node.HasEvent(NodeWaitingForNodePool) {
@@ -999,30 +1011,11 @@ func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrain
 		return nil
 	}
 
-	// If the ACL object has client operations allowed, check if the identity
-	// matches the node being drained. This allows nodes to drain themselves.
-	if aclObj.AllowClientOp() {
-
-		identity := args.GetIdentity()
-
-		// If the client ID is set and matches the node ID, allow the operation
-		// to proceed. This covers the case where a node is using its secret ID
-		// to authenticate.
-		if identity.ClientID == args.NodeID {
-			return nil
-		}
-
-		identityClaims := identity.GetClaims()
-
-		// If the request is using a node identity, check and ensure the node ID
-		// claim matches the node being drained. This covers the case where a
-		// node is using its node identity JWT to authenticate.
-		if identityClaims.IsNode() && identityClaims.NodeIdentityClaims.NodeID == args.NodeID {
-			return nil
-		}
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
 	}
 
-	return structs.ErrPermissionDenied
+	return nil
 }
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
@@ -1205,8 +1198,19 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
-		return structs.ErrPermissionDenied
+
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
+	if !aclObj.AllowNodeRead() {
+		pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
+		if err != nil {
+			return err
+		}
+		if !ok || !aclObj.AllowClientOp(pool) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
@@ -1214,11 +1218,6 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Verify the arguments
-			if args.NodeID == "" {
-				return fmt.Errorf("missing node ID")
-			}
-
 			// Look for the node
 			out, err := state.NodeByID(ws, args.NodeID)
 			if err != nil {
@@ -1227,6 +1226,9 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 
 			// Setup the output
 			if out != nil {
+				if !aclObj.AllowNodeRead() && !aclObj.AllowClientOp(out.NodePool) {
+					return structs.ErrPermissionDenied
+				}
 				out = out.Sanitize()
 				reply.Node = out
 				reply.Index = out.ModifyIndex
@@ -1345,7 +1347,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	// This RPC is only ever called by Nomad clients, so we can use the tightly
 	// scoped AuthenticateClientOnly method to authenticate and authorize the
 	// request.
-	aclObj, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
+	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
@@ -1365,13 +1367,28 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
+	if args.NodeID == "" {
+		return errors.New("missing node ID")
 	}
 
-	// Verify the arguments
-	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID")
+	node, err := n.srv.State().NodeByID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
+	}
+
+	if node != nil {
+		// We have a valid node connection, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client. We only
+		// cache the connection if it is not being forwarded from another
+		// server.
+		if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
+			n.ctx.NodeID = args.NodeID
+			n.srv.addNodeConn(n.ctx)
+		}
 	}
 
 	// numOldAllocs is used to detect if there is a garbage collection event
@@ -1393,20 +1410,6 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			var allocs []*structs.Allocation
 			if node != nil {
-				if args.SecretID == "" {
-					return fmt.Errorf("missing node secret ID for client status update")
-				} else if args.SecretID != node.SecretID {
-					return fmt.Errorf("node secret ID does not match")
-				}
-
-				// We have a valid node connection, so add the mapping to cache the
-				// connection and allow the server to send RPCs to the client. We only cache
-				// the connection if it is not being forwarded from another server.
-				if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
-					n.ctx.NodeID = args.NodeID
-					n.srv.addNodeConn(n.ctx)
-				}
-
 				var err error
 				allocs, err = state.AllocsByNode(ws, args.NodeID)
 				if err != nil {
@@ -1501,19 +1504,15 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
 	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
+		return err
+	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
-	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
-		return err
-	}
-
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
@@ -1522,20 +1521,26 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Ensure the node is allowed to update allocs.
 	// The node needs to successfully heartbeat before updating its allocs.
-	nodeID := args.Alloc[0].NodeID
-	if nodeID == "" {
+	targetNodeID := args.Alloc[0].NodeID
+	if targetNodeID == "" {
 		return fmt.Errorf("missing node ID")
 	}
 
-	node, err := n.srv.State().NodeByID(nil, nodeID)
+	node, err := n.srv.State().NodeByID(nil, targetNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve node %s: %v", nodeID, err)
+		return fmt.Errorf("failed to retrieve node %s: %v", targetNodeID, err)
 	}
 	if node == nil {
-		return fmt.Errorf("node %s not found", nodeID)
+		return fmt.Errorf("node %s not found", targetNodeID)
+	}
+	if !aclObj.AllowClientOp(node.NodePool) {
+		return structs.ErrPermissionDenied
+	}
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), targetNodeID); err != nil {
+		return err
 	}
 	if node.UnresponsiveStatus() {
-		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", nodeID, node.Status)
+		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", targetNodeID, node.Status)
 	}
 
 	// Ensure that evals aren't set from client RPCs
@@ -1956,26 +1961,38 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
 	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
+		return err
+	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
-
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	if len(args.NodeEvents) == 0 {
 		return fmt.Errorf("no node events given")
 	}
+
+	callerNodeID := auth.AuthenticatedNodeID(args.GetIdentity())
+	if callerNodeID == "" {
+		return structs.ErrPermissionDenied
+	}
+
 	for nodeID, events := range args.NodeEvents {
 		if len(events) == 0 {
 			return fmt.Errorf("no node events given for node %q", nodeID)
+		}
+
+		node, err := n.srv.State().NodeByID(nil, nodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+			return structs.ErrPermissionDenied
+		}
+		if nodeID != callerNodeID {
+			return structs.ErrPermissionDenied
 		}
 	}
 

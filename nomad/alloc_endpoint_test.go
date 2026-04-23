@@ -847,6 +847,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 				require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 				require.EqualValues(t, resp.Index, 1001, "resp.Index")
 				require.Equal(t, alloc, resp.Alloc, "Returned alloc not equal")
+
 			},
 		},
 
