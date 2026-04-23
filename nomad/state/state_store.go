@@ -4015,17 +4015,19 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
 
-	completeAllocs := []*structs.Allocation{}
+	populatedAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
+		if alloc == nil {
+			continue
+		}
 
 		nodeIDs.Insert(alloc.NodeID)
-
 		ca, err := s.nestedUpdateAllocFromClient(txn, index, alloc)
 		if err != nil {
 			return fmt.Errorf("updating alloc failed: %v", err)
 		}
-		completeAllocs = append(completeAllocs, ca)
+		populatedAllocs = append(populatedAllocs, ca)
 	}
 
 	if len(req.Evals) > 0 {
@@ -4036,15 +4038,13 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	jobs := map[structs.NamespacedID]string{}
-	for _, alloc := range completeAllocs {
-		if alloc != nil {
-			tuple := structs.NamespacedID{
-				ID:        alloc.JobID,
-				Namespace: alloc.Namespace,
-			}
-
-			jobs[tuple] = ""
+	for _, alloc := range populatedAllocs {
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
+			Namespace: alloc.Namespace,
 		}
+
+		jobs[tuple] = ""
 	}
 
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
@@ -4067,7 +4067,9 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 }
 
 // nestedUpdateAllocFromClient is used to nest an update of an allocation with
+//
 //	client status.
+//
 // It returns an allocation fully populated with the values from the state store.
 func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
 	alloc *structs.Allocation) (*structs.Allocation, error) {
