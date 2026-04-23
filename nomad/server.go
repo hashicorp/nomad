@@ -361,7 +361,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	s := &Server{
 		config:                  config,
 		consulCatalog:           consulCatalog,
-		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap, config.RPCSessionConfig),
+		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap, config.RPCSessionConfig, config.RPCDialTimeout),
 		logger:                  logger,
 		tlsWrap:                 tlsWrap,
 		rpcServer:               rpc.NewServer(),
