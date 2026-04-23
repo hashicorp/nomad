@@ -716,7 +716,7 @@ func TestJob_Warnings(t *testing.T) {
 		{
 			Name:     "Group services with group-level shutdown delay but no task-level shutdown delay set",
 			Expected: []string{},
-			Job:      groupServiceJob(pointer.Of(time.Second)),
+			Job:      groupServiceJob(new(time.Second)),
 		},
 		{
 			Name:     "Group service references task without shutdown delay warning",
@@ -731,12 +731,12 @@ func TestJob_Warnings(t *testing.T) {
 		{
 			Name:     "Connect sidecar task without 0 shutdown delay no warning",
 			Expected: []string{},
-			Job:      connectSidecarServiceJob(pointer.Of(time.Duration(0))),
+			Job:      connectSidecarServiceJob(new(time.Duration(0))),
 		},
 		{
 			Name:     "Connect sidecar task with shutdown delay no warning",
 			Expected: []string{},
-			Job:      connectSidecarServiceJob(pointer.Of(time.Second)),
+			Job:      connectSidecarServiceJob(new(time.Second)),
 		},
 	}
 
