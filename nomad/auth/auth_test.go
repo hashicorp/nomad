@@ -127,7 +127,7 @@ func TestAuthenticateDefault(t *testing.T) {
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -382,7 +382,9 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
-				must.Eq(t, acl.ClientACL, aclObj)
+				must.NotNil(t, aclObj)
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -559,7 +561,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -611,7 +613,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowServerOp() || aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowServerOp() || aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -651,7 +653,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -674,7 +676,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -697,7 +699,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -744,7 +746,7 @@ func TestAuthenticator_AuthenticateClientRegistration(t *testing.T) {
 				must.NoError(t, auth.AuthenticateNodeIdentityGenerator(ctx, &args))
 				aclObj, err := auth.ResolveACL(&args)
 				must.NoError(t, err)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
 			},
 		},
 		{
@@ -819,7 +821,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -835,7 +837,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -851,7 +854,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -867,7 +871,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -883,7 +887,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 					"invalid certificate: cli.global.nomad not in expected client.global.nomad, server.global.nomad")
 				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -899,7 +903,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, "server.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
-				must.False(t, aclObj.AllowClientOp())
+				must.False(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -916,7 +920,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -932,7 +937,8 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -952,10 +958,10 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
 				must.NoError(t, err)
-
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp(node.NodePool))
+				must.False(t, aclObj.AllowClientOp("other-pool"))
 			},
 		},
 		{
@@ -978,7 +984,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
 				must.NotNil(t, aclObj)
-				must.True(t, aclObj.AllowClientOp())
+				must.True(t, aclObj.AllowClientOp("default"))
 			},
 		},
 		{
@@ -1574,6 +1580,189 @@ func TestResolveClaims(t *testing.T) {
 	must.Len(t, 4, dispatchPolicies)
 	must.SliceContainsAll(t, dispatchPolicies, []*structs.ACLPolicy{policy1, policy2, policy3, policy8})
 
+}
+
+func TestResolveClientIdentityACL(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil identity", func(t *testing.T) {
+		auth := testDefaultAuthenticator(t)
+
+		aclObj, err := auth.ResolveClientIdentityACL(nil)
+		must.NoError(t, err)
+		must.Nil(t, aclObj)
+	})
+
+	t.Run("node identity claims", func(t *testing.T) {
+		auth := testDefaultAuthenticator(t)
+		node := mock.Node()
+
+		identity := &structs.AuthenticatedIdentity{
+			ClientID: node.ID,
+			Claims: &structs.IdentityClaims{
+				NodeIdentityClaims: &structs.NodeIdentityClaims{
+					NodeID:   node.ID,
+					NodePool: node.NodePool,
+				},
+			},
+		}
+
+		aclObj, err := auth.ResolveClientIdentityACL(identity)
+		must.NoError(t, err)
+		must.NotNil(t, aclObj)
+		must.True(t, aclObj.AllowClientOp(node.NodePool))
+		must.False(t, aclObj.AllowClientOp("other-pool"))
+	})
+
+	t.Run("client secret backed identity", func(t *testing.T) {
+		auth := testDefaultAuthenticator(t)
+		node := mock.Node()
+		must.NoError(t, auth.getState().UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
+		identity := &structs.AuthenticatedIdentity{ClientID: node.ID}
+
+		aclObj, err := auth.ResolveClientIdentityACL(identity)
+		must.NoError(t, err)
+		must.NotNil(t, aclObj)
+		must.True(t, aclObj.AllowClientOp(node.NodePool))
+		must.False(t, aclObj.AllowClientOp("other-pool"))
+	})
+
+	t.Run("malformed node claims missing pool", func(t *testing.T) {
+		auth := testDefaultAuthenticator(t)
+		node := mock.Node()
+
+		identity := &structs.AuthenticatedIdentity{
+			ClientID: node.ID,
+			Claims: &structs.IdentityClaims{
+				NodeIdentityClaims: &structs.NodeIdentityClaims{
+					NodeID: node.ID,
+				},
+			},
+		}
+
+		aclObj, err := auth.ResolveClientIdentityACL(identity)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Nil(t, aclObj)
+	})
+}
+
+func TestAuthenticatedNodeIDAndAuthorizeSameNode(t *testing.T) {
+	ci.Parallel(t)
+
+	node := mock.Node()
+
+	t.Run("authenticated node id from client id", func(t *testing.T) {
+		identity := &structs.AuthenticatedIdentity{ClientID: node.ID}
+		must.Eq(t, node.ID, AuthenticatedNodeID(identity))
+	})
+
+	t.Run("authenticated node id from node identity claims", func(t *testing.T) {
+		identity := &structs.AuthenticatedIdentity{
+			Claims: &structs.IdentityClaims{
+				NodeIdentityClaims: &structs.NodeIdentityClaims{
+					NodeID:   node.ID,
+					NodePool: node.NodePool,
+				},
+			},
+		}
+		must.Eq(t, node.ID, AuthenticatedNodeID(identity))
+	})
+
+	t.Run("authorize same node success", func(t *testing.T) {
+		identity := &structs.AuthenticatedIdentity{ClientID: node.ID}
+		must.NoError(t, AuthorizeSameNode(identity, node.ID))
+	})
+
+	t.Run("authorize same node failure", func(t *testing.T) {
+		identity := &structs.AuthenticatedIdentity{ClientID: node.ID}
+		must.ErrorIs(t, AuthorizeSameNode(identity, "other-node"), structs.ErrPermissionDenied)
+	})
+}
+
+func TestResolveAuthorizedClientNodePoolHelpers(t *testing.T) {
+	ci.Parallel(t)
+
+	auth := testDefaultAuthenticator(t)
+	store := auth.getState()
+
+	node := mock.Node()
+	node.NodePool = "pool-a"
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
+	aclObj := acl.NewClientACL(node.NodePool)
+
+	t.Run("resolve by node id success", func(t *testing.T) {
+		pool, err := auth.ResolveAuthorizedClientNodePoolByNodeID(aclObj, node.ID)
+		must.NoError(t, err)
+		must.Eq(t, node.NodePool, pool)
+	})
+
+	t.Run("resolve by node id missing node", func(t *testing.T) {
+		pool, err := auth.ResolveAuthorizedClientNodePoolByNodeID(aclObj, uuid.Generate())
+		must.NoError(t, err)
+		must.Eq(t, "", pool)
+	})
+
+	t.Run("resolve by node id unauthorized", func(t *testing.T) {
+		pool, err := auth.ResolveAuthorizedClientNodePoolByNodeID(acl.NewClientACL("other-pool"), node.ID)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
+	})
+
+	t.Run("authorize client allocation", func(t *testing.T) {
+		alloc := mock.Alloc()
+		alloc.Job.NodePool = node.NodePool
+
+		must.NoError(t, auth.AuthorizeClientAllocation(aclObj, alloc, nil))
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(acl.NewClientACL("other-pool"), alloc, nil), structs.ErrPermissionDenied)
+		must.NoError(t, auth.AuthorizeClientAllocation(
+			acl.NewClientACL("other-pool"),
+			alloc,
+			func(_ *acl.ACL, ns string) bool { return ns == alloc.Namespace },
+		))
+	})
+
+	t.Run("resolve by service registration id", func(t *testing.T) {
+		services := mock.ServiceRegistrations()
+		services[0].NodeID = node.ID
+		must.NoError(t, store.UpsertServiceRegistrations(structs.MsgTypeTestSetup, 200, services))
+
+		pool, err := auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			aclObj,
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.NoError(t, err)
+		must.Eq(t, node.NodePool, pool)
+
+		pool, err = auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			acl.NewClientACL("other-pool"),
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
+
+		pool, err = auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			nil,
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
+
+		denyACL, err := acl.NewACL(false, nil)
+		must.NoError(t, err)
+
+		pool, err = auth.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			denyACL,
+			services[0].Namespace,
+			services[0].ID,
+		)
+		must.ErrorIs(t, err, structs.ErrPermissionDenied)
+		must.Eq(t, "", pool)
+	})
 }
 
 func testStateStore(t *testing.T) *state.StateStore {

@@ -224,16 +224,19 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 		job := MockRunnableJob()
 
 		resp, _, err := client.Jobs().Register(job, nil)
-		require.NoError(t, err)
-		require.NotEmpty(t, resp.EvalID)
+		must.NoError(t, err)
+		must.NotEq(t, "", resp.EvalID)
 
 		alloc := mock.Alloc()
 		alloc.Job = ApiJobToStructJob(job)
 		alloc.JobID = *job.ID
 		alloc.NodeID = srv.client.NodeID()
+		alloc.Namespace = *job.Namespace
+		alloc.Job.Namespace = *job.Namespace
+		alloc.Job.NodePool = srv.client.Node().NodePool
 
-		require.Nil(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
-		require.Nil(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+		must.NoError(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 
 		running := false
 		testutil.WaitForResult(func() (bool, error) {
@@ -247,10 +250,10 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 			}
 			return false, nil
 		}, func(err error) {
-			require.NoError(t, err, "allocation query failed")
+			must.NoError(t, err, must.Sprintf("allocation query failed"))
 		})
 
-		require.True(t, running)
+		must.True(t, running)
 
 		topics := map[api.Topic][]string{
 			api.TopicAllocation: {*job.ID},
@@ -261,7 +264,7 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 
 		events := client.EventStream()
 		streamCh, err := events.Stream(ctx, topics, 1, nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		var allocEvents []api.Event
 		// gather job alloc events
@@ -277,7 +280,8 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 					}
 					allocEvents = append(allocEvents, event.Events...)
 				case <-time.After(10 * time.Second):
-					require.Fail(t, "failed waiting for event stream event")
+					must.Unreachable(t, must.Sprintf("failed waiting for event stream event"))
+					return
 				}
 			}
 		}()
@@ -301,12 +305,12 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 			}
 			return false, nil
 		}, func(e error) {
-			require.NoError(t, err)
+			must.NoError(t, e)
 		})
 
-		require.NotNil(t, networkResource)
-		require.Equal(t, 5000, networkResource.ReservedPorts[0].Value)
-		require.NotEqual(t, 0, networkResource.DynamicPorts[0].Value)
+		must.NotNil(t, networkResource)
+		must.Eq(t, 5000, networkResource.ReservedPorts[0].Value)
+		must.NotEq(t, 0, networkResource.DynamicPorts[0].Value)
 	})
 }
 
