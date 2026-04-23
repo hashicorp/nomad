@@ -5590,7 +5590,6 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// and all evals are terminal. In the event a jobs allocs and evals
 	// are all GC'd, we don't want the job to be marked pending.
 	if evalDelete || hasEval || job.Stop {
-		s.logger.Info("marking job as dead")
 		return structs.JobStatusDead, nil
 	}
 
