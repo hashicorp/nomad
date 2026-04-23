@@ -2425,6 +2425,9 @@ func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTag
 		return structs.ErrPermissionDenied
 	}
 
+	if args.Latest && args.Version > 0 {
+		return fmt.Errorf("version must be zero when tagging latest, got: %d", args.Version)
+	}
 	if args.Tag != nil {
 		args.Tag.TaggedTime = time.Now().UnixNano()
 	}
