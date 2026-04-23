@@ -4536,6 +4536,7 @@ type JobApplyTagRequest struct {
 	Name    string
 	Tag     *JobVersionTag
 	Version uint64
+	Latest  bool
 	WriteRequest
 }
 
