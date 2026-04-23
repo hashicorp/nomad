@@ -1049,7 +1049,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 		return err
 	}
 
-	// Handle any evals that were added by the RPC handler
+	// Enqueue any evals that were added by the RPC handler
 	n.handleUpsertedEvals(req.Evals)
 
 	// Unblock evals for the nodes computed node class if the client has
