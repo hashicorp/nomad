@@ -596,7 +596,6 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
 	}
-	s.logger.Debug("upserting deployment", "deployment_id", deployment.ID, "status", deployment.Status)
 	// Insert the deployment
 	if err := txn.Insert("deployment", deployment); err != nil {
 		return err
@@ -3424,7 +3423,6 @@ func (s *StateStore) UpsertEvals(msgType structs.MessageType, index uint64, eval
 // in a transaction.  Useful for when making multiple modifications atomically.
 func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
-
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
@@ -4017,7 +4015,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
 
-	completeAllocs := []structs.Allocation{}
+	completeAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
 
@@ -4071,16 +4069,16 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 //
 // It returns an allocation fully populated with the values from the state store.
 func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
-	alloc *structs.Allocation) (structs.Allocation, error) {
+	alloc *structs.Allocation) (*structs.Allocation, error) {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
-		return structs.Allocation{}, fmt.Errorf("alloc lookup failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Nothing to do if this does not exist
 	if existing == nil {
-		return structs.Allocation{}, nil
+		return nil, nil
 	}
 	exist := existing.(*structs.Allocation)
 
@@ -4120,35 +4118,35 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
 	copyAlloc.ModifyTime = alloc.ModifyTime
 
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return structs.Allocation{}, fmt.Errorf("error updating deployment: %v", err)
+		return nil, fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return structs.Allocation{}, fmt.Errorf("error updating job summary: %v", err)
+		return nil, fmt.Errorf("error updating job summary: %v", err)
 	}
 
 	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return structs.Allocation{}, fmt.Errorf("error updating enterprise features: %v", err)
+		return nil, fmt.Errorf("error updating enterprise features: %v", err)
 	}
 
 	if err := s.updatePluginForTerminalAlloc(index, copyAlloc, txn); err != nil {
-		return structs.Allocation{}, fmt.Errorf("error updating plugin for terminal alloc: %v", err)
+		return nil, fmt.Errorf("error updating plugin for terminal alloc: %v", err)
 	}
 
 	if err := s.cancelFollowupEvalsForReconnect(txn, index, copyAlloc, alloc); err != nil {
-		return structs.Allocation{}, err
+		return nil, err
 	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
-		return structs.Allocation{}, fmt.Errorf("alloc insert failed: %v", err)
+		return nil, fmt.Errorf("alloc insert failed: %v", err)
 	}
 
 	if err := s.deregisterServicesForTerminalAllocs(txn, index, copyAlloc); err != nil {
-		return structs.Allocation{}, fmt.Errorf("error deregistering services for terminal allocs: %v", err)
+		return nil, fmt.Errorf("error deregistering services for terminal allocs: %v", err)
 	}
 
-	return *copyAlloc, nil
+	return copyAlloc, nil
 }
 
 // cancelFollowupEvalsForReconnect cancels any follow-up evals for an allocation

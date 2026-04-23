@@ -665,7 +665,7 @@ func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, 
 
 func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
-	n.logger.Error("calling applyUpsertJob", "index", index)
+
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -972,7 +972,6 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 	}
 
 	if eval.ShouldEnqueue() {
-		n.logger.Error("Enqueueing evaluation", "eval_id", eval.ID, "triggered_by", eval.TriggeredBy, "status", eval.Status)
 		n.evalBroker.Enqueue(eval)
 	} else if eval.ShouldBlock() {
 		n.blockedEvals.Block(eval)
@@ -1015,7 +1014,7 @@ func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) i
 
 func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
-	n.logger.Error("applyAllocClientUpdate", "index", index)
+
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -2134,7 +2133,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-		n.logger.Error("Reconciling queued allocations for job during snapshot restore", "job_id", job.ID, "eval_id", eval.ID)
+
 		// Ignore eval event creation during snapshot restore
 		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
