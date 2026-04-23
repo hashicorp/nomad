@@ -4037,11 +4037,14 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 
 	jobs := map[structs.NamespacedID]string{}
 	for _, alloc := range completeAllocs {
-		tuple := structs.NamespacedID{
-			ID:        alloc.JobID,
-			Namespace: alloc.Namespace,
+		if alloc != nil {
+			tuple := structs.NamespacedID{
+				ID:        alloc.JobID,
+				Namespace: alloc.Namespace,
+			}
+
+			jobs[tuple] = ""
 		}
-		jobs[tuple] = ""
 	}
 
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
