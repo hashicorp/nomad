@@ -4014,16 +4014,16 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
-
+	s.logger.Error("                     starting")
 	populatedAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
-	for _, alloc := range allocs {
-		if alloc == nil {
+	for _, a := range allocs {
+		nodeIDs.Insert(a.NodeID)
+		ca, err := s.nestedUpdateAllocFromClient(txn, index, a)
+		if ca == nil {
 			continue
 		}
 
-		nodeIDs.Insert(alloc.NodeID)
-		ca, err := s.nestedUpdateAllocFromClient(txn, index, alloc)
 		if err != nil {
 			return fmt.Errorf("updating alloc failed: %v", err)
 		}
@@ -4038,6 +4038,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	jobs := map[structs.NamespacedID]string{}
+
 	for _, alloc := range populatedAllocs {
 		tuple := structs.NamespacedID{
 			ID:        alloc.JobID,
