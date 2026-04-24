@@ -224,16 +224,8 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 
 	// If EnforceIndex set, check it before trying to apply
 	if args.EnforceIndex {
-		jmi := args.JobModifyIndex
-		if existingJob != nil {
-			if jmi == 0 {
-				return fmt.Errorf("%s 0: job already exists", state.RegisterEnforceIndexErrPrefix)
-			} else if jmi != existingJob.JobModifyIndex {
-				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					state.RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
-			}
-		} else if jmi != 0 {
-			return fmt.Errorf("%s %d: job does not exist", state.RegisterEnforceIndexErrPrefix, jmi)
+		if err := existingJob.EnforceIndex(args.JobModifyIndex); err != nil {
+			return err
 		}
 	}
 
@@ -1077,7 +1069,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		if args.JobModifyIndex > 0 {
 			if args.JobModifyIndex != job.JobModifyIndex {
 				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					state.RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
+					structs.RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
 			}
 		}
 

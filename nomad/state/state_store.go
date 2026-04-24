@@ -39,12 +39,6 @@ const (
 )
 
 const (
-	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
-	// enforcing the job modify index during registers.
-	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
-)
-
-const (
 	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
 	// is set to ineligible due to multiple plan failures.
 	// This is a preventive measure to signal scheduler workers to not consider
@@ -1817,16 +1811,8 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 	}
 
 	if req != nil && req.EnforceIndex {
-		jmi := req.JobModifyIndex
-		if existingJob != nil {
-			if jmi == 0 {
-				return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
-			} else if jmi != existingJob.JobModifyIndex {
-				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
-					RegisterEnforceIndexErrPrefix, jmi, existingJob.JobModifyIndex)
-			}
-		} else if jmi != 0 {
-			return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, jmi)
+		if err := existingJob.EnforceIndex(req.JobModifyIndex); err != nil {
+			return err
 		}
 	}
 
