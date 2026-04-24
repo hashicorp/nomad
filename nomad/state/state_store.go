@@ -1818,17 +1818,25 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	var existingJob *structs.Job
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	var existingJob *structs.Job
 	if existing != nil {
-		job.CreateIndex = existing.(*structs.Job).CreateIndex
-		job.ModifyIndex = index
-
 		existingJob = existing.(*structs.Job)
+	}
+
+	if req != nil && req.EnforceIndex {
+		if err := existingJob.EnforceIndex(req.JobModifyIndex); err != nil {
+			return err
+		}
+	}
+
+	// Setup the indexes correctly
+	if existingJob != nil {
+		job.CreateIndex = existingJob.CreateIndex
+		job.ModifyIndex = index
 
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should

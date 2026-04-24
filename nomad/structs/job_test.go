@@ -514,3 +514,24 @@ func TestJob_RequiredTproxy(t *testing.T) {
 	result := job.RequiredTransparentProxy()
 	must.SliceContainsAll(t, expect, result.Slice())
 }
+
+func TestJob_EnforceIndex(t *testing.T) {
+	job := &Job{
+		JobModifyIndex: 456,
+		TaskGroups: []*TaskGroup{
+			{Name: "no services"},
+		},
+	}
+	job.Canonicalize()
+
+	// The job will only be registered if the passed `JobModifyIndex` matches the current job's index.
+	must.Error(t, job.EnforceIndex(0))
+	must.Error(t, job.EnforceIndex(123))
+	must.NoError(t, job.EnforceIndex(456))
+	must.Error(t, job.EnforceIndex(789))
+
+	// If the index is zero, the register only occurs if the job is new.
+	var noJob *Job = nil
+	must.NoError(t, noJob.EnforceIndex(0))
+	must.Error(t, noJob.EnforceIndex(123))
+}

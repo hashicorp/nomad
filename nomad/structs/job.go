@@ -4,6 +4,8 @@
 package structs
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/go-set/v3"
 )
 
@@ -22,6 +24,12 @@ const (
 	// Args: JobServiceRegistrationsRequest
 	// Reply: JobServiceRegistrationsResponse
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
+)
+
+const (
+	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
+	// enforcing the job modify index during registers.
+	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
 )
 
 // JobBatchDeregisterRequest is used to batch deregister jobs and upsert
@@ -293,4 +301,20 @@ func (j *Job) RequiredScheduleTask() set.Collection[string] {
 		}
 	}
 	return result
+}
+
+// EnforceIndex checks the `EnforceIndex` logic: if the job exists (not `nil`)
+// it must match the `index` argument and if `index == 0` the job must be `nil`.
+func (j *Job) EnforceIndex(index uint64) error {
+	if j != nil {
+		if index == 0 {
+			return fmt.Errorf("%s 0: job already exists", RegisterEnforceIndexErrPrefix)
+		} else if index != j.JobModifyIndex {
+			return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
+				RegisterEnforceIndexErrPrefix, index, j.JobModifyIndex)
+		}
+	} else if index != 0 {
+		return fmt.Errorf("%s %d: job does not exist", RegisterEnforceIndexErrPrefix, index)
+	}
+	return nil
 }
