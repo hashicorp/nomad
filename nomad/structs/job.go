@@ -303,7 +303,8 @@ func (j *Job) RequiredScheduleTask() set.Collection[string] {
 	return result
 }
 
-// Checks the
+// EnforceIndex checks the `EnforceIndex` logic: if the job exists (not `nil`)
+// it must match the `index` argument and if `index == 0` the job must be `nil`.
 func (j *Job) EnforceIndex(index uint64) error {
 	if j != nil {
 		if index == 0 {
