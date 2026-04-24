@@ -1518,7 +1518,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1570,7 +1570,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1587,7 +1587,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -8152,6 +8152,70 @@ func TestJobEndpoint_InvalidCount(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
+}
+
+// Regression test to make sure the Job.Scale endpoint doesn't accidentally
+// cause a job to revert to a previous version.
+func TestJobEndpoint_Scale_StaleSnapshotClobbersDeployment(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// This is the initial job. Set `meta.version` to a known value to later
+	// check whether it was incorrectly reverted.
+	job := mock.Job()
+	job.Meta["version"] = "v0"
+
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	}, &structs.JobRegisterResponse{}))
+
+	jobV0, err := state.JobByID(nil, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Eq(t, 0, jobV0.Version)
+	must.Eq(t, 10, jobV0.TaskGroups[0].Count)
+	v0ModifyIndex := jobV0.ModifyIndex
+
+	// The autoscaler calls Job.Scale via the public API. Internally, the
+	// Job.Scale handler snapshots the current job, modifies the count, and
+	// commits the full job spec via raftApply. Capture what that stale commit
+	// would look like: a copy of v0 with a new count.
+	staleScaledJob := jobV0.Copy()
+	staleScaledJob.TaskGroups[0].Count = 15
+
+	// Before the Job.Scale handler's raftApply commits, someone deploys a new
+	// version of the service via Job.Register.
+	jobV1Spec := jobV0.Copy()
+	jobV1Spec.Meta["version"] = "v1"
+
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job:          jobV1Spec,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	}, &structs.JobRegisterResponse{}))
+
+	jobV1, err := state.JobByID(nil, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Eq(t, 1, jobV1.Version)
+	must.Eq(t, 10, jobV1.TaskGroups[0].Count)
+	must.Eq(t, "v1", jobV1.Meta["version"])
+
+	// Showing the race via goroutines would be flaky. Instead, replay exactly
+	// what the Job.Scale handler does internally: commit the stale job spec via
+	// raftApply with EnforceIndex=true and the ModifyIndex from the snapshot.
+	// This must be rejected because v1 has since superseded v0.
+	_, _, raftErr := s1.raftApply(structs.JobRegisterRequestType, structs.JobRegisterRequest{
+		Job:            staleScaledJob,
+		EnforceIndex:   true,
+		JobModifyIndex: v0ModifyIndex, // stale: v1 has a higher ModifyIndex
+		WriteRequest:   structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	})
+
+	must.Error(t, raftErr, must.Sprint("expected stale scale to be rejected but it overwrote a later deployment"))
 }
 
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {
