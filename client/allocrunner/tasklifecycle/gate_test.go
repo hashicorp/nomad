@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 )
 
 func TestGate(t *testing.T) {
@@ -101,18 +100,15 @@ func TestGate_shutdown(t *testing.T) {
 		close(closeCh)
 	}()
 
-	timer, stop := helper.NewSafeTimer(time.Second)
-	defer stop()
-
 	select {
 	case <-openCh:
-	case <-timer.C:
+	case <-time.After(1 * time.Second):
 		t.Fatalf("timeout waiting for gate operations")
 	}
 
 	select {
 	case <-closeCh:
-	case <-timer.C:
+	case <-time.After(1 * time.Second):
 		t.Fatalf("timeout waiting for gate operations")
 	}
 

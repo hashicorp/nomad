@@ -10,7 +10,6 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -200,14 +199,9 @@ func (q *PlanQueue) Stats() *QueueStats {
 
 // EmitStats is used to export metrics about the broker while enabled
 func (q *PlanQueue) EmitStats(period time.Duration, stopCh <-chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
-
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			stats := q.Stats()
 			metrics.SetGauge([]string{"nomad", "plan", "queue_depth"}, float32(stats.Depth))
 		case <-stopCh:

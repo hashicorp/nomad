@@ -2200,14 +2200,9 @@ func (s *Server) Stats() map[string]map[string]string {
 
 // EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
 func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
-
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			lastIndex := s.raft.LastIndex()
 			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
 			appliedIndex := s.raft.AppliedIndex()

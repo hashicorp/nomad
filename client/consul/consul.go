@@ -168,9 +168,6 @@ func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
 // TokenPreflightCheck verifies that a token has been replicated before we
 // try to use it for registering services or bootstrapping Envoy
 func (c *consulClient) TokenPreflightCheck(pctx context.Context, t *consulapi.ACLToken) error {
-	timer, timerStop := helper.NewStoppedTimer()
-	defer timerStop()
-
 	var retry uint64
 	var err error
 	ctx, cancel := context.WithTimeout(pctx, c.preflightCheckTimeout)
@@ -191,11 +188,10 @@ func (c *consulClient) TokenPreflightCheck(pctx context.Context, t *consulapi.AC
 		backoff := helper.Backoff(
 			c.preflightCheckBaseInterval, c.preflightCheckBaseInterval*2, retry)
 		c.logger.Trace("Consul token not ready", "error", err, "backoff", backoff)
-		timer.Reset(backoff)
 		select {
 		case <-ctx.Done():
 			return err
-		case <-timer.C:
+		case <-time.After(backoff):
 			continue
 		}
 	}

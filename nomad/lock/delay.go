@@ -8,7 +8,6 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/helper"
 )
 
 // DelayTimer is used to mark certain locks as unacquirable. When a locks TTL
@@ -68,13 +67,9 @@ func (d *DelayTimer) RemoveAll() {
 // EmitMetrics is a long-running routine used to emit periodic metrics about
 // the Delay.
 func (d *DelayTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			metrics.SetGauge([]string{"variables", "locks", "delay_timer", "num"}, float32(d.timerNum()))
 		case <-shutdownCh:
 			return

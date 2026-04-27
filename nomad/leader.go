@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -957,10 +956,6 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	variablesRekey := time.NewTicker(s.config.VariablesRekeyInterval)
 	defer variablesRekey.Stop()
 
-	// Set up the expired ACL local token garbage collection timer.
-	localTokenExpiredGC, localTokenExpiredGCStop := helper.NewSafeTimer(s.config.ACLTokenExpirationGCInterval)
-	defer localTokenExpiredGCStop()
-
 	for {
 
 		select {
@@ -1000,11 +995,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobOneTimeTokenGC, index))
 			}
-		case <-localTokenExpiredGC.C:
+		case <-time.After(s.config.ACLTokenExpirationGCInterval):
 			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobLocalTokenExpiredGC, index))
 			}
-			localTokenExpiredGC.Reset(s.config.ACLTokenExpirationGCInterval)
 		case <-rootKeyGC.C:
 			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobRootKeyRotateOrGC, index))
@@ -1024,18 +1018,12 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 // onto the _core scheduler for ACL based activities such as removing expired
 // global ACL tokens.
 func (s *Server) schedulePeriodicAuthoritative(stopCh chan struct{}) {
-
-	// Set up the expired ACL global token garbage collection timer.
-	globalTokenExpiredGC, globalTokenExpiredGCStop := helper.NewSafeTimer(s.config.ACLTokenExpirationGCInterval)
-	defer globalTokenExpiredGCStop()
-
 	for {
 		select {
-		case <-globalTokenExpiredGC.C:
+		case <-time.After(s.config.ACLTokenExpirationGCInterval):
 			if index, ok := s.getLatestIndex(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobGlobalTokenExpiredGC, index))
 			}
-			globalTokenExpiredGC.Reset(s.config.ACLTokenExpirationGCInterval)
 		case <-stopCh:
 			return
 		}
@@ -1192,18 +1180,14 @@ func (s *Server) reapCancelableEvaluations(stopCh chan struct{}) chan struct{} {
 
 	wakeCh := make(chan struct{}, 1)
 	go func() {
-
-		timer, cancel := helper.NewSafeTimer(s.config.EvalReapCancelableInterval)
-		defer cancel()
 		for {
 			select {
 			case <-stopCh:
 				return
 			case <-wakeCh:
 				cancelCancelableEvals(s)
-			case <-timer.C:
+			case <-time.After(s.config.EvalReapCancelableInterval):
 				cancelCancelableEvals(s)
-				timer.Reset(s.config.EvalReapCancelableInterval)
 			}
 		}
 	}()
@@ -2583,12 +2567,8 @@ func diffACLBindingRules(
 //	    return
 //	  }
 func (s *Server) replicationBackoffContinue(stopCh chan struct{}) bool {
-
-	timer, timerStopFn := helper.NewSafeTimer(s.config.ReplicationBackoff)
-	defer timerStopFn()
-
 	select {
-	case <-timer.C:
+	case <-time.After(s.config.ReplicationBackoff):
 		return true
 	case <-stopCh:
 		return false

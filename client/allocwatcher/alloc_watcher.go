@@ -376,13 +376,11 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		err := p.rpc.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
 			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
-			timer, stop := helper.NewSafeTimer(retry)
 			p.logger.Error("error querying previous alloc", "error", err, "wait", retry)
 			select {
-			case <-timer.C:
+			case <-time.After(retry):
 				continue
 			case <-ctx.Done():
-				stop()
 				return ctx.Err()
 			}
 		}
@@ -390,17 +388,15 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		// Ensure that we didn't receive a stale response
 		if req.AllowStale && resp.Index < req.MinQueryIndex {
 			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
-			timer, stop := helper.NewSafeTimer(retry)
 			p.logger.Warn("received stale alloc; retrying",
 				"req_index", req.MinQueryIndex,
 				"resp_index", resp.Index,
 				"wait", retry,
 			)
 			select {
-			case <-timer.C:
+			case <-time.After(retry):
 				continue
 			case <-ctx.Done():
-				stop()
 				return ctx.Err()
 			}
 		}

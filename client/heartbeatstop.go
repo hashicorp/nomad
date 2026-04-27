@@ -10,7 +10,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -77,8 +76,8 @@ func (h *heartbeatStop) watch() {
 	h.setLastOk(time.Now())
 	allocIntervals := map[string]time.Duration{}
 
-	timer, stopTimer := helper.NewStoppedTimer()
-	defer stopTimer()
+	timer := time.NewTimer(1 * time.Second)
+	timer.Stop()
 
 	for {
 		// we want to fire the ticker only once the shortest
@@ -92,8 +91,6 @@ func (h *heartbeatStop) watch() {
 		}
 		if interval != 0 {
 			timer.Reset(interval)
-		} else {
-			timer.Stop()
 		}
 
 		select {

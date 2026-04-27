@@ -38,13 +38,11 @@ func Backoff(backoffBase time.Duration, backoffLimit time.Duration, attempt uint
 func WithBackoffFunc(ctx context.Context, minBackoff, maxBackoff time.Duration, fn func() error) error {
 	var err error
 	backoff := minBackoff
-	t, stop := NewSafeTimer(0)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("operation cancelled: %w", err)
-		case <-t.C:
+		case <-time.After(backoff):
 		}
 
 		err = fn()
@@ -58,7 +56,5 @@ func WithBackoffFunc(ctx context.Context, minBackoff, maxBackoff time.Duration, 
 				backoff = maxBackoff
 			}
 		}
-
-		t.Reset(backoff)
 	}
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -272,11 +271,6 @@ func TestRetryJoin_RetryMaxAttempts(t *testing.T) {
 	// to test this apart from inspecting log entries.
 	errCh := make(chan struct{})
 
-	// Create a timeout to protect against problems within the test blocking
-	// for arbitrary long times.
-	timeout, timeoutStop := helper.NewSafeTimer(2 * time.Second)
-	defer timeoutStop()
-
 	var output []string
 
 	joiner := retryJoiner{
@@ -307,7 +301,7 @@ func TestRetryJoin_RetryMaxAttempts(t *testing.T) {
 		must.Len(t, 0, output)
 	case <-doneCh:
 		t.Fatal("retry join completed without closing error channel")
-	case <-timeout.C:
+	case <-time.After(2 * time.Second):
 		t.Fatal("timeout reached without error channel close")
 	}
 }
@@ -320,11 +314,6 @@ func TestRetryJoin_joinFuncFailure(t *testing.T) {
 
 	// Create an output for logging that can be inspected
 	logOutput := bytes.NewBufferString("")
-
-	// Create a timeout to protect against problems within the test blocking
-	// for arbitrary long times.
-	timeout, timeoutStop := helper.NewSafeTimer(2 * time.Second)
-	defer timeoutStop()
 
 	var output []string
 
@@ -362,7 +351,7 @@ func TestRetryJoin_joinFuncFailure(t *testing.T) {
 		must.Len(t, 0, output)
 	case <-doneCh:
 		t.Fatal("retry join completed without closing error channel")
-	case <-timeout.C:
+	case <-time.After(2 * time.Second):
 		t.Fatal("timeout reached without error channel close")
 	}
 

@@ -1080,18 +1080,15 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 	go func() {
 		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
 		defer cancel()
-		timer, stop := helper.NewSafeTimer(c.pprofInterval)
-		defer stop()
 
 		pprofIntervalCount := 1
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-timer.C:
+			case <-time.After(c.pprofInterval):
 				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
 				c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, pprofIntervalCount)
-				timer.Reset(c.pprofInterval)
 				pprofIntervalCount++
 			}
 		}

@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/time/rate"
 )
 
@@ -111,14 +110,9 @@ func (c *CachedBadNodeTracker) Add(nodeID string) bool {
 // EmitStats generates metrics for the bad nodes being currently tracked. Must
 // be called in a goroutine.
 func (c *CachedBadNodeTracker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
-
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			c.emitStats()
 		case <-stopCh:
 			return

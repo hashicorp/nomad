@@ -394,13 +394,11 @@ func (c *csiHook) claimWithRetry(req *structs.CSIVolumeClaimRequest) (*structs.C
 	var resp structs.CSIVolumeClaimResponse
 	var err error
 	backoff := c.minBackoffInterval
-	t, stop := helper.NewSafeTimer(0)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, err
-		case <-t.C:
+		case <-time.After(backoff):
 		}
 
 		err = c.rpcClient.RPC("CSIVolume.Claim", req, &resp)
@@ -420,7 +418,6 @@ func (c *csiHook) claimWithRetry(req *structs.CSIVolumeClaimRequest) (*structs.C
 		}
 		c.logger.Debug(
 			"volume could not be claimed because it is in use", "retry_in", backoff)
-		t.Reset(backoff)
 	}
 	return &resp, err
 }
@@ -499,13 +496,11 @@ func (c *csiHook) unmountWithRetry(result *volumePublishResult) error {
 	defer cancel()
 	var err error
 	backoff := c.minBackoffInterval
-	t, stop := helper.NewSafeTimer(0)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return err
-		case <-t.C:
+		case <-time.After(backoff):
 		}
 
 		err = c.unmountImpl(result)
@@ -520,7 +515,6 @@ func (c *csiHook) unmountWithRetry(result *volumePublishResult) error {
 			}
 		}
 		c.logger.Debug("volume could not be unmounted", "retry_in", backoff)
-		t.Reset(backoff)
 	}
 	return nil
 }

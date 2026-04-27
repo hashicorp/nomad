@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -89,9 +88,6 @@ func (c *Client) DrainSelf() error {
 // drain status, returning an error if the context expires or get any error from
 // the RPC call. If this function returns nil, the drain was successful.
 func (c *Client) pollServerForDrainStatus(ctx context.Context, interval time.Duration) error {
-	timer, stop := helper.NewSafeTimer(0)
-	defer stop()
-
 	statusReq := &structs.NodeSpecificRequest{
 		NodeID:   c.NodeID(),
 		SecretID: c.secretNodeID(),
@@ -106,7 +102,7 @@ func (c *Client) pollServerForDrainStatus(ctx context.Context, interval time.Dur
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(1 * time.Second):
 			err := c.RPC("Node.GetNode", statusReq, &statusResp)
 			if err != nil {
 				return err
@@ -114,7 +110,6 @@ func (c *Client) pollServerForDrainStatus(ctx context.Context, interval time.Dur
 			if &statusResp != nil && statusResp.Node.DrainStrategy == nil {
 				return nil
 			}
-			timer.Reset(interval)
 		}
 	}
 }
@@ -152,18 +147,14 @@ func (c *Client) pollLocalStatusForDrainStatus(ctx context.Context,
 		return true
 	}
 
-	timer, stop := helper.NewSafeTimer(0)
-	defer stop()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(1 * time.Second):
 			if drainIsDone() {
 				return nil
 			}
-			timer.Reset(interval)
 		}
 
 	}

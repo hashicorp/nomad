@@ -5,10 +5,10 @@ package drainer
 
 import (
 	"context"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -146,13 +146,9 @@ func NewNodeDrainWatcher(ctx context.Context, limiter *rate.Limiter, state *stat
 
 // watch is the long lived watching routine that detects node changes.
 func (w *nodeDrainWatcher) watch() {
-	timer, stop := helper.NewSafeTimer(stateReadErrorDelay)
-	defer stop()
-
 	nindex := uint64(1)
 
 	for {
-		timer.Reset(stateReadErrorDelay)
 		nodes, index, err := w.getNodes(nindex)
 		if err != nil {
 			if err == context.Canceled {
@@ -163,7 +159,7 @@ func (w *nodeDrainWatcher) watch() {
 			select {
 			case <-w.ctx.Done():
 				return
-			case <-timer.C:
+			case <-time.After(stateReadErrorDelay):
 				continue
 			}
 		}

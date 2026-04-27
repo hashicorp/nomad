@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -44,9 +43,6 @@ func (o *observer) start() {
 	// compromise between immediate (too early) and waiting full interval (slow)
 	firstWait := o.check.Interval / 2
 
-	timer, cancel := helper.NewSafeTimer(firstWait)
-	defer cancel()
-
 	for {
 		select {
 
@@ -55,15 +51,12 @@ func (o *observer) start() {
 			return
 
 		// time to execute the check
-		case <-timer.C:
+		case <-time.After(firstWait):
 			query := checks.GetCheckQuery(o.check)
 			result := o.checker.Do(o.ctx, o.qc, query)
 
 			// and put the results into the store (already logged)
 			_ = o.checkStore.Set(o.allocID, result)
-
-			// setup timer for next interval
-			timer.Reset(o.check.Interval)
 		}
 	}
 }

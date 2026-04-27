@@ -366,9 +366,6 @@ func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 	var attempts uint64
 	var backoff time.Duration
 
-	timer, stopTimer := helper.NewSafeTimer(0)
-	defer stopTimer()
-
 	for {
 		token, lease, err := h.deriveVaultTokenJWT()
 		if err == nil {
@@ -387,7 +384,6 @@ func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 
 		// Handle the retry case
 		backoff = helper.Backoff(vaultBackoffBaseline, vaultBackoffLimit, attempts)
-		timer.Reset(backoff)
 		attempts++
 
 		h.logger.Error("failed to derive Vault token", "error", err, "recoverable", true, "backoff", backoff)
@@ -396,7 +392,7 @@ func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 		select {
 		case <-h.ctx.Done():
 			return "", 0, true
-		case <-timer.C:
+		case <-time.After(backoff):
 		}
 	}
 }

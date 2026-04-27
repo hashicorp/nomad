@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -299,16 +298,12 @@ func (a *TestAgent) Shutdown() {
 		ch <- a.Agent.Shutdown()
 	}()
 
-	// one minute grace period on shutdown
-	timer, cancel := helper.NewSafeTimer(1 * time.Minute)
-	defer cancel()
-
 	select {
 	case err := <-ch:
 		if err != nil {
 			a.T.Fatalf("agent shutdown error: %v", err)
 		}
-	case <-timer.C:
+	case <-time.After(1 * time.Minute):
 		a.T.Fatal("agent shutdown timeout")
 	}
 }

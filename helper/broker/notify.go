@@ -6,8 +6,6 @@ package broker
 import (
 	"context"
 	"time"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 // GenericNotifier allows a process to send updates to many subscribers in an
@@ -93,10 +91,6 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 	case g.subscribeCh <- updateCh:
 	}
 
-	// Create a timeout timer and use the helper to ensure this routine doesn't
-	// panic and making the stop call clear.
-	timeoutTimer, timeoutStop := helper.NewSafeTimer(timeout)
-
 	// Defer a function which performs all the required cleanup of the
 	// subscriber once it has been notified of a change, or reached its wait
 	// timeout.
@@ -106,7 +100,6 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 		case g.unsubscribeCh <- updateCh:
 		}
 		close(updateCh)
-		timeoutStop()
 	}()
 
 	// Enter the main loop which listens for an update or timeout and returns
@@ -114,7 +107,7 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 	select {
 	case <-g.ctx.Done():
 		return "shutting down"
-	case <-timeoutTimer.C:
+	case <-time.After(timeout):
 		return "wait timed out after " + timeout.String()
 	case update := <-updateCh:
 		return update

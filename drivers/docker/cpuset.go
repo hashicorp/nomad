@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
-	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -36,16 +35,12 @@ func (c *cpuset) watch() {
 		c.sync = c.copyCpuset
 	}
 
-	ticks, cancel := helper.NewSafeTimer(cpusetSyncPeriod)
-	defer cancel()
-
 	for {
 		select {
 		case <-c.doneCh:
 			return
-		case <-ticks.C:
+		case <-time.After(cpusetSyncPeriod):
 			c.sync(c.source, c.destination)
-			ticks.Reset(cpusetSyncPeriod)
 		}
 	}
 }

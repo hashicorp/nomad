@@ -7,7 +7,6 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"maps"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -358,35 +357,8 @@ func CheckNamespaceScope(provided string, requested []string) []string {
 	return nil
 }
 
-// StopFunc is used to stop a time.Timer created with NewSafeTimer
+// StopFunc is used to stop a time.Timer created with NewSafeTicker
 type StopFunc func()
-
-// NewSafeTimer creates a time.Timer but does not panic if duration is <= 0.
-//
-// Using a time.Timer is recommended instead of time.After when it is necessary
-// to avoid leaking goroutines (e.g. in a select inside a loop).
-//
-// Returns the time.Timer and also a StopFunc, forcing the caller to deal
-// with stopping the time.Timer to avoid leaking a goroutine.
-//
-// Note: If creating a Timer that should do nothing until Reset is called, use
-// NewStoppedTimer instead for safely creating the timer in a stopped state.
-func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
-	if duration <= 0 {
-		// Avoid panic by using the smallest positive value. This is close enough
-		// to the behavior of time.After(0), which this helper is intended to
-		// replace.
-		// https://go.dev/play/p/EIkm9MsPbHY
-		duration = 1
-	}
-
-	t := time.NewTimer(duration)
-	cancel := func() {
-		t.Stop()
-	}
-
-	return t, cancel
-}
 
 // NewSafeTicker creates a time.Ticker but does not panic if duration is <= 0.
 //
@@ -407,14 +379,6 @@ func NewSafeTicker(duration time.Duration) (*time.Ticker, StopFunc) {
 	}
 
 	return t, cancel
-}
-
-// NewStoppedTimer creates a time.Timer in a stopped state. This is useful when
-// the actual wait time will computed and set later via Reset.
-func NewStoppedTimer() (*time.Timer, StopFunc) {
-	t, f := NewSafeTimer(math.MaxInt64)
-	t.Stop()
-	return t, f
 }
 
 // ConvertSlice takes the input slice and generates a new one using the

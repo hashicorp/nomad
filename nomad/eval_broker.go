@@ -15,7 +15,6 @@ import (
 
 	metrics "github.com/hashicorp/go-metrics/compat"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/broker"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/delayheap"
@@ -982,14 +981,9 @@ func (b *EvalBroker) Cancelable(batchSize int) []*structs.Evaluation {
 
 // EmitStats is used to export metrics about the broker while enabled
 func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
-
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			stats := b.Stats()
 			metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
 			metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))

@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -339,14 +337,12 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 	ctx, cancel := context.WithTimeout(ctx, 24*time.Hour)
 	defer cancel()
 
-	timer, stop := helper.NewSafeTimer(time.Duration(delay) * time.Millisecond)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
 			// an externally-defined timeout wins the day
 			return nil, ctx.Err()
-		case <-timer.C:
+		case <-time.After(time.Duration(delay) * time.Millisecond):
 			// continue after our internal delay
 		}
 
@@ -360,7 +356,6 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 		if delay > maxDelay {
 			delay = maxDelay
 		}
-		timer.Reset(time.Duration(delay) * time.Millisecond)
 	}
 }
 
