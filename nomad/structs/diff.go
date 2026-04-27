@@ -2537,6 +2537,36 @@ func volumeDiff(oldVR, newVR *VolumeRequest, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, mOptsDiff)
 	}
 
+	sandboxDiff := volumeSandboxDiff(oldVR.Sandbox, newVR.Sandbox, contextual)
+	if sandboxDiff != nil {
+		diff.Objects = append(diff.Object, sandboxDiff)
+	}
+
+	return diff
+}
+
+func volumeSandboxDiff(oldSandbox, newSandbox *SandboxVolumeRequest, contextual bool) *ObjectDiff {
+	if oldSandbox.Equal(newSandbox) {
+		return nil
+	}
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "SandboxVolumeRequest"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if oldSandbox == nil && newSandbox != nil {
+		oldSandbox = &SandboxVolumeRequest{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(newSandbox, nil, true)
+	} else if oldSandbox != nil && newSandbox == nil {
+		newSandbox = &SandboxVolumeRequest{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(oldSandbox, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(oldSandbox, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(newSandbox, nil, true)
+	}
+
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 	return diff
 }
 

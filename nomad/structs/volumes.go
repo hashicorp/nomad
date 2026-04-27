@@ -115,6 +115,7 @@ type VolumeRequest struct {
 	AttachmentMode VolumeAttachmentMode
 	MountOptions   *CSIMountOptions
 	PerAlloc       bool
+	Sandbox        *SandboxVolumeRequest
 }
 
 func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
@@ -139,6 +140,8 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 	case !v.MountOptions.Equal(o.MountOptions):
 		return false
 	case v.PerAlloc != o.PerAlloc:
+		return false
+	case !v.Sandbox.Equal(o.Sandbox):
 		return false
 	}
 	return true
@@ -230,6 +233,10 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		case CSIVolumeAccessModeMultiNodeMultiWriter:
 			// note: we intentionally allow read-only mount of this mode
 		}
+
+		if v.Sandbox != nil {
+			addErr("CSI volume do not support sandbox configuration")
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -245,6 +252,7 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	if v.MountOptions != nil {
 		nv.MountOptions = v.MountOptions.Copy()
 	}
+	nv.Sandbox = v.Sandbox.Copy()
 
 	return nv
 }
@@ -268,6 +276,36 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 		c[k] = v.Copy()
 	}
 	return c
+}
+
+type SandboxVolumeRequest struct {
+	MinBytes int64
+	MaxBytes int64
+}
+
+func (svr *SandboxVolumeRequest) Equal(o *SandboxVolumeRequest) bool {
+	if svr == nil && o == nil {
+		return true
+	}
+	if (svr != nil && o == nil) || (svr == nil && o != nil) {
+		return false
+	}
+	switch {
+	case svr.MaxBytes != o.MaxBytes:
+		return false
+	case svr.MinBytes != o.MinBytes:
+		return false
+	}
+	return true
+}
+
+func (svr *SandboxVolumeRequest) Copy() *SandboxVolumeRequest {
+	if svr == nil {
+		return nil
+	}
+	nsvr := new(SandboxVolumeRequest)
+	*nsvr = *svr
+	return nsvr
 }
 
 // VolumeAttachmentMode chooses the type of storage api that will be used to

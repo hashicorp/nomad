@@ -1326,11 +1326,16 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 				AccessMode:     structs.VolumeAccessMode(v.AccessMode),
 				PerAlloc:       v.PerAlloc,
 			}
-
 			if v.MountOptions != nil {
 				vol.MountOptions = &structs.CSIMountOptions{
 					FSType:     v.MountOptions.FSType,
 					MountFlags: v.MountOptions.MountFlags,
+				}
+			}
+			if v.Sandbox != nil {
+				vol.Sandbox = &structs.SandboxVolumeRequest{
+					MinBytes: v.Sandbox.MinBytes,
+					MaxBytes: v.Sandbox.MaxBytes,
 				}
 			}
 

@@ -1658,8 +1658,8 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the combination of (Namespace, JobID, TaskGroupName,
-				// VolumeID) is uniquely identifying
+				// Use a compound index so the combination of (Namespace, JobID,
+				// TaskGroupName, VolumeID) is uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
