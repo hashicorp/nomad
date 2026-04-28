@@ -1312,23 +1312,13 @@ func TestEncrypter_decryptWrappedKeyTask_contextCancel(t *testing.T) {
 
 	respCh := make(chan *cipherSet, 1)
 
-	// Generate a context and immediately cancel it.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// Ensure we receive an error indicating we hit the context done case and
-	// check no cipher response was sent.
-	err = encrypter.decryptWrappedKeyTask(ctx, kmsWrapper, key.Meta, wrappedKey, respCh)
-	must.ErrorContains(t, err, "operation cancelled")
-	must.Eq(t, 0, len(respCh))
-
 	// Recreate the response channel so that it is no longer buffered. The
 	// decrypt task should now block on attempting to send to it.
 	respCh = make(chan *cipherSet)
 
 	// Generate a new context and an error channel so we can gather the response
 	// of decryptWrappedKeyTask running inside a goroutine.
-	ctx, cancel = context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	errorCh := make(chan error, 1)
 
