@@ -311,6 +311,7 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 		MemoryOversubscriptionEnabled: conf.MemoryOversubscriptionEnabled,
 		RejectJobRegistration:         conf.RejectJobRegistration,
 		PauseEvalBroker:               conf.PauseEvalBroker,
+		NodeLimitForFeasibilityChecks: conf.NodeLimitForFeasibilityChecks,
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled:   conf.PreemptionConfig.SystemSchedulerEnabled,
 			SysBatchSchedulerEnabled: conf.PreemptionConfig.SysBatchSchedulerEnabled,
