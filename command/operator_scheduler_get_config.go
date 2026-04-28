@@ -86,6 +86,7 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 		fmt.Sprintf("Preemption Service Scheduler|%v", schedConfig.PreemptionConfig.ServiceSchedulerEnabled),
 		fmt.Sprintf("Preemption Batch Scheduler|%v", schedConfig.PreemptionConfig.BatchSchedulerEnabled),
 		fmt.Sprintf("Preemption SysBatch Scheduler|%v", schedConfig.PreemptionConfig.SysBatchSchedulerEnabled),
+		fmt.Sprintf("Node Limit For Feasibility Checks|%v", schedConfig.NodeLimitForFeasibilityChecks),
 		fmt.Sprintf("Modify Index|%v", resp.SchedulerConfig.ModifyIndex),
 	}))
 	return 0

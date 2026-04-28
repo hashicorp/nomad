@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Add a configuration field for the number of nodes that the scheduler considers when spread or affinity is in use. This can improve scheduler performance for some cluster shapes.
+```
