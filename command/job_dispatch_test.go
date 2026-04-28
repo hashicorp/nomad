@@ -367,14 +367,12 @@ func TestJobDispatchCommand_ComputeDeploymentStates(t *testing.T) {
 	}
 
 	// Compute deployment states
-	states := computeDeploymentStates(job, allocs)
+	states := computeDispatchedJobStates(job, allocs)
 
 	// Verify web task group
 	must.NotNil(t, states["web"])
 	must.Eq(t, 3, states["web"].DesiredTotal)
 	must.Eq(t, 3, states["web"].PlacedAllocs)
-	must.Eq(t, 2, states["web"].HealthyAllocs)
-	must.Eq(t, 1, states["web"].UnhealthyAllocs)
 	// Progress deadline should be the latest update time
 	must.True(t, states["web"].RequireProgressBy.Equal(later))
 
@@ -382,8 +380,6 @@ func TestJobDispatchCommand_ComputeDeploymentStates(t *testing.T) {
 	must.NotNil(t, states["api"])
 	must.Eq(t, 2, states["api"].DesiredTotal)
 	must.Eq(t, 2, states["api"].PlacedAllocs)
-	must.Eq(t, 1, states["api"].HealthyAllocs)
-	must.Eq(t, 0, states["api"].UnhealthyAllocs)
 	must.True(t, states["api"].RequireProgressBy.Equal(now))
 }
 
@@ -407,14 +403,12 @@ func TestJobDispatchCommand_ComputeDeploymentStates_NoAllocations(t *testing.T) 
 	allocs := []*api.AllocationListStub{}
 
 	// Compute deployment states
-	states := computeDeploymentStates(job, allocs)
+	states := computeDispatchedJobStates(job, allocs)
 
 	// Verify task group state is initialized but counts are zero
 	must.NotNil(t, states["web"])
 	must.Eq(t, 3, states["web"].DesiredTotal)
 	must.Eq(t, 0, states["web"].PlacedAllocs)
-	must.Eq(t, 0, states["web"].HealthyAllocs)
-	must.Eq(t, 0, states["web"].UnhealthyAllocs)
 	must.True(t, states["web"].RequireProgressBy.IsZero())
 }
 
@@ -445,7 +439,7 @@ func TestJobDispatchCommand_ComputeDeploymentStates_MultipleTaskGroups(t *testin
 		{TaskGroup: "worker", ClientStatus: api.AllocClientStatusFailed, ModifyTime: now.UnixNano()},
 	}
 
-	states := computeDeploymentStates(job, allocs)
+	states := computeDispatchedJobStates(job, allocs)
 
 	// Verify all task groups are present
 	must.MapLen(t, 3, states)
@@ -456,16 +450,12 @@ func TestJobDispatchCommand_ComputeDeploymentStates_MultipleTaskGroups(t *testin
 	// Verify web group
 	must.Eq(t, 5, states["web"].DesiredTotal)
 	must.Eq(t, 2, states["web"].PlacedAllocs)
-	must.Eq(t, 2, states["web"].HealthyAllocs)
 
 	// Verify api group
 	must.Eq(t, 3, states["api"].DesiredTotal)
 	must.Eq(t, 1, states["api"].PlacedAllocs)
-	must.Eq(t, 1, states["api"].HealthyAllocs)
 
 	// Verify worker group
 	must.Eq(t, 2, states["worker"].DesiredTotal)
 	must.Eq(t, 1, states["worker"].PlacedAllocs)
-	must.Eq(t, 0, states["worker"].HealthyAllocs)
-	must.Eq(t, 1, states["worker"].UnhealthyAllocs)
 }
