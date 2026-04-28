@@ -31,6 +31,7 @@ const (
 	TableCSIVolumes               = "csi_volumes"
 	TableCSIPlugins               = "csi_plugins"
 	TableTaskGroupHostVolumeClaim = "task_volume"
+	TableSandboxVolumes           = "sandbox_volumes"
 )
 
 const (
@@ -1686,6 +1687,46 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "ID",
+				},
+			},
+		},
+	}
+}
+
+func sandboxVolumes() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableSandboxVolumes,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{Field: "Namespace"},
+						&memdb.StringFieldIndex{Field: "Name"},
+						&memdb.StringFieldIndex{Field: "NodeID"},
+					},
+				},
+			},
+			indexClaimID: {
+				Name:         indexClaimID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{Field: "Namespace"},
+						&memdb.StringFieldIndex{Field: "Name"},
+						&memdb.StringFieldIndex{Field: "AllocID"},
+					},
 				},
 			},
 		},

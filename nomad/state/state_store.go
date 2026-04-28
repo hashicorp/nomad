@@ -4292,7 +4292,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 					"alloc_id", alloc.ID, "job_id", alloc.JobID, "namespace", alloc.Namespace)
 				continue
 			}
-
 			// Check if the alloc requires sticky volumes. If yes, find a node
 			// that has the right volume and update the task group volume
 			// claims table

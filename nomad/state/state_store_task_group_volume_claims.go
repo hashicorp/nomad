@@ -195,6 +195,10 @@ func (s *StateStore) updateStickyVolumeClaimsFromAlloc(txn *txn, index uint64, a
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg != nil {
 		for _, req := range tg.Volumes {
+			if req.Sandbox != nil {
+				// TODO
+			}
+
 			if !req.Sticky {
 				continue
 			}
@@ -221,6 +225,31 @@ func (s *StateStore) updateStickyVolumeClaimsFromAlloc(txn *txn, index uint64, a
 			}
 		}
 	}
+	return nil
+}
+
+func (s *StateStore) upsertSandbox(txn *txn, index uint64, alloc *structs.Allocation) error {
+	// try to find an existing sandbox for this allocation
+	raw, err := txn.First(TableTaskGroupHostVolumeClaim,
+		indexID, alloc.Namespace, alloc.JobID, alloc.TaskGroup, chv.ID)
+	if err != nil {
+		return err
+	}
+	var claim *structs.TaskGroupHostVolumeClaim
+	if raw != nil {
+		claim = raw.(*structs.TaskGroupHostVolumeClaim)
+	} else {
+		claim = &structs.TaskGroupHostVolumeClaim{
+			ID:            uuid.Generate(),
+			Namespace:     alloc.Namespace,
+			JobID:         alloc.JobID,
+			TaskGroupName: alloc.TaskGroup,
+			AllocID:       alloc.ID,
+			VolumeName:    source,
+			VolumeID:      chv.ID,
+		}
+	}
+
 	return nil
 }
 
