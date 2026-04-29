@@ -3995,16 +3995,18 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	Networks Networks
-	DiskMB   int64
-	Ports    AllocatedPorts
+	Networks  Networks
+	DiskMB    int64
+	Ports     AllocatedPorts
+	Sandboxes AllocatedSandboxes
 }
 
 func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
 	return AllocatedSharedResources{
-		Networks: a.Networks.Copy(),
-		DiskMB:   a.DiskMB,
-		Ports:    a.Ports,
+		Networks:  a.Networks.Copy(),
+		DiskMB:    a.DiskMB,
+		Ports:     a.Ports,
+		Sandboxes: a.Sandboxes.Copy(),
 	}
 }
 
@@ -4014,7 +4016,7 @@ func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	}
 	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
-
+	a.Sandboxes = append(a.Sandboxes, delta.Sandboxes...)
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -4034,6 +4036,12 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 	}
 	a.Networks = nets
 	a.DiskMB -= delta.DiskMB
+
+	a.Sandboxes = slices.DeleteFunc(a.Sandboxes, func(sb *AllocatedSandbox) bool {
+		return slices.ContainsFunc(delta.Sandboxes, func(ob *AllocatedSandbox) bool {
+			return sb.Equal(ob)
+		})
+	})
 }
 
 func (a *AllocatedSharedResources) Canonicalize() {

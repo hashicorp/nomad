@@ -105,6 +105,7 @@ func init() {
 		bindingRulesTableSchema,
 		hostVolumeTableSchema,
 		taskGroupHostVolumeClaimSchema,
+		sandboxVolumesSchema,
 	}...)
 }
 
@@ -1693,7 +1694,7 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 	}
 }
 
-func sandboxVolumes() *memdb.TableSchema {
+func sandboxVolumesSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableSandboxVolumes,
 		Indexes: map[string]*memdb.IndexSchema{
@@ -1701,34 +1702,50 @@ func sandboxVolumes() *memdb.TableSchema {
 				Name:         indexID,
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "ID",
-				},
-			},
-			indexNodeID: {
-				Name:         indexNodeID,
-				AllowMissing: false,
-				Unique:       true,
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{Field: "Namespace"},
-						&memdb.StringFieldIndex{Field: "Name"},
-						&memdb.StringFieldIndex{Field: "NodeID"},
+						&memdb.StringFieldIndex{Field: "ID"},
 					},
 				},
 			},
-			indexClaimID: {
-				Name:         indexClaimID,
+			// indexNodeID: {
+			// 	Name:         indexNodeID,
+			// 	AllowMissing: false,
+			// 	Unique:       true,
+			// 	Indexer: &memdb.CompoundIndex{
+			// 		Indexes: []memdb.Indexer{
+			// 			&memdb.StringFieldIndex{Field: "Namespace"},
+			// 			&memdb.StringFieldIndex{Field: "Name"},
+			// 			&memdb.StringFieldIndex{Field: "NodeID"},
+			// 		},
+			// 	},
+			// },
+
+			indexName: {
+				Name:         indexName,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{Field: "Namespace"},
 						&memdb.StringFieldIndex{Field: "Name"},
-						&memdb.StringFieldIndex{Field: "AllocID"},
 					},
 				},
 			},
+
+			// indexClaimID: {
+			// 	Name:         indexClaimID,
+			// 	AllowMissing: false,
+			// 	Unique:       false,
+			// 	Indexer: &memdb.CompoundIndex{
+			// 		Indexes: []memdb.Indexer{
+			// 			&memdb.StringFieldIndex{Field: "Namespace"},
+			// 			&memdb.StringFieldIndex{Field: "Name"},
+			// 			&memdb.StringFieldIndex{Field: "AllocID"},
+			// 		},
+			// 	},
+			// },
 		},
 	}
 }

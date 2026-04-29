@@ -4129,6 +4129,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		return err
 	}
 
+	if err := s.claimSandboxVolumes(txn, index, alloc); err != nil {
+		return err
+	}
+
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
@@ -4347,6 +4351,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		}
 
 		if err := s.deregisterServicesForTerminalAllocs(txn, index, alloc); err != nil {
+			return err
+		}
+
+		if err := s.claimSandboxVolumes(txn, index, alloc); err != nil {
 			return err
 		}
 

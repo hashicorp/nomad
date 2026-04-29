@@ -459,11 +459,6 @@ type VolumeRequest struct {
 	ExtraKeysHCL   []string              `hcl1:",unusedKeys,optional" json:"-"`
 }
 
-type SandboxVolumeRequest struct {
-	MinBytes int64 `hcl:"min_bytes"`
-	MaxBytes int64 `hcl:"max_bytes"`
-}
-
 const (
 	VolumeMountPropagationPrivate       = "private"
 	VolumeMountPropagationHostToTask    = "host-to-task"

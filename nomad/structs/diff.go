@@ -2539,7 +2539,7 @@ func volumeDiff(oldVR, newVR *VolumeRequest, contextual bool) *ObjectDiff {
 
 	sandboxDiff := volumeSandboxDiff(oldVR.Sandbox, newVR.Sandbox, contextual)
 	if sandboxDiff != nil {
-		diff.Objects = append(diff.Object, sandboxDiff)
+		diff.Objects = append(diff.Objects, sandboxDiff)
 	}
 
 	return diff

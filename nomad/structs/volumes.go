@@ -278,36 +278,6 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 	return c
 }
 
-type SandboxVolumeRequest struct {
-	MinBytes int64
-	MaxBytes int64
-}
-
-func (svr *SandboxVolumeRequest) Equal(o *SandboxVolumeRequest) bool {
-	if svr == nil && o == nil {
-		return true
-	}
-	if (svr != nil && o == nil) || (svr == nil && o != nil) {
-		return false
-	}
-	switch {
-	case svr.MaxBytes != o.MaxBytes:
-		return false
-	case svr.MinBytes != o.MinBytes:
-		return false
-	}
-	return true
-}
-
-func (svr *SandboxVolumeRequest) Copy() *SandboxVolumeRequest {
-	if svr == nil {
-		return nil
-	}
-	nsvr := new(SandboxVolumeRequest)
-	*nsvr = *svr
-	return nsvr
-}
-
 // VolumeAttachmentMode chooses the type of storage api that will be used to
 // interact with the device.
 type VolumeAttachmentMode string
