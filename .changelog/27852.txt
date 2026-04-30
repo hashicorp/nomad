@@ -1,0 +1,3 @@
+```release-note:bug
+core: avoid setting job to dead while wauting to reschedule
+```
