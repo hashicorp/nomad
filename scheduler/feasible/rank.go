@@ -641,6 +641,7 @@ NEXTNODE:
 
 							offer = offerEvict
 							sumAffinities = sumAffinitiesEvict
+							devAllocator = devAllocatorEvict
 						}
 
 						// assign the offer for this device to our allocator
