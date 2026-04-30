@@ -135,7 +135,7 @@ type Agent struct {
 
 	inmemSink *metrics.InmemSink
 
-	// configReloader is a callback that triggers a full agent configuration
+	// configReloader triggers a full agent configuration
 	// reload, equivalent to SIGHUP
 	configReloader func() error
 
@@ -1614,9 +1614,8 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 // ConfigReload triggers a full agent configuration reload, equivalent to
 // receiving a SIGHUP signal. The reload logic lives in Command.handleReload.
 func (a *Agent) ConfigReload() error {
-	a.configLock.Lock()
 	reloader := a.configReloader
-	a.configLock.Unlock()
+
 	if reloader == nil {
 		return nil
 	}
