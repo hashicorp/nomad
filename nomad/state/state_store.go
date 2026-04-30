@@ -4067,8 +4067,10 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	return txn.Commit()
 }
 
-// nestedUpdateAllocFromClient is used to nest an update of an allocation with
+// NestedUpdateAllocFromClient is used to nest an update of an allocation with
+//
 //	client status.
+//
 // It returns an allocation fully populated with the values from the state store.
 func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
 	alloc *structs.Allocation) (*structs.Allocation, error) {
