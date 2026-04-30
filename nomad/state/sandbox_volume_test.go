@@ -4,6 +4,8 @@
 package state
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -22,10 +24,8 @@ func TestSandboxClaims(t *testing.T) {
 	index, err := store.LatestIndex()
 	must.NoError(t, err)
 
-	nodes := []*structs.Node{}
 	for range 5 {
 		n := mock.Node()
-		nodes = append(nodes, n)
 		index++
 		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, n))
 	}
@@ -44,7 +44,7 @@ func TestSandboxClaims(t *testing.T) {
 			Sticky:     false,
 			AccessMode: structs.HostVolumeAccessModeSingleNodeSingleWriter,
 			Sandbox: &structs.SandboxVolumeRequest{
-				MaxCount: 3,
+				MaxCount: 2,
 				TTL:      time.Hour,
 				MinBytes: 100_000_000,
 				MaxBytes: 100_000_000,
@@ -57,33 +57,26 @@ func TestSandboxClaims(t *testing.T) {
 	// 2. simulate scheduler: job wants a sandbox but none exists, so the
 	// scheduler gives us a new sandbox (with ID) and a node to place it on
 
-	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName, "")
-	must.NoError(t, err)
-	must.Nil(t, iter.Next())
-
-	sandboxID0 := uuid.Generate()
-
-	alloc0 := mock.AllocForNode(nodes[0])
-	alloc0.JobID = job.ID
-	alloc0.AllocatedResources.Shared.Sandboxes = []*structs.AllocatedSandbox{{
-		ID:            sandboxID0,
-		Namespace:     job.Namespace,
-		Name:          sandboxName,
-		CapacityBytes: 100_000_000,
-		TTL:           time.Hour,
-	}}
-
+	planned := mockScheduleSandboxVolume(t, store, sandboxName, job)
 	index++
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
-			AllocsUpdated: []*structs.Allocation{alloc0},
+			AllocsUpdated: planned,
 			Job:           job,
 		}))
 
-	sandbox0, err := store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
+	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName, "")
 	must.NoError(t, err)
-	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	obj := iter.Next()
+	must.NotNil(t, obj)
+	sandbox0 := obj.(*structs.SandboxVolume)
+	sandboxID0 := sandbox0.ID
+
+	allocs, err := store.AllocsByJob(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+	alloc0 := allocs[0]
+
+	nodeID0 := sandbox0.NodeID
 	must.Len(t, 1, sandbox0.AllocIDs)
 	must.Eq(t, alloc0.ID, sandbox0.AllocIDs[0])
 	t.Logf("sandbox %q created and claimed by alloc %q", sandbox0.ID[:8], alloc0.ID[:8])
@@ -100,42 +93,31 @@ func TestSandboxClaims(t *testing.T) {
 	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
 	must.Len(t, 0, sandbox0.AllocIDs, must.Sprintf("alloc claims: %s", sandbox0.AllocIDs))
 	t.Logf("sandbox %q freed by client-terminal alloc", sandbox0.ID[:8])
 
-	// 4. simulate schedyler: need to find where to replace the allocation. give
+	// 4. simulate scheduler: need to find where to replace the allocation. give
 	// us the same sandbox. upsert the new plan result
 
-	iter, err = store.SandboxesByName(nil, job.Namespace, sandboxName, "")
-	must.NoError(t, err)
-	obj := iter.Next()
-	must.NotNil(t, obj)
-	sandbox0 = obj.(*structs.SandboxVolume)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
-
-	alloc1 := mock.AllocForNode(nodes[0])
-	alloc1.JobID = job.ID
-	alloc1.PreviousAllocation = alloc0.ID
-	alloc1.AllocatedResources.Shared.Sandboxes = []*structs.AllocatedSandbox{{
-		ID:            sandbox0.ID,
-		Namespace:     job.Namespace,
-		Name:          sandboxName,
-		CapacityBytes: 100_000_000,
-		TTL:           time.Hour,
-	}}
-
+	planned = mockScheduleSandboxVolume(t, store, sandboxName, job)
 	index++
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
-			AllocsUpdated: []*structs.Allocation{alloc1},
+			AllocsUpdated: planned,
 			Job:           job,
 		}))
+
+	allocs, err = store.AllocsByJob(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+	alloc1 := allocs[slices.IndexFunc(allocs, func(a *structs.Allocation) bool {
+		return a.ID != alloc0.ID
+	})]
 
 	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
 	must.Len(t, 1, sandbox0.AllocIDs)
 	must.Eq(t, alloc1.ID, sandbox0.AllocIDs[0])
 	lastModified := sandbox0.ModifyIndex
@@ -150,42 +132,25 @@ func TestSandboxClaims(t *testing.T) {
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
 
 	// 6. simulate scheduler: keeps one sandbox and creates one new one
-
-	iter, err = store.SandboxesByName(nil, job.Namespace, sandboxName, "")
-	must.NoError(t, err)
-	obj = iter.Next()
-	must.NotNil(t, obj)
-	sandbox0 = obj.(*structs.SandboxVolume)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
-	must.Len(t, 1, sandbox0.AllocIDs)
-	must.Eq(t, alloc1.ID, sandbox0.AllocIDs[0])
-
-	obj = iter.Next() // ran out!
-	must.Nil(t, obj)
-
-	alloc1 = alloc1.Copy()
-	alloc2 := mock.AllocForNode(nodes[1])
-	alloc2.JobID = job.ID
-	sandboxID1 := uuid.Generate()
-	alloc2.AllocatedResources.Shared.Sandboxes = []*structs.AllocatedSandbox{{
-		ID:            sandboxID1,
-		Namespace:     job.Namespace,
-		Name:          sandboxName,
-		CapacityBytes: 100_000_000,
-		TTL:           time.Hour,
-	}}
-
+	planned = mockScheduleSandboxVolume(t, store, sandboxName, job)
 	index++
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
-			AllocsUpdated: []*structs.Allocation{alloc1, alloc2},
+			AllocsUpdated: planned,
 			Job:           job,
 		}))
+
+	allocs, err = store.AllocsByJob(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+	alloc2 := allocs[slices.IndexFunc(allocs, func(a *structs.Allocation) bool {
+		return a.ID != alloc0.ID && a.ID != alloc1.ID
+	})]
+	sandboxID1 := alloc2.AllocatedResources.Shared.Sandboxes[0].ID
 
 	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
 	must.Len(t, 1, sandbox0.AllocIDs)
 	must.Eq(t, alloc1.ID, sandbox0.AllocIDs[0])
 	must.Eq(t, lastModified, sandbox0.ModifyIndex) // should not be modified
@@ -194,10 +159,11 @@ func TestSandboxClaims(t *testing.T) {
 	sandbox1, err := store.SandboxVolumeByID(nil, job.Namespace, sandboxID1)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox1)
-	must.Eq(t, nodes[1].ID, sandbox1.NodeID)
+	nodeID1 := sandbox1.NodeID
 	must.Len(t, 1, sandbox1.AllocIDs)
 	must.Eq(t, alloc2.ID, sandbox1.AllocIDs[0])
-	t.Logf("sandbox %q claimed by new alloc %q", sandbox1.ID[:8], alloc2.ID[:8])
+	t.Logf("sandbox %q created and claimed by new alloc %q",
+		sandbox1.ID[:8], alloc2.ID[:8])
 
 	// 5. job becomes terminal, but claims aren't freed until allocs are client-terminal
 	// sandboxes.
@@ -216,14 +182,8 @@ func TestSandboxClaims(t *testing.T) {
 	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
 		&structs.ApplyPlanResultsRequest{
 			AllocsStopped: []*structs.AllocationDiff{
-				{
-					ID:        alloc1.ID,
-					Namespace: alloc1.Namespace,
-				},
-				{
-					ID:        alloc2.ID,
-					Namespace: alloc2.Namespace,
-				},
+				{ID: alloc1.ID, Namespace: alloc1.Namespace},
+				{ID: alloc2.ID, Namespace: alloc2.Namespace},
 			},
 			Job: job,
 		}))
@@ -231,7 +191,7 @@ func TestSandboxClaims(t *testing.T) {
 	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
 	must.Len(t, 1, sandbox0.AllocIDs)
 	must.Eq(t, alloc1.ID, sandbox0.AllocIDs[0])
 	t.Logf("sandbox %q not freed by server-terminal alloc %q", sandbox0.ID[:8], alloc1.ID[:8])
@@ -239,7 +199,7 @@ func TestSandboxClaims(t *testing.T) {
 	sandbox1, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID1)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox1)
-	must.Eq(t, nodes[1].ID, sandbox1.NodeID)
+	must.Eq(t, nodeID1, sandbox1.NodeID)
 	must.Len(t, 1, sandbox1.AllocIDs)
 	must.Eq(t, alloc2.ID, sandbox1.AllocIDs[0])
 	t.Logf("sandbox %q not freed by server-terminal alloc %q", sandbox1.ID[:8], alloc2.ID[:8])
@@ -256,16 +216,134 @@ func TestSandboxClaims(t *testing.T) {
 	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox0)
-	must.Eq(t, nodes[0].ID, sandbox0.NodeID)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
 	must.Len(t, 0, sandbox0.AllocIDs)
 	t.Logf("sandbox %q freed by client-terminal alloc", sandbox0.ID[:8])
 
 	sandbox1, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID1)
 	must.NoError(t, err)
 	must.NotNil(t, sandbox1)
-	must.Eq(t, nodes[1].ID, sandbox1.NodeID)
+	must.Eq(t, nodeID1, sandbox1.NodeID)
 	must.Len(t, 0, sandbox1.AllocIDs)
 	t.Logf("sandbox %q freed by client-terminal alloc", sandbox1.ID[:8])
 
-	// 6. a new job comes along and should claim the old
+	// 6. a new job comes along
+
+	job2 := mock.MinJob()
+	job2.ID = "job2"
+	job2.TaskGroups[0].Count = 2
+	job2.TaskGroups[0].Volumes = job.TaskGroups[0].Volumes
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job2))
+
+	// 7. simulate scheduler: new job should claim the old sandboxes, spreading
+	// out among them
+	newAllocs := mockScheduleSandboxVolume(t, store, sandboxName, job2)
+
+	index++
+	must.NoError(t, store.UpsertPlanResults(structs.MsgTypeTestSetup, index,
+		&structs.ApplyPlanResultsRequest{
+			AllocsUpdated: newAllocs,
+			Job:           job2,
+		}))
+
+	sandbox0, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID0)
+	must.NoError(t, err)
+	must.NotNil(t, sandbox0)
+	must.Eq(t, nodeID0, sandbox0.NodeID)
+	must.Len(t, 1, sandbox0.AllocIDs)
+	must.SliceContainsFunc(t, newAllocs, sandbox0.AllocIDs[0],
+		func(a *structs.Allocation, id string) bool { return a.ID == id })
+
+	sandbox1, err = store.SandboxVolumeByID(nil, job.Namespace, sandboxID1)
+	must.NoError(t, err)
+	must.NotNil(t, sandbox1)
+	must.Eq(t, nodeID1, sandbox1.NodeID)
+	must.Len(t, 1, sandbox1.AllocIDs)
+	must.SliceContainsFunc(t, newAllocs, sandbox1.AllocIDs[0],
+		func(a *structs.Allocation, id string) bool { return a.ID == id })
+
+}
+
+func mockScheduleSandboxVolume(t *testing.T, store *StateStore, sandboxName string, job *structs.Job) []*structs.Allocation {
+
+	plan := []*structs.Allocation{}
+	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName, "")
+	must.NoError(t, err)
+
+	nodeIDsSeen := []string{}
+
+	existingAllocs, err := store.AllocsByJob(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+	existingAllocs = slices.DeleteFunc(existingAllocs,
+		func(a *structs.Allocation) bool {
+			return a.ClientTerminalStatus()
+		})
+	count := len(existingAllocs)
+
+	defer func() {
+		for _, alloc := range plan {
+			fmt.Println("alloc", alloc.ID)
+		}
+	}()
+
+	req := job.TaskGroups[0].Volumes[sandboxName]
+	tgCount := job.TaskGroups[0].Count
+
+	// fast feasibilty path
+	// TODO: how do we identify jobs eligible for the fast path?
+	// * has a SandboxVolume
+	// * has a Sticky Volume
+	// * has a constraint on a specific node ID or a "unique" attribute
+
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		if count >= req.Sandbox.MaxCount || count >= tgCount {
+			return plan
+		}
+
+		sandbox := obj.(*structs.SandboxVolume)
+		if !sandbox.IsFree(req.AccessMode) {
+			continue
+		}
+
+		node, _ := store.NodeByID(nil, sandbox.NodeID)
+		alloc := mock.AllocForNode(node)
+		alloc.JobID = job.ID
+		alloc.AllocatedResources.Shared.Sandboxes = []*structs.AllocatedSandbox{{
+			ID:            sandbox.ID,
+			Namespace:     job.Namespace,
+			Name:          sandboxName,
+			CapacityBytes: sandbox.CapacityBytes,
+			TTL:           sandbox.TTL,
+		}}
+		plan = append(plan, alloc)
+		nodeIDsSeen = append(nodeIDsSeen, node.ID)
+		count++
+	}
+
+	// normal scheduler path
+	for {
+		if count >= req.Sandbox.MaxCount || count >= tgCount {
+			return plan
+		}
+
+		iter, _ := store.Nodes(nil)
+		for obj := iter.Next(); obj != nil; obj = iter.Next() {
+			node := obj.(*structs.Node)
+			if !slices.Contains(nodeIDsSeen, node.ID) {
+				alloc := mock.AllocForNode(node)
+				alloc.JobID = job.ID
+				alloc.AllocatedResources.Shared.Sandboxes = []*structs.AllocatedSandbox{{
+					ID:            uuid.Generate(),
+					Namespace:     job.Namespace,
+					Name:          sandboxName,
+					CapacityBytes: req.Sandbox.MaxBytes,
+					TTL:           req.Sandbox.TTL,
+				}}
+				plan = append(plan, alloc)
+				break
+			}
+		}
+		count++
+	}
 }

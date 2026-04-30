@@ -52,6 +52,16 @@ func (v *SandboxVolume) Copy() *SandboxVolume {
 	return &nv
 }
 
+func (v *SandboxVolume) IsFree(forMode VolumeAccessMode) bool {
+	switch forMode {
+	case HostVolumeAccessModeSingleNodeSingleWriter:
+		return len(v.AllocIDs) == 0
+	default:
+		// TODO: check r/o?
+	}
+	return true
+}
+
 type AllocatedSandboxes []*AllocatedSandbox
 
 func (as AllocatedSandboxes) Copy() AllocatedSandboxes {

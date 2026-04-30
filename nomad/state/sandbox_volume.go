@@ -34,16 +34,6 @@ func (s *StateStore) SandboxesByName(ws memdb.WatchSet, ns, name string, forMode
 	if err != nil {
 		return nil, err
 	}
-	// switch forMode {
-	// case structs.HostVolumeAccessModeSingleNodeSingleWriter:
-	// 	iter = memdb.NewFilterIterator(iter, func(obj any) bool {
-	// 		sandbox := obj.(*structs.SandboxVolume)
-	// 		return len(sandbox.AllocIDs) == 0
-	// 	})
-	// default:
-	// 	// TODO: check r/o?
-	// }
-
 	ws.Add(iter.WatchCh())
 	return iter, nil
 }
