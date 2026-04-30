@@ -553,7 +553,11 @@ func (s *GenericScheduler) computePlacements(
 			}
 
 			// Find the preferred node
-			preferredNode, err := s.findPreferredNode(missing)
+			preferredNodes, err := s.findPreferredNodes(missing)
+			if err != nil {
+				return err
+			}
+			fastPathNodes, err := s.findFastPathNodes(missing)
 			if err != nil {
 				return err
 			}
@@ -569,7 +573,7 @@ func (s *GenericScheduler) computePlacements(
 			}
 
 			// Compute penalty nodes for rescheduled allocs
-			selectOptions := getSelectOptions(prevAllocation, preferredNode)
+			selectOptions := getSelectOptions(prevAllocation, preferredNodes, fastPathNodes)
 			selectOptions.AllocName = missing.Name()
 			option := s.selectNextOption(tg, selectOptions)
 
@@ -793,7 +797,7 @@ func needsToSetNodes(a, b *structs.Job) bool {
 }
 
 // getSelectOptions sets up preferred nodes and penalty nodes
-func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *feasible.SelectOptions {
+func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node, fastPathNodes []*structs.Node) *feasible.SelectOptions {
 	selectOptions := &feasible.SelectOptions{}
 	if prevAllocation != nil {
 		penaltyNodes := make(map[string]struct{})
@@ -868,8 +872,31 @@ func UpdateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 	annotateRescheduleTracker(prev, structs.LastRescheduleSuccess)
 }
 
+// findFastPathNodes finds a set of nodes that are likely good feasibility fit
+func (s *GenericScheduler) findFastPathNodes(place reconciler.PlacementResult) ([]*structs.Node, error) {
+	nodes := []*structs.Node{}
+	for _, req := range place.TaskGroup().Volumes {
+		if req.Type == structs.VolumeTypeSandbox {
+			rnodes, err := s.ctx.State().NodesForSandbox(s.eval.Namespace, req.Source)
+			if err != nil {
+				return nil, nil
+			}
+			// TODO: if you have more than one volume this messes up the order
+			nodes = append(nodes, rnodes...)
+		}
+	}
+	// TODO: here we'd like to de-dupe, but we run into the same problem of
+	// ruining the index order nodes
+	//
+	// slices.SortFunc(nodes, func(a, b *structs.Node) int {
+	// 	return cmp.Compare(a.ID, b.ID)
+	// })
+	// nodes = slices.Compact(nodes)
+	return nodes, nil
+}
+
 // findPreferredNode finds the preferred node for an allocation
-func (s *GenericScheduler) findPreferredNode(place reconciler.PlacementResult) (*structs.Node, error) {
+func (s *GenericScheduler) findPreferredNodes(place reconciler.PlacementResult) (*structs.Node, error) {
 	prev := place.PreviousAllocation()
 	if prev == nil {
 		return nil, nil

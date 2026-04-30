@@ -4,6 +4,7 @@
 package state
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sync"
 
@@ -1709,18 +1710,18 @@ func sandboxVolumesSchema() *memdb.TableSchema {
 					},
 				},
 			},
-			// indexNodeID: {
-			// 	Name:         indexNodeID,
-			// 	AllowMissing: false,
-			// 	Unique:       true,
-			// 	Indexer: &memdb.CompoundIndex{
-			// 		Indexes: []memdb.Indexer{
-			// 			&memdb.StringFieldIndex{Field: "Namespace"},
-			// 			&memdb.StringFieldIndex{Field: "Name"},
-			// 			&memdb.StringFieldIndex{Field: "NodeID"},
-			// 		},
-			// 	},
-			// },
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{Field: "Namespace"},
+						&memdb.StringFieldIndex{Field: "Name"},
+						&memdb.StringFieldIndex{Field: "NodeID"},
+					},
+				},
+			},
 
 			indexName: {
 				Name:         indexName,
@@ -1732,6 +1733,13 @@ func sandboxVolumesSchema() *memdb.TableSchema {
 						&memdb.StringFieldIndex{Field: "Name"},
 					},
 				},
+			},
+
+			indexClaims: {
+				Name:         indexClaims,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer:      &SandboxClaimCountIndexer{},
 			},
 
 			// indexClaimID: {
@@ -1749,3 +1757,77 @@ func sandboxVolumesSchema() *memdb.TableSchema {
 		},
 	}
 }
+
+type SandboxClaimCountIndexer struct{}
+
+// exact lookup
+func (_ *SandboxClaimCountIndexer) FromArgs(args ...any) ([]byte, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("must provide three arguments")
+	}
+	ns, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("namespace argument must be a string: %#v", args[0])
+	}
+	name, ok := args[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("name argument must be a string: %#v", args[0])
+	}
+	count, ok := args[2].(uint8)
+	if !ok {
+		return nil, fmt.Errorf("count argument must be an int: %#v", args[0])
+	}
+
+	// null as separator and terminator, encode count as a single byte
+	index := []byte(ns + "\x00" + name + "\x00")
+	index, _ = binary.Append(index, binary.BigEndian, count)
+	index = append(index, 0x0)
+	return index, nil
+}
+
+func (_ *SandboxClaimCountIndexer) FromObject(obj any) (bool, []byte, error) {
+	sandbox := obj.(*structs.SandboxVolume)
+
+	var err error
+	index := []byte(sandbox.Namespace + "\x00" + sandbox.Name + "\x00")
+	if len(sandbox.AllocIDs) > 255 {
+		return false, nil, fmt.Errorf("too many allocation claims")
+	}
+	index, err = binary.Append(index, binary.BigEndian, uint8(len(sandbox.AllocIDs)))
+	if err != nil {
+		return false, nil, err
+	}
+	index = append(index, 0x0)
+	return true, index, nil
+}
+
+func (_ *SandboxClaimCountIndexer) PrefixFromArgs(args ...any) ([]byte, error) {
+	if len(args) < 2 || len(args) > 3 {
+		return nil, fmt.Errorf("must provide two to three arguments")
+	}
+	ns, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("namespace argument must be a string: %#v", args[0])
+	}
+	name, ok := args[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("name argument must be a string: %#v", args[0])
+	}
+	if len(args) == 2 {
+		index := []byte(ns + "\x00" + name)
+		return index, nil
+	}
+	count, ok := args[2].(uint8)
+	if !ok {
+		return nil, fmt.Errorf("count argument must be an int: %#v", args[0])
+	}
+
+	// null as separator but no terminator, encode count as a single byte
+	index := []byte(ns + "\x00" + name + "\x00")
+	index, _ = binary.Append(index, binary.BigEndian, count)
+	return index, nil
+
+}
+
+const indexClaims = "index_claims"
+const indexClaimsPrefix = "index_claims_prefix"

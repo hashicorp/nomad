@@ -4,7 +4,6 @@
 package state
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -65,7 +64,7 @@ func TestSandboxClaims(t *testing.T) {
 			Job:           job,
 		}))
 
-	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName, "")
+	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName)
 	must.NoError(t, err)
 	obj := iter.Next()
 	must.NotNil(t, obj)
@@ -268,8 +267,6 @@ func TestSandboxClaims(t *testing.T) {
 func mockScheduleSandboxVolume(t *testing.T, store *StateStore, sandboxName string, job *structs.Job) []*structs.Allocation {
 
 	plan := []*structs.Allocation{}
-	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName, "")
-	must.NoError(t, err)
 
 	nodeIDsSeen := []string{}
 
@@ -281,11 +278,12 @@ func mockScheduleSandboxVolume(t *testing.T, store *StateStore, sandboxName stri
 		})
 	count := len(existingAllocs)
 
-	defer func() {
-		for _, alloc := range plan {
-			fmt.Println("alloc", alloc.ID)
-		}
-	}()
+	// defer func() {
+	// 	fmt.Println("DEBUG")
+	// 	for _, alloc := range plan {
+	// 		fmt.Println("  alloc", alloc.ID)
+	// 	}
+	// }()
 
 	req := job.TaskGroups[0].Volumes[sandboxName]
 	tgCount := job.TaskGroups[0].Count
@@ -296,12 +294,16 @@ func mockScheduleSandboxVolume(t *testing.T, store *StateStore, sandboxName stri
 	// * has a Sticky Volume
 	// * has a constraint on a specific node ID or a "unique" attribute
 
+	iter, err := store.SandboxesByName(nil, job.Namespace, sandboxName)
+	must.NoError(t, err)
 	for obj := iter.Next(); obj != nil; obj = iter.Next() {
-		if count >= req.Sandbox.MaxCount || count >= tgCount {
+		if (req.Sandbox.MaxCount > 0 && count >= req.Sandbox.MaxCount) || count >= tgCount {
 			return plan
 		}
 
 		sandbox := obj.(*structs.SandboxVolume)
+		// we check IsFree here but we expect to fill unused sandboxes first
+		// because the index is ordered by the number of claims
 		if !sandbox.IsFree(req.AccessMode) {
 			continue
 		}
@@ -321,9 +323,9 @@ func mockScheduleSandboxVolume(t *testing.T, store *StateStore, sandboxName stri
 		count++
 	}
 
-	// normal scheduler path
+	// normal scheduler path, create new sandboxes
 	for {
-		if count >= req.Sandbox.MaxCount || count >= tgCount {
+		if (req.Sandbox.MaxCount > 0 && count >= req.Sandbox.MaxCount) || count >= tgCount {
 			return plan
 		}
 

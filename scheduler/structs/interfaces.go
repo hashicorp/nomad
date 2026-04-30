@@ -96,6 +96,10 @@ type State interface {
 	// given node
 	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.ResultIterator, error)
 
+	SandboxesByName(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
+
+	NodesForSandbox(string, string) ([]*structs.Node, error)
+
 	// TaskGroupHostVolumeClaimsByFields gets all host volume claims for
 	// a given namespace, job ID and task group name
 	TaskGroupHostVolumeClaimsByFields(memdb.WatchSet, state.TgvcSearchableFields) (memdb.ResultIterator, error)

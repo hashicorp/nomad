@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"maps"
 	"sync"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -17,19 +18,21 @@ import (
 // AllocRunner and then only accessed via getters and setters that hold the
 // lock.
 type AllocHookResources struct {
-	csiMounts      map[string]*csimanager.MountInfo
-	consulTokens   map[string]map[string]*consulapi.ACLToken // Consul cluster -> service identity -> token
-	consulCheckIDs [][]string
-	networkStatus  *structs.AllocNetworkStatus
+	csiMounts          map[string]*csimanager.MountInfo
+	sandboxMountPoints map[string]string                         // alias/name -> filesystem path
+	consulTokens       map[string]map[string]*consulapi.ACLToken // Consul cluster -> service identity -> token
+	consulCheckIDs     [][]string
+	networkStatus      *structs.AllocNetworkStatus
 
 	mu sync.RWMutex
 }
 
 func NewAllocHookResources() *AllocHookResources {
 	return &AllocHookResources{
-		csiMounts:      map[string]*csimanager.MountInfo{},
-		consulTokens:   map[string]map[string]*consulapi.ACLToken{},
-		consulCheckIDs: [][]string{},
+		csiMounts:          map[string]*csimanager.MountInfo{},
+		sandboxMountPoints: map[string]string{},
+		consulTokens:       map[string]map[string]*consulapi.ACLToken{},
+		consulCheckIDs:     [][]string{},
 	}
 }
 
@@ -49,6 +52,22 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	defer a.mu.Unlock()
 
 	a.csiMounts = m
+}
+
+// GetSandboxMounts returns a copy of the sandbox mount info previously written
+// by the sandbox allocrunner hook
+func (a *AllocHookResources) GetSandboxMounts() map[string]string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return maps.Clone(a.sandboxMountPoints)
+}
+
+// SetSandboxMounts stores the sandbox mount info for later use by the volume
+// taskrunner hook
+func (a *AllocHookResources) SetSandboxMounts(m map[string]string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sandboxMountPoints = m
 }
 
 // GetConsulTokens returns all the Consul tokens previously written by the

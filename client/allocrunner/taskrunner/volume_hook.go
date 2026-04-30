@@ -226,6 +226,11 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		return err
 	}
 
+	sandboxMounts, err := h.prepareSandboxVolumes(req, volumes[structs.VolumeTypeSandbox])
+	if err != nil {
+		return err
+	}
+
 	// Because this hook is also ran on restores, we only add mounts that do not
 	// already exist. Although this loop is somewhat expensive, there are only
 	// a small number of mounts that exist within most individual tasks. We may
@@ -237,6 +242,10 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	for _, m := range csiVolumeMounts {
 		mounts = ensureMountpointInserted(mounts, m)
 	}
+	for _, m := range sandboxMounts {
+		mounts = ensureMountpointInserted(mounts, m)
+	}
+
 	h.runner.hookResources.setMounts(mounts)
 
 	return nil
@@ -248,4 +257,55 @@ func interpolateVolumeMounts(mounts []*structs.VolumeMount, taskEnv *taskenv.Tas
 		mount.Destination = taskEnv.ReplaceEnv(mount.Destination)
 		mount.PropagationMode = taskEnv.ReplaceEnv(mount.PropagationMode)
 	}
+}
+
+func (h *volumeHook) prepareSandboxVolumes(
+	req *interfaces.TaskPrestartRequest, volumeReqs map[string]*structs.VolumeRequest,
+) ([]*drivers.MountConfig, error) {
+
+	var mounts []*drivers.MountConfig
+
+	mountRequests := partitionMountsByVolume(req.Task.VolumeMounts)
+	mountPoints := h.runner.allocHookResources.GetSandboxMounts()
+
+	for alias, volReq := range volumeReqs {
+		if volReq.Type != structs.VolumeTypeSandbox {
+			continue // make sure only dealing with mounts for sandbox volumes
+		}
+		mountsForAlias, ok := mountRequests[alias]
+		if !ok {
+			// This task doesn't use the volume
+			continue
+		}
+
+		mountPoint, ok := mountPoints[alias]
+		if !ok {
+			return nil, fmt.Errorf("No sandbox mount point found for volume: %s", alias)
+		}
+
+		for _, m := range mountsForAlias {
+			mcfg := &drivers.MountConfig{
+				HostPath:        mountPoint,
+				TaskPath:        m.Destination,
+				Readonly:        volReq.ReadOnly || m.ReadOnly,
+				PropagationMode: m.PropagationMode,
+				SELinuxLabel:    m.SELinuxLabel,
+			}
+			mounts = append(mounts, mcfg)
+		}
+	}
+
+	if len(mounts) > 0 {
+		caps, err := h.runner.DriverCapabilities()
+		if err != nil {
+			return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+		}
+		if caps.MountConfigs == drivers.MountConfigSupportNone {
+			return nil, fmt.Errorf(
+				"task driver %q for %q does not support sandboxes",
+				h.runner.task.Driver, h.runner.task.Name)
+		}
+	}
+
+	return mounts, nil
 }

@@ -24,18 +24,43 @@ func (s *StateStore) SandboxVolumeByID(ws memdb.WatchSet, ns, id string) (*struc
 	return obj.(*structs.SandboxVolume), nil
 }
 
-func (s *StateStore) SandboxesByName(ws memdb.WatchSet, ns, name string, forMode structs.VolumeAccessMode) (memdb.ResultIterator, error) {
+// SandboxesByName returns sandboxes for the name, reverse ordered by the number
+// of claims on that sandbox so that unclaimed sandboxes are returned first
+func (s *StateStore) SandboxesByName(ws memdb.WatchSet, ns, name string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	var iter memdb.ResultIterator
 	var err error
 
-	iter, err = txn.Get(TableSandboxVolumes, indexName, ns, name)
+	iter, err = txn.Get(TableSandboxVolumes, indexClaimsPrefix, ns, name)
 	if err != nil {
 		return nil, err
 	}
 	ws.Add(iter.WatchCh())
 	return iter, nil
+}
+
+func (s *StateStore) NodesForSandbox(ns, name string) ([]*structs.Node, error) {
+	txn := s.db.ReadTxn()
+
+	var iter memdb.ResultIterator
+	var err error
+
+	iter, err = txn.Get(TableSandboxVolumes, indexClaimsPrefix, ns, name)
+	if err != nil {
+		return nil, err
+	}
+	nodes := []*structs.Node{}
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		sandbox := obj.(*structs.SandboxVolume)
+		nobj, err := txn.First(TableNodes, indexID, sandbox.NodeID)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, nobj.(*structs.Node))
+	}
+
+	return nodes, nil
 }
 
 // claimSandboxVolumes is called whenever we update an allocation
