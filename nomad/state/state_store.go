@@ -4014,7 +4014,6 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
-	s.logger.Error("                     starting")
 	populatedAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
 	for _, a := range allocs {
