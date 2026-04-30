@@ -3038,6 +3038,62 @@ func (ns Networks) Modes() *set.Set[string] {
 	})
 }
 
+// DeviceOption represents a single option in a first_available device selection.
+// Each option specifies a count and optional constraints that must be satisfied
+// for this option to be selected.
+type DeviceOption struct {
+	// Count is the number of requested devices for this option
+	Count uint64
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use for this option.
+	Constraints Constraints
+}
+
+func (o *DeviceOption) Equal(other *DeviceOption) bool {
+	if o == other {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	return o.Count == other.Count &&
+		o.Constraints.Equal(&other.Constraints)
+}
+
+func (o *DeviceOption) Copy() *DeviceOption {
+	if o == nil {
+		return nil
+	}
+	return &DeviceOption{
+		Count:       o.Count,
+		Constraints: CopySliceConstraints(o.Constraints),
+	}
+}
+
+func (o *DeviceOption) Validate() error {
+	if o == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+	for idx, constr := range o.Constraints {
+		// Ensure that the constraint doesn't use an operand we do not allow
+		switch constr.Operand {
+		case ConstraintDistinctHosts, ConstraintDistinctProperty:
+			outer := fmt.Errorf("Constraint %d validation failed: using unsupported operand %q", idx+1, constr.Operand)
+			_ = multierror.Append(&mErr, outer)
+		default:
+			if err := constr.Validate(); err != nil {
+				outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+				_ = multierror.Append(&mErr, outer)
+			}
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -3051,16 +3107,24 @@ type RequestedDevice struct {
 	// * "nvidia/gpu/GTX2080Ti"
 	Name string
 
-	// Count is the number of requested devices
+	// Count is the number of requested devices. Mutually exclusive with
+	// FirstAvailable.
 	Count uint64
 
 	// Constraints are a set of constraints to apply when selecting the device
-	// to use.
+	// to use. When FirstAvailable is specified, these constraints are applied
+	// as base constraints that all options must also satisfy.
 	Constraints Constraints
 
 	// Affinities are a set of affinities to apply when selecting the device
-	// to use.
+	// to use. When FirstAvailable is specified, these affinities are applied
+	// as base affinities for all options.
 	Affinities Affinities
+
+	// FirstAvailable specifies a prioritized list of device options. The
+	// scheduler will attempt to satisfy each option in order, selecting the
+	// first one that can be fulfilled. Mutually exclusive with Count.
+	FirstAvailable []*DeviceOption
 }
 
 func (r *RequestedDevice) String() string {
@@ -3074,10 +3138,21 @@ func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
 	if r == nil || o == nil {
 		return false
 	}
-	return r.Name == o.Name &&
-		r.Count == o.Count &&
-		r.Constraints.Equal(&o.Constraints) &&
-		r.Affinities.Equal(&o.Affinities)
+	if r.Name != o.Name || r.Count != o.Count {
+		return false
+	}
+	if !r.Constraints.Equal(&o.Constraints) || !r.Affinities.Equal(&o.Affinities) {
+		return false
+	}
+	if len(r.FirstAvailable) != len(o.FirstAvailable) {
+		return false
+	}
+	for i, opt := range r.FirstAvailable {
+		if !opt.Equal(o.FirstAvailable[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -3088,6 +3163,13 @@ func (r *RequestedDevice) Copy() *RequestedDevice {
 	nr := *r
 	nr.Constraints = CopySliceConstraints(nr.Constraints)
 	nr.Affinities = CopySliceAffinities(nr.Affinities)
+
+	if len(r.FirstAvailable) > 0 {
+		nr.FirstAvailable = make([]*DeviceOption, len(r.FirstAvailable))
+		for i, opt := range r.FirstAvailable {
+			nr.FirstAvailable[i] = opt.Copy()
+		}
+	}
 
 	return &nr
 }
@@ -3127,6 +3209,12 @@ func (r *RequestedDevice) Validate() error {
 		_ = multierror.Append(&mErr, errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name"))
 	}
 
+	// Count and FirstAvailable are mutually exclusive
+	if r.Count > 0 && len(r.FirstAvailable) > 0 {
+		_ = multierror.Append(&mErr, errors.New("'count' and 'first_available' are mutually exclusive"))
+	}
+
+	// Validate base constraints
 	for idx, constr := range r.Constraints {
 		// Ensure that the constraint doesn't use an operand we do not allow
 		switch constr.Operand {
@@ -3140,9 +3228,23 @@ func (r *RequestedDevice) Validate() error {
 			}
 		}
 	}
+
+	// Validate base affinities
 	for idx, affinity := range r.Affinities {
 		if err := affinity.Validate(); err != nil {
 			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+			_ = multierror.Append(&mErr, outer)
+		}
+	}
+
+	// Validate each first_available option
+	for idx, opt := range r.FirstAvailable {
+		if opt == nil {
+			_ = multierror.Append(&mErr, fmt.Errorf("first_available %d is nil", idx+1))
+			continue
+		}
+		if err := opt.Validate(); err != nil {
+			outer := fmt.Errorf("first_available %d validation failed: %s", idx+1, err)
 			_ = multierror.Append(&mErr, outer)
 		}
 	}

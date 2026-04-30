@@ -3564,6 +3564,157 @@ func TestDeviceChecker(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:        "first_available first option satisfied",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "2080ti",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available fallback to second option",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_B}, // only has 2080ti
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti", // not available
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "2080ti", // available
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available no options satisfy",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "H100", // not available
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "GH200", // not available
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available with base constraint applied",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A, nvidia_B},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					// Base constraint that must be satisfied
+					Constraints: []*structs.Constraint{
+						{
+							Operand: ">",
+							LTarget: "${device.attr.memory}",
+							RTarget: "3 GiB",
+						},
+					},
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 2, // need 2 devices
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available count not satisfiable falls back",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A}, // only has 2 instances
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 4, // can't satisfy - need 4 but only 2 available
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+						{
+							Count: 1, // can satisfy
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
