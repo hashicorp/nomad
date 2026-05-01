@@ -166,6 +166,7 @@ type BinPackIterator struct {
 	jobId                  structs.NamespacedID
 	taskGroup              *structs.TaskGroup
 	memoryOversubscription bool
+	fastPath               bool
 	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
 }
 
@@ -188,6 +189,10 @@ func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority i
 func (iter *BinPackIterator) SetJob(job *structs.Job) {
 	iter.priority = job.Priority
 	iter.jobId = job.NamespacedID()
+}
+
+func (iter *BinPackIterator) SetFastPath(isFastPath bool) {
+	iter.fastPath = isFastPath
 }
 
 func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
@@ -368,6 +373,21 @@ NEXTNODE:
 			}
 
 		}
+
+		offeredSandboxes, err := allocateSandboxVolumes(
+			iter.fastPath,
+			iter.ctx.State(),
+			iter.jobId.Namespace, iter.taskGroup.Volumes, option,
+		)
+		if err != nil {
+			if !iter.fastPath {
+				iter.ctx.Metrics().ExhaustedNode(option.Node,
+					fmt.Sprintf("sandbox volume: %s", err))
+			}
+			continue NEXTNODE
+		}
+		total.Shared.Sandboxes = offeredSandboxes
+		option.AllocResources.Sandboxes = offeredSandboxes
 
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources

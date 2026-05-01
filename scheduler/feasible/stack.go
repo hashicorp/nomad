@@ -50,20 +50,19 @@ type GenericStack struct {
 	ctx    Context
 	source *StaticIterator
 
-	wrappedChecks           *FeasibilityWrapper
-	quota                   FeasibleIterator
-	jobVersion              *uint64
-	jobNamespace            string
-	jobID                   string
-	jobConstraint           *ConstraintChecker
-	taskGroupDrivers        *DriverChecker
-	taskGroupConstraint     *ConstraintChecker
-	taskGroupDevices        *DeviceChecker
-	taskGroupHostVolumes    *HostVolumeChecker
-	taskGroupSandboxVolumes *SandboxVolumeChecker
-	taskGroupCSIVolumes     *CSIVolumeChecker
-	taskGroupNetwork        *NetworkChecker
-	taskGroupSecrets        *SecretsProviderChecker
+	wrappedChecks        *FeasibilityWrapper
+	quota                FeasibleIterator
+	jobVersion           *uint64
+	jobNamespace         string
+	jobID                string
+	jobConstraint        *ConstraintChecker
+	taskGroupDrivers     *DriverChecker
+	taskGroupConstraint  *ConstraintChecker
+	taskGroupDevices     *DeviceChecker
+	taskGroupHostVolumes *HostVolumeChecker
+	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
+	taskGroupSecrets     *SecretsProviderChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -159,12 +158,13 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	if options != nil && len(options.FastPathNodes) > 0 {
 		originalNodes := s.source.nodes
 		s.source.SetNodes(options.FastPathNodes)
+		s.binPack.SetFastPath(true)
 		optionsNew := *options
 		optionsNew.PreferredNodes = nil
 		optionsNew.FastPathNodes = nil
 		if option := s.Select(tg, &optionsNew); option != nil {
 			s.source.SetNodes(originalNodes)
-			s.taskGroupSandboxVolumes.SetVolumes(s.jobNamespace, tg)
+			s.binPack.SetFastPath(false)
 			return option
 		}
 		s.source.SetNodes(originalNodes)
@@ -184,7 +184,6 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupConstraint.SetConstraints(tgConstr.Constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
-	s.taskGroupSandboxVolumes.SetVolumes(s.jobNamespace, tg)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -233,19 +232,18 @@ type SystemStack struct {
 	ctx    Context
 	source *StaticIterator
 
-	jobNamespace            string
-	jobID                   string
-	wrappedChecks           *FeasibilityWrapper
-	quota                   FeasibleIterator
-	jobConstraint           *ConstraintChecker
-	taskGroupDrivers        *DriverChecker
-	taskGroupConstraint     *ConstraintChecker
-	taskGroupDevices        *DeviceChecker
-	taskGroupHostVolumes    *HostVolumeChecker
-	taskGroupSandboxVolumes *SandboxVolumeChecker
-	taskGroupCSIVolumes     *CSIVolumeChecker
-	taskGroupNetwork        *NetworkChecker
-	taskGroupSecrets        *SecretsProviderChecker
+	jobNamespace         string
+	jobID                string
+	wrappedChecks        *FeasibilityWrapper
+	quota                FeasibleIterator
+	jobConstraint        *ConstraintChecker
+	taskGroupDrivers     *DriverChecker
+	taskGroupConstraint  *ConstraintChecker
+	taskGroupDevices     *DeviceChecker
+	taskGroupHostVolumes *HostVolumeChecker
+	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
+	taskGroupSecrets     *SecretsProviderChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -276,8 +274,6 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 
 	// Filter on task group host volumes
 	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
-
-	s.taskGroupSandboxVolumes = NewSandboxVolumeChecker(ctx)
 
 	// Filter on available, healthy CSI plugins
 	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
@@ -394,7 +390,6 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupConstraint.SetConstraints(tgConstr.Constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
-	s.taskGroupSandboxVolumes.SetVolumes(s.jobNamespace, tg)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -443,8 +438,6 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	// Filter on task group host volumes
 	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
-
-	s.taskGroupSandboxVolumes = NewSandboxVolumeChecker(ctx)
 
 	// Filter on available, healthy CSI plugins
 	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)

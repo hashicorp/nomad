@@ -40,9 +40,19 @@ func (s *StateStore) SandboxesByName(ws memdb.WatchSet, ns, name string) (memdb.
 	return iter, nil
 }
 
+func (s *StateStore) SandboxesByNode(ns, name, nodeID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+	var iter memdb.ResultIterator
+	var err error
+	iter, err = txn.Get(TableSandboxVolumes, indexNodeID, ns, name, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	return iter, nil
+}
+
 func (s *StateStore) NodesForSandbox(ns, name string) ([]*structs.Node, error) {
 	txn := s.db.ReadTxn()
-
 	var iter memdb.ResultIterator
 	var err error
 
@@ -61,6 +71,11 @@ func (s *StateStore) NodesForSandbox(ns, name string) ([]*structs.Node, error) {
 	}
 
 	return nodes, nil
+}
+
+func (s *StateStore) ClaimSandboxVolume(index uint64, alloc *structs.Allocation) error {
+	txn := s.db.WriteTxn(index)
+	return s.claimSandboxVolumes(txn, index, alloc)
 }
 
 // claimSandboxVolumes is called whenever we update an allocation
