@@ -33,6 +33,8 @@ type SandboxVolume struct {
 	// Size of the sandbox in bytes
 	CapacityBytes int64
 
+	MaxClaims int
+
 	// TTL is the lifetime remaining of the sandbox. Set when unclaimed and
 	// reset to 0 (ignored) when claimed. Once this TTL expires, the sandbox is
 	// eligible for garbage collection.
@@ -104,6 +106,10 @@ type SandboxVolumeRequest struct {
 	// sandboxes first.
 	MaxCount int
 
+	// MaxClaims is the maximum number of allocations that can claim a given
+	// sandbox instance
+	MaxClaims int
+
 	// TTL is the lifetime of an unclaimed sandbox. After this point it can be
 	// garbage collected.
 	TTL time.Duration
@@ -121,6 +127,8 @@ func (svr *SandboxVolumeRequest) Equal(o *SandboxVolumeRequest) bool {
 	}
 	switch {
 	case svr.MaxCount != o.MaxCount:
+		return false
+	case svr.MaxClaims != o.MaxClaims:
 		return false
 	case svr.MaxBytes != o.MaxBytes:
 		return false

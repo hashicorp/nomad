@@ -387,7 +387,13 @@ NEXTNODE:
 			continue NEXTNODE
 		}
 		total.Shared.Sandboxes = offeredSandboxes
-		option.AllocResources.Sandboxes = offeredSandboxes
+		if option.AllocResources == nil {
+			option.AllocResources = &structs.AllocatedSharedResources{
+				Sandboxes: offeredSandboxes,
+			}
+		} else {
+			option.AllocResources.Sandboxes = offeredSandboxes
+		}
 
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources

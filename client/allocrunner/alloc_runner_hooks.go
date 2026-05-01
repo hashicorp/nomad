@@ -141,6 +141,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir,
 			config.GetConsulConfigs(ar.logger)),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
+		newSandboxHook(alloc, hookLogger, ar.clientConfig.AllocMountsDir, ar.hookResources),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
 	}
 	if config.ExtraAllocHooks != nil {

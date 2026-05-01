@@ -180,6 +180,8 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 						return structs.ErrPermissionDenied
 					}
 				}
+			case structs.VolumeTypeSandbox:
+				// no-op
 			default:
 				return structs.ErrPermissionDenied
 			}

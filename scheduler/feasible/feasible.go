@@ -322,6 +322,9 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	}
 
 	for _, req := range h.volumeReqs {
+		if req.Type != structs.VolumeTypeHost {
+			continue
+		}
 		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
 			return false

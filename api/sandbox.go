@@ -13,6 +13,8 @@ type SandboxVolumeRequest struct {
 	// sandboxes first.
 	MaxCount int `hcl:"max_count,optional"`
 
+	MaxClaims int `hcl:"max_claims,optional"`
+
 	// TTL is the lifetime of an unclaimed sandbox. After this point it can be
 	// garbage collected.
 	TTL time.Duration `hcl:"ttl,optional"`

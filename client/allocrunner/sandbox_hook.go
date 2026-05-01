@@ -5,7 +5,6 @@ package allocrunner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -54,8 +53,10 @@ func (c *sandboxHook) Prerun(_ *taskenv.TaskEnv) error {
 	mounts := map[string]string{} // name -> mount path
 
 	for _, sandbox := range c.alloc.AllocatedResources.Shared.Sandboxes {
+		path := filepath.Join(c.sandboxDir, sandbox.ID)
 		_, err := root.Stat(sandbox.ID)
-		if errors.Is(err, os.ErrExist) {
+		if os.IsNotExist(err) {
+			c.logger.Debug("creating new sandbox", "path", path)
 			f, err := root.Create(sandbox.ID)
 			if err != nil {
 				return fmt.Errorf("could not create sandbox %q file: %w", sandbox.ID, err)
@@ -69,7 +70,8 @@ func (c *sandboxHook) Prerun(_ *taskenv.TaskEnv) error {
 			}
 			// TODO: obviously we'll want this to be a plugin like DHV
 			f.Close()
-			path := filepath.Join(c.sandboxDir, sandbox.ID)
+			c.logger.Debug("file created, making file system", "path", path)
+
 			cmd := exec.CommandContext(c.shutdownCtx, "mkfs.ext4", path)
 			err = cmd.Run()
 			if err != nil {
@@ -79,8 +81,11 @@ func (c *sandboxHook) Prerun(_ *taskenv.TaskEnv) error {
 				}
 				return fmt.Errorf("could not create sandbox %q filesystem: %w", sandbox.ID, err)
 			}
-			mounts[sandbox.Name] = path
+			c.logger.Debug("filesystem created", "path", path)
+
 		}
+		mounts[sandbox.Name] = path
+
 	}
 	if len(mounts) > 0 {
 		c.resources.SetSandboxMounts(mounts)

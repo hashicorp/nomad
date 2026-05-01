@@ -1310,7 +1310,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	if len(taskGroup.Volumes) > 0 {
 		tg.Volumes = map[string]*structs.VolumeRequest{}
 		for k, v := range taskGroup.Volumes {
-			if v == nil || (v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI) {
+			if v == nil || (v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI && v.Type != structs.VolumeTypeSandbox) {
 				// Ignore volumes we don't understand in this iteration currently.
 				// - This is because we don't currently have a way to return errors here.
 				continue
@@ -1334,8 +1334,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 			}
 			if v.Sandbox != nil {
 				vol.Sandbox = &structs.SandboxVolumeRequest{
-					MinBytes: v.Sandbox.MinBytes,
-					MaxBytes: v.Sandbox.MaxBytes,
+					MinBytes:  v.Sandbox.MinBytes,
+					MaxBytes:  v.Sandbox.MaxBytes,
+					MaxCount:  v.Sandbox.MaxCount,
+					MaxClaims: v.Sandbox.MaxClaims,
 				}
 			}
 

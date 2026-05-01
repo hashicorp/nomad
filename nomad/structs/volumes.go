@@ -149,7 +149,7 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 
 func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) error {
 	if !(v.Type == VolumeTypeHost ||
-		v.Type == VolumeTypeCSI) {
+		v.Type == VolumeTypeCSI || v.Type == VolumeTypeSandbox) {
 		return fmt.Errorf("volume has unrecognized type %s", v.Type)
 	}
 

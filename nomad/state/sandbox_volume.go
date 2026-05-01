@@ -80,7 +80,7 @@ func (s *StateStore) ClaimSandboxVolume(index uint64, alloc *structs.Allocation)
 
 // claimSandboxVolumes is called whenever we update an allocation
 func (s *StateStore) claimSandboxVolumes(txn Txn, index uint64, alloc *structs.Allocation) error {
-	if len(alloc.AllocatedResources.Shared.Sandboxes) == 0 {
+	if alloc.AllocatedResources == nil || len(alloc.AllocatedResources.Shared.Sandboxes) == 0 {
 		return nil
 	}
 

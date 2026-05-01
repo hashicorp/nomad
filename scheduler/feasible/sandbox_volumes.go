@@ -18,7 +18,10 @@ func allocateSandboxVolumes(
 	// TODO: currently this doesn't correctly account for allocations on the
 	// same node that want the same sandbox and need to count against the total
 	// available claims, or client-terminal allocations
-	sandboxes := slices.Clone(option.AllocResources.Sandboxes)
+	sandboxes := []*structs.AllocatedSandbox{}
+	if option.AllocResources != nil {
+		sandboxes = slices.Clone(option.AllocResources.Sandboxes)
+	}
 
 NEXT_REQ:
 	for _, req := range volReqs {

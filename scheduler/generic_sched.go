@@ -610,6 +610,7 @@ func (s *GenericScheduler) computePlacements(
 				if option.AllocResources != nil {
 					resources.Shared.Networks = option.AllocResources.Networks
 					resources.Shared.Ports = option.AllocResources.Ports
+					resources.Shared.Sandboxes = option.AllocResources.Sandboxes
 				}
 
 				// Pull the allocation name as a new variables, so we can alter
@@ -817,6 +818,7 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	if preferredNode != nil {
 		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
 	}
+	selectOptions.FastPathNodes = fastPathNodes
 	return selectOptions
 }
 
