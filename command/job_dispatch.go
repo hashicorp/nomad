@@ -451,7 +451,7 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 
 func formatTaskGroups(tgs map[string]api.TaskGroupSummary) string {
 	tgNames := make([]string, 0, len(tgs))
-	for name, _ := range tgs {
+	for name := range tgs {
 		tgNames = append(tgNames, name)
 	}
 
