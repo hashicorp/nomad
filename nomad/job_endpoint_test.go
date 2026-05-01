@@ -7259,7 +7259,11 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 		require.NoError(t, err)
 		nalloc = nalloc.Copy()
 		nalloc.ClientStatus = status
-		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{nalloc})
+
+		updateReq := structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{nalloc},
+		}
+		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, updateReq)
 		require.NoError(t, err)
 	}
 

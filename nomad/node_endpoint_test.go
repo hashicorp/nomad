@@ -3410,7 +3410,11 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
 		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
+
+		req := structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{allocUpdate},
+		}
+		err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 200, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

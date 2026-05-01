@@ -911,7 +911,11 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: now,
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, updateReq))
 
 	// Wait for the deployment to be failed
 	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
@@ -1062,7 +1066,11 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1233,8 +1241,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{canary2}
-	err := m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{canary2},
+	}
+
+	err := m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq)
 	must.NoError(t, err)
 
 	// wait for long enough to ensure we read deployment update channel
@@ -1252,8 +1263,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{canary1}
-	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{canary1},
+	}
+
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq2)
 	must.NoError(t, err)
 
 	// ensure progress_deadline has definitely expired
@@ -1319,8 +1333,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{alloc1a, alloc1b}
-	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq3 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc1a, alloc1b},
+	}
+
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq3)
 	must.NoError(t, err)
 
 	// ensure any progress deadline has expired
@@ -1383,7 +1400,12 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: time.Now(),
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the alloc's DesiredState to set reschedule
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
@@ -1441,7 +1463,12 @@ func TestDeploymentWatcher_Watch_FailEarly(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: now,
 	}
-	must.Nil(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+
+	must.Nil(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the deployment to be failed
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {

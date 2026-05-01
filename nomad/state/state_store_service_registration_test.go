@@ -684,8 +684,13 @@ func TestAlloc_ServiceRegistrationLifecycle(t *testing.T) {
 	alloc0 = alloc0.Copy()
 	alloc0.ClientStatus = structs.AllocClientStatusComplete
 	index++
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc0},
+	}
+
 	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index,
-		[]*structs.Allocation{alloc0}))
+		updateReq))
 
 	iter, err := store.GetServiceRegistrationsByAllocID(nil, alloc0.ID)
 	must.NoError(t, err)

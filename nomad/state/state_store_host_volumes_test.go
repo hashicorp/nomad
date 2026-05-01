@@ -159,8 +159,13 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	alloc = alloc.Copy()
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	index++
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+
 	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
-		index, []*structs.Allocation{alloc}))
+		index, updateReq))
 
 	index++
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
@@ -198,9 +203,13 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	alloc = alloc.Copy()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	index++
-	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
-		index, []*structs.Allocation{alloc}))
 
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
+		index, updateReq2))
 	index++
 	must.NoError(t, store.DeleteNode(structs.MsgTypeTestSetup, index, []string{vol2.NodeID}))
 	iter, err = store.HostVolumesByNodeID(nil, vol2.NodeID, SortDefault)

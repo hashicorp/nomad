@@ -665,6 +665,7 @@ func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, 
 
 func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
+
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -937,6 +938,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
+
 	var req structs.EvalUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1012,6 +1014,7 @@ func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) i
 
 func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
+
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1024,7 +1027,6 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	ws := memdb.NewWatchSet()
 
 	followupEvalsToCancel := []string{}
-
 	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
 		if existing, _ := n.state.AllocByID(ws, alloc.ID); existing != nil {
@@ -1041,19 +1043,13 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 		}
 	}
 
-	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(msgType, index, req); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
-	// Update any evals that were added by the RPC handler
-	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
-			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
-			return err
-		}
-	}
+	// Enqueue any evals that were added by the RPC handler
+	n.handleUpsertedEvals(req.Evals)
 
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
@@ -2137,6 +2133,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
+
 		// Ignore eval event creation during snapshot restore
 		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
