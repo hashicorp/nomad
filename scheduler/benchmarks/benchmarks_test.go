@@ -194,26 +194,8 @@ func upsertNodes(h *tests.Harness, count, racks int) {
 		node.Attributes["unique.advertise.address"] = fmt.Sprintf("192.168.%d.%d", i%10, i%120)
 		memoryMB := 32000
 		diskMB := 100 * 1024
-
-		node.NodeResources = &structs.NodeResources{
-			Processors: structs.NodeProcessorResources{
-				Topology: structs.MockBasicTopology(),
-			},
-			Memory: structs.NodeMemoryResources{
-				MemoryMB: int64(memoryMB),
-			},
-			Disk: structs.NodeDiskResources{
-				DiskMB: int64(diskMB),
-			},
-			Networks: []*structs.NetworkResource{
-				{
-					Mode:   "host",
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		}
+		node.NodeResources.Memory.MemoryMB = int64(memoryMB)
+		node.NodeResources.Disk.DiskMB = int64(diskMB)
 		node.NodeResources.Compatibility()
 		node.ComputeClass()
 
