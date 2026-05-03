@@ -107,7 +107,7 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     );
   });
 
-  test('Registry does not depend on persistent object references', function (assert) {
+  test('Registry replaces cached tracker when resource reference changes for same id', function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
@@ -122,10 +122,18 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
       'And the same className'
     );
 
+    const tracker1 = registry.getTracker(node1);
+    const tracker2 = registry.getTracker(node2);
+
+    assert.notEqual(
+      tracker1,
+      tracker2,
+      'Returns a replacement tracker for a different resource reference with same id'
+    );
     assert.equal(
-      registry.getTracker(node1),
-      registry.getTracker(node2),
-      'Return the same tracker'
+      tracker2.get('node'),
+      node2,
+      'The replacement tracker is bound to the latest resource reference'
     );
     assert.equal(
       registry.get('registryRef').size,
