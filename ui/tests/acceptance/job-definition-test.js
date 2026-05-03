@@ -153,7 +153,7 @@ module('Acceptance | job definition | full specification', function (hooks) {
   });
 
   test('it allows users to select between full specification and JSON definition', async function (assert) {
-    assert.expect(5);
+    assert.expect(7);
     const specification_response = {
       Format: 'hcl2',
       JobID: 'example',
@@ -173,7 +173,7 @@ module('Acceptance | job definition | full specification', function (hooks) {
 
     assert
       .dom('[data-test-select="job-spec"]')
-      .exists('A select button exists and defaults to full definition');
+      .exists('A select button exists and defaults to job spec');
     let codeMirror = getCodeMirrorInstance('[data-test-editor]');
     assert.equal(
       codeMirror.getValue(),
@@ -184,6 +184,9 @@ module('Acceptance | job definition | full specification', function (hooks) {
     await click('[data-test-select-full]');
     codeMirror = getCodeMirrorInstance('[data-test-editor]');
     const fullDefinition = JSON.parse(codeMirror.getValue());
+    assert
+      .dom('[data-test-select="full-definition"]')
+      .exists('View switches to full definition mode');
     assert.equal(
       fullDefinition.ID,
       job.id,
@@ -197,6 +200,14 @@ module('Acceptance | job definition | full specification', function (hooks) {
     assert.ok(
       fullDefinition.TaskGroups,
       'Full definition includes task groups'
+    );
+
+    await click('[data-test-select="full-definition"] button:first-child');
+    codeMirror = getCodeMirrorInstance('[data-test-editor]');
+    assert.equal(
+      codeMirror.getValue(),
+      specification_response.Source,
+      'Switching back to job spec restores the original specification source'
     );
   });
 });
