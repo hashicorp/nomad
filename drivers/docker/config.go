@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -22,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	containerapi "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 )
 
 const (

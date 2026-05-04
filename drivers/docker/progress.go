@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	units "github.com/docker/go-units"
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 const (
@@ -77,7 +77,7 @@ func lpsFromString(status string) layerProgressStatus {
 // docker image repo
 type imageProgress struct {
 	sync.RWMutex
-	lastMessage *jsonmessage.JSONMessage
+	lastMessage *jsonstream.Message
 	timestamp   time.Time
 	layers      map[string]*layerProgress
 	pullStart   time.Time
@@ -127,7 +127,7 @@ func (p *imageProgress) get() (string, time.Time) {
 
 // set takes a status message received from the docker engine api during an image
 // pull and updates the status of the corresponding layer
-func (p *imageProgress) set(msg *jsonmessage.JSONMessage) {
+func (p *imageProgress) set(msg *jsonstream.Message) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -259,7 +259,7 @@ func (pm *imageProgressManager) stop() {
 
 func (pm *imageProgressManager) Write(p []byte) (n int, err error) {
 	n, err = pm.buf.Write(p)
-	var msg jsonmessage.JSONMessage
+	var msg jsonstream.Message
 
 	for {
 		line, err := pm.buf.ReadBytes('\n')

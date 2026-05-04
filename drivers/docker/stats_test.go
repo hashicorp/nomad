@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/docker/util"
+	containerapi "github.com/moby/moby/api/types/container"
 	"github.com/shoenig/test/must"
 )
 
@@ -145,8 +145,8 @@ func Test_taskHandle_collectDockerStats(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, dockerStats)
 
-	// Ensure all the stats we use for calculating CPU percentages within
-	// DockerStatsToTaskResourceUsage are present and non-zero.
+	// Ensure the current sample has the CPU stats we use for calculating CPU
+	// percentages within DockerStatsToTaskResourceUsage.
 	must.NonZero(t, dockerStats.CPUStats.CPUUsage.TotalUsage)
 	must.NonZero(t, dockerStats.CPUStats.CPUUsage.TotalUsage)
 
