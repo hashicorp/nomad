@@ -210,7 +210,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 				Type:       "",
 				TenantType: "metadata",
 			},
-			err: "batch queue config found but no type specified",
+			err: "batch queue configuration found but no type specified",
 		},
 		{
 			name: "empty metadata key errors",
