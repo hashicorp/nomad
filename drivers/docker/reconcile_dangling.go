@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/moby/moby/api/types/container"
+	mclient "github.com/moby/moby/client"
 )
 
 // containerReconciler detects and kills unexpectedly running containers.
@@ -27,11 +26,11 @@ type containerReconciler struct {
 	ctx       context.Context
 	config    *ContainerGCConfig
 	logger    hclog.Logger
-	getClient func() (*client.Client, error)
+	getClient func() (*mclient.Client, error)
 
 	isDriverHealthy   func() bool
 	trackedContainers func() set.Collection[string]
-	isNomadContainer  func(c types.Container) bool
+	isNomadContainer  func(c container.Summary) bool
 
 	once sync.Once
 }
@@ -118,7 +117,7 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 
 	for id := range untracked.Items() {
 		ctx, cancel := r.dockerAPIQueryContext()
-		err := dockerClient.ContainerRemove(ctx, id, containerapi.RemoveOptions{Force: true})
+		_, err := dockerClient.ContainerRemove(ctx, id, mclient.ContainerRemoveOptions{Force: true})
 		cancel()
 		if err != nil {
 			r.logger.Warn("failed to remove untracked container", "container_id", id, "error", err)
@@ -143,7 +142,7 @@ func (r *containerReconciler) untrackedContainers(tracked set.Collection[string]
 		return nil, err
 	}
 
-	cc, err := dockerClient.ContainerList(ctx, containerapi.ListOptions{
+	cc, err := dockerClient.ContainerList(ctx, mclient.ContainerListOptions{
 		All: false, // only reconcile running containers
 	})
 	if err != nil {
@@ -152,7 +151,7 @@ func (r *containerReconciler) untrackedContainers(tracked set.Collection[string]
 
 	cutoff := cutoffTime.Unix()
 
-	for _, c := range cc {
+	for _, c := range cc.Items {
 		if tracked.Contains(c.ID) {
 			continue
 		}
@@ -185,7 +184,7 @@ func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.
 	return context.WithTimeout(context.Background(), timeout)
 }
 
-func isNomadContainer(c types.Container) bool {
+func isNomadContainer(c container.Summary) bool {
 	if _, ok := c.Labels[dockerLabelAllocID]; ok {
 		return true
 	}
@@ -203,7 +202,7 @@ func isNomadContainer(c types.Container) bool {
 	return true
 }
 
-func hasMount(c types.Container, p string) bool {
+func hasMount(c container.Summary, p string) bool {
 	for _, m := range c.Mounts {
 		if m.Destination == p {
 			return true
@@ -215,7 +214,7 @@ func hasMount(c types.Container, p string) bool {
 
 var nomadContainerNamePattern = regexp.MustCompile(`\/.*-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 
-func hasNomadName(c types.Container) bool {
+func hasNomadName(c container.Summary) bool {
 	for _, n := range c.Names {
 		if nomadContainerNamePattern.MatchString(n) {
 			return true

@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 var (

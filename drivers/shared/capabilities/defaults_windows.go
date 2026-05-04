@@ -8,7 +8,7 @@ package capabilities
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types/system"
 )
 
 // DockerDefaults is a list of Windows capabilities enabled by Docker by default
@@ -17,7 +17,7 @@ import (
 //
 // Doing this on windows is somewhat tricky, because capabilities differ by
 // runtime, so we have to perform some extra checks.
-func DockerDefaults(ver types.Version) *Set {
+func DockerDefaults(ver system.VersionResponse) *Set {
 	defaults := NomadDefaults()
 
 	// Docker CE doesn't include NET_RAW on Windows, Mirantis (aka Docker EE) does

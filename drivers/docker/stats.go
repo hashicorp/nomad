@@ -12,12 +12,13 @@ import (
 	"sync"
 	"time"
 
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	containerapi "github.com/moby/moby/api/types/container"
+	mclient "github.com/moby/moby/client"
 )
 
 const (
@@ -132,7 +133,9 @@ func (h *taskHandle) collectDockerStats(ctx context.Context) (*containerapi.Stat
 
 	var stats *containerapi.StatsResponse
 
-	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, false)
+	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, mclient.ContainerStatsOptions{
+		IncludePreviousSample: true,
+	})
 	if err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to collect stats: %w", err)
 	}

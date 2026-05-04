@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/network"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	mclient "github.com/moby/moby/client"
 )
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
@@ -109,7 +109,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	env, err := dockerClient.ServerVersion(d.ctx)
+	env, err := dockerClient.ServerVersion(d.ctx, mclient.ServerVersionOptions{})
 	if err != nil {
 		if d.fingerprintSuccessful() {
 			d.logger.Debug("could not connect to docker daemon", "endpoint", dockerClient.DaemonHost(), "error", err)
@@ -142,10 +142,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["driver.docker.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
-	if nets, err := dockerClient.NetworkList(d.ctx, network.ListOptions{}); err != nil {
+	if nets, err := dockerClient.NetworkList(d.ctx, mclient.NetworkListOptions{}); err != nil {
 		d.logger.Warn("error discovering bridge IP", "error", err)
 	} else {
-		for _, n := range nets {
+		for _, n := range nets.Items {
 			if n.Name != "bridge" {
 				continue
 			}
@@ -155,8 +155,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 				break
 			}
 
-			if n.IPAM.Config[0].Gateway != "" {
-				fp.Attributes["driver.docker.bridge_ip"] = pstructs.NewStringAttribute(n.IPAM.Config[0].Gateway)
+			if !n.IPAM.Config[0].Gateway.IsUnspecified() {
+				fp.Attributes["driver.docker.bridge_ip"] = pstructs.NewStringAttribute(n.IPAM.Config[0].Gateway.String())
 			} else if d.fingerprintSuccess == nil {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
@@ -166,11 +166,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	if dockerInfo, err := dockerClient.Info(d.ctx); err != nil {
+	if dockerInfo, err := dockerClient.Info(d.ctx, mclient.InfoOptions{}); err != nil {
 		d.logger.Warn("failed to get Docker system info", "error", err)
 	} else {
-		runtimeNames := make([]string, 0, len(dockerInfo.Runtimes))
-		for name := range dockerInfo.Runtimes {
+		runtimeNames := make([]string, 0, len(dockerInfo.Info.Runtimes))
+		for name := range dockerInfo.Info.Runtimes {
 			if d.config.GPURuntimeName == name {
 				// Nvidia runtime is detected by Docker.
 				// It makes possible to run GPU workloads using Docker driver on this host.
@@ -182,10 +182,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 		fp.Attributes["driver.docker.runtimes"] = pstructs.NewStringAttribute(
 			strings.Join(runtimeNames, ","))
-		fp.Attributes["driver.docker.os_type"] = pstructs.NewStringAttribute(dockerInfo.OSType)
+		fp.Attributes["driver.docker.os_type"] = pstructs.NewStringAttribute(dockerInfo.Info.OSType)
 
 		// If this situations arises, we are running in Windows 10 with Linux Containers enabled via VM
-		if runtime.GOOS == "windows" && dockerInfo.OSType == "linux" {
+		if runtime.GOOS == "windows" && dockerInfo.Info.OSType == "linux" {
 			if d.fingerprintSuccessful() {
 				d.logger.Warn("Docker is configured with Linux containers; switch to Windows Containers")
 			}

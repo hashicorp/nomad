@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/hashicorp/nomad/lib/resolvconf"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -20,8 +21,8 @@ func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *
 
 		// FS isolation is used here as a proxy for network isolation.
 		// This is true for the current built-in drivers but it is not necessarily so.
-		isolated := caps.FSIsolation != drivers.FSIsolationNone
-		usesHostNetwork := caps.FSIsolation != drivers.FSIsolationImage
+		isolated := caps.FSIsolation != fsisolation.None
+		usesHostNetwork := caps.FSIsolation != fsisolation.Image
 
 		if !isolated {
 			t.Skip("dns config not supported on non isolated drivers")

@@ -18,16 +18,6 @@ import (
 	"time"
 
 	"github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/mount"
-	networkapi "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
@@ -45,7 +35,12 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
+	containerapi "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
+	mclient "github.com/moby/moby/client"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -72,7 +67,7 @@ var (
 )
 
 func dockerIsRemote() bool {
-	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	client, err := mclient.NewClientWithOpts(mclient.FromEnv, mclient.WithAPIVersionNegotiation())
 	if err != nil {
 		return false
 	}
@@ -155,7 +150,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 //
 // If there is a problem during setup this function will abort or skip the test
 // and indicate the reason.
-func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]interface{}) (*client.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
+func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]interface{}) (*mclient.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
 	client := newTestDockerClient(t)
 	driver := dockerDriverHarness(t, driverCfg)
 	cleanup := driver.MkAllocDir(task, loggingIsEnabled(&DriverConfig{}, task))
@@ -178,22 +173,19 @@ func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]in
 // cleanSlate removes the specified docker image, including potentially stopping/removing any
 // containers based on that image. This is used to decouple tests that would be coupled
 // by using the same container image.
-func cleanSlate(client *client.Client, imageID string) {
+func cleanSlate(client *mclient.Client, imageID string) {
 	ctx := context.Background()
-	if img, _, _ := client.ImageInspectWithRaw(ctx, imageID); img.ID == "" {
+	if img, err := client.ImageInspect(ctx, imageID); err != nil || img.ID == "" {
 		return
 	}
-	containers, _ := client.ContainerList(ctx, containerapi.ListOptions{
-		All: true,
-		Filters: filters.NewArgs(filters.KeyValuePair{
-			Key:   "ancestor",
-			Value: imageID,
-		}),
+	containers, _ := client.ContainerList(ctx, mclient.ContainerListOptions{
+		All:     true,
+		Filters: mclient.Filters{}.Add("ancestor", imageID),
 	})
-	for _, c := range containers {
-		client.ContainerRemove(ctx, c.ID, containerapi.RemoveOptions{Force: true})
+	for _, c := range containers.Items {
+		_, _ = client.ContainerRemove(ctx, c.ID, mclient.ContainerRemoveOptions{Force: true})
 	}
-	client.ImageRemove(ctx, imageID, image.RemoveOptions{
+	_, _ = client.ImageRemove(ctx, imageID, mclient.ImageRemoveOptions{
 		Force: true,
 	})
 }
@@ -239,11 +231,11 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 	return driver
 }
 
-func newTestDockerClient(t *testing.T) *client.Client {
+func newTestDockerClient(t *testing.T) *mclient.Client {
 	t.Helper()
 	testutil.DockerCompatible(t)
 
-	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	client, err := mclient.NewClientWithOpts(mclient.FromEnv, mclient.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Fatalf("Failed to initialize client: %s\nStack\n%s", err, debug.Stack())
 	}
@@ -369,7 +361,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		imageID, _, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
 	} else {
-		image, _, lErr := client.ImageInspectWithRaw(context.Background(), taskCfg.Image)
+		image, lErr := client.ImageInspect(context.Background(), taskCfg.Image)
 		err = lErr
 		if image.ID != "" {
 			imageID = image.ID
@@ -388,10 +380,16 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 		Image: taskCfg.Image,
 	}
 
-	_, err = client.ContainerCreate(context.Background(), opts, nil, nil, nil, containerName)
+	_, err = client.ContainerCreate(context.Background(), mclient.ContainerCreateOptions{
+		Name:   containerName,
+		Config: opts,
+	})
 	must.NoError(t, err)
 
-	if _, err := client.ContainerCreate(context.Background(), opts, nil, nil, nil, containerName); err != nil {
+	if _, err := client.ContainerCreate(context.Background(), mclient.ContainerCreateOptions{
+		Name:   containerName,
+		Config: opts,
+	}); err != nil {
 		if !errdefs.IsConflict(err) {
 			t.Fatalf("error creating initial container: %v", err)
 		}
@@ -404,7 +402,8 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 	must.NoError(t, d.DestroyTask(task.ID, true))
 
-	must.NoError(t, client.ContainerRemove(context.Background(), containerName, containerapi.RemoveOptions{Force: true}))
+	_, err = client.ContainerRemove(context.Background(), containerName, mclient.ContainerRemoveOptions{Force: true})
+	must.NoError(t, err)
 }
 
 // TestDockerDriver_ContainerAlreadyExists asserts that when Nomad tries to
@@ -438,7 +437,7 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	// create a container
 	c, err := d.createContainer(client, containerCfg, cfg.Image)
 	must.NoError(t, err)
-	defer client.ContainerRemove(ctx, c.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, c.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 
 	// now that the container has been created, start the task that uses it, and
 	// assert that it doesn't end up in "container already exists" fail loop
@@ -450,7 +449,7 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	// container
 	c, err = d.createContainer(client, containerCfg, cfg.Image)
 	must.NoError(t, err)
-	defer client.ContainerRemove(ctx, c.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, c.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 
 	must.NoError(t, d.startContainer(*c))
 	_, _, err = d.StartTask(task)
@@ -855,15 +854,15 @@ func TestDockerDriver_Labels(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// expect to see 1 additional standard labels (allocID)
-	must.Eq(t, len(cfg.Labels)+1, len(container.Config.Labels))
+	must.Eq(t, len(cfg.Labels)+1, len(container.Container.Config.Labels))
 	for k, v := range cfg.Labels {
-		must.Eq(t, v, container.Config.Labels[k])
+		must.Eq(t, v, container.Container.Config.Labels[k])
 	}
 }
 
@@ -882,7 +881,7 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -895,9 +894,9 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 	}
 
 	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
-	must.Eq(t, 4, len(container.Config.Labels))
+	must.Eq(t, 4, len(container.Container.Config.Labels))
 	for k, v := range expectedLabels {
-		must.Eq(t, v, container.Config.Labels[k])
+		must.Eq(t, v, container.Container.Config.Labels[k])
 	}
 }
 
@@ -920,11 +919,11 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, "gelf", container.HostConfig.LogConfig.Type)
-	must.Eq(t, loggerConfig, container.HostConfig.LogConfig.Config)
+	must.Eq(t, "gelf", container.Container.HostConfig.LogConfig.Type)
+	must.Eq(t, loggerConfig, container.Container.HostConfig.LogConfig.Config)
 }
 
 // TestDockerDriver_LogCollectionDisabled ensures that logmon isn't configured
@@ -950,12 +949,12 @@ func TestDockerDriver_LogCollectionDisabled(t *testing.T) {
 	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
 	t.Cleanup(cleanup)
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 	must.Nil(t, handle.dlogger)
 
-	must.Eq(t, "gelf", container.HostConfig.LogConfig.Type)
-	must.Eq(t, loggerConfig, container.HostConfig.LogConfig.Config)
+	must.Eq(t, "gelf", container.Container.HostConfig.LogConfig.Type)
+	must.Eq(t, loggerConfig, container.Container.HostConfig.LogConfig.Config)
 }
 
 func TestDockerDriver_HealthchecksDisable(t *testing.T) {
@@ -971,11 +970,11 @@ func TestDockerDriver_HealthchecksDisable(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.NotNil(t, container.Config.Healthcheck)
-	must.Eq(t, []string{"NONE"}, container.Config.Healthcheck.Test)
+	must.NotNil(t, container.Container.Config.Healthcheck)
+	must.Eq(t, []string{"NONE"}, container.Container.Config.Healthcheck.Test)
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
@@ -992,7 +991,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	_, err := client.ContainerInspect(context.Background(), handle.containerID)
+	_, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.Nil(t, err)
 }
 
@@ -1022,16 +1021,16 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
 	switch runtime.GOARCH {
 	// TODO(jrasell): Renable this test for amd64 once we have investigated why
 	// it has suddently changed to a different digest.
 	case "amd64":
-	// 	must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Image)
+	// 	must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Container.Image)
 	case "arm64":
-		must.Eq(t, "sha256:ba3a78826904c625e65a2eed1f247bbab59898f043490e7113e88907bf7c6b3b", container.Image)
+		must.Eq(t, "sha256:ba3a78826904c625e65a2eed1f247bbab59898f043490e7113e88907bf7c6b3b", container.Container.Image)
 	default:
 		t.Fatalf("unsupported test architecture: %s", runtime.GOARCH)
 	}
@@ -1053,12 +1052,12 @@ func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	must.Eq(t, cfg.SecurityOpt, container.HostConfig.SecurityOpt)
+	must.SliceContains(t, container.Container.HostConfig.SecurityOpt, "seccomp=unconfined")
 }
 
 func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
@@ -1077,10 +1076,10 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.StrContains(t, container.HostConfig.SecurityOpt[0], "reboot")
+	must.StrContains(t, container.Container.HostConfig.SecurityOpt[0], "reboot")
 }
 
 func TestDockerDriver_Runtime(t *testing.T) {
@@ -1096,10 +1095,10 @@ func TestDockerDriver_Runtime(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.StrContains(t, cfg.Runtime, container.HostConfig.Runtime)
+	must.Eq(t, "runc", container.Container.HostConfig.Runtime)
 }
 
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
@@ -1644,11 +1643,11 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 
 			must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-			container, err := client.ContainerInspect(context.Background(), handle.containerID)
+			container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 			must.NoError(t, err)
 
-			must.Eq(t, len(tc.CapAdd), len(container.HostConfig.CapAdd))
-			must.Eq(t, len(tc.CapDrop), len(container.HostConfig.CapDrop))
+			must.Eq(t, len(tc.CapAdd), len(container.Container.HostConfig.CapAdd))
+			must.Eq(t, len(tc.CapDrop), len(container.Container.HostConfig.CapDrop))
 		})
 	}
 }
@@ -1714,10 +1713,10 @@ func TestDockerDriver_Init(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, cfg.Init, *container.HostConfig.Init)
+	must.Eq(t, cfg.Init, *container.Container.HostConfig.Init)
 }
 
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
@@ -1756,10 +1755,10 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 			defer cleanup()
 			must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-			container, err := client.ContainerInspect(context.Background(), handle.containerID)
+			container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 			must.NoError(t, err)
 
-			must.Eq(t, cfg.CPUSetCPUs, container.HostConfig.Resources.CpusetCpus)
+			must.Eq(t, cfg.CPUSetCPUs, container.Container.HostConfig.Resources.CpusetCpus)
 		})
 	}
 }
@@ -1780,11 +1779,11 @@ func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, task.Resources.LinuxResources.MemoryLimitBytes, container.HostConfig.MemoryReservation)
-	must.Eq(t, cfg.MemoryHardLimit*1024*1024, container.HostConfig.Memory)
+	must.Eq(t, task.Resources.LinuxResources.MemoryLimitBytes, container.Container.HostConfig.MemoryReservation)
+	must.Eq(t, cfg.MemoryHardLimit*1024*1024, container.Container.HostConfig.Memory)
 }
 
 func TestDockerDriver_MACAddress(t *testing.T) {
@@ -1803,10 +1802,17 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, cfg.MacAddress, container.NetworkSettings.MacAddress)
+	found := false
+	for _, endpoint := range container.Container.NetworkSettings.Networks {
+		if endpoint.MacAddress.String() == cfg.MacAddress {
+			found = true
+			break
+		}
+	}
+	must.True(t, found)
 }
 
 func TestDockerWorkDir(t *testing.T) {
@@ -1822,9 +1828,9 @@ func TestDockerWorkDir(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
-	must.Eq(t, cfg.WorkDir, filepath.ToSlash(container.Config.WorkingDir))
+	must.Eq(t, cfg.WorkDir, filepath.ToSlash(container.Container.Config.WorkingDir))
 }
 
 func TestDockerDriver_PortsNoMap(t *testing.T) {
@@ -1839,18 +1845,22 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
 	// Verify that the correct ports are EXPOSED
-	expectedExposedPorts := map[nat.Port]struct{}{
-		nat.Port(fmt.Sprintf("%d/tcp", res)): {},
-		nat.Port(fmt.Sprintf("%d/udp", res)): {},
-		nat.Port(fmt.Sprintf("%d/tcp", dyn)): {},
-		nat.Port(fmt.Sprintf("%d/udp", dyn)): {},
+	expectedExposedPorts := map[string]struct{}{
+		fmt.Sprintf("%d/tcp", res): {},
+		fmt.Sprintf("%d/udp", res): {},
+		fmt.Sprintf("%d/tcp", dyn): {},
+		fmt.Sprintf("%d/udp", dyn): {},
 	}
 
-	must.Eq(t, expectedExposedPorts, container.Config.ExposedPorts)
+	actualExposedPorts := make(map[string]struct{}, len(container.Container.Config.ExposedPorts))
+	for port := range container.Container.Config.ExposedPorts {
+		actualExposedPorts[port.String()] = struct{}{}
+	}
+	must.Eq(t, expectedExposedPorts, actualExposedPorts)
 
 	hostIP := "127.0.0.1"
 	if runtime.GOOS == "windows" {
@@ -1858,14 +1868,30 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	}
 
 	// Verify that the correct ports are FORWARDED
-	expectedPortBindings := map[nat.Port][]nat.PortBinding{
-		nat.Port(fmt.Sprintf("%d/tcp", res)): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port(fmt.Sprintf("%d/udp", res)): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port(fmt.Sprintf("%d/tcp", dyn)): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
-		nat.Port(fmt.Sprintf("%d/udp", dyn)): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	expectedPortBindings := map[string][]nat.PortBinding{
+		fmt.Sprintf("%d/tcp", res): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		fmt.Sprintf("%d/udp", res): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		fmt.Sprintf("%d/tcp", dyn): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		fmt.Sprintf("%d/udp", dyn): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 
-	must.Eq(t, expectedPortBindings, container.HostConfig.PortBindings)
+	actualPortBindings := make(map[string][]nat.PortBinding, len(container.Container.HostConfig.PortBindings))
+	for port, bindings := range container.Container.HostConfig.PortBindings {
+		converted := make([]nat.PortBinding, len(bindings))
+		for i, binding := range bindings {
+			hostIP := ""
+			if binding.HostIP.IsValid() {
+				hostIP = binding.HostIP.String()
+			}
+			converted[i] = nat.PortBinding{
+				HostIP:   hostIP,
+				HostPort: binding.HostPort,
+			}
+		}
+		actualPortBindings[port.String()] = converted
+	}
+
+	must.Eq(t, expectedPortBindings, actualPortBindings)
 }
 
 func TestDockerDriver_PortsMapping(t *testing.T) {
@@ -1885,22 +1911,26 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
 	// Verify that the port environment variables are set
-	must.SliceContains(t, container.Config.Env, "NOMAD_PORT_main=8080")
-	must.SliceContains(t, container.Config.Env, "NOMAD_PORT_REDIS=6379")
+	must.SliceContains(t, container.Container.Config.Env, "NOMAD_PORT_main=8080")
+	must.SliceContains(t, container.Container.Config.Env, "NOMAD_PORT_REDIS=6379")
 
 	// Verify that the correct ports are EXPOSED
-	expectedExposedPorts := map[nat.Port]struct{}{
-		nat.Port("8080/tcp"): {},
-		nat.Port("8080/udp"): {},
-		nat.Port("6379/tcp"): {},
-		nat.Port("6379/udp"): {},
+	expectedExposedPorts := map[string]struct{}{
+		"8080/tcp": {},
+		"8080/udp": {},
+		"6379/tcp": {},
+		"6379/udp": {},
 	}
 
-	must.Eq(t, expectedExposedPorts, container.Config.ExposedPorts)
+	actualExposedPorts := make(map[string]struct{}, len(container.Container.Config.ExposedPorts))
+	for port := range container.Container.Config.ExposedPorts {
+		actualExposedPorts[port.String()] = struct{}{}
+	}
+	must.Eq(t, expectedExposedPorts, actualExposedPorts)
 
 	hostIP := "127.0.0.1"
 	if runtime.GOOS == "windows" {
@@ -1908,13 +1938,29 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	}
 
 	// Verify that the correct ports are FORWARDED
-	expectedPortBindings := map[nat.Port][]nat.PortBinding{
-		nat.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
-		nat.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	expectedPortBindings := map[string][]nat.PortBinding{
+		"8080/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		"8080/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		"6379/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		"6379/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
-	must.Eq(t, expectedPortBindings, container.HostConfig.PortBindings)
+
+	actualPortBindings := make(map[string][]nat.PortBinding, len(container.Container.HostConfig.PortBindings))
+	for port, bindings := range container.Container.HostConfig.PortBindings {
+		converted := make([]nat.PortBinding, len(bindings))
+		for i, binding := range bindings {
+			hostIP := ""
+			if binding.HostIP.IsValid() {
+				hostIP = binding.HostIP.String()
+			}
+			converted[i] = nat.PortBinding{
+				HostIP:   hostIP,
+				HostPort: binding.HostPort,
+			}
+		}
+		actualPortBindings[port.String()] = converted
+	}
+	must.Eq(t, expectedPortBindings, actualPortBindings)
 }
 
 func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
@@ -1950,13 +1996,29 @@ func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
 	must.Eq(t, "org/repo:0.1", c.Config.Image)
 
 	// Verify that the correct ports are FORWARDED
-	expectedPortBindings := map[nat.Port][]nat.PortBinding{
-		nat.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
-		nat.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
-		nat.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
-		nat.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+	expectedPortBindings := map[string][]nat.PortBinding{
+		"8080/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		"8080/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		"6379/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+		"6379/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
 	}
-	must.Eq(t, expectedPortBindings, c.Host.PortBindings)
+
+	actualPortBindings := make(map[string][]nat.PortBinding, len(c.Host.PortBindings))
+	for port, bindings := range c.Host.PortBindings {
+		converted := make([]nat.PortBinding, len(bindings))
+		for i, binding := range bindings {
+			hostIP := ""
+			if binding.HostIP.IsValid() {
+				hostIP = binding.HostIP.String()
+			}
+			converted[i] = nat.PortBinding{
+				HostIP:   hostIP,
+				HostPort: binding.HostPort,
+			}
+		}
+		actualPortBindings[port.String()] = converted
+	}
+	must.Eq(t, expectedPortBindings, actualPortBindings)
 
 }
 func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
@@ -1984,13 +2046,29 @@ func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		hostIP = ""
 	}
-	expectedPortBindings := map[nat.Port][]nat.PortBinding{
-		nat.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
-		nat.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
-		nat.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	expectedPortBindings := map[string][]nat.PortBinding{
+		"8080/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		"8080/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		"6379/tcp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		"6379/udp": {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
-	must.Eq(t, expectedPortBindings, c.Host.PortBindings)
+
+	actualPortBindings := make(map[string][]nat.PortBinding, len(c.Host.PortBindings))
+	for port, bindings := range c.Host.PortBindings {
+		converted := make([]nat.PortBinding, len(bindings))
+		for i, binding := range bindings {
+			hostIP := ""
+			if binding.HostIP.IsValid() {
+				hostIP = binding.HostIP.String()
+			}
+			converted[i] = nat.PortBinding{
+				HostIP:   hostIP,
+				HostPort: binding.HostPort,
+			}
+		}
+		actualPortBindings[port.String()] = converted
+	}
+	must.Eq(t, expectedPortBindings, actualPortBindings)
 
 }
 
@@ -2021,7 +2099,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		time.Sleep(3 * time.Second)
 
 		// Ensure that the container isn't present
-		_, err := client.ContainerInspect(context.Background(), handle.containerID)
+		_, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 		if err == nil {
 			t.Fatalf("expected to not get container")
 		}
@@ -2076,19 +2154,19 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 	}
 
 	// we haven't called DestroyTask, image should be present
-	_, _, err = client.ImageInspectWithRaw(ctx, cfg.Image)
+	_, err = client.ImageInspect(ctx, cfg.Image)
 	must.NoError(t, err)
 
 	err = dockerDriver.DestroyTask(task.ID, false)
 	must.NoError(t, err)
 
 	// image_delay is 3s, so image should still be around for a bit
-	_, _, err = client.ImageInspectWithRaw(ctx, cfg.Image)
+	_, err = client.ImageInspect(ctx, cfg.Image)
 	must.NoError(t, err)
 
 	// Ensure image was removed
 	tu.WaitForResult(func() (bool, error) {
-		if _, _, err := client.ImageInspectWithRaw(ctx, cfg.Image); err == nil {
+		if _, err := client.ImageInspect(ctx, cfg.Image); err == nil {
 			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
 		}
 
@@ -2144,7 +2222,7 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 	}
 
 	// we haven't called DestroyTask, image should be present
-	_, _, err = client.ImageInspectWithRaw(ctx, handle.containerImage)
+	_, err = client.ImageInspect(ctx, handle.containerImage)
 	must.NoError(t, err)
 
 	err = dockerDriver.DestroyTask(task.ID, false)
@@ -2154,7 +2232,7 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// image should not have been removed or scheduled to be removed
-	_, _, err = client.ImageInspectWithRaw(ctx, cfg.Image)
+	_, err = client.ImageInspect(ctx, cfg.Image)
 	must.NoError(t, err)
 	dockerDriver.coordinator.imageLock.Lock()
 	_, ok = dockerDriver.coordinator.deleteFuture[handle.containerImage]
@@ -2209,13 +2287,14 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 	}
 
 	// remove the container out-of-band
-	must.NoError(t, client.ContainerRemove(ctx, h.containerID, containerapi.RemoveOptions{}))
+	_, err = client.ContainerRemove(ctx, h.containerID, mclient.ContainerRemoveOptions{})
+	must.NoError(t, err)
 
 	must.NoError(t, dockerDriver.DestroyTask(task.ID, false))
 
 	// Ensure image was removed
 	tu.WaitForResult(func() (bool, error) {
-		if _, _, err := client.ImageInspectWithRaw(ctx, cfg.Image); err == nil {
+		if _, err := client.ImageInspect(ctx, cfg.Image); err == nil {
 			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
 		}
 
@@ -2713,11 +2792,11 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 			defer cleanup()
 			must.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-			container, err := client.ContainerInspect(context.Background(), handle.containerID)
+			container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 			must.NoError(t, err)
 
-			must.SliceNotEmpty(t, container.HostConfig.Devices, must.Sprint("Expected one device"))
-			must.Eq(t, tc.Expected, container.HostConfig.Devices[0], must.Sprint("Incorrect device"))
+			must.SliceNotEmpty(t, container.Container.HostConfig.Devices, must.Sprint("Expected one device"))
+			must.Eq(t, tc.Expected, container.Container.HostConfig.Devices[0], must.Sprint("Incorrect device"))
 		})
 	}
 }
@@ -2740,11 +2819,11 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 
 	must.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Len(t, 2, container.Config.Entrypoint, must.Sprint("Expected one entrypoint"))
-	must.Eq(t, entrypoint, container.Config.Entrypoint, must.Sprint("Incorrect entrypoint"))
+	must.Len(t, 2, container.Container.Config.Entrypoint, must.Sprint("Expected one entrypoint"))
+	must.Eq(t, entrypoint, container.Container.Config.Entrypoint, must.Sprint("Incorrect entrypoint"))
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
@@ -2764,26 +2843,26 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.True(t, container.HostConfig.ReadonlyRootfs, must.Sprint("ReadonlyRootfs option not set"))
+	must.True(t, container.Container.HostConfig.ReadonlyRootfs, must.Sprint("ReadonlyRootfs option not set"))
 }
 
 // fakeDockerClient can be used in places that accept an interface for the
 // docker client such as createContainer.
 type fakeDockerClient struct{}
 
-func (fakeDockerClient) ContainerCreate(context.Context, *containerapi.Config, *containerapi.HostConfig, *networkapi.NetworkingConfig, *ocispec.Platform, string) (containerapi.CreateResponse, error) {
-	return containerapi.CreateResponse{}, fmt.Errorf("duplicate mount point")
+func (fakeDockerClient) ContainerCreate(context.Context, mclient.ContainerCreateOptions) (mclient.ContainerCreateResult, error) {
+	return mclient.ContainerCreateResult{}, fmt.Errorf("duplicate mount point")
 }
-func (fakeDockerClient) ContainerInspect(context.Context, string) (types.ContainerJSON, error) {
+func (fakeDockerClient) ContainerInspect(context.Context, string, mclient.ContainerInspectOptions) (mclient.ContainerInspectResult, error) {
 	panic("not implemented")
 }
-func (fakeDockerClient) ContainerList(context.Context, containerapi.ListOptions) ([]types.Container, error) {
+func (fakeDockerClient) ContainerList(context.Context, mclient.ContainerListOptions) (mclient.ContainerListResult, error) {
 	panic("not implemented")
 }
-func (fakeDockerClient) ContainerRemove(context.Context, string, containerapi.RemoveOptions) error {
+func (fakeDockerClient) ContainerRemove(context.Context, string, mclient.ContainerRemoveOptions) (mclient.ContainerRemoveResult, error) {
 	panic("not implemented")
 }
 
@@ -2819,11 +2898,11 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	client := newTestDockerClient(t)
 
 	// Make sure IPv6 is enabled
-	net, err := client.NetworkInspect(ctx, "bridge", networkapi.InspectOptions{})
+	net, err := client.NetworkInspect(ctx, "bridge", mclient.NetworkInspectOptions{})
 	if err != nil {
 		t.Skip("error retrieving bridge network information, skipping")
 	}
-	if !net.EnableIPv6 {
+	if !net.Network.EnableIPv6 {
 		t.Skip("IPv6 not enabled on bridge network, skipping")
 	}
 
@@ -2848,12 +2927,17 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	must.NoError(t, driver.WaitUntilStarted(task.ID, time.Second))
 
-	container, err := client.ContainerInspect(ctx, handle.containerID)
+	container, err := client.ContainerInspect(ctx, handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
-		t.Fatalf("Got GlobalIPv6address %s want GlobalIPv6address with prefix %s", expectedPrefix, container.NetworkSettings.GlobalIPv6Address)
+	found := false
+	for _, endpoint := range container.Container.NetworkSettings.Networks {
+		if strings.HasPrefix(endpoint.GlobalIPv6Address.String(), expectedPrefix) {
+			found = true
+			break
+		}
 	}
+	must.True(t, found)
 }
 
 func TestDockerImageRef(t *testing.T) {
@@ -2877,14 +2961,14 @@ func TestDockerImageRef(t *testing.T) {
 
 func waitForExist(t *testing.T, client *client.Client, containerID string) {
 	tu.WaitForResult(func() (bool, error) {
-		container, err := client.ContainerInspect(context.Background(), containerID)
+		container, err := client.ContainerInspect(context.Background(), containerID, mclient.ContainerInspectOptions{})
 		if err != nil {
 			if !errdefs.IsNotFound(err) {
 				return false, err
 			}
 		}
 
-		return container.ID != "", nil
+		return container.Container.ID != "", nil
 	}, func(err error) {
 		must.NoError(t, err)
 	})
@@ -2921,17 +3005,17 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 
 	c, err := d.createContainer(client, containerCfg, cfg.Image)
 	must.NoError(t, err)
-	defer client.ContainerRemove(ctx, c.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, c.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 
 	// calling createContainer again creates a new one and remove old one
 	c2, err := d.createContainer(client, containerCfg, cfg.Image)
 	must.NoError(t, err)
-	defer client.ContainerRemove(ctx, c2.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, c2.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 
-	must.NotEq(t, c.ID, c2.ID)
+	must.NotEq(t, c.Container.ID, c2.Container.ID)
 	// old container was destroyed
 	{
-		_, err := client.ContainerInspect(ctx, c.ID)
+		_, err := client.ContainerInspect(ctx, c.Container.ID, mclient.ContainerInspectOptions{})
 		must.Error(t, err)
 		must.StrContains(t, err.Error(), NoSuchContainerError)
 	}
@@ -2941,13 +3025,13 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	must.NoError(t, d.startContainer(*c2))
 
 	tu.WaitForResult(func() (bool, error) {
-		c, err := client.ContainerInspect(ctx, c2.ID)
+		c, err := client.ContainerInspect(ctx, c2.Container.ID, mclient.ContainerInspectOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to get container status: %v", err)
 		}
 
-		if !c.State.Running {
-			return false, fmt.Errorf("container is not running but %v", c.State)
+		if !c.Container.State.Running {
+			return false, fmt.Errorf("container is not running but %v", c.Container.State)
 		}
 
 		return true, nil
@@ -3164,7 +3248,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			client := newTestDockerClient(t)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			listener, _ := client.Events(ctx, events.ListOptions{})
+			eventsResult := client.Events(ctx, mclient.EventsListOptions{})
 			defer cancel()
 
 			_, _, err := d.StartTask(task)
@@ -3182,7 +3266,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 		WAIT:
 			for {
 				select {
-				case msg := <-listener:
+				case msg := <-eventsResult.Messages:
 					// Only add kill signals
 					if msg.Action == "kill" {
 						sig := msg.Actor.Attributes["signal"]
@@ -3191,6 +3275,10 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 						if reflect.DeepEqual(receivedSignals, c.expectedSignals) {
 							break WAIT
 						}
+					}
+				case err := <-eventsResult.Err:
+					if err != nil && err != context.Canceled {
+						must.NoError(t, err)
 					}
 				case err := <-stopErr:
 					must.NoError(t, err, must.Sprint("stop task failed"))
@@ -3217,10 +3305,10 @@ func TestDockerDriver_GroupAdd(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, cfg.GroupAdd, container.HostConfig.GroupAdd)
+	must.Eq(t, cfg.GroupAdd, container.Container.HostConfig.GroupAdd)
 }
 
 // TestDockerDriver_CollectStats verifies that the TaskStats API collects stats
