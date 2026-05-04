@@ -102,7 +102,10 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context) {
 	go d.runConsumer(ctx)
 }
 
-// Enqueue is used to produce a message on the queue by taking
+// Enqueue is the method used to put evaluations on the queue.
+// It generates a workload with an empty priority, appends it
+// to an internal channel to be processed and added to the actual
+// heap container.
 func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
 	w := d.generateWorkload(e)
 	// in the event of an empty workload, just pass eval to eval broker
@@ -136,12 +139,15 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-time.After(d.conf.CalcInterval):
 			d.qMux.Lock()
 			d.calculatePriorities(time.Now().UnixNano())
-			heap.Init(&d.queue) // priorities were updated, reinit
+			heap.Init(&d.queue)
 			d.qMux.Unlock()
 		}
 	}
 }
 
+// runConsumer pops the highest priority workloads off the queue one
+// at a time, enqueues them onto the Eval Broker, and waits for them
+// to be placed before continuing.
 func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 	for {
 		select {
@@ -164,7 +170,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			l := d.queue.Len()
 			d.qMux.Unlock()
 
-			// If the queue still has work, notify it
+			// If the queue still has work, notify self
 			// to continue.
 			if l > 0 {
 				select {
@@ -176,8 +182,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 	}
 }
 
-// generateWorkload is used to create an initial workload from a given evaluation.
-// It creates the tenantID from the queues config which is
+// generateWorkload is used to create an initial workload from a given evaluation
 func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload {
 	job, err := d.state.JobByID(nil, e.Namespace, e.JobID)
 	if err != nil {
@@ -208,7 +213,8 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 }
 
 func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
-	// Decay tenant workload usages first
+	// Decay tenant workload usages first, because a workload's
+	// priority relies on its tenant's usage.
 	for _, tenant := range d.tenants {
 		for range tenant.workloads {
 			// Unimplemented
@@ -227,7 +233,7 @@ func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
 // have been marked terminal, indicating the workload has been scheduled.
 //
-// TODO: search codebase to see if there is already an established way to do this.
+// TODO (mismithhisler): is there a better way to do this?
 func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation) error {
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
