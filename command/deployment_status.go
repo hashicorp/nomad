@@ -281,8 +281,8 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	// Retry on error monitoring config
 	const (
 		retryBackoffBase = time.Second
-		retryBackoffMax  = 8 * time.Second
-		retry            = 4
+		retryBackoffMax  = 12 * time.Second
+		maxRetries       = 10
 	)
 
 UPDATE:
@@ -296,17 +296,25 @@ UPDATE:
 				break
 			}
 
-			if attempt >= retry {
+			if attempt >= maxRetries {
+				// Final attempt failed, print error and exit monitoring
+				d.Set()
+				d.Append(
+					glint.Layout(glint.Style(
+						glint.Text(fmt.Sprintf("%s: Error fetching deployment: %v", formatTime(time.Now()), err)),
+						glint.Color("red"),
+					)).MarginLeft(4), glint.Text(""))
+				d.RenderFrame()
 				return
 			}
 
 			backoff := helper.Backoff(retryBackoffBase, retryBackoffMax, uint64(attempt))
 
-			d.Append(glint.Layout(glint.Style(
-				glint.Text(fmt.Sprintf("%s: Error fetching deployment: %v, retrying in %s (attempt %d/%d)",
-					formatTime(time.Now()), err, backoff, retry+1, attempt+1)),
-				glint.Color("red"),
-			)).MarginLeft(4), glint.Text(""))
+			retryComponent := glint.Layout(
+				glint.Text(fmt.Sprintf("Failed fetching deployment: %v, retrying in %s (attempt %d/%d)",
+					err, backoff, attempt+1, maxRetries)),
+			).Row().MarginLeft(4)
+			d.Set(spinner, retryComponent)
 			d.RenderFrame()
 
 			time.Sleep(backoff)
