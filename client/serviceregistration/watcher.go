@@ -244,7 +244,7 @@ func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 			w.logger.Trace("now watching check", "alloc_i", allocID, "task", taskName, "check", checkName)
 
 		// poll time; refresh check statuses
-		case now := <-time.After(1 * time.Second):
+		case now := <-time.After(w.pollFrequency):
 			if len(watched) == 0 {
 				continue
 			}
