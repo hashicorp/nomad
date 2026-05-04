@@ -205,6 +205,14 @@ func TestBatchQueue_Validate(t *testing.T) {
 			err: "unsupported tenant type",
 		},
 		{
+			name: "batch config with no type",
+			batchConfig: BatchQueue{
+				Type:       "",
+				TenantType: "metadata",
+			},
+			err: "batch queue config found but no type specified",
+		},
+		{
 			name: "empty metadata key errors",
 			batchConfig: BatchQueue{
 				Type:       "dynamicPriority",

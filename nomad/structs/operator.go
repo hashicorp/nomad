@@ -398,6 +398,11 @@ func validateDuration(val any) error {
 
 func (b *BatchQueue) Validate() error {
 	if b.Type == "" {
+		switch {
+		case b.TenantType != "", b.MetadataKey != "", b.Config != nil:
+			return errors.New("batch queue configuration found but no type specified")
+		}
+
 		return nil
 	}
 
@@ -410,11 +415,11 @@ func (b *BatchQueue) Validate() error {
 			return fmt.Errorf("failed to parse max_age: %v", err)
 		}
 	default:
-		return fmt.Errorf("unsupported batch queue type: %s", b.Type)
+		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
 	}
 
 	if b.TenantType != "namespace" && b.TenantType != "metadata" {
-		return fmt.Errorf("unsupported tenant type: %s", b.TenantType)
+		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
 	}
 
 	if b.TenantType == "metadata" && b.MetadataKey == "" {
