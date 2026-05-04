@@ -18,9 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -28,6 +25,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	ntestutil "github.com/hashicorp/nomad/testutil"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	mclient "github.com/moby/moby/client"
 	"github.com/shoenig/test/must"
 )
 
@@ -68,16 +68,16 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 
 	// Create network, network-scoped alias is supported only for containers in user defined networks
 	client := newTestDockerClient(t)
-	networkResponse, err := client.NetworkCreate(ctx, "foobar", network.CreateOptions{Driver: "bridge"})
+	networkResponse, err := client.NetworkCreate(ctx, "foobar", mclient.NetworkCreateOptions{Driver: "bridge"})
 	must.NoError(t, err)
-	defer client.NetworkRemove(ctx, networkResponse.ID)
+	defer client.NetworkRemove(ctx, networkResponse.ID, mclient.NetworkRemoveOptions{})
 
-	network, err := client.NetworkInspect(ctx, networkResponse.ID, network.InspectOptions{})
+	network, err := client.NetworkInspect(ctx, networkResponse.ID, mclient.NetworkInspectOptions{})
 	must.NoError(t, err)
 
 	expected := []string{"foobar"}
 	taskCfg := newTaskConfig(busyboxLongRunningCmd)
-	taskCfg.NetworkMode = network.Name
+	taskCfg.NetworkMode = network.Network.Name
 	taskCfg.NetworkAliases = expected
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -103,7 +103,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	handle, ok := dockerDriver.tasks.Get(task.ID)
 	must.True(t, ok)
 
-	_, err = client.ContainerInspect(ctx, handle.containerID)
+	_, err = client.ContainerInspect(ctx, handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 }
 
@@ -142,10 +142,10 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 
 	client := newTestDockerClient(t)
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	actual := string(container.HostConfig.NetworkMode)
+	actual := string(container.Container.HostConfig.NetworkMode)
 	must.Eq(t, expected, actual)
 }
 
@@ -164,10 +164,10 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 
 	waitForExist(t, client, handle.containerID)
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	must.Eq(t, cfg.CPUCFSPeriod, container.HostConfig.CPUPeriod)
+	must.Eq(t, cfg.CPUCFSPeriod, container.Container.HostConfig.CPUPeriod)
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
@@ -190,20 +190,20 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
 	want := "16384"
-	got := container.HostConfig.Sysctls["net.core.somaxconn"]
+	got := container.Container.HostConfig.Sysctls["net.core.somaxconn"]
 	must.Eq(t, want, got, must.Sprintf(
 		"Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got))
 
 	expectedUlimitLen := 2
-	actualUlimitLen := len(container.HostConfig.Ulimits)
+	actualUlimitLen := len(container.Container.HostConfig.Ulimits)
 	must.Eq(t, want, got, must.Sprintf(
 		"Wrong number of ulimit configs for docker job. Expect: %d, got: %d", expectedUlimitLen, actualUlimitLen))
 
-	for _, got := range container.HostConfig.Ulimits {
+	for _, got := range container.Container.HostConfig.Ulimits {
 		if expectedStr, ok := expectedUlimits[got.Name]; !ok {
 			t.Errorf("%s config unexpected for docker job.", got.Name)
 		} else {
@@ -696,7 +696,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	// Ensure image was removed
 	ntestutil.WaitForResult(func() (bool, error) {
-		if _, _, err := client.ImageInspectWithRaw(context.Background(), cfg.Image); err == nil {
+		if _, err := client.ImageInspect(context.Background(), cfg.Image); err == nil {
 			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
 		}
 

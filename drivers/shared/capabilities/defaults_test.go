@@ -8,28 +8,28 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/moby/moby/api/types/system"
+	"github.com/shoenig/test/must"
 )
 
 func TestSet_NomadDefaults(t *testing.T) {
 	ci.Parallel(t)
 
 	result := NomadDefaults()
-	require.Len(t, result.Slice(false), 13)
+	must.Len(t, 13, result.Slice(false))
 	defaults := strings.ToLower(HCLSpecLiteral)
 	for _, c := range result.Slice(false) {
-		require.Contains(t, defaults, c)
+		must.StrContains(t, defaults, c)
 	}
 }
 
 func TestSet_DockerDefaults(t *testing.T) {
 	ci.Parallel(t)
 
-	result := DockerDefaults(types.Version{})
-	require.Len(t, result.Slice(false), 14)
-	require.Contains(t, result.String(), "net_raw")
+	result := DockerDefaults(system.VersionResponse{})
+	must.Len(t, 14, result.Slice(false))
+	must.StrContains(t, result.String(), "net_raw")
 }
 
 func TestCaps_Calculate(t *testing.T) {
@@ -149,11 +149,11 @@ func TestCaps_Calculate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			caps, err := Calculate(NomadDefaults(), tc.allowCaps, tc.capAdd, tc.capDrop)
 			if !tc.skip {
-				require.Equal(t, tc.err, err)
-				require.Equal(t, tc.exp, caps)
+				must.Eq(t, tc.err, err)
+				must.Eq(t, tc.exp, caps)
 			} else {
-				require.Error(t, err)
-				require.Equal(t, tc.exp, caps)
+				must.Error(t, err)
+				must.Eq(t, tc.exp, caps)
 			}
 		})
 	}
@@ -281,14 +281,14 @@ func TestCaps_Delta(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			add, drop, err := Delta(DockerDefaults(types.Version{}), tc.allowCaps, tc.capAdd, tc.capDrop)
+			add, drop, err := Delta(DockerDefaults(system.VersionResponse{}), tc.allowCaps, tc.capAdd, tc.capDrop)
 			if !tc.skip {
-				require.Equal(t, tc.err, err)
-				require.Equal(t, tc.expAdd, add)
-				require.Equal(t, tc.expDrop, drop)
+				must.Eq(t, tc.err, err)
+				must.Eq(t, tc.expAdd, add)
+				must.Eq(t, tc.expDrop, drop)
 			} else {
-				require.Error(t, err)
-				require.Equal(t, tc.expDrop, drop)
+				must.Error(t, err)
+				must.Eq(t, tc.expDrop, drop)
 			}
 		})
 	}
