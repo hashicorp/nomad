@@ -395,26 +395,22 @@ func (c *csiHook) claimWithRetry(req *structs.CSIVolumeClaimRequest) (*structs.C
 	var err error
 	backoff := c.minBackoffInterval
 	for {
+		err = c.rpcClient.RPC("CSIVolume.Claim", req, &resp)
+		if err == nil {
+			break
+		}
+		if !isRetryableClaimRPCError(err) {
+			break
+		}
+
 		select {
 		case <-ctx.Done():
 			return nil, err
 		case <-time.After(backoff):
 		}
 
-		err = c.rpcClient.RPC("CSIVolume.Claim", req, &resp)
-		if err == nil {
-			break
-		}
-
-		if !isRetryableClaimRPCError(err) {
-			break
-		}
-
 		if backoff < c.maxBackoffInterval {
-			backoff = backoff * 2
-			if backoff > c.maxBackoffInterval {
-				backoff = c.maxBackoffInterval
-			}
+			backoff = min(backoff*2, c.maxBackoffInterval)
 		}
 		c.logger.Debug(
 			"volume could not be claimed because it is in use", "retry_in", backoff)
@@ -497,22 +493,19 @@ func (c *csiHook) unmountWithRetry(result *volumePublishResult) error {
 	var err error
 	backoff := c.minBackoffInterval
 	for {
+		err = c.unmountImpl(result)
+		if err == nil {
+			break
+		}
+
 		select {
 		case <-ctx.Done():
 			return err
 		case <-time.After(backoff):
 		}
 
-		err = c.unmountImpl(result)
-		if err == nil {
-			break
-		}
-
 		if backoff < c.maxBackoffInterval {
-			backoff = backoff * 2
-			if backoff > c.maxBackoffInterval {
-				backoff = c.maxBackoffInterval
-			}
+			backoff = min(backoff*2, c.maxBackoffInterval)
 		}
 		c.logger.Debug("volume could not be unmounted", "retry_in", backoff)
 	}

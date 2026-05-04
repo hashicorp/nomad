@@ -41,7 +41,7 @@ type observer struct {
 // start checking our check on its interval
 func (o *observer) start() {
 	// compromise between immediate (too early) and waiting full interval (slow)
-	firstWait := o.check.Interval / 2
+	wait := o.check.Interval / 2
 
 	for {
 		select {
@@ -51,12 +51,14 @@ func (o *observer) start() {
 			return
 
 		// time to execute the check
-		case <-time.After(firstWait):
+		case <-time.After(wait):
 			query := checks.GetCheckQuery(o.check)
 			result := o.checker.Do(o.ctx, o.qc, query)
 
 			// and put the results into the store (already logged)
 			_ = o.checkStore.Set(o.allocID, result)
+
+			wait = o.check.Interval
 		}
 	}
 }

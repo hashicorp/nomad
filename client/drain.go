@@ -99,17 +99,18 @@ func (c *Client) pollServerForDrainStatus(ctx context.Context, interval time.Dur
 	var statusResp structs.SingleNodeResponse
 
 	for {
+		err := c.RPC("Node.GetNode", statusReq, &statusResp)
+		if err != nil {
+			return err
+		}
+		if statusResp.Node.DrainStrategy == nil {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(1 * time.Second):
-			err := c.RPC("Node.GetNode", statusReq, &statusResp)
-			if err != nil {
-				return err
-			}
-			if &statusResp != nil && statusResp.Node.DrainStrategy == nil {
-				return nil
-			}
+		case <-time.After(interval):
 		}
 	}
 }
@@ -148,14 +149,14 @@ func (c *Client) pollLocalStatusForDrainStatus(ctx context.Context,
 	}
 
 	for {
+		if drainIsDone() {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(1 * time.Second):
-			if drainIsDone() {
-				return nil
-			}
+		case <-time.After(interval):
 		}
-
 	}
 }
