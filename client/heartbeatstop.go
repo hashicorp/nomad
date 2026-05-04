@@ -76,7 +76,8 @@ func (h *heartbeatStop) watch() {
 	h.setLastOk(time.Now())
 	allocIntervals := map[string]time.Duration{}
 
-	var timer *time.Timer
+	timer := time.NewTimer(100)
+	timer.Stop()
 
 	for {
 		// we want to fire the ticker only once the shortest
@@ -89,11 +90,7 @@ func (h *heartbeatStop) watch() {
 			}
 		}
 		if interval != 0 {
-			if timer == nil {
-				timer = time.NewTimer(interval)
-			} else {
-				timer.Reset(interval)
-			}
+			timer.Reset(interval)
 		}
 
 		select {
