@@ -95,7 +95,7 @@ func NewDynamicPriorityQueue(state *state.StateStore, broker Queue, conf *Dynami
 func (d *DynamicPriorityQueue) Start(ctx context.Context) {
 	// rebuild internal state from statestore, unimplemented
 
-	go d.runManager(ctx)
+	go d.runProducer(ctx)
 	go d.runConsumer(ctx)
 }
 
@@ -111,9 +111,9 @@ func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
 	d.enqueueCh <- w
 }
 
-// produce pushes workloads onto the queue and notifies the consumer
+// runProducer pushes workloads onto the queue and notifies the consumer
 // goroutine. It also updates priorities on the configured interval.
-func (d *DynamicPriorityQueue) runManager(ctx context.Context) {
+func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -228,7 +228,6 @@ func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
 func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation) error {
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
-		eval.TerminalStatus()
 
 		if eval.BlockedEval != "" {
 			id = eval.BlockedEval
