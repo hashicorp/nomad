@@ -290,6 +290,7 @@ func MountFromProto(mount *proto.Mount) *MountConfig {
 	}
 
 	return &MountConfig{
+		RequestName:     mount.RequestName,
 		TaskPath:        mount.TaskPath,
 		HostPath:        mount.HostPath,
 		Readonly:        mount.Readonly,
@@ -342,6 +343,7 @@ func MountToProto(mount *MountConfig) *proto.Mount {
 	}
 
 	return &proto.Mount{
+		RequestName:     mount.RequestName,
 		TaskPath:        mount.TaskPath,
 		HostPath:        mount.HostPath,
 		Readonly:        mount.Readonly,

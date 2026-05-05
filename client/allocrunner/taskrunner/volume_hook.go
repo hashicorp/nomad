@@ -91,6 +91,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 		}
 
 		mcfg := &drivers.MountConfig{
+			RequestName:     hostVolume.Name,
 			HostPath:        hostVolume.Path,
 			TaskPath:        m.Destination,
 			Readonly:        hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
@@ -185,6 +186,7 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 
 		for _, m := range mountsForAlias {
 			mcfg := &drivers.MountConfig{
+				RequestName:     request.Name,
 				HostPath:        csiMountPoint.Source,
 				TaskPath:        m.Destination,
 				Readonly:        request.ReadOnly || m.ReadOnly,
