@@ -5,7 +5,7 @@ package queues
 
 import "container/heap"
 
-// A QorkloadQueue implements heap.Interface and holds Items.
+// A WorkloadQueue implements heap.Interface and holds *Workload.
 type WorkloadQueue []*Workload
 
 func (pq WorkloadQueue) Len() int { return len(pq) }

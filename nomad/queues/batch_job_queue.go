@@ -30,7 +30,7 @@ type DynamicPriorityQueue struct {
 	queue WorkloadQueue
 
 	// qMux locks the queue during concurrent access
-	qMux *sync.Mutex
+	qMux sync.Mutex
 
 	// qNotify allows for notifying the consumer that workloads
 	// have been added to the queue
@@ -249,7 +249,12 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 			return err
 		}
 
+		abandonCh := state.AbandonCh()
 		ws := memdb.NewWatchSet()
+		ws.Add(abandonCh)
+		if err = ws.WatchCtx(ctx); err != nil {
+			return err
+		}		
 		eval, err = snap.EvalByID(ws, id)
 		if err != nil {
 			return err
