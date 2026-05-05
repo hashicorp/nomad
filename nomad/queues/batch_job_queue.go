@@ -7,6 +7,7 @@ import (
 	"container/heap"
 	"context"
 	"errors"
+	"os"
 	"sync"
 	"time"
 
@@ -164,7 +165,10 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			d.evalBroker.Enqueue(workload.eval)
 
 			// Wait for the eval to be placed
-			d.waitForPlacement(ctx, workload.eval, memdb.NewWatchSet())
+			err := d.waitForPlacement(ctx, workload.eval, memdb.NewWatchSet())
+			if err != nil {
+				d.logger.Error("failure waiting for workload placement", "evalID", workload.eval)
+			}
 
 			d.qMux.Lock()
 			l := d.queue.Len()
