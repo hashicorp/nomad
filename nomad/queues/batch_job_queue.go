@@ -131,7 +131,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			heap.Push(&d.queue, w)
 			d.qMux.Unlock()
 
-			// Notify Workload processor of new workload
+			// Notify Workload consumer of new workload
 			select {
 			case d.qNotify <- struct{}{}:
 			default:
