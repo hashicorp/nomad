@@ -28,15 +28,14 @@ module('Acceptance | namespaces', function (hooks) {
   });
 
   test('Namespaces index, general', async function (assert) {
-    assert.expect(4);
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
     assert.dom('[data-test-gutter-link="administration"]').exists();
-    assert.equal(currentURL(), '/administration/namespaces');
+    assert.deepEqual(currentURL(), '/administration/namespaces');
     assert
       .dom('[data-test-namespace-row]')
-      .exists({ count: server.db.namespaces.length });
+      .exists({ count: this.server.db.namespaces.length });
     await a11yAudit(assert);
     await percySnapshot(assert);
     // Reset Token
@@ -44,71 +43,72 @@ module('Acceptance | namespaces', function (hooks) {
   });
 
   test('Prevents namespaes access if you lack a management token', async function (assert) {
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[1].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[1].secretId;
     await visit('/administration/namespaces');
-    assert.equal(currentURL(), '/jobs');
+    assert.deepEqual(currentURL(), '/jobs');
     assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
 
   test('Creating a new namespace', async function (assert) {
-    assert.expect(7);
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
     await click('[data-test-create-namespace]');
-    assert.equal(currentURL(), '/administration/namespaces/new');
+    assert.deepEqual(currentURL(), '/administration/namespaces/new');
     await typeIn('[data-test-namespace-name-input]', 'My New Namespace');
     await click('button[data-test-save-namespace]');
     assert
       .dom('.flash-message.alert-critical')
       .exists('Doesnt let you save a bad name');
-    assert.equal(currentURL(), '/administration/namespaces/new');
+    assert.deepEqual(currentURL(), '/administration/namespaces/new');
     document.querySelector('[data-test-namespace-name-input]').value = ''; // clear
     await typeIn('[data-test-namespace-name-input]', 'My-New-Namespace');
     await click('button[data-test-save-namespace]');
     assert.dom('.flash-message.alert-success').exists();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/administration/namespaces/My-New-Namespace',
-      'redirected to the now-created namespace'
+      'redirected to the now-created namespace',
     );
     await visit('/administration/namespaces');
     const newNs = [...findAll('[data-test-namespace-name]')].filter((a) =>
-      a.textContent.includes('My-New-Namespace')
+      a.textContent.includes('My-New-Namespace'),
     )[0];
     assert.ok(newNs, 'Namespace is in the list');
     await click(newNs);
-    assert.equal(currentURL(), '/administration/namespaces/My-New-Namespace');
+    assert.deepEqual(
+      currentURL(),
+      '/administration/namespaces/My-New-Namespace',
+    );
     await percySnapshot(assert);
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
 
   test('New namespaces have quotas and node_pool properties if Ent', async function (assert) {
-    assert.expect(2);
-    allScenarios.namespacesTestCluster(server, { enterprise: true });
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server, { enterprise: true });
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
     await click('[data-test-create-namespace]');
 
     // Get the dom node text for the description
     const descriptionText = document.querySelector(
-      '[data-test-namespace-editor]'
+      '[data-test-namespace-editor]',
     ).textContent;
 
     assert.ok(
       descriptionText.includes('Quota'),
-      'Includes Quotas in namespace description'
+      'Includes Quotas in namespace description',
     );
     assert.ok(
       descriptionText.includes(
         'NodePoolConfiguration',
-        'Includes NodePoolConfiguration in namespace description'
-      )
+        'Includes NodePoolConfiguration in namespace description',
+      ),
     );
 
     // Reset Token
@@ -116,15 +116,14 @@ module('Acceptance | namespaces', function (hooks) {
   });
 
   test('New namespaces hide quotas and node_pool properties if CE', async function (assert) {
-    assert.expect(2);
-    allScenarios.namespacesTestCluster(server, { enterprise: false });
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server, { enterprise: false });
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
     await click('[data-test-create-namespace]');
 
     // Get the dom node text for the description
     const descriptionText = document.querySelector(
-      '[data-test-namespace-editor]'
+      '[data-test-namespace-editor]',
     ).textContent;
 
     assert.notOk(descriptionText.includes('Quotas'));
@@ -135,35 +134,34 @@ module('Acceptance | namespaces', function (hooks) {
   });
 
   test('Modifying an existing namespace', async function (assert) {
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
     await click('[data-test-namespace-row]:first-child a');
     // Table sorts by name by default
-    let firstNamespace = server.db.namespaces.sort((a, b) => {
+    let firstNamespace = this.server.db.namespaces.sort((a, b) => {
       return a.name.localeCompare(b.name);
     })[0];
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      `/administration/namespaces/${firstNamespace.name}`
+      `/administration/namespaces/${firstNamespace.name}`,
     );
     assert.dom('[data-test-namespace-editor]').exists();
     assert.dom('[data-test-title]').includesText(firstNamespace.name);
     await click('button[data-test-save-namespace]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/namespaces/${firstNamespace.name}`,
-      'remain on page after save'
+      'remain on page after save',
     );
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
 
   test('Deleting a namespace', async function (assert) {
-    assert.expect(11);
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
 
     // Default namespace hides delete button
@@ -172,7 +170,7 @@ module('Acceptance | namespaces', function (hooks) {
     ].filter((row) => row.textContent.includes('default'))[0];
     await click(defaultNamespaceLink);
 
-    assert.equal(currentURL(), `/administration/namespaces/default`);
+    assert.deepEqual(currentURL(), `/administration/namespaces/default`);
     let deleteButton = find('[data-test-delete-namespace] button');
     assert
       .dom(deleteButton)
@@ -181,16 +179,16 @@ module('Acceptance | namespaces', function (hooks) {
     // Standard namespace properly deletes
     await visit('/administration/namespaces');
 
-    let nonDefaultNamespace = server.db.namespaces.findBy(
-      (ns) => ns.name != 'default'
+    let nonDefaultNamespace = this.server.db.namespaces.findBy(
+      (ns) => ns.name != 'default',
     );
     const nonDefaultNsLink = [...findAll('[data-test-namespace-name]')].filter(
-      (row) => row.textContent.includes(nonDefaultNamespace.name)
+      (row) => row.textContent.includes(nonDefaultNamespace.name),
     )[0];
     await click(nonDefaultNsLink);
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      `/administration/namespaces/${nonDefaultNamespace.name}`
+      `/administration/namespaces/${nonDefaultNamespace.name}`,
     );
     deleteButton = find('[data-test-delete-namespace] button');
     assert.dom(deleteButton).exists('delete button is present for non-default');
@@ -200,7 +198,7 @@ module('Acceptance | namespaces', function (hooks) {
       .exists('confirmation message is present');
     await click(find('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/administration/namespaces');
+    assert.deepEqual(currentURL(), '/administration/namespaces');
     assert
       .dom(`[data-test-namespace-name="${nonDefaultNamespace.name}"]`)
       .doesNotExist();
@@ -208,7 +206,7 @@ module('Acceptance | namespaces', function (hooks) {
     // Namespace with variables errors properly
     // "with-variables" hard-coded into scenario to be a NS with variables attached
     await visit('/administration/namespaces/with-variables');
-    assert.equal(currentURL(), '/administration/namespaces/with-variables');
+    assert.deepEqual(currentURL(), '/administration/namespaces/with-variables');
     deleteButton = find('[data-test-delete-namespace] button');
     await click(deleteButton);
     await click(find('[data-test-confirm-button]'));
@@ -216,7 +214,7 @@ module('Acceptance | namespaces', function (hooks) {
       .dom('.flash-message.alert-critical')
       .exists('Doesnt let you delete a namespace with variables');
 
-    assert.equal(currentURL(), '/administration/namespaces/with-variables');
+    assert.deepEqual(currentURL(), '/administration/namespaces/with-variables');
 
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
@@ -228,9 +226,8 @@ module('Acceptance | namespaces', function (hooks) {
     // It was added because this path was throwing an error when
     // reloading the Ember model that was attempted to be deleted
 
-    assert.expect(3);
-    allScenarios.namespacesTestCluster(server);
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
 
     // Attempt a delete on an un-deletable namespace
     await visit('/administration/namespaces/with-variables');
@@ -241,17 +238,17 @@ module('Acceptance | namespaces', function (hooks) {
     assert
       .dom('.flash-message.alert-critical')
       .exists('Doesnt let you delete a namespace with variables');
-    assert.equal(currentURL(), '/administration/namespaces/with-variables');
+    assert.deepEqual(currentURL(), '/administration/namespaces/with-variables');
 
     // Navigate back to the page via the index
     await visit('/administration/namespaces');
 
     // Default namespace hides delete button
     const notDeletedNSLink = [...findAll('[data-test-namespace-name]')].filter(
-      (row) => row.textContent.includes('with-variables')
+      (row) => row.textContent.includes('with-variables'),
     )[0];
     await click(notDeletedNSLink);
 
-    assert.equal(currentURL(), `/administration/namespaces/with-variables`);
+    assert.deepEqual(currentURL(), `/administration/namespaces/with-variables`);
   });
 });

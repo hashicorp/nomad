@@ -5,7 +5,11 @@
 
 <td class="is-narrow">
   {{#unless this.task.driverStatus.healthy}}
-    <Hds::TooltipButton data-test-icon="unhealthy-driver" @text="{{this.task.driver}} is unhealthy" aria-label="More information">
+    <Hds::TooltipButton
+      data-test-icon="unhealthy-driver"
+      @text="{{this.task.driver}} is unhealthy"
+      aria-label="More information"
+    >
       <Hds::Icon @name="alert-triangle" @color="warning" />
     </Hds::TooltipButton>
   {{/unless}}
@@ -13,7 +17,7 @@
 <td data-test-name class="nowrap">
   <LinkTo
     @route="allocations.allocation.task"
-    @models={{array this.task.allocation this.task}}
+    @models={{array this.task.allocation this.task.name}}
     class="is-primary"
   >
     {{this.task.name}}
@@ -52,15 +56,17 @@
               (format-volume-name
                 source=volume.source
                 isPerAlloc=volume.volumeDeclaration.perAlloc
-                volumeExtension=this.task.allocation.volumeExtension)
+                volumeExtension=this.task.allocation.volumeExtension
+              )
               "@"
               volume.namespace.id
             }}
           >
-          {{format-volume-name
-            source=volume.source
-            isPerAlloc=volume.volumeDeclaration.perAlloc
-            volumeExtension=this.task.allocation.volumeExtension}}
+            {{format-volume-name
+              source=volume.source
+              isPerAlloc=volume.volumeDeclaration.perAlloc
+              volumeExtension=this.task.allocation.volumeExtension
+            }}
           </LinkTo>
         {{else}}
           {{volume.source}}
@@ -79,7 +85,11 @@
         role="tooltip"
         aria-label="Couldn't collect stats"
       >
-        <Hds::Icon @name="alert-triangle-fill" @color="warning" class="icon-vertical-bump-down" />
+        <Hds::Icon
+          @name="alert-triangle-fill"
+          @color="warning"
+          class="icon-vertical-bump-down"
+        />
       </span>
     {{else}}
       <div
@@ -110,7 +120,11 @@
         role="tooltip"
         aria-label="Couldn't collect stats"
       >
-        <Hds::Icon @name="alert-triangle-fill" @color="warning" class="icon-vertical-bump-down" />
+        <Hds::Icon
+          @name="alert-triangle-fill"
+          @color="warning"
+          class="icon-vertical-bump-down"
+        />
       </span>
     {{else}}
       <div

@@ -5,7 +5,7 @@
 
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 
 module('Unit | Adapter | Deployment', function (hooks) {
   setupTest(hooks);
@@ -28,7 +28,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
       this.server.create('node-pool');
       this.server.create('node');
       const job = this.server.create('job', { createAllocations: false });
-      const deploymentRecord = server.schema.deployments.where({
+      const deploymentRecord = this.server.schema.deployments.where({
         jobId: job.id,
       }).models[0];
 
@@ -37,7 +37,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const deployment = await this.store.findRecord(
         'deployment',
-        deploymentRecord.id
+        deploymentRecord.id,
       );
       this.server.pretender.handledRequests.length = 0;
 
@@ -71,9 +71,9 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
+      assert.deepEqual(
         `${request.method} ${request.url}`,
-        testCase.promote(deployment.id)
+        testCase.promote(deployment.id),
       );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
@@ -87,9 +87,9 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
+      assert.deepEqual(
         `${request.method} ${request.url}`,
-        testCase.fail(deployment.id)
+        testCase.fail(deployment.id),
       );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,

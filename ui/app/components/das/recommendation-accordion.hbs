@@ -4,25 +4,17 @@
 ~}}
 
 {{#if this.show}}
-  <ListAccordion
+  <div
     data-test-recommendation-accordion
     class="recommendation-accordion boxed-section {{if this.closing 'closing'}}"
-    @source={{array @summary}}
-    @key="id"
-    {{did-insert this.inserted}}
-    as |a|
   >
-    {{#if a.isOpen}}
-      <div class="animation-container" style={{this.animationContainerStyle}}>
-        <Das::RecommendationCard
-          @summary={{@summary}}
-          @proceed={{this.proceed}}
-          @onCollapse={{a.close}}
-          @skipReset={{true}}
-        />
-      </div>
-    {{else}}
-      <a.head @buttonLabel={{unless a.isOpen "Show"}}>
+    <ListAccordion
+      @source={{array @summary}}
+      @key="id"
+      {{did-insert this.inserted}}
+      as |a|
+    >
+      <a.head @buttonLabel={{if a.isOpen "Collapse" "Show"}}>
         <section class="left">
           <Hds::Icon @name="info-fill" />
           <span>Resource Recommendation</span>
@@ -47,6 +39,17 @@
           {{/if}}
         </section>
       </a.head>
-    {{/if}}
-  </ListAccordion>
+
+      <a.body @fullBleed={{true}}>
+        <div class="animation-container" style={{this.animationContainerStyle}}>
+          <Das::RecommendationCard
+            @summary={{@summary}}
+            @proceed={{this.proceed}}
+            @onCollapse={{a.close}}
+            @skipReset={{true}}
+          />
+        </div>
+      </a.body>
+    </ListAccordion>
+  </div>
 {{/if}}

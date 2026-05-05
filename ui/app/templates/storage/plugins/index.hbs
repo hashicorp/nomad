@@ -15,8 +15,9 @@
           <SearchBox
             data-test-plugins-search
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
-            @placeholder="Search plugins..." />
+            @onChange={{this.resetPagination}}
+            @placeholder="Search plugins..."
+          />
         {{/if}}
       </div>
     </div>
@@ -24,12 +25,16 @@
       <ListPagination
         @source={{this.sortedPlugins}}
         @size={{this.pageSize}}
-        @page={{this.currentPage}} as |p|>
+        @page={{this.currentPage}}
+        as |p|
+      >
         <ListTable
           @source={{p.list}}
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|>
+          @class="with-foot"
+          as |t|
+        >
           <t.head>
             <t.sort-by @prop="plainId">ID</t.sort-by>
             <t.sort-by @prop="controllersHealthyProportion">Controller Health</t.sort-by>
@@ -37,22 +42,39 @@
             <t.sort-by @prop="provider">Provider</t.sort-by>
           </t.head>
           <t.body @key="model.id" as |row|>
-            <tr class="is-interactive" data-test-plugin-row {{on "click" (action "gotoPlugin" row.model)}}>
-              <td data-test-plugin-id
+            <tr
+              class="is-interactive"
+              data-test-plugin-row
+              {{on "click" (fn this.gotoPlugin row.model)}}
+            >
+              <td
+                data-test-plugin-id
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoPlugin" row.model)
+                  action=(fn this.gotoPlugin row.model)
                 }}
               >
-                <LinkTo @route="storage.plugins.plugin" @model={{row.model.plainId}} class="is-primary">{{row.model.plainId}}</LinkTo>
+                <LinkTo
+                  @route="storage.plugins.plugin"
+                  @model={{row.model.plainId}}
+                  class="is-primary"
+                >{{row.model.plainId}}</LinkTo>
               </td>
               <td data-test-plugin-controller-health>
                 {{#if row.model.controllerRequired}}
-                  {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                  {{if
+                    (gt row.model.controllersHealthy 0)
+                    "Healthy"
+                    "Unhealthy"
+                  }}
                   ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
                 {{else}}
                   {{#if (gt row.model.controllersExpected 0)}}
-                    {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                    {{if
+                      (gt row.model.controllersHealthy 0)
+                      "Healthy"
+                      "Unhealthy"
+                    }}
                     ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
                   {{else}}
                     <em class="is-faded">Node Only</em>
@@ -68,10 +90,12 @@
           </t.body>
         </ListTable>
         <div class="table-foot">
-          <PageSizeSelect @onChange={{action this.resetPagination}} />
+          <PageSizeSelect @onChange={{this.resetPagination}} />
           <nav class="pagination">
             <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedPlugins.length}}
+              {{p.startsAt}}&ndash;{{p.endsAt}}
+              of
+              {{this.sortedPlugins.length}}
             </div>
             <p.prev @class="pagination-previous">
               <Hds::Icon @name="chevron-left" />
@@ -86,14 +110,21 @@
     {{else}}
       <div data-test-empty-plugins-list class="empty-message">
         {{#if (eq this.model.length 0)}}
-          <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Plugins</h3>
+          <h3
+            data-test-empty-plugins-list-headline
+            class="empty-message-headline"
+          >No Plugins</h3>
           <p class="empty-message-body">
             The cluster currently has no registered CSI Plugins.
           </p>
         {{else if this.searchTerm}}
-          <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Matches</h3>
+          <h3
+            data-test-empty-plugins-list-headline
+            class="empty-message-headline"
+          >No Matches</h3>
           <p class="empty-message-body">
-            No plugins match the term <strong>{{this.searchTerm}}</strong>
+            No plugins match the term
+            <strong>{{this.searchTerm}}</strong>
           </p>
         {{/if}}
       </div>

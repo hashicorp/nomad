@@ -10,7 +10,7 @@ export default class JobsJobServicesServiceRoute extends Route {
     const services = this.modelFor('jobs.job')
       .get('services')
       .filter(
-        (service) => service.name === name && service.derivedLevel === level
+        (service) => service.name === name && service.derivedLevel === level,
       );
     return { name, instances: services || [] };
   }

@@ -5,7 +5,9 @@
 
 .popover-content {
   border: 1px solid $grey-blue;
-  box-shadow: 0 6px 8px -2px rgba($black, 0.05), 0 8px 4px -4px rgba($black, 0.1);
+  box-shadow:
+    0 6px 8px -2px rgba($black, 0.05),
+    0 8px 4px -4px rgba($black, 0.1);
   margin-right: -$radius;
   margin-top: -1px;
   border-radius: $radius;
@@ -15,7 +17,7 @@
 }
 
 .popover-actions {
-  margin: 1rem -1rem -0.5rem -1rem;
+  margin: 1rem -1rem -0.5rem;
   border-top: 1px solid $grey-lighter;
   display: flex;
 

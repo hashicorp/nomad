@@ -25,6 +25,7 @@
     &.is-wrappable {
       white-space: normal;
       display: block;
+
       .tag {
         vertical-align: middle;
       }
@@ -48,6 +49,7 @@
   .icon-field {
     display: flex;
     margin-left: -1em;
+
     .icon-container {
       width: 1.5em;
     }

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 const WILDCARD_GLOB = '*';
 
 /**

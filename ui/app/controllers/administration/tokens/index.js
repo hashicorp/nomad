@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Controller from '@ember/controller';
 import { task } from 'ember-concurrency';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 
 export default class AccessControlTokensIndexController extends Controller {

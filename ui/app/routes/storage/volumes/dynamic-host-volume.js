@@ -3,19 +3,18 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class StorageVolumesDynamicHostVolumeRoute extends Route {
   @service store;
   @service system;
 
   model(params) {
-    const [id, namespace] = params.id.split('@');
+    const decodedId = decodeURIComponent(params.id);
+    const [id, namespace] = decodedId.split('@');
     const fullId = JSON.stringify([`${id}`, namespace || 'default']);
 
     return RSVP.hash({

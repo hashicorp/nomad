@@ -5,7 +5,7 @@
 
 import { findAll, render } from '@ember/test-helpers';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { module, test } from 'qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -13,8 +13,6 @@ module('Integration | Component | Service Status Bar', function (hooks) {
   setupRenderingTest(hooks);
 
   test('Visualizes aggregate status of a service', async function (assert) {
-    assert.expect(2);
-
     const serviceStatus = {
       success: 1,
       pending: 1,
@@ -35,6 +33,6 @@ module('Integration | Component | Service Status Bar', function (hooks) {
     await componentA11yAudit(this.element, assert);
     const bars = findAll('g > g').length;
 
-    assert.equal(bars, 3, 'It visualizes services by status');
+    assert.deepEqual(bars, 3, 'It visualizes services by status');
   });
 });

@@ -20,7 +20,7 @@ const NETWORK_MODES = ['bridge', 'host'];
 
 export const DATACENTERS = provide(
   15,
-  (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`
+  (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`,
 );
 
 export const HOSTS = provide(100, () => {
@@ -50,7 +50,7 @@ export function generateResources(options = {}) {
 
   if (faker.random.boolean()) {
     const higherMemoryReservations = MEMORY_RESERVATIONS.filter(
-      (mb) => mb > resources.Memory.MemoryMB
+      (mb) => mb > resources.Memory.MemoryMB,
     );
     resources.Memory.MemoryMaxMB =
       faker.helpers.randomize(higherMemoryReservations) ||
@@ -75,7 +75,7 @@ export function generateNetworks(options = {}) {
         faker.random.number({
           min: options.minPorts != null ? options.minPorts : 0,
           max: options.maxPorts != null ? options.maxPorts : 2,
-        })
+        }),
       )
         .fill(null)
         .map(() => ({
@@ -87,7 +87,7 @@ export function generateNetworks(options = {}) {
         faker.random.number({
           min: options.minPorts != null ? options.minPorts : 0,
           max: options.maxPorts != null ? options.maxPorts : 2,
-        })
+        }),
       )
         .fill(null)
         .map(() => ({
@@ -103,7 +103,7 @@ export function generatePorts(options = {}) {
     faker.random.number({
       min: options.minPorts != null ? options.minPorts : 0,
       max: options.maxPorts != null ? options.maxPorts : 2,
-    })
+    }),
   )
     .fill(null)
     .map(() => ({

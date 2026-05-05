@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
 import { dasherize } from '@ember/string';
-import { pickOne } from '../utils';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
@@ -72,17 +70,21 @@ export default Factory.extend({
 
       if (faker.random.number(10) >= 1) {
         recommendations.push(
-          server.create('recommendation', { task, resource: 'CPU' })
+          server.create('recommendation', { task, resource: 'CPU' }),
         );
       }
 
       if (faker.random.number(10) >= 1) {
         recommendations.push(
-          server.create('recommendation', { task, resource: 'MemoryMB' })
+          server.create('recommendation', { task, resource: 'MemoryMB' }),
         );
       }
 
-      task.save({ recommendationIds: recommendations.mapBy('id') });
+      task.save({
+        recommendationIds: recommendations.map(
+          (recommendation) => recommendation.id,
+        ),
+      });
     }
 
     if (task.withServices) {
@@ -95,7 +97,7 @@ export default Factory.extend({
         server.create('service-fragment', {
           provider: 'consul',
           taskName: task.name,
-        })
+        }),
       );
       services.forEach((fragment) => {
         server.createList('service', 5, {

@@ -10,6 +10,7 @@ table tbody .task-sub-row {
     border-top: 2px solid $taskSubRowBackground;
     background-color: $taskSubRowBackground;
     padding: 0.75em 1.5em;
+
     .name-grid {
       display: inline-grid;
       grid-template-columns: auto 1fr;
@@ -21,9 +22,10 @@ table tbody .task-sub-row {
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        &:before {
+
+        &::before {
           color: black;
-          content: '/';
+          content: "/";
           display: inline-block;
           margin-right: 0.5rem;
           text-decoration: none;
@@ -35,6 +37,7 @@ table tbody .task-sub-row {
         text-decoration: underline;
         font-weight: normal;
         background-color: transparent;
+
         svg {
           color: black;
           margin-right: 5px;

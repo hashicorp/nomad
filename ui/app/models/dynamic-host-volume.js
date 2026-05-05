@@ -11,12 +11,12 @@ export default class DynamicHostVolumeModel extends Model {
   @attr('string') path;
   @attr('string') namespace;
   @attr('string') state;
-  @belongsTo('node') node;
+  @belongsTo('node', { async: true, inverse: null }) node;
   @attr('string') pluginID;
   @attr() constraints;
   @attr('date') createTime;
   @attr('date') modifyTime;
-  @hasMany('allocation', { async: false }) allocations;
+  @hasMany('allocation', { async: false, inverse: null }) allocations;
   @attr() requestedCapabilities;
   @attr('number') capacityBytes;
 

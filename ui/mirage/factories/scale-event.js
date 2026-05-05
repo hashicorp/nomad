@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 const REF_TIME = new Date();
@@ -19,7 +19,9 @@ export default Factory.extend({
       ? {
           'nomad_autoscaler.count.capped': true,
           'nomad_autoscaler.count.original': 0,
-          'nomad_autoscaler.reason_history': ['scaling down because factor is 0.000000'],
+          'nomad_autoscaler.reason_history': [
+            'scaling down because factor is 0.000000',
+          ],
         }
       : {},
 

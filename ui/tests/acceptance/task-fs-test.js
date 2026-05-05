@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
 import { module } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 
 import browseFilesystem from './behaviors/fs';
 
@@ -20,16 +19,16 @@ module('Acceptance | task fs', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node', 'forceIPv4');
-    const job = server.create('job', { createAllocations: false });
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4');
+    const job = this.server.create('job', { createAllocations: false });
 
-    allocation = server.create('allocation', {
+    allocation = this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
     });
-    task = server.schema.taskStates.where({ allocationId: allocation.id })
+    task = this.server.schema.taskStates.where({ allocationId: allocation.id })
       .models[0];
     task.name = 'task-name';
     task.save();
@@ -40,21 +39,21 @@ module('Acceptance | task fs', function (hooks) {
     // Reset files
     files = [];
 
-    taskDirectory = server.create('allocFile', {
+    taskDirectory = this.server.create('allocFile', {
       isDir: true,
       name: task.name,
     });
     files.push(taskDirectory);
 
     // Nested files
-    directory = server.create('allocFile', {
+    directory = this.server.create('allocFile', {
       isDir: true,
       name: 'directory',
       parent: taskDirectory,
     });
     files.push(directory);
 
-    nestedDirectory = server.create('allocFile', {
+    nestedDirectory = this.server.create('allocFile', {
       isDir: true,
       name: 'another',
       parent: directory,
@@ -62,31 +61,31 @@ module('Acceptance | task fs', function (hooks) {
     files.push(nestedDirectory);
 
     files.push(
-      server.create('allocFile', 'file', {
+      this.server.create('allocFile', 'file', {
         name: 'something.txt',
         fileType: 'txt',
         parent: nestedDirectory,
-      })
+      }),
     );
 
     files.push(
-      server.create('allocFile', {
+      this.server.create('allocFile', {
         isDir: true,
         name: 'empty-directory',
         parent: taskDirectory,
-      })
+      }),
     );
     files.push(
-      server.create('allocFile', 'file', {
+      this.server.create('allocFile', 'file', {
         fileType: 'txt',
         parent: taskDirectory,
-      })
+      }),
     );
     files.push(
-      server.create('allocFile', 'file', {
+      this.server.create('allocFile', 'file', {
         fileType: 'txt',
         parent: taskDirectory,
-      })
+      }),
     );
 
     this.files = files;

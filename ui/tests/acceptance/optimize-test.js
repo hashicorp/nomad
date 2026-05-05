@@ -3,14 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { currentURL, visit } from '@ember/test-helpers';
+import { currentURL, visit, waitUntil } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import moment from 'moment';
 import { formatBytes, formatHertz, replaceMinus } from 'nomad-ui/utils/units';
 
@@ -28,7 +26,7 @@ function getLatestRecommendationSubmitTimeForJob(job) {
   const recommendations = tasks.reduce(
     (recommendations, task) =>
       recommendations.concat(task.recommendations.models),
-    []
+    [],
   );
   return Math.max(...recommendations.mapBy('submitTime'));
 }
@@ -38,18 +36,18 @@ module('Acceptance | optimize', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('feature', { name: 'Dynamic Application Sizing' });
+    this.server.create('feature', { name: 'Dynamic Application Sizing' });
 
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    server.createList('namespace', 2);
+    this.server.createList('namespace', 2);
 
-    const jobs = server.createList('job', 2, {
+    const jobs = this.server.createList('job', 2, {
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 2,
-      namespaceId: server.db.namespaces[1].id,
+      namespaceId: this.server.db.namespaces[1].id,
     });
 
     jobs.sort((jobA, jobB) => {
@@ -61,8 +59,8 @@ module('Acceptance | optimize', function (hooks) {
 
     [this.job1, this.job2] = jobs;
 
-    managementToken = server.create('token');
-    clientToken = server.create('token');
+    managementToken = this.server.create('token');
+    clientToken = this.server.create('token');
 
     window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
@@ -107,50 +105,53 @@ module('Acceptance | optimize', function (hooks) {
 
     await Optimize.visit();
 
-    assert.equal(Layout.breadcrumbFor('optimize').text, 'Recommendations');
+    assert.deepEqual(Layout.breadcrumbFor('optimize').text, 'Recommendations');
 
-    assert.equal(
+    assert.deepEqual(
       Optimize.recommendationSummaries[0].slug,
-      `${this.job1.name} / ${currentTaskGroup.name}`
+      `${this.job1.name} / ${currentTaskGroup.name}`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('optimize.summary').text,
-      `${this.job1.name} / ${currentTaskGroup.name}`
+      `${this.job1.name} / ${currentTaskGroup.name}`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Optimize.recommendationSummaries[0].namespace,
-      this.job1.namespace
+      this.job1.namespace,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Optimize.recommendationSummaries[1].slug,
-      `${this.job2.name} / ${nextTaskGroup.name}`
+      `${this.job2.name} / ${nextTaskGroup.name}`,
     );
 
     const currentRecommendations = currentTaskGroup.tasks.models.reduce(
       (recommendations, task) =>
         recommendations.concat(task.recommendations.models),
-      []
+      [],
     );
     const latestSubmitTime = Math.max(
-      ...currentRecommendations.mapBy('submitTime')
+      ...currentRecommendations.mapBy('submitTime'),
     );
 
     Optimize.recommendationSummaries[0].as((summary) => {
-      assert.equal(
+      assert.deepEqual(
         summary.date,
         moment(new Date(latestSubmitTime / 1000000)).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
 
-      const currentTaskGroupAllocations = server.schema.allocations.where({
+      const currentTaskGroupAllocations = this.server.schema.allocations.where({
         jobId: currentTaskGroup.job.name,
         taskGroup: currentTaskGroup.name,
       });
-      assert.equal(summary.allocationCount, currentTaskGroupAllocations.length);
+      assert.strictEqual(
+        Number(summary.allocationCount),
+        currentTaskGroupAllocations.length,
+      );
 
       const { currCpu, currMem } = currentTaskGroup.tasks.models.reduce(
         (currentResources, task) => {
@@ -158,7 +159,7 @@ module('Acceptance | optimize', function (hooks) {
           currentResources.currMem += task.resources.MemoryMB;
           return currentResources;
         },
-        { currCpu: 0, currMem: 0 }
+        { currCpu: 0, currMem: 0 },
       );
 
       const { recCpu, recMem } = currentRecommendations.reduce(
@@ -171,7 +172,7 @@ module('Acceptance | optimize', function (hooks) {
 
           return recommendedResources;
         },
-        { recCpu: 0, recMem: 0 }
+        { recCpu: 0, recMem: 0 },
       );
 
       const cpuDiff = recCpu > 0 ? recCpu - currCpu : 0;
@@ -183,49 +184,49 @@ module('Acceptance | optimize', function (hooks) {
       const cpuDiffPercent = Math.round((100 * cpuDiff) / currCpu);
       const memDiffPercent = Math.round((100 * memDiff) / currMem);
 
-      assert.equal(
+      assert.deepEqual(
         replaceMinus(summary.cpu),
         cpuDiff
           ? `${cpuSign}${formatHertz(
               cpuDiff,
-              'MHz'
+              'MHz',
             )} ${cpuSign}${cpuDiffPercent}%`
-          : ''
+          : '',
       );
-      assert.equal(
+      assert.deepEqual(
         replaceMinus(summary.memory),
         memDiff
           ? `${memSign}${formattedMemDiff(
-              memDiff
+              memDiff,
             )} ${memSign}${memDiffPercent}%`
-          : ''
+          : '',
       );
 
-      assert.equal(
+      assert.deepEqual(
         replaceMinus(summary.aggregateCpu),
         cpuDiff
           ? `${cpuSign}${formatHertz(
               cpuDiff * currentTaskGroupAllocations.length,
-              'MHz'
+              'MHz',
             )}`
-          : ''
+          : '',
       );
 
-      assert.equal(
+      assert.deepEqual(
         replaceMinus(summary.aggregateMemory),
         memDiff
           ? `${memSign}${formattedMemDiff(
-              memDiff * currentTaskGroupAllocations.length
+              memDiff * currentTaskGroupAllocations.length,
             )}`
-          : ''
+          : '',
       );
     });
 
     assert.ok(Optimize.recommendationSummaries[0].isActive);
     assert.notOk(Optimize.recommendationSummaries[1].isActive);
 
-    assert.equal(Optimize.card.slug.jobName, this.job1.name);
-    assert.equal(Optimize.card.slug.groupName, currentTaskGroup.name);
+    assert.deepEqual(Optimize.card.slug.jobName, this.job1.name);
+    assert.deepEqual(Optimize.card.slug.groupName, currentTaskGroup.name);
 
     const summaryMemoryBefore = Optimize.recommendationSummaries[0].memory;
 
@@ -243,21 +244,21 @@ module('Acceptance | optimize', function (hooks) {
       toggledAnything = false;
     }
 
-    assert.equal(
+    assert.deepEqual(
       Optimize.recommendationSummaries[0].memory,
       summaryMemoryBefore,
-      'toggling recommendations doesn’t affect the summary table diffs'
+      'toggling recommendations doesn’t affect the summary table diffs',
     );
 
     const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
-    const cpuRecommendationIds = server.schema.recommendations
+    const cpuRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'CPU' })
       .models.filter(taskIdFilter)
       .mapBy('id');
 
-    const memoryRecommendationIds = server.schema.recommendations
+    const memoryRecommendationIds = this.server.schema.recommendations
       .where({ resource: 'MemoryMB' })
       .models.filter(taskIdFilter)
       .mapBy('id');
@@ -269,46 +270,53 @@ module('Acceptance | optimize', function (hooks) {
 
     await Optimize.card.acceptButton.click();
 
-    const request = server.pretender.handledRequests
+    const request = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
-    assert.equal(request.url, '/v1/recommendations/apply');
+    assert.deepEqual(request.url, '/v1/recommendations/apply');
 
     assert.deepEqual(Apply, appliedIds);
     assert.deepEqual(Dismiss, dismissedIds);
 
-    assert.equal(Optimize.card.slug.jobName, this.job2.name);
-    assert.equal(Optimize.card.slug.groupName, nextTaskGroup.name);
+    assert.deepEqual(Optimize.card.slug.jobName, this.job2.name);
+    assert.deepEqual(Optimize.card.slug.groupName, nextTaskGroup.name);
 
-    assert.ok(Optimize.recommendationSummaries[1].isActive);
+    const activeSummaries = Optimize.recommendationSummaries.filter(
+      (summary) => summary.isActive,
+    );
+    assert.deepEqual(activeSummaries.length, 1);
+    assert.deepEqual(
+      activeSummaries[0].slug,
+      `${this.job2.name} / ${nextTaskGroup.name}`,
+    );
   });
 
   test('can navigate between summaries via the table', async function (assert) {
-    server.createList('job', 10, {
+    this.server.createList('job', 10, {
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 2,
-      namespaceId: server.db.namespaces[1].id,
+      namespaceId: this.server.db.namespaces[1].id,
     });
 
     await Optimize.visit();
     await Optimize.recommendationSummaries[1].click();
 
-    assert.equal(
+    assert.deepEqual(
       `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
-      Optimize.recommendationSummaries[1].slug
+      Optimize.recommendationSummaries[1].slug,
     );
     assert.ok(Optimize.recommendationSummaries[1].isActive);
   });
 
   test('can visit a summary directly via URL', async function (assert) {
-    server.createList('job', 10, {
+    this.server.createList('job', 10, {
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 2,
-      namespaceId: server.db.namespaces[1].id,
+      namespaceId: this.server.db.namespaces[1].id,
     });
 
     await Optimize.visit();
@@ -321,40 +329,45 @@ module('Acceptance | optimize', function (hooks) {
 
     // preferable to use page object’s visitable but it encodes the slash
     await visit(
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
+      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
-      lastSummary.slug
+      lastSummary.slug,
     );
     assert.ok(lastSummary.isActive);
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
+      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`,
     );
   });
 
   test('when a summary is not found, an error message is shown, but the URL persists', async function (assert) {
     await visit('/optimize/nonexistent/summary?namespace=anamespace');
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      '/optimize/nonexistent/summary?namespace=anamespace'
+      '/optimize/nonexistent/summary?namespace=anamespace',
     );
     assert.ok(Optimize.applicationError.isPresent);
-    assert.equal(Optimize.applicationError.title, 'Not Found');
+    assert.deepEqual(Optimize.applicationError.title, 'Not Found');
   });
 
   test('cannot return to already-processed summaries', async function (assert) {
     await Optimize.visit();
     await Optimize.card.acceptButton.click();
 
-    assert.ok(Optimize.recommendationSummaries[0].isDisabled);
+    const activeSlugBefore = `${Optimize.card.slug.jobName} / ${
+      Optimize.card.slug.groupName
+    }`;
 
     await Optimize.recommendationSummaries[0].click();
 
-    assert.ok(Optimize.recommendationSummaries[1].isActive);
+    const activeSlugAfter = `${Optimize.card.slug.jobName} / ${
+      Optimize.card.slug.groupName
+    }`;
+    assert.deepEqual(activeSlugAfter, activeSlugBefore);
   });
 
   test('can dismiss a set of recommendations', async function (assert) {
@@ -364,26 +377,26 @@ module('Acceptance | optimize', function (hooks) {
     const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
     const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
 
-    const idsBeforeDismissal = server.schema.recommendations
+    const idsBeforeDismissal = this.server.schema.recommendations
       .all()
       .models.filter(taskIdFilter)
       .mapBy('id');
 
     await Optimize.card.dismissButton.click();
 
-    const request = server.pretender.handledRequests
+    const request = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
       .pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
-    assert.equal(request.url, '/v1/recommendations/apply');
+    assert.deepEqual(request.url, '/v1/recommendations/apply');
 
     assert.deepEqual(Apply, []);
     assert.deepEqual(Dismiss, idsBeforeDismissal);
   });
 
   test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismissed', async function (assert) {
-    server.post('/recommendations/apply', function () {
+    this.server.post('/recommendations/apply', function () {
       return new Response(500, {}, null);
     });
 
@@ -391,22 +404,22 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.card.acceptButton.click();
 
     assert.ok(Optimize.error.isPresent);
-    assert.equal(Optimize.error.headline, 'Recommendation error');
-    assert.equal(
+    assert.deepEqual(Optimize.error.headline, 'Recommendation error');
+    assert.deepEqual(
       Optimize.error.errors,
-      'Error: Ember Data Request POST /v1/recommendations/apply returned a 500 Payload (application/json)'
+      'Error: Ember Data Request POST /v1/recommendations/apply returned a 500 Payload (application/json)',
     );
 
     await Optimize.error.dismiss();
-    assert.equal(Optimize.card.slug.jobName, this.job2.name);
+    assert.deepEqual(Optimize.card.slug.jobName, this.job2.name);
   });
 
   test('it displays an empty message when there are no recommendations', async function (assert) {
-    server.db.recommendations.remove();
+    this.server.db.recommendations.remove();
     await Optimize.visit();
 
     assert.ok(Optimize.empty.isPresent);
-    assert.equal(Optimize.empty.headline, 'No Recommendations');
+    assert.deepEqual(Optimize.empty.headline, 'No Recommendations');
   });
 
   test('it displays an empty message after all recommendations have been processed', async function (assert) {
@@ -422,7 +435,7 @@ module('Acceptance | optimize', function (hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     await Optimize.visit();
 
-    assert.equal(currentURL(), '/jobs');
+    assert.deepEqual(currentURL(), '/jobs');
     assert.ok(Layout.gutter.optimize.isHidden);
   });
 
@@ -430,7 +443,7 @@ module('Acceptance | optimize', function (hooks) {
     await JobsList.visit();
     await Optimize.visit();
 
-    assert.equal(Optimize.recommendationSummaries.length, 2);
+    assert.deepEqual(Optimize.recommendationSummaries.length, 2);
   });
 });
 
@@ -439,21 +452,21 @@ module('Acceptance | optimize search and facets', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('feature', { name: 'Dynamic Application Sizing' });
+    this.server.create('feature', { name: 'Dynamic Application Sizing' });
 
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    server.createList('namespace', 2);
+    this.server.createList('namespace', 2);
 
-    managementToken = server.create('token');
+    managementToken = this.server.create('token');
 
     window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   test('search field narrows summary table results, changes the active summary if it no longer matches, and displays a no matches message when there are none', async function (assert) {
-    server.create('job', {
+    this.server.create('job', {
       name: 'zzzzzz',
       createRecommendations: true,
       groupsCount: 1,
@@ -462,16 +475,16 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
     // Ensure this job’s recommendations are sorted to the top of the table
     const futureSubmitTime = (Date.now() + 10000) * 1000000;
-    server.db.recommendations.update({ submitTime: futureSubmitTime });
+    this.server.db.recommendations.update({ submitTime: futureSubmitTime });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'oooooo',
       createRecommendations: true,
       groupsCount: 2,
       groupAllocCount: 4,
     });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'pppppp',
       createRecommendations: true,
       groupsCount: 2,
@@ -480,38 +493,38 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
     await Optimize.visit();
 
-    assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
+    assert.deepEqual(Optimize.card.slug.jobName, 'zzzzzz');
 
-    assert.equal(
+    assert.deepEqual(
       collapseWhitespace(Optimize.search.placeholder),
-      `Search ${Optimize.recommendationSummaries.length} recommendations...`
+      `Search ${Optimize.recommendationSummaries.length} recommendations...`,
     );
 
     await Optimize.search.fillIn('ooo');
 
-    assert.equal(Optimize.recommendationSummaries.length, 2);
+    assert.deepEqual(Optimize.recommendationSummaries.length, 2);
     assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('oooooo'));
 
-    assert.equal(Optimize.card.slug.jobName, 'oooooo');
+    assert.deepEqual(Optimize.card.slug.jobName, 'oooooo');
     assert.ok(currentURL().includes('oooooo'));
 
     await Optimize.search.fillIn('qqq');
 
     assert.notOk(Optimize.card.isPresent);
     assert.ok(Optimize.empty.isPresent);
-    assert.equal(Optimize.empty.headline, 'No Matches');
-    assert.equal(currentURL(), '/optimize?search=qqq');
+    assert.deepEqual(Optimize.empty.headline, 'No Matches');
+    assert.deepEqual(currentURL(), '/optimize?search=qqq');
 
     await Optimize.search.fillIn('');
 
-    assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
+    assert.deepEqual(Optimize.card.slug.jobName, 'zzzzzz');
     assert.ok(Optimize.recommendationSummaries[0].isActive);
   });
 
   test('the namespaces toggle doesn’t show when there aren’t namespaces', async function (assert) {
-    server.db.namespaces.remove();
+    this.server.db.namespaces.remove();
 
-    server.create('job', {
+    this.server.create('job', {
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 4,
@@ -523,21 +536,21 @@ module('Acceptance | optimize search and facets', function (hooks) {
   });
 
   test('processing a summary moves to the next one in the sorted list', async function (assert) {
-    server.create('job', {
+    this.server.create('job', {
       name: 'ooo111',
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 4,
     });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'pppppp',
       createRecommendations: true,
       groupsCount: 1,
       groupAllocCount: 4,
     });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'ooo222',
       createRecommendations: true,
       groupsCount: 1,
@@ -555,23 +568,25 @@ module('Acceptance | optimize search and facets', function (hooks) {
       ooo222: pastSubmitTime,
     };
 
-    server.schema.recommendations.all().models.forEach((recommendation) => {
-      const parentJob = recommendation.task.taskGroup.job;
-      const submitTimeForJob =
-        jobNameToRecommendationSubmitTime[parentJob.name];
-      recommendation.submitTime = submitTimeForJob;
-      recommendation.save();
-    });
+    this.server.schema.recommendations
+      .all()
+      .models.forEach((recommendation) => {
+        const parentJob = recommendation.task.taskGroup.job;
+        const submitTimeForJob =
+          jobNameToRecommendationSubmitTime[parentJob.name];
+        recommendation.submitTime = submitTimeForJob;
+        recommendation.save();
+      });
 
     await Optimize.visit();
     await Optimize.search.fillIn('ooo');
     await Optimize.card.acceptButton.click();
 
-    assert.equal(Optimize.card.slug.jobName, 'ooo222');
+    assert.deepEqual(Optimize.card.slug.jobName, 'ooo222');
   });
 
   test('the optimize page has appropriate faceted search options', async function (assert) {
-    server.createList('job', 4, {
+    this.server.createList('job', 4, {
       status: 'running',
       createRecommendations: true,
       childrenCount: 0,
@@ -592,11 +607,11 @@ module('Acceptance | optimize search and facets', function (hooks) {
     expectedOptions: ['All (*)', 'default', 'namespace-1'],
     optionToSelect: 'namespace-1',
     async beforeEach() {
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         namespaceId: 'default',
         createRecommendations: true,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         namespaceId: 'namespace-1',
         createRecommendations: true,
       });
@@ -612,14 +627,14 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'type',
     expectedOptions: ['Service', 'System'],
     async beforeEach() {
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         type: 'service',
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
       });
 
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         type: 'system',
         createRecommendations: true,
         groupsCount: 1,
@@ -638,21 +653,21 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'status',
     expectedOptions: ['Pending', 'Running', 'Dead'],
     async beforeEach() {
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'pending',
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'running',
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.createList('job', 2, {
+      this.server.createList('job', 2, {
         status: 'dead',
         createRecommendations: true,
         childrenCount: 0,
@@ -667,40 +682,40 @@ module('Acceptance | optimize search and facets', function (hooks) {
     paramName: 'dc',
     expectedOptions(jobs) {
       const allDatacenters = new Set(
-        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), [])
+        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), []),
       );
       return Array.from(allDatacenters).sort();
     },
     async beforeEach() {
-      server.create('job', {
+      this.server.create('job', {
         datacenters: ['pdx', 'lax'],
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.create('job', {
+      this.server.create('job', {
         datacenters: ['pdx', 'ord'],
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.create('job', {
+      this.server.create('job', {
         datacenters: ['lax', 'jfk'],
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.create('job', {
+      this.server.create('job', {
         datacenters: ['jfk', 'dfw'],
         createRecommendations: true,
         groupsCount: 1,
         groupAllocCount: 2,
         childrenCount: 0,
       });
-      server.create('job', {
+      this.server.create('job', {
         datacenters: ['pdx'],
         createRecommendations: true,
         childrenCount: 0,
@@ -727,7 +742,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
         'nmd_two',
         'noprefix',
       ].forEach((name) => {
-        server.create('job', {
+        this.server.create('job', {
           name,
           createRecommendations: true,
           createAllocations: true,
@@ -743,12 +758,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
   });
 
   async function facetOptions(assert, beforeEach, facet, expectedOptions) {
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
+    await waitUntil(() => facet.options.length > 0);
 
     let expectation;
     if (typeof expectedOptions === 'function') {
-      expectation = expectedOptions(server.db.jobs);
+      expectation = expectedOptions.call(this, this.server.db.jobs);
     } else {
       expectation = expectedOptions;
     }
@@ -756,31 +772,31 @@ module('Acceptance | optimize search and facets', function (hooks) {
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   }
 
   function testSingleSelectFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
     });
 
     test(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
 
       const option = facet.options.findOneBy('label', optionToSelect);
       const selection = option.key;
       await option.select();
 
-      const sortedRecommendations = server.db.recommendations
+      const sortedRecommendations = this.server.db.recommendations
         .sortBy('submitTime')
         .reverse();
 
-      const recommendationTaskGroups = server.schema.tasks
+      const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
@@ -788,12 +804,12 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
-        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+        assert.deepEqual(summary.slug, `${group.job.name} / ${group.name}`);
       });
     });
 
     test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function (assert) {
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
 
       const option = facet.options.objectAt(1);
@@ -802,14 +818,14 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       assert.ok(
         currentURL().includes(`${paramName}=${selection}`),
-        'URL has the correct query param key and value'
+        'URL has the correct query param key and value',
       );
     });
   }
 
   function testFacet(
     label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
+    { facet, paramName, beforeEach, filter, expectedOptions },
   ) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
@@ -818,19 +834,21 @@ module('Acceptance | optimize search and facets', function (hooks) {
     test(`the ${label} facet filters the recommendation summaries by ${label}`, async function (assert) {
       let option;
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 0);
 
       option = facet.options.objectAt(0);
+      const optionKey = option.key;
       await option.toggle();
 
-      const selection = [option.key];
+      const selection = [optionKey];
 
-      const sortedRecommendations = server.db.recommendations
+      const sortedRecommendations = this.server.db.recommendations
         .sortBy('submitTime')
         .reverse();
 
-      const recommendationTaskGroups = server.schema.tasks
+      const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
@@ -838,28 +856,37 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
-        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+        assert.deepEqual(summary.slug, `${group.job.name} / ${group.name}`);
       });
     });
 
     test(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
       const selection = [];
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 1);
 
       const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1Key = option1.key;
       await option1.toggle();
-      selection.push(option1.key);
-      await option2.toggle();
-      selection.push(option2.key);
+      selection.push(option1Key);
 
-      const sortedRecommendations = server.db.recommendations
+      if (facet.options.length < 2) {
+        await facet.toggle();
+      }
+      await waitUntil(() => facet.options.length > 1);
+
+      const option2 = facet.options.objectAt(1);
+      const option2Key = option2.key;
+      await option2.toggle();
+      selection.push(option2Key);
+
+      const sortedRecommendations = this.server.db.recommendations
         .sortBy('submitTime')
         .reverse();
 
-      const recommendationTaskGroups = server.schema.tasks
+      const recommendationTaskGroups = this.server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
@@ -867,25 +894,34 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
-        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+        assert.deepEqual(summary.slug, `${group.job.name} / ${group.name}`);
       });
     });
 
     test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
       const selection = [];
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
+      await waitUntil(() => facet.options.length > 1);
 
       const option1 = facet.options.objectAt(0);
-      const option2 = facet.options.objectAt(1);
+      const option1Key = option1.key;
       await option1.toggle();
-      selection.push(option1.key);
+      selection.push(option1Key);
+
+      if (facet.options.length < 2) {
+        await facet.toggle();
+      }
+      await waitUntil(() => facet.options.length > 1);
+
+      const option2 = facet.options.objectAt(1);
+      const option2Key = option2.key;
       await option2.toggle();
-      selection.push(option2.key);
+      selection.push(option2Key);
 
       assert.ok(
-        currentURL().includes(encodeURIComponent(JSON.stringify(selection)))
+        currentURL().includes(encodeURIComponent(JSON.stringify(selection))),
       );
     });
   }

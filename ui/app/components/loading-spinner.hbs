@@ -3,7 +3,10 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="loading-spinner {{if this.paused 'paused'}}" {{on "click" (toggle-action 'paused' this)}}>
+<div
+  class="loading-spinner {{if this.paused 'paused'}}"
+  {{on "click" this.togglePaused}}
+>
   <div class="cube-and-logo">
     <div class="cube">
       <div class="side side-1"></div>
@@ -12,7 +15,7 @@
       <div class="side side-4"></div>
     </div>
     <div class="logo-container">
-      <Hds::Icon @name="nomad" class="icon"/>
+      <Hds::Icon @name="nomad" class="icon" />
     </div>
   </div>
 </div>

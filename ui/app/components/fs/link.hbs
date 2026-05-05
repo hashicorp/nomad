@@ -5,21 +5,37 @@
 
 {{#if this.taskState}}
   {{#if this.path}}
-    <LinkTo @route="allocations.allocation.task.fs" @models={{array this.allocation this.taskState this.path}} @activeClass="is-active">
+    <LinkTo
+      @route="allocations.allocation.task.fs"
+      @models={{array this.allocation this.taskState.name this.path}}
+      @activeClass="is-active"
+    >
       {{yield}}
     </LinkTo>
   {{else}}
-    <LinkTo @route="allocations.allocation.task.fs-root" @models={{array this.allocation this.taskState}} @activeClass="is-active">
+    <LinkTo
+      @route="allocations.allocation.task.fs-root"
+      @models={{array this.allocation this.taskState.name}}
+      @activeClass="is-active"
+    >
       {{yield}}
     </LinkTo>
   {{/if}}
 {{else}}
   {{#if this.path}}
-    <LinkTo @route="allocations.allocation.fs" @models={{array this.allocation this.path}} @activeClass="is-active">
+    <LinkTo
+      @route="allocations.allocation.fs"
+      @models={{array this.allocation this.path}}
+      @activeClass="is-active"
+    >
       {{yield}}
     </LinkTo>
   {{else}}
-    <LinkTo @route="allocations.allocation.fs-root" @model={{this.allocation}} @activeClass="is-active">
+    <LinkTo
+      @route="allocations.allocation.fs-root"
+      @model={{this.allocation}}
+      @activeClass="is-active"
+    >
       {{yield}}
     </LinkTo>
   {{/if}}

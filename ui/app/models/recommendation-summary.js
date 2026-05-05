@@ -9,11 +9,16 @@ import { get } from '@ember/object';
 import { action } from '@ember/object';
 
 export default class RecommendationSummary extends Model {
-  @hasMany('recommendation') recommendations;
-  @hasMany('recommendation', { defaultValue: () => [] })
+  @hasMany('recommendation', { async: true, inverse: 'recommendationSummary' })
+  recommendations;
+  @hasMany('recommendation', {
+    async: true,
+    inverse: null,
+    defaultValue: () => [],
+  })
   excludedRecommendations;
 
-  @belongsTo('job') job;
+  @belongsTo('job', { async: true, inverse: 'recommendationSummaries' }) job;
   @attr('string') jobId;
   @attr('string') jobNamespace;
 
@@ -48,11 +53,11 @@ export default class RecommendationSummary extends Model {
     if (enabled) {
       this.excludedRecommendations = this.excludedRecommendations.rejectBy(
         'resource',
-        resource
+        resource,
       );
     } else {
       this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource)
+        this.recommendations.filterBy('resource', resource),
       );
     }
   }

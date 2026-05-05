@@ -3,18 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
+import { scheduleOnce } from '@ember/runloop';
 
 const MAX_NUMBER_OF_EVENTS = 500;
 
 export default class JobStatusDeploymentHistoryComponent extends Component {
   @service notifications;
 
+  // eslint-disable-next-line ember/no-tracked-properties-from-args
   @tracked isHidden = this.args.isHidden;
 
   /**
@@ -48,7 +49,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
     return (
       this.args.allocations ||
       this.jobAllocations.filter(
-        (alloc) => alloc.jobVersion === this.deploymentVersion
+        (alloc) => alloc.jobVersion === this.deploymentVersion,
       )
     );
   }
@@ -60,15 +61,23 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
   get history() {
     try {
       return this.deploymentAllocations
-        .map((a) =>
-          a
-            .get('states')
-            .map((s) => s.events.content)
-            .flat()
-        )
+        .map((allocation) => {
+          const states =
+            allocation?.get?.('states') || allocation?.states || [];
+          const stateList = states?.toArray?.() || states || [];
+
+          return stateList
+            .map((state) => state?.events?.toArray?.() || state?.events || [])
+            .flat();
+        })
         .flat()
-        .filter((a) => this.containsSearchTerm(a))
-        .sort((a, b) => a.get('time') - b.get('time'))
+        .filter(Boolean)
+        .filter((taskEvent) => this.containsSearchTerm(taskEvent))
+        .sort((a, b) => {
+          const aTime = a?.time?.valueOf?.() || a?.get?.('time') || 0;
+          const bTime = b?.time?.valueOf?.() || b?.get?.('time') || 0;
+          return aTime - bTime;
+        })
         .reverse()
         .slice(0, MAX_NUMBER_OF_EVENTS);
     } catch (e) {
@@ -78,11 +87,18 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
   }
 
   @action triggerError(error) {
-    this.errorState = error;
-    this.notifications.add({
-      title: 'Could not fetch deployment history',
-      message: error,
-      color: 'critical',
+    // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
+    scheduleOnce('actions', this, () => {
+      if (this.errorState === error) {
+        return;
+      }
+
+      this.errorState = error;
+      this.notifications.add({
+        title: 'Could not fetch deployment history',
+        message: error?.message || String(error),
+        color: 'critical',
+      });
     });
   }
 
@@ -98,10 +114,19 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
    * @returns { boolean }
    */
   containsSearchTerm(taskEvent) {
+    if (!taskEvent) {
+      return false;
+    }
+
+    const message = (taskEvent.message || '').toLowerCase();
+    const type = (taskEvent.type || '').toLowerCase();
+    const allocationShortId =
+      taskEvent.state?.allocation?.shortId?.toLowerCase?.() || '';
+
     return (
-      taskEvent.message.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-      taskEvent.type.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-      taskEvent.state.allocation.shortId.includes(this.searchTerm.toLowerCase())
+      message.includes(this.searchTerm.toLowerCase()) ||
+      type.includes(this.searchTerm.toLowerCase()) ||
+      allocationShortId.includes(this.searchTerm.toLowerCase())
     );
   }
 

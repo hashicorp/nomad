@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class PageSizeSelect extends Component {
   @service userSettings;

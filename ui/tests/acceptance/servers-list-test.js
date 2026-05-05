@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -15,7 +15,7 @@ import formatHost from 'nomad-ui/utils/format-host';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
-const minimumSetup = () => {
+const minimumSetup = (server) => {
   faker.seed(1);
   server.createList('node-pool', 1);
   server.createList('node', 1);
@@ -36,114 +36,120 @@ module('Acceptance | servers list', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.create('region', { id: 'global' });
+    this.server.create('region', { id: 'global' });
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    minimumSetup();
+    minimumSetup(this.server);
     await ServersList.visit();
     await a11yAudit(assert);
   });
 
   test('/servers should list all servers', async function (assert) {
     faker.seed(1);
-    server.createList('node-pool', 1);
-    server.createList('node', 1);
-    server.createList('agent', 10);
+    this.server.createList('node-pool', 1);
+    this.server.createList('node', 1);
+    this.server.createList('agent', 10);
 
-    const leader = findLeader(server.schema);
-    const sortedAgents = server.db.agents.sort(agentSort(leader)).reverse();
+    const leader = findLeader(this.server.schema);
+    const sortedAgents = this.server.db.agents
+      .sort(agentSort(leader))
+      .reverse();
 
     await ServersList.visit();
     await percySnapshot(assert);
 
-    assert.equal(
+    assert.deepEqual(
       ServersList.servers.length,
       ServersList.pageSize,
-      'List is stopped at pageSize'
+      'List is stopped at pageSize',
     );
 
     ServersList.servers.forEach((server, index) => {
-      assert.equal(
+      assert.deepEqual(
         server.name,
         sortedAgents[index].name,
-        'Servers are ordered'
+        'Servers are ordered',
       );
     });
 
-    assert.ok(document.title.includes('Servers'));
+    assert.ok(getPageTitle().includes('Servers'));
   });
 
   test('each server should show high-level info of the server', async function (assert) {
-    minimumSetup();
-    const agent = server.db.agents[0];
+    minimumSetup(this.server);
+    const agent = this.server.db.agents[0];
 
     await ServersList.visit();
 
     const agentRow = ServersList.servers.objectAt(0);
 
-    assert.equal(agentRow.name, agent.name, 'Name');
-    assert.equal(
+    assert.deepEqual(agentRow.name, agent.name, 'Name');
+    assert.deepEqual(
       agentRow.status,
       agent.member.Status[0].toUpperCase() + agent.member.Status.substring(1),
-      'Status'
+      'Status',
     );
-    assert.equal(agentRow.leader, 'True', 'Leader?');
-    assert.equal(agentRow.address, agent.member.Address, 'Address');
-    assert.equal(agentRow.serfPort, agent.member.Port, 'Serf Port');
-    assert.equal(agentRow.datacenter, agent.member.Tags.dc, 'Datacenter');
-    assert.equal(agentRow.version, agent.version, 'Version');
+    assert.deepEqual(agentRow.leader, 'True', 'Leader?');
+    assert.deepEqual(agentRow.address, agent.member.Address, 'Address');
+    assert.strictEqual(
+      Number(agentRow.serfPort),
+      agent.member.Port,
+      'Serf Port',
+    );
+    assert.deepEqual(agentRow.datacenter, agent.member.Tags.dc, 'Datacenter');
+    assert.deepEqual(agentRow.version, agent.version, 'Version');
   });
 
   test('each server should link to the server detail page', async function (assert) {
-    minimumSetup();
-    const agent = server.db.agents[0];
+    minimumSetup(this.server);
+    const agent = this.server.db.agents[0];
 
     await ServersList.visit();
     await ServersList.servers.objectAt(0).clickRow();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/servers/${agent.name}`,
-      'Now at the server detail page'
+      'Now at the server detail page',
     );
   });
 
   test('when accessing servers is forbidden, show a message with a link to the tokens page', async function (assert) {
-    server.create('agent');
-    server.pretender.get('/v1/agent/members', () => [403, {}, null]);
+    this.server.create('agent');
+    this.server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 
     await ServersList.visit();
-    assert.equal(ServersList.error.title, 'Not Authorized');
+    assert.deepEqual(ServersList.error.title, 'Not Authorized');
 
     await ServersList.error.seekHelp();
-    assert.equal(currentURL(), '/settings/tokens');
+    assert.deepEqual(currentURL(), '/settings/tokens');
   });
 
   test('multiple regions should each show leadership values', async function (assert) {
-    server.createList('node-pool', 1);
-    server.createList('node', 1);
-    server.create('region', { id: 'global' });
-    server.create('region', { id: 'galactic' });
-    server.createList('agent', 3);
-    server.db.agents[0].member.Tags.region = 'global';
-    server.db.agents[1].member.Tags.region = 'galactic';
-    server.db.agents[2].member.Tags.region = 'galactic';
+    this.server.createList('node-pool', 1);
+    this.server.createList('node', 1);
+    this.server.create('region', { id: 'global' });
+    this.server.create('region', { id: 'galactic' });
+    this.server.createList('agent', 3);
+    this.server.db.agents[0].member.Tags.region = 'global';
+    this.server.db.agents[1].member.Tags.region = 'galactic';
+    this.server.db.agents[2].member.Tags.region = 'galactic';
     await ServersList.visit();
-    assert.equal(
+    assert.deepEqual(
       ServersList.servers.objectAt(0).leader,
       'True (galactic)',
-      'Leadership is shown for the galactic region'
+      'Leadership is shown for the galactic region',
     );
-    assert.equal(
+    assert.deepEqual(
       ServersList.servers.objectAt(1).leader,
       'True (global)',
-      'Leadership is shown for the global region'
+      'Leadership is shown for the global region',
     );
-    assert.equal(
+    assert.deepEqual(
       ServersList.servers.objectAt(2).leader,
       'False',
-      'Non-leader servers are shown'
+      'Non-leader servers are shown',
     );
   });
 });

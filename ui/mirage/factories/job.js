@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
-import { Factory, trait } from 'ember-cli-mirage';
+import { assert } from '@ember/debug';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
@@ -24,7 +24,7 @@ export default Factory.extend({
     }
 
     return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
-      faker.hacker.noun()
+      faker.hacker.noun(),
     )}-${i}`.toLowerCase();
   },
 
@@ -211,22 +211,24 @@ export default Factory.extend({
   latestDeployment: null,
 
   afterCreate(job, server) {
-    Ember.assert(
+    assert(
       '[Mirage] No node pools! make sure node pools are created before jobs',
-      server.db.nodePools.length
+      server.db.nodePools.length,
     );
 
-    if (!job.namespaceId) {
-      const namespace = server.db.namespaces.length
-        ? pickOne(server.db.namespaces).id
-        : 'default';
+    if (!job.namespaceId && !job.namespace) {
+      const namespace = 'default';
       job.update({
         namespace,
         namespaceId: namespace,
       });
-    } else {
+    } else if (job.namespaceId) {
       job.update({
         namespace: job.namespaceId,
+      });
+    } else {
+      job.update({
+        namespaceId: job.namespace,
       });
     }
 
@@ -266,7 +268,7 @@ export default Factory.extend({
             job.resourceSpec &&
             job.resourceSpec.length &&
             job.resourceSpec[idx],
-        })
+        }),
       );
     } else {
       groups = provide(job.groupsCount, (_, idx) =>
@@ -276,12 +278,12 @@ export default Factory.extend({
             job.resourceSpec &&
             job.resourceSpec.length &&
             job.resourceSpec[idx],
-        })
+        }),
       );
     }
 
     job.update({
-      taskGroupIds: groups.mapBy('id'),
+      taskGroupIds: groups.map((group) => group.id),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
@@ -290,9 +292,9 @@ export default Factory.extend({
       hasChildren ? 'withChildren' : 'withSummary',
       {
         jobId: job.id,
-        groupNames: groups.mapBy('name'),
+        groupNames: groups.map((group) => group.name),
         namespace: job.namespace,
-      }
+      },
     );
 
     job.update({
@@ -300,7 +302,7 @@ export default Factory.extend({
     });
 
     const jobScale = server.create('job-scale', {
-      groupNames: groups.mapBy('name'),
+      groupNames: groups.map((group) => group.name),
       jobId: job.id,
       namespace: job.namespace,
       shallow: job.shallow,
@@ -356,14 +358,14 @@ export default Factory.extend({
       server.createList(
         'evaluation',
         faker.random.number({ min: 1, max: 5 }),
-        knownEvaluationProperties
+        knownEvaluationProperties,
       );
       if (!job.noFailedPlacements) {
         server.createList(
           'evaluation',
           faker.random.number(3),
           'withPlacementFailures',
-          knownEvaluationProperties
+          knownEvaluationProperties,
         );
       }
 
@@ -371,9 +373,9 @@ export default Factory.extend({
         server.create(
           'evaluation',
           'withPlacementFailures',
-          assign(knownEvaluationProperties, {
+          Object.assign(knownEvaluationProperties, {
             modifyIndex: 4000,
-          })
+          }),
         );
       }
     }

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -32,7 +32,7 @@ export default class AgentMonitor extends Component {
   get monitorParams() {
     assert(
       'Provide a client OR a server to AgentMonitor, not both.',
-      this.server != null || this.client != null
+      this.server != null || this.client != null,
     );
 
     const type = this.server ? 'server_id' : 'client_id';
@@ -67,10 +67,11 @@ export default class AgentMonitor extends Component {
         params: this.monitorParams,
         url: this.monitorUrl,
         tail: currentTail,
-      })
+      }),
     );
   }
 
+  @action
   setLevel(level) {
     this.logger.stop();
     this.set('level', level);
@@ -78,6 +79,7 @@ export default class AgentMonitor extends Component {
     this.updateLogger();
   }
 
+  @action
   toggleStream() {
     this.set('streamMode', 'streaming');
     this.toggleProperty('isStreaming');

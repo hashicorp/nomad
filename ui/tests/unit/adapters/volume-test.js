@@ -7,8 +7,7 @@ import { next } from '@ember/runloop';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { AbortController } from 'fetch';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 
 module('Unit | Adapter | Volume', function (hooks) {
   setupTest(hooks);
@@ -66,13 +65,14 @@ module('Unit | Adapter | Volume', function (hooks) {
       { modelName: 'volume' },
       { type: 'csi' },
       null,
-      {}
+      {},
     );
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      '/v1/volumes?type=csi',
-    ]);
+    assert.deepEqual(
+      pretender.handledRequests.map((r) => r.url),
+      ['/v1/volumes?type=csi'],
+    );
   });
 
   test('When the volume has a namespace other than default, it is in the URL', async function (assert) {
@@ -86,9 +86,10 @@ module('Unit | Adapter | Volume', function (hooks) {
     this.subject().findRecord(this.store, { modelName: 'volume' }, volumeId);
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      `/v1/volume/${volumeName}?namespace=${volumeNamespace}`,
-    ]);
+    assert.deepEqual(
+      pretender.handledRequests.map((r) => r.url),
+      [`/v1/volume/${volumeName}?namespace=${volumeNamespace}`],
+    );
   });
 
   test('query can be watched', async function (assert) {
@@ -105,20 +106,20 @@ module('Unit | Adapter | Volume', function (hooks) {
         {
           reload: true,
           adapterOptions: { watch: true },
-        }
+        },
       );
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
+      '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
+      '/v1/volumes?type=csi&index=2',
     );
 
     await settled();
@@ -140,7 +141,7 @@ module('Unit | Adapter | Volume', function (hooks) {
       .catch(() => {});
 
     const { request: xhr } = pretender.requestReferences[0];
-    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.deepEqual(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     next(() => {
@@ -165,7 +166,7 @@ module('Unit | Adapter | Volume', function (hooks) {
         {
           reload: true,
           adapterOptions: { watch: true },
-        }
+        },
       );
 
     const findAllRequest = () =>
@@ -175,20 +176,20 @@ module('Unit | Adapter | Volume', function (hooks) {
       });
 
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
+      '/v1/volumes?type=csi&index=1',
     );
 
     await settled();
     request();
-    assert.equal(
+    assert.deepEqual(
       pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
+      '/v1/volumes?type=csi&index=2',
     );
 
     await settled();
     findAllRequest();
-    assert.equal(pretender.handledRequests[2].url, '/v1/volumes?index=1');
+    assert.deepEqual(pretender.handledRequests[2].url, '/v1/volumes?index=1');
   });
 });

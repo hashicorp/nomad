@@ -24,7 +24,7 @@ export default create({
   provider: text('[data-test-plugin-provider]'),
 
   controllerAvailabilityIsPresent: isPresent(
-    '[data-test-plugin-controller-availability]'
+    '[data-test-plugin-controller-availability]',
   ),
   nodeAvailabilityIsPresent: isPresent('[data-test-plugin-node-availability]'),
 
@@ -32,11 +32,11 @@ export default create({
   ...allocations('[data-test-node-allocation]', 'nodeAllocations'),
 
   goToControllerAllocations: clickable(
-    '[data-test-go-to-controller-allocations]'
+    '[data-test-go-to-controller-allocations]',
   ),
   goToNodeAllocations: clickable('[data-test-go-to-node-allocations]'),
   goToControllerAllocationsText: text(
-    '[data-test-go-to-controller-allocations]'
+    '[data-test-go-to-controller-allocations]',
   ),
   goToNodeAllocationsText: text('[data-test-go-to-node-allocations]'),
 

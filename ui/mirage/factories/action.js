@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
@@ -533,10 +532,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         'foo',
-        'It should return the exact path match.'
+        'It should return the exact path match.',
       );
     });
 
@@ -569,10 +568,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         'foo/bar/*',
-        'It should return the nearest fuzzy matching path.'
+        'It should return the nearest fuzzy matching path.',
       );
     });
 
@@ -602,10 +601,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         'foo/*',
-        'It should handle wildcard glob.'
+        'It should handle wildcard glob.',
       );
     });
 
@@ -638,10 +637,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         '*/bar/baz',
-        'It should return the nearest ancestor matching path.'
+        'It should return the nearest ancestor matching path.',
       );
     });
 
@@ -674,10 +673,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         'foo/*',
-        'It should prioritize suffix glob wildcard of prefix glob wildcard.'
+        'It should prioritize suffix glob wildcard of prefix glob wildcard.',
       );
     });
 
@@ -712,10 +711,10 @@ module('Unit | Ability | variable', function (hooks) {
 
       const nearestMatchingPath = this.ability._nearestMatchingPath(path);
 
-      assert.equal(
+      assert.deepEqual(
         nearestMatchingPath,
         '*',
-        'It should default to glob wildcard if no matches.'
+        'It should default to glob wildcard if no matches.',
       );
     });
   });
@@ -730,10 +729,10 @@ module('Unit | Ability | variable', function (hooks) {
       const result = this.ability._computeLengthDiff(pattern, path);
 
       // assert
-      assert.equal(
+      assert.deepEqual(
         result,
         0,
-        'it returns the difference in length between path and pattern'
+        'it returns the difference in length between path and pattern',
       );
     });
 
@@ -746,10 +745,10 @@ module('Unit | Ability | variable', function (hooks) {
       const result = this.ability._computeLengthDiff(pattern, path);
 
       // assert
-      assert.equal(
+      assert.deepEqual(
         result,
         1,
-        'it adds the number of globs in the pattern to the difference'
+        'it adds the number of globs in the pattern to the difference',
       );
     });
   });
@@ -765,10 +764,10 @@ module('Unit | Ability | variable', function (hooks) {
       const result = this.ability._smallestDifference(matches, path);
 
       // assert
-      assert.equal(
+      assert.deepEqual(
         result,
         matchingPath,
-        'It should return the smallest difference path.'
+        'It should return the smallest difference path.',
       );
     });
   });
@@ -823,7 +822,7 @@ module('Unit | Ability | variable', function (hooks) {
             namespace: 'bar',
           },
         ],
-        'It should return the exact path match.'
+        'It should return the exact path match.',
       );
     });
 
@@ -876,7 +875,7 @@ module('Unit | Ability | variable', function (hooks) {
             namespace: 'bar',
           },
         ],
-        'It should return both matches separated by namespace.'
+        'It should return both matches separated by namespace.',
       );
     });
 
@@ -963,7 +962,7 @@ module('Unit | Ability | variable', function (hooks) {
             namespace: 'namespace-2',
           },
         ],
-        'It should return the glob matching namespace match.'
+        'It should return the glob matching namespace match.',
       );
     });
   });

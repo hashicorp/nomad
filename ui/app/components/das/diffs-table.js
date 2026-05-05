@@ -12,7 +12,7 @@ export default class DasResourceTotalsComponent extends Component {
       this.args.model,
       1,
       this.args.recommendations,
-      this.args.excludedRecommendations
+      this.args.excludedRecommendations,
     );
   }
 

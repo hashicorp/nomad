@@ -6,8 +6,8 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import hbs from 'htmlbars-inline-precompile';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 
@@ -28,12 +28,10 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
   });
 
   const commonTemplate = hbs`
-    <RescheduleEventTimeline @allocation={{allocation}} />
+    <RescheduleEventTimeline @allocation={{this.allocation}} />
   `;
 
   test('when the allocation is running, the timeline shows past allocations', async function (assert) {
-    assert.expect(7);
-
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -50,41 +48,39 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     this.set('allocation', allocation);
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-allocation]').length,
       attempts + 1,
-      'Total allocations equals current allocation plus all past allocations'
+      'Total allocations equals current allocation plus all past allocations',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-allocation]'),
       find(`[data-test-allocation="${allocation.id}"]`),
-      'First allocation is the current allocation'
+      'First allocation is the current allocation',
     );
 
     assert.notOk(find('[data-test-stop-warning]'), 'No stop warning');
     assert.notOk(find('[data-test-attempt-notice]'), 'No attempt notice');
 
-    assert.equal(
+    assert.deepEqual(
       find(
-        `[data-test-allocation="${allocation.id}"] [data-test-allocation-link]`
+        `[data-test-allocation="${allocation.id}"] [data-test-allocation-link]`,
       ).textContent.trim(),
       allocation.get('shortId'),
-      'The "this" allocation is correct'
+      'The "this" allocation is correct',
     );
-    assert.equal(
+    assert.deepEqual(
       find(
-        `[data-test-allocation="${allocation.id}"] [data-test-allocation-status]`
+        `[data-test-allocation="${allocation.id}"] [data-test-allocation-status]`,
       ).textContent.trim(),
       allocation.get('clientStatus'),
-      'Allocation shows the status'
+      'Allocation shows the status',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function (assert) {
-    assert.expect(3);
-
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -103,19 +99,17 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     assert.ok(
       find('[data-test-stop-warning]'),
-      'Stop warning is shown since the last allocation failed'
+      'Stop warning is shown since the last allocation failed',
     );
     assert.notOk(
       find('[data-test-attempt-notice]'),
-      'Reschdule attempt notice is not shown'
+      'Reschdule attempt notice is not shown',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function (assert) {
-    assert.expect(3);
-
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -123,11 +117,11 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       rescheduleSuccess: false,
     });
 
-    const lastAllocation = server.schema.allocations.findBy({
+    const lastAllocation = this.server.schema.allocations.findBy({
       nextAllocation: undefined,
     });
     lastAllocation.update({
-      followupEvalId: server.create('evaluation', {
+      followupEvalId: this.server.create('evaluation', {
         waitUntil: moment().add(2, 'hours').toDate(),
       }).id,
     });
@@ -143,7 +137,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     assert.ok(
       find('[data-test-attempt-notice]'),
-      'Reschedule notice is shown since the follow up eval says so'
+      'Reschedule notice is shown since the follow up eval says so',
     );
     assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
 
@@ -167,24 +161,24 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     this.set('allocation', allocation);
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-reschedule-label]').textContent.trim(),
       'Next Allocation',
-      'The first allocation is the next allocation and labeled as such'
+      'The first allocation is the next allocation and labeled as such',
     );
 
-    assert.equal(
+    assert.deepEqual(
       find(
-        '[data-test-allocation] [data-test-allocation-link]'
+        '[data-test-allocation] [data-test-allocation-link]',
       ).textContent.trim(),
       allocation.get('nextAllocation.shortId'),
-      'The next allocation item is for the correct allocation'
+      'The next allocation item is for the correct allocation',
     );
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-allocation]')[1],
       find(`[data-test-allocation="${allocation.id}"]`),
-      'Second allocation is the current allocation'
+      'Second allocation is the current allocation',
     );
 
     assert.notOk(find('[data-test-stop-warning]'), 'No stop warning');

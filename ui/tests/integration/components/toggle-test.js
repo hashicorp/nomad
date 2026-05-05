@@ -6,7 +6,7 @@
 import { find, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -26,41 +26,41 @@ module('Integration | Component | toggle', function (hooks) {
 
   const commonTemplate = hbs`
     <Toggle
-      @isActive={{isActive}}
-      @isDisabled={{isDisabled}}
-      @onToggle={{onToggle}}>
-      {{label}}
+      @isActive={{this.isActive}}
+      @isDisabled={{this.isDisabled}}
+      @onToggle={{this.onToggle}}>
+      {{this.label}}
     </Toggle>
   `;
 
   test('presents as a label with an inner checkbox and display span, and text', async function (assert) {
-    assert.expect(7);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
-    assert.equal(Toggle.label, props.label, `Label should be ${props.label}`);
+    assert.deepEqual(
+      Toggle.label,
+      props.label,
+      `Label should be ${props.label}`,
+    );
     assert.ok(Toggle.isPresent);
     assert.notOk(Toggle.isActive);
     assert.ok(find('[data-test-toggler]'));
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-input]').tagName.toLowerCase(),
       'input',
-      'The input is a real HTML input'
+      'The input is a real HTML input',
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-input]').getAttribute('type'),
       'checkbox',
-      'The input type is checkbox'
+      'The input type is checkbox',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('the isActive property dictates the active state and class', async function (assert) {
-    assert.expect(5);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -78,8 +78,6 @@ module('Integration | Component | toggle', function (hooks) {
   });
 
   test('the isDisabled property dictates the disabled state and class', async function (assert) {
-    assert.expect(5);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -102,6 +100,6 @@ module('Integration | Component | toggle', function (hooks) {
     await render(commonTemplate);
 
     await Toggle.toggle();
-    assert.equal(props.onToggle.callCount, 1);
+    assert.deepEqual(props.onToggle.callCount, 1);
   });
 });

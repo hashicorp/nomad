@@ -13,7 +13,7 @@ import classic from 'ember-classic-decorator';
 @classNameBindings(
   'isEdited:is-edited',
   'isAdded:is-added',
-  'isDeleted:is-deleted'
+  'isDeleted:is-deleted',
 )
 export default class JobDiff extends Component {
   diff = null;

@@ -26,7 +26,7 @@ const testCases = [
     in: [
       new ServerError(
         [{ detail: 'DB Max Connections' }, { detail: 'Service timeout' }],
-        'Server Error'
+        'Server Error',
       ),
       'run tests',
     ],
@@ -42,10 +42,10 @@ const testCases = [
 module('Unit | Util | messageFromAdapterError', function () {
   testCases.forEach((testCase) => {
     test(testCase.name, function (assert) {
-      assert.equal(
+      assert.deepEqual(
         messageFromAdapterError.apply(null, testCase.in),
         testCase.out,
-        `[${testCase.in.join(', ')}] => ${testCase.out}`
+        `[${testCase.in.join(', ')}] => ${testCase.out}`,
       );
     });
   });

@@ -37,8 +37,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         'task-group-name',
         {
           queryParams: { allocation: 'allocation-short-id' },
-        }
-      )
+        },
+      ),
     );
   });
 
@@ -59,8 +59,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         'task-name',
         {
           queryParams: { allocation: 'allocation-short-id' },
-        }
-      )
+        },
+      ),
     );
   });
 
@@ -75,8 +75,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         'exec.task-group',
         'job-name',
         'task-group-name',
-        emptyOptions
-      )
+        emptyOptions,
+      ),
     );
   });
 
@@ -94,8 +94,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         'job-name',
         'task-group-name',
         'task-name',
-        { queryParams: { allocation: 'allocation-short-id' } }
-      )
+        { queryParams: { allocation: 'allocation-short-id' } },
+      ),
     );
   });
 
@@ -111,8 +111,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         'exec.task-group.task',
         'job-name',
         'task-group-name',
-        'task-name'
-      )
+        'task-name',
+      ),
     );
   });
 
@@ -142,8 +142,8 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
             namespace: 'a-namespace',
             region: 'a-region',
           },
-        }
-      )
+        },
+      ),
     );
   });
 });

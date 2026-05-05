@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import classic from 'ember-classic-decorator';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 @classic
 export default class JobsRunIndexRoute extends Route {
-  @service can;
+  @service abilities;
   @service notifications;
   @service router;
   @service store;
@@ -28,7 +27,7 @@ export default class JobsRunIndexRoute extends Route {
 
   beforeModel(transition) {
     if (
-      this.can.cannot('run job', null, {
+      this.abilities.cannot('run job', null, {
         namespace: transition.to.queryParams.namespace,
       })
     ) {

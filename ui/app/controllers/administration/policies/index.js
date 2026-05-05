@@ -4,14 +4,15 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { task } from 'ember-concurrency';
 
 export default class AccessControlPoliciesIndexController extends Controller {
+  @service store;
   @service router;
   @service notifications;
-  @service can;
+  @service abilities;
 
   get columns() {
     const defaultColumns = [
@@ -39,8 +40,8 @@ export default class AccessControlPoliciesIndexController extends Controller {
 
     return [
       ...defaultColumns,
-      ...(this.can.can('list token') ? [tokensColumn] : []),
-      ...(this.can.can('destroy policy') ? [deleteColumn] : []),
+      ...(this.abilities.can('list token') ? [tokensColumn] : []),
+      ...(this.abilities.can('destroy policy') ? [deleteColumn] : []),
     ];
   }
 

@@ -16,7 +16,7 @@ import { assert } from '@ember/debug';
 export function bind([func, target]) {
   assert(
     'A function is required as the first argument',
-    typeof func === 'function'
+    typeof func === 'function',
   );
   assert('A context is required as the second argument', target);
   return func.bind(target);

@@ -18,7 +18,7 @@ export default class RecommendationSummaryAdapter extends ApplicationAdapter {
   updateRecord(store, type, snapshot) {
     const url = `${super.urlForCreateRecord(
       'recommendations',
-      snapshot
+      snapshot,
     )}/apply`;
 
     const allRecommendationIds = snapshot
@@ -28,7 +28,7 @@ export default class RecommendationSummaryAdapter extends ApplicationAdapter {
       snapshot.hasMany('excludedRecommendations') || []
     ).mapBy('id');
     const includedRecommendationIds = allRecommendationIds.removeObjects(
-      excludedRecommendationIds
+      excludedRecommendationIds,
     );
 
     const data = {

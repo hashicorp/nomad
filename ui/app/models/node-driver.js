@@ -19,7 +19,7 @@ export default class NodeDriver extends Fragment {
   @computed('name', 'attributes.structured')
   get attributesShort() {
     const attributes = this.get(
-      `attributes.structured.root.children.driver.children.${this.name}`
+      `attributes.structured.root.children.driver.children.${this.name}`,
     );
     return attributes;
   }

@@ -5,7 +5,6 @@
 
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -24,8 +23,17 @@ export default class AllocationStat extends Component {
     return this.metric === 'cpu' ? 'is-info' : 'is-danger';
   }
 
-  @alias('statsTracker.cpu.lastObject') cpu;
-  @alias('statsTracker.memory.lastObject') memory;
+  @computed('statsTracker.cpu.[]')
+  get cpu() {
+    const cpu = this.statsTracker?.cpu;
+    return cpu?.[cpu.length - 1];
+  }
+
+  @computed('statsTracker.memory.[]')
+  get memory() {
+    const memory = this.statsTracker?.memory;
+    return memory?.[memory.length - 1];
+  }
 
   @computed('metric', 'cpu', 'memory')
   get stat() {

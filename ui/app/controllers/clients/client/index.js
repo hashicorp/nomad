@@ -12,7 +12,7 @@ import { observes } from '@ember-decorators/object';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import {
@@ -21,15 +21,23 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class ClientController extends Controller.extend(
-  Sortable,
-  Searchable
+  SortableFactory([
+    'modifyIndex',
+    'name',
+    'shortId',
+    'clientStatus',
+    'plainJobId',
+    'namespace',
+  ]),
+  Searchable,
 ) {
   @service notifications;
+  @service router;
 
   queryParams = [
     {
@@ -96,7 +104,7 @@ export default class ClientController extends Controller.extend(
     'visibleAllocations.[]',
     'selectionNamespace',
     'selectionJob',
-    'selectionStatus'
+    'selectionStatus',
   )
   get filteredAllocations() {
     const { selectionNamespace, selectionJob, selectionStatus } = this;
@@ -205,7 +213,7 @@ export default class ClientController extends Controller.extend(
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 
   @action
@@ -243,12 +251,12 @@ export default class ClientController extends Controller.extend(
       new Set(
         this.model.allocations
           .filter((a) => ns.length === 0 || ns.includes(a.namespace))
-          .mapBy('plainJobId')
-      )
+          .mapBy('plainJobId'),
+      ),
     ).compact();
 
     // Update query param when the list of jobs changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set('qpJob', serialize(intersection(jobs, this.selectionJob)));
     });
@@ -259,21 +267,22 @@ export default class ClientController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionNamespace')
   get optionsNamespace() {
     const ns = Array.from(
-      new Set(this.model.allocations.mapBy('namespace'))
+      new Set(this.model.allocations.mapBy('namespace')),
     ).compact();
 
     // Update query param when the list of namespaces changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpNamespace',
-        serialize(intersection(ns, this.selectionNamespace))
+        serialize(intersection(ns, this.selectionNamespace)),
       );
     });
 
     return ns.sort().map((n) => ({ key: n, label: n }));
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
@@ -52,9 +52,7 @@ export default Factory.extend({
 
   afterCreate(volume, server) {
     if (!volume.namespaceId) {
-      const namespace = server.db.namespaces.length
-        ? pickOne(server.db.namespaces).id
-        : null;
+      const namespace = 'default';
       volume.update({
         namespace,
         namespaceId: namespace,

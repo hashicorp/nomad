@@ -7,8 +7,7 @@
 import Component from '@ember/component';
 import { computed, set } from '@ember/object';
 import { observes } from '@ember-decorators/object';
-import { run, once } from '@ember/runloop';
-import { assign } from '@ember/polyfills';
+import { run, once, schedule } from '@ember/runloop';
 import { guidFor } from '@ember/object/internals';
 import { copy } from 'ember-copy';
 import { computed as overridable } from 'ember-overridable-computed';
@@ -51,7 +50,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
         percent: value / sum,
         offset:
           data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
-      })
+      }),
     );
   }
 
@@ -89,7 +88,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   }
 
   // prettier-ignore
-  /* eslint-disable */
+
   renderChart() {
     const { chart, _data, isNarrow } = this;
     const width = this.element.querySelector('svg').clientWidth;
@@ -117,7 +116,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
           const pos = box.x + box.width / 2;
 
           // Ensure that the position is set before the tooltip is visible
-          run.schedule('afterRender', this, () => this.set('isActive', true));
+          schedule('afterRender', this, () => this.set('isActive', true));
           this.set('tooltipPosition', {
             left: pos,
           });
@@ -165,7 +164,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
         .attr('x', setOffset)
 
     let layers = slices.selectAll('.bar').data((d, i) => {
-      return new Array(d.layers || 1).fill(assign({ index: i }, d));
+      return new Array(d.layers || 1).fill(Object.assign({ index: i }, d));
     });
     layers.enter()
         .append('rect')

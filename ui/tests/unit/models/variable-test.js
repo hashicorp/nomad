@@ -22,7 +22,7 @@ module('Unit | Model | variable', function (hooks) {
       ],
     });
     assert.ok(model.path);
-    assert.equal(model.keyValues.length, 2);
+    assert.deepEqual(model.keyValues.length, 2);
   });
 
   test('it has a single keyValue by default', function (assert) {
@@ -33,7 +33,7 @@ module('Unit | Model | variable', function (hooks) {
       path: 'my/fun/path',
       namespace: 'default',
     });
-    assert.equal(model.keyValues.length, 1);
+    assert.deepEqual(model.keyValues.length, 1);
   });
 
   test('it correctly moves between keyValues and items', function (assert) {
@@ -47,11 +47,11 @@ module('Unit | Model | variable', function (hooks) {
         { key: 'myVar', value: 'myValue' },
       ],
     });
-    assert.equal(model.keyValues.length, 2);
-    assert.equal(Object.entries(model.items)[0][0], 'foo');
-    assert.equal(Object.entries(model.items)[0][1], 'bar');
-    assert.equal(Object.entries(model.items)[1][0], 'myVar');
-    assert.equal(Object.entries(model.items)[1][1], 'myValue');
+    assert.deepEqual(model.keyValues.length, 2);
+    assert.deepEqual(Object.entries(model.items)[0][0], 'foo');
+    assert.deepEqual(Object.entries(model.items)[0][1], 'bar');
+    assert.deepEqual(Object.entries(model.items)[1][0], 'myVar');
+    assert.deepEqual(Object.entries(model.items)[1][1], 'myValue');
   });
 
   test('it computes linked entities', function (assert) {
@@ -62,59 +62,59 @@ module('Unit | Model | variable', function (hooks) {
       path: 'nomad/jobs/my-job-name/my-group-name/my-task-name',
     });
     assert.ok(model.pathLinkedEntities, 'generates a linked entities object');
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.job,
       'my-job-name',
-      'identifies the job name'
+      'identifies the job name',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.group,
       'my-group-name',
-      'identifies the group name'
+      'identifies the group name',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.task,
       'my-task-name',
-      'identifies the task name'
+      'identifies the task name',
     );
 
     model.setProperties({
       path: 'nomad/jobs/my-job-name/my-group-name/my-task-name/too-long/oh-no',
     });
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.job,
       '',
-      'entities object lacks a job name if path goes beyond task'
+      'entities object lacks a job name if path goes beyond task',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.group,
       '',
-      'entities object lacks a group name if path goes beyond task'
+      'entities object lacks a group name if path goes beyond task',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.task,
       '',
-      'entities object lacks a task name if path goes beyond task'
+      'entities object lacks a task name if path goes beyond task',
     );
 
     model.setProperties({
       path: 'projects/some/job',
     });
     assert.ok(model.pathLinkedEntities, 'generates a linked entities object');
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.job,
       '',
-      'entities object lacks a job name if not prefixed with nomad/jobs/'
+      'entities object lacks a job name if not prefixed with nomad/jobs/',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.group,
       '',
-      'entities object lacks a group name if not prefixed with nomad/jobs/'
+      'entities object lacks a group name if not prefixed with nomad/jobs/',
     );
-    assert.equal(
+    assert.deepEqual(
       model.pathLinkedEntities.task,
       '',
-      'entities object lacks a task name if not prefixed with nomad/jobs/'
+      'entities object lacks a task name if not prefixed with nomad/jobs/',
     );
   });
 });

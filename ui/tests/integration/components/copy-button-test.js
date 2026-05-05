@@ -6,7 +6,7 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 import sinon from 'sinon';
@@ -20,16 +20,12 @@ module('Integration | Component | copy-button', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it shows the copy icon by default', async function (assert) {
-    assert.expect(2);
-
     await render(hbs`<CopyButton />`);
     assert.dom('.copy-button .hds-icon-clipboard-copy').exists();
     await componentA11yAudit(this.element, assert);
   });
 
   test('it shows the success icon on success and resets afterward', async function (assert) {
-    assert.expect(4);
-
     const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
     await render(hbs`<CopyButton @clipboardText="tomster" />`);
@@ -49,8 +45,6 @@ module('Integration | Component | copy-button', function (hooks) {
   });
 
   test('it shows the error icon on error', async function (assert) {
-    assert.expect(2);
-
     await render(hbs`<CopyButton @clipboardText="tomster" />`);
 
     await click('.copy-button button');

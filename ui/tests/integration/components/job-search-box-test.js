@@ -16,8 +16,6 @@ module('Integration | Component | job-search-box', function (hooks) {
   setupRenderingTest(hooks);
 
   test('debouncer debounces appropriately', async function (assert) {
-    assert.expect(5);
-
     let message = '';
 
     this.set('externalAction', (value) => {
@@ -25,35 +23,35 @@ module('Integration | Component | job-search-box', function (hooks) {
     });
 
     await render(
-      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @S={{S}} /></Hds::SegmentedGroup>`
+      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @s={{S}} /></Hds::SegmentedGroup>`,
     );
     await componentA11yAudit(this.element, assert);
 
     const element = find('input');
     await fillIn('input', 'test1');
-    assert.equal(message, 'test1', 'Initial typing');
+    assert.deepEqual(message, 'test1', 'Initial typing');
     element.value += ' wont be ';
     triggerEvent('input', 'input');
-    assert.equal(
+    assert.deepEqual(
       message,
       'test1',
-      'Typing has happened within debounce window'
+      'Typing has happened within debounce window',
     );
     element.value += 'seen ';
     triggerEvent('input', 'input');
     await delay(DEBOUNCE_MS - 100);
-    assert.equal(
+    assert.deepEqual(
       message,
       'test1',
-      'Typing has happened within debounce window, albeit a little slower'
+      'Typing has happened within debounce window, albeit a little slower',
     );
     element.value += 'until now.';
     triggerEvent('input', 'input');
     await delay(DEBOUNCE_MS + 100);
-    assert.equal(
+    assert.deepEqual(
       message,
       'test1 wont be seen until now.',
-      'debounce window has closed'
+      'debounce window has closed',
     );
   });
 });

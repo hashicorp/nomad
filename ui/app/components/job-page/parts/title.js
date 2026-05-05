@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -145,7 +144,7 @@ export default class Title extends Component {
     if (typeof rawDescription !== 'string') {
       console.error(
         'Expected a string from marked.parse(), received:',
-        typeof rawDescription
+        typeof rawDescription,
       );
       return null;
     }

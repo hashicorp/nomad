@@ -5,8 +5,7 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { get } from '@ember/object';
-import { copy } from 'ember-copy';
+import { action, get } from '@ember/object';
 
 export default class ScaleEventsChart extends Component {
   /** Args
@@ -21,7 +20,7 @@ export default class ScaleEventsChart extends Component {
     // Extend the domain of the chart to the current time
     data.push({
       time: new Date(),
-      count: data.lastObject.count,
+      count: data[data.length - 1].count,
     });
 
     // Make sure the domain of the chart includes the first annotation
@@ -40,10 +39,11 @@ export default class ScaleEventsChart extends Component {
     return this.args.events.rejectBy('hasCount').map((ev) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
-      event: copy(ev),
+      event: cloneScaleEvent(ev),
     }));
   }
 
+  @action
   toggleEvent(ev) {
     if (
       this.activeEvent &&
@@ -58,4 +58,22 @@ export default class ScaleEventsChart extends Component {
   closeEventDetails() {
     this.activeEvent = null;
   }
+}
+
+function cloneValue(value) {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function cloneScaleEvent(event) {
+  return {
+    uid: get(event, 'uid'),
+    error: get(event, 'error'),
+    time: get(event, 'time'),
+    message: get(event, 'message'),
+    meta: cloneValue(get(event, 'meta')),
+  };
 }

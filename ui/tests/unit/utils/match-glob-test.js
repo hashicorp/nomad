@@ -25,7 +25,7 @@ module('Unit | Utility | match-glob', function () {
         assert.ok(matchingResult, 'Empty pattern should match empty path');
         assert.notOk(
           nonMatchingResult,
-          'Empty pattern should not match non-empty path'
+          'Empty pattern should not match non-empty path',
         );
       });
 
@@ -43,7 +43,7 @@ module('Unit | Utility | match-glob', function () {
         assert.ok(matchingResult, 'Empty path should match empty pattern');
         assert.notOk(
           nonMatchingResult,
-          'Empty path should not match non-empty pattern'
+          'Empty path should not match non-empty pattern',
         );
       });
 
@@ -87,11 +87,11 @@ module('Unit | Utility | match-glob', function () {
         // assert
         assert.ok(
           matchingResult,
-          'Correctly matches when leading glob and matching path.'
+          'Correctly matches when leading glob and matching path.',
         );
         assert.notOk(
           nonMatchingResult,
-          'Does not match when leading glob and non-matching path.'
+          'Does not match when leading glob and non-matching path.',
         );
       });
 
@@ -109,7 +109,7 @@ module('Unit | Utility | match-glob', function () {
         assert.ok(matchingResult, 'Correctly matches on trailing glob.');
         assert.notOk(
           nonMatchingResult,
-          'Does not match on trailing glob if pattern does not match.'
+          'Does not match on trailing glob if pattern does not match.',
         );
       });
 
@@ -126,11 +126,11 @@ module('Unit | Utility | match-glob', function () {
         // assert
         assert.ok(
           matchingResult,
-          'Correctly matches on glob in middle of path.'
+          'Correctly matches on glob in middle of path.',
         );
         assert.notOk(
           nonMatchingResult,
-          'Does not match on glob in middle of path if not full pattern match.'
+          'Does not match on glob in middle of path if not full pattern match.',
         );
       });
     });

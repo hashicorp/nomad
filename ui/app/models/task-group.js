@@ -28,12 +28,12 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
       );
     } else {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`
+        `nomad/jobs/${this.job.plainId}/${this.name}`,
       );
     }
   }
@@ -44,19 +44,19 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return await this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
       );
     } else {
       return await this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`
+        `nomad/jobs/${this.job.plainId}/${this.name}`,
       );
     }
   }
 
   @fragmentArray('task') tasks;
 
-  @fragmentArray('service-fragment') services;
+  @fragmentArray('service-fragment', { defaultValue: () => [] }) services;
 
   @fragmentArray('volume-definition') volumes;
 
@@ -81,7 +81,7 @@ export default class TaskGroup extends Fragment {
   get allocations() {
     return maybe(this.get('job.allocations')).filterBy(
       'taskGroupName',
-      this.name
+      this.name,
     );
   }
 
@@ -101,7 +101,7 @@ export default class TaskGroup extends Fragment {
   @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')
   get placementFailures() {
     const placementFailures = this.get(
-      'job.latestFailureEvaluation.failedTGAllocs'
+      'job.latestFailureEvaluation.failedTGAllocs',
     );
     return placementFailures && placementFailures.findBy('name', this.name);
   }
@@ -122,7 +122,7 @@ export default class TaskGroup extends Fragment {
   get scaleState() {
     return maybe(this.get('job.scaleState.taskGroupScales')).findBy(
       'name',
-      this.name
+      this.name,
     );
   }
 

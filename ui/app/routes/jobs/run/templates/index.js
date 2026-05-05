@@ -3,17 +3,16 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class JobsRunTemplatesIndexRoute extends Route {
-  @service can;
+  @service abilities;
   @service router;
   @service store;
 
   beforeModel() {
-    const hasPermissions = this.can.can('write variable', null, {
+    const hasPermissions = this.abilities.can('write variable', null, {
       namespace: '*',
       path: '*',
     });

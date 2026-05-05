@@ -7,7 +7,7 @@ import { htmlSafe } from '@ember/template';
 import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // Used to prevent XSS warnings in console
@@ -17,8 +17,6 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   setupRenderingTest(hooks);
 
   test('presents as a single div when @items is empty', async function (assert) {
-    assert.expect(4);
-
     this.setProperties({
       items: [],
     });
@@ -32,8 +30,8 @@ module('Integration | Component | FlexMasonry', function (hooks) {
 
     const div = find('[data-test-flex-masonry]');
     assert.ok(div);
-    assert.equal(div.tagName.toLowerCase(), 'div');
-    assert.equal(div.children.length, 0);
+    assert.deepEqual(div.tagName.toLowerCase(), 'div');
+    assert.deepEqual(div.children.length, 0);
 
     await componentA11yAudit(this.element, assert);
   });
@@ -52,9 +50,9 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-flex-masonry-item]').length,
-      this.items.length
+      this.items.length,
     );
   });
 
@@ -68,7 +66,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     `);
 
     assert.ok(
-      find('[data-test-flex-masonry]').classList.contains('with-spacing')
+      find('[data-test-flex-masonry]').classList.contains('with-spacing'),
     );
   });
 
@@ -88,23 +86,21 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     `);
 
     const div = find('[data-test-flex-masonry]');
-    assert.equal(div.style.maxHeight, '51px');
+    assert.deepEqual(div.style.maxHeight, '51px');
     assert.ok(div.textContent.includes('one'));
     assert.ok(div.textContent.includes('two'));
 
     this.set('height', h(500));
     await settled();
-    assert.equal(div.style.maxHeight, '51px');
+    assert.deepEqual(div.style.maxHeight, '51px');
 
     // The height of the div changes when reflow is called
     await click('[data-test-flex-masonry-item]:first-child div');
 
-    assert.equal(div.style.maxHeight, '501px');
+    assert.deepEqual(div.style.maxHeight, '501px');
   });
 
   test('items are rendered to the DOM in the order they were passed into the component', async function (assert) {
-    assert.expect(4);
-
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -124,13 +120,11 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     `);
 
     findAll('[data-test-flex-masonry-item]').forEach((el, index) => {
-      assert.equal(el.textContent.trim(), this.items[index].text);
+      assert.deepEqual(el.textContent.trim(), this.items[index].text);
     });
   });
 
   test('each item gets an order property', async function (assert) {
-    assert.expect(4);
-
     this.setProperties({
       items: [
         { text: 'One', height: h(20), expectedOrder: 0 },
@@ -150,13 +144,14 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     `);
 
     findAll('[data-test-flex-masonry-item]').forEach((el, index) => {
-      assert.equal(el.style.order, this.items[index].expectedOrder);
+      assert.strictEqual(
+        Number(el.style.order),
+        this.items[index].expectedOrder,
+      );
     });
   });
 
   test('the last item in each column gets a specific flex-basis value', async function (assert) {
-    assert.expect(4);
-
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -179,15 +174,12 @@ module('Integration | Component | FlexMasonry', function (hooks) {
 
     findAll('[data-test-flex-masonry-item]').forEach((el, index) => {
       if (el.style.flexBasis) {
-        /* eslint-disable-next-line qunit/no-conditional-assertions */
-        assert.equal(el.style.flexBasis, this.items[index].flexBasis);
+        assert.deepEqual(el.style.flexBasis, this.items[index].flexBasis);
       }
     });
   });
 
   test('when a multi-column layout becomes a single column layout, all inline-styles are reset', async function (assert) {
-    assert.expect(14);
-
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -208,16 +200,16 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.equal(find('[data-test-flex-masonry]').style.maxHeight, '101px');
+    assert.deepEqual(find('[data-test-flex-masonry]').style.maxHeight, '101px');
 
     this.set('columns', 1);
     await settled();
 
     findAll('[data-test-flex-masonry-item]').forEach((el) => {
-      assert.equal(el.style.flexBasis, '');
-      assert.equal(el.style.order, '');
+      assert.deepEqual(el.style.flexBasis, '');
+      assert.deepEqual(el.style.order, '');
     });
 
-    assert.equal(find('[data-test-flex-masonry]').style.maxHeight, '');
+    assert.deepEqual(find('[data-test-flex-masonry]').style.maxHeight, '');
   });
 });

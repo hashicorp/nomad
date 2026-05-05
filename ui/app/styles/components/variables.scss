@@ -17,6 +17,7 @@ $hdsInputHeight: 35px;
   .hds-page-header__main {
     flex-direction: unset;
   }
+
   .copy-variable span {
     color: var(--token-color-foreground-primary);
   }
@@ -37,6 +38,7 @@ $hdsInputHeight: 35px;
     grid-template-columns: 6fr 1fr;
     gap: 0 1rem;
     align-items: start;
+
     .namespace-dropdown {
       white-space: nowrap;
       width: auto;
@@ -60,6 +62,7 @@ $hdsInputHeight: 35px;
     .value-label {
       display: grid;
       grid-template-columns: 1fr auto;
+
       & > span {
         grid-column: -1 / 1;
       }
@@ -91,6 +94,7 @@ $hdsInputHeight: 35px;
       .CodeMirror {
         box-shadow: 0 0 0 3px $red;
       }
+
       .help {
         padding: 1rem 0;
         font-size: 1rem;
@@ -110,6 +114,7 @@ $hdsInputHeight: 35px;
       color: $white;
       max-height: 500px;
       overflow: auto;
+
       code {
         height: 100%;
       }
@@ -131,9 +136,11 @@ $hdsInputHeight: 35px;
 table.path-tree {
   tr {
     cursor: pointer;
+
     &.inaccessible {
       cursor: not-allowed;
     }
+
     svg {
       margin-bottom: -2px;
       margin-right: 10px;
@@ -147,6 +154,7 @@ table.path-tree {
 
 .related-entities-hint {
   margin: 0.5rem 0;
+
   code {
     background-color: lighten($grey-lighter, 8%);
     border: 1px solid $grey-lighter;
@@ -159,10 +167,12 @@ table.variable-items {
   // table-layout: fixed;
   td.value-cell {
     width: 80%;
+
     & > div {
       display: grid;
       grid-template-columns: auto auto 1fr;
       gap: 0.5rem;
+
       & > code {
         white-space: pre-wrap;
       }
@@ -172,9 +182,11 @@ table.variable-items {
 
 .job-variables-intro {
   margin-bottom: 1rem;
+
   ul li {
     list-style-type: disc;
     margin-left: 2rem;
+
     code {
       white-space-collapse: preserve-breaks;
       display: inline-flex;
@@ -195,7 +207,7 @@ table.variable-items {
   }
 
   100% {
-    top: 0px;
+    top: 0;
     opacity: 1;
   }
 }

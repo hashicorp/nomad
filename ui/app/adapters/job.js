@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
-import { getOwner } from '@ember/application';
+import { service } from '@ember/service';
+import { getOwner } from '@ember/owner';
 import { get } from '@ember/object';
 
 @classic
@@ -38,7 +37,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // For specific versions, we need to fetch from versions endpoint,
     // and then find the specified version info from the response.
     const versionsUrl = addToPath(
-      this.urlForFindRecord(job.get('id'), 'job', null, 'versions')
+      this.urlForFindRecord(job.get('id'), 'job', null, 'versions'),
     );
 
     const response = await this.ajax(versionsUrl, 'GET');
@@ -61,7 +60,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job', null, 'submission'),
       '',
-      'version=' + (version || job.get('version'))
+      'version=' + (version || job.get('version')),
     );
     return this.ajax(url, 'GET');
   }
@@ -70,7 +69,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     if (job.get('periodic')) {
       const url = addToPath(
         this.urlForFindRecord(job.get('id'), 'job'),
-        '/periodic/force'
+        '/periodic/force',
       );
       return this.ajax(url, 'POST');
     }
@@ -85,7 +84,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job'),
       '',
-      'purge=true'
+      'purge=true',
     );
 
     return this.ajax(url, 'DELETE');
@@ -174,7 +173,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   scale(job, group, count, message) {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job'),
-      '/scale'
+      '/scale',
     );
     return this.ajax(url, 'POST', {
       data: {
@@ -193,7 +192,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   dispatch(job, meta, payload) {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job'),
-      '/dispatch'
+      '/dispatch',
     );
     return this.ajax(url, 'POST', {
       data: {
@@ -229,7 +228,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     const wsUrl =
       `${protocol}//${prefix}/job/${encodeURIComponent(
-        job.get('plainId')
+        job.get('plainId'),
       )}/action` +
       `?namespace=${job.get('namespace.id')}&action=${
         action.name

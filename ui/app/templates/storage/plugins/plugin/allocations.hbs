@@ -17,13 +17,15 @@
           @label="Health"
           @options={{this.optionsHealth}}
           @selection={{this.selectionHealth}}
-          @onSelect={{action this.setFacetQueryParam "qpHealth"}} />
+          @onSelect={{fn this.setFacetQueryParam "qpHealth"}}
+        />
         <MultiSelectDropdown
           data-test-type-facet
           @label="Type"
           @options={{this.optionsType}}
           @selection={{this.selectionType}}
-          @onSelect={{action this.setFacetQueryParam "qpType"}} />
+          @onSelect={{fn this.setFacetQueryParam "qpType"}}
+        />
       </div>
     </div>
   </div>
@@ -31,14 +33,19 @@
     <ListPagination
       @source={{this.sortedAllocations}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}} as |p|>
+      @page={{this.currentPage}}
+      as |p|
+    >
       <ListTable
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|>
+        @class="with-foot"
+        as |t|
+      >
         <t.head>
-          <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+          <th class="is-narrow"><span class="visually-hidden">Driver Health,
+              Scheduling, and Preemption</span></th>
           <td>ID</td>
           <th>Created</th>
           <t.sort-by @prop="updateTime">Modified</t.sort-by>
@@ -53,14 +60,17 @@
         <t.body @key="model.allocID" as |row|>
           <PluginAllocationRow
             @data-test-allocation={{row.model.allocID}}
-            @pluginAllocation={{row.model}} />
+            @pluginAllocation={{row.model}}
+          />
         </t.body>
       </ListTable>
       <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <PageSizeSelect @onChange={{this.resetPagination}} />
         <nav class="pagination">
           <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
+            {{p.startsAt}}&ndash;{{p.endsAt}}
+            of
+            {{this.sortedAllocations.length}}
           </div>
           <p.prev @class="pagination-previous">
             <Hds::Icon @name="chevron-left" />
@@ -75,12 +85,14 @@
   {{else}}
     <div data-test-empty-list class="empty-message">
       {{#if (eq this.combinedAllocations.length 0)}}
-        <h3 data-test-empty-list-headline class="empty-message-headline">No Allocations</h3>
+        <h3 data-test-empty-list-headline class="empty-message-headline">No
+          Allocations</h3>
         <p class="empty-message-body">
           The plugin has no allocations.
         </p>
       {{else if (eq this.sortedAllocations.length 0)}}
-        <h3 data-test-empty-list-headline class="empty-message-headline">No Matches</h3>
+        <h3 data-test-empty-list-headline class="empty-message-headline">No
+          Matches</h3>
         <p class="empty-message-body">
           No allocations match your current filter selection.
         </p>

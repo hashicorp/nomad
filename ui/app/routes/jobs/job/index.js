@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import {
@@ -15,7 +15,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
-  @service can;
+  @service abilities;
   @service store;
   @service watchList;
 
@@ -36,7 +36,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         this.watchLatestDeployment.perform(model),
       nodes:
         model.get('hasClientStatus') &&
-        this.can.can('read client') &&
+        this.abilities.can('read client') &&
         this.watchNodes.perform(),
     });
   }
@@ -73,15 +73,14 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     'watchAllocations',
     'watchEvaluations',
     'watchLatestDeployment',
-    'watchNodes'
+    'watchNodes',
   )
   watchers;
 
   @action
   willTransition() {
-    // eslint-disable-next-line
     this.controller.childJobsController.abort();
-    // eslint-disable-next-line
+
     this.controller.watchChildJobs.cancelAll();
     this.cancelAllWatchers();
     return true;

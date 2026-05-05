@@ -30,8 +30,8 @@
         opacity: 0;
       }
 
-      $color-sequence: $orange, $yellow, $green, $turquoise, $blue, $purple,
-        $red;
+      $color-sequence:
+        $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
 
       @for $i from 1 through length($color-sequence) {
         .slice-#{$i - 1} {
@@ -56,8 +56,7 @@
       width: 50%;
       padding: 1.5em;
       display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
+      flex-flow: row wrap;
       align-items: center;
       justify-content: center;
 

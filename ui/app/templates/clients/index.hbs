@@ -13,7 +13,7 @@
         {{#if this.nodes.length}}
           <SearchBox
             @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
+            @onChange={{this.resetPagination}}
             @placeholder="Search clients..."
           />
         {{/if}}
@@ -24,14 +24,18 @@
           <dd.ToggleButton
             @text="State"
             @color="secondary"
-            @badge={{if (eq this.activeToggles.length this.allToggles.length) false this.activeToggles.length}}
+            @badge={{if
+              (eq this.activeToggles.length this.allToggles.length)
+              false
+              this.activeToggles.length
+            }}
           />
           <dd.Title @text="Status" />
           {{#each this.clientFilterToggles.state as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -42,9 +46,9 @@
           <dd.Title @text="Eligibility" />
           {{#each this.clientFilterToggles.eligibility as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -55,9 +59,9 @@
           <dd.Title @text="Drain Status" />
           {{#each this.clientFilterToggles.drainStatus as |option|}}
             <dd.Checkbox
-              {{on "change" (toggle option.qp this)}}
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
               @value={{option.label}}
-              @count={{get (filter (action option.filter) this.nodes) "length"}}
+              @count={{get (filter option.filter this.nodes) "length"}}
               checked={{get this option.qp}}
               data-test-dropdown-option={{option.label}}
             >
@@ -74,14 +78,21 @@
           />
           {{#each this.optionsNodePool key="label" as |option|}}
             <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionNodePool
-                option.label
-                "qpNodePool"
-              )}}
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionNodePool
+                  option.label
+                  "qpNodePool"
+                )
+              }}
               @value={{option.label}}
               checked={{includes option.label this.selectionNodePool}}
-              @count={{get (filter-by 'nodePool' option.label this.nodes) "length"}}
+              @count={{get
+                (filter-by "nodePool" option.label this.nodes)
+                "length"
+              }}
               data-test-dropdown-option={{option.label}}
             >
               {{option.label}}
@@ -101,14 +112,21 @@
           />
           {{#each this.optionsClass key="label" as |option|}}
             <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionClass
-                option.label
-                "qpClass"
-              )}}
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionClass
+                  option.label
+                  "qpClass"
+                )
+              }}
               @value={{option.label}}
               checked={{includes option.label this.selectionClass}}
-              @count={{get (filter-by 'nodeClass' option.label this.nodes) "length"}}
+              @count={{get
+                (filter-by "nodeClass" option.label this.nodes)
+                "length"
+              }}
               data-test-dropdown-option={{option.label}}
             >
               {{option.label}}
@@ -128,14 +146,21 @@
           />
           {{#each this.optionsDatacenter key="label" as |option|}}
             <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionDatacenter
-                option.label
-                "qpDatacenter"
-              )}}
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionDatacenter
+                  option.label
+                  "qpDatacenter"
+                )
+              }}
               @value={{option.label}}
               checked={{includes option.label this.selectionDatacenter}}
-              @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
+              @count={{get
+                (filter-by "datacenter" option.label this.nodes)
+                "length"
+              }}
               data-test-dropdown-option={{option.label}}
             >
               {{option.label}}
@@ -156,14 +181,21 @@
           />
           {{#each this.optionsVersion key="label" as |option|}}
             <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionVersion
-                option.label
-                "qpVersion"
-              )}}
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionVersion
+                  option.label
+                  "qpVersion"
+                )
+              }}
               @value={{option.label}}
               checked={{includes option.label this.selectionVersion}}
-              @count={{get (filter-by 'version' option.label this.nodes) "length"}}
+              @count={{get
+                (filter-by "version" option.label this.nodes)
+                "length"
+              }}
               data-test-dropdown-option={{option.label}}
             >
               {{option.label}}
@@ -183,14 +215,21 @@
           />
           {{#each this.optionsVolume key="label" as |option|}}
             <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionVolume
-                option.label
-                "qpVolume"
-              )}}
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionVolume
+                  option.label
+                  "qpVolume"
+                )
+              }}
               @value={{option.label}}
               checked={{includes option.label this.selectionVolume}}
-              @count={{get (filter-by 'volume' option.label this.nodes) "length"}}
+              @count={{get
+                (filter-by "volume" option.label this.nodes)
+                "length"
+              }}
               data-test-dropdown-option={{option.label}}
             >
               {{option.label}}
@@ -236,16 +275,16 @@
             <ClientNodeRow
               data-test-client-node-row
               @node={{row.model}}
-              @onClick={{action "gotoNode" row.model}}
+              @onClick={{fn this.gotoNode row.model}}
               {{keyboard-shortcut
                 enumerated=true
-                action=(action "gotoNode" row.model)
+                action=(fn this.gotoNode row.model)
               }}
             />
           </t.body>
         </ListTable>
         <div class="table-foot">
-          <PageSizeSelect @onChange={{action this.resetPagination}} />
+          <PageSizeSelect @onChange={{this.resetPagination}} />
           <nav class="pagination" data-test-pagination>
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}}

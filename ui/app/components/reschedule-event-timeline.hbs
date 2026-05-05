@@ -8,29 +8,49 @@
     <RescheduleEventRow
       @label="Next Allocation"
       @allocation={{@allocation.nextAllocation}}
-      @time={{@allocation.nextAllocation.modifyTime}} />
+      @time={{@allocation.nextAllocation.modifyTime}}
+    />
   {{/if}}
   {{#if @allocation.hasStoppedRescheduling}}
     <li class="timeline-note" data-test-stop-warning>
-      <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} class="icon-vertical-bump-down" /> Nomad has stopped attempting to reschedule this allocation.
+      <Hds::Icon
+        @name="alert-triangle-fill"
+        @color="warning"
+        @isInline={{true}}
+        class="icon-vertical-bump-down"
+      />
+      Nomad has stopped attempting to reschedule this allocation.
     </li>
   {{/if}}
-  {{#if (and @allocation.followUpEvaluation.waitUntil (not @allocation.nextAllocation))}}
+  {{#if
+    (and
+      @allocation.followUpEvaluation.waitUntil (not @allocation.nextAllocation)
+    )
+  }}
     <li class="timeline-note" data-test-attempt-notice>
-      <Hds::Icon @name="clock" @color="info" @isInline={{true}} /> Nomad will attempt to reschedule
-      <span class="tooltip" aria-label="{{format-ts @allocation.followUpEvaluation.waitUntil}}">
-        {{moment-from-now @allocation.followUpEvaluation.waitUntil interval=1000}}
+      <Hds::Icon @name="clock" @color="info" @isInline={{true}} />
+      Nomad will attempt to reschedule
+      <span
+        class="tooltip"
+        aria-label="{{format-ts @allocation.followUpEvaluation.waitUntil}}"
+      >
+        {{moment-from-now
+          @allocation.followUpEvaluation.waitUntil
+          interval=1000
+        }}
       </span>
     </li>
   {{/if}}
   <RescheduleEventRow
     @allocation={{@allocation}}
     @linkToAllocation={{false}}
-    @time={{@allocation.modifyTime}} />
+    @time={{@allocation.modifyTime}}
+  />
 
   {{#each (reverse @allocation.rescheduleEvents) as |event|}}
     <RescheduleEventRow
       @allocationId={{event.previousAllocationId}}
-      @time={{event.time}} />
+      @time={{event.time}}
+    />
   {{/each}}
 </ol>

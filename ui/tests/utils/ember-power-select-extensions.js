@@ -11,7 +11,7 @@ import { click, settled } from '@ember/test-helpers';
 //   - selectOpen: open the select (await settled)
 //   - selectOpenChoose: choose an option (await settled)
 // Since the composite helper has two `await setted`s in it, the log changing tests can't use
-// them. These tests require a run.later(run, run.cancelTimers, ms) to be inserted between
+// them. These tests require a later(cancelTimers, ms) pause to be inserted between
 // these two moments. Doing it before opening means hanging on open not on select. Doing it
 // after means hanging after the select has occurred (too late).
 async function openIfClosedAndGetContentId(trigger) {
@@ -41,7 +41,7 @@ export async function selectOpen(cssPathOrTrigger) {
     }
   } else {
     trigger = document.querySelector(
-      `${cssPathOrTrigger} .ember-power-select-trigger`
+      `${cssPathOrTrigger} .ember-power-select-trigger`,
     );
 
     if (!trigger) {
@@ -50,7 +50,7 @@ export async function selectOpen(cssPathOrTrigger) {
 
     if (!trigger) {
       throw new Error(
-        `You called "selectOpen('${cssPathOrTrigger}')" but no select was found using selector "${cssPathOrTrigger}"`
+        `You called "selectOpen('${cssPathOrTrigger}')" but no select was found using selector "${cssPathOrTrigger}"`,
       );
     }
   }
@@ -65,19 +65,19 @@ export async function selectOpen(cssPathOrTrigger) {
 export async function selectOpenChoose(
   contentId,
   valueOrSelector,
-  optionIndex
+  optionIndex,
 ) {
   let target;
   // Select the option with the given text
   let options = document.querySelectorAll(
-    `#${contentId} .ember-power-select-option`
+    `#${contentId} .ember-power-select-option`,
   );
   let potentialTargets = [].slice
     .apply(options)
     .filter((opt) => opt.textContent.indexOf(valueOrSelector) > -1);
   if (potentialTargets.length === 0) {
     potentialTargets = document.querySelectorAll(
-      `#${contentId} ${valueOrSelector}`
+      `#${contentId} ${valueOrSelector}`,
     );
   }
   if (potentialTargets.length > 1) {
@@ -94,7 +94,7 @@ export async function selectOpenChoose(
   }
   if (!target) {
     throw new Error(
-      `You called "selectOpenChoose('${valueOrSelector}')" but "${valueOrSelector}" didn't match any option`
+      `You called "selectOpenChoose('${valueOrSelector}')" but "${valueOrSelector}" didn't match any option`,
     );
   }
   await click(target);

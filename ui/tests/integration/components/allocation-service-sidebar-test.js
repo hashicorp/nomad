@@ -32,21 +32,20 @@ module(
     });
 
     test('it supports basic open/close states', async function (assert) {
-      assert.expect(7);
       await componentA11yAudit(this.element, assert);
 
       this.set('closeSidebar', () => this.set('service', null));
 
       this.set('service', { name: 'Funky Service' });
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom('h1').includesText('Funky Service');
       assert.dom('.sidebar').hasClass('open');
 
       this.set('service', null);
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom(this.element).hasText('');
       assert.dom('.sidebar').doesNotHaveClass('open');
@@ -79,7 +78,7 @@ module(
       this.set('allocation', { id: 'myAlloc', clientStatus: 'running' });
       this.set('service', healthyService);
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom('h1 .aggregate-status').includesText('Healthy');
       assert
@@ -88,14 +87,14 @@ module(
 
       this.set('service', unhealthyService);
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom('h1 .aggregate-status').includesText('Unhealthy');
 
       this.set('service', healthyService);
       this.set('allocation', { id: 'myAlloc2', clientStatus: 'failed' });
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom('h1 .aggregate-status').includesText('Health Unknown');
     });
@@ -110,7 +109,7 @@ module(
       this.set('closeSidebar', () => this.set('service', null));
       this.set('service', consulService);
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
       assert.dom('h1 .aggregate-status').doesNotExist();
       assert.dom('table.health-checks').doesNotExist();
@@ -119,10 +118,10 @@ module(
       this.system.agent.config.UI.Consul.BaseUIURL = 'http://localhost:8500';
 
       await render(
-        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+        hbs`<AllocationServiceSidebar @service={{this.service}} @fns={{hash closeSidebar=this.closeSidebar}} />`,
       );
 
       assert.dom('[data-test-consul-link-notice]').exists();
     });
-  }
+  },
 );

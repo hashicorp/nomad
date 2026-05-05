@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
 // eslint-disable-next-line no-unused-vars

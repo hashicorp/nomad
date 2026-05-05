@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import RSVP from 'rsvp';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
@@ -17,7 +15,7 @@ import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
-  WithForbiddenState
+  WithForbiddenState,
 ) {
   @service store;
 
@@ -58,13 +56,12 @@ export default class IndexRoute extends Route.extend(
           type: 'csi',
           namespace: controller.qpNamespace,
         },
-      }
+      },
     );
   }
 
   @action
   willTransition() {
-    // eslint-disable-next-line
     this.controller.cancelQueryWatch();
     this.cancelAllWatchers();
   }

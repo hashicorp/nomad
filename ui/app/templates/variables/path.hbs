@@ -7,79 +7,98 @@
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
-  <section class="section">
-    <Hds::PageHeader class="variable-title" as |PH|>
-      <PH.Title>/{{this.absolutePath}}</PH.Title>
-      <PH.Actions>
-          {{#if this.namespaceOptions}}
-            <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
-              <dd.ToggleButton @text="Namespace ({{this.namespaceSelection}})" @color="secondary" />
-              {{#each this.namespaceOptions as |option|}}
-                <dd.Radio
-                  name={{option.key}}
-                  {{on "change" (action this.setNamespace option.key)}}
-                  checked={{eq this.namespaceSelection option.key}}
-                >
-                  {{option.label}}
-                </dd.Radio>
-              {{/each}}
-            </Hds::Dropdown>
-          {{/if}}
-
-          {{#if (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)}}
-            <div
-              {{keyboard-shortcut
-                pattern=(array "n" "v")
-                action=(action this.goToNewVariable)
-                label="Create Variable"
-              }}
+<section class="section">
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Title>/{{this.absolutePath}}</PH.Title>
+    <PH.Actions>
+      {{#if this.namespaceOptions}}
+        <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
+          <dd.ToggleButton
+            @text="Namespace ({{this.namespaceSelection}})"
+            @color="secondary"
+          />
+          {{#each this.namespaceOptions as |option|}}
+            <dd.Radio
+              name={{option.key}}
+              {{on "change" (fn this.setNamespace option.key)}}
+              checked={{eq this.namespaceSelection option.key}}
             >
-              <Hds::Button
-                @text="Create Variable"
-                @icon="plus"
-                @route="variables.new"
-                @query={{hash path=(concat this.absolutePath "/")}}
-                data-test-create-var
-              />
-            </div>
-          {{else}}
-            <Hds::Button
-              @text="Create Variable"
-              @icon="plus"
-              data-test-create-var
-              disabled
-            />
-          {{/if}}
-      </PH.Actions>
-    </Hds::PageHeader>
-    {{#if this.isForbidden}}
-      <ForbiddenMessage />
-    {{else}}
-      {{#if this.model.treeAtPath}}
-        <VariablePaths
-          @branch={{this.model.treeAtPath}}
-        />
-      {{else}}
-        <div class="empty-message">
-          {{#if (eq this.namespaceSelection "*")}}
-            <h3 data-test-empty-variables-list-headline class="empty-message-headline">
-              Path /{{this.absolutePath}} contains no variables
-            </h3>
-            <p class="empty-message-body">
-              To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.absolutePath "/")}}>create a new variable here</LinkTo>, or <LinkTo @route="variables">go back to the Variables root directory</LinkTo>.
-            </p>
-          {{else}}
-            <h3 data-test-no-matching-variables-list-headline class="empty-message-headline">
-              No Matches
-            </h3>
-            <p class="empty-message-body">
-              No paths or variables match the namespace 
-              <strong>
-                {{this.namespaceSelection}}
-              </strong>
-            </p>
-          {{/if}}
-        </div>
+              {{option.label}}
+            </dd.Radio>
+          {{/each}}
+        </Hds::Dropdown>
       {{/if}}
+
+      {{#if
+        (can
+          "write variable"
+          path=(concat this.absolutePath "/")
+          namespace=this.namespaceSelection
+        )
+      }}
+        <div
+          {{keyboard-shortcut
+            pattern=(array "n" "v")
+            action=this.goToNewVariable
+            label="Create Variable"
+          }}
+        >
+          <Hds::Button
+            @text="Create Variable"
+            @icon="plus"
+            @route="variables.new"
+            @query={{hash path=(concat this.absolutePath "/")}}
+            data-test-create-var
+          />
+        </div>
+      {{else}}
+        <Hds::Button
+          @text="Create Variable"
+          @icon="plus"
+          data-test-create-var
+          disabled
+        />
+      {{/if}}
+    </PH.Actions>
+  </Hds::PageHeader>
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{#if this.model.treeAtPath}}
+      <VariablePaths @branch={{this.model.treeAtPath}} />
+    {{else}}
+      <div class="empty-message">
+        {{#if (eq this.namespaceSelection "*")}}
+          <h3
+            data-test-empty-variables-list-headline
+            class="empty-message-headline"
+          >
+            Path /{{this.absolutePath}}
+            contains no variables
+          </h3>
+          <p class="empty-message-body">
+            To get started,
+            <LinkTo
+              @route="variables.new"
+              @query={{hash path=(concat this.absolutePath "/")}}
+            >create a new variable here</LinkTo>, or
+            <LinkTo @route="variables">go back to the Variables root directory</LinkTo>.
+          </p>
+        {{else}}
+          <h3
+            data-test-no-matching-variables-list-headline
+            class="empty-message-headline"
+          >
+            No Matches
+          </h3>
+          <p class="empty-message-body">
+            No paths or variables match the namespace
+            <strong>
+              {{this.namespaceSelection}}
+            </strong>
+          </p>
+        {{/if}}
+      </div>
     {{/if}}
-  </section>
+  {{/if}}
+</section>

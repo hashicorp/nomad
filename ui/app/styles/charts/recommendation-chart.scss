@@ -24,12 +24,18 @@
   }
 
   .delta {
-    transition: width 1s, x 1s, transform 1s, color 0.5s;
+    transition:
+      width 1s,
+      x 1s,
+      transform 1s,
+      color 0.5s;
   }
 
   rect.stat,
   line.stat {
-    transition: fill 0.5s, stroke 0.5s;
+    transition:
+      fill 0.5s,
+      stroke 0.5s;
   }
 
   rect.delta {
@@ -85,7 +91,7 @@
     }
 
     rect.delta {
-      fill: url(#recommendation-chart-increase-gradient);
+      fill: url("#recommendation-chart-increase-gradient");
     }
 
     text.percent {
@@ -110,7 +116,7 @@
     }
 
     rect.delta {
-      fill: url(#recommendation-chart-decrease-gradient);
+      fill: url("#recommendation-chart-decrease-gradient");
     }
 
     text.percent {

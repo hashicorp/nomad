@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, click, waitFor } from '@ember/test-helpers';
@@ -32,7 +31,7 @@ module('Integration | Component | trigger', function (hooks) {
         .dom('[data-test-name]')
         .hasText(
           'Zoey',
-          'The name property changes when the button is clicked'
+          'The name property changes when the button is clicked',
         );
     });
 
@@ -43,13 +42,13 @@ module('Integration | Component | trigger', function (hooks) {
         {{#if trigger.data.result}}
           <h2 data-test-name>{{trigger.data.result}}</h2>
         {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Generate</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Generate</button>
       </Trigger>
       `);
       assert
         .dom('[data-test-name]')
         .doesNotExist(
-          'Initial state does not render because there is no result yet.'
+          'Initial state does not render because there is no result yet.',
         );
 
       await click('[data-test-button]');
@@ -58,7 +57,7 @@ module('Integration | Component | trigger', function (hooks) {
         .dom('[data-test-name]')
         .hasText(
           'Tomster',
-          'The result state updates after the triggered action'
+          'The result state updates after the triggered action',
         );
     });
   });
@@ -70,7 +69,7 @@ module('Integration | Component | trigger', function (hooks) {
         () =>
           new Promise((resolve) => {
             this.set('resolve', resolve);
-          })
+          }),
       );
 
       await render(hbs`
@@ -81,26 +80,26 @@ module('Integration | Component | trigger', function (hooks) {
         {{#if trigger.data.isSuccess}}
           <div data-test-div>Success!</div>
         {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 
       assert
         .dom('[data-test-div]')
         .doesNotExist(
-          'The div does not render until after the action dispatches successfully'
+          'The div does not render until after the action dispatches successfully',
         );
 
       await click('[data-test-button]');
       assert
         .dom('[data-test-div-loading]')
         .exists(
-          'Loading state is displayed when the action hasnt resolved yet'
+          'Loading state is displayed when the action hasnt resolved yet',
         );
       assert
         .dom('[data-test-div]')
         .doesNotExist(
-          'Success message does not display until after promise resolves'
+          'Success message does not display until after promise resolves',
         );
 
       this.resolve();
@@ -108,24 +107,24 @@ module('Integration | Component | trigger', function (hooks) {
       assert
         .dom('[data-test-div-loading]')
         .doesNotExist(
-          'Loading state is no longer rendered after state changes from busy to success'
+          'Loading state is no longer rendered after state changes from busy to success',
         );
       assert
         .dom('[data-test-div]')
         .exists(
-          'Action has dispatched successfully after the promise resolves'
+          'Action has dispatched successfully after the promise resolves',
         );
 
       await click('[data-test-button]');
       assert
         .dom('[data-test-div]')
         .doesNotExist(
-          'Aftering clicking the button, again, the state is reset'
+          'Aftering clicking the button, again, the state is reset',
         );
       assert
         .dom('[data-test-div-loading]')
         .exists(
-          'After clicking the button, again, we are back in the loading state'
+          'After clicking the button, again, we are back in the loading state',
         );
 
       this.resolve();
@@ -134,7 +133,7 @@ module('Integration | Component | trigger', function (hooks) {
       assert
         .dom('[data-test-div]')
         .exists(
-          'An new action and new promise resolve after clicking the button for the second time'
+          'An new action and new promise resolve after clicking the button for the second time',
         );
     });
 
@@ -144,7 +143,7 @@ module('Integration | Component | trigger', function (hooks) {
         () =>
           new Promise((resolve) => {
             this.set('resolve', resolve);
-          })
+          }),
       );
       this.set('onSuccess', () => assert.step('On success happened'));
 
@@ -153,14 +152,14 @@ module('Integration | Component | trigger', function (hooks) {
           {{#if trigger.data.isSuccess}}
             <span data-test-div>Success!</span>
           {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 
       assert
         .dom('[data-test-div]')
         .doesNotExist(
-          'No text should appear until after the onSuccess callback is fired'
+          'No text should appear until after the onSuccess callback is fired',
         );
       await click('[data-test-button]');
       this.resolve();
@@ -174,7 +173,7 @@ module('Integration | Component | trigger', function (hooks) {
         () =>
           new Promise((_, reject) => {
             this.set('reject', reject);
-          })
+          }),
       );
       this.set('onError', () => {
         assert.step('On error happened');
@@ -188,7 +187,7 @@ module('Integration | Component | trigger', function (hooks) {
           {{#if trigger.data.isError}}
             <span data-test-span>Error!</span>
           {{/if}}
-        <button data-test-button {{on "click" trigger.fns.do}}>Click Me</button>
+        <button data-test-button type="button" {{on "click" trigger.fns.do}}>Click Me</button>
       </Trigger>
       `);
 
@@ -196,13 +195,13 @@ module('Integration | Component | trigger', function (hooks) {
       assert
         .dom('[data-test-div-loading]')
         .exists(
-          'Loading state is displayed when the action hasnt resolved yet'
+          'Loading state is displayed when the action hasnt resolved yet',
         );
 
       assert
         .dom('[data-test-div]')
         .doesNotExist(
-          'No text should appear until after the onError callback is fired'
+          'No text should appear until after the onError callback is fired',
         );
 
       this.reject();
@@ -214,7 +213,7 @@ module('Integration | Component | trigger', function (hooks) {
       assert
         .dom('[data-test-div-loading]')
         .exists(
-          'The previous error state was cleared and we show loading, again.'
+          'The previous error state was cleared and we show loading, again.',
         );
 
       assert.dom('[data-test-div]').doesNotExist('The error state is cleared');

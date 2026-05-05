@@ -12,7 +12,7 @@ export default class JobEditorReviewComponent extends Component {
     return htmlSafe(
       (this.args.data.planOutput.warnings || '')
         .replace(/\n/g, '<br>')
-        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;'),
     );
   }
 }
