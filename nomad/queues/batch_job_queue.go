@@ -232,8 +232,6 @@ func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
 // have been marked terminal, indicating the workload has been scheduled.
-//
-// TODO (mismithhisler): is there a better way to do this?
 func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation, ws memdb.WatchSet) error {
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID

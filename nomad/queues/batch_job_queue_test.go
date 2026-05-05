@@ -60,7 +60,7 @@ func TestWaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We've want to make sure the testQueue has begun a watch on the blocked eval
+		// We want to make sure the testQueue has begun a watch on the blocked eval
 		// before continuing, which is indicated by the length of the watchset being >0.
 		must.Wait(t, wait.InitialSuccess(
 			wait.ErrorFunc(func() error {
@@ -105,7 +105,7 @@ func TestWaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We've want to make sure the testQueue has begun a watch on the blocked eval
+		// We want to make sure the testQueue has begun a watch on the blocked eval
 		// before continuing, which is indicated by the length of the watchset being >0.
 		must.Wait(t, wait.InitialSuccess(
 			wait.ErrorFunc(func() error {
