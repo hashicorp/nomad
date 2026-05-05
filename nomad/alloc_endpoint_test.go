@@ -620,9 +620,13 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.ID = alloc.ID
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc2},
+	}
+
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(3, mock.JobSummary(alloc2.JobID))
-		if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc2}); err != nil {
+		if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 5, updateReq); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})

@@ -210,7 +210,10 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		a.ClientStatus = structs.AllocClientStatusComplete
 		completeAllocs[i] = a
 	}
-	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index, completeAllocs))
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: completeAllocs,
+	}
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index, updateReq))
 	index++
 
 	// The drained allocs stopping cause migrations but no new drains

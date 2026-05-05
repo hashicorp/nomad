@@ -4138,7 +4138,12 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
-		must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{out}))
+
+		updateReq := structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{out},
+		}
+
+		must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq))
 	}
 
 	// Create a mock evaluation which won't trigger any new placements
@@ -4290,7 +4295,10 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusRunning
 		running = append(running, newAlloc)
 	}
-	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), running))
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: running,
+	}
+	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq))
 
 	// Mark some of the allocations as complete
 	var complete []*structs.Allocation
@@ -4309,7 +4317,11 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusComplete
 		complete = append(complete, newAlloc)
 	}
-	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), complete))
+
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: complete,
+	}
+	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq2))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{

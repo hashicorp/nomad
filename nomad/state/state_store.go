@@ -596,7 +596,6 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
 	}
-
 	// Insert the deployment
 	if err := txn.Insert("deployment", deployment); err != nil {
 		return err
@@ -4029,20 +4028,52 @@ func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64,
+	req structs.AllocUpdateRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+
+	allocs := req.Alloc
+	evals := req.Evals
 
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
-
+	populatedAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
-	for _, alloc := range allocs {
-		nodeIDs.Insert(alloc.NodeID)
-		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
-			return err
+	for _, a := range allocs {
+		nodeIDs.Insert(a.NodeID)
+		ca, err := s.nestedUpdateAllocFromClient(txn, index, a)
+		if ca == nil {
+			continue
 		}
+
+		if err != nil {
+			return fmt.Errorf("updating alloc failed: %v", err)
+		}
+		populatedAllocs = append(populatedAllocs, ca)
+	}
+
+	if len(req.Evals) > 0 {
+		err := s.UpsertEvalsTxn(index, evals, txn)
+		if err != nil {
+			return fmt.Errorf("upserting evals failed: %v", err)
+		}
+	}
+
+	jobs := map[structs.NamespacedID]string{}
+
+	for _, alloc := range populatedAllocs {
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
+			Namespace: alloc.Namespace,
+		}
+
+		jobs[tuple] = ""
+	}
+
+	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
+		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
 	// Update the indexes
@@ -4060,17 +4091,20 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	return txn.Commit()
 }
 
-// nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
-func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *structs.Allocation) error {
+// NestedUpdateAllocFromClient is used to nest an update of an allocation with
+// client status.
+// It returns an allocation fully populated with the values from the state store.
+func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
+	alloc *structs.Allocation) (*structs.Allocation, error) {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
-		return fmt.Errorf("alloc lookup failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Nothing to do if this does not exist
 	if existing == nil {
-		return nil
+		return nil, nil
 	}
 	exist := existing.(*structs.Allocation)
 
@@ -4110,51 +4144,35 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	copyAlloc.ModifyTime = alloc.ModifyTime
 
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating deployment: %v", err)
+		return nil, fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating job summary: %v", err)
+		return nil, fmt.Errorf("error updating job summary: %v", err)
 	}
 
 	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return err
+		return nil, fmt.Errorf("error updating enterprise features: %v", err)
 	}
 
 	if err := s.updatePluginForTerminalAlloc(index, copyAlloc, txn); err != nil {
-		return err
+		return nil, fmt.Errorf("error updating plugin for terminal alloc: %v", err)
 	}
 
 	if err := s.cancelFollowupEvalsForReconnect(txn, index, copyAlloc, alloc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
-		return fmt.Errorf("alloc insert failed: %v", err)
-	}
-
-	// Set the job's status
-	forceStatus := ""
-	if !copyAlloc.TerminalStatus() {
-		forceStatus = structs.JobStatusRunning
-	}
-
-	tuple := structs.NamespacedID{
-		ID:        exist.JobID,
-		Namespace: exist.Namespace,
-	}
-	jobs := map[structs.NamespacedID]string{tuple: forceStatus}
-
-	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
-		return fmt.Errorf("setting job status failed: %v", err)
+		return nil, fmt.Errorf("alloc insert failed: %v", err)
 	}
 
 	if err := s.deregisterServicesForTerminalAllocs(txn, index, copyAlloc); err != nil {
-		return err
+		return nil, fmt.Errorf("error deregistering services for terminal allocs: %v", err)
 	}
 
-	return nil
+	return copyAlloc, nil
 }
 
 // cancelFollowupEvalsForReconnect cancels any follow-up evals for an allocation
@@ -5425,7 +5443,6 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 	jobs map[structs.NamespacedID]string, evalDelete bool) error {
 	for tuple, forceStatus := range jobs {
-
 		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
@@ -5571,6 +5588,18 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 			return structs.JobStatusDead, nil
 		}
 		return structs.JobStatusRunning, nil
+	}
+
+	deployments, err := txn.Get("deployment", "job", job.Namespace, job.ID)
+	if err != nil {
+		return "", err
+	}
+
+	// If there is a non-terminal deployment, the job is running.
+	for deployment := deployments.Next(); deployment != nil; deployment = deployments.Next() {
+		if !deployment.(*structs.Deployment).IsTerminal() {
+			return structs.JobStatusRunning, nil
+		}
 	}
 
 	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
