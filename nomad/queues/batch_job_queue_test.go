@@ -4,16 +4,18 @@
 package queues
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
-
-func TestWorkloadPriority(t *testing.T) {}
 
 func TestWaitForPlacement(t *testing.T) {
 
@@ -24,9 +26,10 @@ func TestWaitForPlacement(t *testing.T) {
 		testEval := mock.Eval()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
 
+		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval)
+			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
 			doneCh <- err
 		}()
 
@@ -50,11 +53,25 @@ func TestWaitForPlacement(t *testing.T) {
 
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
 
+		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval)
+			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
 			doneCh <- err
 		}()
+
+		// We've want to make sure the testQueue has begun a watch on the blocked eval
+		// before continuing, which is indicated by the length of the watchset being >0.
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(func() error {
+				if len(ws) == 0 {
+					return fmt.Errorf("blocking query not started yet")
+				}
+				return nil
+			}),
+			wait.Timeout(5*time.Second),
+			wait.Gap(100*time.Millisecond),
+		))
 
 		select {
 		case <-doneCh:
@@ -67,7 +84,6 @@ func TestWaitForPlacement(t *testing.T) {
 
 		done := <-doneCh
 		must.NoError(t, done)
-
 	})
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
@@ -82,11 +98,25 @@ func TestWaitForPlacement(t *testing.T) {
 
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, next})
 
+		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval)
+			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
 			doneCh <- err
 		}()
+
+		// We've want to make sure the testQueue has begun a watch on the blocked eval
+		// before continuing, which is indicated by the length of the watchset being >0.
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(func() error {
+				if len(ws) == 0 {
+					return fmt.Errorf("blocking query not started yet")
+				}
+				return nil
+			}),
+			wait.Timeout(5*time.Second),
+			wait.Gap(100*time.Millisecond),
+		))
 
 		select {
 		case <-doneCh:
@@ -99,6 +129,5 @@ func TestWaitForPlacement(t *testing.T) {
 
 		done := <-doneCh
 		must.NoError(t, done)
-
 	})
 }

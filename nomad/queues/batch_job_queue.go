@@ -88,7 +88,7 @@ func NewDynamicPriorityQueue(state *state.StateStore, broker Queue, conf *Dynami
 		state:      state,
 		enqueueCh:  make(chan *Workload, 8096),
 		evalBroker: broker,
-		qMux:       &sync.Mutex{},
+		qMux:       sync.Mutex{},
 		qNotify:    make(chan struct{}, 1),
 		conf:       conf,
 		logger:     logger.Named("Dynamic Priority Queue"),
@@ -164,7 +164,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			d.evalBroker.Enqueue(workload.eval)
 
 			// Wait for the eval to be placed
-			d.waitForPlacement(ctx, workload.eval)
+			d.waitForPlacement(ctx, workload.eval, memdb.NewWatchSet())
 
 			d.qMux.Lock()
 			l := d.queue.Len()
@@ -234,7 +234,7 @@ func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
 // have been marked terminal, indicating the workload has been scheduled.
 //
 // TODO (mismithhisler): is there a better way to do this?
-func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation) error {
+func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation, ws memdb.WatchSet) error {
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
 
@@ -248,13 +248,12 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 		if err != nil {
 			return err
 		}
+		// ws := memdb.NewWatchSet()
 
-		abandonCh := state.AbandonCh()
-		ws := memdb.NewWatchSet()
+		// TODO: handle snapshot restores
+		abandonCh := snap.AbandonCh()
 		ws.Add(abandonCh)
-		if err = ws.WatchCtx(ctx); err != nil {
-			return err
-		}		
+
 		eval, err = snap.EvalByID(ws, id)
 		if err != nil {
 			return err
@@ -263,24 +262,13 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 			return ErrWatchedEvalNotFound
 		}
 
-		// Wait for the eval to be marked complete or context to cancel.
-		// This keeps the loop from spinning.
-		for !eval.TerminalStatus() {
-			if err := ws.WatchCtx(ctx); err != nil {
-				return err
-			}
-			snap, err = d.state.Snapshot()
-			if err != nil {
-				return err
-			}
-			ws = memdb.NewWatchSet()
-			eval, err = snap.EvalByID(ws, eval.ID)
-			if err != nil {
-				return err
-			}
-			if eval == nil {
-				return ErrWatchedEvalNotFound
-			}
+		if eval.TerminalStatus() {
+			continue
+		}
+
+		// If the latest version of the eval isn't terminal, wait for an update
+		if err = ws.WatchCtx(ctx); err != nil {
+			return err
 		}
 	}
 
