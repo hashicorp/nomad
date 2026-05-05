@@ -7,6 +7,7 @@ import (
 	"container/heap"
 	"context"
 	"errors"
+	"maps"
 	"sync"
 	"time"
 
@@ -248,7 +249,6 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 		if err != nil {
 			return err
 		}
-		// ws := memdb.NewWatchSet()
 
 		// TODO: handle snapshot restores
 		abandonCh := snap.AbandonCh()
@@ -269,6 +269,12 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 		// If the latest version of the eval isn't terminal, wait for an update
 		if err = ws.WatchCtx(ctx); err != nil {
 			return err
+		}
+
+		// The watch channel will be closed, we should delete it to
+		// prevent immediately firing on the next WatchCtx
+		for k := range ws {
+			delete(ws, k)
 		}
 	}
 
