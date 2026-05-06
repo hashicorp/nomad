@@ -501,6 +501,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job queue": func() (cli.Command, error) {
+			return &JobQueueCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job revert": func() (cli.Command, error) {
 			return &JobRevertCommand{
 				Meta: meta,
