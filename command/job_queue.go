@@ -13,7 +13,6 @@ import (
 
 type JobQueueCommand struct {
 	Meta
-	forceRescheduling bool
 }
 
 func (c *JobQueueCommand) Help() string {
