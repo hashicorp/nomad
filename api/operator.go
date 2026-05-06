@@ -237,8 +237,8 @@ const (
 
 	BatchQueueTypeDynamic BatchQueueType = "dynamicPriority"
 
-	TenantMetadata  BatchQueueTenant = "metadata"
-	TenantNamespace BatchQueueTenant = "namespace"
+	TenantTypeMetadata  BatchQueueTenant = "metadata"
+	TenantTypeNamespace BatchQueueTenant = "namespace"
 )
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
