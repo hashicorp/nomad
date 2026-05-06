@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
 )
 
 type JobQueueCommand struct {
@@ -78,14 +79,14 @@ func (c *JobQueueCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	opts := &api.QueryOptions{}
+	qo := &api.QueryOptions{}
 
 	if limit > 0 {
-		opts.Params["limit"] = fmt.Sprintf("%d", limit)
+		qo.Params["limit"] = fmt.Sprintf("%d", limit)
 	}
 
 	// Submit the request
-	resp, _, err := client.Jobs().BatchQueueStatus(opts)
+	resp, _, err := client.Jobs().BatchQueueStatus(nil, qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -100,35 +101,13 @@ func (c *JobQueueCommand) printOutput(resp *api.BatchQueueStatusResponse) {
 		c.Ui.Error("Empty batch queue response")
 	}
 
-	headers := []string{"JobID", "Tenant", "Priority"}
+	out := make([]string, len(resp.Workloads)+2)
+	out[0] = "JobID|Tenant|Priority"
+	out[1] = "-----|------|--------"
 
-	// compute column widths
-	col0, col1, col2 := len(headers[0]), len(headers[1]), len(headers[2])
-	for _, r := range resp.Workloads {
-		col0 = max(col0, len(r.JobID))
-		col1 = max(col1, len(r.Tenant))
-		col2 = max(col2, len(fmt.Sprintf("%d", r.Priority)))
+	for i, v := range resp.Workloads {
+		out[i+2] = fmt.Sprintf("%s|%s|%d", v.JobID, v.Tenant, v.Priority)
 	}
 
-	headerFmt := fmt.Sprintf("%%-%ds | %%-%ds | %%-%ds\n", col0, col1, col2)
-	rowFmt := fmt.Sprintf("%%-%ds | %%-%ds | %%%dd\n", col0, col1, col2)
-
-	var output strings.Builder
-
-	// print header
-	fmt.Fprintf(&output, headerFmt, headers[0], headers[1], headers[2])
-
-	// print separator
-	fmt.Fprintf(&output, "%s-+-%s-+-%s\n",
-		strings.Repeat("-", col0),
-		strings.Repeat("-", col1),
-		strings.Repeat("-", col2),
-	)
-
-	// print rows
-	for _, w := range resp.Workloads {
-		fmt.Fprintf(&output, rowFmt, w.JobID, w.Tenant, w.Priority)
-	}
-
-	c.Ui.Output(output.String())
+	c.Ui.Output(columnize.Format(out, &columnize.Config{Glue: "   |   "}))
 }

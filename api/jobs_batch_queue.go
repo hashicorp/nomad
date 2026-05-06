@@ -13,8 +13,10 @@ type BatchQueueStatusResponse struct {
 	Workloads []Workload
 }
 
+type BatchQueueStatusOptions struct{}
+
 // BatchQueueStatus is used to query the current batch job queue.
-func (j *Jobs) BatchQueueStatus(q *QueryOptions) (*BatchQueueStatusResponse, *QueryMeta, error) {
+func (j *Jobs) BatchQueueStatus(opts *BatchQueueStatusOptions, q *QueryOptions) (*BatchQueueStatusResponse, *QueryMeta, error) {
 	var resp BatchQueueStatusResponse
 	qm, err := j.client.query("/v1/jobs/queue/status", &resp, q)
 	if err != nil {

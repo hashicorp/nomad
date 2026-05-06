@@ -33,9 +33,9 @@ func TestJobQueue_printOutput(t *testing.T) {
 	}
 	cmd.printOutput(testResp)
 
-	expect := "JobID | Tenant      | Priority\n" +
-		"------+-------------+---------\n" +
-		"123   | testTenant1 |        5\n\n"
+	expect := "JobID   |   Tenant        |   Priority\n" +
+		"-----   |   ------        |   --------\n" +
+		"123     |   testTenant1   |   5\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
