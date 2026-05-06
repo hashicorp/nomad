@@ -106,17 +106,9 @@ func (c *JobQueueCommand) printOutput(resp *api.BatchQueueStatusResponse) {
 	// compute column widths
 	col0, col1, col2 := len(headers[0]), len(headers[1]), len(headers[2])
 	for _, r := range resp.Workloads {
-		if len(r.JobID) > col0 {
-			col0 = len(r.JobID)
-		}
-		if len(r.Tenant) > col1 {
-			col1 = len(r.Tenant)
-		}
-		// convert int to string for width calculation
-		l := len(fmt.Sprintf("%d", r.Priority))
-		if l > col2 {
-			col2 = l
-		}
+		col0 = max(col0, len(r.JobID))
+		col1 = max(col1, len(r.Tenant))
+		col2 = max(col2, len(fmt.Sprintf("%d", r.Priority)))
 	}
 
 	headerFmt := fmt.Sprintf("%%-%ds | %%-%ds | %%-%ds\n", col0, col1, col2)
