@@ -9,7 +9,6 @@ import { htmlSafe } from '@ember/template';
 import Evented from '@ember/object/evented';
 import EmberObject, { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { assign } from '@ember/polyfills';
 import queryString from 'query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
@@ -20,7 +19,6 @@ import classic from 'ember-classic-decorator';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
-// eslint-disable-next-line
 export const fetchFailure = (url) => () =>
   console.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
@@ -37,7 +35,7 @@ class Log extends EmberObject.extend(Evented) {
 
   logFetch() {
     assert(
-      'Log objects need a logFetch method, which should have an interface like window.fetch'
+      'Log objects need a logFetch method, which should have an interface like window.fetch',
     );
   }
 
@@ -68,7 +66,11 @@ class Log extends EmberObject.extend(Evented) {
   init() {
     super.init();
 
-    const args = this.getProperties('url', 'params', 'logFetch');
+    const args = {
+      url: this.url,
+      params: this.params,
+      logFetch: this.logFetch,
+    };
     args.write = (chunk) => {
       let newTail = this.tail + chunk;
       if (newTail.length > MAX_OUTPUT_LENGTH) {
@@ -93,20 +95,20 @@ class Log extends EmberObject.extend(Evented) {
   @task(function* () {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(
+      Object.assign(
         {
           origin: 'start',
           offset: 0,
         },
-        this.params
-      )
+        this.params,
+      ),
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
     const response = yield logFetch(url).then(
       (res) => res.text(),
-      fetchFailure(url)
+      fetchFailure(url),
     );
     let text = this.plainText ? response : decode(response).message;
 
@@ -123,20 +125,20 @@ class Log extends EmberObject.extend(Evented) {
   @task(function* () {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(
+      Object.assign(
         {
           origin: 'end',
           offset: MAX_OUTPUT_LENGTH,
         },
-        this.params
-      )
+        this.params,
+      ),
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
     const response = yield logFetch(url).then(
       (res) => res.text(),
-      fetchFailure(url)
+      fetchFailure(url),
     );
     let text = this.plainText ? response : decode(response).message;
 

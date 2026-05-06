@@ -5,7 +5,7 @@
 
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import PromiseArray from 'nomad-ui/utils/classes/promise-array';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -31,7 +31,7 @@ export default class RecentAllocations extends Component {
   get sortedAllocations() {
     return PromiseArray.create({
       promise: this.get('job.allocations').then((allocations) =>
-        allocations.sortBy('modifyIndex').reverse().slice(0, 5)
+        allocations.sortBy('modifyIndex').reverse().slice(0, 5),
       ),
     });
   }

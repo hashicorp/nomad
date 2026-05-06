@@ -48,29 +48,27 @@ module('Unit | Model | task-group', function (hooks) {
             reservedDisk: 128,
           },
         ],
-      })
+      }),
     );
 
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedCPU'),
       sum(taskGroup.get('tasks'), 'reservedCPU'),
-      'reservedCPU is an aggregate sum of task CPU reservations'
+      'reservedCPU is an aggregate sum of task CPU reservations',
     );
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedMemory'),
       sum(taskGroup.get('tasks'), 'reservedMemory'),
-      'reservedMemory is an aggregate sum of task memory reservations'
+      'reservedMemory is an aggregate sum of task memory reservations',
     );
-    assert.equal(
+    assert.deepEqual(
       taskGroup.get('reservedDisk'),
       sum(taskGroup.get('tasks'), 'reservedDisk'),
-      'reservedDisk is an aggregate sum of task disk reservations'
+      'reservedDisk is an aggregate sum of task disk reservations',
     );
   });
 
   test("should expose mergedMeta as merged with the job's meta", function (assert) {
-    assert.expect(8);
-
     const store = this.owner.lookup('service:store');
 
     const jobWithMeta = run(() =>
@@ -94,7 +92,7 @@ module('Unit | Model | task-group', function (hooks) {
             meta: { raw: {} },
           },
         ],
-      })
+      }),
     );
 
     let expected = [{ a: 'b', c: 'd' }, { a: 'b' }, { a: 'b' }, { a: 'b' }];
@@ -102,7 +100,7 @@ module('Unit | Model | task-group', function (hooks) {
       assert.deepEqual(
         jobWithMeta.get('taskGroups').objectAt(i).get('mergedMeta'),
         exp,
-        'mergedMeta is merged with job meta'
+        'mergedMeta is merged with job meta',
       );
     });
 
@@ -126,7 +124,7 @@ module('Unit | Model | task-group', function (hooks) {
             meta: { raw: {} },
           },
         ],
-      })
+      }),
     );
 
     expected = [{ c: 'd' }, {}, {}, {}];
@@ -134,7 +132,7 @@ module('Unit | Model | task-group', function (hooks) {
       assert.deepEqual(
         jobWithoutMeta.get('taskGroups').objectAt(i).get('mergedMeta'),
         exp,
-        'mergedMeta is merged with job meta'
+        'mergedMeta is merged with job meta',
       );
     });
   });

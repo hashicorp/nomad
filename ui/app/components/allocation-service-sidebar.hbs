@@ -4,11 +4,8 @@
 ~}}
 
 <div
-  class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
-  {{on-click-outside
-    @fns.closeSidebar
-    capture=true
-  }}
+  class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen 'open'}}"
+  {{on-click-outside @fns.closeSidebar capture=true}}
 >
   {{#if @service}}
     {{keyboard-commands this.keyCommands}}
@@ -17,16 +14,27 @@
         {{@service.name}}
         {{#if (not-eq @service.provider "consul")}}
           <span class="aggregate-status">
-            {{#if (eq this.aggregateStatus 'Unhealthy')}}
-              <Hds::Icon @name="x-square-fill" @color="#c84034" @isInline={{true}} />
+            {{#if (eq this.aggregateStatus "Unhealthy")}}
+              <Hds::Icon
+                @name="x-square-fill"
+                @color="#c84034"
+                @isInline={{true}}
+              />
               Unhealthy
-            {{else if (eq this.aggregateStatus 'Unknown')}}
-            <Tooltip @text="The parent allocation for this service is not running" @isFullText={{true}}>
-              <Hds::Icon @name="help" @color="#999999" @isInline={{true}} />
-              Health Unknown
-            </Tooltip>
+            {{else if (eq this.aggregateStatus "Unknown")}}
+              <Tooltip
+                @text="The parent allocation for this service is not running"
+                @isFullText={{true}}
+              >
+                <Hds::Icon @name="help" @color="#999999" @isInline={{true}} />
+                Health Unknown
+              </Tooltip>
             {{else}}
-              <Hds::Icon @name="check-square-fill" @color="#25ba81" @isInline={{true}} />
+              <Hds::Icon
+                @name="check-square-fill"
+                @color="#25ba81"
+                @isInline={{true}}
+              />
               Healthy
             {{/if}}
           </span>
@@ -43,9 +51,7 @@
     </header>
 
     <div class="boxed-section is-small">
-      <div
-        class="boxed-section-body inline-definitions"
-      >
+      <div class="boxed-section-body inline-definitions">
         <span class="label">
           Service Details
         </span>
@@ -88,10 +94,7 @@
               Client
             </span>
             <Tooltip @text={{@allocation.node.name}}>
-              <LinkTo
-                @route="clients.client"
-                @model={{@allocation.node}}
-              >
+              <LinkTo @route="clients.client" @model={{@allocation.node.id}}>
                 {{@allocation.node.shortId}}
               </LinkTo>
             </Tooltip>
@@ -133,10 +136,18 @@
             <td class="status">
               <span>
                 {{#if (eq row.model.Status "success")}}
-                  <Hds::Icon @name="check-square-fill" @color="#25ba81" @isInline={{true}} />
+                  <Hds::Icon
+                    @name="check-square-fill"
+                    @color="#25ba81"
+                    @isInline={{true}}
+                  />
                   Healthy
                 {{else if (eq row.model.Status "failure")}}
-                  <Hds::Icon @name="x-square-fill" @color="#c84034" @isInline={{true}} />
+                  <Hds::Icon
+                    @name="x-square-fill"
+                    @color="#c84034"
+                    @isInline={{true}}
+                  />
                   Unhealthy
                 {{else if (eq row.model.Status "pending")}}
                   Pending
@@ -152,7 +163,13 @@
           <tr class="service-status-indicators">
             <td colspan="3">
               <div>
-                {{#each (dedupe-by-property (filter-by "Check" row.model.Check @service.healthChecks) prop="Timestamp") as |check|}}
+                {{#each
+                  (dedupe-by-property
+                    (filter-by "Check" row.model.Check @service.healthChecks)
+                    prop="Timestamp"
+                  )
+                  as |check|
+                }}
                   <ServiceStatusIndicator @check={{check}} />
                 {{/each}}
               </div>
@@ -162,35 +179,44 @@
       </ListTable>
     {{/if}}
     {{#if (eq @service.provider "consul")}}
-    <table class="table is-fixed connect-info">
-      <tbody>
-        {{#if @service.onUpdate}}
-          <tr>
-            <td><strong>On Update</strong></td>
-            <td>{{@service.onUpdate}}</td>
-          </tr>
-        {{/if}}
-        {{#if @service.connect.sidecarService.proxy.upstreams}}
-          <tr>
-            <td><strong>Upstreams</strong></td>
-            <td>
+      <table class="table is-fixed connect-info">
+        <tbody>
+          {{#if @service.onUpdate}}
+            <tr>
+              <td><strong>On Update</strong></td>
+              <td>{{@service.onUpdate}}</td>
+            </tr>
+          {{/if}}
+          {{#if @service.connect.sidecarService.proxy.upstreams}}
+            <tr>
+              <td><strong>Upstreams</strong></td>
+              <td>
                 {{#each
-                  @service.connect.sidecarService.proxy.upstreams as |upstream|
+                  @service.connect.sidecarService.proxy.upstreams
+                  as |upstream|
                 }}
-                  <span class="tag">{{upstream.destinationName}}:{{upstream.localBindPort}}</span>
+                  <span
+                    class="tag"
+                  >{{upstream.destinationName}}:{{upstream.localBindPort}}</span>
                 {{/each}}
-            </td>
-          </tr>
-        {{/if}}
-      </tbody>
-    </table>
+              </td>
+            </tr>
+          {{/if}}
+        </tbody>
+      </table>
     {{/if}}
     {{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
-    <div data-test-consul-link-notice class="notification is-info">
-      <p>
-        Nomad cannot read health check information from Consul services, but you can <a href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">view this information in your Consul UI</a>.
-      </p>
-    </div>
+      <div data-test-consul-link-notice class="notification is-info">
+        <p>
+          Nomad cannot read health check information from Consul services, but
+          you can
+          <a
+            href={{this.consulRedirectLink}}
+            target="_blank"
+            rel="noopener noreferrer"
+          >view this information in your Consul UI</a>.
+        </p>
+      </div>
     {{/if}}
   {{/if}}
 </div>

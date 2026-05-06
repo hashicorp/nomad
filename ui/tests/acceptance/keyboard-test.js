@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import {
@@ -27,7 +26,6 @@ module('Acceptance | keyboard', function (hooks) {
   module('modal', function () {
     test('Opening and closing shortcuts modal with key commands', async function (assert) {
       faker.seed(1);
-      assert.expect(4);
       await visit('/');
       assert.notOk(Layout.keyboard.modalShown);
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
@@ -66,10 +64,10 @@ module('Acceptance | keyboard', function (hooks) {
 
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'c' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/clients`,
-        'end up on the clients page after typing g c'
+        'end up on the clients page after typing g c',
       );
       assert.notOk(Layout.keyboard.modalShown);
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
@@ -83,10 +81,10 @@ module('Acceptance | keyboard', function (hooks) {
       assert.notOk(Layout.keyboard.modalShown);
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'j' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/clients`,
-        'typing g j did not bring you back to the jobs page, since shortcuts are disabled'
+        'typing g j did not bring you back to the jobs page, since shortcuts are disabled',
       );
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       await click('[data-test-enable-shortcuts-toggle]');
@@ -94,10 +92,10 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'j' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs`,
-        'typing g j brings me to the jobs page after re-enabling shortcuts'
+        'typing g j brings me to the jobs page after re-enabling shortcuts',
       );
     });
   });
@@ -112,10 +110,10 @@ module('Acceptance | keyboard', function (hooks) {
 
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'c' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/clients`,
-        'end up on the clients page after typing g c'
+        'end up on the clients page after typing g c',
       );
 
       await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
@@ -124,10 +122,10 @@ module('Acceptance | keyboard', function (hooks) {
 
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'j' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs`,
-        'end up on the clients page after typing g j'
+        'end up on the clients page after typing g j',
       );
 
       assert.notOk(Layout.keyboard.modalShown);
@@ -135,7 +133,7 @@ module('Acceptance | keyboard', function (hooks) {
       assert.ok(Layout.keyboard.modalShown);
 
       await click(
-        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
       );
 
       triggerEvent('.page-layout', 'keydown', { key: 'r' });
@@ -145,14 +143,14 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: 'Enter' });
       assert
         .dom(
-          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
         )
         .hasText('r o f l');
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs`,
-        'typing g c does not do anything, since I re-bound the shortcut'
+        'typing g c does not do anything, since I re-bound the shortcut',
       );
 
       triggerEvent('.page-layout', 'keydown', { key: 'r' });
@@ -160,14 +158,14 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: 'f' });
       await triggerEvent('.page-layout', 'keydown', { key: 'l' });
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/clients`,
-        'typing the newly bound shortcut brings me to clients'
+        'typing the newly bound shortcut brings me to clients',
       );
 
       await click(
-        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+        '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
       );
 
       triggerEvent('.page-layout', 'keydown', { key: 'n' });
@@ -177,11 +175,11 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       assert
         .dom(
-          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
         )
         .hasText(
           'r o f l',
-          'text unchanged when I hit escape during recording'
+          'text unchanged when I hit escape during recording',
         );
 
       // when holding shift, the previous "g c" command is now "r o f l"
@@ -195,11 +193,11 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
 
       await click(
-        '[data-test-command-label="Go to Clients"] button.reset-to-default'
+        '[data-test-command-label="Go to Clients"] button.reset-to-default',
       );
       assert
         .dom(
-          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
         )
         .hasText('g c', 'Resetting to default rebinds the shortcut');
 
@@ -217,26 +215,26 @@ module('Acceptance | keyboard', function (hooks) {
     test('Rebound shortcuts persist from localStorage', async function (assert) {
       window.localStorage.setItem(
         'keyboard.command.Go to Clients',
-        JSON.stringify(['b', 'o', 'o', 'p'])
+        JSON.stringify(['b', 'o', 'o', 'p']),
       );
       await visit('/');
 
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'c' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs`,
-        'After a refresh with a localStorage-found binding, a default key binding doesnt do anything'
+        'After a refresh with a localStorage-found binding, a default key binding doesnt do anything',
       );
 
       triggerEvent('.page-layout', 'keydown', { key: 'b' });
       triggerEvent('.page-layout', 'keydown', { key: 'o' });
       triggerEvent('.page-layout', 'keydown', { key: 'o' });
       await triggerEvent('.page-layout', 'keydown', { key: 'p' });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/clients`,
-        'end up on the clients page after typing the localstorage-bound shortcut'
+        'end up on the clients page after typing the localstorage-bound shortcut',
       );
 
       assert.notOk(Layout.keyboard.modalShown);
@@ -244,7 +242,7 @@ module('Acceptance | keyboard', function (hooks) {
       assert.ok(Layout.keyboard.modalShown);
       assert
         .dom(
-          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
+          '[data-test-command-label="Go to Clients"] button[data-test-rebinder]',
         )
         .hasText('b o o p');
     });
@@ -258,27 +256,27 @@ module('Acceptance | keyboard', function (hooks) {
 
       let keyboardService = this.owner.lookup('service:keyboard');
       let hints = keyboardService.keyCommands.filter((c) => c.element);
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
         hints.length,
-        'Shows correct number of hints by default'
+        'Shows correct number of hints by default',
       );
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
 
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
         0,
-        'Hints disappear when you release Shift'
+        'Hints disappear when you release Shift',
       );
 
       await triggerEvent('.page-layout', 'keydown', {
         key: 'Shift',
         metaKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
         0,
-        'Hints do not show up when holding down Command+Shift'
+        'Hints do not show up when holding down Command+Shift',
       );
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
       await triggerEvent('.page-layout', 'keyup', { key: 'Meta' });
@@ -287,57 +285,58 @@ module('Acceptance | keyboard', function (hooks) {
 
   module('Dynamic Nav', function (dynamicHooks) {
     dynamicHooks.beforeEach(async function () {
-      server.create('node-pool');
-      server.create('node');
+      this.server.create('node-pool');
+      this.server.create('node');
     });
     test('Dynamic Table Nav', async function (assert) {
-      assert.expect(4);
-      server.createList('job', 3, { createRecommendations: true });
+      this.server.createList('job', 3, { createRecommendations: true });
       await visit('/jobs');
 
       await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-shortcut="Shift+01"]').length,
         1,
-        'First job gets a shortcut hint'
+        'First job gets a shortcut hint',
       );
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-shortcut="Shift+02"]').length,
         1,
-        'Second job gets a shortcut hint'
+        'Second job gets a shortcut hint',
       );
-      assert.equal(
+      assert.deepEqual(
         document.querySelectorAll('[data-shortcut="Shift+03"]').length,
         1,
-        'Third job gets a shortcut hint'
+        'Third job gets a shortcut hint',
       );
 
       triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
       triggerEvent('.page-layout', 'keydown', { key: '0' });
       await triggerEvent('.page-layout', 'keydown', { key: '1' });
 
-      const clickedJob = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
-      assert.equal(
+      const clickedJob = this.server.db.jobs
+        .sortBy('modifyIndex')
+        .reverse()[0].id;
+      assert.deepEqual(
         currentURL(),
         `/jobs/${clickedJob}@default`,
-        'Shift+01 takes you to the first job'
+        'Shift+01 takes you to the first job',
       );
     });
     test('Multi-Table Nav', async function (assert) {
-      server.createList('job', 3, { createRecommendations: true });
+      this.server.createList('job', 3, { createRecommendations: true });
       await visit(
-        `/jobs/${server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`
+        `/jobs/${this.server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`,
       );
       const numberOfGroups = findAll('.task-group-row').length;
       const numberOfAllocs = findAll('.allocation-row').length;
 
       await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
       [...Array(numberOfGroups + numberOfAllocs)].forEach((_, iter) => {
-        assert.equal(
+        assert.deepEqual(
           document.querySelectorAll(`[data-shortcut="Shift+0${iter + 1}"]`)
             .length,
           1,
-          `Dynamic item #${iter + 1} gets a shortcut hint`
+          `Dynamic item #${iter + 1} gets a shortcut hint`,
         );
       });
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
@@ -345,10 +344,13 @@ module('Acceptance | keyboard', function (hooks) {
 
     test('Dynamic nav arrows and looping', async function (assert) {
       // Make sure user is a management token so Variables appears, etc.
-      let token = server.create('token', { type: 'management' });
+      let token = this.server.create('token', { type: 'management' });
       window.localStorage.nomadTokenSecret = token.secretId;
-      server.createList('job', 3, { createAllocations: true, type: 'system' });
-      const jobID = server.db.jobs[0].id;
+      this.server.createList('job', 3, {
+        createAllocations: true,
+        type: 'system',
+      });
+      const jobID = this.server.db.jobs[0].id;
       await visit(`/jobs/${jobID}@default`);
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -356,86 +358,86 @@ module('Acceptance | keyboard', function (hooks) {
       });
       assert.ok(
         currentURL().startsWith(`/jobs/${jobID}@default/definition`),
-        'Shift+ArrowRight takes you to the next tab (Definition)'
+        'Shift+ArrowRight takes you to the next tab (Definition)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/versions`,
-        'Shift+ArrowRight takes you to the next tab (Version)'
+        'Shift+ArrowRight takes you to the next tab (Version)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/deployments`,
-        'Shift+ArrowRight takes you to the next tab (Deployments)'
+        'Shift+ArrowRight takes you to the next tab (Deployments)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/allocations`,
-        'Shift+ArrowRight takes you to the next tab (Allocations)'
+        'Shift+ArrowRight takes you to the next tab (Allocations)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/evaluations`,
-        'Shift+ArrowRight takes you to the next tab (Evaluations)'
+        'Shift+ArrowRight takes you to the next tab (Evaluations)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/clients`,
-        'Shift+ArrowRight takes you to the next tab (Clients)'
+        'Shift+ArrowRight takes you to the next tab (Clients)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/services`,
-        'Shift+ArrowRight takes you to the next tab (Services)'
+        'Shift+ArrowRight takes you to the next tab (Services)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default/variables`,
-        'Shift+ArrowRight takes you to the next tab (Variables)'
+        'Shift+ArrowRight takes you to the next tab (Variables)',
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `/jobs/${jobID}@default`,
-        'Shift+ArrowRight takes you to the first tab in the loop'
+        'Shift+ArrowRight takes you to the first tab in the loop',
       );
       window.localStorage.nomadTokenSecret = null; // Reset Token
     });
 
     test('Region switching', async function (assert) {
       ['Detroit', 'Halifax', 'Phoenix', 'Toronto', 'Windsor'].forEach((id) => {
-        server.create('region', { id });
+        this.server.create('region', { id });
       });
 
       await visit('/jobs');
@@ -457,7 +459,7 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: '2' });
       assert.ok(
         currentURL().includes('region=Halifax'),
-        'r 2 command takes you to the second region'
+        'r 2 command takes you to the second region',
       );
 
       // Triggers a region switch to Phoenix
@@ -465,7 +467,7 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerEvent('.page-layout', 'keydown', { key: '3' });
       assert.ok(
         currentURL().includes('region=Phoenix'),
-        'r 3 command takes you to the third region'
+        'r 3 command takes you to the third region',
       );
     });
   });

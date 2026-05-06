@@ -6,14 +6,13 @@
 import Controller from '@ember/controller';
 import { set, action } from '@ember/object';
 import { task } from 'ember-concurrency';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 export default class VariablesVariableIndexController extends Controller {
-  queryParams = ['view'];
-
   @service router;
-  queryParams = ['sortProperty', 'sortDescending'];
+
+  queryParams = ['view', 'sortProperty', 'sortDescending'];
 
   @tracked sortProperty = 'key';
   @tracked sortDescending = true;
@@ -73,6 +72,7 @@ export default class VariablesVariableIndexController extends Controller {
   @tracked
   view = 'table';
 
+  @action
   toggleView() {
     if (this.view === 'table') {
       this.view = 'json';
@@ -91,6 +91,7 @@ export default class VariablesVariableIndexController extends Controller {
     );
   }
 
+  @action
   toggleRowVisibility(kv) {
     set(kv, 'isVisible', !kv.isVisible);
   }

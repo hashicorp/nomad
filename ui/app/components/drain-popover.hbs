@@ -18,8 +18,9 @@
 >
   <form
     data-test-drain-popover-form
-    onsubmit={{action
-      (queue (action this.preventDefault) (perform this.drain m.actions.close))
+    {{on
+      "submit"
+      (queue this.preventDefault (perform this.drain m.actions.close))
     }}
     class="form is-small"
   >
@@ -29,7 +30,7 @@
         <Toggle
           data-test-drain-deadline-toggle
           @isActive={{this.deadlineEnabled}}
-          @onToggle={{action (mut this.deadlineEnabled) value="target.checked"}}
+          @onToggle={{pick "target.checked" (fn (mut this.deadlineEnabled))}}
         >
           Deadline
         </Toggle>
@@ -53,7 +54,7 @@
           @tagName="div"
           @options={{this.durationQuickOptions}}
           @selected={{this.selectedDurationQuickOption}}
-          @onChange={{action (mut this.selectedDurationQuickOption)}}
+          @onChange={{fn (mut this.selectedDurationQuickOption)}}
           as |opt|
         >
           {{opt.label}}
@@ -68,11 +69,9 @@
             class="input {{if this.parseError 'is-danger'}}"
             placeholder="1h30m"
             value={{if (eq this.customDuration 0) "" this.customDuration}}
-            oninput={{action
-              (queue
-                (action (mut this.parseError) "")
-                (action (mut this.customDuration) value="target.value")
-              )
+            oninput={{queue
+              (fn (mut this.parseError) "")
+              (pick "target.value" (fn (mut this.customDuration)))
             }}
           />
           {{#if this.parseError}}
@@ -86,7 +85,7 @@
         <Toggle
           data-test-force-drain-toggle
           @isActive={{this.forceDrain}}
-          @onToggle={{action (mut this.forceDrain) value="target.checked"}}
+          @onToggle={{pick "target.checked" (fn (mut this.forceDrain))}}
         >
           Force Drain
         </Toggle>
@@ -103,7 +102,7 @@
         <Toggle
           data-test-system-jobs-toggle
           @isActive={{this.drainSystemJobs}}
-          @onToggle={{action (mut this.drainSystemJobs) value="target.checked"}}
+          @onToggle={{pick "target.checked" (fn (mut this.drainSystemJobs))}}
         >
           Drain System Jobs
         </Toggle>
@@ -120,7 +119,7 @@
         data-test-drain-submit
         type="button"
         class="popover-action is-primary"
-        onclick={{perform this.drain m.actions.close}}
+        {{on "click" (perform this.drain m.actions.close)}}
       >
         Drain
       </button>
@@ -128,7 +127,7 @@
         data-test-drain-cancel
         type="button"
         class="popover-action"
-        onclick={{action m.actions.close}}
+        {{on "click" m.actions.close}}
       >Cancel</button>
     </div>
   </form>

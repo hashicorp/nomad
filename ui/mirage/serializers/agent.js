@@ -10,6 +10,9 @@ export default ApplicationSerializer.extend({
     if (str === 'config' || str === 'member') {
       return str;
     }
-    return ApplicationSerializer.prototype.keyForAttribute.apply(this, arguments);
+    return ApplicationSerializer.prototype.keyForAttribute.apply(
+      this,
+      arguments,
+    );
   },
 });

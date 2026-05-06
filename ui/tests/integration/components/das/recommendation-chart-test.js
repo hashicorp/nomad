@@ -13,8 +13,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders a chart for a recommended CPU increase', async function (assert) {
-    assert.expect(5);
-
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -22,11 +20,11 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
-          />`
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
+          />`,
     );
 
     assert.dom('.recommendation-chart.increase').exists();
@@ -37,8 +35,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   });
 
   test('it renders a chart for a recommended memory decrease', async function (assert) {
-    assert.expect(5);
-
     this.set('resource', 'MemoryMB');
     this.set('current', 1919);
     this.set('recommended', 1312);
@@ -46,11 +42,11 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
-          />`
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
+          />`,
     );
 
     assert.dom('.recommendation-chart.decrease').exists();
@@ -70,11 +66,11 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
-          />`
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
+          />`,
     );
 
     const chartSvg = this.element.querySelector('.recommendation-chart svg');
@@ -84,8 +80,6 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
   });
 
   test('it can be disabled and will show no delta', async function (assert) {
-    assert.expect(6);
-
     this.set('resource', 'CPU');
     this.set('current', 1312);
     this.set('recommended', 1919);
@@ -93,12 +87,12 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
             @disabled={{true}}
-          />`
+          />`,
     );
 
     assert.dom('.recommendation-chart.disabled');
@@ -123,11 +117,11 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
-          />`
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
+          />`,
     );
 
     assert.dom('[data-test-label=max]').hasClass('right');
@@ -166,11 +160,11 @@ module('Integration | Component | das/recommendation-chart', function (hooks) {
 
     await render(
       hbs`<Das::RecommendationChart
-            @resource={{resource}}
-            @currentValue={{current}}
-            @recommendedValue={{recommended}}
-            @stats={{stats}}
-          />`
+            @resource={{this.resource}}
+            @currentValue={{this.current}}
+            @recommendedValue={{this.recommended}}
+            @stats={{this.stats}}
+          />`,
     );
 
     assert.dom('.chart-tooltip').isNotVisible();

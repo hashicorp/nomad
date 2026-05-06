@@ -3,29 +3,30 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginAllocations from 'nomad-ui/tests/pages/storage/plugins/plugin/allocations';
 
 module('Acceptance | plugin allocations', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   let plugin;
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
     window.localStorage.clear();
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    plugin = server.create('csi-plugin', {
+    plugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
       controllersExpected: 3,
@@ -37,7 +38,7 @@ module('Acceptance | plugin allocations', function (hooks) {
   });
 
   test('/storage/plugins/:id/allocations shows all allocations in a single table', async function (assert) {
-    plugin = server.create('csi-plugin', {
+    plugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
       controllersExpected: 3,
@@ -45,7 +46,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     });
 
     await PluginAllocations.visit({ id: plugin.id });
-    assert.equal(PluginAllocations.allocations.length, 6);
+    assert.deepEqual(PluginAllocations.allocations.length, 6);
   });
 
   pageSizeSelect({
@@ -54,7 +55,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     pageObjectList: PluginAllocations.allocations,
     async setup() {
       const total = PluginAllocations.pageSize;
-      plugin = server.create('csi-plugin', {
+      plugin = this.server.create('csi-plugin', {
         shallow: true,
         controllerRequired: true,
         controllersExpected: Math.floor(total / 2),
@@ -69,7 +70,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     facet: PluginAllocations.facets.health,
     paramName: 'healthy',
     async beforeEach() {
-      plugin = server.create('csi-plugin', {
+      plugin = this.server.create('csi-plugin', {
         shallow: true,
         controllerRequired: true,
         controllersExpected: 3,
@@ -86,7 +87,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     facet: PluginAllocations.facets.type,
     paramName: 'type',
     async beforeEach() {
-      plugin = server.create('csi-plugin', {
+      plugin = this.server.create('csi-plugin', {
         shallow: true,
         controllerRequired: true,
         controllersExpected: 3,
@@ -107,7 +108,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     test(`the ${label} facet filters the allocations list by ${label}`, async function (assert) {
       let option;
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
 
       option = facet.options.objectAt(0);
@@ -123,14 +124,14 @@ module('Acceptance | plugin allocations', function (hooks) {
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
-        assert.equal(allocation.id, expectedAllocations[index].allocID);
+        assert.deepEqual(allocation.id, expectedAllocations[index].allocID);
       });
     });
 
     test(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
       const selection = [];
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
 
       const option1 = facet.options.objectAt(0);
@@ -149,14 +150,14 @@ module('Acceptance | plugin allocations', function (hooks) {
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
-        assert.equal(allocation.id, expectedAllocations[index].allocID);
+        assert.deepEqual(allocation.id, expectedAllocations[index].allocID);
       });
     });
 
     test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
       const selection = [];
 
-      await beforeEach();
+      await beforeEach.call(this);
       await facet.toggle();
 
       const option1 = facet.options.objectAt(0);
@@ -167,12 +168,12 @@ module('Acceptance | plugin allocations', function (hooks) {
       selection.push(option2.key);
 
       const queryString = `${paramName}=${window.encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`;
 
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
-        `/storage/plugins/${plugin.id}/allocations?${queryString}`
+        `/storage/plugins/${plugin.id}/allocations?${queryString}`,
       );
     });
   }

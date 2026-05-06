@@ -107,14 +107,13 @@ module('Unit | Serializer | NodePool', function (hooks) {
       },
     ];
 
-    assert.expect(testCases.length);
     for (const tc of testCases) {
       const nodePool = this.store.createRecord('node-pool', tc.input);
       const got = this.subject().serialize(nodePool._createSnapshot());
       assert.deepEqual(
         got,
         tc.expected,
-        `${tc.name} failed, got ${JSON.stringify(got)}`
+        `${tc.name} failed, got ${JSON.stringify(got)}`,
       );
     }
   });

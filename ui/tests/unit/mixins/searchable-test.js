@@ -53,7 +53,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
         { id: '1', name: 'hello' },
         { id: '2', name: 'world' },
       ],
-      'hello and world matched for regex'
+      'hello and world matched for regex',
     );
   });
 
@@ -75,7 +75,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
           continent: 'North America',
         },
       ],
-      'Only USA matched, since continent is not a search prop'
+      'Only USA matched, since continent is not a search prop',
     );
   });
 
@@ -91,7 +91,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [],
-      'Nothing is matched since America is spelled incorrectly'
+      'Nothing is matched since America is spelled incorrectly',
     );
   });
 
@@ -114,7 +114,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
           continent: 'North America',
         },
       ],
-      'America is matched due to fuzzy matching'
+      'America is matched due to fuzzy matching',
     );
   });
 
@@ -145,7 +145,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
       subject
         .get('listSearched')
         .map((object) =>
-          object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')
+          object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches'),
         ),
       [
         {
@@ -167,7 +167,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
           ],
         },
       ],
-      'America is matched due to fuzzy matching'
+      'America is matched due to fuzzy matching',
     );
   });
 
@@ -185,7 +185,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [{ id: '3', name: 'Mexico', continent: 'North America' }],
-      'Mexico is matched exactly'
+      'Mexico is matched exactly',
     );
 
     subject.set('exactMatchEnabled', false);
@@ -193,7 +193,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [],
-      'Nothing is matched now that exactMatch is disabled'
+      'Nothing is matched now that exactMatch is disabled',
     );
   });
 
@@ -212,7 +212,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
         { id: '2', name: 'Canada', continent: 'North America' },
         { id: '3', name: 'Mexico', continent: 'North America' },
       ],
-      'Canada and Mexico meet the regex criteria'
+      'Canada and Mexico meet the regex criteria',
     );
 
     subject.set('regexEnabled', false);
@@ -220,7 +220,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [],
-      'Nothing is matched now that regex is disabled'
+      'Nothing is matched now that regex is disabled',
     );
   });
 
@@ -241,7 +241,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [],
-      'Not an exact match on continent, not a matchAllTokens match on fuzzy, not a regex match on id'
+      'Not an exact match on continent, not a matchAllTokens match on fuzzy, not a regex match on id',
     );
 
     subject.set('searchTerm', 'America States');
@@ -254,14 +254,14 @@ module('Unit | Mixin | Searchable', function (hooks) {
           continent: 'North America',
         },
       ],
-      'Fuzzy match on one country, but not an exact match on continent'
+      'Fuzzy match on one country, but not an exact match on continent',
     );
 
     subject.set('searchTerm', '^(.a){3}$');
     assert.deepEqual(
       subject.get('listSearched'),
       [],
-      'Canada is not matched by the regex because only id is looked at for regex search'
+      'Canada is not matched by the regex because only id is looked at for regex search',
     );
   });
 
@@ -270,13 +270,13 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.strictEqual(
       subject.get('currentPage'),
       undefined,
-      'No currentPage value set'
+      'No currentPage value set',
     );
     subject.resetPagination();
     assert.strictEqual(
       subject.get('currentPage'),
       undefined,
-      'Still no currentPage value set'
+      'Still no currentPage value set',
     );
   });
 });
@@ -298,7 +298,7 @@ module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
 
       this.owner.register(
         'test-container:searchable-paginated-object',
-        SearchablePaginatedObject
+        SearchablePaginatedObject,
       );
       return this.owner.lookup('test-container:searchable-paginated-object');
     };
@@ -307,12 +307,16 @@ module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
   test('the resetPagination method sets the currentPage to 1', function (assert) {
     const subject = this.subject();
     subject.set('currentPage', 5);
-    assert.equal(
+    assert.deepEqual(
       subject.get('currentPage'),
       5,
-      'Current page is something other than 1'
+      'Current page is something other than 1',
     );
     subject.resetPagination();
-    assert.equal(subject.get('currentPage'), 1, 'Current page gets reset to 1');
+    assert.deepEqual(
+      subject.get('currentPage'),
+      1,
+      'Current page gets reset to 1',
+    );
   });
 });

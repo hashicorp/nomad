@@ -9,5 +9,5 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class PromiseArray extends ArrayProxy.extend(
-  PromiseProxyMixin
+  PromiseProxyMixin,
 ) {}

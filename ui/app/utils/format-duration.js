@@ -48,7 +48,7 @@ const pluralizeUnits = (amount, unit, longForm) => {
   let suffix;
 
   if (longForm && unit.longSuffix) {
-    // Long form means always using full words (seconds insteand of s) which means
+    // Long form means always using full words (seconds instead of s) which means
     // pluralization is necessary.
     suffix = amount === 1 ? unit.longSuffix : pluralize(unit.longSuffix);
   } else {
@@ -74,9 +74,15 @@ const pluralizeUnits = (amount, unit, longForm) => {
 export default function formatDuration(
   duration = 0,
   units = 'ns',
-  longForm = false
+  longForm = false,
 ) {
   const durationParts = {};
+
+  // Preserve existing display semantics for very large values by following
+  // JavaScript Number coercion behavior, while still accepting BigInt input.
+  if (typeof duration === 'bigint') {
+    duration = Number(duration);
+  }
 
   // Moment only handles up to millisecond precision.
   // Microseconds and nanoseconds need to be handled first,

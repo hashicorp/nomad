@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { helper } from '@ember/component/helper';
 
 const KEY_ALIAS_MAP = {

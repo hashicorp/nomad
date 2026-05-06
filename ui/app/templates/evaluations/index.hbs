@@ -4,50 +4,50 @@
 ~}}
 
 {{page-title "Evaluations"}}
-{{did-update this.notifyEvalChange this.currentEval}}
+{{did-update-helper this.notifyEvalChange this.currentEval}}
 <section class="section">
-    <div class="toolbar">
-      <div class="toolbar-item">
-        <SearchBox
-          data-test-evaluations-search
-          @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this._resetTokens}}
-          @placeholder="Search evaluations..."
+  <div class="toolbar">
+    <div class="toolbar-item">
+      <SearchBox
+        data-test-evaluations-search
+        @searchTerm={{mut this.searchTerm}}
+        @onChange={{this._resetTokens}}
+        @placeholder="Search evaluations..."
+      />
+    </div>
+    <div class="toolbar-item is-right-aligned">
+      <div class="button-bar">
+        <SingleSelectDropdown
+          data-test-evaluation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespaces}}
+          @selection={{this.qpNamespace}}
+          @onSelect={{fn this.setQueryParam "qpNamespace"}}
+        />
+        <SingleSelectDropdown
+          data-test-evaluation-status-facet
+          @label="Status"
+          @options={{this.optionsEvaluationsStatus}}
+          @selection={{this.status}}
+          @onSelect={{fn this.setQueryParam "status"}}
+        />
+        <SingleSelectDropdown
+          data-test-evaluation-triggered-by-facet
+          @label="Triggered By"
+          @options={{this.optionsTriggeredBy}}
+          @selection={{this.triggeredBy}}
+          @onSelect={{fn this.setQueryParam "triggeredBy"}}
+        />
+        <SingleSelectDropdown
+          data-test-evaluation-type-facet
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.type}}
+          @onSelect={{fn this.setQueryParam "type"}}
         />
       </div>
-      <div class="toolbar-item is-right-aligned">
-        <div class="button-bar">
-          <SingleSelectDropdown
-            data-test-evaluation-namespace-facet
-            @label="Namespace"
-            @options={{this.optionsNamespaces}}
-            @selection={{this.qpNamespace}}
-            @onSelect={{action this.setQueryParam "qpNamespace"}}
-          />
-          <SingleSelectDropdown
-            data-test-evaluation-status-facet
-            @label="Status"
-            @options={{this.optionsEvaluationsStatus}}
-            @selection={{this.status}}
-            @onSelect={{action this.setQueryParam "status"}}
-          />
-          <SingleSelectDropdown
-            data-test-evaluation-triggered-by-facet
-            @label="Triggered By"
-            @options={{this.optionsTriggeredBy}}
-            @selection={{this.triggeredBy}}
-            @onSelect={{action this.setQueryParam "triggeredBy"}}
-          />
-          <SingleSelectDropdown
-            data-test-evaluation-type-facet
-            @label="Type"
-            @options={{this.optionsType}}
-            @selection={{this.type}}
-            @onSelect={{action this.setQueryParam "type"}}
-          />
-        </div>
-      </div>
     </div>
+  </div>
   <div class="table-container">
     {{#if @model.length}}
       <ListTable data-test-eval-table @source={{@model}} as |t|>
@@ -78,16 +78,17 @@
           <tr
             data-test-evaluation="{{row.model.shortId}}"
             style="cursor: pointer;"
-            class="{{if (eq this.currentEval row.model.id) "is-active"}}"
+            class="{{if (eq this.currentEval row.model.id) 'is-active'}}"
             tabindex="0"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
             {{on "keyup" (fn this.handleEvaluationClick row.model)}}
           >
-            <td data-test-id
-                {{keyboard-shortcut
-                  enumerated=true
-                  action=(fn this.handleEvaluationClick row.model "keynav")
-                }}
+            <td
+              data-test-id
+              {{keyboard-shortcut
+                enumerated=true
+                action=(fn this.handleEvaluationClick row.model "keynav")
+              }}
             >
               {{row.model.shortId}}
             </td>

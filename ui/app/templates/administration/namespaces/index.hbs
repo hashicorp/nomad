@@ -6,7 +6,8 @@
 <section class="section">
   <header class="acl-explainer">
     <p>
-      Namespaces allow jobs and associated objects to be segmented from each other and other users of the cluster.
+      Namespaces allow jobs and associated objects to be segmented from each
+      other and other users of the cluster.
     </p>
     <div>
       {{#if (can "write namespace")}}
@@ -16,7 +17,7 @@
           @route="administration.namespaces.new"
           {{keyboard-shortcut
             pattern=(array "n" "n")
-            action=(action this.goToNewNamespace)
+            action=this.goToNewNamespace
             label="Create Namespace"
           }}
           data-test-create-namespace
@@ -32,24 +33,30 @@
     </div>
   </header>
 
-<Hds::Table @caption="A list of namespaces for this cluster" class="acl-table"
+  <Hds::Table
+    @caption="A list of namespaces for this cluster"
+    class="acl-table"
     @model={{this.model.namespaces}}
     @columns={{this.columns}}
     @sortBy="name"
->
+  >
     <:body as |B|>
-    <B.Tr
+      <B.Tr
         {{keyboard-shortcut
-        enumerated=true
-        action=(action "openNamespace" B.data)
+          enumerated=true
+          action=(fn this.openNamespace B.data)
         }}
         data-test-namespace-row
-    >
+      >
         <B.Td>
-          <LinkTo data-test-namespace-name={{B.data.name}} @route="administration.namespaces.acl-namespace" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+          <LinkTo
+            data-test-namespace-name={{B.data.name}}
+            @route="administration.namespaces.acl-namespace"
+            @model={{B.data.name}}
+          >{{B.data.name}}</LinkTo>
         </B.Td>
         <B.Td>{{B.data.description}}</B.Td>
-    </B.Tr>
+      </B.Tr>
     </:body>
-</Hds::Table>
+  </Hds::Table>
 </section>

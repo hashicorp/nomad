@@ -27,20 +27,20 @@ module('Unit | Serializer | Node', function (hooks) {
     const payload = this.subject().normalizeFindAllResponse(
       this.store,
       NodeModel,
-      findAllResponse
+      findAllResponse,
     );
     pushPayloadToStore(this.store, payload, NodeModel.modelName);
 
-    assert.equal(
+    assert.deepEqual(
       payload.data.length,
       findAllResponse.length,
-      'Each original record is returned in the response'
+      'Each original record is returned in the response',
     );
 
-    assert.equal(
+    assert.deepEqual(
       this.store.peekAll('node').filterBy('id').get('length'),
       findAllResponse.length,
-      'Each original record is now in the store'
+      'Each original record is now in the store',
     );
 
     const newFindAllResponse = [
@@ -54,27 +54,27 @@ module('Unit | Serializer | Node', function (hooks) {
       newPayload = this.subject().normalizeFindAllResponse(
         this.store,
         NodeModel,
-        newFindAllResponse
+        newFindAllResponse,
       );
     });
     pushPayloadToStore(this.store, newPayload, NodeModel.modelName);
 
     await settled();
-    assert.equal(
+    assert.deepEqual(
       newPayload.data.length,
       newFindAllResponse.length,
-      'Each new record is returned in the response'
+      'Each new record is returned in the response',
     );
 
-    assert.equal(
+    assert.deepEqual(
       this.store.peekAll('node').filterBy('id').get('length'),
       newFindAllResponse.length,
-      'The node length in the store reflects the new response'
+      'The node length in the store reflects the new response',
     );
 
     assert.notOk(
       this.store.peekAll('node').findBy('id', '1'),
-      'Record One is no longer found'
+      'Record One is no longer found',
     );
   });
 
@@ -216,7 +216,7 @@ module('Unit | Serializer | Node', function (hooks) {
     test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(
         this.subject().normalize(NodeModel, testCase.in),
-        testCase.out
+        testCase.out,
       );
     });
   });

@@ -24,7 +24,7 @@ export default class FlexMasonry extends Component {
       if (!this.element) return;
 
       const items = this.element.querySelectorAll(
-        ':scope > .flex-masonry-item'
+        ':scope > .flex-masonry-item',
       );
 
       // Clear out specified order and flex-basis values in case this was once a multi-column layout
@@ -71,7 +71,7 @@ export default class FlexMasonry extends Component {
       columns.forEach((column, index) => {
         const nextHeight =
           index < columns.length - 1 ? columns[index + 1].height : 0;
-        const item = column.elements.lastObject;
+        const item = column.elements[column.elements.length - 1];
         if (item) {
           item.style.flexBasis =
             item.clientHeight + Math.max(0, nextHeight - column.height) + 'px';

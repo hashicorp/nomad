@@ -4,8 +4,7 @@
  */
 
 /* eslint-disable ember/no-test-module-for */
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
+
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -13,11 +12,11 @@ import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobDispatch from 'nomad-ui/tests/pages/jobs/dispatch';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 
 const REQUIRED_INDICATOR = '*';
 
-moduleForJobDispatch('Acceptance | job dispatch', () => {
+moduleForJobDispatch('Acceptance | job dispatch', (server) => {
   server.createList('namespace', 2);
   const namespace = server.db.namespaces[0];
 
@@ -27,7 +26,7 @@ moduleForJobDispatch('Acceptance | job dispatch', () => {
   });
 });
 
-moduleForJobDispatch('Acceptance | job dispatch (with namespace)', () => {
+moduleForJobDispatch('Acceptance | job dispatch (with namespace)', (server) => {
   server.createList('namespace', 2);
   const namespace = server.db.namespaces[1];
 
@@ -47,14 +46,14 @@ function moduleForJobDispatch(title, jobFactory) {
 
     hooks.beforeEach(function () {
       // Required for placing allocations (a result of dispatching jobs)
-      server.create('node-pool');
-      server.create('node');
+      this.server.create('node-pool');
+      this.server.create('node');
 
-      job = jobFactory();
-      namespace = server.db.namespaces.find(job.namespaceId);
+      job = jobFactory(this.server);
+      namespace = this.server.db.namespaces.find(job.namespaceId);
 
-      managementToken = server.create('token');
-      clientToken = server.create('token');
+      managementToken = this.server.create('token');
+      clientToken = this.server.create('token');
 
       window.localStorage.nomadTokenSecret = managementToken.secretId;
     });
@@ -72,7 +71,7 @@ function moduleForJobDispatch(title, jobFactory) {
     test('the dispatch button is displayed when allowed', async function (assert) {
       window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'dispatch',
         name: 'dispatch',
         rulesJSON: {
@@ -105,10 +104,10 @@ function moduleForJobDispatch(title, jobFactory) {
 
     test('all meta fields are displayed', async function (assert) {
       await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
-      assert.equal(
+      assert.deepEqual(
         JobDispatch.metaFields.length,
         job.parameterizedJob.MetaOptional.length +
-          job.parameterizedJob.MetaRequired.length
+          job.parameterizedJob.MetaRequired.length,
       );
     });
 
@@ -118,7 +117,7 @@ function moduleForJobDispatch(title, jobFactory) {
       JobDispatch.metaFields.forEach((f) => {
         const hasIndicator = f.label.includes(REQUIRED_INDICATOR);
         const isRequired = job.parameterizedJob.MetaRequired.includes(
-          f.field.id
+          f.field.id,
         );
 
         if (isRequired) {
@@ -126,14 +125,14 @@ function moduleForJobDispatch(title, jobFactory) {
         } else {
           assert.notOk(
             hasIndicator,
-            `${f.label} doesn't contain required indicator.`
+            `${f.label} doesn't contain required indicator.`,
           );
         }
       });
     });
 
     test('job without meta fields', async function (assert) {
-      const jobWithoutMeta = server.create('job', 'parameterized', {
+      const jobWithoutMeta = this.server.create('job', 'parameterized', {
         status: 'running',
         namespaceId: namespace.name,
         parameterizedJob: {
@@ -157,14 +156,14 @@ function moduleForJobDispatch(title, jobFactory) {
     });
 
     test('payload is indicated as required', async function (assert) {
-      const jobPayloadRequired = server.create('job', 'parameterized', {
+      const jobPayloadRequired = this.server.create('job', 'parameterized', {
         status: 'running',
         namespaceId: namespace.name,
         parameterizedJob: {
           Payload: 'required',
         },
       });
-      const jobPayloadOptional = server.create('job', 'parameterized', {
+      const jobPayloadOptional = this.server.create('job', 'parameterized', {
         status: 'running',
         namespaceId: namespace.name,
         parameterizedJob: {
@@ -179,7 +178,7 @@ function moduleForJobDispatch(title, jobFactory) {
       let payloadTitle = JobDispatch.payload.title;
       assert.ok(
         payloadTitle.includes(REQUIRED_INDICATOR),
-        `${payloadTitle} contains required indicator.`
+        `${payloadTitle} contains required indicator.`,
       );
 
       await JobDispatch.visit({
@@ -189,15 +188,14 @@ function moduleForJobDispatch(title, jobFactory) {
       payloadTitle = JobDispatch.payload.title;
       assert.notOk(
         payloadTitle.includes(REQUIRED_INDICATOR),
-        `${payloadTitle} doesn't contain required indicator.`
+        `${payloadTitle} doesn't contain required indicator.`,
       );
     });
 
     test('dispatch a job', async function (assert) {
       function countDispatchChildren() {
-        return server.db.jobs.where((j) =>
-          j.id.startsWith(`${job.id}/`)
-        ).length;
+        return this.server.db.jobs.where((j) => j.id.startsWith(`${job.id}/`))
+          .length;
       }
 
       await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
@@ -206,14 +204,16 @@ function moduleForJobDispatch(title, jobFactory) {
       JobDispatch.metaFields.map((f) => f.field.input('meta value'));
       JobDispatch.payload.editor.fillIn('payload');
 
-      const childrenCountBefore = countDispatchChildren();
+      const childrenCountBefore = countDispatchChildren.call(this);
       await JobDispatch.dispatchButton.click();
-      const childrenCountAfter = countDispatchChildren();
+      const childrenCountAfter = countDispatchChildren.call(this);
+      const dispatchedJobPath = `/jobs/${encodeURIComponent(`${job.id}/`)}`;
 
-      assert.equal(childrenCountAfter, childrenCountBefore + 1);
-      assert.ok(
-        currentURL().startsWith(`/jobs/${encodeURIComponent(`${job.id}/`)}`)
-      );
+      assert.deepEqual(childrenCountAfter, childrenCountBefore + 1);
+      await waitUntil(() => currentURL().startsWith(dispatchedJobPath));
+      assert.ok(currentURL().startsWith(dispatchedJobPath));
+      await waitUntil(() => !currentURL().includes('/dispatch'));
+      await waitFor('[data-test-job-name]');
       assert.ok(JobDetail.jobName);
     });
 

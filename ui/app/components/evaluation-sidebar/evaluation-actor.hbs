@@ -6,7 +6,7 @@
 <Providers::ActorsRelationships as |actors|>
   <div
     class="related-evaluation
-      {{if (eq @eval.id @activeEvaluationID) "is-active"}}"
+      {{if (eq @eval.id @activeEvaluationID) 'is-active'}}"
     data-eval={{@eval.id}}
     ...attributes
     {{did-insert (fn actors.fns.registerActor @eval)}}

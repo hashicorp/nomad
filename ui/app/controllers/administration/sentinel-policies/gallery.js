@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import TEMPLATES from 'nomad-ui/utils/default-sentinel-policy-templates';

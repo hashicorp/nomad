@@ -8,24 +8,30 @@
     <jobPage.ui.Error />
     <jobPage.ui.Title @title={{@job.trimmedName}} />
     <jobPage.ui.StatsBox>
-      <:before-namespace>
+      <:beforeNamespace>
         <span class="pair" data-test-job-stat="parent">
           <span class="term">
             Parent
           </span>
-          <LinkTo
-            @route="jobs.job"
-            @model={{@job.parent}}
-          >
+          <LinkTo @route="jobs.job" @model={{@job.parent}}>
             {{@job.parent.name}}
           </LinkTo>
         </span>
-      </:before-namespace>
+      </:beforeNamespace>
     </jobPage.ui.StatsBox>
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
-    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
-    <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />
+    <jobPage.ui.StatusPanel
+      @statusMode={{@statusMode}}
+      @setStatusMode={{@setStatusMode}}
+    />
+    <jobPage.ui.TaskGroups
+      @sortProperty={{@sortProperty}}
+      @sortDescending={{@sortDescending}}
+    />
+    <jobPage.ui.RecentAllocations
+      @activeTask={{@activeTask}}
+      @setActiveTaskQueryParam={{@setActiveTaskQueryParam}}
+    />
     <div class="boxed-section">
       {{#if @job.meta}}
         <jobPage.ui.Meta />

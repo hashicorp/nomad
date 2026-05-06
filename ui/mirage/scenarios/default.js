@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
 import * as sysbatchScenarios from './sysbatch';
@@ -42,8 +41,8 @@ export default function (server) {
   if (!activeScenario) {
     throw new Error(
       `Selected Mirage scenario does not exist.\n\n${scenario} not in list: \n\n\t${Object.keys(
-        allScenarios
-      ).join('\n\t')}`
+        allScenarios,
+      ).join('\n\t')}`,
     );
   }
 
@@ -103,7 +102,7 @@ function smallCluster(server) {
       name: 'node-with-meta',
       meta: { foo: 'bar', baz: 'qux' },
     },
-    'withMeta'
+    'withMeta',
   );
   server.createList('job', 10, { createRecommendations: true });
   server.create('job', {
@@ -332,31 +331,31 @@ function smallCluster(server) {
     .filter((a) => a.clientStatus === 'running')
     .slice(0, 10)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: false, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: false, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'running')
     .slice(10, 20)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'running')
     .slice(20, 65)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'pending')
     .slice(0, 10)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } }),
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'failed')
     .slice(0, 5)
     .forEach((a) =>
-      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } }),
     );
 
   //#endregion Active Deployment
@@ -474,7 +473,7 @@ function smallCluster(server) {
   const newJobTaskGroupName = 'redis';
   const jsonJob = (overrides) => {
     return JSON.stringify(
-      assign(
+      Object.assign(
         {},
         {
           Name: newJobName,
@@ -493,10 +492,10 @@ function smallCluster(server) {
             },
           ],
         },
-        overrides
+        overrides,
       ),
       null,
-      2
+      2,
     );
   };
 
@@ -756,7 +755,7 @@ function rolesTestCluster(server) {
   server.createList('node', 5);
   server.createList('job', 5);
 
-  // createTokens(server);
+  createTokens(server);
 
   // Create policies
   const clientReaderPolicy = server.create('policy', {
@@ -876,68 +875,68 @@ function rolesTestCluster(server) {
 
   // Create tokens
 
-  let managementToken = server.create('token', {
+  server.create('token', {
     type: 'management',
     name: 'Management Token',
   });
 
-  let clientReaderToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: "N. O'DeReader",
     policyIds: [clientReaderPolicy.id],
   });
 
-  let clientWriterToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: "N. O'DeWriter",
     policyIds: [clientWriterPolicy.id],
   });
 
-  let dualPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi-policy Token',
     policyIds: [clientReaderPolicy.id, clientWriterPolicy.id],
   });
 
-  let highLevelViaPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'High Level Policy Token',
     policyIds: [highLevelJobPolicy.id],
   });
 
-  let highLevelViaRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'High Level Role Token',
     roleIds: [highLevelRole.id],
   });
 
-  let policyAndRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Policy And Role Token',
     policyIds: [operatorPolicy.id],
     roleIds: [readerRole.id],
   });
 
-  let multiRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi Role Token',
     roleIds: [editorRole.id, highLevelRole.id],
   });
 
-  let multiRoleAndPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Multi Role And Policy Token',
     roleIds: [editorRole.id, highLevelRole.id],
     policyIds: [clientWriterPolicy.id], // also included within editorRole, so redundant here.
   });
 
-  let noClientsViaPolicyToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Clientless Policy Token',
     policyIds: [clientDenierPolicy.id],
   });
 
-  let noClientsViaRoleToken = server.create('token', {
+  server.create('token', {
     type: 'client',
     name: 'Clientless Role Token',
     roleIds: [denierRole.id],
@@ -1227,11 +1226,10 @@ function createRegions(server) {
   ['americas', 'europe', 'asia', 'some-long-name-just-to-test'].forEach(
     (id) => {
       server.create('region', { id });
-    }
+    },
   );
 }
 
-/* eslint-disable */
 function logTokens(server) {
   console.log('TOKENS:');
   server.db.tokens.forEach((token) => {
@@ -1244,7 +1242,7 @@ Accessor: ${token.accessorId}
   });
 
   console.log(
-    'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
+    'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.',
   );
   console.log('=====================================');
 }
@@ -1254,7 +1252,7 @@ function getConfigValue(variableName, defaultValue) {
   if (value !== undefined) return value;
 
   console.warn(
-    `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`
+    `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`,
   );
   return defaultValue;
 }
@@ -1266,15 +1264,14 @@ function getScenarioQueryParameter() {
     console.error(
       new Error(
         `Selected Mirage scenario does not exist.\n\n${mirageScenario} not in list: \n\n\t${Object.keys(
-          allScenarios
-        ).join('\n\t')}`
-      )
+          allScenarios,
+        ).join('\n\t')}`,
+      ),
     );
     return 'smallCluster';
   }
   return mirageScenario;
 }
-/* eslint-enable */
 
 export function createRestartableJobs(server) {
   const restartableJob = server.create('job', {

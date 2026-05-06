@@ -315,14 +315,14 @@ export default class LineChart extends Component {
       .sort(
         (a, b) =>
           Math.abs(a.datum.datum[xProp] - x) -
-          Math.abs(b.datum.datum[xProp] - x)
+          Math.abs(b.datum.datum[xProp] - x),
       )[0];
 
     // If any other selected data are beyond a distance threshold, drop them from the list
     // xScale is used here to measure distance in screen-space rather than data-space.
     const dist = Math.abs(xScale(closestDatum.datum.datum[xProp]) - mouseX);
     const filteredData = activeData.filter(
-      (d) => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10
+      (d) => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10,
     );
 
     this.activeData = filteredData;
@@ -374,7 +374,7 @@ export default class LineChart extends Component {
       d3.select(this.element.querySelector('.x-axis')).call(this.xAxis);
       d3.select(this.element.querySelector('.y-axis')).call(this.yAxis);
       d3.select(this.element.querySelector('.y-gridlines')).call(
-        this.yGridlines
+        this.yGridlines,
       );
     }
   }

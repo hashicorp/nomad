@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import ApplicationAdapter from './application';
 import AdapterError from '@ember-data/adapter/error';
 import InvalidError from '@ember-data/adapter/error';
@@ -11,7 +10,7 @@ import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 import { ConflictError } from '@ember-data/adapter/error';
 import DEFAULT_JOB_TEMPLATES from 'nomad-ui/utils/default-job-templates';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 @classic
 export default class VariableAdapter extends ApplicationAdapter {
@@ -41,7 +40,7 @@ export default class VariableAdapter extends ApplicationAdapter {
 
     // Ensure we run a findRecord on each to get its keyValues
     await Promise.all(
-      jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id))
+      jobTemplateVariables.map((t) => this.store.findRecord('variable', t.id)),
     );
 
     const defaultTemplates = this.store
@@ -61,7 +60,7 @@ export default class VariableAdapter extends ApplicationAdapter {
           return this.store.createRecord('variable', normalized);
         }
         return null;
-      })
+      }),
     );
   }
 

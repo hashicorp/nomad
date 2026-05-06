@@ -13,8 +13,6 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders', async function (assert) {
-    assert.expect(3);
-
     let job = {
       id: 'job1',
     };

@@ -12,15 +12,16 @@
     <PH.Actions>
       <Hds::Form::Toggle::Field
         @value="enable"
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Toggle View (JSON/List)"
           pattern=(array "j")
-          action=(action this.toggleView)
+          action=this.toggleView
         }}
         checked={{eq this.view "json"}}
         data-test-json-toggle
-        {{on "change" (action this.toggleView)}}
-      as |F|>
+        {{on "change" this.toggleView}}
+        as |F|
+      >
         <F.Label>JSON</F.Label>
       </Hds::Form::Toggle::Field>
     </PH.Actions>

@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class AllocationsAllocationController extends Controller {

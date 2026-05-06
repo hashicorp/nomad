@@ -7,7 +7,7 @@ import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-e
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { Terminal } from 'xterm';
 import KEYS from 'nomad-ui/utils/keys';
 
@@ -17,8 +17,6 @@ module(
     setupRenderingTest(hooks);
 
     test('it can wrap to a previous line while backspacing', async function (assert) {
-      assert.expect(2);
-
       let done = assert.async();
 
       await render(hbs`
@@ -33,10 +31,10 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '/bin/long');
+          assert.deepEqual(command, '/bin/long');
           done();
         },
-        '/bin/long-command'
+        '/bin/long-command',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.DELETE);
@@ -50,17 +48,15 @@ module(
 
       await settled();
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        '/bin/long'
+        '/bin/long',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
     });
 
     test('it ignores arrow keys and unprintable characters other than ^U', async function (assert) {
-      assert.expect(4);
-
       let done = assert.async();
 
       await render(hbs`
@@ -75,10 +71,10 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '/bin/bash!');
+          assert.deepEqual(command, '/bin/bash!');
           done();
         },
-        '/bin/bash'
+        '/bin/bash',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.RIGHT_ARROW);
@@ -92,20 +88,18 @@ module(
 
       await settled();
 
-      assert.equal(terminal.buffer.active.cursorY, 0);
-      assert.equal(terminal.buffer.active.cursorX, 10);
+      assert.deepEqual(terminal.buffer.active.cursorY, 0);
+      assert.deepEqual(terminal.buffer.active.cursorX, 10);
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        '/bin/bash!'
+        '/bin/bash!',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
     });
 
     test('it supports typing ^U to delete the entire command', async function (assert) {
-      assert.expect(2);
-
       let done = assert.async();
 
       await render(hbs`
@@ -120,23 +114,23 @@ module(
       new ExecCommandEditorXtermAdapter(
         terminal,
         (command) => {
-          assert.equal(command, '!');
+          assert.deepEqual(command, '!');
           done();
         },
-        'to-delete'
+        'to-delete',
       );
 
       await terminal.simulateCommandDataEvent(KEYS.CONTROL_U);
 
       await settled();
 
-      assert.equal(
+      assert.deepEqual(
         terminal.buffer.active.getLine(0).translateToString().trim(),
-        ''
+        '',
       );
 
       await terminal.simulateCommandDataEvent('!');
       await terminal.simulateCommandDataEvent(KEYS.ENTER);
     });
-  }
+  },
 );

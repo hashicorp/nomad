@@ -5,13 +5,30 @@
 
 <td data-test-icon class="is-narrow">
   {{#if this.node.unhealthyDrivers.length}}
-    <span class="tooltip text-center" role="tooltip" aria-label="Client has unhealthy drivers">
-      <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} class="icon-vertical-bump-down" />
+    <span
+      class="tooltip text-center"
+      role="tooltip"
+      aria-label="Client has unhealthy drivers"
+    >
+      <Hds::Icon
+        @name="alert-triangle-fill"
+        @color="warning"
+        @isInline={{true}}
+        class="icon-vertical-bump-down"
+      />
     </span>
   {{/if}}
 </td>
-<td data-test-client-id><LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">{{this.node.shortId}}</LinkTo></td>
-<td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
+<td data-test-client-id><LinkTo
+    @route="clients.client"
+    @model={{this.node.id}}
+    class="is-primary"
+  >{{this.node.shortId}}</LinkTo></td>
+<td
+  data-test-client-name
+  class="is-200px is-truncatable"
+  title="{{this.node.name}}"
+>{{this.node.name}}</td>
 <td class="node-status-badges" data-test-client-composite-status>
   <Hds::Badge
     @text={{capitalize this.node.status}}
@@ -21,40 +38,30 @@
   />
 
   {{#if this.node.isEligible}}
-    <Hds::Badge
-      @text="Eligible"
-      @color="neutral"
-      @size="small"
-    />
+    <Hds::Badge @text="Eligible" @color="neutral" @size="small" />
   {{else}}
-    <Hds::Badge
-      @text="Ineligible"
-      @color="neutral"
-      @size="small"
-    />
+    <Hds::Badge @text="Ineligible" @color="neutral" @size="small" />
   {{/if}}
 
   {{#if this.node.isDraining}}
-    <Hds::Badge
-      @text="Draining"
-      @color="neutral"
-      @size="small"
-    />
+    <Hds::Badge @text="Draining" @color="neutral" @size="small" />
   {{else}}
-    <Hds::Badge
-      @text="Not Draining"
-      @color="neutral"
-      @size="small"
-    />
+    <Hds::Badge @text="Not Draining" @color="neutral" @size="small" />
   {{/if}}
 </td>
-<td data-test-client-address class="is-200px is-truncatable">{{this.node.httpAddr}}</td>
+<td
+  data-test-client-address
+  class="is-200px is-truncatable"
+>{{this.node.httpAddr}}</td>
 <td data-test-client-node-pool title="{{this.node.nodePool}}">
   {{#if this.node.nodePool}}{{this.node.nodePool}}{{else}}-{{/if}}
 </td>
 <td data-test-client-datacenter>{{this.node.datacenter}}</td>
 <td data-test-client-version>{{this.node.version}}</td>
-<td data-test-client-volumes>{{if this.node.hostVolumes.length this.node.hostVolumes.length}}</td>
+<td data-test-client-volumes>{{if
+    this.node.hostVolumes.length
+    this.node.hostVolumes.length
+  }}</td>
 <td data-test-client-allocations>
   {{#if this.node.allocations.isPending}}
     ...

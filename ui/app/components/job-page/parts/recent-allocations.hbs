@@ -16,17 +16,19 @@
   </div>
   <div
     class="boxed-section-body
-      {{if this.job.allocations.length "is-full-bleed"}}"
+      {{if this.job.allocations.length 'is-full-bleed'}}"
   >
     {{#if this.job.allocations.length}}
       <ListTable
         @source={{this.sortedAllocations}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+        @class="with-foot {{if this.showSubTasks 'with-collapsed-borders'}}"
+        as |t|
       >
         <t.head>
-          <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+          <th class="is-narrow"><span class="visually-hidden">Driver Health,
+              Scheduling, and Preemption</span></th>
           <th>
             ID
           </th>
@@ -66,17 +68,26 @@
             @data-test-allocation={{row.model.id}}
             @allocation={{row.model}}
             @context="job"
-            @onClick={{action "gotoAllocation" row.model}}
+            @onClick={{fn this.gotoAllocation row.model}}
             @showSubTasks={{this.showSubTasks}}
             {{keyboard-shortcut
               enumerated=true
-              action=(action "gotoAllocation" row.model)
+              action=(fn this.gotoAllocation row.model)
             }}
           />
 
           {{#if this.showSubTasks}}
             {{#each row.model.states as |task|}}
-              <TaskSubRow @namespan="9" @taskState={{task}} @active={{eq @activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{@setActiveTaskQueryParam}} @jobHasActions={{this.job.actions.length}} />
+              <TaskSubRow
+                @namespan="9"
+                @taskState={{task}}
+                @active={{eq
+                  @activeTask
+                  (concat task.allocation.id "-" task.name)
+                }}
+                @onSetActiveTask={{@setActiveTaskQueryParam}}
+                @jobHasActions={{this.job.actions.length}}
+              />
             {{/each}}
           {{/if}}
         </t.body>

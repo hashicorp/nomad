@@ -6,7 +6,12 @@
 <section class="section service-list">
   <h1 class="title">
     <LinkTo class="back-link" @route="jobs.job.services">
-      <Hds::Icon @name="chevron-left" @title="Back to services" @size="24" @isInline={{true}} />
+      <Hds::Icon
+        @name="chevron-left"
+        @title="Back to services"
+        @size="24"
+        @isInline={{true}}
+      />
     </LinkTo>
     {{this.model.name}}
   </h1>
@@ -23,7 +28,7 @@
           <td
             {{keyboard-shortcut
               enumerated=true
-              action=(action "gotoAllocation" row.model.allocation)
+              action=(fn this.gotoAllocation row.model.allocation)
             }}
           >
             <LinkTo
@@ -32,7 +37,7 @@
             >{{allocation.shortId}}</LinkTo>
           </td>
         {{/let}}
-		{{#let (async-escape-hatch row.model "node") as |node|}}
+        {{#let (async-escape-hatch row.model "node") as |node|}}
           <td>
             <Tooltip @text={{node.name}}>
               <LinkTo

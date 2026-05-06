@@ -14,13 +14,19 @@
       {{#if this.model.controllerRequired}}
         <span class="pair" data-test-plugin-controller-health>
           <span class="term">Controller Health</span>
-          {{format-percentage this.model.controllersHealthy total=this.model.controllersExpected}}
+          {{format-percentage
+            this.model.controllersHealthy
+            total=this.model.controllersExpected
+          }}
           ({{this.model.controllersHealthy}}/{{this.model.controllersExpected}})
         </span>
       {{/if}}
       <span class="pair" data-test-plugin-node-health>
         <span class="term">Node Health</span>
-        {{format-percentage this.model.nodesHealthy total=this.model.nodesExpected}}
+        {{format-percentage
+          this.model.nodesHealthy
+          total=this.model.nodesExpected
+        }}
         ({{this.model.nodesHealthy}}/{{this.model.nodesExpected}})
       </span>
       <span class="pair" data-test-plugin-provider>
@@ -41,7 +47,8 @@
                 <GaugeChart
                   @label="Availability"
                   @value={{this.model.controllersHealthy}}
-                  @total={{this.model.controllersExpected}} />
+                  @total={{this.model.controllersExpected}}
+                />
               </div>
               <div class="column">
                 <div class="metric">
@@ -64,12 +71,16 @@
       <div class="boxed-section" data-test-plugin-node-availability>
         <div class="boxed-section-head is-hollow">Node Health</div>
         <div class="boxed-section-body">
-          <div class="columns is-centered is-bottom-aligned {{unless this.model.controllerRequired "is-max-half"}}">
+          <div
+            class="columns is-centered is-bottom-aligned
+              {{unless this.model.controllerRequired 'is-max-half'}}"
+          >
             <div class="column is-half">
               <GaugeChart
                 @label="Availability"
                 @value={{this.model.nodesHealthy}}
-                @total={{this.model.nodesExpected}} />
+                @total={{this.model.nodesExpected}}
+              />
             </div>
             <div class="column">
               <div class="metric">
@@ -94,13 +105,18 @@
       <div class="boxed-section-head">
         Controller Allocations
       </div>
-      <div class="boxed-section-body {{if this.model.controllers "is-full-bleed"}}">
+      <div
+        class="boxed-section-body {{if this.model.controllers 'is-full-bleed'}}"
+      >
         {{#if this.model.controllers}}
           <ListTable
             @source={{take 10 this.sortedControllers}}
-            @class="with-foot" as |t|>
+            @class="with-foot"
+            as |t|
+          >
             <t.head>
-              <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
               <td>ID</td>
               <th>Created</th>
               <th>Modified</th>
@@ -115,26 +131,37 @@
             <t.body @key="model.allocID" as |row|>
               <PluginAllocationRow
                 @data-test-controller-allocation={{row.model.allocID}}
-                @pluginAllocation={{row.model}} />
+                @pluginAllocation={{row.model}}
+              />
             </t.body>
           </ListTable>
         {{else}}
           <div class="empty-message" data-test-empty-controller-allocations>
-            <h3 class="empty-message-headline" data-test-empty-controller-allocations-headline>No Controller Plugin Allocations</h3>
-            <p class="empty-message-body" data-test-empty-controller-allocations-message>No allocations are providing controller plugin service.</p>
+            <h3
+              class="empty-message-headline"
+              data-test-empty-controller-allocations-headline
+            >No Controller Plugin Allocations</h3>
+            <p
+              class="empty-message-body"
+              data-test-empty-controller-allocations-message
+            >No allocations are providing controller plugin service.</p>
           </div>
         {{/if}}
       </div>
       {{#if this.model.controllers}}
         <div class="boxed-section-foot">
           <p class="pull-right">
-          <LinkTo
-            @route="storage.plugins.plugin.allocations"
-            @model={{this.model}}
-            @query={{hash qpType=(qp-serialize (array "controller"))}}
-            data-test-go-to-controller-allocations>
-            View all {{this.model.controllers.length}} Controller {{pluralize "allocation" this.model.controllers.length}}
-          </LinkTo>
+            <LinkTo
+              @route="storage.plugins.plugin.allocations"
+              @model={{this.model}}
+              @query={{hash qpType=(qp-serialize (array "controller"))}}
+              data-test-go-to-controller-allocations
+            >
+              View all
+              {{this.model.controllers.length}}
+              Controller
+              {{pluralize "allocation" this.model.controllers.length}}
+            </LinkTo>
           </p>
         </div>
       {{/if}}
@@ -145,13 +172,16 @@
     <div class="boxed-section-head">
       Node Allocations
     </div>
-    <div class="boxed-section-body {{if this.model.nodes "is-full-bleed"}}">
+    <div class="boxed-section-body {{if this.model.nodes 'is-full-bleed'}}">
       {{#if this.model.nodes}}
         <ListTable
           @source={{take 10 this.sortedNodes}}
-          @class="with-foot" as |t|>
+          @class="with-foot"
+          as |t|
+        >
           <t.head>
-            <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                Scheduling, and Preemption</span></th>
             <td>ID</td>
             <th>Created</th>
             <th>Modified</th>
@@ -166,26 +196,37 @@
           <t.body @key="model.allocID" as |row|>
             <PluginAllocationRow
               @data-test-node-allocation={{row.model.allocID}}
-              @pluginAllocation={{row.model}} />
+              @pluginAllocation={{row.model}}
+            />
           </t.body>
         </ListTable>
       {{else}}
         <div class="empty-message" data-test-empty-node-allocations>
-          <h3 class="empty-message-headline" data-test-empty-node-allocations-headline>No Node Plugin Allocations</h3>
-          <p class="empty-message-body" data-test-empty-node-allocations-message>No allocations are providing node plugin service.</p>
+          <h3
+            class="empty-message-headline"
+            data-test-empty-node-allocations-headline
+          >No Node Plugin Allocations</h3>
+          <p
+            class="empty-message-body"
+            data-test-empty-node-allocations-message
+          >No allocations are providing node plugin service.</p>
         </div>
       {{/if}}
     </div>
     {{#if this.model.nodes}}
       <div class="boxed-section-foot">
         <p class="pull-right">
-        <LinkTo
-          @route="storage.plugins.plugin.allocations"
-          @model={{this.model}}
-          @query={{hash qpType=(qp-serialize (array "node"))}}
-          data-test-go-to-node-allocations>
-          View all {{this.model.nodes.length}} Node {{pluralize "allocation" this.model.nodes.length}}
-        </LinkTo>
+          <LinkTo
+            @route="storage.plugins.plugin.allocations"
+            @model={{this.model}}
+            @query={{hash qpType=(qp-serialize (array "node"))}}
+            data-test-go-to-node-allocations
+          >
+            View all
+            {{this.model.nodes.length}}
+            Node
+            {{pluralize "allocation" this.model.nodes.length}}
+          </LinkTo>
         </p>
       </div>
     {{/if}}

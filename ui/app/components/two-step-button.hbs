@@ -16,7 +16,11 @@
 {{else if this.isPendingConfirmation}}
   <span
     data-test-confirmation-message
-    class="confirmation-text {{this.classes.confirmationMessage}} {{if this.alignRight "is-right-aligned"}} {{if this.inlineText "has-text-inline"}}">
+    class="confirmation-text
+      {{this.classes.confirmationMessage}}
+      {{if this.alignRight 'is-right-aligned'}}
+      {{if this.inlineText 'has-text-inline'}}"
+  >
     {{this.confirmationMessage}}
   </span>
   <Hds::Button
@@ -26,10 +30,7 @@
     @color="secondary"
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    {{on "click" (queue
-      (action this.setToIdle)
-      (action this.onCancel)
-    )}}
+    {{on "click" (queue this.setToIdle this.onCancel)}}
   />
   <Hds::Button
     data-test-confirm-button
@@ -38,9 +39,6 @@
     @color="critical"
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    {{on "click" (queue
-      (action this.setToIdle)
-      (action this.onConfirm)
-    )}}
+    {{on "click" (queue this.setToIdle this.onConfirm)}}
   />
 {{/if}}

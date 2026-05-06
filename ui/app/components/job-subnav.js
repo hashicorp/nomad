@@ -3,17 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Component from '@glimmer/component';
 
 export default class JobSubnav extends Component {
-  @service can;
+  @service abilities;
   @service keyboard;
 
   get shouldRenderClientsTab() {
     const { job } = this.args;
     return (
-      job?.hasClientStatus && !job?.hasChildren && this.can.can('read client')
+      job?.hasClientStatus &&
+      !job?.hasChildren &&
+      this.abilities.can('read client')
     );
   }
 

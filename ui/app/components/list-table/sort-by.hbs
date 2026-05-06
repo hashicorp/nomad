@@ -4,7 +4,11 @@
 ~}}
 
 <SafeLinkTo
-  @query={{hash sortProperty=this.prop sortDescending=this.shouldSortDescending}}
-  data-test-sort-by={{this.prop}}>
+  @query={{hash
+    sortProperty=this.prop
+    sortDescending=this.shouldSortDescending
+  }}
+  data-test-sort-by={{this.prop}}
+>
   {{yield}}
 </SafeLinkTo>

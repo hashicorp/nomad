@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
 import Component from '@glimmer/component';
 import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, get } from '@ember/object';
 import {
   formatScheduledBytes,
   formatScheduledHertz,
 } from 'nomad-ui/utils/units';
+import ENV from 'nomad-ui/config/environment';
 
 export default class NodePrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
@@ -76,7 +76,7 @@ export default class NodePrimaryMetric extends Component {
     do {
       this.tracker.poll.perform();
       yield timeout(100);
-    } while (!Ember.testing);
+    } while (ENV.environment !== 'test');
   })
   poller;
 

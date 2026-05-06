@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
+import { assert } from '@ember/debug';
 import moment from 'moment';
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { generateResources } from '../common';
@@ -65,7 +65,9 @@ export default Factory.extend({
         });
       });
 
-      allocation.update({ taskResourceIds: resources.mapBy('id') });
+      allocation.update({
+        taskResourceIds: resources.map((resource) => resource.id),
+      });
     },
   }),
 
@@ -88,7 +90,9 @@ export default Factory.extend({
         });
       });
 
-      allocation.update({ taskResourceIds: resources.mapBy('id') });
+      allocation.update({
+        taskResourceIds: resources.map((resource) => resource.id),
+      });
     },
   }),
 
@@ -113,7 +117,7 @@ export default Factory.extend({
         const lastEvent = previousEvents[previousEvents.length - 1];
         rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(
           5,
-          'minutes'
+          'minutes',
         );
       } else {
         rescheduleTime = faker.date.past(2 / 365, REF_TIME);
@@ -179,13 +183,13 @@ export default Factory.extend({
   }),
 
   afterCreate(allocation, server) {
-    Ember.assert(
+    assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
-      server.db.jobs.length
+      server.db.jobs.length,
     );
-    Ember.assert(
+    assert(
       '[Mirage] No nodes! make sure nodes are created before allocations',
-      server.db.nodes.length
+      server.db.nodes.length,
     );
 
     const job = allocation.jobId
@@ -216,7 +220,7 @@ export default Factory.extend({
           name: server.db.tasks.find(id).name,
           paused: allocation.withPausedTasks ? 'scheduled_pause' : null,
           state: allocation.clientStatus,
-        })
+        }),
       );
 
       const resources = taskGroup.taskIds.map((id) => {
@@ -229,15 +233,15 @@ export default Factory.extend({
       });
 
       allocation.update({
-        taskStateIds: states.mapBy('id'),
-        taskResourceIds: resources.mapBy('id'),
+        taskStateIds: states.map((state) => state.id),
+        taskResourceIds: resources.map((resource) => resource.id),
       });
 
       // Each allocation has a corresponding allocation stats running on some client.
       // Create that record, even though it's not a relationship.
       server.create('client-allocation-stat', {
         id: allocation.id,
-        _taskNames: states.mapBy('name'),
+        _taskNames: states.map((state) => state.name),
       });
     }
   },

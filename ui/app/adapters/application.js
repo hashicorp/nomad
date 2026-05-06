@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { camelize } from '@ember/string';
 import RESTAdapter from '@ember-data/adapter/rest';

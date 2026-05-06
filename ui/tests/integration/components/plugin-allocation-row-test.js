@@ -5,8 +5,8 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { hbs } from 'ember-cli-htmlbars';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { render, settled } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -27,8 +27,6 @@ module('Integration | Component | plugin allocation row', function (hooks) {
   });
 
   test('Plugin allocation row immediately fetches the plugin allocation', async function (assert) {
-    assert.expect(2);
-
     const plugin = this.server.create('csi-plugin', {
       id: 'plugin',
       controllerRequired: true,
@@ -42,15 +40,15 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     });
 
     await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{plugin}} />
+      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
     `);
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+      (req) => req.url.startsWith('/v1/allocation'),
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
+      `/v1/allocation/${storageController.allocID}`,
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -69,14 +67,14 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     });
 
     await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{plugin}} />
+      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
     `);
 
     const [statsRequest] = this.server.pretender.handledRequests.slice(-1);
 
-    assert.equal(
+    assert.deepEqual(
       statsRequest.url,
-      `/v1/client/allocation/${storageController.allocID}/stats`
+      `/v1/client/allocation/${storageController.allocID}/stats`,
     );
   });
 
@@ -97,16 +95,16 @@ module('Integration | Component | plugin allocation row', function (hooks) {
     });
 
     await render(hbs`
-      <PluginAllocationRow @pluginAllocation={{plugin}} />
+      <PluginAllocationRow @pluginAllocation={{this.plugin}} />
     `);
 
     const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+      (req) => req.url.startsWith('/v1/allocation'),
     );
 
-    assert.equal(
+    assert.deepEqual(
       allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
+      `/v1/allocation/${storageController.allocID}`,
     );
 
     this.set('plugin', pluginRecord.get('controllers').toArray()[1]);
@@ -116,9 +114,9 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       .filter((req) => req.url.startsWith('/v1/allocation'))
       .reverse()[0];
 
-    assert.equal(
+    assert.deepEqual(
       latestAllocationRequest.url,
-      `/v1/allocation/${storageController2.allocID}`
+      `/v1/allocation/${storageController2.allocID}`,
     );
   });
 });

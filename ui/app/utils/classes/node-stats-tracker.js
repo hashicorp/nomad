@@ -25,7 +25,7 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   @computed('node.id')
   get url() {
-    return `/v1/client/stats?node_id=${this.get('node.id')}`;
+    return `/v1/client/stats?node_id=${this.node.id}`;
   }
 
   append(frame) {

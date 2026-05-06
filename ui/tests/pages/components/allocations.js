@@ -14,7 +14,7 @@ import { singularize } from 'ember-inflector';
 
 export default function (
   selector = '[data-test-allocation]',
-  propKey = 'allocations'
+  propKey = 'allocations',
 ) {
   const lookupKey = `${singularize(propKey)}For`;
   // Remove the bracket notation
@@ -27,7 +27,7 @@ export default function (
       createTime: text('[data-test-create-time]'),
       createTooltip: attribute(
         'aria-label',
-        '[data-test-create-time] .tooltip'
+        '[data-test-create-time] .tooltip',
       ),
       modifyTime: text('[data-test-modify-time]'),
       health: text('[data-test-health]'),
@@ -43,7 +43,7 @@ export default function (
       mem: text('[data-test-mem]'),
       memTooltip: attribute('aria-label', '[data-test-mem] .tooltip'),
       rescheduled: isPresent(
-        '[data-test-indicators] [data-test-icon="reschedule"]'
+        '[data-test-indicators] [data-test-icon="reschedule"]',
       ),
 
       visit: clickable('[data-test-short-id] a'),

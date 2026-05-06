@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
@@ -11,7 +11,7 @@ export default Factory.extend({
   // in factories.token.afterCreate
   id: () =>
     `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
-      5
+      5,
     )}`,
   name() {
     return this.id;

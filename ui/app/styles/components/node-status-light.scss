@@ -33,7 +33,8 @@ $size: 1.6rem;
     color: $grey-light;
 
     .blinking {
-      animation: node-status-light-initializing 0.7s infinite alternate ease-in-out;
+      animation: node-status-light-initializing 0.7s infinite alternate
+        ease-in-out;
     }
   }
 

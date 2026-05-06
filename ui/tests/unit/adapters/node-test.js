@@ -5,7 +5,7 @@
 
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { setupTest } from 'ember-qunit';
 import { settled } from '@ember/test-helpers';
 
@@ -42,28 +42,28 @@ module('Unit | Adapter | Node', function (hooks) {
     // Fetch the model and related allocations
     let node = await run(() => this.store.findRecord('node', 'node-1'));
     let allocations = await run(() => findHasMany(node, 'allocations'));
-    assert.equal(
+    assert.deepEqual(
       allocations.get('length'),
       this.server.db.allocations.where({ nodeId: node.get('id') }).length,
-      'Allocations returned from the findHasMany matches the db state'
+      'Allocations returned from the findHasMany matches the db state',
     );
 
     await settled();
-    server.db.allocations.remove('node-1-1');
+    this.server.db.allocations.remove('node-1-1');
 
     allocations = await run(() => findHasMany(node, 'allocations'));
     const dbAllocations = this.server.db.allocations.where({
       nodeId: node.get('id'),
     });
-    assert.equal(
+    assert.deepEqual(
       allocations.get('length'),
       dbAllocations.length,
-      'Allocations returned from the findHasMany matches the db state'
+      'Allocations returned from the findHasMany matches the db state',
     );
-    assert.equal(
+    assert.deepEqual(
       this.store.peekAll('allocation').get('length'),
       dbAllocations.length,
-      'Server-side deleted allocation was removed from the store'
+      'Server-side deleted allocation was removed from the store',
     );
   });
 
@@ -80,17 +80,17 @@ module('Unit | Adapter | Node', function (hooks) {
     assert.deepEqual(
       this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
-      'All allocations for the first and second node are in the store'
+      'All allocations for the first and second node are in the store',
     );
 
-    server.db.allocations.remove('node-1-1');
+    this.server.db.allocations.remove('node-1-1');
 
     // Reload the related allocations now that one was removed server-side
     await run(() => findHasMany(node, 'allocations'));
     assert.deepEqual(
       this.store.peekAll('allocation').mapBy('id').sort(),
       ['node-1-2', 'node-2-1', 'node-2-2'],
-      'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
+      'The deleted allocation is removed from the store and the allocations associated with the other node are untouched',
     );
   });
 
@@ -121,7 +121,10 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().setEligible(node);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(
+        `${request.method} ${request.url}`,
+        testCase.eligibility,
+      );
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         Eligibility: 'eligible',
@@ -137,7 +140,10 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().setIneligible(node);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(
+        `${request.method} ${request.url}`,
+        testCase.eligibility,
+      );
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         Eligibility: 'ineligible',
@@ -153,7 +159,7 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().drain(node);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(`${request.method} ${request.url}`, testCase.drain);
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
@@ -174,7 +180,7 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().drain(node, spec);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(`${request.method} ${request.url}`, testCase.drain);
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
@@ -194,7 +200,7 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().forceDrain(node);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(`${request.method} ${request.url}`, testCase.drain);
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
@@ -215,7 +221,7 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().forceDrain(node, spec);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(`${request.method} ${request.url}`, testCase.drain);
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
@@ -235,7 +241,7 @@ module('Unit | Adapter | Node', function (hooks) {
       await this.subject().cancelDrain(node);
 
       const request = pretender.handledRequests.lastObject;
-      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(`${request.method} ${request.url}`, testCase.drain);
       assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: null,

@@ -16,7 +16,7 @@ import classic from 'ember-classic-decorator';
 @classNames('two-step-button')
 @classNameBindings(
   'inlineText:has-inline-text',
-  'fadingBackground:has-fading-background'
+  'fadingBackground:has-fading-background',
 )
 export default class TwoStepButton extends Component {
   idleText = '';

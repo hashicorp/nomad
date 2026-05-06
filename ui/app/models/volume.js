@@ -11,11 +11,11 @@ export default class Volume extends Model {
   @attr('string') plainId;
   @attr('string') name;
 
-  @belongsTo('namespace') namespace;
-  @belongsTo('plugin') plugin;
+  @belongsTo('namespace', { async: true, inverse: null }) namespace;
+  @belongsTo('plugin', { async: true, inverse: null }) plugin;
 
-  @hasMany('allocation') writeAllocations;
-  @hasMany('allocation') readAllocations;
+  @hasMany('allocation', { async: true, inverse: null }) writeAllocations;
+  @hasMany('allocation', { async: true, inverse: null }) readAllocations;
 
   @computed('writeAllocations.[]', 'readAllocations.[]')
   get allocations() {

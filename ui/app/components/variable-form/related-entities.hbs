@@ -3,16 +3,41 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Hds::Alert @type="inline" @color="highlight" @icon="info" class="related-entities notification" as |A|>
+<Hds::Alert
+  @type="inline"
+  @color="highlight"
+  @icon="info"
+  class="related-entities notification"
+  as |A|
+>
   <A.Title>Automatically-accessible variable</A.Title>
   <A.Description>
-    This variable {{#if @new}}will be{{else}}is{{/if}} accessible by 
+    This variable
+    {{#if @new}}will be{{else}}is{{/if}}
+    accessible by
     {{#if @task}}
-      task <strong>{{@task}}</strong> in group <Hds::Link::Inline @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}} @icon="external-link">{{@group}}</Hds::Link::Inline>
+      task
+      <strong>{{@task}}</strong>
+      in group
+      <Hds::Link::Inline
+        @route="jobs.job.task-group"
+        @models={{array (concat @job "@" @namespace) @group}}
+        @icon="external-link"
+      >{{@group}}</Hds::Link::Inline>
     {{else if @group}}
-      group <Hds::Link::Inline @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}} @icon="external-link">{{@group}}</Hds::Link::Inline>
+      group
+      <Hds::Link::Inline
+        @route="jobs.job.task-group"
+        @models={{array (concat @job "@" @namespace) @group}}
+        @icon="external-link"
+      >{{@group}}</Hds::Link::Inline>
     {{else if @job}}
-      job <Hds::Link::Inline @route="jobs.job" @model={{concat @job "@" @namespace}} @icon="external-link">{{@job}}</Hds::Link::Inline>
+      job
+      <Hds::Link::Inline
+        @route="jobs.job"
+        @model={{concat @job "@" @namespace}}
+        @icon="external-link"
+      >{{@job}}</Hds::Link::Inline>
     {{else}}
       all nomad jobs in this namespace
     {{/if}}

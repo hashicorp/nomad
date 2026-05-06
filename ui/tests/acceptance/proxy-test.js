@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */ // Tests for non-UI behaviour.
+// Tests for non-UI behaviour.
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -19,8 +19,8 @@ module('Acceptance | reverse proxy', function (hooks) {
     window.localStorage.clear();
     window.sessionStorage.clear();
 
-    server.create('agent');
-    managementToken = server.create('token');
+    this.server.create('agent');
+    managementToken = this.server.create('token');
 
     // Prepare a setRequestHeader that accumulate headers already set. This is to avoid double setting X-Nomad-Token
     this._originalXMLHttpRequestSetRequestHeader =
@@ -62,18 +62,18 @@ module('Acceptance | reverse proxy', function (hooks) {
     const { secretId } = managementToken;
 
     await Jobs.visit();
-    assert.equal(
+    assert.deepEqual(
       window.localStorage.nomadTokenSecret,
       secretId,
-      'Token secret was set'
+      'Token secret was set',
     );
 
     // Make sure that server received the header
     assert.ok(
-      server.pretender.handledRequests
+      this.server.pretender.handledRequests
         .mapBy('requestHeaders')
         .every((headers) => headers['X-Nomad-Token'] === secretId),
-      'The token header is always present'
+      'The token header is always present',
     );
 
     assert.notOk(Jobs.runJobButton.isDisabled, 'Run job button is enabled');

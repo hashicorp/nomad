@@ -6,10 +6,7 @@
 .exec-window {
   display: flex;
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 3.5rem; // nav.navbar.is-popup height
-  bottom: 0;
+  inset: 3.5rem 0 0; // nav.navbar.is-popup height
 
   .terminal-container {
     flex-grow: 1;
@@ -80,7 +77,7 @@
         border-right-color: transparent;
         border-top-color: transparent;
         opacity: 0.3;
-        content: '';
+        content: "";
         display: inline-block;
         height: 1em;
         width: 1em;
@@ -91,7 +88,6 @@
     .task-list {
       .task-item {
         padding: 0 8px 0 19px;
-
         color: white;
         text-decoration: none;
         display: flex;
@@ -117,6 +113,7 @@
           overflow-wrap: break-word;
           width: 100%;
           align-items: start;
+
           .active-identifier {
             visibility: visible;
             width: 12px;
@@ -151,6 +148,7 @@
     }
   }
 }
+
 // Media query for small screens
 @media ($breakpoint-mobile) {
   .exec-window {
@@ -158,6 +156,7 @@
     height: 100vh;
     flex-direction: column;
     position: static;
+
     .task-group-tree {
       flex: 0 0 auto;
       min-height: 50px;
@@ -165,6 +164,7 @@
       overflow-y: auto;
       width: 100%;
     }
+
     .terminal-container {
       flex: 1 0 auto;
       width: 100%;

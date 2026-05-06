@@ -50,21 +50,19 @@ module('Unit | Component | TopoViz', function (hooks) {
     ]);
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
-      node0Allocs
+      node0Allocs,
     );
     assert.deepEqual(
       topoViz.topology.datacenters[1].nodes[0].allocations.mapBy('allocation'),
-      node1Allocs
+      node1Allocs,
     );
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[1].allocations.mapBy('allocation'),
-      node2Allocs
+      node2Allocs,
     );
   });
 
   test('the topology object contains an allocation index keyed by jobId+taskGroupName', async function (assert) {
-    assert.expect(7);
-
     const allocations = [
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
@@ -94,7 +92,7 @@ module('Unit | Component | TopoViz', function (hooks) {
         JSON.stringify(['job1', 'three']),
 
         JSON.stringify(['job2', 'one']),
-      ].sort()
+      ].sort(),
     );
 
     Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
@@ -102,8 +100,8 @@ module('Unit | Component | TopoViz', function (hooks) {
       assert.deepEqual(
         topoViz.topology.allocationIndex[key].mapBy('allocation'),
         allocations.filter(
-          (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group
-        )
+          (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group,
+        ),
       );
     });
   });
@@ -202,13 +200,13 @@ module('Unit | Component | TopoViz', function (hooks) {
     const topoViz = this.createComponent({ nodes, allocations });
     topoViz.buildTopology();
 
-    assert.equal(
+    assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent,
-      0.5
+      0.5,
     );
-    assert.equal(
+    assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent,
-      0.1
+      0.1,
     );
   });
 
@@ -229,7 +227,7 @@ module('Unit | Component | TopoViz', function (hooks) {
     ]);
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
-      [allocations[0]]
+      [allocations[0]],
     );
   });
 });

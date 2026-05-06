@@ -37,7 +37,7 @@
             this.model.job.runningDeployment
             (cannot "scale job" namespace=this.model.job.namespace.name)
           }}
-          @onChange={{action "scaleTaskGroup"}}
+          @onChange={{this.scaleTaskGroup}}
         >
           Count
         </StepperInput>
@@ -67,7 +67,10 @@
         </span>
         {{format-scheduled-bytes this.model.reservedMemory start="MiB"}}
         {{#if (gt this.model.reservedMemoryMax this.model.reservedMemory)}}
-          ({{format-scheduled-bytes this.model.reservedMemoryMax start="MiB"}}Max)
+          ({{format-scheduled-bytes
+            this.model.reservedMemoryMax
+            start="MiB"
+          }}Max)
         {{/if}}
       </span>
       <span class="pair" data-test-task-group-disk>
@@ -100,7 +103,10 @@
       {{/if}}
       {{#if (and (can "list variables") this.model.pathLinkedVariable)}}
         <span class="pair" data-test-task-group-stat="variables">
-          <LinkTo @route="variables.variable" @model={{this.model.pathLinkedVariable.id}}>Variables</LinkTo>
+          <LinkTo
+            @route="variables.variable"
+            @model={{this.model.pathLinkedVariable.id}}
+          >Variables</LinkTo>
         </span>
       {{/if}}
     </div>
@@ -117,18 +123,20 @@
     <div class="boxed-section-body">
       <AllocationStatusBar
         @allocationContainer={{this.model.summary}}
-        @class="split-view" as |chart|
+        @class="split-view"
+        as |chart|
       >
         <ol class="legend">
           {{#each chart.data as |datum index|}}
             <li
               class="{{datum.className}}
-
-                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
-
-                {{if (eq datum.value 0) "is-empty"}}"
+                {{if (eq datum.label chart.activeDatum.label) 'is-active'}}
+                {{if (eq datum.value 0) 'is-empty'}}"
             >
-              <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+              <JobPage::Parts::SummaryLegendItem
+                @datum={{datum}}
+                @index={{index}}
+              />
             </li>
           {{/each}}
         </ol>
@@ -144,19 +152,19 @@
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
         />
         <MultiSelectDropdown
           data-test-allocation-client-facet
           @label="Client"
           @options={{this.optionsClients}}
           @selection={{this.selectionClient}}
-          @onSelect={{action this.setFacetQueryParam "qpClient"}}
+          @onSelect={{fn this.setFacetQueryParam "qpClient"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
           @placeholder="Search allocations..."
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @class="is-padded"
           @inputClass="is-compact"
         />
@@ -177,16 +185,19 @@
           @source={{this.sortedAllocations}}
           @size={{this.pageSize}}
           @page={{this.currentPage}}
-          @class="allocations" as |p|
+          @class="allocations"
+          as |p|
         >
           <ListTable
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+            @class="with-foot {{if this.showSubTasks 'with-collapsed-borders'}}"
+            as |t|
           >
             <t.head>
-              <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
               <t.sort-by @prop="shortId">
                 ID
               </t.sort-by>
@@ -222,22 +233,31 @@
               <AllocationRow
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoAllocation" row.model)
+                  action=(fn this.gotoAllocation row.model)
                 }}
                 @data-test-allocation={{row.model.id}}
                 @allocation={{row.model}}
                 @context="taskGroup"
-                @onClick={{action "gotoAllocation" row.model}}
+                @onClick={{fn this.gotoAllocation row.model}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{this.model.job.actions.length}} />
+                  <TaskSubRow
+                    @namespan="8"
+                    @taskState={{task}}
+                    @active={{eq
+                      this.activeTask
+                      (concat task.allocation.id "-" task.name)
+                    }}
+                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                    @jobHasActions={{this.model.job.actions.length}}
+                  />
                 {{/each}}
               {{/if}}
             </t.body>
           </ListTable>
           <div class="table-foot">
-            <PageSizeSelect @onChange={{action this.resetPagination}} />
+            <PageSizeSelect @onChange={{this.resetPagination}} />
             <nav class="pagination">
               <div class="pagination-numbers">
                 {{p.startsAt}}
@@ -259,7 +279,10 @@
       {{else if this.allocations.length}}
         <div class="boxed-section-body">
           <div class="empty-message" data-test-empty-allocations-list>
-            <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>
+            <h3
+              class="empty-message-headline"
+              data-test-empty-allocations-list-headline
+            >
               No Matches
             </h3>
             <p class="empty-message-body">
@@ -273,7 +296,10 @@
       {{else}}
         <div class="boxed-section-body">
           <div class="empty-message" data-test-empty-allocations-list>
-            <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>
+            <h3
+              class="empty-message-headline"
+              data-test-empty-allocations-list-headline
+            >
               No Allocations
             </h3>
             <p class="empty-message-body">
@@ -330,13 +356,20 @@
             <tr data-test-volume>
               <td data-test-volume-name>
                 {{#if row.model.isCSI}}
-                  {{!-- if volume is per_alloc=true, there's no one specific volume. So, link to the volumes index with an active query --}}
+                  {{! if volume is per_alloc=true, there's no one specific volume. So, link to the volumes index with an active query }}
                   {{#if row.model.perAlloc}}
-                    <LinkTo @route="storage.volumes.index" @query={{hash search=row.model.source}}>{{row.model.name}}</LinkTo>
+                    <LinkTo
+                      @route="storage.volumes.index"
+                      @query={{hash search=row.model.source}}
+                    >{{row.model.name}}</LinkTo>
                   {{else}}
                     <LinkTo
                       @route="storage.volumes.volume"
-                      @model={{concat row.model.source "@" row.model.namespace.id}}
+                      @model={{concat
+                        row.model.source
+                        "@"
+                        row.model.namespace.id
+                      }}
                     >
                       {{row.model.name}}
                     </LinkTo>
@@ -362,8 +395,6 @@
   {{/if}}
 
   {{#if this.model.meta}}
-    <JobPage::Parts::Meta
-      @meta={{this.model.meta}}
-    />
+    <JobPage::Parts::Meta @meta={{this.model.meta}} />
   {{/if}}
 </section>

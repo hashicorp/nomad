@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias, readOnly } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -23,9 +21,10 @@ import classic from 'ember-classic-decorator';
 @classic
 export default class IndexController extends Controller.extend(
   SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
-  Searchable
+  Searchable,
 ) {
   @service userSettings;
+  @service router;
   @controller('clients') clientsController;
 
   @alias('model.nodes') nodes;
@@ -130,7 +129,7 @@ export default class IndexController extends Controller.extend(
     'eligibility_ineligible',
     'drain_status_draining',
     'drain_status_not_draining',
-    'allToggles.[]'
+    'allToggles.[]',
   )
   get activeToggles() {
     return this.allToggles.filter((t) => this[t.qp]);
@@ -139,7 +138,7 @@ export default class IndexController extends Controller.extend(
   get allToggles() {
     return Object.values(this.clientFilterToggles).reduce(
       (acc, filters) => acc.concat(filters),
-      []
+      [],
     );
   }
 
@@ -194,11 +193,11 @@ export default class IndexController extends Controller.extend(
       .without('');
 
     // Remove any invalid node classes from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClass',
-        serialize(intersection(classes, this.selectionClass))
+        serialize(intersection(classes, this.selectionClass)),
       );
     });
 
@@ -208,15 +207,15 @@ export default class IndexController extends Controller.extend(
   @computed('nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(
-      new Set(this.nodes.mapBy('datacenter'))
+      new Set(this.nodes.mapBy('datacenter')),
     ).compact();
 
     // Remove any invalid datacenters from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
+        serialize(intersection(datacenters, this.selectionDatacenter)),
       );
     });
 
@@ -228,11 +227,11 @@ export default class IndexController extends Controller.extend(
     const versions = Array.from(new Set(this.nodes.mapBy('version'))).compact();
 
     // Remove any invalid versions from the query param/selection
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVersion',
-        serialize(intersection(versions, this.selectionVersion))
+        serialize(intersection(versions, this.selectionVersion)),
       );
     });
 
@@ -246,11 +245,11 @@ export default class IndexController extends Controller.extend(
     const allVolumes = this.nodes.mapBy('hostVolumes').reduce(flatten, []);
     const volumes = Array.from(new Set(allVolumes.mapBy('name')));
 
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVolume',
-        serialize(intersection(volumes, this.selectionVolume))
+        serialize(intersection(volumes, this.selectionVolume)),
       );
     });
 
@@ -260,19 +259,19 @@ export default class IndexController extends Controller.extend(
   @computed('selectionNodePool', 'model.nodePools.[]')
   get optionsNodePool() {
     const availableNodePools = this.model.nodePools.filter(
-      (p) => p.name !== 'all'
+      (p) => p.name !== 'all',
     );
 
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpNodePool',
         serialize(
           intersection(
             availableNodePools.map(({ name }) => name),
-            this.selectionNodePool
-          )
-        )
+            this.selectionNodePool,
+          ),
+        ),
       );
     });
 
@@ -297,7 +296,7 @@ export default class IndexController extends Controller.extend(
     'state_disconnected',
     'state_down',
     'state_initializing',
-    'state_ready'
+    'state_ready',
   )
   get filteredNodes() {
     const {
@@ -350,6 +349,7 @@ export default class IndexController extends Controller.extend(
 
   @alias('clientsController.isForbidden') isForbidden;
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }
@@ -365,7 +365,16 @@ export default class IndexController extends Controller.extend(
   }
 
   @action
+  toggleClientFilter(queryParam) {
+    this.set(queryParam, !this[queryParam]);
+  }
+
+  @action
   gotoNode(node) {
-    this.transitionToRoute('clients.client', node);
+    const nodeId = node?.get?.('id') ?? node?.id;
+
+    if (nodeId) {
+      this.router.transitionTo('clients.client', nodeId);
+    }
   }
 }

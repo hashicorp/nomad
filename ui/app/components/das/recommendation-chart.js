@@ -7,7 +7,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { next } from '@ember/runloop';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { get } from '@ember/object';
 
 import { scaleLinear } from 'd3-scale';
@@ -157,7 +157,7 @@ export default class RecommendationChartComponent extends Component {
   get maximumX() {
     return Math.max(
       this.higherValue,
-      get(this.args.stats, 'max') || Number.MIN_SAFE_INTEGER
+      get(this.args.stats, 'max') || Number.MIN_SAFE_INTEGER,
     );
   }
 
@@ -240,8 +240,8 @@ export default class RecommendationChartComponent extends Component {
         0,${this.center.y1}
         0,${this.center.y1 - this.deltaTriangleHeight / 2}
         ${(directionXMultiplier * this.deltaTriangleHeight) / 2},${
-        this.center.y1
-      }
+          this.center.y1
+        }
         0,${this.center.y1 + this.deltaTriangleHeight / 2}
       `,
     };
@@ -257,7 +257,7 @@ export default class RecommendationChartComponent extends Component {
           style: htmlSafe(
             `transform: translateX(${
               this.shown ? this.higherValueWidth : this.lowerValueWidth
-            }px)`
+            }px)`,
           ),
         },
       };
@@ -270,7 +270,7 @@ export default class RecommendationChartComponent extends Component {
           style: htmlSafe(
             `transform: translateX(${
               this.shown ? this.lowerValueWidth : this.higherValueWidth
-            }px)`
+            }px)`,
           ),
         },
       };
@@ -295,7 +295,7 @@ export default class RecommendationChartComponent extends Component {
 
     const percentText = formatPercent(
       (this.args.recommendedValue - this.args.currentValue) /
-        this.args.currentValue
+        this.args.currentValue,
     );
 
     const percent = {
@@ -344,7 +344,7 @@ export default class RecommendationChartComponent extends Component {
           label: statsKeyToLabel[key],
           value: statsWithCurrentAndRecommended[key],
         }))
-        .sortBy('value');
+        .sort((a, b) => a.value - b.value);
     } else {
       return [];
     }

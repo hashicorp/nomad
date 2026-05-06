@@ -1,0 +1,13 @@
+{
+  "extends": "@tsconfig/ember",
+  "compilerOptions": {
+    "allowJs": true,
+    "paths": {
+      "nomad-ui/tests/*": ["./tests/*"],
+      "nomad-ui/*": ["./app/*"],
+      "mirage/*": ["./mirage/*"],
+      "*": ["./types/*"]
+    },
+    "types": ["ember-source/types", "@glint/ember-tsc/types"]
+  }
+}

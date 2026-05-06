@@ -67,17 +67,17 @@ export default create({
       message: text('[data-test-message]'),
 
       isToggleable: isPresent(
-        '[data-test-accordion-toggle]:not(.is-invisible)'
+        '[data-test-accordion-toggle]:not(.is-invisible)',
       ),
       toggle: clickable('[data-test-accordion-toggle]'),
-    }
+    },
   ),
 
   scaleEventBodies: collection(
     '[data-test-scale-events] [data-test-accordion-body]',
     {
       meta: text(),
-    }
+    },
   ),
 
   hasScalingTimeline: isPresent('[data-test-scaling-timeline]'),
@@ -85,7 +85,7 @@ export default create({
     '[data-test-scaling-timeline] [data-test-annotation]',
     {
       open: clickable('button'),
-    }
+    },
   ),
 
   error: error(),

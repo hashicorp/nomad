@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { dasherize } from '@ember/string';
@@ -23,7 +23,7 @@ export default Factory.extend({
     if (!faker.random.boolean()) {
       return provide(
         faker.random.number({ min: 0, max: 2 }),
-        faker.hacker.noun.bind(faker.hacker.noun)
+        faker.hacker.noun.bind(faker.hacker.noun),
       );
     } else {
       return null;
@@ -53,7 +53,7 @@ export default Factory.extend({
       }
       if (!service.allocId) {
         const servicedAlloc = (server.db.allocations.filter(
-          (a) => a.jobId === 'service-haver'
+          (a) => a.jobId === 'service-haver',
         ) || [])[0];
         if (servicedAlloc) {
           service.update({

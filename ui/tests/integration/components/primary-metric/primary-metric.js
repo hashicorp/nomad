@@ -42,10 +42,10 @@ export function setupPrimaryMetricMocks(hooks, tasks = []) {
 
     this.owner.register(
       'service:stats-trackers-registry',
-      mockStatsTrackersRegistry
+      mockStatsTrackersRegistry,
     );
     this.statsTrackersRegistry = this.owner.lookup(
-      'service:stats-trackers-registry'
+      'service:stats-trackers-registry',
     );
   });
 }
@@ -79,7 +79,7 @@ export function primaryMetric({ template, findResource, preload }) {
 
     assert.ok(
       find('[data-test-current-value]').classList.contains('is-info'),
-      'Info class for CPU metric'
+      'Info class for CPU metric',
     );
   });
 
@@ -95,7 +95,7 @@ export function primaryMetric({ template, findResource, preload }) {
 
     assert.ok(
       find('[data-test-current-value]').classList.contains('is-danger'),
-      'Danger class for Memory metric'
+      'Danger class for Memory metric',
     );
   });
 
@@ -115,7 +115,7 @@ export function primaryMetric({ template, findResource, preload }) {
 
     assert.ok(
       spy,
-      'Uses the tracker registry to get the tracker for the provided resource'
+      'Uses the tracker registry to get the tracker for the provided resource',
     );
   });
 
@@ -131,7 +131,7 @@ export function primaryMetric({ template, findResource, preload }) {
 
     assert.ok(
       this.trackerPollSpy.calledOnce,
-      'The tracker is polled immediately'
+      'The tracker is polled immediately',
     );
   });
 
@@ -149,13 +149,13 @@ export function primaryMetric({ template, findResource, preload }) {
 
     assert.notOk(
       trackerSignalPauseSpy.called,
-      'No pause signal has been sent yet'
+      'No pause signal has been sent yet',
     );
     await clearRender();
 
     assert.ok(
       trackerSignalPauseSpy.calledOnce,
-      'A pause signal is sent to the tracker'
+      'A pause signal is sent to the tracker',
     );
   });
 }

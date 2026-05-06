@@ -4,12 +4,12 @@
  */
 
 /* eslint-disable ember/no-observers */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller from '@ember/controller';
 import { next } from '@ember/runloop';
 import { observes } from '@ember-decorators/object';
 import { computed } from '@ember/object';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
 import OTTExchangeError from '../utils/ott-exchange-error';
@@ -93,9 +93,8 @@ export default class ApplicationController extends Controller {
       next(() => {
         throw this.error;
       });
-    } else if (!Ember.testing) {
+    } else if (!macroCondition(isTesting())) {
       next(() => {
-        // eslint-disable-next-line
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });
     }

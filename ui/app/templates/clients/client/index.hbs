@@ -22,7 +22,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.eligibilityError) ""}}
+          {{on "click" (fn (mut this.eligibilityError) "")}}
           type="button"
         >
           Okay
@@ -46,7 +46,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.stopDrainError) ""}}
+          {{on "click" (fn (mut this.stopDrainError) "")}}
           type="button"
         >
           Okay
@@ -70,7 +70,7 @@
         <button
           data-test-dismiss
           class="button is-danger"
-          onclick={{action (mut this.drainError) ""}}
+          {{on "click" (fn (mut this.drainError) "")}}
           type="button"
         >
           Okay
@@ -93,7 +93,7 @@
           <button
             data-test-dismiss
             class="button is-info"
-            onclick={{action (mut this.showDrainStoppedNotification) false}}
+            {{on "click" (fn (mut this.showDrainStoppedNotification) false)}}
             type="button"
           >
             Okay
@@ -117,7 +117,7 @@
           <button
             data-test-dismiss
             class="button is-info"
-            onclick={{action (mut this.showDrainUpdateNotification) false}}
+            {{on "click" (fn (mut this.showDrainUpdateNotification) false)}}
             type="button"
           >
             Okay
@@ -134,14 +134,15 @@
             Drain Complete
           </h3>
           <p data-test-message>
-            Allocations have been drained and the node has been set to ineligible.
+            Allocations have been drained and the node has been set to
+            ineligible.
           </p>
         </div>
         <div class="column is-centered is-minimum">
           <button
             data-test-dimiss
             class="button is-info"
-            onclick={{action (mut this.showDrainNotification) false}}
+            {{on "click" (fn (mut this.showDrainNotification) false)}}
             type="button"
           >
             Okay
@@ -157,7 +158,10 @@
           data-test-node-status="{{this.model.compositeStatus}}"
           class="node-status-light {{this.model.compositeStatus}}"
         >
-          <Hds::Icon @name={{this.model.compositeStatusIcon}} @isInline={{true}} />
+          <Hds::Icon
+            @name={{this.model.compositeStatusIcon}}
+            @isInline={{true}}
+          />
         </span>
       </span>
     </div>
@@ -175,7 +179,9 @@
               this.model.isDraining
               (cannot "write client")
             }}
-            @onToggle={{perform this.setEligibility (not this.model.isEligible)
+            @onToggle={{perform
+              this.setEligibility
+              (not this.model.isEligible)
             }}
           >
             Eligible
@@ -193,7 +199,11 @@
           class="tag is-hollow is-small no-text-transform"
         >
           {{this.model.id}}
-          <CopyButton @clipboardText={{this.model.id}} @compact={{true}} @inset={{true}} />
+          <CopyButton
+            @clipboardText={{this.model.id}}
+            @compact={{true}}
+            @inset={{true}}
+          />
         </span>
       </p>
     </div>
@@ -214,8 +224,8 @@
       <DrainPopover
         @client={{this.model}}
         @isDisabled={{cannot "write client"}}
-        @onDrain={{action "drainNotify"}}
-        @onError={{action "setDrainError"}}
+        @onDrain={{this.drainNotify}}
+        @onError={{this.setDrainError}}
       />
     </div>
   </div>
@@ -263,7 +273,11 @@
           Drivers
         </span>
         {{#if this.model.unhealthyDrivers.length}}
-          <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />
+          <Hds::Icon
+            @name="alert-triangle-fill"
+            @color="warning"
+            @isInline={{true}}
+          />
           {{this.model.unhealthyDrivers.length}}
           of
           {{this.model.detectedDrivers.length}}
@@ -325,7 +339,8 @@
                 <span
                   data-test-deadline
                   class="tooltip"
-                  aria-label={{format-ts this.model.drainStrategy.forceDeadline
+                  aria-label={{format-ts
+                    this.model.drainStrategy.forceDeadline
                   }}
                 >
                   {{moment-from-now
@@ -341,7 +356,11 @@
                 Force Drain
               </span>
               {{#if this.model.drainStrategy.isForced}}
-                <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />Yes
+                <Hds::Icon
+                  @name="alert-triangle-fill"
+                  @color="warning"
+                  @isInline={{true}}
+                />Yes
               {{else}}
                 No
               {{/if}}
@@ -460,9 +479,8 @@
       <div>
         Allocations
         <button
-          role="button"
           class="badge is-white"
-          onclick={{action "setPreemptionFilter" false}}
+          {{on "click" (fn this.setPreemptionFilter false)}}
           data-test-filter-all
           type="button"
         >
@@ -470,9 +488,8 @@
         </button>
         {{#if this.preemptions.length}}
           <button
-            role="button"
             class="badge is-warning"
-            onclick={{action "setPreemptionFilter" true}}
+            {{on "click" (fn this.setPreemptionFilter true)}}
             data-test-filter-preemptions
             type="button"
           >
@@ -487,25 +504,25 @@
           @label="Namespace"
           @options={{this.optionsNamespace}}
           @selection={{this.selectionNamespace}}
-          @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+          @onSelect={{fn this.setFacetQueryParam "qpNamespace"}}
         />
         <MultiSelectDropdown
           data-test-allocation-job-facet
           @label="Job"
           @options={{this.optionsJob}}
           @selection={{this.selectionJob}}
-          @onSelect={{action this.setFacetQueryParam "qpJob"}}
+          @onSelect={{fn this.setFacetQueryParam "qpJob"}}
         />
         <MultiSelectDropdown
           data-test-allocation-status-facet
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @placeholder="Search allocations..."
           @inputClass="is-compact"
           @class="is-padded"
@@ -524,22 +541,25 @@
     </div>
     <div
       class="boxed-section-body
-        {{if this.sortedAllocations.length "is-full-bleed"}}"
+        {{if this.sortedAllocations.length 'is-full-bleed'}}"
     >
       {{#if this.sortedAllocations.length}}
         <ListPagination
           @source={{this.sortedAllocations}}
           @size={{this.pageSize}}
-          @page={{this.currentPage}} as |p|
+          @page={{this.currentPage}}
+          as |p|
         >
           <ListTable
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+            @class="with-foot {{if this.showSubTasks 'with-collapsed-borders'}}"
+            as |t|
           >
             <t.head>
-              <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
               <t.sort-by @prop="shortId">
                 ID
               </t.sort-by>
@@ -573,16 +593,25 @@
               <AllocationRow
                 {{keyboard-shortcut
                   enumerated=true
-                  action=(action "gotoAllocation" row.model)
+                  action=(fn this.gotoAllocation row.model)
                 }}
                 @allocation={{row.model}}
                 @context="node"
-                @onClick={{action "gotoAllocation" row.model}}
+                @onClick={{fn this.gotoAllocation row.model}}
                 @data-test-allocation={{row.model.id}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{true}} />
+                  <TaskSubRow
+                    @namespan="8"
+                    @taskState={{task}}
+                    @active={{eq
+                      this.activeTask
+                      (concat task.allocation.id "-" task.name)
+                    }}
+                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                    @jobHasActions={{true}}
+                  />
                 {{/each}}
               {{/if}}
             </t.body>
@@ -698,7 +727,8 @@
       <div class="boxed-section-body is-full-bleed">
         <ListTable
           @source={{this.sortedHostVolumes}}
-          @class="is-striped" as |t|
+          @class="is-striped"
+          as |t|
         >
           <t.head>
             <th>
@@ -738,12 +768,12 @@
       <ListAccordion @source={{this.sortedDrivers}} @key="name" as |a|>
         <a.head
           @buttonLabel="details"
-          @buttonType={{"client-detail"}}
+          @buttonType="client-detail"
           @isExpandable={{a.item.detected}}
         >
           <div
             class="columns inline-definitions
-              {{unless a.item.detected "is-faded"}}"
+              {{unless a.item.detected 'is-faded'}}"
           >
             <div class="column is-1">
               <span data-test-name>
@@ -864,25 +894,35 @@
           >
             <button
               data-test-new-metadata-button
-              disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
+              disabled={{or
+                (not this.newMetaData.key)
+                (not this.newMetaData.value)
+              }}
               type="submit"
               class="button is-primary"
-              {{on "click" (queue
-                (action this.addDynamicMetaData this.newMetaData)
-                this.resetNewMetaData
-                (action (mut this.editingMetadata) false)
-              )}}
+              {{on
+                "click"
+                (queue
+                  (fn this.addDynamicMetaData this.newMetaData)
+                  this.resetNewMetaData
+                  (fn (mut this.editingMetadata) false)
+                )
+              }}
             >
-              Add {{this.newMetaData.key}} to node metadata
+              Add
+              {{this.newMetaData.key}}
+              to node metadata
             </button>
 
             <button
               type="button"
               class="button is-secondary"
-              {{on "click" (queue
-                this.resetNewMetaData
-                (action (mut this.editingMetadata) false)
-              )}}
+              {{on
+                "click"
+                (queue
+                  this.resetNewMetaData (fn (mut this.editingMetadata) false)
+                )
+              }}
             >
               Cancel
             </button>
@@ -894,11 +934,11 @@
           <button
             type="button"
             class="button is-primary"
-            {{on "click" (action (mut this.editingMetadata) true)}}
+            {{on "click" (fn (mut this.editingMetadata) true)}}
             {{keyboard-shortcut
               label="Add Dynamic Node Metadata"
               pattern=(array "m" "e" "t" "a")
-              action=(action (mut this.editingMetadata) true)
+              action=(fn (mut this.editingMetadata) true)
             }}
           >
             Add new Dynamic Metadata

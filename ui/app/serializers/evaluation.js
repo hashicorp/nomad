@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
@@ -45,7 +45,7 @@ export default class Evaluation extends ApplicationSerializer {
     const included = relatedEvals.reduce((acc, evaluationStub) => {
       const jsonDocument = this.normalize(
         this.store.modelFor('evaluation-stub'),
-        evaluationStub
+        evaluationStub,
       );
 
       return [...acc, jsonDocument.data];

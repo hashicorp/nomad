@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { schedule } from '@ember/runloop';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { useMachine } from 'ember-statecharts';
 import evaluationsMachine from '../../machines/evaluations';
 

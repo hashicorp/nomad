@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 /**
  * Convert a JSON object to an HCL string.
  * The Nomad API returns VariableFlags as an object where all values are strings.

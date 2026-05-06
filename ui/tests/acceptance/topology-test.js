@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { get } from '@ember/object';
 import { currentURL, typeIn, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -29,15 +28,13 @@ module('Acceptance | topology', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.createList('node-pool', 5);
-    server.create('job', { createAllocations: false });
+    this.server.createList('node-pool', 5);
+    this.server.create('job', { createAllocations: false });
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(1);
-
-    server.createList('node', 3);
-    server.createList('allocation', 5);
+    this.server.createList('node', 3);
+    this.server.createList('allocation', 5);
 
     await Topology.visit();
     await a11yAudit(assert);
@@ -45,41 +42,41 @@ module('Acceptance | topology', function (hooks) {
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {
     faker.seed(1);
-    server.create('node-pool', { name: 'all' });
-    server.createList('node', 3);
-    server.createList('allocation', 5);
+    this.server.create('node-pool', { name: 'all' });
+    this.server.createList('node', 3);
+    this.server.createList('allocation', 5);
 
     await Topology.visit();
 
     await percySnapshot(assert);
 
-    assert.equal(Topology.infoPanelTitle, 'Cluster Details');
+    assert.deepEqual(Topology.infoPanelTitle, 'Cluster Details');
     assert.notOk(Topology.filteredNodesWarning.isPresent);
 
-    assert.equal(
+    assert.deepEqual(
       Topology.clusterInfoPanel.nodeCount,
-      `${server.schema.nodes.all().length} Clients`
+      `${this.server.schema.nodes.all().length} Clients`,
     );
 
-    const allocs = server.schema.allocations.all().models;
+    const allocs = this.server.schema.allocations.all().models;
     const scheduledAllocs = allocs.filter((alloc) =>
-      ['pending', 'running'].includes(alloc.clientStatus)
+      ['pending', 'running'].includes(alloc.clientStatus),
     );
-    assert.equal(
+    assert.deepEqual(
       Topology.clusterInfoPanel.allocCount,
-      `${scheduledAllocs.length} Allocations`
+      `${scheduledAllocs.length} Allocations`,
     );
 
     // Node pool count ignores 'all'.
-    const nodePools = server.schema.nodePools
+    const nodePools = this.server.schema.nodePools
       .all()
       .models.filter((p) => p.name !== 'all');
-    assert.equal(
+    assert.deepEqual(
       Topology.clusterInfoPanel.nodePoolCount,
-      `${nodePools.length} Node Pools`
+      `${nodePools.length} Node Pools`,
     );
 
-    const nodeResources = server.schema.nodes
+    const nodeResources = this.server.schema.nodes
       .all()
       .models.mapBy('nodeResources');
     const taskResources = scheduledAllocs
@@ -92,46 +89,46 @@ module('Acceptance | topology', function (hooks) {
     const reservedMem = sumResources(taskResources, 'Memory.MemoryMB');
     const reservedCPU = sumResources(taskResources, 'Cpu.CpuShares');
 
-    assert.equal(
-      Topology.clusterInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
+    assert.strictEqual(
+      Number(Topology.clusterInfoPanel.memoryProgressValue),
+      reservedMem / totalMem,
     );
-    assert.equal(
-      Topology.clusterInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
+    assert.strictEqual(
+      Number(Topology.clusterInfoPanel.cpuProgressValue),
+      reservedCPU / totalCPU,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
       `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(
-        totalMem * 1024 * 1024
-      )} reserved`
+        totalMem * 1024 * 1024,
+      )} reserved`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
       `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(
         totalCPU,
-        'MHz'
-      )} reserved`
+        'MHz',
+      )} reserved`,
     );
   });
 
   test('all allocations for all namespaces and all clients are queried on load', async function (assert) {
-    server.createList('node', 3);
-    server.createList('allocation', 5);
+    this.server.createList('node', 3);
+    this.server.createList('allocation', 5);
 
     await Topology.visit();
     const requests = this.server.pretender.handledRequests;
     assert.ok(requests.findBy('url', '/v1/nodes?resources=true'));
 
     const allocationsRequest = requests.find((req) =>
-      req.url.startsWith('/v1/allocations')
+      req.url.startsWith('/v1/allocations'),
     );
     assert.ok(allocationsRequest);
 
     const allocationRequestParams = queryString.parse(
-      allocationsRequest.url.split('?')[1]
+      allocationsRequest.url.split('?')[1],
     );
     assert.deepEqual(allocationRequestParams, {
       namespace: '*',
@@ -141,10 +138,13 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('when an allocation is selected, the info panel shows information on the allocation', async function (assert) {
-    const nodes = server.createList('node', 5);
-    const job = server.create('job', { createAllocations: false });
-    const taskGroup = server.schema.find('taskGroup', job.taskGroupIds[0]).name;
-    const allocs = server.createList('allocation', 5, {
+    const nodes = this.server.createList('node', 5);
+    const job = this.server.create('job', { createAllocations: false });
+    const taskGroup = this.server.schema.find(
+      'taskGroup',
+      job.taskGroupIds[0],
+    ).name;
+    const allocs = this.server.createList('allocation', 5, {
       forceRunningClientStatus: true,
       jobId: job.id,
       taskGroup,
@@ -178,57 +178,57 @@ module('Acceptance | topology', function (hooks) {
     };
 
     await reset();
-    assert.equal(Topology.infoPanelTitle, 'Allocation Details');
+    assert.deepEqual(Topology.infoPanelTitle, 'Allocation Details');
 
-    assert.equal(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
+    assert.deepEqual(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
 
     const uniqueClients = allocs.mapBy('nodeId').uniq();
-    assert.equal(
+    assert.deepEqual(
       Topology.allocInfoPanel.siblingAllocs,
-      `Sibling Allocations: ${allocs.length}`
+      `Sibling Allocations: ${allocs.length}`,
     );
-    assert.equal(
+    assert.deepEqual(
       Topology.allocInfoPanel.uniquePlacements,
-      `Unique Client Placements: ${uniqueClients.length}`
+      `Unique Client Placements: ${uniqueClients.length}`,
     );
 
-    assert.equal(Topology.allocInfoPanel.job, job.name);
+    assert.deepEqual(Topology.allocInfoPanel.job, job.name);
     assert.ok(Topology.allocInfoPanel.taskGroup.endsWith(alloc.taskGroup));
-    assert.equal(Topology.allocInfoPanel.client, node.id.split('-')[0]);
+    assert.deepEqual(Topology.allocInfoPanel.client, node.id.split('-')[0]);
 
     await Topology.allocInfoPanel.visitAlloc();
-    assert.equal(currentURL(), `/allocations/${alloc.id}`);
+    assert.deepEqual(currentURL(), `/allocations/${alloc.id}`);
 
     await reset();
 
     await Topology.allocInfoPanel.visitJob();
-    assert.equal(currentURL(), `/jobs/${job.id}@default`);
+    assert.deepEqual(currentURL(), `/jobs/${job.id}@default`);
 
     await reset();
 
     await Topology.allocInfoPanel.visitClient();
-    assert.equal(currentURL(), `/clients/${node.id}`);
+    assert.deepEqual(currentURL(), `/clients/${node.id}`);
   });
 
   test('changing which allocation is selected changes the metric charts', async function (assert) {
-    server.create('node');
-    const job1 = server.create('job', { createAllocations: false });
-    const taskGroup1 = server.schema.find(
+    this.server.create('node');
+    const job1 = this.server.create('job', { createAllocations: false });
+    const taskGroup1 = this.server.schema.find(
       'taskGroup',
-      job1.taskGroupIds[0]
+      job1.taskGroupIds[0],
     ).name;
-    server.create('allocation', {
+    this.server.create('allocation', {
       forceRunningClientStatus: true,
       jobId: job1.id,
       taskGroup1,
     });
 
-    const job2 = server.create('job', { createAllocations: false });
-    const taskGroup2 = server.schema.find(
+    const job2 = this.server.create('job', { createAllocations: false });
+    const taskGroup2 = this.server.schema.find(
       'taskGroup',
-      job2.taskGroupIds[0]
+      job2.taskGroupIds[0],
     ).name;
-    server.create('allocation', {
+    this.server.create('allocation', {
       forceRunningClientStatus: true,
       jobId: job2.id,
       taskGroup2,
@@ -248,35 +248,40 @@ module('Acceptance | topology', function (hooks) {
 
   test('when a node is selected, the info panel shows information on the node', async function (assert) {
     // A high node count is required for node selection
-    const nodes = server.createList('node', 51);
+    const nodes = this.server.createList('node', 51);
     const node = nodes.sortBy('datacenter')[0];
-    server.createList('allocation', 5, { forceRunningClientStatus: true });
+    this.server.createList('allocation', 5, { forceRunningClientStatus: true });
 
-    const allocs = server.schema.allocations.where({ nodeId: node.id }).models;
+    const allocs = this.server.schema.allocations.where({
+      nodeId: node.id,
+    }).models;
 
     await Topology.visit();
 
     await Topology.viz.datacenters[0].nodes[0].selectNode();
-    assert.equal(Topology.infoPanelTitle, 'Client Details');
+    assert.deepEqual(Topology.infoPanelTitle, 'Client Details');
 
-    assert.equal(Topology.nodeInfoPanel.id, node.id.split('-')[0]);
-    assert.equal(Topology.nodeInfoPanel.name, `Name: ${node.name}`);
-    assert.equal(Topology.nodeInfoPanel.address, `Address: ${node.httpAddr}`);
-    assert.equal(Topology.nodeInfoPanel.status, `Status: ${node.status}`);
+    assert.deepEqual(Topology.nodeInfoPanel.id, node.id.split('-')[0]);
+    assert.deepEqual(Topology.nodeInfoPanel.name, `Name: ${node.name}`);
+    assert.deepEqual(
+      Topology.nodeInfoPanel.address,
+      `Address: ${node.httpAddr}`,
+    );
+    assert.deepEqual(Topology.nodeInfoPanel.status, `Status: ${node.status}`);
 
-    assert.equal(
+    assert.deepEqual(
       Topology.nodeInfoPanel.drainingLabel,
-      node.drain ? 'Yes' : 'No'
+      node.drain ? 'Yes' : 'No',
     );
-    assert.equal(
+    assert.deepEqual(
       Topology.nodeInfoPanel.eligibleLabel,
-      node.schedulingEligibility === 'eligible' ? 'Yes' : 'No'
+      node.schedulingEligibility === 'eligible' ? 'Yes' : 'No',
     );
 
-    assert.equal(Topology.nodeInfoPanel.drainingIsAccented, node.drain);
-    assert.equal(
+    assert.deepEqual(Topology.nodeInfoPanel.drainingIsAccented, node.drain);
+    assert.deepEqual(
       Topology.nodeInfoPanel.eligibleIsAccented,
-      node.schedulingEligibility !== 'eligible'
+      node.schedulingEligibility !== 'eligible',
     );
 
     const taskResources = allocs
@@ -289,39 +294,39 @@ module('Acceptance | topology', function (hooks) {
     const totalMem = node.nodeResources.Memory.MemoryMB;
     const totalCPU = node.nodeResources.Cpu.CpuShares;
 
-    assert.equal(
-      Topology.nodeInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
+    assert.strictEqual(
+      Number(Topology.nodeInfoPanel.memoryProgressValue),
+      reservedMem / totalMem,
     );
-    assert.equal(
-      Topology.nodeInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
+    assert.strictEqual(
+      Number(Topology.nodeInfoPanel.cpuProgressValue),
+      reservedCPU / totalCPU,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Topology.nodeInfoPanel.memoryAbsoluteValue,
       `${formatScheduledBytes(
-        reservedMem * 1024 * 1024
-      )} / ${formatScheduledBytes(totalMem, 'MiB')} reserved`
+        reservedMem * 1024 * 1024,
+      )} / ${formatScheduledBytes(totalMem, 'MiB')} reserved`,
     );
 
-    assert.equal(
+    assert.deepEqual(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
       `${formatScheduledHertz(reservedCPU, 'MHz')} / ${formatScheduledHertz(
         totalCPU,
-        'MHz'
-      )} reserved`
+        'MHz',
+      )} reserved`,
     );
 
     await Topology.nodeInfoPanel.visitNode();
-    assert.equal(currentURL(), `/clients/${node.id}`);
+    assert.deepEqual(currentURL(), `/clients/${node.id}`);
   });
 
   test('when one or more nodes lack the NodeResources property, a warning message is shown', async function (assert) {
-    server.createList('node', 3);
-    server.createList('allocation', 5);
+    this.server.createList('node', 3);
+    this.server.createList('allocation', 5);
 
-    server.schema.nodes.all().models[0].update({ nodeResources: null });
+    this.server.schema.nodes.all().models[0].update({ nodeResources: null });
 
     await Topology.visit();
     assert.ok(Topology.filteredNodesWarning.isPresent);
@@ -329,31 +334,31 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('Filtering and Querying reduces the number of nodes shown', async function (assert) {
-    server.createList('node', 10);
-    server.createList('node', 2, {
+    this.server.createList('node', 10);
+    this.server.createList('node', 2, {
       nodeClass: 'foo-bar-baz',
     });
 
     // Make sure we have at least one node draining and one ineligible.
-    server.create('node', {
+    this.server.create('node', {
       schedulingEligibility: 'ineligible',
     });
-    server.create('node', 'draining');
+    this.server.create('node', 'draining');
 
     // Create node pool exclusive for these nodes.
-    server.create('node-pool', { name: 'test-node-pool' });
-    server.createList('node', 3, {
+    this.server.create('node-pool', { name: 'test-node-pool' });
+    this.server.createList('node', 3, {
       nodePool: 'test-node-pool',
     });
 
-    server.createList('allocation', 5);
+    this.server.createList('allocation', 5);
 
     // Count draining and ineligible nodes.
     const counts = {
       ineligible: 0,
       draining: 0,
     };
-    server.db.nodes.forEach((n) => {
+    this.server.db.nodes.forEach((n) => {
       if (n.schedulingEligibility === 'ineligible') {
         counts['ineligible'] += 1;
       }
@@ -366,9 +371,9 @@ module('Acceptance | topology', function (hooks) {
     assert.dom('[data-test-topo-viz-node]').exists({ count: 17 });
 
     // Test search.
-    await typeIn('input.node-search', server.schema.nodes.first().name);
+    await typeIn('input.node-search', this.server.schema.nodes.first().name);
     assert.dom('[data-test-topo-viz-node]').exists({ count: 1 });
-    await typeIn('input.node-search', server.schema.nodes.first().name);
+    await typeIn('input.node-search', this.server.schema.nodes.first().name);
     assert.dom('[data-test-topo-viz-node]').doesNotExist();
     await click('[title="Clear search"]');
     assert.dom('[data-test-topo-viz-node]').exists({ count: 17 });

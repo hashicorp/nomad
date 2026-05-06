@@ -17,6 +17,7 @@ export default () => ({
 
   plan: clickable('[data-test-plan]'),
   cancel: clickable('[data-test-cancel]'),
+  runIsPresent: isPresent('[data-test-run]'),
   run: clickable('[data-test-run]'),
 
   cancelEditing: clickable('[data-test-cancel-editing]'),

@@ -7,16 +7,17 @@
   @timeseries={{true}}
   @xProp="time"
   @yProp="count"
-  @data={{this.data}}>
+  @data={{this.data}}
+>
   <:svg as |c|>
-    <c.Area
-      @curve="stepAfter"
-      @data={{this.data}} />
+    <c.Area @curve="stepAfter" @data={{this.data}} />
   </:svg>
   <:after as |c|>
     <c.Tooltip class="is-snappy" as |series datum|>
       <li>
-        <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+        <span class="label"><span
+            class="color-swatch is-primary"
+          />{{datum.formattedX}}</span>
         <span class="value">{{datum.formattedY}}</span>
       </li>
     </c.Tooltip>
@@ -24,7 +25,8 @@
       @annotations={{this.annotations}}
       @key="event.uid"
       @activeAnnotation={{this.activeEvent}}
-      @annotationClick={{action this.toggleEvent}} />
+      @annotationClick={{this.toggleEvent}}
+    />
   </:after>
 </LineChart>
 {{#if this.activeEvent}}
@@ -38,8 +40,13 @@
         {{/if}}
       </div>
       <div>
-        <p data-test-timestamp class="timestamp">{{format-month-ts this.activeEvent.event.time}}</p>
-        <p data-test-message class="message">{{this.activeEvent.event.message}}</p>
+        <p data-test-timestamp class="timestamp">{{format-month-ts
+            this.activeEvent.event.time
+          }}</p>
+        <p
+          data-test-message
+          class="message"
+        >{{this.activeEvent.event.message}}</p>
       </div>
     </div>
     <JsonViewer @json={{this.activeEvent.event.meta}} @fluidHeight={{true}} />

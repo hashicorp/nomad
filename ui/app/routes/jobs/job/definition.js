@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 /**
  * Route for fetching and displaying a job's definition and specification.
  */
@@ -58,7 +57,7 @@ export default class DefinitionRoute extends Route {
       variableFlags = specificationResponse?.VariableFlags ?? null;
       variableLiteral = specificationResponse?.Variables ?? null;
       format = specificationResponse?.Format ?? 'json';
-    } catch (e) {
+    } catch {
       // Swallow the error because Nomad job pre-1.6 will not have a specification
     }
 
@@ -99,8 +98,8 @@ export default class DefinitionRoute extends Route {
     const view = controller.view
       ? controller.view
       : model?.specification
-      ? 'job-spec'
-      : 'full-definition';
+        ? 'job-spec'
+        : 'full-definition';
     controller.view = view;
   }
 }

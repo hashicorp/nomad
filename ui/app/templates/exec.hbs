@@ -3,33 +3,48 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "Exec"}}
+{{page-title
+  (if
+    this.system.activeRegion (concat "Exec - " this.system.activeRegion) "Exec"
+  )
+}}
 <nav class="navbar is-popup">
   <div class="navbar-brand">
     <div class="navbar-item is-logo">
       <NomadLogo />
     </div>
   </div>
-    {{#if this.system.shouldShowRegions}}
-      <div class="navbar-item">
-        <span class="navbar-label">Region</span>
-        <span data-test-region>{{this.model.region}}</span>
-      </div>
-    {{/if}}
-
-    {{#if this.system.shouldShowNamespaces}}
-      <div class="navbar-item">
-        <span class="navbar-label">Namespace</span>
-        <span data-test-namespace>{{this.model.namespace.id}}</span>
-      </div>
-    {{/if}}
-
+  {{#if this.system.shouldShowRegions}}
     <div class="navbar-item">
-      <span class="navbar-label">Job</span>
-      <span data-test-job>{{this.model.name}}</span>
+      <span class="navbar-label">Region</span>
+      <span data-test-region>{{or
+          this.system.activeRegion
+          this.model.region
+        }}</span>
     </div>
+  {{/if}}
+
+  {{#if this.system.shouldShowNamespaces}}
+    <div class="navbar-item">
+      <span class="navbar-label">Namespace</span>
+      <span data-test-namespace>{{or
+          this.namespace
+          this.model.namespace.id
+        }}</span>
+    </div>
+  {{/if}}
+
+  <div class="navbar-item">
+    <span class="navbar-label">Job</span>
+    <span data-test-job>{{this.model.name}}</span>
+  </div>
   <div class="navbar-end">
-    <a href="https://developer.hashicorp.com/nomad/docs" target="_blank" rel="noopener noreferrer" class="navbar-item">Documentation</a>
+    <a
+      href="https://developer.hashicorp.com/nomad/docs"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="navbar-item"
+    >Documentation</a>
     <Hds::Icon @name="lock" />
   </div>
 </nav>
@@ -39,7 +54,9 @@
     <div class="task-group-tree">
     </div>
     <div class="terminal-container" data-test-exec-job-dead-message>
-      Job <code>{{this.model.name}}</code> is dead and cannot host an exec session.
+      Job
+      <code>{{this.model.name}}</code>
+      is dead and cannot host an exec session.
     </div>
   </div>
 {{else}}
@@ -53,7 +70,8 @@
               @taskGroup={{taskGroup}}
               @shouldOpenInNewWindow={{this.socketOpen}}
               @activeTaskName={{this.taskName}}
-              @activeTaskGroupName={{this.taskGroupName}} />
+              @activeTaskGroupName={{this.taskGroupName}}
+            />
           </li>
         {{/each}}
       </ul>

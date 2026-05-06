@@ -1,10 +1,9 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
-version: 1
+version: 2
 snapshot:
-  # Hide high-variability data from Percy snapshots; helps make sure that randomized data doesn't cause a visual diff.
-  percy-css: | 
+  percy-css: |
     .topo-viz { 
       display: none;
     }
@@ -13,3 +12,5 @@ snapshot:
     .dashboard-metric {
       visibility: hidden;
     }
+discovery:
+  disable-cache: true

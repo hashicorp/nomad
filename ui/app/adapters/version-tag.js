@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import ApplicationAdapter from './application';
 import classic from 'ember-classic-decorator';
 
@@ -20,7 +18,7 @@ export default class VersionTagAdapter extends ApplicationAdapter {
   async deleteTag(namespace, jobName, tagName) {
     let deletion = this.ajax(
       this.urlForDeleteRecord(namespace, jobName, tagName),
-      'DELETE'
+      'DELETE',
     );
     return deletion;
   }

@@ -4,7 +4,7 @@
 ~}}
 
 {{page-title "Job " this.job.name " versions"}}
-{{did-update this.versionsDidUpdate this.job.versions}}
+{{did-update-helper this.versionsDidUpdate this.job.versions}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
 
@@ -12,26 +12,28 @@
     <PH.Actions>
       <Hds::Dropdown data-test-diff-facet as |dd|>
         <dd.ToggleButton
-          @text={{if this.diffVersion (concat "Diff against version " this.diffVersion) "Diff against previous version" }}
+          @text={{if
+            this.diffVersion
+            (concat "Diff against version " this.diffVersion)
+            "Diff against previous version"
+          }}
           @color="secondary"
         />
         <dd.Radio
           name="diff"
           checked={{eq this.diffVersion ""}}
-          {{on "change" (action this.setDiffVersion "")}}
+          {{on "change" (fn this.setDiffVersion "")}}
         >
           previous version
         </dd.Radio>
         {{#each this.optionsDiff key="label" as |option|}}
           <dd.Radio
             name="diff"
-            {{on "change" (action this.setDiffVersion
-              option.value
-            )}}
+            {{on "change" (fn this.setDiffVersion option.value)}}
             @value={{option.label}}
             checked={{eq this.diffVersion option.value}}
             data-test-dropdown-option={{option.label}}
-        >
+          >
             {{option.label}}
           </dd.Radio>
         {{else}}
@@ -47,15 +49,29 @@
     <div data-test-inline-error class="notification {{this.errorLevelClass}}">
       <div class="columns">
         <div class="column">
-          <h3 data-test-inline-error-title class="title is-4">{{this.error.title}}</h3>
+          <h3
+            data-test-inline-error-title
+            class="title is-4"
+          >{{this.error.title}}</h3>
           <p data-test-inline-error-body>{{this.error.description}}</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-inline-error-close class="button {{this.errorLevelClass}}" onclick={{action this.onDismiss}} type="button">Okay</button>
+          <button
+            data-test-inline-error-close
+            class="button {{this.errorLevelClass}}"
+            {{on "click" this.onDismiss}}
+            type="button"
+          >Okay</button>
         </div>
       </div>
     </div>
   {{/if}}
 
-  <JobVersionsStream @versions={{this.model.versions}} @diffs={{this.diffs}} @verbose={{true}} @handleError={{action this.handleError}} @diffsExpanded={{this.diffsExpanded}} />
+  <JobVersionsStream
+    @versions={{this.model.versions}}
+    @diffs={{this.diffs}}
+    @verbose={{true}}
+    @handleError={{this.handleError}}
+    @diffsExpanded={{this.diffsExpanded}}
+  />
 </section>

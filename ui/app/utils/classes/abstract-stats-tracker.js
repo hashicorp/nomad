@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 import Mixin from '@ember/object/mixin';
 import { assert } from '@ember/debug';
 import { task, timeout } from 'ember-concurrency';
@@ -24,19 +24,19 @@ export default Mixin.create({
 
   fetch() {
     assert(
-      'StatsTrackers need a fetch method, which should have an interface like window.fetch'
+      'StatsTrackers need a fetch method, which should have an interface like window.fetch',
     );
   },
 
   append(/* frame */) {
     assert(
-      'StatsTrackers need an append method, which takes the JSON response from a request to url as an argument'
+      'StatsTrackers need an append method, which takes the JSON response from a request to url as an argument',
     );
   },
 
   pause() {
     assert(
-      'StatsTrackers need a pause method, which takes no arguments but adds a frame of data at the current timestamp with null as the value'
+      'StatsTrackers need a pause method, which takes no arguments but adds a frame of data at the current timestamp with null as the value',
     );
   },
 
@@ -78,12 +78,12 @@ export default Mixin.create({
       throw new Error(error);
     }
 
-    yield timeout(Ember.testing ? 0 : 2000);
+    yield timeout(macroCondition(isTesting()) ? 0 : 2000);
   }).drop(),
 
   signalPause: task(function* () {
     // wait 2 seconds
-    yield timeout(Ember.testing ? 0 : 2000);
+    yield timeout(macroCondition(isTesting()) ? 0 : 2000);
     // if no poll called in 2 seconds, pause
     this.pause();
   }).drop(),

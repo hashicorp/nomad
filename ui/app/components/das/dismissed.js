@@ -24,4 +24,9 @@ export default class DasDismissedComponent extends Component {
     this.explanationUnderstood = this.dismissInTheFuture;
     this.args.proceed({ manuallyDismissed: true });
   }
+
+  @action
+  toggleDismissInTheFuture(event) {
+    this.dismissInTheFuture = event.target.checked;
+  }
 }

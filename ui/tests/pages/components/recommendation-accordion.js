@@ -11,7 +11,7 @@ export default {
   group: text('[data-test-group]'),
 
   toggleButton: {
-    scope: '.accordion-toggle',
+    scope: '[data-test-accordion-toggle]',
   },
 
   card: recommendationCard,

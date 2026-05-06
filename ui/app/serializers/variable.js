@@ -35,7 +35,7 @@ export default class VariableSerializer extends ApplicationSerializer {
       typeClass,
       hash,
       id,
-      ...args
+      ...args,
     );
   }
 

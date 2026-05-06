@@ -25,61 +25,62 @@ module('Acceptance | access control', function (hooks) {
     faker.seed(1);
     window.localStorage.clear();
     window.sessionStorage.clear();
-    // server.create('token');
-    allScenarios.rolesTestCluster(server);
+    allScenarios.rolesTestCluster(this.server);
   });
 
   test('Access Control is only accessible by a management user', async function (assert) {
-    assert.expect(7);
     await Administration.visit();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs',
-      'redirected to the jobs page if a non-management token on /administration'
+      'redirected to the jobs page if a non-management token on /administration',
     );
 
     await Administration.visitTokens();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs',
-      'redirected to the jobs page if a non-management token on /tokens'
+      'redirected to the jobs page if a non-management token on /tokens',
     );
 
     assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
 
+    const managementToken = this.server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
+
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
     assert.dom('[data-test-gutter-link="administration"]').exists();
 
     await Administration.visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/administration',
-      'management token can access /administration'
+      'management token can access /administration',
     );
 
     await a11yAudit(assert);
 
     await Administration.visitTokens();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/administration/tokens',
-      'management token can access /administration/tokens'
+      'management token can access /administration/tokens',
     );
   });
 
   test('Access control does not show Sentinel Policies if they are not present in license', async function (assert) {
-    allScenarios.policiesTestCluster(server);
+    allScenarios.policiesTestCluster(this.server);
+    const managementToken = this.server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
     await Administration.visit();
@@ -87,12 +88,12 @@ module('Acceptance | access control', function (hooks) {
   });
 
   test('Access control shows Sentinel Policies if they are present in license', async function (assert) {
-    assert.expect(2);
-    allScenarios.policiesTestCluster(server, { sentinel: true });
+    allScenarios.policiesTestCluster(this.server, { sentinel: true });
+    const managementToken = this.server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
     await Administration.visit();
@@ -100,14 +101,15 @@ module('Acceptance | access control', function (hooks) {
     assert.dom('[data-test-sentinel-policies-card]').exists();
     await percySnapshot(assert);
     await click('[data-test-sentinel-policies-card] a');
-    assert.equal(currentURL(), '/administration/sentinel-policies');
+    assert.deepEqual(currentURL(), '/administration/sentinel-policies');
   });
 
   test('Access control index content', async function (assert) {
+    const managementToken = this.server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
@@ -117,10 +119,10 @@ module('Acceptance | access control', function (hooks) {
     assert.dom('[data-test-policies-card]').exists();
     assert.dom('[data-test-namespaces-card]').exists();
 
-    const numberOfTokens = server.db.tokens.length;
-    const numberOfRoles = server.db.roles.length;
-    const numberOfPolicies = server.db.policies.length;
-    const numberOfNamespaces = server.db.namespaces.length;
+    const numberOfTokens = this.server.db.tokens.length;
+    const numberOfRoles = this.server.db.roles.length;
+    const numberOfPolicies = this.server.db.policies.length;
+    const numberOfNamespaces = this.server.db.namespaces.length;
 
     assert
       .dom('[data-test-tokens-card] a')
@@ -137,60 +139,61 @@ module('Acceptance | access control', function (hooks) {
   });
 
   test('Access control subnav', async function (assert) {
+    const managementToken = this.server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
     await Administration.visit();
 
-    assert.equal(currentURL(), '/administration');
+    assert.deepEqual(currentURL(), '/administration');
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/tokens`,
-      'Shift+ArrowRight takes you to the next tab (Tokens)'
+      'Shift+ArrowRight takes you to the next tab (Tokens)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/roles`,
-      'Shift+ArrowRight takes you to the next tab (Roles)'
+      'Shift+ArrowRight takes you to the next tab (Roles)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/policies`,
-      'Shift+ArrowRight takes you to the next tab (Policies)'
+      'Shift+ArrowRight takes you to the next tab (Policies)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/namespaces`,
-      'Shift+ArrowRight takes you to the next tab (Namespaces)'
+      'Shift+ArrowRight takes you to the next tab (Namespaces)',
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration`,
-      'Shift+ArrowLeft takes you back to the Access Control index page'
+      'Shift+ArrowLeft takes you back to the Access Control index page',
     );
   });
 });

@@ -9,7 +9,7 @@
   z-index: $z-base;
 
   &::before {
-    content: ' ';
+    content: " ";
     position: absolute;
     display: block;
     top: 0;
@@ -37,7 +37,7 @@
     }
 
     &::before {
-      content: ' ';
+      content: " ";
       position: absolute;
       display: block;
       width: 10px;
@@ -64,9 +64,11 @@
 
     .job-version {
       margin-bottom: 0;
+
       & > .boxed-section {
         box-shadow: var(--token-surface-high-box-shadow);
         border-radius: 0.25rem;
+
         header,
         footer {
           border: none;
@@ -80,10 +82,11 @@
           grid-template-columns: auto auto;
           align-items: center;
           gap: 0.5rem;
+
           & > .tag-options {
             justify-self: start;
             display: grid;
-            grid-template-areas: 'name description save cancel delete';
+            grid-template-areas: "name description save cancel delete";
             grid-template-columns: auto 1fr auto auto auto;
             gap: 0.5rem;
             align-items: center;
@@ -99,16 +102,20 @@
               background-color: var(--token-color-surface-highlight);
               color: var(--token-color-foreground-highlight-on-surface);
               border-color: var(--token-color-foreground-highlight);
-              &:focus:before {
+
+              &:focus::before {
                 border-color: var(--token-color-foreground-highlight);
               }
+
               &:hover {
                 background-color: var(--token-color-border-highlight);
               }
             }
+
             .tag-button-secondary {
               grid-area: name;
             }
+
             .tag-description {
               grid-area: description;
               font-style: italic;
@@ -119,16 +126,19 @@
               text-wrap: nowrap;
               max-width: 100%;
             }
+
             & > .tag-name {
               grid-area: name;
             }
           }
+
           & > .version-options {
             justify-self: end;
           }
 
           &.editing {
             grid-template-columns: 1fr;
+
             & > .tag-options {
               width: 100%;
             }

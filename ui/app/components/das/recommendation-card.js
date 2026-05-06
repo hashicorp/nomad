@@ -4,13 +4,13 @@
  */
 
 import Component from '@glimmer/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 import { htmlSafe } from '@ember/template';
 import { didCancel, task, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 export default class DasRecommendationCardComponent extends Component {
   @service router;
@@ -44,7 +44,7 @@ export default class DasRecommendationCardComponent extends Component {
       taskGroup,
       taskGroup.count,
       this.args.summary.recommendations,
-      this.args.summary.excludedRecommendations
+      this.args.summary.excludedRecommendations,
     );
 
     const cpuDelta = diffs.cpu.delta;
@@ -129,7 +129,7 @@ export default class DasRecommendationCardComponent extends Component {
 
         return taskToggleRows;
       },
-      []
+      [],
     );
   }
 
@@ -160,7 +160,7 @@ export default class DasRecommendationCardComponent extends Component {
       this.args.summary.slug,
       {
         queryParams: { namespace: this.args.summary.jobNamespace },
-      }
+      },
     );
     const { origin } = window.location;
 
@@ -189,7 +189,7 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onApplied.perform(),
-        (e) => this.onError.perform(e)
+        (e) => this.onError.perform(e),
       )
       .catch((e) => {
         if (!didCancel(e)) {
@@ -209,7 +209,7 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onDismissed.perform(),
-        (e) => this.onError.perform(e)
+        (e) => this.onError.perform(e),
       )
       .catch((e) => {
         if (!didCancel(e)) {
@@ -220,7 +220,7 @@ export default class DasRecommendationCardComponent extends Component {
 
   @(task(function* () {
     this.interstitialComponent = 'accepted';
-    yield timeout(Ember.testing ? 0 : 2000);
+    yield timeout(macroCondition(isTesting()) ? 0 : 2000);
 
     this.args.proceed.perform();
     this.resetInterstitial();
@@ -234,7 +234,7 @@ export default class DasRecommendationCardComponent extends Component {
     });
 
     if (!manuallyDismissed) {
-      yield timeout(Ember.testing ? 0 : 2000);
+      yield timeout(macroCondition(isTesting()) ? 0 : 2000);
     }
 
     this.args.proceed.perform();

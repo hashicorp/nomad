@@ -6,14 +6,37 @@
 {{page-title "Jobs"}}
 <section class="section">
   {{#if this.showingCachedJobs}}
-    <Hds::Alert @type="inline" @color="warning" id="jobs-list-cache-warning" as |A|>
+    <Hds::Alert
+      @type="inline"
+      @color="warning"
+      id="jobs-list-cache-warning"
+      as |A|
+    >
       <A.Title>Error fetching jobs — shown jobs are cached</A.Title>
-      <A.Description>Jobs shown are cached and may be out of date. This is often due to a short timeout in proxy configurations.</A.Description>
+      <A.Description>Jobs shown are cached and may be out of date. This is often
+        due to a short timeout in proxy configurations.</A.Description>
       {{#if this.watchJobIDs.isRunning}}
-        <A.Button data-test-pause-fetching @text="Stop polling for job updates" @color="secondary" {{on "click" this.pauseJobFetching}} />
+        <A.Button
+          data-test-pause-fetching
+          @text="Stop polling for job updates"
+          @color="secondary"
+          {{on "click" this.pauseJobFetching}}
+        />
       {{/if}}
-      <A.Button data-test-restart-fetching @text="Manually fetch jobs" @color="secondary" {{on "click" this.restartJobList}} />
-      <A.LinkStandalone @size="medium" @color="primary" @icon="learn-link" @iconPosition="trailing" @text="Tutorial: Configure reverse proxy for Nomad's web UI" @href="https://developer.hashicorp.com/nomad/docs/deploy/clusters/reverse-proxy-ui#extend-connection-timeout" />
+      <A.Button
+        data-test-restart-fetching
+        @text="Manually fetch jobs"
+        @color="secondary"
+        {{on "click" this.restartJobList}}
+      />
+      <A.LinkStandalone
+        @size="medium"
+        @color="primary"
+        @icon="learn-link"
+        @iconPosition="trailing"
+        @text="Tutorial: Configure reverse proxy for Nomad's web UI"
+        @href="https://developer.hashicorp.com/nomad/docs/deploy/clusters/reverse-proxy-ui#extend-connection-timeout"
+      />
     </Hds::Alert>
   {{/if}}
 
@@ -24,11 +47,8 @@
 
         <JobSearchBox
           @searchText={{this.rawSearchText}}
-          @onSearchTextChange={{queue
-            this.updateSearchText
-            this.updateFilter
-          }}
-          @S={{S}}
+          @onSearchTextChange={{queue this.updateSearchText this.updateFilter}}
+          @s={{S}}
         />
 
         {{#each this.filterFacets as |group|}}
@@ -45,11 +65,16 @@
                   placeholder="Filter {{group.label}}"
                   @value={{group.filter}}
                   {{autofocus}}
-                  {{on "input" (action (mut group.filter) value="target.value") }}
+                  {{on "input" (pick "target.value" (fn (mut group.filter)))}}
                   data-test-namespace-filter-searchbox
                 />
               </dd.Header>
-              {{#each (get this (concat "filtered" (capitalize group.label) "Options")) as |option|}}
+              {{#each
+                (get
+                  this (concat "filtered" (capitalize group.label) "Options")
+                )
+                as |option|
+              }}
                 <dd.Checkbox
                   {{on "change" (fn this.toggleOption option)}}
                   @value={{option.key}}
@@ -60,7 +85,10 @@
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>
-                  No {{group.label}} filters match {{group.filter}}
+                  No
+                  {{group.label}}
+                  filters match
+                  {{group.filter}}
                 </dd.Generic>
               {{/each}}
             {{else}}
@@ -75,7 +103,9 @@
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>
-                  No {{group.label}} filters
+                  No
+                  {{group.label}}
+                  filters
                 </dd.Generic>
               {{/each}}
             {{/if}}
@@ -88,7 +118,7 @@
             @color="critical"
             @icon="delete"
             @size="medium"
-            {{on "click" (action this.resetFilters)}}
+            {{on "click" this.resetFilters}}
           />
         {{/if}}
 
@@ -109,14 +139,18 @@
         {{keyboard-shortcut
           label="Run Job"
           pattern=(array "r" "u" "n")
-          action=(action this.goToRun)
+          action=this.goToRun
         }}
       >
         <Hds::Button
           data-test-run-job
           @text="Run Job"
           disabled={{not (can "run job")}}
-          title={{if (can "run job") null "You don’t have permission to run jobs"}}
+          title={{if
+            (can "run job")
+            null
+            "You don’t have permission to run jobs"
+          }}
           @route="jobs.run"
         />
       </div>
@@ -133,14 +167,11 @@
       @valign="middle"
     >
       <:body as |B|>
-      {{!-- TODO: use <JobRow> --}}
+        {{! TODO: use <JobRow> }}
         <B.Tr
-          {{keyboard-shortcut
-            enumerated=true
-            action=(action "gotoJob" B.data)
-          }}
-          {{on "click" (action this.gotoJob B.data)}}
-          class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
+          {{keyboard-shortcut enumerated=true action=(fn this.gotoJob B.data)}}
+          {{on "click" (fn this.gotoJob B.data)}}
+          class="job-row is-interactive {{if B.data.assumeGC 'assume-gc'}}"
           data-test-job-row={{B.data.plainId}}
           data-test-modify-index={{B.data.modifyIndex}}
         >
@@ -151,19 +182,19 @@
             {{#if B.data.assumeGC}}
               {{B.data.name}}
             {{else}}
-            <LinkTo
-              @route="jobs.job.index"
-              @model={{B.data.idWithNamespace}}
-              class="is-primary"
-            >
-              {{B.data.name}}
-              {{#if B.data.isPack}}
-                <span data-test-pack-tag class="tag is-pack">
-                  <Hds::Icon @name="box" @color="faint" />
-                  <span>Pack</span>
-                </span>
-              {{/if}}
-            </LinkTo>
+              <LinkTo
+                @route="jobs.job.index"
+                @model={{B.data.idWithNamespace}}
+                class="is-primary"
+              >
+                {{B.data.name}}
+                {{#if B.data.isPack}}
+                  <span data-test-pack-tag class="tag is-pack">
+                    <Hds::Icon @name="box" @color="faint" />
+                    <span>Pack</span>
+                  </span>
+                {{/if}}
+              </LinkTo>
             {{/if}}
           </B.Td>
           {{#if this.system.shouldShowNamespaces}}
@@ -171,22 +202,65 @@
           {{/if}}
           <B.Td data-test-job-status>
             <div class="status-cell">
-              {{#if (not (eq B.data.childStatuses null))}}
+              {{#if (not-eq B.data.childStatuses null)}}
                 {{#if B.data.childStatusBreakdown.running}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                  <Hds::Badge
+                    @icon="corner-down-right"
+                    @text="{{B.data.childStatusBreakdown.running}} running {{pluralize
+                      'job'
+                      B.data.childStatusBreakdown.running
+                    }}"
+                    @color="highlight"
+                    @size="large"
+                  />
                 {{else if B.data.childStatusBreakdown.pending}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
+                  <Hds::Badge
+                    @icon="corner-down-right"
+                    @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize
+                      'job'
+                      B.data.childStatusBreakdown.pending
+                    }}"
+                    @color="neutral"
+                    @size="large"
+                  />
                 {{else if B.data.childStatusBreakdown.dead}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                  <Hds::Badge
+                    @icon="corner-down-right"
+                    @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize
+                      'job'
+                      B.data.childStatusBreakdown.dead
+                    }}"
+                    @color="neutral"
+                    @size="large"
+                  />
                 {{else if (not B.data.childStatuses.length)}}
-                  <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
+                  <Hds::Badge
+                    @icon="corner-down-right"
+                    @text="No child jobs"
+                    @color="neutral"
+                    @size="large"
+                  />
                 {{/if}}
               {{else}}
-                <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
+                <Hds::Badge
+                  @text="{{capitalize B.data.aggregateAllocStatus.label}}"
+                  @color={{B.data.aggregateAllocStatus.state}}
+                  @size="large"
+                />
               {{/if}}
               {{#if B.data.hasPausedTask}}
-                <Hds::TooltipButton @text="At least one task is paused" @placement="right" data-test-paused-task-indicator>
-                  <Hds::Badge @text="At least one task is paused" @icon="delay" @isIconOnly={{true}} @color="highlight" @size="large" />
+                <Hds::TooltipButton
+                  @text="At least one task is paused"
+                  @placement="right"
+                  data-test-paused-task-indicator
+                >
+                  <Hds::Badge
+                    @text="At least one task is paused"
+                    @icon="delay"
+                    @isIconOnly={{true}}
+                    @color="highlight"
+                    @size="large"
+                  />
                 </Hds::TooltipButton>
               {{/if}}
             </div>
@@ -200,9 +274,18 @@
           <B.Td>
             <div class="job-status-panel compact">
               {{#unless B.data.assumeGC}}
-                {{#if (not (eq B.data.childStatuses null))}}
+                {{#if (not-eq B.data.childStatuses null)}}
                   {{#if B.data.childStatuses.length}}
-                    <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child {{pluralize "job" B.data.childStatuses.length}}" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
+                    <Hds::Link::Standalone
+                      @icon="chevron-right"
+                      @text="View {{B.data.childStatuses.length}} child {{pluralize
+                        'job'
+                        B.data.childStatuses.length
+                      }}"
+                      @route="jobs.job.index"
+                      @model={{B.data.idWithNamespace}}
+                      @iconPosition="trailing"
+                    />
                   {{else}}
                     --
                   {{/if}}
@@ -224,10 +307,12 @@
 
     <section id="jobs-list-pagination">
       <div class="nav-buttons">
-        <span {{keyboard-shortcut
-          label="First Page"
-          pattern=(array "{" "{")
-          action=(action this.handlePageChange "first")}}
+        <span
+          {{keyboard-shortcut
+            label="First Page"
+            pattern=(array "{" "{")
+            action=(fn this.handlePageChange "first")
+          }}
         >
           <Hds::Button
             @text="First"
@@ -237,13 +322,15 @@
             @iconPosition="leading"
             disabled={{not this.cursorAt}}
             data-test-pager="first"
-            {{on "click" (action this.handlePageChange "first")}}
+            {{on "click" (fn this.handlePageChange "first")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Previous Page"
-          pattern=(array "[" "[")
-          action=(action this.handlePageChange "prev")}}
+        <span
+          {{keyboard-shortcut
+            label="Previous Page"
+            pattern=(array "[" "[")
+            action=(fn this.handlePageChange "prev")
+          }}
         >
           <Hds::Button
             @text="Previous"
@@ -253,13 +340,15 @@
             @iconPosition="leading"
             disabled={{not this.cursorAt}}
             data-test-pager="previous"
-            {{on "click" (action this.handlePageChange "prev")}}
+            {{on "click" (fn this.handlePageChange "prev")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Next Page"
-          pattern=(array "]" "]")
-          action=(action this.handlePageChange "next")}}
+        <span
+          {{keyboard-shortcut
+            label="Next Page"
+            pattern=(array "]" "]")
+            action=(fn this.handlePageChange "next")
+          }}
         >
           <Hds::Button
             @text="Next"
@@ -269,13 +358,15 @@
             @iconPosition="trailing"
             disabled={{not this.nextToken}}
             data-test-pager="next"
-            {{on "click" (action this.handlePageChange "next")}}
+            {{on "click" (fn this.handlePageChange "next")}}
           />
         </span>
-        <span {{keyboard-shortcut
-          label="Last Page"
-          pattern=(array "}" "}")
-          action=(action this.handlePageChange "last")}}
+        <span
+          {{keyboard-shortcut
+            label="Last Page"
+            pattern=(array "}" "}")
+            action=(fn this.handlePageChange "last")
+          }}
         >
           <Hds::Button
             @text="Last"
@@ -285,7 +376,7 @@
             @size="small"
             disabled={{not this.nextToken}}
             data-test-pager="last"
-            {{on "click" (action this.handlePageChange "last")}}
+            {{on "click" (fn this.handlePageChange "last")}}
           />
         </span>
       </div>
@@ -299,7 +390,7 @@
         <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
         <A.Body>
           {{this.humanizedFilterError}}
-          <br><br>
+          <br /><br />
           {{#if this.model.error.correction}}
             Did you mean
             <Hds::Button
@@ -309,36 +400,40 @@
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (action this.correctFilterKey this.model.error.correction)}}
-
+              {{on
+                "click"
+                (fn this.correctFilterKey this.model.error.correction)
+              }}
             />?
           {{else if this.model.error.suggestion}}
             <ul>
-            {{#each this.model.error.suggestion as |suggestion|}}
-              <li><Hds::Button
-                data-test-filter-suggestion
-                @text={{suggestion.key}}
-                @isInline={{true}}
-                @size="small"
-                @color="tertiary"
-                @icon="bulb"
-                {{on "click" (action this.suggestFilter suggestion)}}
-              /></li>
-            {{/each}}
+              {{#each this.model.error.suggestion as |suggestion|}}
+                <li><Hds::Button
+                    data-test-filter-suggestion
+                    @text={{suggestion.key}}
+                    @isInline={{true}}
+                    @size="small"
+                    @color="tertiary"
+                    @icon="bulb"
+                    {{on "click" (fn this.suggestFilter suggestion)}}
+                  /></li>
+              {{/each}}
             </ul>
           {{else}}
-          {{!-- This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions --}}
-            Did you know: you can try using filter expressions to search through your jobs.
-            Try <Hds::Button
+            {{! This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions }}
+            Did you know: you can try using filter expressions to search through
+            your jobs. Try
+            <Hds::Button
               data-test-filter-random-suggestion
               @text={{this.exampleFilter}}
               @isInline={{true}}
               @color="tertiary"
               @icon="bulb"
               @iconPosition="trailing"
-              {{on "click" (action this.suggestFilter
-                (hash example=this.exampleFilter)
-              )}}
+              {{on
+                "click"
+                (fn this.suggestFilter (hash example=this.exampleFilter))
+              }}
             />
           {{/if}}
         </A.Body>
@@ -348,23 +443,34 @@
             @color="tertiary"
             @icon="arrow-left"
             @size="small"
-            {{on "click" (action this.resetFilters)}}
+            {{on "click" this.resetFilters}}
           />
 
-          <F.LinkStandalone @icon="docs" @text="Learn more about Filter Expressions" @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions" @iconPosition="trailing" />
+          <F.LinkStandalone
+            @icon="docs"
+            @text="Learn more about Filter Expressions"
+            @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions"
+            @iconPosition="trailing"
+          />
 
-          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
-            @iconPosition="trailing" />
+          <F.LinkStandalone
+            @icon="plus"
+            @text="Run a New Job"
+            @route="jobs.run"
+            @iconPosition="trailing"
+          />
 
         </A.Footer>
       {{else}}
         <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
-        <A.Body
-          @text="No jobs found."
-        />
+        <A.Body @text="No jobs found." />
         <A.Footer as |F|>
-          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
-            @iconPosition="trailing" />
+          <F.LinkStandalone
+            @icon="plus"
+            @text="Run a New Job"
+            @route="jobs.run"
+            @iconPosition="trailing"
+          />
         </A.Footer>
       {{/if}}
     </Hds::ApplicationState>

@@ -6,8 +6,8 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { hbs } from 'ember-cli-htmlbars';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -31,7 +31,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
       const jobModel = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
       await jobModel.get('scaleState');
       return jobModel.taskGroups.findBy('name', group.name);
@@ -45,28 +45,24 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   const commonTemplate = hbs`<ScaleEventsAccordion @events={{this.events}} />`;
 
   test('it shows an accordion with an entry for each event', async function (assert) {
-    assert.expect(2);
-
     const eventCount = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', eventCount)
+      this.server.createList('scale-event', eventCount),
     );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-scale-events] [data-test-accordion-head]').length,
-      eventCount
+      eventCount,
     );
     await componentA11yAudit(this.element, assert);
   });
 
   test('when an event is an error, an error icon is shown', async function (assert) {
-    assert.expect(2);
-
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { error: true })
+      this.server.createList('scale-event', 1, { error: true }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -77,45 +73,49 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event has a count higher than previous count, an up arrow is shown', async function (assert) {
-    assert.expect(3);
-
     const count = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, {
+      this.server.createList('scale-event', 1, {
         count,
         previousCount: count - 1,
         error: false,
-      })
+      }),
     );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
     assert.notOk(find('[data-test-error]'));
-    assert.equal(find('[data-test-count]').textContent, count);
+    assert.strictEqual(
+      Number(find('[data-test-count]').textContent.trim()),
+      count,
+    );
     await componentA11yAudit(this.element, assert);
   });
 
   test('when an event has a count lower than previous count, a down arrow is shown', async function (assert) {
     const count = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, {
+      this.server.createList('scale-event', 1, {
         count,
         previousCount: count + 1,
         error: false,
-      })
+      }),
     );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
     assert.notOk(find('[data-test-error]'));
-    assert.equal(find('[data-test-count]').textContent, count);
+    assert.strictEqual(
+      Number(find('[data-test-count]').textContent.trim()),
+      count,
+    );
   });
 
   test('when an event has no count, the count is omitted', async function (assert) {
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { count: null })
+      this.server.createList('scale-event', 1, { count: null }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -126,24 +126,20 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event has no meta properties, the accordion entry is not expandable', async function (assert) {
-    assert.expect(2);
-
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { meta: {} })
+      this.server.createList('scale-event', 1, { meta: {} }),
     );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-accordion-toggle]').classList.contains('is-invisible')
+      find('[data-test-accordion-toggle]').classList.contains('is-invisible'),
     );
     await componentA11yAudit(this.element, assert);
   });
 
   test('when an event has meta properties, the accordion entry is expanding, presenting the meta properties in a json viewer', async function (assert) {
-    assert.expect(4);
-
     const meta = {
       prop: 'one',
       prop2: 'two',
@@ -153,7 +149,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
       },
     };
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { meta })
+      this.server.createList('scale-event', 1, { meta }),
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -163,9 +159,9 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     await click('[data-test-accordion-toggle]');
     assert.ok(find('[data-test-accordion-body]'));
 
-    assert.equal(
-      getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(meta, null, 2)
+    assert.deepEqual(
+      this.getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
+      JSON.stringify(meta, null, 2),
     );
     await componentA11yAudit(this.element, assert);
   });

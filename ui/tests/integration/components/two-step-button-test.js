@@ -6,7 +6,7 @@
 import { find, click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -30,43 +30,39 @@ module('Integration | Component | two step button', function (hooks) {
 
   const commonTemplate = hbs`
     <TwoStepButton
-      @idleText={{idleText}}
-      @cancelText={{cancelText}}
-      @confirmText={{confirmText}}
-      @confirmationMessage={{confirmationMessage}}
-      @awaitingConfirmation={{awaitingConfirmation}}
-      @disabled={{disabled}}
-      @onConfirm={{onConfirm}}
-      @onCancel={{onCancel}} />
+      @idleText={{this.idleText}}
+      @cancelText={{this.cancelText}}
+      @confirmText={{this.confirmText}}
+      @confirmationMessage={{this.confirmationMessage}}
+      @awaitingConfirmation={{this.awaitingConfirmation}}
+      @disabled={{this.disabled}}
+      @onConfirm={{this.onConfirm}}
+      @onCancel={{this.onCancel}} />
   `;
 
   test('presents as a button in the idle state', async function (assert) {
-    assert.expect(6);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
     assert.ok(find('[data-test-idle-button]'), 'Idle button is rendered');
-    assert.equal(
+    assert.deepEqual(
       TwoStepButton.idleText,
       props.idleText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
     assert.notOk(find('[data-test-cancel-button]'), 'No cancel button yet');
     assert.notOk(find('[data-test-confirm-button]'), 'No confirm button yet');
     assert.notOk(
       find('[data-test-confirmation-message]'),
-      'No confirmation message yet'
+      'No confirmation message yet',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('clicking the idle state button transitions into the promptForConfirmation state', async function (assert) {
-    assert.expect(7);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -74,23 +70,23 @@ module('Integration | Component | two step button', function (hooks) {
     await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
-    assert.equal(
+    assert.deepEqual(
       TwoStepButton.cancelText,
       props.cancelText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
     assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
-    assert.equal(
+    assert.deepEqual(
       TwoStepButton.confirmText,
       props.confirmText,
-      'Button is labeled correctly'
+      'Button is labeled correctly',
     );
 
-    assert.equal(
+    assert.deepEqual(
       TwoStepButton.confirmationMessage,
       props.confirmationMessage,
-      'Confirmation message is shown'
+      'Confirmation message is shown',
     );
 
     assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
@@ -124,8 +120,6 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', async function (assert) {
-    assert.expect(4);
-
     const props = commonProperties();
     props.awaitingConfirmation = true;
     this.setProperties(props);
@@ -136,13 +130,13 @@ module('Integration | Component | two step button', function (hooks) {
     assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
     assert.ok(
       TwoStepButton.confirmIsDisabled,
-      'The confirm button is disabled'
+      'The confirm button is disabled',
     );
 
-    assert.equal(
+    assert.deepEqual(
       TwoStepButton.confirmText,
       'Loading...',
-      'The confirm button is in a loading state'
+      'The confirm button is in a loading state',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -192,8 +186,6 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('when disabled is true, the idle button is disabled', async function (assert) {
-    assert.expect(2);
-
     const props = commonProperties();
     props.disabled = true;
     this.setProperties(props);

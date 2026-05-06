@@ -9,35 +9,41 @@
   <PH.Actions>
     {{#unless this.isDeleting}}
 
-    <Hds::Form::Toggle::Field
-      @value="enable"
-      {{keyboard-shortcut 
-        label="Toggle View (JSON/List)"
-        pattern=(array "j")
-        action=(action this.toggleView)
+      <Hds::Form::Toggle::Field
+        @value="enable"
+        {{keyboard-shortcut
+          label="Toggle View (JSON/List)"
+          pattern=(array "j")
+          action=this.toggleView
+        }}
+        checked={{eq this.view "json"}}
+        data-test-json-toggle
+        {{on "change" this.toggleView}}
+        as |F|
+      >
+        <F.Label>JSON</F.Label>
+      </Hds::Form::Toggle::Field>
+
+      <div
+        {{keyboard-shortcut
+          label="Copy Variable"
+          pattern=(array "c" "v")
+          action=this.copyVariable
+        }}
+      >
+        <Hds::Copy::Button
+          @text="Copy"
+          @textToCopy={{stringify-object this.model.items}}
+          @isIconOnly={{true}}
+          class="copy-variable"
+        />
+      </div>
+
+      {{#if
+        (can
+          "write variable" path=this.model.path namespace=this.model.namespace
+        )
       }}
-      checked={{eq this.view "json"}}
-      data-test-json-toggle
-      {{on "change" (action this.toggleView)}}
-    as |F|>
-      <F.Label>JSON</F.Label>
-    </Hds::Form::Toggle::Field>
-
-    <div
-      {{keyboard-shortcut 
-        label="Copy Variable"
-        pattern=(array "c" "v")
-        action=(action this.copyVariable)}}
-    >
-      <Hds::Copy::Button
-        @text="Copy"
-        @textToCopy={{stringify-object this.model.items}}
-        @isIconOnly={{true}}
-        class="copy-variable"
-      />
-    </div>
-
-      {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
         <Hds::Button
           @icon="edit"
           @text="Edit"
@@ -51,7 +57,11 @@
       {{/if}}
     {{/unless}}
 
-    {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
+    {{#if
+      (can
+        "destroy variable" path=this.model.path namespace=this.model.namespace
+      )
+    }}
       <TwoStepButton
         data-test-delete-button
         @alignRight={{true}}
@@ -87,45 +97,37 @@
     </div>
   </div>
 {{else}}
-  <Hds::Table class="variable-items"
-  @model={{this.sortedKeyValues}}
-  @sortBy={{this.sortProperty}}
-  @sortOrder={{if this.sortDescending "desc" "asc"}}
-  @columns={{array
-    (hash
-      key="key"
-      label="Key"
-      isSortable=true
-      width="200px"
-    )
-    (hash
-      key="value"
-      label="Value"
-      isSortable=true
-    )
-  }}
+  <Hds::Table
+    class="variable-items"
+    @model={{this.sortedKeyValues}}
+    @sortBy={{this.sortProperty}}
+    @sortOrder={{if this.sortDescending "desc" "asc"}}
+    @columns={{array
+      (hash key="key" label="Key" isSortable=true width="200px")
+      (hash key="value" label="Value" isSortable=true)
+    }}
   >
     <:body as |B|>
       <B.Tr data-test-var={{B.data.key}}>
         <B.Td>{{B.data.key}}</B.Td>
         <B.Td class="value-cell">
           <div>
-            <CopyButton
-              @compact={{true}}
-              @clipboardText={{B.data.value}}
-            />
+            <CopyButton @compact={{true}} @clipboardText={{B.data.value}} />
             <button
               class="show-hide-values button is-borderless is-compact"
               type="button"
-              {{on "click" (action this.toggleRowVisibility B.data)}}
-              {{keyboard-shortcut 
+              {{on "click" (fn this.toggleRowVisibility B.data)}}
+              {{keyboard-shortcut
                 label="Toggle Variable Visibility"
                 pattern=(array "v")
-                action=(action this.toggleRowVisibility B.data)
+                action=(fn this.toggleRowVisibility B.data)
               }}
-
             >
-              <Hds::Icon @name={{if B.data.isVisible "eye" "eye-off"}} @title={{if B.data.isVisible "Hide Value" "Show Value"}} @isInline={{true}} />
+              <Hds::Icon
+                @name={{if B.data.isVisible "eye" "eye-off"}}
+                @title={{if B.data.isVisible "Hide Value" "Show Value"}}
+                @isInline={{true}}
+              />
             </button>
 
             {{#if B.data.isVisible}}
