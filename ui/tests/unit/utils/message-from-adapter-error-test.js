@@ -11,7 +11,7 @@ const testCases = [
   {
     name: 'Forbidden Error',
     in: [new ForbiddenError([], "Can't do that"), 'run tests'],
-    out: 'Your ACL token does not grant permission to run tests.',
+    out: 'Your ACL token does not grant permission to run tests. Please ensure you are signed in.',
   },
   {
     name: 'Generic Error',
