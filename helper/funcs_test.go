@@ -528,3 +528,23 @@ func TestFlattenMultiError(t *testing.T) {
 
 `, err.Error())
 }
+
+func TestIsSubdirectory(t *testing.T) {
+	cases := []struct {
+		potentialParent string
+		path            string
+		expected        bool
+	}{
+		{potentialParent: "/dir", path: "/dir/local", expected: true},
+		{potentialParent: "/dir", path: "/other", expected: false},
+		{potentialParent: "/dir", path: "/directory", expected: false},
+		{potentialParent: "/dir", path: "/directory/../dir/local", expected: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("parent=%q path=%q", tc.potentialParent, tc.path), func(t *testing.T) {
+			result := IsSubdirectory(tc.potentialParent, tc.path)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
