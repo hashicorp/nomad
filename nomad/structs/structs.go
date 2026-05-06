@@ -8357,7 +8357,7 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		}
 
 		if t.CSIPluginConfig.StagePublishBaseDir != "" && t.CSIPluginConfig.MountDir != "" &&
-			strings.HasPrefix(t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir) {
+			helper.IsSubdirectory(t.CSIPluginConfig.MountDir, t.CSIPluginConfig.StagePublishBaseDir) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"%s\" MountDir=\"%s\"", t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir))
 		}
 
