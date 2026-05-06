@@ -5,7 +5,9 @@
 
 {{page-title "Administration"}}
 
-<Breadcrumb @crumb={{hash label="Administration" args=(array "administration")}} />
+<Breadcrumb
+  @crumb={{hash label="Administration" args=(array "administration")}}
+/>
 <PageLayout>
   <AdministrationSubnav @client={{this.model}} />
   {{outlet}}

@@ -11,14 +11,14 @@ export default class Deployment extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsFailing'
+    'specificNamespaceSupportsFailing',
   )
   canFail;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsPromoting'
+    'specificNamespaceSupportsPromoting',
   )
   canPromote;
 

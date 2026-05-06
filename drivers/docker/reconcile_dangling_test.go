@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/moby/moby/api/types/container"
+	mclient "github.com/moby/moby/client"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 
@@ -25,13 +25,13 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func fakeContainerList(t *testing.T) (nomadContainer, nonNomadContainer types.Container) {
+func fakeContainerList(t *testing.T) (nomadContainer, nonNomadContainer container.Summary) {
 	path := "./test-resources/docker/reconciler_containers_list.json"
 
 	f, err := os.Open(path)
 	must.NoError(t, err, must.Sprintf("failed to open %s", path))
 
-	var sampleContainerList []types.Container
+	var sampleContainerList []container.Summary
 	err = json.NewDecoder(f).Decode(&sampleContainerList)
 	must.NoError(t, err, must.Sprint("failed to decode container list"))
 
@@ -81,35 +81,41 @@ func TestDanglingContainerRemoval_normal(t *testing.T) {
 	// wait for task to start
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	nonNomadContainer, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: cfg.Image,
-		Cmd:   append([]string{cfg.Command}, cfg.Args...),
-	}, nil, nil, nil, "mytest-image-"+uuid.Generate())
-	must.NoError(t, err)
-	t.Cleanup(func() {
-		_ = dockerClient.ContainerRemove(ctx, nonNomadContainer.ID, container.RemoveOptions{
-			Force: true,
-		})
-	})
-
-	err = dockerClient.ContainerStart(ctx, nonNomadContainer.ID, container.StartOptions{})
-	must.NoError(t, err)
-
-	untrackedNomadContainer, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: cfg.Image,
-		Cmd:   append([]string{cfg.Command}, cfg.Args...),
-		Labels: map[string]string{
-			dockerLabelAllocID: uuid.Generate(),
+	nonNomadContainer, err := dockerClient.ContainerCreate(ctx, mclient.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: cfg.Image,
+			Cmd:   append([]string{cfg.Command}, cfg.Args...),
 		},
-	}, nil, nil, nil, "mytest-image-"+uuid.Generate())
+		Name: "mytest-image-" + uuid.Generate(),
+	})
 	must.NoError(t, err)
 	t.Cleanup(func() {
-		_ = dockerClient.ContainerRemove(ctx, untrackedNomadContainer.ID, container.RemoveOptions{
+		_, _ = dockerClient.ContainerRemove(ctx, nonNomadContainer.ID, mclient.ContainerRemoveOptions{
 			Force: true,
 		})
 	})
 
-	err = dockerClient.ContainerStart(ctx, untrackedNomadContainer.ID, container.StartOptions{})
+	_, err = dockerClient.ContainerStart(ctx, nonNomadContainer.ID, mclient.ContainerStartOptions{})
+	must.NoError(t, err)
+
+	untrackedNomadContainer, err := dockerClient.ContainerCreate(ctx, mclient.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: cfg.Image,
+			Cmd:   append([]string{cfg.Command}, cfg.Args...),
+			Labels: map[string]string{
+				dockerLabelAllocID: uuid.Generate(),
+			},
+		},
+		Name: "mytest-image-" + uuid.Generate(),
+	})
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = dockerClient.ContainerRemove(ctx, untrackedNomadContainer.ID, mclient.ContainerRemoveOptions{
+			Force: true,
+		})
+	})
+
+	_, err = dockerClient.ContainerStart(ctx, untrackedNomadContainer.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
 	dd := d.Impl().(*Driver)
@@ -155,13 +161,13 @@ func TestDanglingContainerRemoval_normal(t *testing.T) {
 	err = nReconciler.removeDanglingContainersIteration()
 	must.NoError(t, err)
 
-	_, err = dockerClient.ContainerInspect(ctx, nonNomadContainer.ID)
+	_, err = dockerClient.ContainerInspect(ctx, nonNomadContainer.ID, mclient.ContainerInspectOptions{})
 	must.NoError(t, err)
 
-	_, err = dockerClient.ContainerInspect(ctx, handle.containerID)
+	_, err = dockerClient.ContainerInspect(ctx, handle.containerID, mclient.ContainerInspectOptions{})
 	must.ErrorContains(t, err, NoSuchContainerError)
 
-	_, err = dockerClient.ContainerInspect(ctx, untrackedNomadContainer.ID)
+	_, err = dockerClient.ContainerInspect(ctx, untrackedNomadContainer.ID, mclient.ContainerInspectOptions{})
 	must.ErrorContains(t, err, NoSuchContainerError)
 }
 
@@ -192,9 +198,9 @@ func TestDanglingContainerRemoval_network(t *testing.T) {
 	must.NoError(t, err)
 
 	dockerClient := newTestDockerClient(t)
-	c, iErr := dockerClient.ContainerInspect(context.Background(), id)
+	c, iErr := dockerClient.ContainerInspect(context.Background(), id, mclient.ContainerInspectOptions{})
 	must.NoError(t, iErr)
-	must.Eq(t, "running", c.State.Status)
+	must.Eq(t, "running", c.Container.State.Status)
 
 	// cleanup pause container
 	err = dd.DestroyNetwork(allocID, spec)
@@ -212,24 +218,27 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	_, cfg, _ := dockerTask(t)
 
 	dockerClient := newTestDockerClient(t)
-	cont, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: cfg.Image,
-		Cmd:   append([]string{cfg.Command}, cfg.Args...),
-		Labels: map[string]string{
-			dockerLabelAllocID: uuid.Generate(),
+	cont, err := dockerClient.ContainerCreate(ctx, mclient.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: cfg.Image,
+			Cmd:   append([]string{cfg.Command}, cfg.Args...),
+			Labels: map[string]string{
+				dockerLabelAllocID: uuid.Generate(),
+			},
 		},
-	}, nil, nil, nil, "mytest-image-"+uuid.Generate())
+		Name: "mytest-image-" + uuid.Generate(),
+	})
 	must.NoError(t, err)
 	t.Cleanup(func() {
-		_ = dockerClient.ContainerRemove(ctx, cont.ID, container.RemoveOptions{
+		_, _ = dockerClient.ContainerRemove(ctx, cont.ID, mclient.ContainerRemoveOptions{
 			Force: true,
 		})
 	})
 
-	err = dockerClient.ContainerStart(ctx, cont.ID, container.StartOptions{})
+	_, err = dockerClient.ContainerStart(ctx, cont.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
-	err = dockerClient.ContainerStop(ctx, cont.ID, container.StopOptions{Timeout: pointer.Of(60)})
+	_, err = dockerClient.ContainerStop(ctx, cont.ID, mclient.ContainerStopOptions{Timeout: pointer.Of(60)})
 	must.NoError(t, err)
 
 	dd := dockerDriverHarness(t, nil).Impl().(*Driver)
@@ -256,7 +265,8 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	))
 
 	// if we start container again, it'll be marked as untracked
-	must.NoError(t, dockerClient.ContainerStart(ctx, cont.ID, container.StartOptions{}))
+	_, err = dockerClient.ContainerStart(ctx, cont.ID, mclient.ContainerStartOptions{})
+	must.NoError(t, err)
 
 	untracked, err := reconciler.untrackedContainers(set.New[string](0), time.Now())
 	must.NoError(t, err)

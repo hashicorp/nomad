@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import EmberObject, { get, computed } from '@ember/object';
+import EmberObject, { computed, get } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
@@ -48,7 +48,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   @computed('allocation.id')
   get url() {
-    return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
+    return `/v1/client/allocation/${this.allocation.id}/stats`;
   }
 
   append(frame) {
@@ -78,7 +78,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       if (!taskFrame) continue;
 
       const frameTimestamp = new Date(
-        Math.floor(taskFrame.Timestamp / 1000000)
+        Math.floor(taskFrame.Timestamp / 1000000),
       );
 
       const taskCpuUsed =
@@ -95,7 +95,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       const taskMemoryUsed = memoryUsed(taskFrame);
       const percentMemoryTotal = percent(
         taskMemoryUsed / 1024 / 1024,
-        this.reservedMemory
+        this.reservedMemory,
       );
       stats.memory.pushObject({
         timestamp: frameTimestamp,
@@ -139,16 +139,16 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   @computed('allocation.taskGroup.tasks', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
-    const tasks = this.get('allocation.taskGroup.tasks') || [];
+    const tasks = get(this, 'allocation.taskGroup.tasks') || [];
     return tasks
       .slice()
       .sort(taskPrioritySort)
       .map((task) => ({
-        task: get(task, 'name'),
+        task: task.name,
 
         // Static figures, denominators for stats
-        reservedCPU: get(task, 'reservedCPU'),
-        reservedMemory: get(task, 'reservedMemory'),
+        reservedCPU: task.reservedCPU,
+        reservedMemory: task.reservedMemory,
 
         // Dynamic figures, collected over time
         // []{ timestamp: Date, used: Number, percent: Number }

@@ -3,7 +3,11 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
+<div
+  class="tabs is-subnav"
+  {{did-insert this.keyboard.registerNav type="subnav"}}
+  {{will-destroy this.keyboard.unregisterSubnav}}
+>
   <ul>
     <li data-test-tab="overview">
       <LinkTo @route="storage.index" @activeClass="is-active">

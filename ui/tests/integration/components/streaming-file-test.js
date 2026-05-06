@@ -3,15 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { run } from '@ember/runloop';
-import { find, render, triggerKeyEvent } from '@ember/test-helpers';
+import { find, render, triggerKeyEvent, waitUntil } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
-import fetch from 'nomad-ui/utils/fetch';
 import Log from 'nomad-ui/utils/classes/log';
 
 const { assign } = Object;
@@ -46,12 +44,10 @@ module('Integration | Component | streaming file', function (hooks) {
   });
 
   const commonTemplate = hbs`
-    <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
+    <StreamingFile @logger={{this.logger}} @mode={{this.mode}} @isStreaming={{this.isStreaming}} />
   `;
 
   test('when mode is `head`, the logger signals head', async function (assert) {
-    assert.expect(5);
-
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
     this.setProperties({
@@ -62,15 +58,19 @@ module('Integration | Component | streaming file', function (hooks) {
 
     await render(commonTemplate);
 
+    await waitUntil(
+      () => find('[data-test-output]')?.textContent === 'Hello World',
+    );
+
     const request = this.server.handledRequests[0];
-    assert.equal(this.server.handledRequests.length, 1, 'One request made');
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(this.server.handledRequests.length, 1, 'One request made');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
     assert.deepEqual(
       request.queryParams,
       stringifyValues(assign({ origin: 'start' }, params)),
-      'Query params are correct'
+      'Query params are correct',
     );
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
     await componentA11yAudit(this.element, assert);
   });
 
@@ -85,15 +85,19 @@ module('Integration | Component | streaming file', function (hooks) {
 
     await render(commonTemplate);
 
+    await waitUntil(
+      () => find('[data-test-output]')?.textContent === 'Hello World',
+    );
+
     const request = this.server.handledRequests[0];
-    assert.equal(this.server.handledRequests.length, 1, 'One request made');
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(this.server.handledRequests.length, 1, 'One request made');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
     assert.deepEqual(
       request.queryParams,
       stringifyValues(assign({ origin: 'end', offset: 50000 }, params)),
-      'Query params are correct'
+      'Query params are correct',
     );
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
   });
 
   test('when mode is `streaming` and `isStreaming` is true, streaming starts', async function (assert) {
@@ -105,15 +109,15 @@ module('Integration | Component | streaming file', function (hooks) {
       isStreaming: true,
     });
 
-    assert.ok(true);
-
-    run.later(run, run.cancelTimers, 500);
-
     await render(commonTemplate);
 
+    await waitUntil(
+      () => find('[data-test-output]')?.textContent === 'Hello World',
+    );
+
     const request = this.server.handledRequests[0];
-    assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
-    assert.equal(find('[data-test-output]').textContent, 'Hello World');
+    assert.deepEqual(request.url.split('?')[0], url, `URL is ${url}`);
+    assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
   });
 
   test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function (assert) {
@@ -127,7 +131,7 @@ module('Integration | Component | streaming file', function (hooks) {
 
     await render(hbs`
       Extra text
-      <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
+      <StreamingFile @logger={{this.logger}} @mode={{this.mode}} @isStreaming={{this.isStreaming}} />
       On either side
     `);
 
@@ -135,9 +139,9 @@ module('Integration | Component | streaming file', function (hooks) {
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       ctrlKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       window.getSelection().toString().trim(),
-      find('[data-test-output]').textContent.trim()
+      find('[data-test-output]').textContent.trim(),
     );
 
     window.getSelection().removeAllRanges();
@@ -146,9 +150,9 @@ module('Integration | Component | streaming file', function (hooks) {
     await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
       metaKey: true,
     });
-    assert.equal(
+    assert.deepEqual(
       window.getSelection().toString().trim(),
-      find('[data-test-output]').textContent.trim()
+      find('[data-test-output]').textContent.trim(),
     );
   });
 });

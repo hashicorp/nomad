@@ -669,6 +669,9 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	}
 
 	fail = false
+	if d.Status == structs.DeploymentStatusPaused {
+		return false, false, nil
+	}
 	for tg, dstate := range d.TaskGroups {
 		// If we are in a canary state we fail if there aren't enough healthy
 		// allocs to satisfy DesiredCanaries
@@ -885,10 +888,16 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 
 // getDeploymentStatusUpdate returns a deployment status update
 func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *structs.DeploymentStatusUpdate {
+	// only pass UpdatedAt value for paused deployments
+	var updatedAt int64
+	if status == structs.DeploymentStatusPaused || status == structs.DeploymentStatusRunning {
+		updatedAt = time.Now().UTC().UnixNano()
+	}
 	return &structs.DeploymentStatusUpdate{
 		DeploymentID:      w.deploymentID,
 		Status:            status,
 		StatusDescription: desc,
+		UpdatedAt:         updatedAt,
 	}
 }
 

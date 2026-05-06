@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 /* eslint-disable ember/no-controller-access-in-routes */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
@@ -50,7 +48,7 @@ export default class ApplicationRoute extends Route {
 
       if (transition.to.queryParams.ott) {
         exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(
-          transition.to.queryParams.ott
+          transition.to.queryParams.ott,
         );
       } else {
         exchangeOneTimeToken = Promise.resolve(true);
@@ -63,7 +61,7 @@ export default class ApplicationRoute extends Route {
       }
 
       const fetchSelfTokenAndPolicies = await this.get(
-        'token.fetchSelfTokenAndPolicies'
+        'token.fetchSelfTokenAndPolicies',
       )
         .perform()
         .catch();
@@ -71,7 +69,7 @@ export default class ApplicationRoute extends Route {
       const fetchLicense = this.get('system.fetchLicense').perform().catch();
 
       const checkFuzzySearchPresence = this.get(
-        'system.checkFuzzySearchPresence'
+        'system.checkFuzzySearchPresence',
       )
         .perform()
         .catch();
@@ -114,7 +112,7 @@ export default class ApplicationRoute extends Route {
       to: {
         queryParams: { ott },
       },
-    }
+    },
   ) {
     return {
       region,
@@ -154,11 +152,12 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
+      const errors = error.errors?.toArray?.() || error.errors || [];
       if (
-        error.errors?.any(
+        errors.some(
           (e) =>
             e.detail === 'ACL token expired' ||
-            e.detail === 'ACL token not found'
+            e.detail === 'ACL token not found',
         )
       ) {
         this.token.postExpiryPath = this.router.currentURL;

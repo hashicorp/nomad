@@ -5,11 +5,11 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import generateResources from '../../../mirage/data/generate-resources';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { find, render } from '@ember/test-helpers';
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -69,24 +69,22 @@ module('Integration | Component | allocation row', function (hooks) {
 
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}}
-        @enablePolling={{enablePolling}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}}
+        @enablePolling={{this.enablePolling}} />
     `);
 
-    assert.equal(
+    assert.deepEqual(
       this.server.pretender.handledRequests.filterBy(
         'url',
-        `/v1/client/allocation/${allocation.get('id')}/stats`
+        `/v1/client/allocation/${allocation.get('id')}/stats`,
       ).length,
       frames.length,
-      'Requests continue to be made after malformed responses and server errors'
+      'Requests continue to be made after malformed responses and server errors',
     );
   });
 
   test('Allocation row shows warning when it requires drivers that are unhealthy on the node it is running on', async function (assert) {
-    assert.expect(2);
-
     const node = this.server.schema.nodes.first();
     const drivers = node.drivers;
     Object.values(drivers).forEach((driver) => {
@@ -109,28 +107,26 @@ module('Integration | Component | allocation row', function (hooks) {
 
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}} />
     `);
 
     assert.ok(
       find('[data-test-icon="unhealthy-driver"]'),
-      'Unhealthy driver icon is shown'
+      'Unhealthy driver icon is shown',
     );
     await componentA11yAudit(this.element, assert);
   });
 
   test('Allocation row shows an icon indicator when it was preempted', async function (assert) {
-    assert.expect(2);
-
     const allocId = this.server.create('allocation', 'preempted').id;
     const allocation = await this.store.findRecord('allocation', allocId);
 
     this.setProperties({ allocation, context: 'job' });
     await render(hbs`
       <AllocationRow
-        @allocation={{allocation}}
-        @context={{context}} />
+        @allocation={{this.allocation}}
+        @context={{this.context}} />
     `);
 
     assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
@@ -138,8 +134,6 @@ module('Integration | Component | allocation row', function (hooks) {
   });
 
   test('when an allocation is not running, the utilization graphs are omitted', async function (assert) {
-    assert.expect(8);
-
     this.setProperties({
       context: 'job',
       enablePolling: false,
@@ -147,7 +141,7 @@ module('Integration | Component | allocation row', function (hooks) {
 
     // All non-running statuses need to be tested
     ['pending', 'complete', 'failed', 'lost'].forEach((clientStatus) =>
-      this.server.create('allocation', { clientStatus })
+      this.server.create('allocation', { clientStatus }),
     );
 
     await this.store.findAll('allocation');
@@ -158,19 +152,19 @@ module('Integration | Component | allocation row', function (hooks) {
       this.set('allocation', allocation);
       await render(hbs`
           <AllocationRow
-            @allocation={{allocation}}
-            @context={{context}}
-            @enablePolling={{enablePolling}} />
+            @allocation={{this.allocation}}
+            @context={{this.context}}
+            @enablePolling={{this.enablePolling}} />
         `);
 
       const status = allocation.get('clientStatus');
       assert.notOk(
         find('[data-test-cpu] .inline-chart'),
-        `No CPU chart for ${status}`
+        `No CPU chart for ${status}`,
       );
       assert.notOk(
         find('[data-test-mem] .inline-chart'),
-        `No Mem chart for ${status}`
+        `No Mem chart for ${status}`,
       );
     }
   });

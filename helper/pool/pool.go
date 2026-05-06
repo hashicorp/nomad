@@ -22,6 +22,10 @@ import (
 	"github.com/hashicorp/yamux"
 )
 
+// defaultDialTimeout is the fallback timeout used when a ConnPool is
+// constructed without an explicit dial timeout.
+const defaultDialTimeout = 10 * time.Second
+
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
 	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.MsgpackHandle)
@@ -185,6 +189,10 @@ type ConnPool struct {
 	// The maximum number of open streams to keep
 	maxStreams int
 
+	// dialTimeout is the timeout used when establishing new outbound
+	// connections. A zero value falls back to defaultDialTimeout.
+	dialTimeout time.Duration
+
 	// Pool maps an address to a open connection
 	pool map[string]*Conn
 
@@ -213,18 +221,25 @@ type ConnPool struct {
 // Maintain at most one connection per host, for up to maxTime.
 // Set maxTime to 0 to disable reaping. maxStreams is used to control
 // the number of idle streams allowed.
+// dialTimeout is the timeout used when establishing new outbound
+// connections. A zero value falls back to defaultDialTimeout.
 // If TLS settings are provided outgoing connections use TLS.
 func NewPool(
-	logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper, yamuxCfg *yamux.Config,
+	logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper,
+	yamuxCfg *yamux.Config, dialTimeout time.Duration,
 ) *ConnPool {
+	if dialTimeout <= 0 {
+		dialTimeout = defaultDialTimeout
+	}
 	pool := &ConnPool{
-		logger:     logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
-		maxTime:    maxTime,
-		maxStreams: maxStreams,
-		pool:       make(map[string]*Conn),
-		limiter:    make(map[string]chan struct{}),
-		tlsWrap:    tlsWrap,
-		shutdownCh: make(chan struct{}),
+		logger:      logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
+		maxTime:     maxTime,
+		maxStreams:  maxStreams,
+		dialTimeout: dialTimeout,
+		pool:        make(map[string]*Conn),
+		limiter:     make(map[string]chan struct{}),
+		tlsWrap:     tlsWrap,
+		shutdownCh:  make(chan struct{}),
 	}
 
 	// The passed yamux config is the shared server object, so we do not want to
@@ -372,7 +387,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr) (*Conn, error) {
 // getNewConn is used to return a new connection
 func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 	// Try to dial the conn
-	conn, err := net.DialTimeout("tcp", addr.String(), 10*time.Second)
+	conn, err := net.DialTimeout("tcp", addr.String(), p.dialTimeout)
 	if err != nil {
 		return nil, err
 	}

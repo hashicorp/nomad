@@ -20,7 +20,8 @@
               <p data-test-message>
                 {{this.pre09Nodes.length}}
                 {{if (eq this.pre09Nodes.length 1) "client was" "clients were"}}
-                filtered from the topology visualization. This is most likely due to the
+                filtered from the topology visualization. This is most likely
+                due to the
                 {{pluralize "client" this.pre09Nodes.length}}
                 running a version of Nomad
               </p>
@@ -29,7 +30,7 @@
               <button
                 data-test-dismiss
                 class="button is-warning"
-                onclick={{action (mut this.pre09Nodes) null}}
+                {{on "click" (fn (mut this.pre09Nodes) null)}}
                 type="button"
               >
                 Okay
@@ -48,7 +49,8 @@
                     No Live Updating
                   </h3>
                   <p>
-                    The topology visualization depends on too much data to continuously poll.
+                    The topology visualization depends on too much data to
+                    continuously poll.
                   </p>
                 </div>
                 <div class="column is-centered is-minimum">
@@ -56,7 +58,7 @@
                     data-test-polling-notice-dismiss
                     class="button is-warning"
                     type="button"
-                    onclick={{toggle-action "showPollingNotice" this}}
+                    {{on "click" (fn (mut this.showPollingNotice) false)}}
                   >
                     Okay
                   </button>
@@ -103,7 +105,10 @@
                 <dl class="legend-terms">
                   <div class="legend-term">
                     <dt>
-                      <span class="color-swatch is-wide running" title="Running"></span>
+                      <span
+                        class="color-swatch is-wide running"
+                        title="Running"
+                      ></span>
                     </dt>
                     <dd>
                       Running
@@ -111,7 +116,10 @@
                   </div>
                   <div class="legend-term">
                     <dt>
-                      <span class="color-swatch is-wide pending" title="Starting"></span>
+                      <span
+                        class="color-swatch is-wide pending"
+                        title="Starting"
+                      ></span>
                     </dt>
                     <dd>
                       Starting
@@ -148,7 +156,11 @@
                       <strong>
                         Client:
                       </strong>
-                      <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
+                      <LinkTo
+                        data-test-client-link
+                        @route="clients.client"
+                        @model={{node.id}}
+                      >
                         {{node.shortId}}
                       </LinkTo>
                     </h3>
@@ -176,7 +188,10 @@
                       <strong>
                         Draining?
                       </strong>
-                      <span data-test-draining class="{{if node.isDraining "status-text is-info"}}">
+                      <span
+                        data-test-draining
+                        class="{{if node.isDraining 'status-text is-info'}}"
+                      >
                         {{if node.isDraining "Yes" "No"}}
                       </span>
                     </h3>
@@ -186,7 +201,10 @@
                       </strong>
                       <span
                         data-test-eligible
-                        class="{{unless node.isEligible "status-text is-warning"}}"
+                        class="{{unless
+                            node.isEligible
+                            'status-text is-warning'
+                          }}"
                       >
                         {{if node.isEligible "Yes" "No"}}
                       </span>
@@ -217,16 +235,23 @@
                       </div>
                       <div class="column is-minimum">
                         <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}
+                          {{format-percentage
+                            this.nodeUtilization.reservedMemoryPercent
+                            total=1
+                          }}
                         </span>
                       </div>
                     </div>
                     <div class="annotation" data-test-memory-absolute-value>
                       <strong>
-                        {{format-scheduled-bytes this.nodeUtilization.totalReservedMemory}}
+                        {{format-scheduled-bytes
+                          this.nodeUtilization.totalReservedMemory
+                        }}
                       </strong>
                       /
-                      {{format-scheduled-bytes this.nodeUtilization.totalMemory}}
+                      {{format-scheduled-bytes
+                        this.nodeUtilization.totalMemory
+                      }}
                       reserved
                     </div>
                   </div>
@@ -255,13 +280,18 @@
                       </div>
                       <div class="column is-minimum">
                         <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}
+                          {{format-percentage
+                            this.nodeUtilization.reservedCPUPercent
+                            total=1
+                          }}
                         </span>
                       </div>
                     </div>
                     <div class="annotation" data-test-cpu-absolute-value>
                       <strong>
-                        {{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}
+                        {{format-scheduled-hertz
+                          this.nodeUtilization.totalReservedCPU
+                        }}
                       </strong>
                       /
                       {{format-scheduled-hertz this.nodeUtilization.totalCPU}}
@@ -335,7 +365,7 @@
                     <LinkTo
                       data-test-client
                       @route="clients.client"
-                      @model={{this.activeAllocation.node}}
+                      @model={{this.activeAllocation.node.id}}
                     >
                       {{this.activeAllocation.node.shortId}}
                     </LinkTo>
@@ -492,35 +522,35 @@
                   @label="Node Pool"
                   @options={{this.optionsNodePool}}
                   @selection={{this.selectionNodePool}}
-                  @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpNodePool"}}
                 />
                 <MultiSelectDropdown
                   data-test-datacenter-facet
                   @label="Datacenter"
                   @options={{this.optionsDatacenter}}
                   @selection={{this.selectionDatacenter}}
-                  @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpDatacenter"}}
                 />
                 <MultiSelectDropdown
                   data-test-class-facet
                   @label="Class"
                   @options={{this.optionsClass}}
                   @selection={{this.selectionClass}}
-                  @onSelect={{action this.setFacetQueryParam "qpClass"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpClass"}}
                 />
                 <MultiSelectDropdown
                   data-test-state-facet
                   @label="State"
                   @options={{this.optionsState}}
                   @selection={{this.selectionState}}
-                  @onSelect={{action this.setFacetQueryParam "qpState"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpState"}}
                 />
                 <MultiSelectDropdown
                   data-test-version-facet
                   @label="Version"
                   @options={{this.optionsVersion}}
                   @selection={{this.selectionVersion}}
-                  @onSelect={{action this.setFacetQueryParam "qpVersion"}}
+                  @onSelect={{fn this.setFacetQueryParam "qpVersion"}}
                 />
               </div>
             </div>
@@ -528,9 +558,9 @@
           <TopoViz
             @nodes={{this.filteredNodes}}
             @allocations={{this.model.allocations}}
-            @onAllocationSelect={{action this.setAllocation}}
-            @onNodeSelect={{action this.setNode}}
-            @onDataError={{action this.handleTopoVizDataError}}
+            @onAllocationSelect={{this.setAllocation}}
+            @onNodeSelect={{this.setNode}}
+            @onDataError={{this.handleTopoVizDataError}}
             @filters={{hash
               search=this.searchTerm
               clientState=this.selectionState

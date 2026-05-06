@@ -51,27 +51,23 @@ module('Unit | Component | stats-time-series', function (hooks) {
   ];
 
   test('xFormat is time-formatted for hours, minutes, and seconds', function (assert) {
-    assert.expect(11);
-
     const chart = this.createComponent({ data: wideData });
 
     wideData.forEach((datum) => {
-      assert.equal(
+      assert.deepEqual(
         chart.xFormat(datum.timestamp),
-        d3TimeFormat.timeFormat('%H:%M:%S')(datum.timestamp)
+        d3TimeFormat.timeFormat('%H:%M:%S')(datum.timestamp),
       );
     });
   });
 
   test('yFormat is percent-formatted', function (assert) {
-    assert.expect(11);
-
     const chart = this.createComponent({ data: wideData });
 
     wideData.forEach((datum) => {
-      assert.equal(
+      assert.deepEqual(
         chart.yFormat(datum.percent),
-        d3Format.format('.1~%')(datum.percent)
+        d3Format.format('.1~%')(datum.percent),
       );
     });
   });
@@ -79,22 +75,22 @@ module('Unit | Component | stats-time-series', function (hooks) {
   test('x scale domain is at least five minutes', function (assert) {
     const chart = this.createComponent({ data: narrowData });
 
-    assert.equal(
+    assert.deepEqual(
       +chart.xScale(narrowData, 0).domain()[0],
       +moment(Math.max(...narrowData.mapBy('timestamp')))
         .subtract(5, 'm')
         .toDate(),
-      'The lower bound of the xScale is 5 minutes ago'
+      'The lower bound of the xScale is 5 minutes ago',
     );
   });
 
   test('x scale domain is greater than five minutes when the domain of the data is larger than five minutes', function (assert) {
     const chart = this.createComponent({ data: wideData });
 
-    assert.equal(
+    assert.deepEqual(
       +chart.xScale(wideData, 0).domain()[0],
       Math.min(...wideData.mapBy('timestamp')),
-      'The lower bound of the xScale is the oldest timestamp in the dataset'
+      'The lower bound of the xScale is the oldest timestamp in the dataset',
     );
   });
 
@@ -107,13 +103,13 @@ module('Unit | Component | stats-time-series', function (hooks) {
         Math.max(...wideData.mapBy('percent')),
       ],
       [0.3, 0.9],
-      'The bounds of the value prop of the dataset is narrower than 0 - 1'
+      'The bounds of the value prop of the dataset is narrower than 0 - 1',
     );
 
     assert.deepEqual(
       chart.yScale(wideData, 0).domain(),
       [0, 1],
-      'The bounds of the yScale are still 0 and 1'
+      'The bounds of the yScale are still 0 and 1',
     );
   });
 
@@ -123,7 +119,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
     assert.deepEqual(
       chart.yScale(unboundedData, 0).domain(),
       [-0.5, 1.5],
-      'The bounds of the yScale match the bounds of the unbounded data'
+      'The bounds of the yScale match the bounds of the unbounded data',
     );
 
     chart.args.data = [unboundedData[0]];
@@ -131,7 +127,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
     assert.deepEqual(
       chart.yScale(chart.args.data, 0).domain(),
       [-0.5, 1],
-      'The upper bound is still the default 1, but the lower bound is overridden due to the unbounded low value'
+      'The upper bound is still the default 1, but the lower bound is overridden due to the unbounded low value',
     );
 
     chart.args.data = [unboundedData[1]];
@@ -139,7 +135,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
     assert.deepEqual(
       chart.yScale(chart.args.data, 0).domain(),
       [0, 1.5],
-      'The lower bound is still the default 0, but the upper bound is overridden due to the unbounded high value'
+      'The lower bound is still the default 0, but the upper bound is overridden due to the unbounded high value',
     );
   });
 
@@ -149,7 +145,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
     assert.deepEqual(
       chart.yScale(nullData, 0).domain(),
       [0, 1],
-      'The bounds are 0 and 1'
+      'The bounds are 0 and 1',
     );
   });
 });

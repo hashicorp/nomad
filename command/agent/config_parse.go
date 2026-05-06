@@ -191,6 +191,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"rpc.connection_write_timeout", &c.RPC.ConnectionWriteTimeout, &c.RPC.ConnectionWriteTimeoutHCL, nil},
 		{"rpc.stream_open_timeout", &c.RPC.StreamOpenTimeout, &c.RPC.StreamOpenTimeoutHCL, nil},
 		{"rpc.stream_close_timeout", &c.RPC.StreamCloseTimeout, &c.RPC.StreamCloseTimeoutHCL, nil},
+		{"rpc.dial_timeout", &c.RPC.DialTimeout, &c.RPC.DialTimeoutHCL, nil},
 		{
 			"server.client_introduction.default_identity_ttl",
 			&c.Server.ClientIntroduction.DefaultIdentityTTL,

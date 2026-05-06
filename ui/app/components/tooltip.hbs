@@ -4,7 +4,10 @@
 ~}}
 
 {{#if this.condition}}
-  <span class={{concat "tooltip" (if @isFullText " multiline")}} aria-label={{if @isFullText @text this.text}}>
+  <span
+    class={{concat "tooltip" (if @isFullText " multiline")}}
+    aria-label={{if @isFullText @text this.text}}
+  >
     {{yield}}
   </span>
 {{else}}

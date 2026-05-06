@@ -3,21 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 // eslint-disable-next-line no-unused-vars
 import JobModel from '../../../models/job';
 import { A } from '@ember/array';
 
 export default class JobsJobVariablesRoute extends Route {
-  @service can;
+  @service abilities;
   @service router;
   @service store;
 
   beforeModel() {
-    if (this.can.cannot('list variables')) {
+    if (this.abilities.cannot('list variables')) {
       this.router.transitionTo(`/jobs`);
     }
   }
@@ -29,10 +27,10 @@ export default class JobsJobVariablesRoute extends Route {
 
     let jobVariablePromise = job.getPathLinkedVariable();
     let groupVariablesPromises = taskGroups.map((tg) =>
-      tg.getPathLinkedVariable()
+      tg.getPathLinkedVariable(),
     );
     let taskVariablesPromises = tasks.map((task) =>
-      task.getPathLinkedVariable()
+      task.getPathLinkedVariable(),
     );
 
     let allJobsVariablePromise = this.store
@@ -55,7 +53,7 @@ export default class JobsJobVariablesRoute extends Route {
         jobVariablePromise,
         ...groupVariablesPromises,
         ...taskVariablesPromises,
-      ])
+      ]),
     ).compact();
 
     return { variables, job: this.modelFor('jobs.job') };

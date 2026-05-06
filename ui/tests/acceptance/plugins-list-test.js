@@ -3,22 +3,24 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginsList from 'nomad-ui/tests/pages/storage/plugins/list';
 
 module('Acceptance | plugins list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
     window.localStorage.clear();
   });
 
@@ -30,25 +32,31 @@ module('Acceptance | plugins list', function (hooks) {
   test('visiting /storage/plugins', async function (assert) {
     await PluginsList.visit();
 
-    assert.equal(currentURL(), '/storage/plugins');
-    assert.equal(document.title, 'CSI Plugins - Nomad');
+    assert.deepEqual(currentURL(), '/storage/plugins');
+    const pageTitle = getPageTitle();
+    assert.ok(pageTitle.startsWith('CSI Plugins'));
+    assert.ok(pageTitle.endsWith(' - Nomad'));
   });
 
   test('/storage/plugins should list the first page of plugins sorted by id', async function (assert) {
     const pluginCount = PluginsList.pageSize + 1;
-    server.createList('csi-plugin', pluginCount, { shallow: true });
+    this.server.createList('csi-plugin', pluginCount, { shallow: true });
 
     await PluginsList.visit();
 
-    const sortedPlugins = server.db.csiPlugins.sortBy('id');
-    assert.equal(PluginsList.plugins.length, PluginsList.pageSize);
+    const sortedPlugins = this.server.db.csiPlugins.sortBy('id');
+    assert.deepEqual(PluginsList.plugins.length, PluginsList.pageSize);
     PluginsList.plugins.forEach((plugin, index) => {
-      assert.equal(plugin.id, sortedPlugins[index].id, 'Plugins are ordered');
+      assert.deepEqual(
+        plugin.id,
+        sortedPlugins[index].id,
+        'Plugins are ordered',
+      );
     });
   });
 
   test('each plugin row should contain information about the plugin', async function (assert) {
-    const plugin = server.create('csi-plugin', {
+    const plugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
     });
@@ -60,20 +68,20 @@ module('Acceptance | plugins list', function (hooks) {
       plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
-    assert.equal(pluginRow.id, plugin.id);
-    assert.equal(
+    assert.deepEqual(pluginRow.id, plugin.id);
+    assert.deepEqual(
       pluginRow.controllerHealth,
-      `${controllerHealthStr} (${plugin.controllersHealthy}/${plugin.controllersExpected})`
+      `${controllerHealthStr} (${plugin.controllersHealthy}/${plugin.controllersExpected})`,
     );
-    assert.equal(
+    assert.deepEqual(
       pluginRow.nodeHealth,
-      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`
+      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`,
     );
-    assert.equal(pluginRow.provider, plugin.provider);
+    assert.deepEqual(pluginRow.provider, plugin.provider);
   });
 
   test('node only plugins explain that there is no controller health for this plugin type', async function (assert) {
-    const plugin = server.create('csi-plugin', {
+    const plugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: false,
     });
@@ -83,71 +91,71 @@ module('Acceptance | plugins list', function (hooks) {
     const pluginRow = PluginsList.plugins.objectAt(0);
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
-    assert.equal(pluginRow.id, plugin.id);
-    assert.equal(pluginRow.controllerHealth, 'Node Only');
-    assert.equal(
+    assert.deepEqual(pluginRow.id, plugin.id);
+    assert.deepEqual(pluginRow.controllerHealth, 'Node Only');
+    assert.deepEqual(
       pluginRow.nodeHealth,
-      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`
+      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`,
     );
-    assert.equal(pluginRow.provider, plugin.provider);
+    assert.deepEqual(pluginRow.provider, plugin.provider);
   });
 
   test('each plugin row should link to the corresponding plugin', async function (assert) {
-    const plugin = server.create('csi-plugin', { shallow: true });
+    const plugin = this.server.create('csi-plugin', { shallow: true });
 
     await PluginsList.visit();
 
     await PluginsList.plugins.objectAt(0).clickName();
-    assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
+    assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
 
     await PluginsList.visit();
-    assert.equal(currentURL(), '/storage/plugins');
+    assert.deepEqual(currentURL(), '/storage/plugins');
 
     await PluginsList.plugins.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
+    assert.deepEqual(currentURL(), `/storage/plugins/${plugin.id}`);
   });
 
   test('when there are no plugins, there is an empty message', async function (assert) {
     await PluginsList.visit();
 
     assert.ok(PluginsList.isEmpty);
-    assert.equal(PluginsList.emptyState.headline, 'No Plugins');
+    assert.deepEqual(PluginsList.emptyState.headline, 'No Plugins');
   });
 
   test('when there are plugins, but no matches for a search, there is an empty message', async function (assert) {
-    server.create('csi-plugin', { id: 'cat 1', shallow: true });
-    server.create('csi-plugin', { id: 'cat 2', shallow: true });
+    this.server.create('csi-plugin', { id: 'cat 1', shallow: true });
+    this.server.create('csi-plugin', { id: 'cat 2', shallow: true });
 
     await PluginsList.visit();
 
     await PluginsList.search('dog');
     assert.ok(PluginsList.isEmpty);
-    assert.equal(PluginsList.emptyState.headline, 'No Matches');
+    assert.deepEqual(PluginsList.emptyState.headline, 'No Matches');
   });
 
   test('search resets the current page', async function (assert) {
-    server.createList('csi-plugin', PluginsList.pageSize + 1, {
+    this.server.createList('csi-plugin', PluginsList.pageSize + 1, {
       shallow: true,
     });
 
     await PluginsList.visit();
     await PluginsList.nextPage();
 
-    assert.equal(currentURL(), '/storage/plugins?page=2');
+    assert.deepEqual(currentURL(), '/storage/plugins?page=2');
 
     await PluginsList.search('foobar');
 
-    assert.equal(currentURL(), '/storage/plugins?search=foobar');
+    assert.deepEqual(currentURL(), '/storage/plugins?search=foobar');
   });
 
   test('when accessing plugins is forbidden, a message is shown with a link to the tokens page', async function (assert) {
-    server.pretender.get('/v1/plugins', () => [403, {}, null]);
+    this.server.pretender.get('/v1/plugins', () => [403, {}, null]);
 
     await PluginsList.visit();
-    assert.equal(PluginsList.error.title, 'Not Authorized');
+    assert.deepEqual(PluginsList.error.title, 'Not Authorized');
 
     await PluginsList.error.seekHelp();
-    assert.equal(currentURL(), '/settings/tokens');
+    assert.deepEqual(currentURL(), '/settings/tokens');
   });
 
   pageSizeSelect({
@@ -155,7 +163,9 @@ module('Acceptance | plugins list', function (hooks) {
     pageObject: PluginsList,
     pageObjectList: PluginsList.plugins,
     async setup() {
-      server.createList('csi-plugin', PluginsList.pageSize, { shallow: true });
+      this.server.createList('csi-plugin', PluginsList.pageSize, {
+        shallow: true,
+      });
       await PluginsList.visit();
     },
   });

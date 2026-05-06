@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { generateResources } from '../common';
@@ -120,7 +120,7 @@ export default Factory.extend({
           withMeta: group.withTaskMeta,
         });
       });
-      taskIds = tasks.mapBy('id');
+      taskIds = tasks.map((task) => task.id);
     }
 
     group.update({
@@ -222,7 +222,7 @@ export default Factory.extend({
           taskGroupId: group.id,
           taskGroup: group,
           provider: 'consul',
-        })
+        }),
       );
 
       services.forEach((fragment) => {
@@ -312,7 +312,7 @@ function roulette(total, divisions, variance = 0.8) {
     roulette.splice(
       i,
       2,
-      ...rngDistribute(roulette[i], roulette[i + 1], variance)
+      ...rngDistribute(roulette[i], roulette[i + 1], variance),
     );
   });
   return roulette;

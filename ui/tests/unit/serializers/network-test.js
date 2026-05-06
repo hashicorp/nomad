@@ -21,7 +21,7 @@ module('Unit | Serializer | Network', function (hooks) {
     };
 
     const { data } = this.subject().normalize(NetworkModel, original);
-    assert.equal(data.attributes.ip, ip);
+    assert.deepEqual(data.attributes.ip, ip);
   });
 
   test('v6 IPs are wrapped in square brackets', async function (assert) {
@@ -31,6 +31,6 @@ module('Unit | Serializer | Network', function (hooks) {
     };
 
     const { data } = this.subject().normalize(NetworkModel, original);
-    assert.equal(data.attributes.ip, `[${ip}]`);
+    assert.deepEqual(data.attributes.ip, `[${ip}]`);
   });
 });

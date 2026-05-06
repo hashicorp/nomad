@@ -6,7 +6,7 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import gaugeChart from 'nomad-ui/tests/pages/components/gauge-chart';
@@ -23,20 +23,18 @@ module('Integration | Component | gauge chart', function (hooks) {
   });
 
   test('presents as an svg, a formatted percentage, and a label', async function (assert) {
-    assert.expect(4);
-
     const props = commonProperties();
     this.setProperties(props);
 
     await render(hbs`
       <GaugeChart
-        @value={{value}}
-        @total={{total}}
-        @label={{label}} />
+        @value={{this.value}}
+        @total={{this.total}}
+        @label={{this.label}} />
     `);
 
-    assert.equal(GaugeChart.label, props.label);
-    assert.equal(GaugeChart.percentage, '50%');
+    assert.deepEqual(GaugeChart.label, props.label);
+    assert.deepEqual(GaugeChart.percentage, '50%');
     assert.ok(GaugeChart.svgIsPresent);
 
     await componentA11yAudit(this.element, assert);
@@ -49,15 +47,15 @@ module('Integration | Component | gauge chart', function (hooks) {
     await render(hbs`
       <div style="width:100px">
         <GaugeChart
-          @value={{value}}
-          @total={{total}}
-          @label={{label}} />
+          @value={{this.value}}
+          @total={{this.total}}
+          @label={{this.label}} />
       </div>
     `);
 
     const svg = find('[data-test-gauge-svg]');
 
-    assert.equal(window.getComputedStyle(svg).width, '100px');
-    assert.equal(svg.getAttribute('height'), 50);
+    assert.deepEqual(window.getComputedStyle(svg).width, '100px');
+    assert.strictEqual(svg.getAttribute('height'), '50');
   });
 });

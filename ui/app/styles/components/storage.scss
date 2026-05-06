@@ -8,23 +8,27 @@
     margin-bottom: 2rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid #eee;
+
     &:last-child {
       margin-bottom: 0;
       padding-bottom: 0;
       border-bottom: none;
     }
+
     header {
       display: grid;
       gap: 0.5rem;
       grid-template-areas:
-        'title actions'
-        'intro search';
+        "title actions"
+        "intro search";
       grid-template-columns: 2fr 1fr;
+
       h3 {
         font-size: 1.5rem;
         font-weight: $weight-bold;
         grid-area: title;
       }
+
       .actions {
         display: grid;
         gap: 1rem;
@@ -32,16 +36,20 @@
         grid-area: actions;
         justify-content: end;
       }
+
       .intro {
         grid-area: intro;
       }
+
       .search {
         grid-area: search;
       }
     }
+
     table {
       margin-top: 1rem;
     }
+
     .empty-message {
       margin-top: 1rem;
       text-align: center;
@@ -57,6 +65,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+
     header {
       grid-column: -1 / 1;
       grid-template-areas: "title";

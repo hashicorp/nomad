@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
@@ -53,7 +53,7 @@ export default class AllocationSerializer extends ApplicationSerializer {
         state.Events = state.Events || [];
         const summary = { Name: key };
         Object.keys(state).forEach(
-          (stateKey) => (summary[stateKey] = state[stateKey])
+          (stateKey) => (summary[stateKey] = state[stateKey]),
         );
         summary.Resources =
           hash.AllocatedResources && hash.AllocatedResources.Tasks[key];

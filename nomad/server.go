@@ -361,13 +361,13 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	s := &Server{
 		config:                  config,
 		consulCatalog:           consulCatalog,
-		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap, config.RPCSessionConfig),
+		connPool:                pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap, config.RPCSessionConfig, config.RPCDialTimeout),
 		logger:                  logger,
 		tlsWrap:                 tlsWrap,
 		rpcServer:               rpc.NewServer(),
 		streamingRpcs:           structs.NewStreamingRpcRegistry(),
 		nodeConns:               make(map[string][]*nodeConnState),
-		peersCache:              peers.NewPeerCache(),
+		peersCache:              peers.NewPeerCache(config.Region),
 		bootstrapped:            &atomic.Bool{},
 		reassertLeaderCh:        make(chan chan error),
 		reconcileCh:             make(chan serf.Member, 32),
@@ -421,6 +421,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
+	s.statsFetcher.SetLocalServer(s)
 
 	// Setup Consul
 	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)

@@ -15,7 +15,7 @@ export default class ParameterizedChild extends Component {
     let json;
     try {
       json = JSON.parse(this.payload);
-    } catch (e) {
+    } catch {
       // Swallow error and fall back to plain text rendering
     }
     return json;

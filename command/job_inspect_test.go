@@ -4,6 +4,8 @@
 package command
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
@@ -63,6 +66,69 @@ func TestInspectCommand_Fails(t *testing.T) {
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
+	}
+}
+func TestInspectCommand_HCLOutput(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
+
+	t.Cleanup(srv.Shutdown)
+
+	ui := cli.NewMockUi()
+	cmd := &JobInspectCommand{
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: url,
+		},
+	}
+	//set up first job; version #0
+	uuid := uuid.Generate()
+	job := testNomadServiceJob(uuid)
+
+	client, err := cmd.Meta.Client()
+	must.NoError(t, err)
+
+	jsonBytes, err := json.Marshal(job)
+	must.NoError(t, err)
+	_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+		Submission: &api.JobSubmission{
+			Source: string(jsonBytes),
+			Format: "json",
+		},
+	}, nil)
+	must.NoError(t, err)
+
+	// change job priority and re-register job to trigger version #1
+	*job.Priority = 87
+	newBytes, err := json.Marshal(job)
+	must.NoError(t, err)
+	_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+		Submission: &api.JobSubmission{
+			Source: string(newBytes),
+			Format: "json",
+		},
+	}, nil)
+	must.NoError(t, err)
+
+	// stop job to trigger version #2
+	_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+	must.Nil(t, err)
+
+	// trigger version #3 retrieve the job struct from client.Meta.JobByPrefix
+	// to imitate job.Start
+	stateJob, err := cmd.Meta.JobByPrefix(client, *job.ID, "")
+	must.NoError(t, err)
+	_, _, err = client.Jobs().Register(stateJob, nil)
+	must.NoError(t, err)
+
+	code := cmd.Run([]string{"-address=" + url, "-hcl", "-version=" + "3", *job.Name})
+	s := ui.OutputWriter.String()
+	must.StrContains(t, s, `"Priority":87`)
+	if code != 0 {
+		fmt.Println(ui.ErrorWriter.String())
+		t.Fatalf("expected exit 0, got: %d", code)
 	}
 }
 

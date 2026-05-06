@@ -2659,16 +2659,11 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 		}
 	}
 
-	// Generate our OIDC request.
-	oidcReq := a.oidcRequestCache.Load(args.ClientNonce)
-	if oidcReq == nil {
-		oidcReq, err = a.oidcRequest(args.ClientNonce, args.RedirectURI, authMethod.Config)
-		if err != nil {
-			return err
-		}
-		if err = a.oidcRequestCache.Store(oidcReq); err != nil {
-			return fmt.Errorf("error storing OIDC request: %w", err)
-		}
+	oidcReq, err := a.oidcRequestCache.LoadOrAdd(args.ClientNonce, func() (*capOIDC.Req, error) {
+		return a.oidcRequest(args.ClientNonce, args.RedirectURI, authMethod.Config)
+	})
+	if err != nil {
+		return err
 	}
 
 	// Use the cache to provide us with an OIDC provider for the auth method

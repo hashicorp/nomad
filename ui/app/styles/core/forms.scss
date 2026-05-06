@@ -5,6 +5,7 @@
 
 @mixin input {
   @include control;
+
   background-color: #fff;
   border-color: $grey-blue;
   color: $text;
@@ -27,6 +28,7 @@
 .input,
 .textarea {
   @include input;
+
   box-shadow: none;
   padding: 0.4em 0.75em;
   height: auto;
@@ -95,7 +97,7 @@
 }
 
 .radio-group {
-  padding: 16px 0px;
+  padding: 16px 0;
 
   .hds-form-radio-card--checked {
     background-color: var(--token-color-surface-action);
@@ -109,7 +111,7 @@
 }
 
 .button-group {
-  margin: 16px 0px;
+  margin: 16px 0;
 }
 
 .align-right {
@@ -123,6 +125,7 @@
 
   .path-input {
     height: 2.25em;
+
     &.error {
       color: $red;
       border-color: $red;
@@ -154,24 +157,29 @@
   top: 25vh;
   height: auto;
   max-height: 50vh;
-  box-shadow: 0 0 0 100vw rgba(0, 2, 30, 0.8);
+  box-shadow: 0 0 0 100vw rgb(0 2 30 / 80%);
   padding: 1rem;
   text-align: center;
   background-color: white;
+
   h1 {
     font-size: 2rem;
     font-weight: 400;
   }
+
   h2 {
     margin-bottom: 1rem;
     font-size: 1rem;
   }
+
   .providers {
     display: grid;
     gap: 0.5rem;
+
     button {
       background-color: #444;
       color: white;
+
       &.error {
         background-color: darkred;
       }

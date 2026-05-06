@@ -4,8 +4,8 @@
  */
 
 import Component from '@ember/component';
-import { computed } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { action, computed } from '@ember/object';
+import { service } from '@ember/service';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -20,6 +20,7 @@ export default class RegionSwitcher extends Component {
     return this.get('system.regions').toArray().sort();
   }
 
+  @action
   async gotoRegion(region) {
     // Fetch token for the new region before transitioning
     await this.get('token.fetchSelfTokenAndPolicies').perform(region).catch();

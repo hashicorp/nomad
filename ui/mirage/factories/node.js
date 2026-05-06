@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { assert } from '@ember/debug';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
@@ -55,7 +56,7 @@ export default Factory.extend({
         1000000,
       ForceDeadline: moment(REF_DATE).add(
         faker.random.number({ min: 1, max: 5 }),
-        'd'
+        'd',
       ),
       IgnoreSystemJobs: faker.random.boolean(),
     },
@@ -139,9 +140,9 @@ export default Factory.extend({
   }),
 
   afterCreate(node, server) {
-    Ember.assert(
+    assert(
       '[Mirage] No node pools! make sure node pools are created before nodes',
-      server.db.nodePools.length
+      server.db.nodePools.length,
     );
 
     // Each node has a corresponding client stat resource that's queried via node IP.
@@ -153,7 +154,7 @@ export default Factory.extend({
     const events = server.createList(
       'node-event',
       faker.random.number({ min: 1, max: 10 }),
-      { nodeId: node.id }
+      { nodeId: node.id },
     );
     const nodePool = node.nodePool
       ? server.db.nodePools.findBy({ name: node.nodePool })
@@ -161,7 +162,7 @@ export default Factory.extend({
 
     node.update({
       nodePool: nodePool.name,
-      eventIds: events.mapBy('id'),
+      eventIds: events.map((event) => event.id),
     });
 
     server.create('client-stat', {

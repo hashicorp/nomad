@@ -11,7 +11,11 @@
       role="tooltip"
       aria-label="Allocation depends on unhealthy drivers"
     >
-      <Hds::Icon @name="alert-triangle-fill" @color="warning" class="icon-vertical-bump-down" />
+      <Hds::Icon
+        @name="alert-triangle-fill"
+        @color="warning"
+        class="icon-vertical-bump-down"
+      />
     </span>
   {{/if}}
   {{#if this.allocation.nextAllocation}}
@@ -75,7 +79,7 @@
 {{#if (eq this.context "volume")}}
   <td data-test-client>
     <Tooltip @text={{this.allocation.node.name}}>
-      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+      <LinkTo @route="clients.client" @model={{this.allocation.node.id}}>
         {{this.allocation.node.shortId}}
       </LinkTo>
     </Tooltip>
@@ -87,7 +91,7 @@
   </td>
   <td data-test-client>
     <Tooltip @text={{this.allocation.node.name}}>
-      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+      <LinkTo @route="clients.client" @model={{this.allocation.node.id}}>
         {{this.allocation.node.shortId}}
       </LinkTo>
     </Tooltip>
@@ -114,7 +118,7 @@
     {{this.allocation.jobVersion}}
   </td>
 {{/if}}
-{{#if (not (eq this.context "volume"))}}
+{{#if (not-eq this.context "volume")}}
   <td data-test-volume>
     {{if this.allocation.taskGroup.volumes.length "Yes"}}
   </td>

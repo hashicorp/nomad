@@ -27,24 +27,24 @@ module('Unit | Component | line-chart', function (hooks) {
     });
 
     let [xDomainLow, xDomainHigh] = chart.xScale.domain();
-    assert.equal(
+    assert.deepEqual(
       xDomainLow,
       Math.min(...data.mapBy('foo')),
-      'Domain lower bound is the lowest foo value'
+      'Domain lower bound is the lowest foo value',
     );
-    assert.equal(
+    assert.deepEqual(
       xDomainHigh,
       Math.max(...data.mapBy('foo')),
-      'Domain upper bound is the highest foo value'
+      'Domain upper bound is the highest foo value',
     );
 
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, xDomainHigh] = chart.xScale.domain();
-    assert.equal(
+    assert.deepEqual(
       xDomainHigh,
       12,
-      'When the data changes, the xScale is recalculated'
+      'When the data changes, the xScale is recalculated',
     );
   });
 
@@ -55,20 +55,20 @@ module('Unit | Component | line-chart', function (hooks) {
     });
 
     let [yDomainLow, yDomainHigh] = chart.yScale.domain();
-    assert.equal(yDomainLow, 0, 'Domain lower bound is always 0');
-    assert.equal(
+    assert.deepEqual(yDomainLow, 0, 'Domain lower bound is always 0');
+    assert.deepEqual(
       yDomainHigh,
       Math.max(...data.mapBy('bar')),
-      'Domain upper bound is the highest bar value'
+      'Domain upper bound is the highest bar value',
     );
 
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, yDomainHigh] = chart.yScale.domain();
-    assert.equal(
+    assert.deepEqual(
       yDomainHigh,
       600,
-      'When the data changes, the yScale is recalculated'
+      'When the data changes, the yScale is recalculated',
     );
   });
 
@@ -79,13 +79,13 @@ module('Unit | Component | line-chart', function (hooks) {
     });
 
     chart.height = 100;
-    assert.equal(chart.yTicks.length, 3);
+    assert.deepEqual(chart.yTicks.length, 3);
 
     chart.height = 240;
-    assert.equal(chart.yTicks.length, 5);
+    assert.deepEqual(chart.yTicks.length, 5);
 
     chart.height = 242;
-    assert.equal(chart.yTicks.length, 7);
+    assert.deepEqual(chart.yTicks.length, 7);
   });
 
   test('the values for yTicks are rounded to whole numbers', function (assert) {
@@ -129,10 +129,10 @@ module('Unit | Component | line-chart', function (hooks) {
 
     chart.activeDatum = data[1];
 
-    assert.equal(
+    assert.deepEqual(
       chart.activeDatumLabel,
       d3Format.format(',')(data[1].foo),
-      'activeDatumLabel correctly formats the correct prop of the correct datum'
+      'activeDatumLabel correctly formats the correct prop of the correct datum',
     );
   });
 
@@ -145,10 +145,10 @@ module('Unit | Component | line-chart', function (hooks) {
 
     chart.activeDatum = data[1];
 
-    assert.equal(
+    assert.deepEqual(
       chart.activeDatumValue,
       d3Format.format(',.2~r')(data[1].bar),
-      'activeDatumValue correctly formats the correct prop of the correct datum'
+      'activeDatumValue correctly formats the correct prop of the correct datum',
     );
   });
 });

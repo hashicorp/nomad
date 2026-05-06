@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import { dasherize } from '@ember/string';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
@@ -40,7 +40,7 @@ const fileBodyMapping = {
         const date = new Date(2019, 6, 23);
         date.setSeconds(i * 5);
         return `${date.toISOString()} ${makeSentence(
-          faker.random.number({ max: 5 }) + 7
+          faker.random.number({ max: 5 }) + 7,
         )}`;
       })
       .join('\n'),
@@ -84,7 +84,7 @@ export default Factory.extend({
 
   name() {
     return `${dasherize(faker.hacker.noun())}-${pickOne(
-      TROUBLESOME_CHARACTERS
+      TROUBLESOME_CHARACTERS,
     )}${this.isDir ? '' : `.${this.fileType}`}`;
   },
 
@@ -116,7 +116,7 @@ export default Factory.extend({
         'file',
         {
           parent: allocFile,
-        }
+        },
       );
     },
   }),

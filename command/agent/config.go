@@ -872,6 +872,11 @@ type RPCConfig struct {
 	// and send a RST to the remote side.
 	StreamCloseTimeout    time.Duration
 	StreamCloseTimeoutHCL string `hcl:"stream_close_timeout,optional"`
+
+	// DialTimeout is the timeout used when establishing new outbound RPC
+	// connections to peers. A zero value uses the default.
+	DialTimeout    time.Duration
+	DialTimeoutHCL string `hcl:"dial_timeout,optional"`
 }
 
 func (r *RPCConfig) Copy() *RPCConfig {
@@ -921,6 +926,12 @@ func (r *RPCConfig) Merge(rpc *RPCConfig) *RPCConfig {
 	if rpc.StreamCloseTimeout > 0 {
 		result.StreamCloseTimeout = rpc.StreamCloseTimeout
 	}
+	if rpc.DialTimeoutHCL != "" {
+		result.DialTimeoutHCL = rpc.DialTimeoutHCL
+	}
+	if rpc.DialTimeout > 0 {
+		result.DialTimeout = rpc.DialTimeout
+	}
 	return &result
 }
 
@@ -940,6 +951,9 @@ func (r *RPCConfig) Validate() error {
 		}
 		if r.StreamOpenTimeout < 0 {
 			return errors.New("rcp.stream_open_timeout must be greater than zero")
+		}
+		if r.DialTimeout < 0 {
+			return errors.New("rpc.dial_timeout must be greater than or equal to zero")
 		}
 	}
 
@@ -1819,6 +1833,8 @@ func DefaultConfig() *Config {
 			StreamOpenTimeoutHCL:      "75s",
 			StreamCloseTimeout:        5 * time.Minute,
 			StreamCloseTimeoutHCL:     "5m",
+			DialTimeout:               10 * time.Second,
+			DialTimeoutHCL:            "10s",
 		},
 		Client: &ClientConfig{
 			Enabled:               false,

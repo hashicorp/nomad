@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 import { currentURL, settled } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -34,23 +33,23 @@ module('Acceptance | task group detail', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node', 'forceIPv4');
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4');
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupsCount: 2,
       createAllocations: false,
     });
 
-    const taskGroups = server.db.taskGroups.where({ jobId: job.id });
+    const taskGroups = this.server.db.taskGroups.where({ jobId: job.id });
     taskGroup = taskGroups[0];
 
-    tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
 
-    server.create('node', 'forceIPv4');
+    this.server.create('node', 'forceIPv4');
 
-    allocations = server.createList('allocation', 2, {
+    allocations = this.server.createList('allocation', 2, {
       jobId: job.id,
       taskGroup: taskGroup.name,
       clientStatus: 'running',
@@ -58,14 +57,14 @@ module('Acceptance | task group detail', function (hooks) {
 
     // Allocations associated to a different task group on the job to
     // assert that they aren't showing up in on this page in error.
-    server.createList('allocation', 3, {
+    this.server.createList('allocation', 3, {
       jobId: job.id,
       taskGroup: taskGroups[1].name,
       clientStatus: 'running',
     });
 
     // Set a static name to make the search test deterministic
-    server.db.allocations.forEach((alloc) => {
+    this.server.db.allocations.forEach((alloc) => {
       alloc.name = 'aaaaa';
     });
 
@@ -77,7 +76,7 @@ module('Acceptance | task group detail', function (hooks) {
       previousAllocation: allocations[0].id,
     });
 
-    managementToken = server.create('token');
+    managementToken = this.server.create('token');
 
     window.localStorage.clear();
   });
@@ -97,11 +96,15 @@ module('Acceptance | task group detail', function (hooks) {
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    assert.equal(TaskGroup.tasksCount, `# Tasks ${tasks.length}`, '# Tasks');
-    assert.equal(
+    assert.deepEqual(
+      TaskGroup.tasksCount,
+      `# Tasks ${tasks.length}`,
+      '# Tasks',
+    );
+    assert.deepEqual(
       TaskGroup.cpu,
       `Reserved CPU ${formatScheduledHertz(totalCPU, 'MHz')}`,
-      'Aggregated CPU reservation for all tasks'
+      'Aggregated CPU reservation for all tasks',
     );
 
     let totalMemoryMaxAddendum = '';
@@ -109,46 +112,46 @@ module('Acceptance | task group detail', function (hooks) {
     if (totalMemoryMax > totalMemory) {
       totalMemoryMaxAddendum = ` (${formatScheduledBytes(
         totalMemoryMax,
-        'MiB'
+        'MiB',
       )}Max)`;
     }
 
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.mem,
       `Reserved Memory ${formatScheduledBytes(
         totalMemory,
-        'MiB'
+        'MiB',
       )}${totalMemoryMaxAddendum}`,
-      'Aggregated Memory reservation for all tasks'
+      'Aggregated Memory reservation for all tasks',
     );
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.disk,
       `Reserved Disk ${formatScheduledBytes(totalDisk, 'MiB')}`,
-      'Aggregated Disk reservation for all tasks'
+      'Aggregated Disk reservation for all tasks',
     );
 
     assert.ok(
-      document.title.includes(`Task group ${taskGroup.name} - Job ${job.name}`)
+      getPageTitle().includes(`Task group ${taskGroup.name} - Job ${job.name}`),
     );
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.index').text,
       'Jobs',
-      'First breadcrumb says jobs'
+      'First breadcrumb says jobs',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.job.index').text,
       `Job ${job.name}`,
-      'Second breadcrumb says the job name'
+      'Second breadcrumb says the job name',
     );
-    assert.equal(
+    assert.deepEqual(
       Layout.breadcrumbFor('jobs.job.task-group').text,
       `Task Group ${taskGroup.name}`,
-      'Third breadcrumb says the job name'
+      'Third breadcrumb says the job name',
     );
   });
 
@@ -156,17 +159,21 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
+    assert.deepEqual(
+      currentURL(),
+      '/jobs',
+      'First breadcrumb links back to jobs',
+    );
   });
 
   test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.job.index').visit();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}`,
-      'Second breadcrumb links back to the job for the task group'
+      'Second breadcrumb links back to the job for the task group',
     );
   });
 
@@ -175,21 +182,21 @@ module('Acceptance | task group detail', function (hooks) {
 
     const SCALE_AND_WRITE_NAMESPACE = 'scale-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
-    const clientToken = server.create('token');
+    const clientToken = this.server.create('token');
 
-    server.create('namespace', { id: SCALE_AND_WRITE_NAMESPACE });
-    const secondNamespace = server.create('namespace', {
+    this.server.create('namespace', { id: SCALE_AND_WRITE_NAMESPACE });
+    const secondNamespace = this.server.create('namespace', {
       id: READ_ONLY_NAMESPACE,
     });
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
       noActiveDeployment: true,
       namespaceId: SCALE_AND_WRITE_NAMESPACE,
     });
-    const scalingGroup = server.create('task-group', {
+    const scalingGroup = this.server.create('task-group', {
       job,
       name: 'scaling',
       count: 1,
@@ -198,14 +205,14 @@ module('Acceptance | task group detail', function (hooks) {
     });
     job.update({ taskGroupIds: [scalingGroup.id] });
 
-    const job2 = server.create('job', {
+    const job2 = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
       noActiveDeployment: true,
       namespaceId: READ_ONLY_NAMESPACE,
     });
-    const scalingGroup2 = server.create('task-group', {
+    const scalingGroup2 = this.server.create('task-group', {
       job: job2,
       name: 'scaling',
       count: 1,
@@ -214,7 +221,7 @@ module('Acceptance | task group detail', function (hooks) {
     });
     job2.update({ taskGroupIds: [scalingGroup2.id] });
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'something',
       name: 'something',
       rulesJSON: {
@@ -241,9 +248,9 @@ module('Acceptance | task group detail', function (hooks) {
       name: scalingGroup.name,
     });
 
-    assert.equal(
+    assert.deepEqual(
       decodeURIComponent(currentURL()),
-      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`
+      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`,
     );
     assert.notOk(TaskGroup.countStepper.increment.isDisabled);
 
@@ -251,15 +258,15 @@ module('Acceptance | task group detail', function (hooks) {
       id: `${job2.id}@${secondNamespace.name}`,
       name: scalingGroup2.name,
     });
-    assert.equal(
+    assert.deepEqual(
       decodeURIComponent(currentURL()),
-      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`
+      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`,
     );
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
 
   test('/jobs/:id/:task-group should list one page of allocations for the task group', async function (assert) {
-    server.createList('allocation', TaskGroup.pageSize, {
+    this.server.createList('allocation', TaskGroup.pageSize, {
       jobId: job.id,
       taskGroup: taskGroup.name,
       clientStatus: 'running',
@@ -268,15 +275,15 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(
-      server.db.allocations.where({ jobId: job.id }).length >
+      this.server.db.allocations.where({ jobId: job.id }).length >
         TaskGroup.pageSize,
-      'There are enough allocations to invoke pagination'
+      'There are enough allocations to invoke pagination',
     );
 
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.allocations.length,
       TaskGroup.pageSize,
-      'All allocations for the task group'
+      'All allocations for the task group',
     );
   });
 
@@ -286,48 +293,48 @@ module('Acceptance | task group detail', function (hooks) {
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
-    assert.equal(
+    assert.deepEqual(
       allocationRow.shortId,
       allocation.id.split('-')[0],
-      'Allocation short id'
+      'Allocation short id',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-      'Allocation create time'
+      'Allocation create time',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.modifyTime,
       moment(allocation.modifyTime / 1000000).fromNow(),
-      'Allocation modify time'
+      'Allocation modify time',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.status,
       allocation.clientStatus,
-      'Client status'
+      'Client status',
     );
-    assert.equal(
-      allocationRow.jobVersion,
+    assert.strictEqual(
+      Number(allocationRow.jobVersion),
       allocation.jobVersion,
-      'Job Version'
+      'Job Version',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.client,
-      server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-      'Node ID'
+      this.server.db.nodes.find(allocation.nodeId).id.split('-')[0],
+      'Node ID',
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.volume,
       Object.keys(taskGroup.volumes).length ? 'Yes' : '',
-      'Volumes'
+      'Volumes',
     );
 
     await allocationRow.visitClient();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/clients/${allocation.nodeId}`,
-      'Node links to node page'
+      'Node links to node page',
     );
   });
 
@@ -337,43 +344,43 @@ module('Acceptance | task group detail', function (hooks) {
     const allocation = allocations.sortBy('name')[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
-    const allocStats = server.db.clientAllocationStats.find(allocation.id);
-    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
+    const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
 
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
-    assert.equal(
-      allocationRow.cpu,
+    assert.strictEqual(
+      Number(allocationRow.cpu),
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-      'CPU %'
+      'CPU %',
     );
 
     const roundedTicks = Math.floor(
-      allocStats.resourceUsage.CpuStats.TotalTicks
+      allocStats.resourceUsage.CpuStats.TotalTicks,
     );
-    assert.equal(
+    assert.deepEqual(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-      'Detailed CPU information is in a tooltip'
+      'Detailed CPU information is in a tooltip',
     );
 
-    assert.equal(
-      allocationRow.mem,
+    assert.strictEqual(
+      Number(allocationRow.mem),
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-      'Memory used'
+      'Memory used',
     );
 
-    assert.equal(
+    assert.deepEqual(
       allocationRow.memTooltip,
       `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
         memoryUsed,
-        'MiB'
+        'MiB',
       )}`,
-      'Detailed memory information is in a tooltip'
+      'Detailed memory information is in a tooltip',
     );
   });
 
@@ -383,10 +390,10 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.search('zzzzzz');
 
     assert.ok(TaskGroup.isEmpty, 'Empty state is shown');
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.emptyState.headline,
       'No Matches',
-      'Empty state has an appropriate message'
+      'Empty state has an appropriate message',
     );
   });
 
@@ -398,34 +405,34 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.ok(
       rescheduleRow.rescheduled,
-      'Reschedule row has a reschedule icon'
+      'Reschedule row has a reschedule icon',
     );
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
 
   test('/jobs/:id/:task-group should present task lifecycles', async function (assert) {
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupsCount: 2,
       groupAllocCount: 3,
     });
 
-    const taskGroups = server.db.taskGroups.where({ jobId: job.id });
+    const taskGroups = this.server.db.taskGroups.where({ jobId: job.id });
     taskGroup = taskGroups[0];
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.lifecycleChart.isPresent);
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.lifecycleChart.title,
-      'Task Lifecycle Configuration'
+      'Task Lifecycle Configuration',
     );
 
-    tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const taskNames = tasks.mapBy('name');
 
     // This is thoroughly tested in allocation detail tests, so this mostly checks what’s different
 
-    assert.equal(TaskGroup.lifecycleChart.tasks.length, 3);
+    assert.deepEqual(TaskGroup.lifecycleChart.tasks.length, 3);
 
     TaskGroup.lifecycleChart.tasks.forEach((Task) => {
       assert.ok(taskNames.includes(Task.name));
@@ -438,15 +445,15 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasVolumes);
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.volumes.length,
-      Object.keys(taskGroup.volumes).length
+      Object.keys(taskGroup.volumes).length,
     );
   });
 
   test('when the task group does not depend on volumes, the volumes table is not shown', async function (assert) {
-    job = server.create('job', { noHostVolumes: true, shallow: true });
-    taskGroup = server.db.taskGroups.where({ jobId: job.id })[0];
+    job = this.server.create('job', { noHostVolumes: true, shallow: true });
+    taskGroup = this.server.db.taskGroups.where({ jobId: job.id })[0];
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
@@ -454,10 +461,10 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the task group has metadata, the metadata table is shown', async function (assert) {
-    job = server.create('job', {
+    job = this.server.create('job', {
       meta: { raw: { a: 'b' } },
     });
-    taskGroup = server.create('task-group', {
+    taskGroup = this.server.create('task-group', {
       job,
       meta: { raw: { foo: 'bar' } },
     });
@@ -471,12 +478,12 @@ module('Acceptance | task group detail', function (hooks) {
 
     TaskGroup.volumes[0].as((volumeRow) => {
       const volume = taskGroup.volumes[volumeRow.name];
-      assert.equal(volumeRow.name, volume.Name);
-      assert.equal(volumeRow.type, volume.Type);
-      assert.equal(volumeRow.source, volume.Source);
-      assert.equal(
+      assert.deepEqual(volumeRow.name, volume.Name);
+      assert.deepEqual(volumeRow.type, volume.Type);
+      assert.deepEqual(volumeRow.source, volume.Source);
+      assert.deepEqual(
         volumeRow.permissions,
-        volume.ReadOnly ? 'Read' : 'Read/Write'
+        volume.ReadOnly ? 'Read' : 'Read/Write',
       );
     });
   });
@@ -484,13 +491,13 @@ module('Acceptance | task group detail', function (hooks) {
   test('the count stepper sends the appropriate POST request', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
       noActiveDeployment: true,
     });
-    const scalingGroup = server.create('task-group', {
+    const scalingGroup = this.server.create('task-group', {
       job,
       name: 'scaling',
       count: 1,
@@ -503,24 +510,24 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.countStepper.increment.click();
     await settled();
 
-    const scaleRequest = server.pretender.handledRequests.find(
-      (req) => req.method === 'POST' && req.url.endsWith('/scale')
+    const scaleRequest = this.server.pretender.handledRequests.find(
+      (req) => req.method === 'POST' && req.url.endsWith('/scale'),
     );
     const requestBody = JSON.parse(scaleRequest.requestBody);
-    assert.equal(requestBody.Target.Group, scalingGroup.name);
-    assert.equal(requestBody.Count, scalingGroup.count + 1);
+    assert.deepEqual(requestBody.Target.Group, scalingGroup.name);
+    assert.deepEqual(requestBody.Count, scalingGroup.count + 1);
   });
 
   test('the count stepper is disabled when a deployment is running', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
       activeDeployment: true,
     });
-    const scalingGroup = server.create('task-group', {
+    const scalingGroup = this.server.create('task-group', {
       job,
       name: 'scaling',
       count: 1,
@@ -542,23 +549,23 @@ module('Acceptance | task group detail', function (hooks) {
       name: 'not-a-real-task-group',
     });
 
-    assert.equal(
-      server.pretender.handledRequests
+    assert.deepEqual(
+      this.server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
+      'A request to the nonexistent job is made',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/jobs/not-a-real-job/not-a-real-task-group',
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -566,22 +573,22 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
 
     assert.ok(
-      server.pretender.handledRequests
+      this.server.pretender.handledRequests
         .filterBy('status', 200)
         .mapBy('url')
         .includes(`/v1/job/${job.id}`),
-      'A request to the job is made and succeeds'
+      'A request to the job is made and succeeds',
     );
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/not-a-real-task-group`,
-      'The URL persists'
+      'The URL persists',
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.error.title,
       'Not Found',
-      'Error message is for 404'
+      'Error message is for 404',
     );
   });
 
@@ -590,7 +597,7 @@ module('Acceptance | task group detail', function (hooks) {
     pageObject: TaskGroup,
     pageObjectList: TaskGroup.allocations,
     async setup() {
-      server.createList('allocation', TaskGroup.pageSize, {
+      this.server.createList('allocation', TaskGroup.pageSize, {
         jobId: job.id,
         taskGroup: taskGroup.name,
         clientStatus: 'running',
@@ -602,7 +609,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('when a task group has no scaling events, there is no recent scaling events section', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({ events: [] });
 
@@ -613,16 +620,16 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('the recent scaling events section shows all recent scaling events in reverse chronological order', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({
       events: [
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { count: 3, error: false }),
-        server.create('scale-event', { count: 1, error: false }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { count: 3, error: false }),
+        this.server.create('scale-event', { count: 1, error: false }),
       ],
     });
     const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
@@ -633,14 +640,14 @@ module('Acceptance | task group detail', function (hooks) {
 
     scaleEvents.forEach((scaleEvent, idx) => {
       const ScaleEvent = TaskGroup.scaleEvents[idx];
-      assert.equal(
+      assert.deepEqual(
         ScaleEvent.time,
-        moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ')
+        moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ'),
       );
-      assert.equal(ScaleEvent.message, scaleEvent.message);
+      assert.deepEqual(ScaleEvent.message, scaleEvent.message);
 
       if (scaleEvent.count != null) {
-        assert.equal(ScaleEvent.count, scaleEvent.count);
+        assert.strictEqual(Number(ScaleEvent.count), scaleEvent.count);
       }
 
       if (scaleEvent.error) {
@@ -657,19 +664,19 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown in addition to the accordion', async function (assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(
-      (m) => m.name === taskGroup.name
+      (m) => m.name === taskGroup.name,
     );
     taskGroupScale.update({
       events: [
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { error: true }),
-        server.create('scale-event', { count: 7, error: false }),
-        server.create('scale-event', { count: 10, error: false }),
-        server.create('scale-event', { count: 2, error: false }),
-        server.create('scale-event', { count: 3, error: false }),
-        server.create('scale-event', { count: 2, error: false }),
-        server.create('scale-event', { count: 9, error: false }),
-        server.create('scale-event', { count: 1, error: false }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { error: true }),
+        this.server.create('scale-event', { count: 7, error: false }),
+        this.server.create('scale-event', { count: 10, error: false }),
+        this.server.create('scale-event', { count: 2, error: false }),
+        this.server.create('scale-event', { count: 3, error: false }),
+        this.server.create('scale-event', { count: 2, error: false }),
+        this.server.create('scale-event', { count: 9, error: false }),
+        this.server.create('scale-event', { count: 1, error: false }),
       ],
     });
     const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
@@ -678,9 +685,9 @@ module('Acceptance | task group detail', function (hooks) {
     assert.ok(TaskGroup.hasScaleEvents);
     assert.ok(TaskGroup.hasScalingTimeline);
 
-    assert.equal(
+    assert.deepEqual(
       TaskGroup.scalingAnnotations.length,
-      scaleEvents.filter((ev) => ev.count == null).length
+      scaleEvents.filter((ev) => ev.count == null).length,
     );
   });
 
@@ -698,12 +705,12 @@ module('Acceptance | task group detail', function (hooks) {
     async beforeEach() {
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
-          server.createList('allocation', 5, {
+          this.server.createList('allocation', 5, {
             jobId: job.id,
             taskGroup: taskGroup.name,
             clientStatus: s,
           });
-        }
+        },
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
@@ -722,21 +729,21 @@ module('Acceptance | task group detail', function (hooks) {
           allocs
             .filter(
               (alloc) =>
-                alloc.jobId == job.id && alloc.taskGroup == taskGroup.name
+                alloc.jobId == job.id && alloc.taskGroup == taskGroup.name,
             )
             .mapBy('nodeId')
-            .map((id) => id.split('-')[0])
-        )
+            .map((id) => id.split('-')[0]),
+        ),
       ).sort();
     },
     async beforeEach() {
-      const nodes = server.createList('node', 3, 'forceIPv4');
+      const nodes = this.server.createList('node', 3, 'forceIPv4');
       nodes.forEach((node) =>
-        server.createList('allocation', 5, {
+        this.server.createList('allocation', 5, {
           nodeId: node.id,
           jobId: job.id,
           taskGroup: taskGroup.name,
-        })
+        }),
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
@@ -749,15 +756,15 @@ module('Acceptance | task group detail', function (hooks) {
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
+  { facet, paramName, beforeEach, filter, expectedOptions },
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     let expectation;
     if (typeof expectedOptions === 'function') {
-      expectation = expectedOptions(server.db.allocations);
+      expectation = expectedOptions.call(this, this.server.db.allocations);
     } else {
       expectation = expectedOptions;
     }
@@ -765,28 +772,28 @@ function testFacet(
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected'
+      'Options for facet are as expected',
     );
   });
 
   test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
     let option;
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
     option = facet.options.objectAt(0);
     await option.toggle();
 
     const selection = [option.key];
-    const expectedAllocs = server.db.allocations
+    const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     TaskGroup.allocations.forEach((alloc, index) => {
-      assert.equal(
+      assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -794,7 +801,7 @@ function testFacet(
   test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);
@@ -804,16 +811,16 @@ function testFacet(
     await option2.toggle();
     selection.push(option2.key);
 
-    const expectedAllocs = server.db.allocations
+    const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
     TaskGroup.allocations.forEach((alloc, index) => {
-      assert.equal(
+      assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`
+        `Allocation at ${index} is ${expectedAllocs[index].id}`,
       );
     });
   });
@@ -821,7 +828,7 @@ function testFacet(
   test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
     const selection = [];
 
-    await beforeEach();
+    await beforeEach.call(this);
     await facet.toggle();
 
     const option1 = facet.options.objectAt(0);
@@ -831,12 +838,12 @@ function testFacet(
     await option2.toggle();
     selection.push(option2.key);
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/${taskGroup.name}?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
+        JSON.stringify(selection),
       )}`,
-      'URL has the correct query param key and value'
+      'URL has the correct query param key and value',
     );
   });
 }

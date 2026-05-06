@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -18,7 +17,7 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
  */
 @classic
 export default class DefinitionController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @alias('model.definition') definition;
   @alias('model.format') format;
@@ -59,6 +58,7 @@ export default class DefinitionController extends Controller.extend(
     this.view = selectedView;
   }
 
+  @action
   onSubmit() {
     this.router.transitionTo('jobs.job', this.job.idWithNamespace);
   }

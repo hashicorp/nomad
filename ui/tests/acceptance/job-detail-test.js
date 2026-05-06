@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable ember/no-test-module-for */
-/* eslint-disable qunit/require-expect */
+
 import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -19,7 +19,7 @@ import percySnapshot from '@percy/ember';
 import { createRestartableJobs } from 'nomad-ui/mirage/scenarios/default';
 import faker from 'nomad-ui/mirage/faker';
 
-moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
+moduleForJob('Acceptance | job detail (batch)', 'allocations', (server) =>
   server.create('job', {
     type: 'batch',
     shallow: true,
@@ -29,10 +29,10 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
       running: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
-moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
+moduleForJob('Acceptance | job detail (system)', 'allocations', (server) =>
   server.create('job', {
     type: 'system',
     shallow: true,
@@ -42,10 +42,10 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
       running: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
-moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
+moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', (server) =>
   server.create('job', {
     type: 'sysbatch',
     shallow: true,
@@ -56,12 +56,12 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
       failed: 1,
     },
     withPreviousStableVersion: true,
-  })
+  }),
 );
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch)',
-  () => {
+  (server) => {
     server.create('namespace', { id: 'test' });
     return server.create('job', {
       status: 'running',
@@ -71,12 +71,12 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch with namespace)',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     return server.create('job', {
       status: 'running',
@@ -87,12 +87,12 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch with namespace and wildcard dc)',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     return server.create('job', {
       status: 'running',
@@ -103,27 +103,31 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     });
-  }
+  },
 );
 
-moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
-  const parent = server.create('job', 'periodicSysbatch', {
-    childrenCount: 1,
-    shallow: true,
-    datacenters: ['dc1'],
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-    noActiveDeployment: true,
-    withPreviousStableVersion: true,
-  });
-  return server.db.jobs.where({ parentId: parent.id })[0];
-});
+moduleForJob(
+  'Acceptance | job detail (sysbatch child)',
+  'allocations',
+  (server) => {
+    const parent = server.create('job', 'periodicSysbatch', {
+      childrenCount: 1,
+      shallow: true,
+      datacenters: ['dc1'],
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+    });
+    return server.db.jobs.where({ parentId: parent.id })[0];
+  },
+);
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch child)',
-  () => {
+  (server) => {
     server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodicSysbatch', {
       childrenCount: 1,
@@ -132,12 +136,12 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch child with namespace)',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodicSysbatch', {
       childrenCount: 1,
@@ -147,12 +151,12 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch child with namespace and wildcard dc)',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodicSysbatch', {
       childrenCount: 1,
@@ -162,47 +166,47 @@ moduleForJobWithClientStatus(
       noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+  },
 );
 
 moduleForJob(
   'Acceptance | job detail (periodic)',
   'children',
-  () =>
+  (server) =>
     server.create('job', 'periodic', {
       shallow: true,
       withPreviousStableVersion: true,
     }),
   {
     'the default sort is submitTime descending': async function (job, assert) {
-      const mostRecentLaunch = server.db.jobs
+      const mostRecentLaunch = this.server.db.jobs
         .where({ parentId: job.id })
         .sortBy('submitTime')
         .reverse()[0];
 
       assert.ok(JobDetail.jobsHeader.hasSubmitTime);
-      assert.equal(
+      assert.deepEqual(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
     },
     "don't display redundant information in children table": async function (
       job,
-      assert
+      assert,
     ) {
       assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
-  }
+  },
 );
 
 moduleForJob(
   'Acceptance | job detail (periodic in namespace)',
   'children',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodic', {
       shallow: true,
@@ -214,48 +218,48 @@ moduleForJob(
     "don't display namespace in children table": async function (job, assert) {
       assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
-  }
+  },
 );
 
 moduleForJob(
   'Acceptance | job detail (parameterized)',
   'children',
-  () =>
+  (server) =>
     server.create('job', 'parameterized', {
       shallow: true,
       noActiveDeployment: true,
       withPreviousStableVersion: true,
     }),
   {
-    'the default sort is submitTime descending': async (job, assert) => {
-      const mostRecentLaunch = server.db.jobs
+    'the default sort is submitTime descending': async function (job, assert) {
+      const mostRecentLaunch = this.server.db.jobs
         .where({ parentId: job.id })
         .sortBy('submitTime')
         .reverse()[0];
 
       assert.ok(JobDetail.jobsHeader.hasSubmitTime);
-      assert.equal(
+      assert.deepEqual(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+          'MMM DD HH:mm:ss ZZ',
+        ),
       );
     },
     "don't display redundant information in children table": async function (
       job,
-      assert
+      assert,
     ) {
       assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
-  }
+  },
 );
 
 moduleForJob(
   'Acceptance | job detail (parameterized in namespace)',
   'children',
-  () => {
+  (server) => {
     const namespace = server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'parameterized', {
       shallow: true,
@@ -267,27 +271,31 @@ moduleForJob(
     "don't display namespace in children table": async function (job, assert) {
       assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
-  }
+  },
 );
 
-moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
-  const parent = server.create('job', 'periodic', {
-    childrenCount: 1,
-    shallow: true,
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-    noActiveDeployment: true,
-    withPreviousStableVersion: true,
-  });
-  return server.db.jobs.where({ parentId: parent.id })[0];
-});
+moduleForJob(
+  'Acceptance | job detail (periodic child)',
+  'allocations',
+  (server) => {
+    const parent = server.create('job', 'periodic', {
+      childrenCount: 1,
+      shallow: true,
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+    });
+    return server.db.jobs.where({ parentId: parent.id })[0];
+  },
+);
 
 moduleForJob(
   'Acceptance | job detail (parameterized child)',
   'allocations',
-  () => {
+  (server) => {
     const parent = server.create('job', 'parameterized', {
       childrenCount: 1,
       shallow: true,
@@ -300,14 +308,16 @@ moduleForJob(
       status: 'running', //  TODO: TEMP
       withPreviousStableVersion: true,
     });
-    return server.db.jobs.where({ parentId: parent.id })[0];
-  }
+    const child = server.db.jobs.where({ parentId: parent.id })[0];
+    server.db.jobs.update(child.id, { status: 'running', stopped: false });
+    return server.db.jobs.find(child.id);
+  },
 );
 
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () =>
+  (server) =>
     server.create('job', {
       type: 'service',
       noActiveDeployment: true,
@@ -319,28 +329,32 @@ moduleForJob(
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
-      assert.equal(currentURL(), `/jobs/${job.id}/deployments`);
+      assert.deepEqual(currentURL(), `/jobs/${job.id}/deployments`);
     },
     'when the job is not found, an error message is shown, but the URL persists':
-      async (job, assert) => {
+      async function (job, assert) {
         await JobDetail.visit({ id: 'not-a-real-job' });
 
-        assert.equal(
-          server.pretender.handledRequests
+        assert.deepEqual(
+          this.server.pretender.handledRequests
             .filter((request) => !request.url.includes('policy'))
             .findBy('status', 404).url,
           '/v1/job/not-a-real-job',
-          'A request to the nonexistent job is made'
+          'A request to the nonexistent job is made',
         );
-        assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
+        assert.deepEqual(
+          currentURL(),
+          '/jobs/not-a-real-job',
+          'The URL persists',
+        );
         assert.ok(JobDetail.error.isPresent, 'Error message is shown');
-        assert.equal(
+        assert.deepEqual(
           JobDetail.error.title,
           'Not Found',
-          'Error message is for 404'
+          'Error message is for 404',
         );
       },
-  }
+  },
 );
 
 module('Acceptance | ui block', function (hooks) {
@@ -350,17 +364,17 @@ module('Acceptance | ui block', function (hooks) {
   hooks.beforeEach(async function () {
     faker.seed(1);
     window.localStorage.clear();
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'hcl-definition-job',
       id: 'display-hcl',
       namespaceId: 'default',
     });
 
-    server.create('job', {
+    this.server.create('job', {
       name: 'ui-block-job',
       id: 'ui-block-job',
       ui: {
@@ -413,9 +427,9 @@ module('Acceptance | ui block', function (hooks) {
   });
 
   test('job sanitizes input', async function (assert) {
-    server.create('node-pool');
-    server.create('node');
-    server.create('job', {
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('job', {
       id: 'xss-job',
       ui: {
         Description: '<script>alert("XSS");</script><p>Safe text</p>',
@@ -442,31 +456,31 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
-    server.createList('namespace', 2);
-    server.create('node-pool');
-    server.create('node');
-    job = server.create('job', {
+    this.server.createList('namespace', 2);
+    this.server.create('node-pool');
+    this.server.create('node');
+    job = this.server.create('job', {
       type: 'service',
       status: 'running',
-      namespaceId: server.db.namespaces[1].name,
+      namespaceId: this.server.db.namespaces[1].name,
       noActiveDeployment: true,
     });
-    server.createList('job', 3, {
-      namespaceId: server.db.namespaces[0].name,
+    this.server.createList('job', 3, {
+      namespaceId: this.server.db.namespaces[0].name,
     });
 
-    managementToken = server.create('token');
-    clientToken = server.create('token');
+    managementToken = this.server.create('token');
+    clientToken = this.server.create('token');
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    const namespace = server.db.namespaces.find(job.namespaceId);
+    const namespace = this.server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
     await a11yAudit(assert);
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
-    const namespace = server.db.namespaces.find(job.namespaceId);
+    const namespace = this.server.db.namespaces.find(job.namespaceId);
 
     await JobDetail.visit({
       id: `${job.id}@${namespace.name}`,
@@ -474,23 +488,23 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     assert.ok(
       JobDetail.statFor('namespace').text,
-      'Namespace included in stats'
+      'Namespace included in stats',
     );
   });
 
   test('the exec button state can change between namespaces', async function (assert) {
-    const job1 = server.create('job', {
+    const job1 = this.server.create('job', {
       status: 'running',
-      namespaceId: server.db.namespaces[0].id,
+      namespaceId: this.server.db.namespaces[0].id,
     });
-    const job2 = server.create('job', {
+    const job2 = this.server.create('job', {
       status: 'running',
-      namespaceId: server.db.namespaces[1].id,
+      namespaceId: this.server.db.namespaces[1].id,
     });
 
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'something',
       name: 'something',
       rulesJSON: {
@@ -513,7 +527,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await JobDetail.visit({ id: job1.id });
     assert.notOk(JobDetail.execButton.isDisabled);
 
-    const secondNamespace = server.db.namespaces[1];
+    const secondNamespace = this.server.db.namespaces[1];
     await JobDetail.visit({ id: `${job2.id}@${secondNamespace.name}` });
 
     assert.ok(JobDetail.execButton.isDisabled);
@@ -522,7 +536,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   test('the anonymous policy is fetched to check whether to show the exec button', async function (assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
-    server.create('policy', {
+    this.server.create('policy', {
       id: 'anonymous',
       name: 'anonymous',
       rulesJSON: {
@@ -536,36 +550,36 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     await JobDetail.visit({
-      id: `${job.id}@${server.db.namespaces[1].name}`,
+      id: `${job.id}@${this.server.db.namespaces[1].name}`,
     });
 
     assert.notOk(JobDetail.execButton.isDisabled);
   });
 
   test('meta table is displayed if job has meta attributes', async function (assert) {
-    const jobWithMeta = server.create('job', {
+    const jobWithMeta = this.server.create('job', {
       status: 'running',
-      namespaceId: server.db.namespaces[1].id,
+      namespaceId: this.server.db.namespaces[1].id,
       meta: {
         'a.b': 'c',
       },
     });
 
     await JobDetail.visit({
-      id: `${job.id}@${server.db.namespaces[1].name}`,
+      id: `${job.id}@${this.server.db.namespaces[1].name}`,
     });
 
     assert.notOk(JobDetail.metaTable, 'Meta table not present');
 
     await JobDetail.visit({
-      id: `${jobWithMeta.id}@${server.db.namespaces[1].name}`,
+      id: `${jobWithMeta.id}@${this.server.db.namespaces[1].name}`,
     });
     assert.ok(JobDetail.metaTable, 'Meta table is present');
   });
 
   test('pack details are displayed', async function (assert) {
-    const namespace = server.db.namespaces[1].id;
-    const jobFromPack = server.create('job', {
+    const namespace = this.server.db.namespaces[1].id;
+    const jobFromPack = this.server.create('job', {
       status: 'running',
       namespaceId: namespace,
       meta: {
@@ -577,25 +591,25 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await JobDetail.visit({ id: `${jobFromPack.id}@${namespace}` });
 
     assert.ok(JobDetail.packTag, 'Pack tag is present');
-    assert.equal(
+    assert.deepEqual(
       JobDetail.packStatFor('name').text,
       `Name ${jobFromPack.meta['pack.name']}`,
-      `Pack name is ${jobFromPack.meta['pack.name']}`
+      `Pack name is ${jobFromPack.meta['pack.name']}`,
     );
-    assert.equal(
+    assert.deepEqual(
       JobDetail.packStatFor('version').text,
       `Version ${jobFromPack.meta['pack.version']}`,
-      `Pack version is ${jobFromPack.meta['pack.version']}`
+      `Pack version is ${jobFromPack.meta['pack.version']}`,
     );
   });
 
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function (assert) {
-    server.create('feature', { name: 'Dynamic Application Sizing' });
+    this.server.create('feature', { name: 'Dynamic Application Sizing' });
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       type: 'service',
       status: 'running',
-      namespaceId: server.db.namespaces[1].name,
+      namespaceId: this.server.db.namespaces[1].name,
       groupsCount: 3,
       createRecommendations: true,
       noActiveDeployment: true,
@@ -603,31 +617,31 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({
-      id: `${job.id}@${server.db.namespaces[1].name}`,
+      id: `${job.id}@${this.server.db.namespaces[1].name}`,
     });
 
     const groupsWithRecommendations = job.taskGroups.filter((group) =>
-      group.tasks.models.any((task) => task.recommendations.models.length)
+      group.tasks.models.any((task) => task.recommendations.models.length),
     );
     const jobRecommendationCount = groupsWithRecommendations.length;
 
     const firstRecommendationGroup = groupsWithRecommendations.models[0];
 
-    assert.equal(JobDetail.recommendations.length, jobRecommendationCount);
+    assert.deepEqual(JobDetail.recommendations.length, jobRecommendationCount);
 
     const recommendation = JobDetail.recommendations[0];
 
-    assert.equal(recommendation.group, firstRecommendationGroup.name);
+    assert.deepEqual(recommendation.group, firstRecommendationGroup.name);
     assert.ok(recommendation.card.isHidden);
 
     const toggle = recommendation.toggleButton;
 
-    assert.equal(toggle.text, 'Show');
+    assert.deepEqual(toggle.text, 'Show');
 
     await toggle.click();
 
     assert.ok(recommendation.card.isPresent);
-    assert.equal(toggle.text, 'Collapse');
+    assert.deepEqual(toggle.text, 'Collapse');
 
     await toggle.click();
 
@@ -635,50 +649,56 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     await toggle.click();
 
-    assert.equal(
+    assert.deepEqual(
       recommendation.card.slug.groupName,
-      firstRecommendationGroup.name
+      firstRecommendationGroup.name,
     );
 
     await recommendation.card.acceptButton.click();
 
-    assert.equal(JobDetail.recommendations.length, jobRecommendationCount - 1);
+    assert.deepEqual(
+      JobDetail.recommendations.length,
+      jobRecommendationCount - 1,
+    );
 
     await JobDetail.tabFor('definition').visit();
     await JobDetail.tabFor('overview').visit();
 
-    assert.equal(JobDetail.recommendations.length, jobRecommendationCount - 1);
+    assert.deepEqual(
+      JobDetail.recommendations.length,
+      jobRecommendationCount - 1,
+    );
   });
 
   test('resource recommendations are not fetched when the feature doesn’t exist', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({
-      id: `${job.id}@${server.db.namespaces[1].name}`,
+      id: `${job.id}@${this.server.db.namespaces[1].name}`,
     });
 
-    assert.equal(JobDetail.recommendations.length, 0);
+    assert.deepEqual(JobDetail.recommendations.length, 0);
 
-    assert.equal(
-      server.pretender.handledRequests.filter((request) =>
-        request.url.includes('recommendations')
+    assert.deepEqual(
+      this.server.pretender.handledRequests.filter((request) =>
+        request.url.includes('recommendations'),
       ).length,
-      0
+      0,
     );
   });
 
   test('when the dynamic autoscaler is applied, you can scale a task within the job detail page', async function (assert) {
     const SCALE_AND_WRITE_NAMESPACE = 'scale-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
-    const clientToken = server.create('token');
+    const clientToken = this.server.create('token');
 
-    const namespace = server.create('namespace', {
+    const namespace = this.server.create('namespace', {
       id: SCALE_AND_WRITE_NAMESPACE,
     });
-    const secondNamespace = server.create('namespace', {
+    const secondNamespace = this.server.create('namespace', {
       id: READ_ONLY_NAMESPACE,
     });
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
@@ -686,14 +706,14 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       namespaceId: SCALE_AND_WRITE_NAMESPACE,
     });
 
-    const job2 = server.create('job', {
+    const job2 = this.server.create('job', {
       groupCount: 0,
       createAllocations: false,
       shallow: true,
       noActiveDeployment: true,
       namespaceId: READ_ONLY_NAMESPACE,
     });
-    const scalingGroup2 = server.create('task-group', {
+    const scalingGroup2 = this.server.create('task-group', {
       job: job2,
       name: 'scaling',
       count: 1,
@@ -702,7 +722,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
     job2.update({ taskGroupIds: [scalingGroup2.id] });
 
-    const policy = server.create('policy', {
+    const policy = this.server.create('policy', {
       id: 'something',
       name: 'something',
       rulesJSON: {
@@ -718,7 +738,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
         ],
       },
     });
-    const scalingGroup = server.create('task-group', {
+    const scalingGroup = this.server.create('task-group', {
       job,
       name: 'scaling',
       count: 1,
@@ -739,8 +759,8 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   });
 
   test('handles when a job is remotely purged', async function (assert) {
-    const namespace = server.create('namespace');
-    const job = server.create('job', {
+    const namespace = this.server.create('namespace');
+    const job = this.server.create('job', {
       namespaceId: namespace.id,
       status: 'running',
       type: 'service',
@@ -756,7 +776,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     await JobDetail.visit({ id: `${job.id}@${namespace.id}` });
 
-    assert.equal(currentURL(), `/jobs/${job.id}%40${namespace.id}`);
+    assert.deepEqual(currentURL(), `/jobs/${job.id}%40${namespace.id}`);
 
     // Simulate a 404 error on the job watcher
     const controller = this.owner.lookup('controller:jobs.job');
@@ -766,7 +786,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs');
+    assert.deepEqual(currentURL(), '/jobs');
 
     // A notification should be present
     assert
@@ -777,8 +797,8 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   });
 
   test('handles when a job is remotely purged, from a job subnav page', async function (assert) {
-    const namespace = server.create('namespace');
-    const job = server.create('job', {
+    const namespace = this.server.create('namespace');
+    const job = this.server.create('job', {
       namespaceId: namespace.id,
       status: 'running',
       type: 'service',
@@ -795,7 +815,10 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await JobDetail.visit({ id: `${job.id}@${namespace.id}` });
     await JobDetail.tabFor('allocations').visit();
 
-    assert.equal(currentURL(), `/jobs/${job.id}@${namespace.id}/allocations`);
+    assert.deepEqual(
+      currentURL(),
+      `/jobs/${job.id}@${namespace.id}/allocations`,
+    );
 
     // Simulate a 404 error on the job watcher
     const controller = this.owner.lookup('controller:jobs.job');
@@ -805,7 +828,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs');
+    assert.deepEqual(currentURL(), '/jobs');
 
     // A notification should be present
     assert
@@ -820,22 +843,22 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    createRestartableJobs(server);
+    createRestartableJobs(this.server);
   });
 
   test('Start Job depends on the job being stopped', async function (assert) {
-    const restartableJob = server.db.jobs.findBy(
-      (j) => j.name === 'restartable-job'
+    const restartableJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'restartable-job',
     );
-    const revertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job'
+    const revertableJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'revertable-job',
     );
-    const nonRevertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job'
+    const nonRevertableJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'non-revertable-job',
     );
     await JobDetail.visit({ id: restartableJob.id });
 
@@ -853,21 +876,24 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     await JobDetail.visit({ id: nonRevertableJob.id });
     assert.notOk(JobDetail.start.isPresent);
     await percySnapshot(
-      'Non-revertable Job depends on having no stable job versions'
+      'Non-revertable Job depends on having no stable job versions',
     );
   });
 
   test('A revertable job depends on having stable job versions', async function (assert) {
-    const revertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-job'
+    const revertableJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'revertable-job',
     );
-    const nonRevertableJob = server.db.jobs.findBy(
-      (j) => j.name === 'non-revertable-job'
+    const nonRevertableJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'non-revertable-job',
     );
     await JobDetail.visit({ id: revertableJob.id });
 
     assert.ok(JobDetail.revert.isPresent);
-    assert.equal(JobDetail.revert.text, 'Revert to last stable version (v1)');
+    assert.deepEqual(
+      JobDetail.revert.text,
+      'Revert to last stable version (v1)',
+    );
 
     await JobDetail.visit({ id: nonRevertableJob.id });
     assert.notOk(JobDetail.revert.isPresent);
@@ -875,21 +901,23 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
   });
 
   test('A batch job with a previous version can be reverted', async function (assert) {
-    const revertableSystemJob = server.db.jobs.findBy(
-      (j) => j.name === 'revertable-batch-job'
+    const revertableSystemJob = this.server.db.jobs.findBy(
+      (j) => j.name === 'revertable-batch-job',
     );
     await JobDetail.visit({ id: revertableSystemJob.id });
     assert.ok(JobDetail.revert.isPresent);
-    assert.equal(JobDetail.revert.text, 'Revert to last version (v0)');
+    assert.deepEqual(JobDetail.revert.text, 'Revert to last version (v0)');
   });
 
   test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {
-    const job = server.db.jobs.findBy((j) => j.name === 'non-revertable-job');
+    const job = this.server.db.jobs.findBy(
+      (j) => j.name === 'non-revertable-job',
+    );
     await JobDetail.visit({ id: job.id });
     await JobDetail.editAndResubmit.click();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      `/jobs/${job.id}/definition?isEditing=true&view=job-spec`
+      `/jobs/${job.id}/definition?isEditing=true&view=job-spec`,
     );
   });
 });
@@ -901,33 +929,33 @@ module(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
-      server.create('agent');
-      server.create('node-pool');
-      server.create('node');
-      server.createList('namespace', 4);
-      server.create('token');
+      this.server.create('agent');
+      this.server.create('node-pool');
+      this.server.create('node');
+      this.server.createList('namespace', 4);
+      this.server.create('token');
     });
 
     test('Start Job is disabled when the token lacks permission', async function (assert) {
       window.localStorage.clear();
 
-      const job1 = server.create('job', {
+      const job1 = this.server.create('job', {
         stopped: true,
         status: 'dead',
-        namespaceId: server.db.namespaces[0].id,
+        namespaceId: this.server.db.namespaces[0].id,
       });
-      const job2 = server.create('job', {
+      const job2 = this.server.create('job', {
         stopped: true,
         status: 'dead',
-        namespaceId: server.db.namespaces[1].id,
+        namespaceId: this.server.db.namespaces[1].id,
       });
-      const job3 = server.create('job', {
+      const job3 = this.server.create('job', {
         stopped: true,
         status: 'dead',
-        namespaceId: server.db.namespaces[2].id,
+        namespaceId: this.server.db.namespaces[2].id,
       });
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'client-something',
         name: 'client-something',
         rulesJSON: {
@@ -948,7 +976,7 @@ module(
         },
       });
 
-      const clientToken = server.create('token');
+      const clientToken = this.server.create('token');
       clientToken.policyIds = [policy.id];
       clientToken.save();
 
@@ -967,24 +995,24 @@ module(
     test('Stop Job is disabled when the token lacks permission', async function (assert) {
       window.localStorage.clear();
 
-      const job1 = server.create('job', {
+      const job1 = this.server.create('job', {
         status: 'running',
-        namespaceId: server.db.namespaces[0].id,
+        namespaceId: this.server.db.namespaces[0].id,
       });
-      const job2 = server.create('job', {
+      const job2 = this.server.create('job', {
         status: 'running',
-        namespaceId: server.db.namespaces[1].id,
+        namespaceId: this.server.db.namespaces[1].id,
       });
-      const job3 = server.create('job', {
+      const job3 = this.server.create('job', {
         status: 'running',
-        namespaceId: server.db.namespaces[2].id,
+        namespaceId: this.server.db.namespaces[2].id,
       });
-      const job4 = server.create('job', {
+      const job4 = this.server.create('job', {
         status: 'running',
-        namespaceId: server.db.namespaces[3].id,
+        namespaceId: this.server.db.namespaces[3].id,
       });
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'client-something',
         name: 'client-something',
         rulesJSON: {
@@ -1009,7 +1037,7 @@ module(
         },
       });
 
-      const clientToken = server.create('token');
+      const clientToken = this.server.create('token');
       clientToken.policyIds = [policy.id];
       clientToken.save();
 
@@ -1031,24 +1059,24 @@ module(
     test('Purge Job is disabled when the token lacks permission', async function (assert) {
       window.localStorage.clear();
 
-      const job1 = server.create('job', {
+      const job1 = this.server.create('job', {
         status: 'dead',
-        namespaceId: server.db.namespaces[0].id,
+        namespaceId: this.server.db.namespaces[0].id,
       });
-      const job2 = server.create('job', {
+      const job2 = this.server.create('job', {
         status: 'dead',
-        namespaceId: server.db.namespaces[1].id,
+        namespaceId: this.server.db.namespaces[1].id,
       });
-      const job3 = server.create('job', {
+      const job3 = this.server.create('job', {
         status: 'dead',
-        namespaceId: server.db.namespaces[2].id,
+        namespaceId: this.server.db.namespaces[2].id,
       });
-      const job4 = server.create('job', {
+      const job4 = this.server.create('job', {
         status: 'dead',
-        namespaceId: server.db.namespaces[3].id,
+        namespaceId: this.server.db.namespaces[3].id,
       });
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'client-something',
         name: 'client-something',
         rulesJSON: {
@@ -1073,7 +1101,7 @@ module(
         },
       });
 
-      const clientToken = server.create('token');
+      const clientToken = this.server.create('token');
       clientToken.policyIds = [policy.id];
       clientToken.save();
 
@@ -1095,23 +1123,23 @@ module(
     test('Revert Job is disabled when the token lacks permission', async function (assert) {
       window.localStorage.clear();
 
-      const job1 = server.create('job', {
+      const job1 = this.server.create('job', {
         stopped: false,
         status: 'dead',
-        namespaceId: server.db.namespaces[0].id,
+        namespaceId: this.server.db.namespaces[0].id,
       });
-      const job2 = server.create('job', {
+      const job2 = this.server.create('job', {
         stopped: false,
         status: 'dead',
-        namespaceId: server.db.namespaces[1].id,
+        namespaceId: this.server.db.namespaces[1].id,
       });
-      const job3 = server.create('job', {
+      const job3 = this.server.create('job', {
         stopped: false,
         status: 'dead',
-        namespaceId: server.db.namespaces[2].id,
+        namespaceId: this.server.db.namespaces[2].id,
       });
 
-      server.create('job-version', {
+      this.server.create('job-version', {
         job: job1,
         namespace: job1.namespace,
         version: 1,
@@ -1121,7 +1149,7 @@ module(
           Description: 'The first version',
         },
       });
-      server.create('job-version', {
+      this.server.create('job-version', {
         job: job2,
         namespace: job2.namespace,
         version: 1,
@@ -1131,7 +1159,7 @@ module(
           Description: 'The first version',
         },
       });
-      server.create('job-version', {
+      this.server.create('job-version', {
         job: job3,
         namespace: job3.namespace,
         version: 1,
@@ -1142,7 +1170,7 @@ module(
         },
       });
 
-      const policy = server.create('policy', {
+      const policy = this.server.create('policy', {
         id: 'client-something',
         name: 'client-something',
         rulesJSON: {
@@ -1163,7 +1191,7 @@ module(
         },
       });
 
-      const clientToken = server.create('token');
+      const clientToken = this.server.create('token');
       clientToken.policyIds = [policy.id];
       clientToken.save();
 
@@ -1178,5 +1206,5 @@ module(
       await JobDetail.visit({ id: `${job3.id}@${job3.namespaceId}` });
       assert.ok(JobDetail.revert.isDisabled);
     });
-  }
+  },
 );

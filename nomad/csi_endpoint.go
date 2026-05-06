@@ -453,8 +453,11 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
+
+	if !(args.Claim == structs.CSIVolumeClaimGC && aclObj.AllowServerOp()) {
+		if err := v.authorizeClaim(aclObj, args); err != nil {
+			return err
+		}
 	}
 
 	if args.VolumeID == "" {
@@ -691,12 +694,8 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	if err != nil {
 		return err
 	}
-	// this RPC is called by both clients and by `nomad volume detach`. we can't
-	// safely match the node ID for client RPCs because we may not have the node
-	// ID anymore
-	if !aclObj.AllowClientOp() &&
-		!(allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()) {
-		return structs.ErrPermissionDenied
+	if err := v.authorizeUnpublish(aclObj, args, allowVolume); err != nil {
+		return err
 	}
 
 	if args.VolumeID == "" {
@@ -1018,6 +1017,8 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		State:        claim.State,
 		WriteRequest: structs.WriteRequest{
 			Namespace: vol.Namespace,
+			Region:    v.srv.Region(),
+			AuthToken: v.srv.getLeaderAcl(),
 		},
 	}
 	_, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
@@ -1026,6 +1027,78 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		return err
 	}
 	vol.ModifyIndex = index
+	return nil
+}
+
+func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.AuthenticatedIdentity) bool {
+	if aclObj.AllowServerOp() {
+		return true
+	}
+
+	return identity != nil &&
+		identity.GetACLToken() != nil &&
+		identity.GetACLToken().AccessorID == structs.LeaderACLToken.AccessorID
+}
+
+func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaimRequest) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	pool := ""
+	if args.AllocationID != "" {
+		alloc, err := snap.AllocByID(memdb.NewWatchSet(), args.AllocationID)
+		if err == nil && alloc != nil && alloc.NodeID != "" {
+			if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), alloc.NodeID); err == nil && ok {
+				pool = resolvedPool
+			}
+		}
+	}
+	if pool == "" {
+		if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID); err == nil && ok {
+			pool = resolvedPool
+		}
+	}
+	if pool == "" || !aclObj.AllowClientOp(pool) {
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
+}
+
+func (v *CSIVolume) authorizeUnpublish(
+	aclObj *acl.ACL,
+	args *structs.CSIVolumeUnpublishRequest,
+	allowVolume func(*acl.ACL, string) bool,
+) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	allowByNamespace := allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()
+	if allowByNamespace {
+		return nil
+	}
+
+	if args.Claim == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	claimPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.Claim.NodeID)
+	if err != nil || !ok || !aclObj.AllowClientOp(claimPool) {
+		return structs.ErrPermissionDenied
+	}
+
 	return nil
 }
 

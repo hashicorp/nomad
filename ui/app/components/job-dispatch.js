@@ -5,11 +5,11 @@
 
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { A } from '@ember/array';
 import { task } from 'ember-concurrency';
-import { noCase } from 'no-case';
+import { noCase } from 'change-case';
 import { titleCase } from 'title-case';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
@@ -60,17 +60,17 @@ export default class JobDispatch extends Component {
             required,
             title: titleCase(noCase(x)),
             value: this.args.job.meta ? this.args.job.meta.get(x) : '',
-          })
+          }),
       );
 
     // Fetch the different types of parameters.
     const required = mapper(
       this.args.job.parameterizedDetails.MetaRequired || [],
-      true
+      true,
     );
     const optional = mapper(
       this.args.job.parameterizedDetails.MetaOptional || [],
-      false
+      false,
     );
 
     // Merge them, required before optional.

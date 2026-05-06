@@ -13,25 +13,25 @@
       <button
         data-test-force-launch
         class="button is-warning is-small is-inline"
-        onclick={{fn this.forceLaunch jobPage.fns.setError}}
+        {{on "click" (fn this.forceLaunch jobPage.fns.setError)}}
         type="button"
       >
         Force Launch
       </button>
     </jobPage.ui.Title>
     <jobPage.ui.StatsBox>
-      <:after-namespace>
+      <:afterNamespace>
         <span class="pair" data-test-job-stat="cron">
           <span class="term">
             {{pluralize "Cron" (or @job.periodicDetails.Specs.length 1)}}
           </span>
-            {{#each @job.periodicDetails.Specs as |spec|}}
+          {{#each @job.periodicDetails.Specs as |spec|}}
             <span class="bumper-right tag">{{spec}}</span>
-            {{else}}
+          {{else}}
             <span class="tag">{{@job.periodicDetails.Spec}}</span>
-            {{/each}}
+          {{/each}}
         </span>
-      </:after-namespace>
+      </:afterNamespace>
     </jobPage.ui.StatsBox>
     <jobPage.ui.Summary />
     <jobPage.ui.Children

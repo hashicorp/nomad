@@ -3,15 +3,15 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{!--
+{{!
   Exists as a "middleman" between AllocationStatusRow and IndividualAllocation
   only when showSummaries in AllocationStatusRow is true (i.e. when the math of how
   many allocations to show in each block is done x minWidth of each alloc exceeds
   available space)
---}}
+}}
 
 <div
-  class="allocation-status-block {{unless this.countToShow "rest-only"}}"
+  class="allocation-status-block {{unless this.countToShow 'rest-only'}}"
   style={{html-safe (concat "width: " @width "px")}}
 >
   {{#if this.countToShow}}
@@ -32,12 +32,17 @@
     <ConditionalLinkTo
       @condition={{not (eq @status "unplaced")}}
       @route="jobs.job.allocations"
-      @model={{@allocs.0.job}}
-      @query={{hash status=(concat '["' @status '"]') version=(concat '[' @allocs.0.jobVersion ']')}}
+      @model={{get @allocs "0.job"}}
+      @query={{hash
+        status=(concat '["' @status '"]')
+        version=(concat "[" (get @allocs "0.jobVersion") "]")
+      }}
       @class="represented-allocation rest {{@status}} {{@health}} {{@canary}}"
       @label="View all {{@status}} allocations"
     >
-      <span class="rest-count">{{#if this.countToShow}}+{{/if}}{{this.remaining}}</span>
+      <span class="rest-count">{{#if
+          this.countToShow
+        }}+{{/if}}{{this.remaining}}</span>
       {{#unless @steady}}
         {{#if (eq @canary "canary")}}
           <span class="alloc-canary-indicator" />

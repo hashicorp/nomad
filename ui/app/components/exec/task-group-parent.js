@@ -4,7 +4,7 @@
  */
 
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { filterBy, mapBy, or, sort } from '@ember/object/computed';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
@@ -36,8 +36,10 @@ export default class TaskGroupParent extends Component {
 
   @computed('taskGroup.allocations.@each.clientStatus')
   get hasPendingAllocations() {
-    return this.taskGroup.allocations.any(
-      (allocation) => allocation.clientStatus === 'pending'
+    const allocations =
+      this.taskGroup.allocations?.toArray?.() || this.taskGroup.allocations;
+    return (allocations || []).some(
+      (allocation) => allocation.clientStatus === 'pending',
     );
   }
 
@@ -45,10 +47,10 @@ export default class TaskGroupParent extends Component {
   @computed('allocationTaskStatesRecordArrays.[]')
   get allocationTaskStates() {
     const flattenRecordArrays = (accumulator, recordArray) =>
-      accumulator.concat(recordArray.toArray());
+      accumulator.concat(recordArray?.toArray?.() || recordArray || []);
     return this.allocationTaskStatesRecordArrays.reduce(
       flattenRecordArrays,
-      []
+      [],
     );
   }
 
@@ -61,7 +63,7 @@ export default class TaskGroupParent extends Component {
     'activeTaskGroups.@each.name',
     'activeTaskStates.@each.name',
     'activeTasks.@each.name',
-    'taskGroup.{name,tasks}'
+    'taskGroup.{name,tasks}',
   )
   get tasksWithRunningStates() {
     const activeTaskStateNames = this.activeTaskStates
@@ -74,7 +76,7 @@ export default class TaskGroupParent extends Component {
       .mapBy('name');
 
     return this.taskGroup.tasks.filter((task) =>
-      activeTaskStateNames.includes(task.name)
+      activeTaskStateNames.includes(task.name),
     );
   }
 

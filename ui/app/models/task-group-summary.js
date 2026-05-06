@@ -27,7 +27,7 @@ export default class TaskGroupSummary extends Fragment {
     'completeAllocs',
     'failedAllocs',
     'lostAllocs',
-    'unknownAllocs'
+    'unknownAllocs',
   )
   allocsList;
 

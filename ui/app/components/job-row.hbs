@@ -2,12 +2,10 @@
   Copyright IBM Corp. 2015, 2025
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-{{!-- TODO: <JobRow> is not currently used in the UI. It should be re-implemented in jobs/index.hbs --}}
-<td data-test-job-name
-  {{keyboard-shortcut
-    enumerated=true
-    action=(action "gotoJob" @job)
-  }}
+{{! TODO: <JobRow> is not currently used in the UI. It should be re-implemented in jobs/index.hbs }}
+<td
+  data-test-job-name
+  {{keyboard-shortcut enumerated=true action=(fn this.gotoJob @job)}}
 >
   <LinkTo
     @route="jobs.job.index"
@@ -24,7 +22,7 @@
 
   </LinkTo>
 </td>
-{{#if (not (eq @context "child"))}}
+{{#if (not-eq @context "child")}}
   {{#if this.system.shouldShowNamespaces}}
     <td data-test-job-namespace>
       {{this.job.namespace.name}}
@@ -41,7 +39,7 @@
     {{this.job.status}}
   </span>
 </td>
-{{#if (not (eq @context "child"))}}
+{{#if (not-eq @context "child")}}
   <td data-test-job-type>
     {{this.job.displayType.type}}
   </td>

@@ -6,10 +6,11 @@ package docker
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types"
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/moby/moby/api/types/container"
+	containerapi "github.com/moby/moby/api/types/container"
+	mclient "github.com/moby/moby/client"
 )
 
 const (
@@ -42,12 +43,12 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 		return nil, false, err
 	}
 
-	specFromContainer := func(c *types.ContainerJSON, hostname string) *drivers.NetworkIsolationSpec {
+	specFromContainer := func(id string, net *container.NetworkSettings, hostname string) *drivers.NetworkIsolationSpec {
 		spec := &drivers.NetworkIsolationSpec{
 			Mode: drivers.NetIsolationModeGroup,
-			Path: c.NetworkSettings.SandboxKey,
+			Path: net.SandboxKey,
 			Labels: map[string]string{
-				dockerNetSpecLabelKey: c.ID,
+				dockerNetSpecLabelKey: id,
 			},
 		}
 
@@ -66,8 +67,8 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 	if err != nil {
 		return nil, false, err
 	}
-	if container != nil && container.State.Running {
-		return specFromContainer(container, createSpec.Hostname), false, nil
+	if container != nil && container.Container.State.Running {
+		return specFromContainer(container.Container.ID, container.Container.NetworkSettings, createSpec.Hostname), false, nil
 	}
 
 	container, err = d.createContainer(dockerClient, *config, d.config.InfraImage)
@@ -81,15 +82,15 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 
 	// until the container is started, InspectContainerWithOptions
 	// returns a mostly-empty struct
-	*container, err = dockerClient.ContainerInspect(d.ctx, container.ID)
+	*container, err = dockerClient.ContainerInspect(d.ctx, container.Container.ID, mclient.ContainerInspectOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 
 	// keep track of this pause container for reconciliation
-	d.pauseContainers.add(container.ID)
+	d.pauseContainers.add(container.Container.ID)
 
-	return specFromContainer(container, createSpec.Hostname), true, nil
+	return specFromContainer(container.Container.ID, container.Container.NetworkSettings, createSpec.Hostname), true, nil
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
@@ -128,11 +129,11 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 	}
 
 	// this is the pause container, just kill it fast
-	if err := dockerClient.ContainerStop(d.ctx, id, containerapi.StopOptions{Timeout: pointer.Of(1)}); err != nil {
+	if _, err := dockerClient.ContainerStop(d.ctx, id, mclient.ContainerStopOptions{Timeout: pointer.Of(1)}); err != nil {
 		d.logger.Warn("failed to stop pause container", "id", id, "error", err)
 	}
 
-	if err := dockerClient.ContainerRemove(d.ctx, id, containerapi.RemoveOptions{
+	if _, err := dockerClient.ContainerRemove(d.ctx, id, mclient.ContainerRemoveOptions{
 		Force: true,
 	}); err != nil {
 		return fmt.Errorf("failed to remove pause container: %w", err)
@@ -143,7 +144,7 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 		// The Docker image ID is needed in order to correctly update the image
 		// reference count. Any error finding this, however, should not result
 		// in an error shutting down the allocrunner.
-		dockerImage, _, err := dockerClient.ImageInspectWithRaw(d.ctx, d.config.InfraImage)
+		dockerImage, err := dockerClient.ImageInspect(d.ctx, d.config.InfraImage)
 		if err != nil {
 			d.logger.Warn("InspectImage failed for infra_image container destroy",
 				"image", d.config.InfraImage, "error", err)
@@ -201,7 +202,7 @@ func (d *Driver) pullInfraImage(allocID string) error {
 	d.coordinator.imageLock.Lock()
 
 	if tag != "latest" {
-		dockerImage, _, err := dockerClient.ImageInspectWithRaw(d.ctx, d.config.InfraImage)
+		dockerImage, err := dockerClient.ImageInspect(d.ctx, d.config.InfraImage)
 		if err != nil {
 			d.logger.Debug("InspectImage failed for infra_image container pull",
 				"image", d.config.InfraImage, "error", err)

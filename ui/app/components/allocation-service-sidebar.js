@@ -4,7 +4,7 @@
  */
 
 import Component from '@glimmer/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class AllocationServiceSidebarComponent extends Component {
   @service store;
@@ -28,7 +28,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   get address() {
     const port = this.args.allocation?.allocatedResources?.ports?.findBy(
       'label',
-      this.args.service.portLabel
+      this.args.service.portLabel,
     );
     if (port) {
       return `${port.hostIp}:${port.value}`;
@@ -39,7 +39,8 @@ export default class AllocationServiceSidebarComponent extends Component {
 
   get aggregateStatus() {
     if (this.args.allocation?.clientStatus !== 'running') return 'Unknown';
-    return this.checks.any((check) => check.Status === 'failure')
+    const checks = this.checks?.toArray?.() || this.checks || [];
+    return checks.some((check) => check.Status === 'failure')
       ? 'Unhealthy'
       : 'Healthy';
   }

@@ -3,7 +3,10 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<table class="table is-striped is-fixed is-compact is-darkened no-mobile-condense" ...attributes>
+<table
+  class="table is-striped is-fixed is-compact is-darkened no-mobile-condense"
+  ...attributes
+>
   <thead>
     <tr>
       <th class="is-one-third">Name</th>
@@ -11,7 +14,8 @@
     </tr>
   </thead>
   <tbody>
-    <AttributesSection @attributes={{@attributePairs}}
+    <AttributesSection
+      @attributes={{@attributePairs}}
       @editable={{@editable}}
       @onKVEdit={{@onKVEdit}}
       @onKVSave={{@onKVSave}}

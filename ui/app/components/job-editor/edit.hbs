@@ -7,54 +7,60 @@
   <div class="boxed-section-head">
     Job Definition
     {{#if @data.cancelable}}
-    <div class="pull-right" style="display: flex">
-      <span class="header-toggle">
-        <Hds::Form::Toggle::Field
-          {{keyboard-shortcut label="Toggle word wrap" action=@fns.onToggleWrap pattern=(array "w" "w") menuLevel=true }}
-          checked={{@data.shouldWrap}}
-          {{on "change" @fns.onToggleWrap}}
-        as |F|>
-          <F.Label>Word Wrap</F.Label>
-        </Hds::Form::Toggle::Field>
-      </span>
-      <Tooltip
-        @condition={{unless @data.hasSpecification true false}}
-        @isFullText={{true}}
-        @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
-      >
-        <div
-          class="job-definition-select
-            {{unless @data.hasSpecification ' disabled'}}"
-          data-test-select={{@data.view}}
+      <div class="pull-right" style="display: flex">
+        <span class="header-toggle">
+          <Hds::Form::Toggle::Field
+            {{keyboard-shortcut
+              label="Toggle word wrap"
+              action=@fns.onToggleWrap
+              pattern=(array "w" "w")
+              menuLevel=true
+            }}
+            checked={{@data.shouldWrap}}
+            {{on "change" @fns.onToggleWrap}}
+            as |F|
+          >
+            <F.Label>Word Wrap</F.Label>
+          </Hds::Form::Toggle::Field>
+        </span>
+        <Tooltip
+          @condition={{unless @data.hasSpecification true false}}
+          @isFullText={{true}}
+          @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
         >
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'job-spec') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "job-spec")}}
+          <div
+            class="job-definition-select
+              {{unless @data.hasSpecification ' disabled'}}"
+            data-test-select={{@data.view}}
           >
-            Job Spec
-          </button>
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'full-definition') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "full-definition")}}
-            data-test-select-full
-          >
-            Full Definition
-          </button>
-        </div>
-      </Tooltip>
+            <button
+              class="button is-small is-borderless
+                {{if (eq @data.view 'job-spec') 'is-active'}}"
+              type="button"
+              {{on "click" (fn @fns.onSelect "job-spec")}}
+            >
+              Job Spec
+            </button>
+            <button
+              class="button is-small is-borderless
+                {{if (eq @data.view 'full-definition') 'is-active'}}"
+              type="button"
+              {{on "click" (fn @fns.onSelect "full-definition")}}
+              data-test-select-full
+            >
+              Full Definition
+            </button>
+          </div>
+        </Tooltip>
         <button
           class="button is-light is-compact pull-right"
-          onclick={{@fns.onCancel}}
+          {{on "click" @fns.onCancel}}
           type="button"
           data-test-cancel-editing
         >
           Cancel
         </button>
-    </div>
+      </div>
     {{/if}}
   </div>
   <div class="boxed-section-body is-full-bleed">
@@ -74,9 +80,9 @@
     <div class="boxed-section" style="margin-top: 10px">
       <div class="boxed-section-head">
         {{#if @data.job.isNew}}
-        HCL Variable Values
+          HCL Variable Values
         {{else}}
-        Edit HCL Variable Values
+          Edit HCL Variable Values
         {{/if}}
       </div>
       <div class="boxed-section-body is-full-bleed">

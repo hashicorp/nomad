@@ -11,7 +11,7 @@ export default class Client extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesIncludeAgentReadOrWrite'
+    'policiesIncludeAgentReadOrWrite',
   )
   canRead;
 

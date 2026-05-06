@@ -997,6 +997,49 @@ func TestServiceSched_Spread(t *testing.T) {
 	}
 }
 
+// TestServiceSched_Spread_NodeLimitForFeasibilityChecks verifies that the
+// NodeLimitForFeasibilityChecks scheduler configuration limits the number of
+// nodes evaluated when scheduling a job with spreads.
+func TestServiceSched_Spread_NodeLimitForFeasibilityChecks(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	const nodeLimit uint = 5
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		NodeLimitForFeasibilityChecks: nodeLimit,
+	})
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
+		&structs.Spread{Attribute: "${node.datacenter}", Weight: 100})
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	for i := 0; i < 20; i++ {
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), mock.Node()))
+	}
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// With 20 feasible nodes but a limit of 5, only 5 should be evaluated.
+	var planned []*structs.Allocation
+	for _, allocList := range h.Plans[0].NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	must.Len(t, 1, planned)
+	must.Eq(t, int(nodeLimit), planned[0].Metrics.NodesEvaluated)
+}
+
 // TestServiceSched_JobRegister_Datacenter_Downgrade tests the case where an
 // allocation fails during a deployment with canaries, an the job changes its
 // datacenter. The replacement for the failed alloc should be placed in the
@@ -4095,7 +4138,12 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
-		must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{out}))
+
+		updateReq := structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{out},
+		}
+
+		must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq))
 	}
 
 	// Create a mock evaluation which won't trigger any new placements
@@ -4247,7 +4295,10 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusRunning
 		running = append(running, newAlloc)
 	}
-	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), running))
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: running,
+	}
+	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq))
 
 	// Mark some of the allocations as complete
 	var complete []*structs.Allocation
@@ -4266,7 +4317,11 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusComplete
 		complete = append(complete, newAlloc)
 	}
-	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), complete))
+
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: complete,
+	}
+	must.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), updateReq2))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{

@@ -10,7 +10,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class DeploymentsController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @alias('model') job;
 }

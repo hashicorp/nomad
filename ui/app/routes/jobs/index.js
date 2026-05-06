@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import { collect } from '@ember/object/computed';
@@ -14,13 +12,13 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { action } from '@ember/object';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 const DEFAULT_THROTTLE = 2000;
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
-  WithForbiddenState
+  WithForbiddenState,
 ) {
   @service store;
   @service watchList;
@@ -48,7 +46,6 @@ export default class IndexRoute extends Route.extend(
     queryParams.per_page = queryParams.pageSize;
     queryParams.namespace = '*';
 
-    /* eslint-disable ember/no-controller-access-in-routes */
     let filter = this.controllerFor('jobs.index').filter;
     if (filter) {
       queryParams.filter = filter;
@@ -77,7 +74,7 @@ export default class IndexRoute extends Route.extend(
     } catch (error) {
       try {
         notifyForbidden(this)(error);
-      } catch (secondaryError) {
+      } catch {
         return this.handleErrors(error);
       }
     }
@@ -213,7 +210,9 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    let err = error.errors?.objectAt(0);
+    const errorDetails = /** @type {any} */ (error).errors;
+    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    let err = errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
@@ -222,13 +221,13 @@ export default class IndexRoute extends Route.extend(
     ) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').set('jobIDs', []);
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').set('jobs', []);
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').watchJobs.cancelAll();
-      // eslint-disable-next-line
+
       this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
       let humanized = err.detail || '';
@@ -240,7 +239,7 @@ export default class IndexRoute extends Route.extend(
       let suggestion = null;
 
       const keyMatch = err.detail.match(
-        /couldn't find key: struct field with name "([^"]+)"/
+        /couldn't find key: struct field with name "([^"]+)"/,
       );
       if (keyMatch && keyMatch[1]) {
         const incorrectKey = keyMatch[1];
@@ -249,7 +248,7 @@ export default class IndexRoute extends Route.extend(
             key.key ===
             `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
               .slice(1)
-              .toLowerCase()}`
+              .toLowerCase()}`,
         )?.key;
         if (correctKey) {
           correction = {
@@ -286,29 +285,33 @@ export default class IndexRoute extends Route.extend(
       return;
     }
 
-    controller.set('nextToken', model.jobs.meta.nextToken);
-    controller.set('jobQueryIndex', model.jobs.meta.index);
-    controller.set('jobAllocsQueryIndex', model.jobs.meta.allocsIndex); // Assuming allocsIndex is your meta key for job allocations.
+    const jobs = model.jobs;
+    const meta = jobs?.meta || {};
+    const jobsList = jobs?.toArray?.() || jobs;
+
+    controller.set('nextToken', meta.nextToken || null);
+    controller.set('jobQueryIndex', meta.index || 0);
+    controller.set('jobAllocsQueryIndex', meta.allocsIndex || 0); // Assuming allocsIndex is your meta key for job allocations.
     controller.set(
       'jobIDs',
-      model.jobs.map((job) => {
+      jobsList.map((job) => {
         return {
           id: job.plainId,
-          namespace: job.belongsTo('namespace').id(),
+          namespace: job.namespaceId || job.belongsTo('namespace').id(),
         };
-      })
+      }),
     );
 
     // Now that we've set the jobIDs, immediately start watching them
     controller.watchJobs.perform(
       controller.jobIDs,
-      Ember.testing ? 0 : DEFAULT_THROTTLE,
-      'update'
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
+      'update',
     );
     // And also watch for any changes to the jobIDs list
     controller.watchJobIDs.perform(
       this.getCurrentParams(),
-      Ember.testing ? 0 : DEFAULT_THROTTLE
+      macroCondition(isTesting()) ? 0 : DEFAULT_THROTTLE,
     );
   }
 
@@ -321,9 +324,9 @@ export default class IndexRoute extends Route.extend(
     if (!transition.intent.name?.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
-      // eslint-disable-next-line
+
       this.controller.watchJobs.cancelAll();
-      // eslint-disable-next-line
+
       this.controller.watchJobIDs.cancelAll();
     }
     this.cancelAllWatchers();

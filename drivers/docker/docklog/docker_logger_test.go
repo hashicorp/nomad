@@ -14,9 +14,8 @@ import (
 	"testing"
 	"time"
 
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
+	containerapi "github.com/moby/moby/api/types/container"
+	mclient "github.com/moby/moby/client"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
@@ -45,39 +44,42 @@ func TestDockerLogger_Success(t *testing.T) {
 
 	containerImage := testRemoteContainerImage()
 
-	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	client, err := mclient.New(mclient.FromEnv)
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
+	if img, err := client.ImageInspect(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		out, err := client.ImagePull(ctx, containerImage, image.PullOptions{})
+		out, err := client.ImagePull(ctx, containerImage, mclient.ImagePullOptions{})
 		must.NoError(t, err, must.Sprint("failed to pull image"))
 		defer out.Close()
 		io.Copy(os.Stdout, out)
 	}
 
-	container, err := client.ContainerCreate(ctx, &containerapi.Config{
-		Cmd: []string{
-			"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+	container, err := client.ContainerCreate(
+		ctx,
+		mclient.ContainerCreateOptions{
+			Config: &containerapi.Config{
+				Cmd:   []string{"sh", "-c", "touch ~/docklog; tail -f ~/docklog"},
+				Image: containerImage,
+			},
 		},
-		Image: containerImage,
-	}, nil, nil, nil, "")
+	)
 	must.NoError(t, err)
 
-	cleanup := func() { client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true}) }
+	cleanup := func() { client.ContainerRemove(ctx, container.ID, mclient.ContainerRemoveOptions{Force: true}) }
 	t.Cleanup(cleanup)
 
-	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	_, err = client.ContainerStart(ctx, container.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err := client.ContainerInspect(ctx, container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID, mclient.ContainerInspectOptions{})
 		if err != nil {
 			return false, err
 		}
-		if !container.State.Running {
+		if !container.Container.State.Running {
 			return false, fmt.Errorf("container not running")
 		}
 		return true, nil
@@ -117,37 +119,42 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 
 	containerImage := testRemoteContainerImage()
 
-	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	client, err := mclient.New(mclient.FromEnv)
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
+	if img, err := client.ImageInspect(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		_, err = client.ImagePull(ctx, containerImage, image.PullOptions{})
+		_, err = client.ImagePull(ctx, containerImage, mclient.ImagePullOptions{})
 		must.NoError(t, err, must.Sprint("failed to pull image"))
 	}
 
-	container, err := client.ContainerCreate(ctx, &containerapi.Config{
-		Cmd: []string{
-			"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+	container, err := client.ContainerCreate(
+		ctx,
+		mclient.ContainerCreateOptions{
+			Config: &containerapi.Config{
+				Cmd: []string{
+					"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+				},
+				Image: containerImage,
+				Tty:   true,
+			},
 		},
-		Image: containerImage,
-		Tty:   true,
-	}, nil, nil, nil, "")
+	)
 	must.NoError(t, err)
 
-	defer client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, container.ID, mclient.ContainerRemoveOptions{Force: true})
 
-	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	_, err = client.ContainerStart(ctx, container.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err := client.ContainerInspect(ctx, container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID, mclient.ContainerInspectOptions{})
 		if err != nil {
 			return false, err
 		}
-		if !container.State.Running {
+		if !container.Container.State.Running {
 			return false, fmt.Errorf("container not running")
 		}
 		return true, nil
@@ -181,18 +188,19 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 	})
 }
 
-func echoToContainer(t *testing.T, client *client.Client, id string, line string) {
+func echoToContainer(t *testing.T, client *mclient.Client, id string, line string) {
 	ctx := context.Background()
-	op := containerapi.ExecOptions{
+	op := mclient.ExecCreateOptions{
 		Cmd: []string{
 			"/bin/sh", "-c",
 			fmt.Sprintf("echo %s >>~/docklog", line),
 		},
 	}
 
-	exec, err := client.ContainerExecCreate(ctx, id, op)
+	exec, err := client.ExecCreate(ctx, id, op)
 	must.NoError(t, err)
-	must.NoError(t, client.ContainerExecStart(ctx, exec.ID, containerapi.ExecStartOptions{Detach: true}))
+	_, err = client.ExecStart(ctx, exec.ID, mclient.ExecStartOptions{Detach: true})
+	must.NoError(t, err)
 }
 
 func TestDockerLogger_LoggingNotSupported(t *testing.T) {
@@ -202,43 +210,47 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 
 	containerImage := testRemoteContainerImage()
 
-	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	client, err := mclient.NewClientWithOpts(mclient.FromEnv, mclient.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
+	if img, err := client.ImageInspect(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		_, err = client.ImagePull(ctx, containerImage, image.PullOptions{})
+		_, err = client.ImagePull(ctx, containerImage, mclient.ImagePullOptions{})
 		require.NoError(t, err, "failed to pull image")
 	}
 
-	container, err := client.ContainerCreate(ctx,
-		&containerapi.Config{
-			Cmd: []string{
-				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+	container, err := client.ContainerCreate(
+		ctx,
+		mclient.ContainerCreateOptions{
+			Config: &containerapi.Config{
+				Cmd: []string{
+					"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+				},
+				Image: containerImage,
 			},
-			Image: containerImage,
+			HostConfig: &containerapi.HostConfig{
+				LogConfig: containerapi.LogConfig{
+					Type:   "none",
+					Config: map[string]string{},
+				},
+			},
 		},
-		&containerapi.HostConfig{
-			LogConfig: containerapi.LogConfig{
-				Type:   "none",
-				Config: map[string]string{},
-			},
-		}, nil, nil, "")
+	)
 	must.NoError(t, err)
 
-	defer client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, container.ID, mclient.ContainerRemoveOptions{Force: true})
 
-	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	_, err = client.ContainerStart(ctx, container.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err := client.ContainerInspect(ctx, container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID, mclient.ContainerInspectOptions{})
 		if err != nil {
 			return false, err
 		}
-		if !container.State.Running {
+		if !container.Container.State.Running {
 			return false, fmt.Errorf("container not running")
 		}
 		return true, nil

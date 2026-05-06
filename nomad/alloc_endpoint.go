@@ -163,8 +163,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 					out = out.Sanitize()
 				}
 				reply.Alloc = out
+
 				// Re-check namespace in case it differs from request.
-				if !aclObj.AllowClientOp() && !allowNsOp(aclObj, out.Namespace) {
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, allowNsOp); err != nil {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
 
@@ -190,19 +191,14 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
 	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
+		return err
+	}
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
-
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
@@ -222,9 +218,21 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					return err
 				}
 				if out == nil {
-					// We don't have the alloc yet
-					thresholdMet = false
-					break
+					// The alloc may have been GC'd or purged. Continue so we can
+					// potentially satisfy the query with partial results from the
+					// remaining allocs.
+					continue
+				}
+
+				// It shouldn't be possible to have an alloc with a nil job, but
+				// let's not block the node from getting other allocs if that's
+				// the case.
+				if out.Job == nil {
+					continue
+				}
+
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+					return err
 				}
 
 				// Store the pointer
@@ -440,19 +448,14 @@ func (a *Alloc) GetServiceRegistrations(
 func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *structs.AllocIdentitiesResponse) error {
 
 	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
+		return err
+	}
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
-
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	if len(args.Identities) == 0 {
 		// Client bug. Fail loudly instead of letting clients waste time with
@@ -487,6 +490,10 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 					// Alloc may have been GC'd and therefore should not be able to get
 					// identities signed.
 					continue
+				}
+
+				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+					return err
 				}
 
 				// Keep the alloc around so we can skip the statestore lookup later

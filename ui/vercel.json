@@ -2,11 +2,7 @@
   "github": {
     "silent": true
   },
-  "redirects": [
-    { "source": "/", "destination": "/ui/" }
-  ],
-  "rewrites": [
-    { "source": "/ui/(.*)", "destination": "/ui/index.html" }
-  ],
+  "redirects": [{ "source": "/", "destination": "/ui/" }],
+  "rewrites": [{ "source": "/ui/(.*)", "destination": "/ui/index.html" }],
   "trailingSlash": true
 }

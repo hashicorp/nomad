@@ -4,11 +4,14 @@
 package deploymentwatcher
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -17,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -29,6 +33,28 @@ func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*
 
 func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
 	return testDeploymentWatcher(t, LimitStateQueriesPerSecond, CrossDeploymentUpdateBatchDuration)
+}
+
+// logRecorder is a modification of the logRecorder pattern from hostvolumemanager
+// and added to the TestDeploymentWatcher so we can assert that stdout/stderr
+// appear in logs
+func logRecorderTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend, func() string) {
+	buf := &bytes.Buffer{}
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:            "log-recorder",
+		Output:          buf,
+		Level:           hclog.Debug,
+		IncludeLocation: true,
+		DisableTime:     true,
+	})
+	m := newMockBackend(t)
+	w := NewDeploymentsWatcher(logger, m, nil, nil, LimitStateQueriesPerSecond, CrossDeploymentUpdateBatchDuration)
+	return w, m, func() string {
+		bts, err := io.ReadAll(buf)
+		test.NoError(t, err)
+		buf.Reset()
+		return string(bts)
+	}
 }
 
 // Tests that the watcher properly watches for deployments and reconciles them
@@ -701,7 +727,68 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	must.Eq(t, structs.DeploymentStatusDescriptionPaused, d.StatusDescription)
 }
 
-// Test unpausing a deployment that is paused
+// Test that the timeline check is skipped for paused deployment
+func TestWatcher_PauseDeployment_IgnoreProgressDeadline(t *testing.T) {
+	ci.Parallel(t)
+	w, m, getLogs := logRecorderTestDeploymentWatcher(t)
+
+	// Create a job and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Count = 1
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.ProgressDeadline = 50 * time.Millisecond
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups["web"].DesiredTotal = 1
+	d.TaskGroups["web"].ProgressDeadline = 50 * time.Millisecond
+
+	a := mock.Alloc()
+	now := time.Now()
+	a.CreateTime = now.UnixNano()
+	a.ModifyTime = now.UnixNano()
+	a.DeploymentID = d.ID
+	a.Job = j
+	a.JobID = j.ID
+	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
+	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
+	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}))
+	w.SetEnabled(true, m.state)
+	waitForWatchers(t, w, 1)
+
+	// manually pause
+	req := &structs.DeploymentPauseRequest{
+		DeploymentID: d.ID,
+		Pause:        true,
+	}
+	var resp structs.DeploymentUpdateResponse
+	must.NoError(t, w.PauseDeployment(req, &resp))
+	must.Eq(t, 1, watchersCount(w), must.Sprint("watcher should still be active"))
+
+	d1, err := m.state.DeploymentByID(nil, d.ID)
+
+	state := d1.TaskGroups["web"]
+	must.NoError(t, err)
+	must.Eq(t, structs.DeploymentStatusPaused, d1.Status)
+	must.Eq(t, structs.DeploymentStatusDescriptionPaused, d1.StatusDescription)
+
+	watcher, err := w.getOrCreateWatcher(d1.ID)
+	must.NoError(t, err)
+	must.NotNil(t, watcher)
+
+	time.Sleep(time.Until(state.RequireProgressBy.Add(time.Second)))
+	cutoff1 := watcher.getDeploymentProgressCutoff(d1)
+	must.False(t, cutoff1.IsZero())
+
+	// confirm deadline was skipped
+	must.StrContains(t, getLogs(), "skipping deadline")
+	// confirm RequireProgressBy was set to UpdateTime + ProgressDeadline
+	modifiedTime := time.Unix(0, d1.ModifyTime)
+	must.Eq(t, modifiedTime.Add(d1.TaskGroups["web"].ProgressDeadline), d1.TaskGroups["web"].RequireProgressBy)
+
+}
+
+// Test unpausing a deployment that is paused and ensure timeout
+// is reset
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	ci.Parallel(t)
 	w, m := defaultTestDeploymentWatcher(t)
@@ -911,7 +998,11 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: now,
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, updateReq))
 
 	// Wait for the deployment to be failed
 	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
@@ -1062,7 +1153,11 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 		Healthy:   pointer.Of(true),
 		Timestamp: now,
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1233,8 +1328,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{canary2}
-	err := m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{canary2},
+	}
+
+	err := m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq)
 	must.NoError(t, err)
 
 	// wait for long enough to ensure we read deployment update channel
@@ -1252,8 +1350,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{canary1}
-	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{canary1},
+	}
+
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq2)
 	must.NoError(t, err)
 
 	// ensure progress_deadline has definitely expired
@@ -1319,8 +1420,11 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 		Timestamp: now,
 	}
 
-	allocs = []*structs.Allocation{alloc1a, alloc1b}
-	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	updateReq3 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc1a, alloc1b},
+	}
+
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), updateReq3)
 	must.NoError(t, err)
 
 	// ensure any progress deadline has expired
@@ -1383,7 +1487,12 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: time.Now(),
 	}
-	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+
+	must.NoError(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the alloc's DesiredState to set reschedule
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
@@ -1441,7 +1550,12 @@ func TestDeploymentWatcher_Watch_FailEarly(t *testing.T) {
 		Healthy:   pointer.Of(false),
 		Timestamp: now,
 	}
-	must.Nil(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{a2},
+	}
+
+	must.Nil(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), updateReq))
 
 	// Wait for the deployment to be failed
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {

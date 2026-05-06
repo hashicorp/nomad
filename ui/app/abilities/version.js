@@ -11,7 +11,7 @@ export default class Version extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsTagging'
+    'specificNamespaceSupportsTagging',
   )
   canTag;
 

@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: adds a metric for total agent http connections
+```

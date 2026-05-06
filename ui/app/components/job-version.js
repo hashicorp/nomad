@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
@@ -31,17 +29,24 @@ export default class JobVersion extends Component {
 
   constructor() {
     super(...arguments);
-    this.initializeEditableTag();
-    this.versionsDidUpdate();
+    this.isOpen = Boolean(this.args.diffsExpanded && this.diff);
   }
 
-  @action versionsDidUpdate() {
+  @action
+  versionsDidUpdate() {
     if (this.args.diffsExpanded && this.diff) {
       this.isOpen = true;
     }
   }
 
   initializeEditableTag() {
+    const job = this.version.get('job');
+    const namespaceId =
+      this.version.get('job.namespaceId') ||
+      job.belongsTo('namespace').id() ||
+      'default';
+    const jobName = this.version.get('job.plainId');
+
     if (this.version.versionTag) {
       this.editableTag = this.store.createRecord('versionTag', {
         name: this.version.versionTag.name,
@@ -51,8 +56,8 @@ export default class JobVersion extends Component {
       this.editableTag = this.store.createRecord('versionTag');
     }
     this.editableTag.versionNumber = this.version.number;
-    this.editableTag.jobNamespace = this.version.get('job.namespace.name');
-    this.editableTag.jobName = this.version.get('job.plainId');
+    this.editableTag.jobNamespace = namespaceId;
+    this.editableTag.jobName = jobName;
   }
 
   @computed('diff')
@@ -126,9 +131,9 @@ export default class JobVersion extends Component {
             isEditing: true,
             version: this.version.number,
           },
-        }
+        },
       );
-    } catch (e) {
+    } catch {
       this.args.handleError({
         level: 'danger',
         title: 'Could Not Edit from Version',
@@ -140,7 +145,7 @@ export default class JobVersion extends Component {
     const job = await this.version.get('job');
     try {
       const specification = await job.fetchRawSpecification(
-        this.version.number
+        this.version.number,
       );
       this.router.transitionTo('jobs.run', {
         queryParams: {
@@ -148,7 +153,7 @@ export default class JobVersion extends Component {
         },
       });
       return;
-    } catch (specError) {
+    } catch {
       try {
         // If submission info is not available, try to fetch the raw definition
         const definition = await job.fetchRawDefinition(this.version.number);
@@ -177,6 +182,10 @@ export default class JobVersion extends Component {
 
   @action
   toggleEditTag() {
+    if (!this.isEditing) {
+      this.initializeEditableTag();
+    }
+
     this.isEditing = !this.isEditing;
   }
 
@@ -193,10 +202,23 @@ export default class JobVersion extends Component {
         return;
       }
       const savedTag = await this.editableTag.save();
-      this.version.versionTag = savedTag;
-      this.version.versionTag.setProperties({
-        ...savedTag.toJSON(),
-      });
+      const effectiveTag = savedTag || this.editableTag;
+      const tagData =
+        typeof effectiveTag.toJSON === 'function'
+          ? effectiveTag.toJSON()
+          : {
+              name: this.editableTag.name,
+              description: this.editableTag.description,
+              versionNumber: this.editableTag.versionNumber,
+            };
+
+      this.version.versionTag = effectiveTag;
+      if (typeof this.version.versionTag?.setProperties === 'function') {
+        this.version.versionTag.setProperties({
+          ...tagData,
+        });
+      }
+
       this.initializeEditableTag();
       this.isEditing = false;
 
@@ -228,7 +250,7 @@ export default class JobVersion extends Component {
         .deleteTag(
           this.editableTag.jobNamespace,
           this.editableTag.jobName,
-          this.editableTag.name
+          this.editableTag.name,
         );
       this.notifications.add({
         title: 'Job Version Un-Tagged',

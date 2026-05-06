@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
@@ -16,7 +16,7 @@ import classic from 'ember-classic-decorator';
 @tagName('tr')
 @classNames('client-node-row', 'is-interactive')
 export default class ClientNodeRow extends Component.extend(
-  WithVisibilityDetection
+  WithVisibilityDetection,
 ) {
   @service store;
 

@@ -4,9 +4,9 @@
  */
 
 import Mixin from '@ember/object/mixin';
-import Ember from 'ember';
 import { computed } from '@ember/object';
 import { warn } from '@ember/debug';
+import ENV from 'nomad-ui/config/environment';
 
 /**
   Sortable mixin factory
@@ -25,7 +25,7 @@ import { warn } from '@ember/debug';
 */
 export default function sortableFactory(properties, fromSortableMixin) {
   const eachProperties = properties.map(
-    (property) => `listToSort.@each.${property}`
+    (property) => `listToSort.@each.${property}`,
   );
 
   // eslint-disable-next-line ember/no-new-mixins
@@ -46,7 +46,10 @@ export default function sortableFactory(properties, fromSortableMixin) {
       'sortDescending',
       'sortProperty',
       function () {
-        if (!this._sortableFactoryWarningPrinted && !Ember.testing) {
+        if (
+          !this._sortableFactoryWarningPrinted &&
+          ENV.environment !== 'test'
+        ) {
           let message =
             'Using SortableFactory without property keys means the list will only sort when the members change, not when any of their properties change.';
 
@@ -67,7 +70,7 @@ export default function sortableFactory(properties, fromSortableMixin) {
           return sorted.reverse();
         }
         return sorted;
-      }
+      },
     ),
   });
 }

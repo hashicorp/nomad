@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Service from '@ember/service';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { timeout, restartableTask } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { compare } from '@ember/utils';
@@ -15,7 +14,6 @@ import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
 import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
-import { assert } from '@ember/debug';
 // eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
@@ -178,7 +176,7 @@ export default class KeyboardService extends Service {
       },
     ].map((command) => {
       const persistedValue = window.localStorage.getItem(
-        `keyboard.command.${command.label}`
+        `keyboard.command.${command.label}`,
       );
       if (persistedValue) {
         set(command, 'pattern', JSON.parse(persistedValue));
@@ -188,7 +186,7 @@ export default class KeyboardService extends Service {
         set(command, 'pattern', this.defaultPatterns[command.label]);
       }
       return command;
-    })
+    }),
   );
 
   /**
@@ -202,7 +200,9 @@ export default class KeyboardService extends Service {
    */
   cleanPattern(iter) {
     iter = iter + 1; // first item should be Shift+1, not Shift+0
-    assert('Dynamic keyboard shortcuts only work up to 99 digits', iter < 100);
+    if (iter >= 100) {
+      return [];
+    }
     return [`Shift+${('0' + iter).slice(-2)}`]; // Shift+01, not Shift+1
   }
 
@@ -217,7 +217,7 @@ export default class KeyboardService extends Service {
       commands.forEach((command) => {
         if (command.exclusive) {
           this.removeCommands(
-            this.keyCommands.filterBy('label', command.label)
+            this.keyCommands.filterBy('label', command.label),
           );
         }
         this.keyCommands.pushObject(command);
@@ -277,7 +277,7 @@ export default class KeyboardService extends Service {
   @action
   unregisterSubnav(element) {
     this.subnavLinks = this.subnavLinks.reject(
-      (link) => link.parent === guidFor(element)
+      (link) => link.parent === guidFor(element),
     );
   }
 
@@ -336,8 +336,8 @@ export default class KeyboardService extends Service {
     const targetElementName = event.target.nodeName.toLowerCase();
     const inputDisallowed =
       inputElements.includes(targetElementName) ||
-      disallowedClassNames.any((className) =>
-        event.target.classList.contains(className)
+      disallowedClassNames.some((className) =>
+        event.target.classList.contains(className),
       );
 
     // Don't fire keypress events from within an input field
@@ -381,7 +381,7 @@ export default class KeyboardService extends Service {
     set(cmd, 'previousPattern', null);
     window.localStorage.setItem(
       `keyboard.command.${cmd.label}`,
-      JSON.stringify([...this.buffer])
+      JSON.stringify([...this.buffer]),
     );
   };
 
@@ -442,7 +442,7 @@ export default class KeyboardService extends Service {
   get matchedCommands() {
     // Shiftless Buffer: handle the case where use is holding shift (to see shortcut hints) and typing a key command
     const shiftlessBuffer = this.buffer.map((key) =>
-      key.replace('Shift+', '').toLowerCase()
+      key.replace('Shift+', '').toLowerCase(),
     );
 
     // Shift Friendly Buffer: If you hold Shift and type 0 and 1, it'll output as ['Shift+0', 'Shift+1'].

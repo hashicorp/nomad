@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
 )
 
 func TestStatsFetcher(t *testing.T) {
@@ -104,4 +105,83 @@ func TestStatsFetcher(t *testing.T) {
 			}
 		}
 	}()
+}
+
+// TestStatsFetcher_LocalServerOptimization verifies that the StatsFetcher uses
+// the in-memory codec when fetching stats from the local server instead of
+// going through the network pool.
+func TestStatsFetcher_LocalServerOptimization(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := func(c *Config) {
+		c.Region = "region-a"
+		c.BootstrapExpect = 1
+	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	must.NotNil(t, s1.statsFetcher.localServer)
+	must.Eq(t, raft.ServerID(s1.config.NodeID), s1.statsFetcher.localID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	stats := s1.statsFetcher.Fetch(ctx, s1.autopilotServers())
+	must.Eq(t, 1, len(stats))
+
+	// verify we got valid stats for the local server
+	for id, stat := range stats {
+		must.Eq(t, raft.ServerID(s1.config.NodeID), id)
+		must.NotNil(t, stat)
+		must.NotEq(t, 0, stat.LastTerm)
+	}
+}
+
+// TestStatsFetcher_LocalAndRemote verifies that the StatsFetcher correctly
+// handles a mix of local and remote servers, using local calls for local server
+// and the network pool for remote servers.
+func TestStatsFetcher_LocalAndRemote(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := func(c *Config) {
+		c.Region = "region-a"
+		c.BootstrapExpect = 2
+	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
+
+	s2, cleanupS2 := TestServer(t, conf)
+	defer cleanupS2()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	stats := s1.statsFetcher.Fetch(ctx, s1.autopilotServers())
+	must.Eq(t, 2, len(stats))
+
+	// Verify we got valid stats for both servers
+	s1ID := raft.ServerID(s1.config.NodeID)
+	s2ID := raft.ServerID(s2.config.NodeID)
+	foundS1 := false
+	foundS2 := false
+
+	for id, stat := range stats {
+		if id == s1ID {
+			foundS1 = true
+		} else if id == s2ID {
+			foundS2 = true
+		}
+
+		must.NotNil(t, stat)
+		must.NotEq(t, 0, stat.LastTerm)
+	}
+
+	must.True(t, foundS1 && foundS2)
 }

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
+import { action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
@@ -23,13 +23,26 @@ export default class JobStatusPanelDeployingComponent extends Component {
     });
   }
 
+  get allocations() {
+    const relationship = this.job?.hasMany?.('allocations');
+    const ids = relationship?.ids?.() || [];
+    const store = this.job?.store;
+
+    if (!store || !ids.length) {
+      return [];
+    }
+
+    return ids.map((id) => store.peekRecord('allocation', id)).filter(Boolean);
+  }
+
   @tracked oldVersionAllocBlockIDs = [];
 
   // Called via did-insert; sets a static array of "outgoing"
   // allocations we can track throughout a deployment
+  @action
   establishOldAllocBlockIDs() {
-    this.oldVersionAllocBlockIDs = this.job.allocations.filter(
-      (a) => a.clientStatus === 'running' && a.isOld
+    this.oldVersionAllocBlockIDs = this.allocations.filter(
+      (a) => a.clientStatus === 'running' && a.isOld,
     );
   }
 
@@ -39,8 +52,8 @@ export default class JobStatusPanelDeployingComponent extends Component {
    * @returns {boolean}
    */
   get canariesHealthy() {
-    const relevantAllocs = this.job.allocations.filter(
-      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
+    const relevantAllocs = this.allocations.filter(
+      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled,
     );
     return (
       relevantAllocs.length &&
@@ -49,14 +62,14 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get someCanariesHaveFailed() {
-    const relevantAllocs = this.job.allocations.filter(
-      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
+    const relevantAllocs = this.allocations.filter(
+      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled,
     );
     return relevantAllocs.some(
       (a) =>
         a.clientStatus === 'failed' ||
         a.clientStatus === 'lost' ||
-        a.isUnhealthy
+        a.isUnhealthy,
     );
   }
 
@@ -88,7 +101,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
   @alias('totalAllocs') desiredTotal;
 
   get oldVersionAllocBlocks() {
-    return this.job.allocations
+    return this.allocations
       .filter((allocation) => this.oldVersionAllocBlockIDs.includes(allocation))
       .reduce((alloGroups, currentAlloc) => {
         const status = currentAlloc.clientStatus;
@@ -108,8 +121,8 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
   get newVersionAllocBlocks() {
     let availableSlotsToFill = this.desiredTotal;
-    let allocationsOfDeploymentVersion = this.job.allocations.filter(
-      (a) => !a.isOld
+    let allocationsOfDeploymentVersion = this.allocations.filter(
+      (a) => !a.isOld,
     );
 
     let allocationCategories = this.allocTypes.reduce((categories, type) => {
@@ -137,8 +150,8 @@ export default class JobStatusPanelDeployingComponent extends Component {
           ? alloc.isHealthy
             ? 'healthy'
             : alloc.isUnhealthy
-            ? 'unhealthy'
-            : 'health_unknown'
+              ? 'unhealthy'
+              : 'health_unknown'
           : 'health_unknown';
 
       if (allocationCategories[status]) {
@@ -163,7 +176,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
         health_unknown: { canary: [], nonCanary: [] },
       };
       allocationCategories['unplaced']['healthy']['nonCanary'] = Array(
-        availableSlotsToFill
+        availableSlotsToFill,
       )
         .fill()
         .map(() => {
@@ -196,11 +209,11 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get rescheduledAllocs() {
-    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
+    return this.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
   }
 
   get restartedAllocs() {
-    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
+    return this.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
   }
 
   // #region legend
@@ -212,7 +225,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
           .flatMap((canaryStatusArray) => canaryStatusArray).length;
         return counts;
       },
-      {}
+      {},
     );
   }
 

@@ -5,7 +5,7 @@
 
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 
 module('Unit | Adapter | Allocation', function (hooks) {
   setupTest(hooks);
@@ -36,7 +36,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       const allocation = await this.store.findRecord(
         'allocation',
-        allocationId
+        allocationId,
       );
       this.server.pretender.handledRequests.length = 0;
 
@@ -56,10 +56,10 @@ module('Unit | Adapter | Allocation', function (hooks) {
       region: null,
       path: 'some/path',
       ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}`,
       stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}`,
       stop: 'POST /v1/allocation/alloc-1/stop',
       restart: 'PUT /v1/client/allocation/alloc-1/restart',
@@ -71,10 +71,10 @@ module('Unit | Adapter | Allocation', function (hooks) {
       region: 'region-2',
       path: 'some/path',
       ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}&region=region-2`,
       stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
-        'some/path'
+        'some/path',
       )}&region=region-2`,
       stop: 'POST /v1/allocation/alloc-1/stop?region=region-2',
       restart: 'PUT /v1/client/allocation/alloc-1/restart?region=region-2',
@@ -90,7 +90,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().ls(allocation, testCase.path);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.ls);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.ls);
     });
 
     test(`stat makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -101,7 +101,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().stat(allocation, testCase.path);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.stat);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.stat);
     });
 
     test(`stop makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -112,7 +112,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().stop(allocation);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.stop);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.stop);
     });
 
     test(`restart makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -123,7 +123,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().restart(allocation);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.restart);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.restart);
     });
 
     test(`restart with optional task name makes the correct API call ${testCase.variation}`, async function (assert) {
@@ -134,7 +134,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
 
       await this.subject().restart(allocation, testCase.task);
       const req = pretender.handledRequests[0];
-      assert.equal(`${req.method} ${req.url}`, testCase.restart);
+      assert.deepEqual(`${req.method} ${req.url}`, testCase.restart);
       assert.deepEqual(JSON.parse(req.requestBody), {
         TaskName: testCase.task,
       });

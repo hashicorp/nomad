@@ -11,6 +11,7 @@ export default function generateResources() {
       SystemMode: 0,
       ThrottledPeriods: 0,
       ThrottledTime: 0,
+      // eslint-disable-next-line no-loss-of-precision
       TotalTicks: 300.256693934837093,
       UserMode: 0,
     },

@@ -6,9 +6,11 @@
 .access-control-overview {
   .intro {
     margin-bottom: 2rem;
+
     p {
       margin-bottom: 1rem;
     }
+
     footer {
       display: flex;
       gap: 1rem;
@@ -19,6 +21,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
+
     & > div {
       padding: 1rem;
       display: grid;
@@ -28,6 +31,7 @@
       & > p {
         margin-bottom: 0.5rem;
       }
+
       & > a {
         font-weight: bold;
         font-size: 1.5rem;
@@ -61,6 +65,7 @@
 
   .selection-checkbox {
     position: relative;
+
     label {
       cursor: pointer;
       position: absolute;
@@ -76,6 +81,12 @@
     margin-bottom: 1rem;
   }
 
+  .token-expiration-datetime-input {
+    display: block;
+    margin-top: 0.5rem;
+    max-width: 20rem;
+  }
+
   .boxed-section {
     overflow: auto;
     width: 100%;
@@ -87,10 +98,12 @@
 
   .namespace-editor-wrapper {
     padding: 1rem 0;
+
     &.error {
       .CodeMirror {
         box-shadow: 0 0 0 3px $red;
       }
+
       .help {
         padding: 1rem 0;
         font-size: 1rem;

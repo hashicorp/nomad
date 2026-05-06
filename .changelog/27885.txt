@@ -1,0 +1,3 @@
+```release-note:bug
+plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted
+```

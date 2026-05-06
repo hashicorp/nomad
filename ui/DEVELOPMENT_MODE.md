@@ -9,9 +9,9 @@ cryptic or useless. In development mode, files are as expected and stack traces 
 
 Debugging Web UI issues with the Web UI in development mode is done in three steps:
 
-  1. Cloning the Nomad Repo
-  2. Setting up your environment (or using Vagrant)
-  3. Serving the Web UI locally while proxying to the production Nomad cluster
+1. Cloning the Nomad Repo
+2. Setting up your environment (or using Vagrant)
+3. Serving the Web UI locally while proxying to the production Nomad cluster
 
 ### Cloning the Nomad Repo
 
@@ -27,16 +27,16 @@ for running the UI locally or with the Vagrant VM.
 
 Serving the Web UI is done with a single command in the `/ui` directory.
 
-  - **Local:** `ember serve`
-  - **Vagrant:** `ember serve --watch polling --port 4201`
+- **Local:** `ember serve`
+- **Vagrant:** `ember serve --watch polling --port 4201`
 
 However, this will use the [Mirage fixtures](http://www.ember-cli-mirage.com/) as a backend.
 To use your own Nomad cluster as a backend, use the proxy option.
 
-  - **Local:** `ember serve --proxy https://demo.example.com`
-  - **Vagrant:** `ember serve --watch polling --port 4201 --proxy https://demo.example.com`
+- **Local:** `ember serve --proxy https://demo.example.com`
+- **Vagrant:** `ember serve --watch polling --port 4201 --proxy https://demo.example.com`
 
 The Web UI will now be accessible from your host machine.
 
-  - **Local:** [http://localhost:4200](http://localhost:4200)
-  - **Vagrant:** [http://localhost:4201](http://localhost:4201)
+- **Local:** [http://localhost:4200/ui](http://localhost:4200/ui)
+- **Vagrant:** [http://localhost:4201](http://localhost:4201)

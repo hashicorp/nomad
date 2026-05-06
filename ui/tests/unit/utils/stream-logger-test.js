@@ -21,12 +21,12 @@ module('Unit | Util | StreamLogger', function () {
     await logger.stop();
 
     assert.notOk(logger.poll.isRunning);
-    assert.equal(fetchMock.reader.cancel.callCount, 0);
+    assert.deepEqual(fetchMock.reader.cancel.callCount, 0);
 
     fetchMock.closeRequest();
     await fetch;
 
-    assert.equal(fetchMock.reader.cancel.callCount, 1);
+    assert.deepEqual(fetchMock.reader.cancel.callCount, 1);
   });
 
   test('when the streaming request sends the done flag, the poll task completes', async function (assert) {
@@ -40,13 +40,13 @@ module('Unit | Util | StreamLogger', function () {
     logger.start();
 
     assert.ok(logger.poll.isRunning);
-    assert.equal(fetchMock.reader.readSpy.callCount, 0);
+    assert.deepEqual(fetchMock.reader.readSpy.callCount, 0);
 
     fetchMock.closeRequest();
     await fetch;
 
     assert.notOk(logger.poll.isRunning);
-    assert.equal(fetchMock.reader.readSpy.callCount, 1);
+    assert.deepEqual(fetchMock.reader.readSpy.callCount, 1);
   });
 
   test('disable streaming if not supported', async function (assert) {
@@ -76,7 +76,7 @@ class FetchMock {
       this._closeRequest(this.response);
     } else {
       throw new Error(
-        'Must call FetchMock.request() before FetchMock.closeRequest'
+        'Must call FetchMock.request() before FetchMock.closeRequest',
       );
     }
   }

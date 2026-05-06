@@ -14,7 +14,7 @@ export default class Recommendation extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportAcceptingOnAnyNamespace'
+    'policiesSupportAcceptingOnAnyNamespace',
   )
   hasPermissions;
 

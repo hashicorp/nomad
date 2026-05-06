@@ -6,7 +6,7 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import Pretender from 'pretender';
 import { logEncode } from '../../../../mirage/data/logs';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -34,8 +34,23 @@ module('Integration | Component | fs/file', function (hooks) {
         {},
         logEncode(['Hello World'], 0),
       ]);
+      this.get(`//${HOST}/v1/client/fs/stream/:alloc_id`, () => [
+        200,
+        {},
+        logEncode(['Hello World'], 0),
+      ]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
+      this.get(`//${HOST}/v1/client/fs/cat/:alloc_id`, () => [
+        200,
+        {},
+        'Hello World',
+      ]);
       this.get('/v1/client/fs/readat/:alloc_id', () => [
+        200,
+        {},
+        'Hello World',
+      ]);
+      this.get(`//${HOST}/v1/client/fs/readat/:alloc_id`, () => [
         200,
         {},
         'Hello World',
@@ -78,12 +93,10 @@ module('Integration | Component | fs/file', function (hooks) {
           ContentType: 'text/plain',
         },
       },
-      props
+      props,
     );
 
   test('When a file is text-based, the file mode is streaming', async function (assert) {
-    assert.expect(3);
-
     const props = makeProps(fileStat('text/plain', 500));
     this.setProperties(props);
 
@@ -91,19 +104,17 @@ module('Integration | Component | fs/file', function (hooks) {
 
     assert.ok(
       find('[data-test-file-box] [data-test-log-cli]'),
-      'The streaming file component was rendered'
+      'The streaming file component was rendered',
     );
     assert.notOk(
       find('[data-test-file-box] [data-test-image-file]'),
-      'The image file component was not rendered'
+      'The image file component was not rendered',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('When a file is an image, the file mode is image', async function (assert) {
-    assert.expect(3);
-
     const props = makeProps(fileStat('image/png', 1234));
     this.setProperties(props);
 
@@ -111,19 +122,17 @@ module('Integration | Component | fs/file', function (hooks) {
 
     assert.ok(
       find('[data-test-file-box] [data-test-image-file]'),
-      'The image file component was rendered'
+      'The image file component was rendered',
     );
     assert.notOk(
       find('[data-test-file-box] [data-test-log-cli]'),
-      'The streaming file component was not rendered'
+      'The streaming file component was not rendered',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function (assert) {
-    assert.expect(4);
-
     const props = makeProps(fileStat('wat/ohno', 1234));
     this.setProperties(props);
 
@@ -131,15 +140,15 @@ module('Integration | Component | fs/file', function (hooks) {
 
     assert.notOk(
       find('[data-test-file-box] [data-test-image-file]'),
-      'The image file component was not rendered'
+      'The image file component was not rendered',
     );
     assert.notOk(
       find('[data-test-file-box] [data-test-log-cli]'),
-      'The streaming file component was not rendered'
+      'The streaming file component was not rendered',
     );
     assert.ok(
       find('[data-test-unsupported-type]'),
-      'Unsupported file type message is shown'
+      'Unsupported file type message is shown',
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -152,12 +161,12 @@ module('Integration | Component | fs/file', function (hooks) {
 
     assert.ok(
       find('[data-test-unsupported-type] [data-test-log-action="raw"]'),
-      'Unsupported file type message includes a link to the raw file'
+      'Unsupported file type message includes a link to the raw file',
     );
 
     assert.notOk(
       find('[data-test-header] [data-test-log-action="raw"]'),
-      'Raw link is no longer in the header'
+      'Raw link is no longer in the header',
     );
   });
 
@@ -166,17 +175,17 @@ module('Integration | Component | fs/file', function (hooks) {
     this.setProperties(props);
 
     await render(commonTemplate);
-    click('[data-test-log-action="raw"]');
-    await settled();
+    await click('[data-test-log-action="raw"]');
+
     assert.ok(
       this.server.handledRequests.find(
         ({ url: url }) =>
           url ===
           `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
-            `${props.taskState.name}/${props.file}`
-          )}`
+            `${props.taskState.name}/${props.file}`,
+          )}`,
       ),
-      'Request to file is made'
+      'Request to file is made',
     );
   });
 
@@ -190,17 +199,17 @@ module('Integration | Component | fs/file', function (hooks) {
     await this.system.get('regions');
     await render(commonTemplate);
 
-    click('[data-test-log-action="raw"]');
-    await settled();
+    await click('[data-test-log-action="raw"]');
+
     assert.ok(
       this.server.handledRequests.find(
         ({ url: url }) =>
           url ===
           `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
-            `${props.taskState.name}/${props.file}`
-          )}&region=${region}`
+            `${props.taskState.name}/${props.file}`,
+          )}&region=${region}`,
       ),
-      'Request to file is made with region'
+      'Request to file is made with region',
     );
   });
 
@@ -239,8 +248,6 @@ module('Integration | Component | fs/file', function (hooks) {
   });
 
   test('Yielded content goes in the top-left header area', async function (assert) {
-    assert.expect(2);
-
     const props = makeProps(fileStat('image/svg', 5000));
     this.setProperties(props);
 
@@ -252,7 +259,7 @@ module('Integration | Component | fs/file', function (hooks) {
 
     assert.ok(
       find('[data-test-header] [data-test-yield-spy]'),
-      'Yielded content shows up in the header'
+      'Yielded content shows up in the header',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -287,7 +294,7 @@ module('Integration | Component | fs/file', function (hooks) {
     assert.notOk(classes.includes('is-dark'), 'Body is still not dark');
     assert.notOk(
       classes.includes('is-full-bleed'),
-      'Body is still not full-bleed'
+      'Body is still not full-bleed',
     );
   });
 });

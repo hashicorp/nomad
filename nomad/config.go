@@ -407,6 +407,10 @@ type Config struct {
 	// RPCSessionConfig configures the yamux session configuration for RPC
 	RPCSessionConfig *yamux.Config
 
+	// RPCDialTimeout is the timeout used when establishing new outbound RPC
+	// connections to peer servers. Defaults to 10s.
+	RPCDialTimeout time.Duration
+
 	// LicenseConfig stores information about the Enterprise license loaded for the server.
 	LicenseConfig *LicenseConfig
 
@@ -678,6 +682,7 @@ func DefaultConfig() *Config {
 			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 		RPCHoldTimeout:           5 * time.Second,
 		RPCSessionConfig:         yamux.DefaultConfig(),
+		RPCDialTimeout:           10 * time.Second,
 		StatsCollectionInterval:  1 * time.Minute,
 		TLSConfig:                &config.TLSConfig{},
 		ReplicationBackoff:       30 * time.Second,

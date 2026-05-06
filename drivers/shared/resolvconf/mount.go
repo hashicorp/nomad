@@ -8,8 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/hashicorp/nomad/lib/resolvconf"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -43,7 +42,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 	}
 
 	var (
-		dnsList        = resolvconf.GetNameservers(currRC.Content, types.IP)
+		dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
 		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 	)

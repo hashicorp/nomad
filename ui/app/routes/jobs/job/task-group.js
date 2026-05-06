@@ -5,7 +5,6 @@
 
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
-import EmberError from '@ember/error';
 import { resolve, all } from 'rsvp';
 import {
   watchRecord,
@@ -13,7 +12,7 @@ import {
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   @service store;
@@ -32,8 +31,8 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
       .then(() => {
         const taskGroup = job.get('taskGroups').findBy('name', name);
         if (!taskGroup) {
-          const err = new EmberError(
-            `Task group ${name} for job ${job.get('name')} not found`
+          const err = new Error(
+            `Task group ${name} for job ${job.get('name')} not found`,
           );
           err.code = '404';
           throw err;
@@ -74,7 +73,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
     'watchSummary',
     'watchScale',
     'watchAllocations',
-    'watchLatestDeployment'
+    'watchLatestDeployment',
   )
   watchers;
 }

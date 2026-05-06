@@ -19,37 +19,47 @@
 
   {{#each this.metaFields as |meta|}}
     <div class="columns">
-        <div class="column is-6">
-          <div data-test-meta-field="{{ if meta.required "required" "optional" }}" class="field">
-            <label data-test-meta-field-label class="label {{if meta.error "has-text-danger"}}" for="{{meta.name}}">
-              {{meta.title}} {{#if meta.required}}*{{/if}}
-            </label>
-            <div class="control">
-              <input
-                data-test-meta-field-input
-                id="{{meta.name}}"
-                class="input {{if meta.error "is-danger"}}"
-                type="text"
-                value={{meta.value}}
-                oninput={{action (mut meta.value) value="target.value"}}
-                required={{meta.required}} >
+      <div class="column is-6">
+        <div
+          data-test-meta-field="{{if meta.required 'required' 'optional'}}"
+          class="field"
+        >
+          <label
+            data-test-meta-field-label
+            class="label {{if meta.error 'has-text-danger'}}"
+            for="{{meta.name}}"
+          >
+            {{meta.title}}
+            {{#if meta.required}}*{{/if}}
+          </label>
+          <div class="control">
+            <input
+              data-test-meta-field-input
+              id="{{meta.name}}"
+              class="input {{if meta.error 'is-danger'}}"
+              type="text"
+              value={{meta.value}}
+              oninput={{pick "target.value" (fn (mut meta.value))}}
+              required={{meta.required}}
+            />
 
-              <p class="help {{if meta.error "has-text-danger"}}">
-                {{#if meta.required}}Required{{else}}Optional{{/if}}
-                Meta Param
-                <span class="badge is-light is-faded">
-                  <code>{{ meta.name }}</code>
-                </span>
-              </p>
-            </div>
+            <p class="help {{if meta.error 'has-text-danger'}}">
+              {{#if meta.required}}Required{{else}}Optional{{/if}}
+              Meta Param
+              <span class="badge is-light is-faded">
+                <code>{{meta.name}}</code>
+              </span>
+            </p>
           </div>
         </div>
+      </div>
     </div>
   {{/each}}
 
-  <div class="boxed-section {{if this.payloadHasError "is-danger"}}">
+  <div class="boxed-section {{if this.payloadHasError 'is-danger'}}">
     <div data-test-payload-head class="boxed-section-head">
-      Payload {{#if this.payloadRequired}}*{{/if}}
+      Payload
+      {{#if this.payloadRequired}}*{{/if}}
     </div>
     {{#if this.hasPayload}}
       <div class="boxed-section-body is-full-bleed">
@@ -57,7 +67,7 @@
           data-test-payload-editor
           {{code-mirror
             theme="hashi"
-            onUpdate=(action (mut this.payload))
+            onUpdate=(fn (mut this.payload))
             mode="javascript"
             screenReaderLabel="Payload definition"
           }}
@@ -74,7 +84,17 @@
   </div>
 
   <div>
-    <button data-test-dispatch-button class="button is-primary" type="button" onclick={{action "dispatch"}}>Dispatch</button>
-    <button data-test-cancel-button class="button is-white" type="button" onclick={{action "cancel"}}>Cancel</button>
+    <button
+      data-test-dispatch-button
+      class="button is-primary"
+      type="button"
+      {{on "click" this.dispatch}}
+    >Dispatch</button>
+    <button
+      data-test-cancel-button
+      class="button is-white"
+      type="button"
+      {{on "click" this.cancel}}
+    >Cancel</button>
   </div>
 </form>

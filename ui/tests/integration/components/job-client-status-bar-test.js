@@ -42,15 +42,13 @@ module('Integration | Component | job-client-status-bar', function (hooks) {
 
   const commonTemplate = hbs`
     <JobClientStatusBar
-      @onSliceClick={{onSliceClick}}
-      @job={{job}}
-      @jobClientStatus={{jobClientStatus}}
-      @isNarrow={{isNarrow}}
+      @onSliceClick={{this.onSliceClick}}
+      @job={{this.job}}
+      @jobClientStatus={{this.jobClientStatus}}
+      @isNarrow={{this.isNarrow}}
     />`;
 
   test('it renders', async function (assert) {
-    assert.expect(2);
-
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

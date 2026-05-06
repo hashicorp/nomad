@@ -12,7 +12,7 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
   module('#serviceHealthStatuses', function () {
     test('it groups health service data by service name', function (assert) {
       let controller = this.owner.lookup(
-        'controller:allocations/allocation/index'
+        'controller:allocations/allocation/index',
       );
       controller.set('model', JSON.parse(JSON.stringify(Allocation)));
 
@@ -41,67 +41,67 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
         },
       };
 
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
-        groupFakePy.statuses['success']
+        groupFakePy.statuses['success'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
-        groupFakePy.statuses['failure']
+        groupFakePy.statuses['failure'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
-        groupFakePy.statuses['pending']
+        groupFakePy.statuses['pending'],
       );
 
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
-        taskFakePy.statuses['success']
+        taskFakePy.statuses['success'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
-        taskFakePy.statuses['failure']
+        taskFakePy.statuses['failure'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskFakePy.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
-        taskFakePy.statuses['pending']
+        taskFakePy.statuses['pending'],
       );
 
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', pender.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
-        pender.statuses['success']
+        pender.statuses['success'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', pender.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
-        pender.statuses['failure']
+        pender.statuses['failure'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', pender.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
-        pender.statuses['pending']
+        pender.statuses['pending'],
       );
     });
 
     test('it handles duplicate names', async function (assert) {
       let controller = this.owner.lookup(
-        'controller:allocations/allocation/index'
+        'controller:allocations/allocation/index',
       );
       controller.set('model', JSON.parse(JSON.stringify(Allocation)));
 
@@ -122,42 +122,42 @@ module('Unit | Controller | allocations/allocation/index', function (hooks) {
         },
       };
 
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
-        groupDupe.statuses['success']
+        groupDupe.statuses['success'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
-        groupDupe.statuses['failure']
+        groupDupe.statuses['failure'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', groupDupe.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
-        groupDupe.statuses['pending']
+        groupDupe.statuses['pending'],
       );
 
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'success').length,
-        taskDupe.statuses['success']
+        taskDupe.statuses['success'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'failure').length,
-        taskDupe.statuses['failure']
+        taskDupe.statuses['failure'],
       );
-      assert.equal(
+      assert.deepEqual(
         controller.servicesWithHealthChecks
           .findBy('refID', taskDupe.refID)
           .healthChecks.filter((check) => check.Status === 'pending').length,
-        taskDupe.statuses['pending']
+        taskDupe.statuses['pending'],
       );
     });
   });

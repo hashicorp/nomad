@@ -12,14 +12,13 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
   setupMirage(hooks);
 
   test('it should a return a list of related evaluations when the related query parameter is specified', async function (assert) {
-    assert.expect(2);
     const store = this.owner.lookup('service:store');
 
-    server.get('/evaluation/:id', function (_, fakeRes) {
-      assert.equal(
+    this.server.get('/evaluation/:id', function (_, fakeRes) {
+      assert.deepEqual(
         fakeRes.queryParams.related,
         'true',
-        'it should append the related query parameter when making the API request for related evaluations'
+        'it should append the related query parameter when making the API request for related evaluations',
       );
       return {
         ID: 'tomster',
@@ -53,10 +52,10 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
       adapterOptions: { related: true },
     });
 
-    server.get('/evaluation/:id', function (_, fakeRes) {
+    this.server.get('/evaluation/:id', function (_, fakeRes) {
       assert.notOk(
         fakeRes.queryParams.related,
-        'it should not append the related query parameter when making the API request for related evaluations'
+        'it should not append the related query parameter when making the API request for related evaluations',
       );
       return {
         ID: 'tomster',
@@ -92,7 +91,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
   test('it should store related evaluations stubs as a hasMany in the store', async function (assert) {
     const store = this.owner.lookup('service:store');
 
-    server.get('/evaluation/:id', function () {
+    this.server.get('/evaluation/:id', function () {
       return {
         ID: 'tomster',
         Priority: 50,
@@ -129,14 +128,14 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
       adapterOptions: { related: true },
     });
 
-    assert.equal(result.relatedEvals.length, 2);
+    assert.deepEqual(result.relatedEvals.length, 2);
 
     const mappedResult = result.relatedEvals.map((es) => es.id);
 
     assert.deepEqual(
       mappedResult,
       ['a', 'b'],
-      'related evals data is accessible'
+      'related evals data is accessible',
     );
   });
 });

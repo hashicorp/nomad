@@ -242,14 +242,9 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	now := time.Now().UTC()
 	unixNow := now.UnixNano()
 
-	// try to pull the job from the state by ID if the plan doesn't already contain it
 	job := plan.Job
 	if job == nil {
-		var err error
-		job, err = p.srv.State().JobByID(nil, plan.JobInfo.Namespace, plan.JobInfo.ID)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("plan missing embedded job")
 	}
 
 	// Setup the update request

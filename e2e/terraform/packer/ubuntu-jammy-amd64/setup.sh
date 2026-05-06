@@ -33,7 +33,7 @@ sudo apt-get install -y \
      apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
-curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.0/hc-install_0.9.0_linux_amd64.zip
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.4/hc-install_0.9.4_linux_amd64.zip
 sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
 
@@ -122,7 +122,7 @@ echo "Installing Podman"
 sudo apt-get -y install podman catatonit
 
 echo "Installing Podman Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-podman
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.6.4 nomad-driver-podman
 
 # Pledge
 echo "Installing Pledge Driver"

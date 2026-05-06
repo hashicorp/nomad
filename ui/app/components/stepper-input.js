@@ -5,8 +5,7 @@
 
 import Component from '@ember/component';
 import { action } from '@ember/object';
-import { debounce } from '@ember/runloop';
-import { oneWay } from '@ember/object/computed';
+import { debounce, join } from '@ember/runloop';
 import { classNames, classNameBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
@@ -18,47 +17,56 @@ const ESC = 27;
   'class',
   'disabled:is-disabled',
   'disabled:tooltip',
-  'disabled:multiline'
+  'disabled:multiline',
 )
 export default class StepperInput extends Component {
   min = 0;
   max = 10;
   value = 0;
+  internalValue = 0;
   debounce = 500;
   onChange() {}
 
-  // Internal value changes immediately for instant visual feedback.
-  // Value is still the public API and is expected to mutate and re-render
-  // On onChange which is debounced.
-  @oneWay('value') internalValue;
+  didReceiveAttrs() {
+    super.didReceiveAttrs(...arguments);
+    this.set('internalValue', Number(this.value ?? 0));
+  }
 
   @action
   increment() {
-    if (this.internalValue < this.max) {
-      this.incrementProperty('internalValue');
-      this.update(this.internalValue);
-    }
+    join(this, () => {
+      if (this.internalValue < this.max) {
+        const nextValue = this.internalValue + 1;
+        this.set('internalValue', nextValue);
+        this.update(nextValue);
+      }
+    });
   }
 
   @action
   decrement() {
-    if (this.internalValue > this.min) {
-      this.decrementProperty('internalValue');
-      this.update(this.internalValue);
-    }
+    join(this, () => {
+      if (this.internalValue > this.min) {
+        const nextValue = this.internalValue - 1;
+        this.set('internalValue', nextValue);
+        this.update(nextValue);
+      }
+    });
   }
 
   @action
   setValue(e) {
-    if (e.target.value !== '') {
-      const newValue = Math.floor(
-        Math.min(this.max, Math.max(this.min, e.target.value))
-      );
-      this.set('internalValue', newValue);
-      this.update(this.internalValue);
-    } else {
-      e.target.value = this.internalValue;
-    }
+    join(this, () => {
+      if (e.target.value !== '') {
+        const newValue = Math.floor(
+          Math.min(this.max, Math.max(this.min, e.target.value)),
+        );
+        this.set('internalValue', newValue);
+        this.update(newValue);
+      } else {
+        e.target.value = this.internalValue;
+      }
+    });
   }
 
   @action

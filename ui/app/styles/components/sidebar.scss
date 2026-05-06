@@ -8,7 +8,7 @@ $subNavOffset: 49px;
 
 .sidebar {
   position: fixed;
-  background: #ffffff;
+  background: #fff;
   width: 750px;
   padding: 24px;
   right: 0%;
@@ -19,10 +19,14 @@ $subNavOffset: 49px;
   transition-duration: 150ms;
   transition-timing-function: ease;
   z-index: $z-modal;
+
   &.open {
     transform: translateX(0%);
-    box-shadow: 6px 6px rgba(0, 0, 0, 0.06), 0px 12px 16px rgba(0, 0, 0, 0.2);
+    box-shadow:
+      6px 6px rgb(0 0 0 / 6%),
+      0 12px 16px rgb(0 0 0 / 20%);
   }
+
   &.has-subnav {
     top: calc($topNavOffset + $subNavOffset);
   }
@@ -33,7 +37,6 @@ $subNavOffset: 49px;
 
   .button.widener {
     position: absolute;
-    left: 0;
     top: calc(50% - 16px);
     width: 32px;
     height: 32px;
@@ -52,10 +55,12 @@ $subNavOffset: 49px;
       min-height: 200px;
       grid-template-rows: auto 1fr;
       overflow: hidden;
+
       & > .boxed-section-body {
         overflow: auto;
       }
     }
+
     & > div,
     h1.title {
       margin: 0;
@@ -79,8 +84,7 @@ $subNavOffset: 49px;
 }
 
 .related-evaluations {
-  overflow-x: scroll;
-  overflow-y: hidden;
+  overflow: scroll hidden;
 }
 
 .evaluation-actors {
@@ -105,6 +109,7 @@ $subNavOffset: 49px;
   &.has-events {
     grid-template-rows: auto minmax(auto, 25%) 1fr;
   }
+
   header {
     display: grid;
     justify-content: left;
@@ -129,8 +134,8 @@ $subNavOffset: 49px;
       margin-left: 1rem;
       text-transform: capitalize;
 
-      &:before {
-        content: '';
+      &::before {
+        content: "";
         display: inline-block;
         height: 1rem;
         width: 1rem;
@@ -140,13 +145,15 @@ $subNavOffset: 49px;
         top: 2px;
       }
 
-      &.running:before {
+      &.running::before {
         background-color: $green;
       }
-      &.dead:before {
+
+      &.dead::before {
         background-color: $red;
       }
-      &.pending:before {
+
+      &.pending::before {
         background-color: $grey-lighter;
       }
     }
@@ -161,9 +168,11 @@ $subNavOffset: 49px;
   .task-log {
     display: grid;
     grid-template-rows: auto 1fr;
+
     .boxed-section-body {
       overflow: auto;
     }
+
     .notification {
       grid-row: -1;
     }

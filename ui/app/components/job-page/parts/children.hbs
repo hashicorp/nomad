@@ -6,7 +6,7 @@
 <div class="boxed-section-head">
   Job Launches
   {{#if this.job.parameterized}}
-    {{#if (can "dispatch job" namespace=this.job.namespace)}}
+    {{#if (can "dispatch job" namespace=this.job.namespaceId)}}
       <LinkTo
         data-test-dispatch-button
         @route="jobs.job.dispatch"
@@ -28,19 +28,21 @@
   {{/if}}
 </div>
 <div
-  class="boxed-section-body {{if this.sortedChildren.length "is-full-bleed"}}"
+  class="boxed-section-body {{if this.sortedChildren.length 'is-full-bleed'}}"
 >
   {{#if this.sortedChildren}}
     <ListPagination
       @source={{this.sortedChildren}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}} as |p|
+      @page={{this.currentPage}}
+      as |p|
     >
       <ListTable
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot"
+        as |t|
       >
         <t.head data-test-jobs-header>
           <t.sort-by @prop="name">
@@ -57,13 +59,11 @@
           </th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          <ChildJobRow
-            @job={{row.model}}
-          />
+          <ChildJobRow @job={{row.model}} />
         </t.body>
       </ListTable>
       <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <PageSizeSelect @onChange={{this.resetPagination}} />
         <nav class="pagination">
           <div class="pagination-numbers">
             {{p.startsAt}}

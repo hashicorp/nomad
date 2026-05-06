@@ -6,7 +6,7 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import RSVP from 'rsvp';
@@ -16,7 +16,7 @@ module('Integration | Component | image file', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
-    <ImageFile @src={{src}} @alt={{alt}} @size={{size}} />
+    <ImageFile @src={{this.src}} @alt={{this.alt}} @size={{this.size}} />
   `;
 
   const commonProperties = {
@@ -26,17 +26,15 @@ module('Integration | Component | image file', function (hooks) {
   };
 
   test('component displays the image', async function (assert) {
-    assert.expect(3);
-
     this.setProperties(commonProperties);
 
     await render(commonTemplate);
 
     assert.ok(find('img'), 'Image is in the DOM');
-    assert.equal(
+    assert.deepEqual(
       find('img').getAttribute('src'),
       commonProperties.src,
-      `src is ${commonProperties.src}`
+      `src is ${commonProperties.src}`,
     );
 
     await componentA11yAudit(this.element, assert);
@@ -49,20 +47,20 @@ module('Integration | Component | image file', function (hooks) {
 
     assert.ok(find('a'), 'Anchor');
     assert.ok(find('a > img'), 'Image in anchor');
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('href'),
       commonProperties.src,
-      `href is ${commonProperties.src}`
+      `href is ${commonProperties.src}`,
     );
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('target'),
       '_blank',
-      'Anchor opens to a new tab'
+      'Anchor opens to a new tab',
     );
-    assert.equal(
+    assert.deepEqual(
       find('a').getAttribute('rel'),
       'noopener noreferrer',
-      'Anchor rel correctly bars openers and referrers'
+      'Anchor rel correctly bars openers and referrers',
     );
   });
 
@@ -73,7 +71,7 @@ module('Integration | Component | image file', function (hooks) {
     this.set('spy', wrapper);
 
     render(hbs`
-      <ImageFile @src={{src}} @alt={{alt}} @size={{size}} @updateImageMeta={{spy}} />
+      <ImageFile @src={{this.src}} @alt={{this.alt}} @size={{this.size}} @updateImageMeta={{this.spy}} />
     `);
 
     await notifier;
@@ -87,14 +85,14 @@ module('Integration | Component | image file', function (hooks) {
 
     const statsEl = find('[data-test-file-stats]');
     assert.ok(
-      /\d+px \u00d7 \d+px/.test(statsEl.textContent),
-      'Width and height are formatted correctly'
+      /\d+px\s*\u00d7\s*\d+px/.test(statsEl.textContent),
+      'Width and height are formatted correctly',
     );
     assert.ok(
       statsEl.textContent
         .trim()
         .endsWith(formatBytes(commonProperties.size) + ')'),
-      'Human-formatted size is included'
+      'Human-formatted size is included',
     );
   });
 });

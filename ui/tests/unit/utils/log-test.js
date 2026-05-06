@@ -47,7 +47,7 @@ const Log = _Log.extend({
       'url',
       'params',
       'logFetch',
-      'write'
+      'write',
     );
     this.set('logStreamer', MockStreamer.create(props));
   },
@@ -85,8 +85,6 @@ module('Unit | Util | Log', function (hooks) {
   });
 
   test('gotoHead builds the correct URL', async function (assert) {
-    assert.expect(1);
-
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=0&origin=start`;
     const log = Log.create(mocks);
@@ -95,7 +93,7 @@ module('Unit | Util | Log', function (hooks) {
       log.get('gotoHead').perform();
       assert.ok(
         fetchSpy.calledWith(expectedUrl),
-        `gotoHead URL was ${expectedUrl}`
+        `gotoHead URL was ${expectedUrl}`,
       );
     });
   });
@@ -116,18 +114,16 @@ module('Unit | Util | Log', function (hooks) {
     await settled();
     assert.ok(
       log.get('output').toString().endsWith(truncationMessage),
-      'Truncation message is shown'
+      'Truncation message is shown',
     );
-    assert.equal(
+    assert.strictEqual(
       log.get('output').toString().length,
       50000 + truncationMessage.length,
-      'Output is truncated the appropriate amount'
+      'Output is truncated the appropriate amount',
     );
   });
 
   test('gotoTail builds the correct URL', async function (assert) {
-    assert.expect(1);
-
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=50000&origin=end`;
     const log = Log.create(mocks);
@@ -136,7 +132,7 @@ module('Unit | Util | Log', function (hooks) {
       log.get('gotoTail').perform();
       assert.ok(
         fetchSpy.calledWith(expectedUrl),
-        `gotoTail URL was ${expectedUrl}`
+        `gotoTail URL was ${expectedUrl}`,
       );
     });
   });
@@ -146,10 +142,10 @@ module('Unit | Util | Log', function (hooks) {
 
     log.startStreaming();
     assert.ok(startSpy.calledOnce, 'Streaming started');
-    assert.equal(
+    assert.strictEqual(
       log.get('logPointer'),
       'tail',
-      'Streaming points the log to the tail'
+      'Streaming points the log to the tail',
     );
   });
 
@@ -160,19 +156,27 @@ module('Unit | Util | Log', function (hooks) {
     const chunk3 = '\n\nEOF';
 
     log.startStreaming();
-    assert.equal(log.get('output'), '', 'No output yet');
+    assert.strictEqual(String(log.get('output')), '', 'No output yet');
 
     log.get('logStreamer').step(chunk1);
-    assert.equal(log.get('output'), chunk1, 'First chunk written');
+    assert.strictEqual(
+      String(log.get('output')),
+      chunk1,
+      'First chunk written',
+    );
 
     log.get('logStreamer').step(chunk2);
-    assert.equal(log.get('output'), chunk1 + chunk2, 'Second chunk written');
+    assert.strictEqual(
+      String(log.get('output')),
+      chunk1 + chunk2,
+      'Second chunk written',
+    );
 
     log.get('logStreamer').step(chunk3);
-    assert.equal(
-      log.get('output'),
+    assert.strictEqual(
+      String(log.get('output')),
       chunk1 + chunk2 + chunk3,
-      'Third chunk written'
+      'Third chunk written',
     );
   });
 

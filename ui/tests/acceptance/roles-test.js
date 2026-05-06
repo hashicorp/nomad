@@ -22,11 +22,11 @@ module('Acceptance | roles', function (hooks) {
     faker.seed(1);
     window.localStorage.clear();
     window.sessionStorage.clear();
-    allScenarios.rolesTestCluster(server);
+    allScenarios.rolesTestCluster(this.server);
     await Tokens.visit();
-    const managementToken = server.db.tokens.findBy(
-      (t) => t.type === 'management'
-    );
+    const managementToken = this.server.db.tokens.findBy({
+      type: 'management',
+    });
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
     await Administration.visitRoles();
@@ -38,14 +38,13 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles index, general', async function (assert) {
-    assert.expect(3);
     await a11yAudit(assert);
 
-    assert.equal(currentURL(), '/administration/roles');
+    assert.deepEqual(currentURL(), '/administration/roles');
 
     assert
       .dom('[data-test-role-row]')
-      .exists({ count: server.db.roles.length });
+      .exists({ count: this.server.db.roles.length });
 
     await percySnapshot(assert);
   });
@@ -69,26 +68,25 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles have policies lists', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = this.server.db.roles.findBy({ name: 'reader' });
     const roleRow = find(`[data-test-role-row="${role.name}"]`);
     const rolePoliciesCell = roleRow.querySelector('[data-test-role-policies]');
     const policiesCellTags = rolePoliciesCell
       .querySelector('.tag-group')
       .querySelectorAll('span');
-    assert.equal(policiesCellTags.length, 2);
-    assert.equal(policiesCellTags[0].textContent.trim(), 'client-reader');
-    assert.equal(policiesCellTags[1].textContent.trim(), 'job-reader');
+    assert.deepEqual(policiesCellTags.length, 2);
+    assert.deepEqual(policiesCellTags[0].textContent.trim(), 'client-reader');
+    assert.deepEqual(policiesCellTags[1].textContent.trim(), 'job-reader');
 
     await click(policiesCellTags[0].querySelector('a'));
-    assert.equal(currentURL(), '/administration/policies/client-reader');
+    assert.deepEqual(currentURL(), '/administration/policies/client-reader');
     assert.dom('[data-test-title]').containsText('client-reader');
   });
 
   test('Edit Role: Name and Description', async function (assert) {
-    assert.expect(8);
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = this.server.db.roles.findBy({ name: 'reader' });
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/administration/roles/${role.id}`);
+    assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
 
     assert.dom('[data-test-role-name-input]').hasValue(role.name);
     assert.dom('[data-test-role-description-input]').hasValue(role.description);
@@ -99,10 +97,10 @@ module('Acceptance | roles', function (hooks) {
     await fillIn('[data-test-role-description-input]', 'edited description');
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/administration/roles/${role.name}`,
-      'remain on page after save'
+      'remain on page after save',
     );
     await percySnapshot(assert);
 
@@ -110,28 +108,31 @@ module('Acceptance | roles', function (hooks) {
     await Administration.visitRoles();
     let readerRoleRow = find('[data-test-role-row="reader-edited"]');
     assert.dom(readerRoleRow).exists();
-    assert.equal(
+    assert.deepEqual(
       readerRoleRow
         .querySelector('[data-test-role-description]')
         .textContent.trim(),
-      'edited description'
+      'edited description',
     );
   });
 
   test('Edit Role: Policies', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = this.server.db.roles.findBy({ name: 'reader' });
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/administration/roles/${role.id}`);
+    assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
 
     // Policies table is sortable
 
     const nameCells = findAll('[data-test-policy-name]');
     const nameCellText = nameCells.map((cell) => cell.textContent.trim());
-    const sortedNameCellText = nameCellText.slice().sort();
+    const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+    const sortedNameCellText = nameCellText
+      .slice()
+      .sort((a, b) => collator.compare(a, b));
     assert.deepEqual(
       nameCellText,
       sortedNameCellText,
-      'Policy names are sorted alphabetically'
+      'Policy names are sorted alphabetically',
     );
 
     // Click on the second thead tr th to reverse
@@ -147,47 +148,50 @@ module('Acceptance | roles', function (hooks) {
 
     const reversedNameCells = findAll('[data-test-policy-name]');
     const reversedNameCellText = reversedNameCells.map((cell) =>
-      cell.textContent.trim()
+      cell.textContent.trim(),
     );
-    const reversedSortedNameCellText = nameCellText.slice().sort().reverse();
+    const reversedSortedNameCellText = nameCellText
+      .slice()
+      .sort((a, b) => collator.compare(a, b))
+      .reverse();
 
     assert.deepEqual(
       reversedNameCellText,
       reversedSortedNameCellText,
-      'Names are reversed alphabetically after click'
+      'Names are reversed alphabetically after click',
     );
 
     // Make sure the correct policies are checked
     const rolePolicies = role.policyIds;
     // All possible policies are shown
-    const allPolicies = server.db.policies;
-    assert.equal(
+    const allPolicies = this.server.db.policies;
+    assert.deepEqual(
       findAll('[data-test-role-policies] tbody tr').length,
       allPolicies.length,
-      'all policies are shown'
+      'all policies are shown',
     );
 
     const checkedPolicyRows = findAll(
-      '[data-test-role-policies] tbody tr input:checked'
+      '[data-test-role-policies] tbody tr input:checked',
     );
 
-    assert.equal(
+    assert.deepEqual(
       checkedPolicyRows.length,
       rolePolicies.length,
-      'correct number of policies are checked'
+      'correct number of policies are checked',
     );
 
     const checkedPolicyNames = checkedPolicyRows.map((row) =>
       row
         .closest('tr')
         .querySelector('[data-test-policy-name]')
-        .textContent.trim()
+        .textContent.trim(),
     );
 
     assert.deepEqual(
       checkedPolicyNames.sort(),
       rolePolicies.sort(),
-      'All policies belonging to this role are checked'
+      'All policies belonging to this role are checked',
     );
 
     // Try de-selecting all policies and saving
@@ -199,7 +203,7 @@ module('Acceptance | roles', function (hooks) {
 
     // Check all policies
     findAll('[data-test-role-policies] tbody tr input').forEach((row) =>
-      row.click()
+      row.click(),
     );
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
@@ -209,19 +213,18 @@ module('Acceptance | roles', function (hooks) {
     const readerRolePolicies = readerRoleRow
       .querySelector('[data-test-role-policies]')
       .querySelectorAll('span');
-    assert.equal(
+    assert.deepEqual(
       readerRolePolicies.length,
       allPolicies.length,
-      'all policies are attached to the role at index level'
+      'all policies are attached to the role at index level',
     );
   });
 
   test('Edit Role: Tokens', async function (assert) {
-    assert.expect(10);
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = this.server.db.roles.findBy({ name: 'reader' });
 
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/administration/roles/${role.id}`);
+    assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
     assert.dom('table.tokens').exists();
 
     // "Reader" role has a single token with it applied by default
@@ -250,13 +253,13 @@ module('Acceptance | roles', function (hooks) {
       .dom('[data-test-token-name="Example Token for reader"]')
       .exists(
         { count: 2 },
-        'The two newly-created tokens are listed on the tokens index page'
+        'The two newly-created tokens are listed on the tokens index page',
       );
   });
   test('Edit Role: Deletion', async function (assert) {
-    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    const role = this.server.db.roles.findBy({ name: 'reader' });
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/administration/roles/${role.id}`);
+    assert.deepEqual(currentURL(), `/administration/roles/${role.id}`);
     const deleteButton = find('[data-test-delete-role] button');
     assert.dom(deleteButton).exists('delete button is present');
     await click(deleteButton);
@@ -265,12 +268,12 @@ module('Acceptance | roles', function (hooks) {
       .exists('confirmation message is present');
     await click(find('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/administration/roles');
+    assert.deepEqual(currentURL(), '/administration/roles');
     assert.dom('[data-test-role-row="reader"]').doesNotExist();
   });
   test('New Role', async function (assert) {
     await click('[data-test-create-role]');
-    assert.equal(currentURL(), '/administration/roles/new');
+    assert.deepEqual(currentURL(), '/administration/roles/new');
     await fillIn('[data-test-role-name-input]', 'test-role');
     await click('button[data-test-save-role]');
     assert
@@ -281,7 +284,7 @@ module('Acceptance | roles', function (hooks) {
     await click('[data-test-role-policies] tbody tr input');
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/administration/roles/1'); // default id created via mirage
+    assert.deepEqual(currentURL(), '/administration/roles/1'); // default id created via mirage
     await Administration.visitRoles();
     assert.dom('[data-test-role-row="test-role"]').exists();
 

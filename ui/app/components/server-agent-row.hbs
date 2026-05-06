@@ -3,12 +3,14 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<td data-test-server-name
-  {{keyboard-shortcut
-    enumerated=true
-    action=(action this.goToAgent)
-  }}
-><LinkTo @route="servers.server" @model={{this.agent.id}} class="is-primary">{{this.agent.name}}</LinkTo></td>
+<td
+  data-test-server-name
+  {{keyboard-shortcut enumerated=true action=this.goToAgent}}
+><LinkTo
+    @route="servers.server"
+    @model={{this.agent.id}}
+    class="is-primary"
+  >{{this.agent.name}}</LinkTo></td>
 <td data-test-server-status><span>
     <Hds::Badge
       @text={{capitalize this.agent.status}}
@@ -33,7 +35,10 @@
     class="no-wrap"
   />
 </td>
-<td data-test-server-address class="is-200px is-truncatable">{{this.agent.address}}</td>
+<td
+  data-test-server-address
+  class="is-200px is-truncatable"
+>{{this.agent.address}}</td>
 <td data-test-server-port>{{this.agent.serfPort}}</td>
 <td data-test-server-datacenter>{{this.agent.datacenter}}</td>
 <td data-test-server-version>{{this.agent.version}}</td>

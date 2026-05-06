@@ -6,7 +6,7 @@
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
@@ -61,21 +61,22 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
   `;
 
   test('presents as a div with a label and a FlexMasonry with a collection of nodes', async function (assert) {
-    assert.expect(3);
-
     this.setProperties(
       commonProps({
         datacenter: {
           name: 'dc1',
           nodes: [nodeGen('node-1', 'dc1', 1000, 500)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
 
     assert.ok(TopoVizDatacenter.isPresent);
-    assert.equal(TopoVizDatacenter.nodes.length, this.datacenter.nodes.length);
+    assert.deepEqual(
+      TopoVizDatacenter.nodes.length,
+      this.datacenter.nodes.length,
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -98,14 +99,14 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
             nodeGen('node-4', 'dc1', 3000, 200),
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
 
     const allocs = this.datacenter.nodes.reduce(
       (allocs, node) => allocs.concat(node.allocations),
-      []
+      [],
     );
     const memoryReserved = allocs.reduce(sumBy('memory'), 0);
     const cpuReserved = allocs.reduce(sumBy('cpu'), 0);
@@ -114,21 +115,21 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
 
     assert.ok(TopoVizDatacenter.label.includes(this.datacenter.name));
     assert.ok(
-      TopoVizDatacenter.label.includes(`${this.datacenter.nodes.length} Nodes`)
+      TopoVizDatacenter.label.includes(`${this.datacenter.nodes.length} Nodes`),
     );
     assert.ok(TopoVizDatacenter.label.includes(`${allocs.length} Allocs`));
     assert.ok(
       TopoVizDatacenter.label.includes(
         `${formatBytes(memoryReserved, 'MiB')} / ${formatBytes(
           memoryTotal,
-          'MiB'
-        )}`
-      )
+          'MiB',
+        )}`,
+      ),
     );
     assert.ok(
       TopoVizDatacenter.label.includes(
-        `${formatHertz(cpuReserved, 'MHz')} / ${formatHertz(cpuTotal, 'MHz')}`
-      )
+        `${formatHertz(cpuReserved, 'MHz')} / ${formatHertz(cpuTotal, 'MHz')}`,
+      ),
     );
   });
 
@@ -143,7 +144,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
             nodeGen('node-2', 'dc1', 1000, 500),
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -155,8 +156,6 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
   });
 
   test('args get passed down to the TopViz::Node children', async function (assert) {
-    assert.expect(4);
-
     const heightSpy = sinon.spy();
     this.setProperties(
       commonProps({
@@ -171,7 +170,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
             nodeGen('node-1', 'dc1', 1000, 500, [{ memory: 100, cpu: 300 }]),
           ],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
@@ -186,8 +185,8 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       await TopoVizNode.memoryRects[0].select();
       assert.ok(
         this.onAllocationSelect.calledWith(
-          this.datacenter.nodes[0].allocations[0]
-        )
+          this.datacenter.nodes[0].allocations[0],
+        ),
       );
     });
   });

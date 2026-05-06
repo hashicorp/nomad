@@ -13,11 +13,10 @@ import (
 	"time"
 
 	"github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/moby/moby/api/types/registry"
+	mclient "github.com/moby/moby/client"
 )
 
 var (
@@ -72,9 +71,9 @@ func (p *pullFuture) set(imageID, imageUser string, err error) {
 // DockerImageClient provides the methods required to do CRUD operations on the
 // Docker images
 type DockerImageClient interface {
-	ImagePull(ctx context.Context, refStr string, opts image.PullOptions) (io.ReadCloser, error)
-	ImageInspectWithRaw(ctx context.Context, id string) (types.ImageInspect, []byte, error)
-	ImageRemove(ctx context.Context, id string, opts image.RemoveOptions) ([]image.DeleteResponse, error)
+	ImagePull(ctx context.Context, refStr string, opts mclient.ImagePullOptions) (mclient.ImagePullResponse, error)
+	ImageInspect(ctx context.Context, id string, inspectOpts ...mclient.ImageInspectOption) (mclient.ImageInspectResult, error)
+	ImageRemove(ctx context.Context, id string, opts mclient.ImageRemoveOptions) (mclient.ImageRemoveResult, error)
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
@@ -205,7 +204,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 		auth = *authOptions
 	}
 
-	pullOptions := image.PullOptions{RegistryAuth: auth.Auth}
+	pullOptions := mclient.ImagePullOptions{RegistryAuth: auth.Auth}
 	reader, err := d.client.ImagePull(pullCtx, dockerImageRef(repo, tag), pullOptions)
 
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -230,7 +229,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 
 	d.logger.Debug("docker pull succeeded", "image_ref", dockerImageRef(repo, tag))
 
-	dockerImage, _, err := d.client.ImageInspectWithRaw(d.ctx, imageID)
+	dockerImage, err := d.client.ImageInspect(d.ctx, imageID)
 	if err != nil {
 		d.logger.Error("failed getting image id", "image_name", imageID, "error", err)
 		return "", "", recoverableErrTimeouts(err)
@@ -344,7 +343,7 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	d.imageLock.Unlock()
 
 	for i := 0; i < 3; i++ {
-		_, err := d.client.ImageRemove(d.ctx, id, image.RemoveOptions{
+		_, err := d.client.ImageRemove(d.ctx, id, mclient.ImageRemoveOptions{
 			Force: true, // necessary to GC images referenced by multiple tags
 		})
 		if err == nil {

@@ -17,18 +17,22 @@
   min-width: 150px;
   margin-top: -10px;
   transform: translate(-50%, -100%);
-  transition: 0.2s top ease-out, 0.2s left ease-out;
+  transition:
+    0.2s top ease-out,
+    0.2s left ease-out;
   pointer-events: none;
   z-index: $z-tooltip;
 
   &.is-snappy {
-    transition: 0.2s top ease-out, 0.05s left ease-out;
+    transition:
+      0.2s top ease-out,
+      0.05s left ease-out;
   }
 
   &::before {
     pointer-events: none;
     display: inline-block;
-    content: '';
+    content: "";
     width: 0;
     height: 0;
     border-top: 7px solid $grey;
@@ -44,7 +48,7 @@
   &::after {
     pointer-events: none;
     display: inline-block;
-    content: '';
+    content: "";
     width: 0;
     height: 0;
     border-top: 6px solid $white;

@@ -18,7 +18,7 @@ export default class Client extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesIncludeNodeWrite'
+    'policiesIncludeNodeWrite',
   )
   canWrite;
 
@@ -39,11 +39,13 @@ export default class Client extends AbstractAbility {
 }
 
 function policiesIncludePermissions(policies = [], permissions = []) {
+  const policyList =
+    typeof policies?.toArray === 'function' ? policies.toArray() : policies;
+
   // For each policy record, extract the Node policy
-  const nodePolicies = policies
-    .toArray()
+  const nodePolicies = policyList
     .map((policy) => get(policy, 'rulesJSON.Node.Policy'))
-    .compact();
+    .filter(Boolean);
 
   // Check for requested permissions
   return nodePolicies.some((policy) => permissions.includes(policy));

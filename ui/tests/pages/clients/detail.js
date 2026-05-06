@@ -35,7 +35,7 @@ export default create({
   statusDefinition: text('[data-test-status-definition]'),
   statusDecorationClass: attribute(
     'class',
-    '[data-test-status-definition] .status-text'
+    '[data-test-status-definition] .status-text',
   ),
   addressDefinition: text('[data-test-address-definition]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
@@ -75,7 +75,7 @@ export default create({
     {
       key: text('[data-test-key]'),
       value: text('[data-test-value]'),
-    }
+    },
   ),
 
   error: {
@@ -110,7 +110,7 @@ export default create({
       healthClass: attribute('class', '[data-test-health] .color-swatch'),
 
       toggle: clickable('[data-test-accordion-toggle]'),
-    }
+    },
   ),
 
   driverBodies: collection(
@@ -119,7 +119,7 @@ export default create({
       description: text('[data-test-health-description]'),
       descriptionIsShown: isPresent('[data-test-health-description]'),
       attributesAreShown: isPresent('[data-test-driver-attributes]'),
-    }
+    },
   ),
 
   drainDetails: {
@@ -150,7 +150,7 @@ export default create({
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
       open: clickable(
-        '[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'
+        '[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger',
       ),
       options: collection('.ember-power-select-option', {
         label: text(),
@@ -181,12 +181,12 @@ export default create({
   stopDrainError: notification('[data-test-stop-drain-error]'),
   drainError: notification('[data-test-drain-error]'),
   drainStoppedNotification: notification(
-    '[data-test-drain-stopped-notification]'
+    '[data-test-drain-stopped-notification]',
   ),
   drainUpdatedNotification: notification(
-    '[data-test-drain-updated-notification]'
+    '[data-test-drain-updated-notification]',
   ),
   drainCompleteNotification: notification(
-    '[data-test-drain-complete-notification]'
+    '[data-test-drain-complete-notification]',
   ),
 });

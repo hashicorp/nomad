@@ -19,7 +19,7 @@ import (
 
 func newTestPool(t *testing.T) *ConnPool {
 	l := testlog.HCLogger(t)
-	p := NewPool(l, 1*time.Minute, 10, nil, yamux.DefaultConfig())
+	p := NewPool(l, 1*time.Minute, 10, nil, yamux.DefaultConfig(), 10*time.Second)
 	return p
 }
 
@@ -30,10 +30,19 @@ func Test_NewPool(t *testing.T) {
 	yamuxConfig := yamux.DefaultConfig()
 	yamuxConfig.AcceptBacklog = math.MaxInt
 
-	testPool := NewPool(hclog.NewNullLogger(), 10*time.Second, 10, nil, yamuxConfig)
+	testPool := NewPool(hclog.NewNullLogger(), 10*time.Second, 10, nil, yamuxConfig, 15*time.Second)
 	must.NotNil(t, testPool)
 	must.NotNil(t, testPool.yamuxCfg)
 	must.Eq(t, yamuxConfig.AcceptBacklog, testPool.yamuxCfg.AcceptBacklog)
+	must.Eq(t, 15*time.Second, testPool.dialTimeout)
+}
+
+func Test_NewPool_DefaultDialTimeout(t *testing.T) {
+	// A zero (or negative) dial timeout should fall back to the default
+	// rather than dialing with no timeout at all.
+	testPool := NewPool(hclog.NewNullLogger(), 10*time.Second, 10, nil, yamux.DefaultConfig(), 0)
+	must.NotNil(t, testPool)
+	must.Eq(t, defaultDialTimeout, testPool.dialTimeout)
 }
 
 func TestConnPool_ConnListener(t *testing.T) {

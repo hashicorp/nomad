@@ -34,7 +34,7 @@ export default class StatsTimeSeries extends Component {
     const duration = formatDuration(xRange[1] - xRange[0], 'ms', true);
 
     return `Time series data for the last ${duration}, with values ranging from ${yFormatter(
-      yRange[0]
+      yRange[0],
     )} to ${yFormatter(yRange[1])}`;
   }
 
@@ -54,7 +54,7 @@ export default class StatsTimeSeries extends Component {
 
   yScale(data, xAxisOffset) {
     const yValues = (data || []).mapBy(
-      this.args.dataProp ? 'percentStack' : 'percent'
+      this.args.dataProp ? 'percentStack' : 'percent',
     );
 
     let [low, high] = [0, 1];

@@ -13,7 +13,7 @@ export default class JobPlan extends Model {
   @fragmentArray('placement-failure', { defaultValue: () => [] })
   failedTGAllocs;
 
-  @hasMany('allocation') preemptions;
+  @hasMany('allocation', { async: true, inverse: null }) preemptions;
 
   @attr('string') warnings;
 }
