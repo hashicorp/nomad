@@ -222,14 +222,23 @@ type SchedulerSetConfigurationResponse struct {
 	WriteMeta
 }
 
-// SchedulerAlgorithm is an enum string that encapsulates the valid options for a
-// SchedulerConfiguration block's SchedulerAlgorithm. These modes will allow the
-// scheduler to be user-selectable.
-type SchedulerAlgorithm string
+// Enum strings that encapsulate the valid options for a
+// their respective scheduler configuration blocks. These modes
+// allow the config to be user-selectable.
+type (
+	SchedulerAlgorithm string
+	BatchQueueTenant   string
+	BatchQueueType     string
+)
 
 const (
 	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
 	SchedulerAlgorithmSpread  SchedulerAlgorithm = "spread"
+
+	BatchQueueTypeDynamic BatchQueueType = "dynamicPriority"
+
+	BatchQueueTenantMetadata  BatchQueueTenant = "metadata"
+	BatchQueueTenantNamespace BatchQueueTenant = "namespace"
 )
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
@@ -243,8 +252,8 @@ type PreemptionConfig struct {
 // BatchQueue is the configuration for a batch job queue used to control scheduling
 // of batch jobs.
 type BatchQueue struct {
-	Type        string
-	TenantType  string
+	Type        BatchQueueType
+	TenantType  BatchQueueTenant
 	MetadataKey string
 	Config      map[string]any
 }

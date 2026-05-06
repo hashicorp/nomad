@@ -359,18 +359,26 @@ type PreemptionConfig struct {
 	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
 }
 
+type (
+	BatchQueueType   string
+	BatchQueueTenant string
+)
+
 const (
-	QueueTypeDynamicPriority = "dynamicPriority"
+	BatchQueueTypeDynamic BatchQueueType = "dynamicPriorty"
+
+	TenantTypeMetadata  BatchQueueTenant = "metadata"
+	TenantTypeNamespace BatchQueueTenant = "namespace"
 
 	DynamicCalcInterval = "calc_interval"
 	DynamicMaxAge       = "max_age"
 )
 
 type BatchQueue struct {
-	Type        string         `hcl:"type"`
-	TenantType  string         `hcl:"tenant_type"`
-	MetadataKey string         `hcl:"metadata_key"`
-	Config      map[string]any `hcl:"config"`
+	Type        BatchQueueType   `hcl:"type"`
+	TenantType  BatchQueueTenant `hcl:"tenant_type"`
+	MetadataKey string           `hcl:"metadata_key"`
+	Config      map[string]any   `hcl:"config"`
 }
 
 type DynamicQueueConfig struct {
@@ -407,7 +415,7 @@ func (b *BatchQueue) Validate() error {
 	}
 
 	switch b.Type {
-	case QueueTypeDynamicPriority:
+	case BatchQueueTypeDynamic:
 		if err := validateDuration(b.Config[DynamicCalcInterval]); err != nil {
 			return fmt.Errorf("failed to parse calc_interval: %v", err)
 		}
@@ -418,12 +426,14 @@ func (b *BatchQueue) Validate() error {
 		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
 	}
 
-	if b.TenantType != "namespace" && b.TenantType != "metadata" {
+	switch b.TenantType {
+	case TenantTypeNamespace:
+	case TenantTypeMetadata:
+		if b.MetadataKey == "" {
+			return fmt.Errorf("metadata key must be specified if using metadata tenency")
+		}
+	default:
 		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
-	}
-
-	if b.TenantType == "metadata" && b.MetadataKey == "" {
-		return fmt.Errorf("metadata key must be specified if using metadata tenency")
 	}
 
 	return nil

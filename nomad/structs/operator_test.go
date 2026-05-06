@@ -199,7 +199,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 		{
 			name: "invalid metadata type",
 			batchConfig: BatchQueue{
-				Type:       "dynamicPriority",
+				Type:       BatchQueueTypeDynamic,
 				TenantType: "foo",
 			},
 			err: "unsupported tenant type",
@@ -208,23 +208,23 @@ func TestBatchQueue_Validate(t *testing.T) {
 			name: "batch config with no type",
 			batchConfig: BatchQueue{
 				Type:       "",
-				TenantType: "metadata",
+				TenantType: TenantTypeNamespace,
 			},
 			err: "batch queue configuration found but no type specified",
 		},
 		{
 			name: "empty metadata key errors",
 			batchConfig: BatchQueue{
-				Type:       "dynamicPriority",
-				TenantType: "metadata",
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeMetadata,
 			},
 			err: "metadata key must be specified",
 		},
 		{
 			name: "dynamicPriority - invalid interval",
 			batchConfig: BatchQueue{
-				Type:       "dynamicPriority",
-				TenantType: "namespace",
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": "hello",
 				},
@@ -234,8 +234,8 @@ func TestBatchQueue_Validate(t *testing.T) {
 		{
 			name: "dynamicPriority - valid string interval",
 			batchConfig: BatchQueue{
-				Type:       "dynamicPriority",
-				TenantType: "namespace",
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": "1h",
 				},
@@ -245,8 +245,8 @@ func TestBatchQueue_Validate(t *testing.T) {
 		{
 			name: "dynamicPriority - valid int interval",
 			batchConfig: BatchQueue{
-				Type:       "dynamicPriority",
-				TenantType: "namespace",
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": 1000,
 				},
