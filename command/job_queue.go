@@ -104,6 +104,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	if json {
 		if err := c.printJSON(resp); err != nil {
 			c.Ui.Error("Error unmarshaling json response")
+			return 255
 		}
 	} else {
 		c.printFormatted(resp)
