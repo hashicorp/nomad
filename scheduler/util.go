@@ -542,7 +542,7 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 
 // setStatus is used to update the status of the evaluation
 func setStatus(logger log.Logger, planner sstructs.Planner,
-	eval, nextEval, spawnedBlocked *structs.Evaluation,
+	eval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric,
 	annotations *structs.PlanAnnotations,
 	status, desc string,
@@ -554,9 +554,7 @@ func setStatus(logger log.Logger, planner sstructs.Planner,
 	newEval.StatusDescription = desc
 	newEval.DeploymentID = deploymentID
 	newEval.FailedTGAllocs = tgMetrics
-	if nextEval != nil {
-		newEval.NextEval = nextEval.ID
-	}
+
 	if spawnedBlocked != nil {
 		newEval.BlockedEval = spawnedBlocked.ID
 	}
