@@ -108,18 +108,32 @@ module('Acceptance | allocation detail', function (hooks) {
     const expectedDeadline = new Date(
       startedAt.getTime() + maxRunDuration / 1000000
     );
-    const taskGroup = server.db.taskGroups.findBy({ jobId: allocation.jobId });
 
-    job.update({ type: 'batch' });
-    taskGroup.update({ maxRunDuration });
+    const batchJob = server.create('job', {
+      groupsCount: 1,
+      withGroupServices: true,
+      createAllocations: false,
+      type: 'batch',
+    });
+    const taskGroup = server.db.taskGroups.findBy({ jobId: batchJob.id });
+    server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const batchAllocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+      jobId: batchJob.id,
+      taskGroup: taskGroup.name,
+    });
 
     server.db.taskStates
-      .where({ allocationId: allocation.id })
+      .where({ allocationId: batchAllocation.id })
       .forEach((taskState) => {
-        taskState.update({ state: 'running', startedAt });
+        server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
       });
 
-    await Allocation.visit({ id: allocation.id });
+    await Allocation.visit({ id: batchAllocation.id });
 
     assert.ok(
       Allocation.details.maxRunDeadline.includes(

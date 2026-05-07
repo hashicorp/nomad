@@ -377,7 +377,7 @@ module('Acceptance | job detail max run deadline', function (hooks) {
     });
 
     const taskGroup = server.db.taskGroups.where({ jobId: job.id })[0];
-    taskGroup.update({ maxRunDuration });
+    server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
 
     const allocation = server.create('allocation', {
       jobId: job.id,
@@ -388,7 +388,10 @@ module('Acceptance | job detail max run deadline', function (hooks) {
     server.db.taskStates
       .where({ allocationId: allocation.id })
       .forEach((taskState) => {
-        taskState.update({ state: 'running', startedAt });
+        server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
       });
 
     await JobDetail.visit({ id: job.id });

@@ -91,7 +91,7 @@ module("Acceptance | job allocations", function (hooks) {
     );
 
     job.update({ type: "batch" });
-    taskGroup.update({ maxRunDuration });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
 
     const allocation = this.server.create("allocation", {
       jobId: job.id,
@@ -102,7 +102,10 @@ module("Acceptance | job allocations", function (hooks) {
     this.server.db.taskStates
       .where({ allocationId: allocation.id })
       .forEach((taskState) => {
-        taskState.update({ state: "running", startedAt });
+        this.server.db.taskStates.update(taskState.id, {
+          state: "running",
+          startedAt,
+        });
       });
 
     await Allocations.visit({ id: job.id });
