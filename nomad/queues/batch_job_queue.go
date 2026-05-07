@@ -241,6 +241,10 @@ func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
 // have been marked terminal, indicating the workload has been scheduled.
+//
+// Note: If a job with an unsatisfiable contraint is given to the Eval Broker, this function will block
+// until a Nomad operator manually intervenes and stops the job. In the future, we can add an optional
+// configurable timeout for this blocking query.
 func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation, ws memdb.WatchSet) error {
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
