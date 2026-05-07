@@ -26,7 +26,13 @@ type DynamicPriorityQueue struct {
 	// cluster usage is updated for the workloads of each tenant.
 	tenants map[TenantID]Tenant
 
-	// queue is the main datastructure that contains all pending workloads
+	// queue is the main datastructure that contains all pending workloads/
+	// TODO: at the moment, this is using the go stdlib container/heap package,
+	// but we may want to switch to treeset from Hashicorp's go-set.
+	//
+	// Why? Both have O(logn) push/pop. Heap has constant time peeking, but
+	// we don't use that. We do want to iterate over workloads quickly, which
+	// we can do with a red-black tree.
 	queue WorkloadQueue
 
 	// qMux locks the queue during concurrent access
