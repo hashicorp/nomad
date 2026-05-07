@@ -1,0 +1,3 @@
+```release-note:bug
+csi: improve check of StagePublishBaseDir being subdirectory of MountDir
+```
