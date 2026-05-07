@@ -107,6 +107,12 @@ func (c *JobAllocsCommand) Run(args []string) int {
 
 	q := &api.QueryOptions{Namespace: namespace}
 
+	job, _, err := client.Jobs().Info(jobID, q)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+		return 1
+	}
+
 	allocs, _, err := client.Jobs().Allocations(jobID, all, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving allocations: %s", err))
@@ -130,6 +136,6 @@ func (c *JobAllocsCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	c.Ui.Output(formatAllocListStubs(allocs, verbose, length))
+	c.Ui.Output(formatJobAllocListStubs(allocs, job, verbose, length))
 	return 0
 }

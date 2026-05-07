@@ -198,7 +198,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Format the allocation data
 	if short {
-		c.Ui.Output(formatAllocShortInfo(alloc, client))
+		c.Ui.Output(formatAllocShortInfo(alloc))
 	} else {
 		output, err := formatAllocBasicInfo(alloc, client, length, verbose)
 		if err != nil {
@@ -256,7 +256,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func formatAllocShortInfo(alloc *api.Allocation, client *api.Client) string {
+func formatAllocShortInfo(alloc *api.Allocation) string {
 	formattedCreateTime := prettyTimeDiff(time.Unix(0, alloc.CreateTime), time.Now())
 	formattedModifyTime := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), time.Now())
 
@@ -265,6 +265,10 @@ func formatAllocShortInfo(alloc *api.Allocation, client *api.Client) string {
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Created|%s", formattedCreateTime),
 		fmt.Sprintf("Modified|%s", formattedModifyTime),
+	}
+
+	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.TaskStates); ok {
+		basic = append(basic, fmt.Sprintf("Max Run Deadline|%s", formatMaxRunDeadline(deadline, false)))
 	}
 
 	return formatKV(basic)
@@ -295,6 +299,10 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Desired Description|%s", alloc.DesiredDescription),
 		fmt.Sprintf("Created|%s", formattedCreateTime),
 		fmt.Sprintf("Modified|%s", formattedModifyTime),
+	}
+
+	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.TaskStates); ok {
+		basic = append(basic, fmt.Sprintf("Max Run Deadline|%s", formatMaxRunDeadline(deadline, verbose)))
 	}
 
 	if alloc.DeploymentID != "" {
