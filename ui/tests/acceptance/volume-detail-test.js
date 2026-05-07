@@ -127,6 +127,46 @@ module('Acceptance | volume detail', function (hooks) {
       });
   });
 
+  test('write allocations show max run deadline when configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+
+    const batchJob = server.create('job', {
+      type: 'batch',
+      createAllocations: false,
+    });
+    const taskGroup = server.db.taskGroups.findBy({ jobId: batchJob.id });
+    server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const allocation = server.create('allocation', {
+      clientStatus: 'running',
+      jobId: batchJob.id,
+      taskGroup: taskGroup.name,
+      modifyIndex: 999999,
+    });
+    assignWriteAlloc(volume, allocation);
+
+    server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
+
+    assert.equal(
+      VolumeDetail.writeAllocationFor(allocation.id).maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The write allocations table shows the computed max run deadline'
+    );
+  });
+
   test('each allocation should have high-level details for the allocation', async function (assert) {
     const allocation = this.server.create('allocation', {
       clientStatus: 'running',

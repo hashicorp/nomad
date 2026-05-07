@@ -74,6 +74,9 @@
             <th>ID</th>
             <th>Created</th>
             <th>Modified</th>
+            {{#if (allocations-have-max-run-deadline this.sortedAllocations)}}
+              <th>Max Run Deadline</th>
+            {{/if}}
             <th>Status</th>
             <th>Client</th>
             <th>Job</th>
@@ -90,6 +93,9 @@
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
+              @showMaxRunDeadline={{allocations-have-max-run-deadline
+                this.sortedAllocations
+              }}
               @onClick={{fn this.gotoAllocation row.model}}
             />
           </t.body>

@@ -67,6 +67,11 @@
           <th>Task Group</th>
           <th>Created</th>
           <th>Modified</th>
+          {{#if
+            (allocations-have-max-run-deadline @data.planOutput.preemptions)
+          }}
+            <th>Max Run Deadline</th>
+          {{/if}}
           <th>Status</th>
           <th>Version</th>
           <th>Node</th>
@@ -75,7 +80,13 @@
           <th>Memory</th>
         </t.head>
         <t.body as |row|>
-          <AllocationRow @allocation={{row.model}} @context="job" />
+          <AllocationRow
+            @allocation={{row.model}}
+            @context="job"
+            @showMaxRunDeadline={{allocations-have-max-run-deadline
+              @data.planOutput.preemptions
+            }}
+          />
         </t.body>
       </ListTable>
     </div>

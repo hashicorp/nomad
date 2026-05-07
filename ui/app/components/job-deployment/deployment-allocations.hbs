@@ -24,6 +24,9 @@
           <th>Task Group</th>
           <th>Created</th>
           <th>Modified</th>
+          {{#if (allocations-have-max-run-deadline @deployment.allocations)}}
+            <th>Max Run Deadline</th>
+          {{/if}}
           <th>Status</th>
           <th>Version</th>
           <th>Node</th>
@@ -36,6 +39,9 @@
             data-test-deployment-allocation
             @allocation={{row.model}}
             @context="job"
+            @showMaxRunDeadline={{allocations-have-max-run-deadline
+              @deployment.allocations
+            }}
           />
         </t.body>
       </ListTable>

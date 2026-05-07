@@ -509,6 +509,15 @@
             <th>
               Modified
             </th>
+            {{#if
+              (allocations-have-max-run-deadline
+                this.model.preemptedAllocations
+              )
+            }}
+              <th>
+                Max Run Deadline
+              </th>
+            {{/if}}
             <th>
               Status
             </th>
@@ -530,6 +539,9 @@
               @allocation={{row.model}}
               @context="job"
               @data-test-allocation={{row.model.id}}
+              @showMaxRunDeadline={{allocations-have-max-run-deadline
+                this.model.preemptedAllocations
+              }}
             />
           </t.body>
         </ListTable>

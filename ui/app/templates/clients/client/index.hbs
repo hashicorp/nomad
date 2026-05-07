@@ -569,6 +569,11 @@
               <t.sort-by @prop="modifyIndex" @title="Modify Index">
                 Modified
               </t.sort-by>
+              {{#if (allocations-have-max-run-deadline this.sortedAllocations)}}
+                <t.sort-by @prop="maxRunDeadline">
+                  Max Run Deadline
+                </t.sort-by>
+              {{/if}}
               <t.sort-by @prop="statusIndex">
                 Status
               </t.sort-by>
@@ -599,19 +604,37 @@
                 @context="node"
                 @onClick={{fn this.gotoAllocation row.model}}
                 @data-test-allocation={{row.model.id}}
+                @showMaxRunDeadline={{allocations-have-max-run-deadline
+                  this.sortedAllocations
+                }}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow
-                    @namespan="8"
-                    @taskState={{task}}
-                    @active={{eq
-                      this.activeTask
-                      (concat task.allocation.id "-" task.name)
-                    }}
-                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
-                    @jobHasActions={{true}}
-                  />
+                  {{#if
+                    (allocations-have-max-run-deadline this.sortedAllocations)
+                  }}
+                    <TaskSubRow
+                      @namespan="9"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{true}}
+                    />
+                  {{else}}
+                    <TaskSubRow
+                      @namespan="8"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{true}}
+                    />
+                  {{/if}}
                 {{/each}}
               {{/if}}
             </t.body>
@@ -920,7 +943,8 @@
               {{on
                 "click"
                 (queue
-                  this.resetNewMetaData (fn (mut this.editingMetadata) false)
+                  this.resetNewMetaData
+                  (fn (mut this.editingMetadata) false)
                 )
               }}
             >
