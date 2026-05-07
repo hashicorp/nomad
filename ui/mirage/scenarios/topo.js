@@ -23,7 +23,7 @@ export function topoSmall(server) {
   });
 
   // Add one node with reserved resources to show reserved node in topology view
-  server.createList('node', 1, 'reserved', {
+  server.createList('node', 2, 'reserved', {
     datacenter: 'dc1',
     status: 'ready',
     nodeResources: genResources(8000, 12192),
