@@ -9,11 +9,6 @@ import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 const testCases = [
   {
-    name: 'Forbidden Error',
-    in: [new ForbiddenError([], "Can't do that"), 'run tests'],
-    out: 'Your ACL token does not grant permission to run tests. Please ensure you are signed in.',
-  },
-  {
     name: 'Generic Error',
     in: [
       new ServerError([{ detail: 'DB Max Connections' }], 'Server Error'),
@@ -39,7 +34,41 @@ const testCases = [
   },
 ];
 
-module('Unit | Util | messageFromAdapterError', function () {
+module('Unit | Util | messageFromAdapterError', function (hooks) {
+  let originalToken;
+
+  hooks.beforeEach(function () {
+    originalToken = window.localStorage.nomadTokenSecret;
+  });
+
+  hooks.afterEach(function () {
+    if (originalToken == null) {
+      window.localStorage.removeItem('nomadTokenSecret');
+    } else {
+      window.localStorage.nomadTokenSecret = originalToken;
+    }
+  });
+
+  test('Forbidden Error - not signed in', function (assert) {
+    window.localStorage.removeItem('nomadTokenSecret');
+
+    assert.deepEqual(
+      messageFromAdapterError(new ForbiddenError([], "Can't do that"), 'run tests'),
+      'You are not signed in. Please sign in to perform this action.',
+      'Returns sign-in guidance when no token is present'
+    );
+  });
+
+  test('Forbidden Error - signed in, insufficient permissions', function (assert) {
+    window.localStorage.nomadTokenSecret = 'some-token';
+
+    assert.deepEqual(
+      messageFromAdapterError(new ForbiddenError([], "Can't do that"), 'run tests'),
+      'Your ACL token does not grant permission to run tests.',
+      'Returns permission message when token is present'
+    );
+  });
+
   testCases.forEach((testCase) => {
     test(testCase.name, function (assert) {
       assert.deepEqual(
