@@ -181,7 +181,7 @@ func taskStatesFullyStartedSince(taskStates map[string]*api.TaskState) (time.Tim
 		return time.Time{}, false
 	}
 
-	return latest, true
+	return latest.Local(), true
 }
 
 // fmtInt formats v into the tail of buf.
