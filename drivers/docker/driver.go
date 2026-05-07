@@ -769,15 +769,20 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
+	selinuxLabel := d.config.Volumes.SelinuxLabel
+
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	selinuxLabel := d.config.Volumes.SelinuxLabel
+	logsROFlag := "ro"
 	if selinuxLabel != "" {
 		// Apply SELinux Label to each built-in bind
 		for i := range binds {
 			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
 		}
+		logsROFlag = "ro," + selinuxLabel
 	}
+	allocLogsDirBind := fmt.Sprintf("%s/logs:%s/logs:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir], logsROFlag)
+	binds = append(binds, allocLogsDirBind)
 
 	for _, userbind := range driverConfig.Volumes {
 		// This assumes host OS = docker container OS.
