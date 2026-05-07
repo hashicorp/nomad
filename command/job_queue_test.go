@@ -31,11 +31,32 @@ func TestJobQueue_printOutput(t *testing.T) {
 			},
 		},
 	}
-	cmd.printOutput(testResp)
+	cmd.printFormatted(testResp)
 
 	expect := "JobID   |   Tenant        |   Priority\n" +
 		"-----   |   ------        |   --------\n" +
 		"123     |   testTenant1   |   5\n"
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}
+
+func TestJobQueue_printJSON(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
+
+	testResp := &api.BatchQueueStatusResponse{
+		Workloads: []api.Workload{
+			{
+				JobID:    "123",
+				Tenant:   "testTenant1",
+				Priority: 5,
+			},
+		},
+	}
+	cmd.printJSON(testResp)
+
+	expect := "[{\"JobID\":\"123\",\"Tenant\":\"testTenant1\",\"Priority\":5}]\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }

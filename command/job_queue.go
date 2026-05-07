@@ -4,6 +4,7 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -37,6 +38,9 @@ Eval Options:
   -verbose
     Display full output
 
+  -json
+    Display output as json
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -50,6 +54,7 @@ func (c *JobQueueCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 			"-limit":   complete.PredictNothing,
+			"-json":    complete.PredictNothing,
 		})
 }
 
@@ -60,11 +65,12 @@ func (c *JobQueueCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobQueueCommand) Name() string { return "job queue" }
 
 func (c *JobQueueCommand) Run(args []string) int {
-	var verbose bool
+	var verbose, json bool
 	var limit int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&json, "json", false, "")
 	flags.IntVar(&limit, "limit", 0, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -91,15 +97,31 @@ func (c *JobQueueCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
 	}
-
-	c.printOutput(resp)
-	return 0
-}
-
-func (c *JobQueueCommand) printOutput(resp *api.BatchQueueStatusResponse) {
 	if resp == nil {
 		c.Ui.Error("Empty batch queue response")
 	}
+
+	if json {
+		if err := c.printJSON(resp); err != nil {
+			c.Ui.Error("Error unmarshaling json response")
+		}
+	} else {
+		c.printFormatted(resp)
+	}
+	return 0
+}
+
+func (c *JobQueueCommand) printJSON(resp *api.BatchQueueStatusResponse) error {
+	out, err := json.Marshal(resp.Workloads)
+	if err != nil {
+		return err
+	}
+
+	c.Ui.Output(string(out))
+	return nil
+}
+
+func (c *JobQueueCommand) printFormatted(resp *api.BatchQueueStatusResponse) {
 
 	out := make([]string, len(resp.Workloads)+2)
 	out[0] = "JobID|Tenant|Priority"
