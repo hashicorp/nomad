@@ -182,8 +182,8 @@ export default class Allocation extends Model {
     return this.taskGroup.maxRunDuration;
   }
 
-  @computed('states.@each.{state,startedAt}')
-  get fullyRunningStartedAt() {
+  @computed('states.@each.startedAt')
+  get fullyStartedAt() {
     const states = this.states?.toArray?.() || this.states || [];
     if (!states.length) {
       return null;
@@ -191,7 +191,7 @@ export default class Allocation extends Model {
 
     let latest = null;
     for (const taskState of states) {
-      if (taskState.state !== 'running' || !taskState.startedAt) {
+      if (!taskState.startedAt) {
         return null;
       }
 
@@ -203,14 +203,14 @@ export default class Allocation extends Model {
     return latest;
   }
 
-  @computed('maxRunDuration', 'fullyRunningStartedAt')
+  @computed('maxRunDuration', 'fullyStartedAt')
   get maxRunDeadline() {
-    if (!this.maxRunDuration || !this.fullyRunningStartedAt) {
+    if (!this.maxRunDuration || !this.fullyStartedAt) {
       return null;
     }
 
     return new Date(
-      this.fullyRunningStartedAt.getTime() +
+      this.fullyStartedAt.getTime() +
         this.maxRunDuration / NANOSECONDS_IN_MILLISECOND
     );
   }

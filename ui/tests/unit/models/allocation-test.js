@@ -105,7 +105,7 @@ module('Unit | Model | allocation', function (hooks) {
     );
   });
 
-  test('batch allocations expose a max run deadline when the task group has one and all tasks are running', function (assert) {
+  test('batch allocations expose a max run deadline when every task has started', function (assert) {
     const startedAt = new Date('2025-01-02T03:04:05Z');
     const maxRunDuration = 10 * 60 * 1000000000;
     const job = run(() =>
@@ -133,7 +133,7 @@ module('Unit | Model | allocation', function (hooks) {
           { name: 'task-a', state: 'running', startedAt },
           {
             name: 'task-b',
-            state: 'running',
+            state: 'complete',
             startedAt: new Date('2025-01-02T03:05:05Z'),
           },
         ],
@@ -182,7 +182,7 @@ module('Unit | Model | allocation', function (hooks) {
     assert.strictEqual(allocation.maxRunDeadline, null);
   });
 
-  test('allocations do not expose a max run deadline until every task is running', function (assert) {
+  test('allocations do not expose a max run deadline until every task has started', function (assert) {
     const maxRunDuration = 10 * 60 * 1000000000;
     const job = run(() =>
       this.store.createRecord('job', {
