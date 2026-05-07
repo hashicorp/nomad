@@ -38,6 +38,7 @@ export default create({
 
     client: text('[data-test-client-link]'),
     visitClient: clickable('[data-test-client-link]'),
+    maxRunDeadline: text('[data-test-max-run-deadline]'),
   },
 
   resourceCharts: collection('[data-test-primary-metric]', {

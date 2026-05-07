@@ -207,6 +207,11 @@
               <t.sort-by @prop="modifyIndex" @title="Modify Index">
                 Modified
               </t.sort-by>
+              {{#if this.model.hasAllocationMaxRunDeadline}}
+                <t.sort-by @prop="maxRunDeadline">
+                  Max Run Deadline
+                </t.sort-by>
+              {{/if}}
               <t.sort-by @prop="statusIndex">
                 Status
               </t.sort-by>
@@ -238,20 +243,34 @@
                 @data-test-allocation={{row.model.id}}
                 @allocation={{row.model}}
                 @context="taskGroup"
+                @showMaxRunDeadline={{this.model.hasAllocationMaxRunDeadline}}
                 @onClick={{fn this.gotoAllocation row.model}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow
-                    @namespan="8"
-                    @taskState={{task}}
-                    @active={{eq
-                      this.activeTask
-                      (concat task.allocation.id "-" task.name)
-                    }}
-                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
-                    @jobHasActions={{this.model.job.actions.length}}
-                  />
+                  {{#if this.model.hasAllocationMaxRunDeadline}}
+                    <TaskSubRow
+                      @namespan="9"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{this.model.job.actions.length}}
+                    />
+                  {{else}}
+                    <TaskSubRow
+                      @namespan="8"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{this.model.job.actions.length}}
+                    />
+                  {{/if}}
                 {{/each}}
               {{/if}}
             </t.body>

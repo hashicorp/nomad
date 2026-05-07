@@ -23,6 +23,8 @@ const STATUS_ORDER = {
   lost: 6,
 };
 
+const NANOSECONDS_IN_MILLISECOND = 1000000;
+
 @classic
 export default class Allocation extends Model {
   @service token;
@@ -170,6 +172,48 @@ export default class Allocation extends Model {
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;
+
+  @computed('taskGroup.{hasMaxRunDeadline,maxRunDuration}')
+  get maxRunDuration() {
+    if (!this.taskGroup?.hasMaxRunDeadline) {
+      return null;
+    }
+
+    return this.taskGroup.maxRunDuration;
+  }
+
+  @computed('states.@each.{state,startedAt}')
+  get fullyRunningStartedAt() {
+    const states = this.states?.toArray?.() || this.states || [];
+    if (!states.length) {
+      return null;
+    }
+
+    let latest = null;
+    for (const taskState of states) {
+      if (taskState.state !== 'running' || !taskState.startedAt) {
+        return null;
+      }
+
+      if (!latest || taskState.startedAt > latest) {
+        latest = taskState.startedAt;
+      }
+    }
+
+    return latest;
+  }
+
+  @computed('maxRunDuration', 'fullyRunningStartedAt')
+  get maxRunDeadline() {
+    if (!this.maxRunDuration || !this.fullyRunningStartedAt) {
+      return null;
+    }
+
+    return new Date(
+      this.fullyRunningStartedAt.getTime() +
+        this.maxRunDuration / NANOSECONDS_IN_MILLISECOND
+    );
+  }
 
   @computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]')
   get unhealthyDrivers() {

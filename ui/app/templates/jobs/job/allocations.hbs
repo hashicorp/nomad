@@ -83,6 +83,9 @@
               @prop="modifyIndex"
               @title="Modify Index"
             >Modified</t.sort-by>
+            {{#if this.job.hasAllocationMaxRunDeadline}}
+              <t.sort-by @prop="maxRunDeadline">Max Run Deadline</t.sort-by>
+            {{/if}}
             <t.sort-by @prop="statusIndex">Status</t.sort-by>
             <t.sort-by @prop="jobVersion">Version</t.sort-by>
             <t.sort-by @prop="node.shortId">Client</t.sort-by>
@@ -102,19 +105,33 @@
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"
+              @showMaxRunDeadline={{this.job.hasAllocationMaxRunDeadline}}
               @onClick={{fn this.gotoAllocation row.model}}
             />
             {{#each row.model.states as |task|}}
-              <TaskSubRow
-                @active={{eq
-                  this.activeTask
-                  (concat task.allocation.id "-" task.name)
-                }}
-                @onSetActiveTask={{this.setActiveTaskQueryParam}}
-                @namespan="9"
-                @taskState={{task}}
-                @jobHasActions={{this.job.actions.length}}
-              />
+              {{#if this.job.hasAllocationMaxRunDeadline}}
+                <TaskSubRow
+                  @active={{eq
+                    this.activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                  @namespan="10"
+                  @taskState={{task}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{else}}
+                <TaskSubRow
+                  @active={{eq
+                    this.activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                  @namespan="9"
+                  @taskState={{task}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{/if}}
             {{/each}}
 
           </t.body>

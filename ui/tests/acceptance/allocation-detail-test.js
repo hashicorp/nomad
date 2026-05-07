@@ -102,6 +102,33 @@ module('Acceptance | allocation detail', function (hooks) {
     );
   });
 
+  test('/allocation/:id shows max run deadline for batch allocations that have one configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+    const taskGroup = server.db.taskGroups.findBy({ jobId: allocation.jobId });
+
+    job.update({ type: 'batch' });
+    taskGroup.update({ maxRunDuration });
+
+    server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        taskState.update({ state: 'running', startedAt });
+      });
+
+    await Allocation.visit({ id: allocation.id });
+
+    assert.ok(
+      Allocation.details.maxRunDeadline.includes(
+        moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ")
+      ),
+      'Allocation details show the computed max run deadline'
+    );
+  });
+
   test('/allocation/:id should include resource utilization graphs', async function (assert) {
     assert.deepEqual(
       Allocation.resourceCharts.length,

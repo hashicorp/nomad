@@ -15,6 +15,7 @@ import sumAggregation from '../utils/properties/sum-aggregation';
 import classic from 'ember-classic-decorator';
 
 const maybe = (arr) => arr || [];
+const JOB_TYPES_WITH_MAX_RUN_DEADLINE = ['batch', 'sysbatch'];
 
 @classic
 export default class TaskGroup extends Fragment {
@@ -22,6 +23,27 @@ export default class TaskGroup extends Fragment {
 
   @attr('string') name;
   @attr('number') count;
+  @attr('number') maxRunDuration;
+
+  @computed('job.type')
+  get ownerJobType() {
+    return this.job?.type;
+  }
+
+  @computed('job.job.type')
+  get allocationOwnerJobType() {
+    return this.job?.job?.type;
+  }
+
+  @computed('ownerJobType', 'allocationOwnerJobType', 'maxRunDuration')
+  get hasMaxRunDeadline() {
+    const jobType = this.ownerJobType || this.allocationOwnerJobType;
+
+    return (
+      JOB_TYPES_WITH_MAX_RUN_DEADLINE.includes(jobType) &&
+      this.maxRunDuration > 0
+    );
+  }
 
   @computed('job.{variables,parent,plainId}', 'name')
   get pathLinkedVariable() {
@@ -83,6 +105,11 @@ export default class TaskGroup extends Fragment {
       'taskGroupName',
       this.name,
     );
+  }
+
+  @computed('allocations.@each.maxRunDeadline')
+  get hasAllocationMaxRunDeadline() {
+    return this.allocations.some((allocation) => allocation.maxRunDeadline);
   }
 
   @sumAggregation('tasks', 'reservedCPU') reservedCPU;

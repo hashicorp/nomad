@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { currentURL, click } from '@ember/test-helpers';
-import { getPageTitle } from 'ember-page-title/test-support';
-import { module, test } from 'qunit';
-import { setupApplicationTest } from 'ember-qunit';
-import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
+import { currentURL, click } from "@ember/test-helpers";
+import { getPageTitle } from "ember-page-title/test-support";
+import moment from "moment";
+import { module, test } from "qunit";
+import { setupApplicationTest } from "ember-qunit";
+import { setupMirage } from "ember-cli-mirage/test-support";
+import a11yAudit from "nomad-ui/tests/helpers/a11y-audit";
+import Allocations from "nomad-ui/tests/pages/jobs/job/allocations";
 
 let job;
 let allocations;
@@ -18,29 +19,29 @@ const makeSearchAllocations = (server) => {
   Array(10)
     .fill(null)
     .map((_, index) => {
-      server.create('allocation', {
+      server.create("allocation", {
         id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
         shallow: true,
       });
     });
 };
 
-module('Acceptance | job allocations', function (hooks) {
+module("Acceptance | job allocations", function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    this.server.create('node-pool');
-    this.server.create('node');
+    this.server.create("node-pool");
+    this.server.create("node");
 
-    job = this.server.create('job', {
+    job = this.server.create("job", {
       noFailedPlacements: true,
       createAllocations: false,
     });
   });
 
-  test('it passes an accessibility audit', async function (assert) {
-    this.server.createList('allocation', Allocations.pageSize - 1, {
+  test("it passes an accessibility audit", async function (assert) {
+    this.server.createList("allocation", Allocations.pageSize - 1, {
       shallow: true,
     });
     allocations = this.server.schema.allocations.where({
@@ -51,8 +52,8 @@ module('Acceptance | job allocations', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('lists all allocations for the job', async function (assert) {
-    this.server.createList('allocation', Allocations.pageSize - 1, {
+  test("lists all allocations for the job", async function (assert) {
+    this.server.createList("allocation", Allocations.pageSize - 1, {
       shallow: true,
     });
     allocations = this.server.schema.allocations.where({
@@ -64,25 +65,57 @@ module('Acceptance | job allocations', function (hooks) {
     assert.deepEqual(
       Allocations.allocations.length,
       Allocations.pageSize - 1,
-      'Allocations are shown in a table',
+      "Allocations are shown in a table"
     );
 
-    const sortedAllocations = allocations.sortBy('modifyIndex').reverse();
+    const sortedAllocations = allocations.sortBy("modifyIndex").reverse();
 
     Allocations.allocations.forEach((allocation, index) => {
-      const shortId = sortedAllocations[index].id.split('-')[0];
+      const shortId = sortedAllocations[index].id.split("-")[0];
       assert.deepEqual(
         allocation.shortId,
         shortId,
-        `Allocation ${index} is ${shortId}`,
+        `Allocation ${index} is ${shortId}`
       );
     });
 
     assert.deepEqual(getPageTitle(), `Job ${job.name} allocations - Nomad`);
   });
 
-  test('clicking an allocation results in the correct endpoint being hit', async function (assert) {
-    this.server.createList('allocation', Allocations.pageSize - 1, {
+  test("allocations show max run deadline for batch jobs that have one configured", async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date("2025-01-02T03:04:05Z");
+    const taskGroup = this.server.db.taskGroups.where({ jobId: job.id })[0];
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+
+    job.update({ type: "batch" });
+    taskGroup.update({ maxRunDuration });
+
+    const allocation = this.server.create("allocation", {
+      jobId: job.id,
+      taskGroup: taskGroup.name,
+      clientStatus: "running",
+    });
+
+    this.server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        taskState.update({ state: "running", startedAt });
+      });
+
+    await Allocations.visit({ id: job.id });
+
+    assert.equal(
+      Allocations.allocations[0].maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      "The allocations table shows the computed max run deadline"
+    );
+  });
+
+  test("clicking an allocation results in the correct endpoint being hit", async function (assert) {
+    this.server.createList("allocation", Allocations.pageSize - 1, {
       shallow: true,
     });
     allocations = this.server.schema.allocations.where({
@@ -91,50 +124,50 @@ module('Acceptance | job allocations', function (hooks) {
 
     await Allocations.visit({ id: job.id });
 
-    const firstAllocation = document.querySelector('[data-test-allocation]');
+    const firstAllocation = document.querySelector("[data-test-allocation]");
     await click(firstAllocation);
     const requestToAllocationEndpoint =
       this.server.pretender.handledRequests.find((request) =>
         request.url.includes(
-          `/v1/allocation/${firstAllocation.dataset.testAllocation}`,
-        ),
+          `/v1/allocation/${firstAllocation.dataset.testAllocation}`
+        )
       );
 
-    assert.ok(requestToAllocationEndpoint, 'the correct endpoint is hit');
+    assert.ok(requestToAllocationEndpoint, "the correct endpoint is hit");
 
     assert.deepEqual(
       currentURL(),
       `/allocations/${firstAllocation.dataset.testAllocation}`,
-      'the URL is correct',
+      "the URL is correct"
     );
   });
 
-  test('allocations table is sortable', async function (assert) {
-    this.server.createList('allocation', Allocations.pageSize - 1);
+  test("allocations table is sortable", async function (assert) {
+    this.server.createList("allocation", Allocations.pageSize - 1);
     allocations = this.server.schema.allocations.where({
       jobId: job.id,
     }).models;
 
     await Allocations.visit({ id: job.id });
-    await Allocations.sortBy('taskGroupName');
+    await Allocations.sortBy("taskGroupName");
 
     assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/allocations?sort=taskGroupName`,
-      'the URL persists the sort parameter',
+      "the URL persists the sort parameter"
     );
-    const sortedAllocations = allocations.sortBy('taskGroup').reverse();
+    const sortedAllocations = allocations.sortBy("taskGroup").reverse();
     Allocations.allocations.forEach((allocation, index) => {
-      const shortId = sortedAllocations[index].id.split('-')[0];
+      const shortId = sortedAllocations[index].id.split("-")[0];
       assert.deepEqual(
         allocation.shortId,
         shortId,
-        `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`,
+        `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`
       );
     });
   });
 
-  test('allocations table is searchable', async function (assert) {
+  test("allocations table is searchable", async function (assert) {
     makeSearchAllocations(this.server);
 
     allocations = this.server.schema.allocations.where({
@@ -142,16 +175,16 @@ module('Acceptance | job allocations', function (hooks) {
     }).models;
 
     await Allocations.visit({ id: job.id });
-    await Allocations.search('ffffff');
+    await Allocations.search("ffffff");
 
     assert.deepEqual(
       Allocations.allocations.length,
       5,
-      'List is filtered by search term',
+      "List is filtered by search term"
     );
   });
 
-  test('when a search yields no results, the search box remains', async function (assert) {
+  test("when a search yields no results, the search box remains", async function (assert) {
     makeSearchAllocations(this.server);
 
     allocations = this.server.schema.allocations.where({
@@ -159,56 +192,56 @@ module('Acceptance | job allocations', function (hooks) {
     }).models;
 
     await Allocations.visit({ id: job.id });
-    await Allocations.search('^nothing will ever match this long regex$');
+    await Allocations.search("^nothing will ever match this long regex$");
 
     assert.deepEqual(
       Allocations.emptyState.headline,
-      'No Matches',
-      'List is empty and the empty state is about search',
+      "No Matches",
+      "List is empty and the empty state is about search"
     );
 
-    assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
+    assert.ok(Allocations.hasSearchBox, "Search box is still shown");
   });
 
-  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function (assert) {
-    await Allocations.visit({ id: 'not-a-real-job' });
+  test("when the job for the allocations is not found, an error message is shown, but the URL persists", async function (assert) {
+    await Allocations.visit({ id: "not-a-real-job" });
 
     assert.deepEqual(
       this.server.pretender.handledRequests
-        .filter((request) => !request.url.includes('policy'))
-        .findBy('status', 404).url,
-      '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made',
+        .filter((request) => !request.url.includes("policy"))
+        .findBy("status", 404).url,
+      "/v1/job/not-a-real-job",
+      "A request to the nonexistent job is made"
     );
     assert.deepEqual(
       currentURL(),
-      '/jobs/not-a-real-job/allocations',
-      'The URL persists',
+      "/jobs/not-a-real-job/allocations",
+      "The URL persists"
     );
-    assert.ok(Allocations.error.isPresent, 'Error message is shown');
+    assert.ok(Allocations.error.isPresent, "Error message is shown");
     assert.deepEqual(
       Allocations.error.title,
-      'Not Found',
-      'Error message is for 404',
+      "Not Found",
+      "Error message is for 404"
     );
   });
 
-  testFacet('Status', {
+  testFacet("Status", {
     facet: Allocations.facets.status,
-    paramName: 'status',
+    paramName: "status",
     expectedOptions: [
-      'Pending',
-      'Running',
-      'Complete',
-      'Failed',
-      'Lost',
-      'Unknown',
+      "Pending",
+      "Running",
+      "Complete",
+      "Failed",
+      "Lost",
+      "Unknown",
     ],
     async beforeEach() {
-      ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
+      ["pending", "running", "complete", "failed", "lost", "unknown"].forEach(
         (s) => {
-          this.server.createList('allocation', 5, { clientStatus: s });
-        },
+          this.server.createList("allocation", 5, { clientStatus: s });
+        }
       );
       await Allocations.visit({ id: job.id });
     },
@@ -216,44 +249,44 @@ module('Acceptance | job allocations', function (hooks) {
       alloc.jobId == job.id && selection.includes(alloc.clientStatus),
   });
 
-  testFacet('Client', {
+  testFacet("Client", {
     facet: Allocations.facets.client,
-    paramName: 'client',
+    paramName: "client",
     expectedOptions(allocs) {
       return Array.from(
         new Set(
           allocs
             .filter((alloc) => alloc.jobId == job.id)
-            .mapBy('nodeId')
-            .map((id) => id.split('-')[0]),
-        ),
+            .mapBy("nodeId")
+            .map((id) => id.split("-")[0])
+        )
       ).sort();
     },
     async beforeEach() {
-      this.server.createList('node', 5);
-      this.server.createList('allocation', 20);
+      this.server.createList("node", 5);
+      this.server.createList("allocation", 20);
 
       await Allocations.visit({ id: job.id });
     },
     filter: (alloc, selection) =>
-      alloc.jobId == job.id && selection.includes(alloc.nodeId.split('-')[0]),
+      alloc.jobId == job.id && selection.includes(alloc.nodeId.split("-")[0]),
   });
 
-  testFacet('Task Group', {
+  testFacet("Task Group", {
     facet: Allocations.facets.taskGroup,
-    paramName: 'taskGroup',
+    paramName: "taskGroup",
     expectedOptions(allocs) {
       return Array.from(
         new Set(
-          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'),
-        ),
+          allocs.filter((alloc) => alloc.jobId == job.id).mapBy("taskGroup")
+        )
       ).sort();
     },
     async beforeEach() {
-      this.server.create('node-pool');
-      job = this.server.create('job', {
-        type: 'service',
-        status: 'running',
+      this.server.create("node-pool");
+      job = this.server.create("job", {
+        type: "service",
+        status: "running",
         groupsCount: 5,
       });
 
@@ -266,14 +299,14 @@ module('Acceptance | job allocations', function (hooks) {
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions },
+  { facet, paramName, beforeEach, filter, expectedOptions }
 ) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach.call(this);
     await facet.toggle();
 
     let expectation;
-    if (typeof expectedOptions === 'function') {
+    if (typeof expectedOptions === "function") {
       expectation = expectedOptions.call(this, this.server.db.allocations);
     } else {
       expectation = expectedOptions;
@@ -282,7 +315,7 @@ function testFacet(
     assert.deepEqual(
       facet.options.map((option) => option.label.trim()),
       expectation,
-      'Options for facet are as expected',
+      "Options for facet are as expected"
     );
   });
 
@@ -298,14 +331,14 @@ function testFacet(
     const selection = [option.key];
     const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+      .sortBy("modifyIndex")
       .reverse();
 
     Allocations.allocations.forEach((alloc, index) => {
       assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
       );
     });
   });
@@ -325,14 +358,14 @@ function testFacet(
 
     const expectedAllocs = this.server.db.allocations
       .filter((alloc) => filter(alloc, selection))
-      .sortBy('modifyIndex')
+      .sortBy("modifyIndex")
       .reverse();
 
     Allocations.allocations.forEach((alloc, index) => {
       assert.deepEqual(
         alloc.id,
         expectedAllocs[index].id,
-        `Allocation at ${index} is ${expectedAllocs[index].id}`,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
       );
     });
   });
@@ -353,9 +386,9 @@ function testFacet(
     assert.deepEqual(
       currentURL(),
       `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection),
+        JSON.stringify(selection)
       )}`,
-      'URL has the correct query param key and value',
+      "URL has the correct query param key and value"
     );
   });
 }
