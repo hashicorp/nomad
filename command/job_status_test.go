@@ -277,7 +277,8 @@ func TestFormatJobAllocListStubs_MaxRunDeadline(t *testing.T) {
 		DesiredStatus: "run",
 		ClientStatus:  "running",
 		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt},
+			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
+			"task-b": {State: "complete", StartedAt: startedAt},
 		},
 	}}
 
@@ -337,7 +338,8 @@ func TestFormatAllocList_MaxRunDeadline(t *testing.T) {
 		DesiredStatus: "run",
 		ClientStatus:  "running",
 		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt},
+			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
+			"task-b": {State: "complete", StartedAt: startedAt},
 		},
 	}}
 

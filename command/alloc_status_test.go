@@ -229,7 +229,7 @@ func TestFormatAllocBasicInfo_MaxRunDeadline(t *testing.T) {
 		DesiredDescription: "run",
 		TaskStates: map[string]*api.TaskState{
 			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
-			"task-b": {State: "running", StartedAt: startedAt},
+			"task-b": {State: "dead", StartedAt: startedAt},
 		},
 		Metrics: &api.AllocationMetric{},
 	}

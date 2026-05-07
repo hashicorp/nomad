@@ -136,7 +136,7 @@ func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, taskStates m
 		return time.Time{}, false
 	}
 
-	startedAt, ok := taskStatesFullyRunningSince(taskStates)
+	startedAt, ok := taskStatesFullyStartedSince(taskStates)
 	if !ok {
 		return time.Time{}, false
 	}
@@ -162,14 +162,14 @@ func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Durati
 	}
 }
 
-func taskStatesFullyRunningSince(taskStates map[string]*api.TaskState) (time.Time, bool) {
+func taskStatesFullyStartedSince(taskStates map[string]*api.TaskState) (time.Time, bool) {
 	if len(taskStates) == 0 {
 		return time.Time{}, false
 	}
 
 	var latest time.Time
 	for _, ts := range taskStates {
-		if ts == nil || ts.State != "running" || ts.StartedAt.IsZero() {
+		if ts == nil || ts.StartedAt.IsZero() {
 			return time.Time{}, false
 		}
 		if ts.StartedAt.After(latest) {
