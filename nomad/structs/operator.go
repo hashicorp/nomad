@@ -224,6 +224,10 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
+	// BatchQueue specifies the batch queue for this scheduler configuration
+	// which defines the behavior for scheduling batch job evaluations.
+	BatchQueue BatchQueue `hcl:"batch_queue"`
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
 
@@ -286,6 +290,11 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 	if poolConfig.SchedulerAlgorithm != "" {
 		schedConfig.SchedulerAlgorithm = poolConfig.SchedulerAlgorithm
 	}
+
+	if poolConfig.BatchQueue.Type != "" {
+		schedConfig.BatchQueue = poolConfig.BatchQueue
+	}
+
 	if poolConfig.MemoryOversubscriptionEnabled != nil {
 		schedConfig.MemoryOversubscriptionEnabled = *poolConfig.MemoryOversubscriptionEnabled
 	}
@@ -308,6 +317,10 @@ func (s *SchedulerConfiguration) Validate() error {
 	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
 	default:
 		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
+	}
+
+	if err := s.BatchQueue.Validate(); err != nil {
+		return err
 	}
 
 	return nil
@@ -344,6 +357,86 @@ type PreemptionConfig struct {
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
 	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
+}
+
+type (
+	BatchQueueType   string
+	BatchQueueTenant string
+)
+
+const (
+	BatchQueueTypeDynamic BatchQueueType = "dynamicPriorty"
+
+	TenantTypeMetadata  BatchQueueTenant = "metadata"
+	TenantTypeNamespace BatchQueueTenant = "namespace"
+
+	DynamicCalcInterval = "calc_interval"
+	DynamicMaxAge       = "max_age"
+)
+
+type BatchQueue struct {
+	Type        BatchQueueType   `hcl:"type"`
+	TenantType  BatchQueueTenant `hcl:"tenant_type"`
+	MetadataKey string           `hcl:"metadata_key"`
+	Config      map[string]any   `hcl:"config"`
+}
+
+type DynamicQueueConfig struct {
+	CalcInterval time.Duration
+	MaxAge       time.Duration
+	MaxSize      int
+	AgeWeight    int
+	UsageWeight  int
+	SizeWeight   int
+}
+
+func validateDuration(val any) error {
+	switch t := val.(type) {
+	case string:
+		if _, err := time.ParseDuration(t); err != nil {
+			return err
+		}
+	case int, nil:
+	default:
+		return fmt.Errorf("value not a duration: %v", val)
+	}
+
+	return nil
+}
+
+func (b *BatchQueue) Validate() error {
+	if b.Type == "" {
+		switch {
+		case b.TenantType != "", b.MetadataKey != "", b.Config != nil:
+			return errors.New("batch queue configuration found but no type specified")
+		}
+
+		return nil
+	}
+
+	switch b.Type {
+	case BatchQueueTypeDynamic:
+		if err := validateDuration(b.Config[DynamicCalcInterval]); err != nil {
+			return fmt.Errorf("failed to parse calc_interval: %v", err)
+		}
+		if err := validateDuration(b.Config[DynamicMaxAge]); err != nil {
+			return fmt.Errorf("failed to parse max_age: %v", err)
+		}
+	default:
+		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
+	}
+
+	switch b.TenantType {
+	case TenantTypeNamespace:
+	case TenantTypeMetadata:
+		if b.MetadataKey == "" {
+			return fmt.Errorf("metadata key must be specified if using metadata tenency")
+		}
+	default:
+		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
+	}
+
+	return nil
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the

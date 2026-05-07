@@ -86,10 +86,16 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 			pool: &NodePool{
 				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
 					MemoryOversubscriptionEnabled: pointer.Of(true),
+					BatchQueue: BatchQueue{
+						Type: "test",
+					},
 				},
 			},
 			expected: &SchedulerConfiguration{
 				MemoryOversubscriptionEnabled: true,
+				BatchQueue: BatchQueue{
+					Type: "test",
+				},
 			},
 		},
 		{
@@ -137,6 +143,126 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 			got := tc.schedConfig.WithNodePool(tc.pool)
 			must.Eq(t, tc.expected, got)
 			must.NotEqOp(t, tc.schedConfig, got)
+		})
+	}
+}
+
+func TestSchedulerConfiguration_Validate(t *testing.T) {
+
+	testCases := []struct {
+		name        string
+		schedConfig *SchedulerConfiguration
+		err         string
+	}{
+		{
+			name: "invalid scheduler algorithm",
+			schedConfig: &SchedulerConfiguration{
+				SchedulerAlgorithm: "not-good",
+			},
+			err: "invalid scheduler algorithm: not-good",
+		},
+		{
+			name: "valid scheduler algorithm",
+			schedConfig: &SchedulerConfiguration{
+				SchedulerAlgorithm: SchedulerAlgorithmBinpack,
+			},
+			err: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.schedConfig.Validate()
+			if tc.err != "" {
+				must.ErrorContains(t, err, tc.err)
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBatchQueue_Validate(t *testing.T) {
+
+	testCases := []struct {
+		name        string
+		batchConfig BatchQueue
+		err         string
+	}{
+		{
+			name: "invalid queue type",
+			batchConfig: BatchQueue{
+				Type: "foo",
+			},
+			err: "unsupported batch queue type",
+		},
+		{
+			name: "invalid metadata type",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: "foo",
+			},
+			err: "unsupported tenant type",
+		},
+		{
+			name: "batch config with no type",
+			batchConfig: BatchQueue{
+				Type:       "",
+				TenantType: TenantTypeNamespace,
+			},
+			err: "batch queue configuration found but no type specified",
+		},
+		{
+			name: "empty metadata key errors",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeMetadata,
+			},
+			err: "metadata key must be specified",
+		},
+		{
+			name: "dynamicPriority - invalid interval",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
+				Config: map[string]any{
+					"calc_interval": "hello",
+				},
+			},
+			err: "failed to parse",
+		},
+		{
+			name: "dynamicPriority - valid string interval",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
+				Config: map[string]any{
+					"calc_interval": "1h",
+				},
+			},
+			err: "",
+		},
+		{
+			name: "dynamicPriority - valid int interval",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
+				Config: map[string]any{
+					"calc_interval": 1000,
+				},
+			},
+			err: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.batchConfig.Validate()
+			if tc.err != "" {
+				must.ErrorContains(t, err, tc.err)
+			} else {
+				must.NoError(t, err)
+			}
 		})
 	}
 }

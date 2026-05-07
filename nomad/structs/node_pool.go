@@ -249,6 +249,10 @@ type NodePoolSchedulerConfiguration struct {
 	// If not defined, the global cluster scheduling algorithm is used.
 	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm"`
 
+	// BatchQueue defines the batch job queue configuration used
+	// to control scheduling of batch jobs.
+	BatchQueue BatchQueue `hcl:"batch_queue"`
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription
 	// is enabled. If not defined, the global cluster configuration is used.
 	MemoryOversubscriptionEnabled *bool `hcl:"memory_oversubscription_enabled"`
