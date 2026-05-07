@@ -51,7 +51,7 @@ func testJobNoMaxDisconnectSingle_Disconnected() *structs.Job {
 	return testJobNoMaxDisconnectSingle
 }
 
-func TestAllocSet_filterByTainted(t *testing.T) {
+func TestAllocSet_classifyAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	now := time.Now()
@@ -1260,7 +1260,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
 					// With tainted nodes
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.filterByTainted(tc.state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.classifyAllocs(tc.state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -1276,7 +1276,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					// Now again with nodes nil
 					state := tc.state
 					state.TaintedNodes = nil
-					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.filterByTainted(state)
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.classifyAllocs(state)
 					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))

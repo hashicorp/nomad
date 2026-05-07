@@ -75,7 +75,7 @@ func TestReconciler_filterServerTerminalAllocs(t *testing.T) {
 	})
 }
 
-func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
+func TestAllocSet_classifyAllocs_ClassificationRules(t *testing.T) {
 	now := time.Now()
 
 	nodes := map[string]*structs.Node{
@@ -136,13 +136,11 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				a.AllocStates = unknownState
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "reconnecting",
 		},
 		{
 			name:     "terminal server status ignored",
 			alloc:    makeAlloc("c2", "ready", structs.AllocClientStatusRunning, structs.AllocDesiredStatusStop),
-			nodeMap:  nodes,
 			expected: "ignore",
 		},
 		{
@@ -150,16 +148,14 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c3", "ready", structs.AllocClientStatusComplete, structs.AllocDesiredStatusRun)
 				a.DeploymentStatus = &structs.AllocDeploymentStatus{Canary: true}
-				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "migrate",
 		},
 		{
 			name:     "terminal untainted",
 			alloc:    makeAlloc("c4", "ready", structs.AllocClientStatusComplete, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "untainted",
 		},
 		{
@@ -170,7 +166,6 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				a.AllocStates = unknownState
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "expiring",
 		},
 		{
@@ -180,19 +175,16 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				a.AllocStates = unknownState
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "ignore",
 		},
 		{
 			name:     "disconnected unknown becomes untainted",
 			alloc:    makeAlloc("c7", "disconnected", structs.AllocClientStatusUnknown, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "untainted",
 		},
 		{
 			name:     "disconnected pending lost",
 			alloc:    makeAlloc("c8", "disconnected", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "lost",
 		},
 		{
@@ -202,23 +194,20 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				a.Job = nil
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "lost",
 		},
 		{
 			name:     "disconnected grace period",
 			alloc:    makeAlloc("c10", "disconnected", structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "disconnecting",
 		},
 		{
 			name: "migrate flag",
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c11", "ready", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "migrate",
 		},
 		{
@@ -228,19 +217,16 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				a.AllocStates = unknownState
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "reconnecting",
 		},
 		{
 			name:     "untainted on non tainted node",
 			alloc:    makeAlloc("c13", "missing", structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "untainted",
 		},
 		{
 			name:     "gc node lost",
 			alloc:    makeAlloc("c14", "gc", structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "lost",
 		},
 		{
@@ -250,7 +236,6 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				setDisconnect(a, 5*time.Minute, false)
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "untainted",
 		},
 		{
@@ -260,19 +245,16 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 				setDisconnect(a, 5*time.Minute, false)
 				return a
 			}(),
-			nodeMap:  nodes,
 			expected: "disconnecting",
 		},
 		{
 			name:     "terminal node default lost",
 			alloc:    makeAlloc("c17", "down", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "lost",
 		},
 		{
 			name:     "other tainted node defaults to untainted",
 			alloc:    makeAlloc("c18", "initializing", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun),
-			nodeMap:  nodes,
 			expected: "untainted",
 		},
 	}
@@ -282,7 +264,7 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 			all := allocSet{tc.alloc.ID: tc.alloc}
 			state := ClusterState{Now: now, TaintedNodes: nodes}
 
-			untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(state)
+			untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.classifyAllocs(state)
 
 			buckets := map[string]allocSet{
 				"untainted":     untainted,

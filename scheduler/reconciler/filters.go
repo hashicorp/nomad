@@ -14,7 +14,7 @@ import (
 // filterAndStopAll returns a stop result including all allocations in the
 // allocSet. This is useful in when stopping an entire job or task group.
 func (set allocSet) filterAndStopAll(cs ClusterState) (uint64, []AllocStopResult) {
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.filterByTainted(cs)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.classifyAllocs(cs)
 
 	allocsToStop := slices.Concat(
 		markStop(untainted, "", sstructs.StatusAllocNotNeeded),
@@ -247,6 +247,7 @@ var classificationRules = []classificationRule{
 		},
 		category: categoryUntainted,
 	},
+	// Terminal node allocations that cant be replaced but still need to be updated to unknown.
 	{
 		condition: func(ctx allocContext) bool {
 			return ctx.taintedNode.TerminalStatus() &&
@@ -264,16 +265,17 @@ var classificationRules = []classificationRule{
 	},
 }
 
-// filterByTainted takes a set of tainted nodes and filters the allocation set
+// classifyAllocs takes a set of tainted nodes and filters the allocation set
 // into the following groups:
-// 1. Those that exist on untainted nodes
-// 2. Those exist on nodes that are draining
-// 3. Those that exist on lost nodes or have expired
-// 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
-// 5. Those that are on a node that has reconnected.
-// 6. Those that are in a state that results in a noop.
-// 7. Those that are disconnected and need to be marked lost (and possibly replaced)
-func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
+// 1. untainted: allocs on working nodes, which are in the correct state and don't need to be changed or updated
+// 2. migrate: allocs on nodes that are draining or need to be moved
+// 3. lost: allocs on lost nodes or have expired and need to be replaced
+// 4. disconnect: allocs on nodes that are disconnected, and need to be updated and maybe rescheduled
+// 5. reconnecting: allocs on a node that has reconnected and need to go through the reconnect flow
+// 6. ignore: allocs in a state that results in a noop that only need to be counted
+// 7. expiring: allocs on disconnected nodes and need to be marked lost (and possibly replaced)
+
+func (set allocSet) classifyAllocs(state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
 	untainted = make(allocSet)
 	migrate = make(allocSet)
 	lost = make(allocSet)
@@ -295,7 +297,7 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 
 	for _, alloc := range set {
 		// Build context for classification rules.
-		ctx := allocContext{
+		allocRuntime := allocContext{
 			alloc: alloc,
 			now:   state.Now,
 		}
@@ -304,17 +306,17 @@ func (set allocSet) filterByTainted(state ClusterState) (untainted, migrate, los
 		if alloc.ClientStatus == structs.AllocClientStatusUnknown ||
 			alloc.ClientStatus == structs.AllocClientStatusRunning ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
-			ctx.shouldReconnect = alloc.NeedsToReconnect()
+			allocRuntime.shouldReconnect = alloc.NeedsToReconnect()
 		}
 
 		// Get node taint information, preserving whether key existed so we can
 		// distinguish missing-node from GC'd-node semantics.
-		ctx.taintedNode, ctx.nodeIsTainted = state.TaintedNodes[alloc.NodeID]
+		allocRuntime.taintedNode, allocRuntime.nodeIsTainted = state.TaintedNodes[alloc.NodeID]
 
 		// Apply classification rules in order (first match wins).
 		classified := false
 		for _, rule := range classificationRules {
-			if rule.condition(ctx) {
+			if rule.condition(allocRuntime) {
 				targetSet := categoryMap[rule.category]
 				(*targetSet)[alloc.ID] = alloc
 				classified = true

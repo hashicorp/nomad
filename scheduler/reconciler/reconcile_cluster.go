@@ -410,7 +410,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	canaries := a.cancelUnneededCanaries(&all, group, result)
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.clusterState)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.classifyAllocs(a.clusterState)
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
@@ -767,7 +767,7 @@ func (a *AllocReconciler) cancelUnneededCanaries(all *allocSet, group string, re
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _, _, _ := canaries.filterByTainted(a.clusterState)
+		untainted, migrate, lost, _, _, _, _ := canaries.classifyAllocs(a.clusterState)
 
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final

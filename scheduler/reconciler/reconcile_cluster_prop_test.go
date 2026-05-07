@@ -257,7 +257,7 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 			}
 		}
 		canarySet := all.fromKeys(expectedCanaries)
-		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.filterByTainted(clusterState)
+		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.classifyAllocs(clusterState)
 
 		stopSet = stopSet.union(migrate, lost)
 
