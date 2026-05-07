@@ -19,6 +19,7 @@ runs:
         linux*)  os="linux" ;;
         darwin*) os="darwin" ;;
         msys*)   os="windows" ;;
+        cygwin*)  os="windows" ;;
         *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
       esac
 
