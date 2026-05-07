@@ -5,7 +5,7 @@ schema_version = 1
 
 project {
   license        = "BUSL-1.1"
-  copyright_year = 2024
+  copyright_year = 2019
 
   header_ignore = [
     "command/asset/*.hcl",
