@@ -4,6 +4,7 @@
 package command
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -17,7 +18,7 @@ func TestJobQueue_Implements(t *testing.T) {
 	var _ cli.Command = &JobQueueCommand{}
 }
 
-func TestJobQueue_printOutput(t *testing.T) {
+func TestJobQueue_printFormatted(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
@@ -33,10 +34,11 @@ func TestJobQueue_printOutput(t *testing.T) {
 	}
 	cmd.printFormatted(testResp)
 
-	expect := "JobID   |   Tenant        |   Priority\n" +
-		"-----   |   ------        |   --------\n" +
-		"123     |   testTenant1   |   5\n"
+	expect := "Batch Queue Workloads\n" +
+		"JobID  Tenant       Priority\n" +
+		"123    testTenant1  5\n"
 
+	fmt.Println(ui.OutputWriter.String())
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
 

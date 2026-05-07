@@ -123,13 +123,13 @@ func (c *JobQueueCommand) printJSON(resp *api.BatchQueueStatusResponse) error {
 
 func (c *JobQueueCommand) printFormatted(resp *api.BatchQueueStatusResponse) {
 
-	out := make([]string, len(resp.Workloads)+2)
+	out := make([]string, len(resp.Workloads)+1)
 	out[0] = "JobID|Tenant|Priority"
-	out[1] = "-----|------|--------"
 
 	for i, v := range resp.Workloads {
-		out[i+2] = fmt.Sprintf("%s|%s|%d", v.JobID, v.Tenant, v.Priority)
+		out[i+1] = fmt.Sprintf("%s|%s|%d", v.JobID, v.Tenant, v.Priority)
 	}
 
-	c.Ui.Output(columnize.Format(out, &columnize.Config{Glue: "   |   "}))
+	c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Workloads[reset]"))
+	c.Ui.Output(columnize.SimpleFormat(out))
 }
