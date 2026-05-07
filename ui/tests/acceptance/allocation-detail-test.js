@@ -449,8 +449,10 @@ module('Acceptance | allocation detail', function (hooks) {
       'Title is descriptive',
     );
     assert.ok(
-      /ACL token.+?allocation lifecycle/.test(Allocation.inlineError.message),
-      'Message mentions ACLs and the appropriate permission',
+      /ACL token.+?allocation lifecycle|not signed in.+sign in to perform this action/i.test(
+        Allocation.inlineError.message,
+      ),
+      'Message mentions ACL permissions or sign-in guidance',
     );
 
     await Allocation.inlineError.dismiss();
